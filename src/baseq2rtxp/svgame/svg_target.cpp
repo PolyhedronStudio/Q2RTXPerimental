@@ -70,7 +70,7 @@ void Use_Target_Speaker( svg_base_edict_t *ent, svg_base_edict_t *other, svg_bas
 		if ( ent->s.sound ) {
 			ent->s.sound = 0;   // turn it off
 		} else {
-			ent->s.sound = ent->noise_index;    // start it
+			ent->s.sound = ent->noiseSoundIndexA;    // start it
 		}
     } else {
         // normal sound
@@ -80,8 +80,8 @@ void Use_Target_Speaker( svg_base_edict_t *ent, svg_base_edict_t *other, svg_bas
             chan = CHAN_VOICE;
         // use a positioned_sound, because this entity won't normally be
         // sent to any clients because it is invisible
-        //gi.positioned_sound(ent->s.origin, ent, chan, ent->noise_index, ent->volume, ent->attenuation, 0);
-		SVG_EntityEvent_PositionedSound( ent, chan, ent->noise_index, ent->volume, ent->attenuation, 0 );
+        //gi.positioned_sound(ent->s.origin, ent, chan, ent->noiseSoundIndexA, ent->volume, ent->attenuation, 0);
+		SVG_EntityEvent_PositionedSound( ent, chan, ent->noiseSoundIndexA, ent->volume, ent->attenuation, 0 );
     }
 }
 
@@ -94,7 +94,7 @@ void SP_target_speaker( svg_base_edict_t *ent ) {
     if ( !strstr( (const char *)ent->noisePath, ".wav" ) ) {
         filePath += ".wav";
     }
-    ent->noise_index = gi.soundindex(filePath.c_str());
+    ent->noiseSoundIndexA = gi.soundindex(filePath.c_str());
 
     if (!ent->volume)
         ent->volume = 1.0f;
@@ -106,7 +106,7 @@ void SP_target_speaker( svg_base_edict_t *ent ) {
 
     // check for prestarted looping sound
     if (ent->spawnflags & 1)
-        ent->s.sound = ent->noise_index;
+        ent->s.sound = ent->noiseSoundIndexA;
 
     ent->SetUseCallback( Use_Target_Speaker );
 

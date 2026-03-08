@@ -661,7 +661,12 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     /**
     *
     *
-    *   TypeInfo Related:
+    *   Save Descriptor Fields, these can be created per inherited entity.
+	*	Simply declare a static saveDescriptorFields[]; in the subclass itself
+	*	in order for you to override it.
+	* 
+	*	Use the Descriptor Field macros to properly assign the fields that should
+	*	be saved and restored when changing levels and/or save/load games.
     *
     *
     **/
@@ -1082,12 +1087,18 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     **/
     //! [SpawnKey]: The path to the noise audio to use.
     svg_level_qstring_t noisePath = nullptr;
-    //! Pointer to noise entity.
-    svg_base_edict_t *mynoise = nullptr;       // can go in client only
-    svg_base_edict_t *mynoise2 = nullptr;
-    //! Noise indexes.
-    int32_t noise_index = 0;
-    int32_t noise_index2 = 0;
+	
+	//! Points to the entity's "personal" noise entity. Its origin will be the location
+	//! where the noise is emitted from.
+	svg_base_edict_t *personalNoiseEntity = nullptr;
+	//! When a weapon fires, this is set to the noise entity that was used for the weapon firing noise, 
+	svg_base_edict_t *weaponNoiseEntity = nullptr;
+	//! When a weapon fires and causes an impact, this is set to the noise entity that was used for the weapon impact noise.
+	svg_base_edict_t *impactNoiseEntity = nullptr;
+
+    //! Noise Sound Resource indexes.
+    int32_t noiseSoundIndexA = 0;
+    int32_t noiseSoundIndexB = 0;
 
     /**
     *   Sound Data:

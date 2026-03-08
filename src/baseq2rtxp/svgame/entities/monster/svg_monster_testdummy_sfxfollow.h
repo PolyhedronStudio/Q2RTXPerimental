@@ -1,12 +1,12 @@
 /********************************************************************
 *
 *
-*    ServerGame: TestDummy Debug NPC Edict (A* only)
-*    File: svg_monster_testdummy_debug.h
+*    ServerGame: TestDummy Sound-Follow NPC Edict
+*    File: svg_monster_testdummy_sfxfollow.h
 *    Description:
-*        Lightweight debug variant of the TestDummy that always attempts
-*        asynchronous A* to its activator. Useful for isolating pathfinding
-*        failures without other AI behavior interfering.
+*		Lightweight debug variant of the TestDummy that always attempts
+*		asynchronous A* to a last heard nearby sound.
+*		Useful for isolating pathfinding failures without other AI behavior interfering.
 *
 *
 ********************************************************************/
@@ -25,23 +25,23 @@
 
 
 /**
- *    Debug TestDummy Entity: always A* to activator
+ *    Sound-follow TestDummy Entity: investigate the most recently heard nearby sound
  **/
-struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
+struct svg_monster_testdummy_sfxfollow_t : public svg_base_edict_t {
 	//! Default constructor.
-	svg_monster_testdummy_debug_t() = default;
-        //! Constructor for use with constructing for an cm_entity_t *entityDictionary.
-	svg_monster_testdummy_debug_t( const cm_entity_t *ed ) : Super( ed ) {};
+	svg_monster_testdummy_sfxfollow_t() = default;
+		//! Constructor for use with constructing for an cm_entity_t *entityDictionary.
+	svg_monster_testdummy_sfxfollow_t( const cm_entity_t *ed ) : Super( ed ) {};
 	//! Destructor.
-	virtual ~svg_monster_testdummy_debug_t() = default;
+	virtual ~svg_monster_testdummy_sfxfollow_t() = default;
 
 	/**
 	*    Register this spawn class as a world-spawnable entity.
 	**/
 	DefineWorldSpawnClass(
-		"monster_testdummy_debug", svg_monster_testdummy_debug_t, svg_base_edict_t,/*svg_monster_testdummy_t,*/
+		"monster_testdummy_sfxfollow", svg_monster_testdummy_sfxfollow_t, svg_base_edict_t,/*svg_monster_testdummy_t,*/
 		EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn,
-		svg_monster_testdummy_debug_t::onSpawn
+		svg_monster_testdummy_sfxfollow_t::onSpawn
 	);
 
 
@@ -58,32 +58,32 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	/**
 	*   @brief  Spawn.
 	**/
-	DECLARE_MEMBER_CALLBACK_SPAWN( svg_monster_testdummy_debug_t, onSpawn );
+	DECLARE_MEMBER_CALLBACK_SPAWN( svg_monster_testdummy_sfxfollow_t, onSpawn );
 	/**
 	*   @brief  Post-Spawn.
 	**/
-	DECLARE_MEMBER_CALLBACK_POSTSPAWN( svg_monster_testdummy_debug_t, onPostSpawn );
+	DECLARE_MEMBER_CALLBACK_POSTSPAWN( svg_monster_testdummy_sfxfollow_t, onPostSpawn );
 	/**
 	*   @brief  Thinking.
 	**/
-	DECLARE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink );
+	DECLARE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_sfxfollow_t, onThink );
 
 	/**
 	*   @brief  Touched.
 	**/
-	DECLARE_MEMBER_CALLBACK_TOUCH( svg_monster_testdummy_debug_t, onTouch );
+	DECLARE_MEMBER_CALLBACK_TOUCH( svg_monster_testdummy_sfxfollow_t, onTouch );
 	/**
 	*   @brief
 	**/
-	DECLARE_MEMBER_CALLBACK_USE( svg_monster_testdummy_debug_t, onUse );
+	DECLARE_MEMBER_CALLBACK_USE( svg_monster_testdummy_sfxfollow_t, onUse );
 	/**
 	*   @brief
 	**/
-	DECLARE_MEMBER_CALLBACK_PAIN( svg_monster_testdummy_debug_t, onPain );
+	DECLARE_MEMBER_CALLBACK_PAIN( svg_monster_testdummy_sfxfollow_t, onPain );
 	/**
 	*   @brief
 	**/
-	DECLARE_MEMBER_CALLBACK_DIE( svg_monster_testdummy_debug_t, onDie );
+	DECLARE_MEMBER_CALLBACK_DIE( svg_monster_testdummy_sfxfollow_t, onDie );
 
 
 
@@ -92,66 +92,51 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	*
 	*
 	*		Entity 'onThink' State Routines:
-	*			- Each of these is set as the nextThink for the onThink callback, 
+	*			- Each of these is set as the nextThink for the onThink callback,
 	*			and thus determines the behavior of the next think frame.
 	*
 	*
 	*
 	**/
 	/**
-	*	@brief	A* specific thinker: always attempt async A* to activator if present(and if it goes LOS, sets think to onThink_AStarPursuitTrail.), otherwise go idle.
+	*	@brief		Deactivated idle thinker.
+	*	@details	Keeps the sound-follow NPC stationary until it is explicitly activated by use.
+	**/
+	DECLARE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_sfxfollow_t, onThink_Idle );
+	/**
+	*	@brief		Activated lookout thinker.
 	*
-	*	@details	Will always check for player presence first, and if not present will check for trail presence.
-	*				If player is present, will attempt async A* to player.
-	*				If trail is present, sets nextThink to onThink_AStarPursuitTrail and attempt async A* to the trail's last known position.
-	*				If neither are present, will set nextThink to onThink_Idle.
+	*	@details	Sweeps in place while monitoring for fresh audible player-noise events.
+	*				Transitions into `onThink_PursueSoundInvestigation` once a valid sound target is acquired.
 	**/
-	DECLARE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarToPlayer );
+	DECLARE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_sfxfollow_t, onThink_IdleLookout );
 	/**
-	*	@brief	A* specific thinker: always attempt async A* to activator trail if present, and otherwise go idle.
-	* 
-	*	@details	Will always check for player presence first, and if not present will check for trail presence. 
-	*				If trail is present, will attempt async A* to the trail's last known position. 
-	*				If player is present, sets nextThink to onThink_AStarToPlayer and attempt async A* to player. 
-	*				If neither are present, will set nextThink to onThink_Idle.
+	*   @brief		Pursue the cached sound investigation target with async A*.
+	*   @details	Keeps following the current sound origin until it is reached, expires, or a newer sound event replaces it.
 	**/
-	DECLARE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarPursuitTrail );
-	/**
-	*   @brief	Investigate the most recently heard player-noise position, then return to idle/pursuit.
-	**/
-	DECLARE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_InvestigateSound );
-
-	/**
-	*	@brief	Always looks for activator presence, or its trail, and otherwise does nothing.
-	* 
-	*	@details	If we are in idle state, it means we failed to find a valid target to pursue in the previous think.
-	*				If activator is present, sets nextThink to onThink_AStarToPlayer and attempt async A* to player.
-	*				If trail is present, sets nextThink to onThink_AStarPursuitTrail and attempt async A* to the trail's last known position.
-	*				If neither are present, will keep nextThink as onThink_Idle and do nothing.
-	**/
-	DECLARE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Idle );
+	DECLARE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_sfxfollow_t, onThink_PursueSoundInvestigation );
 	/**
 	*	@brief	Set when dead. Does nothing.
 	**/
-	DECLARE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Dead );
+	DECLARE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_sfxfollow_t, onThink_Dead );
 
 
 	//=============================================================================================
 	//=============================================================================================
-	
+
 
 	/**
 	*
 	*
 	*
-	*		(Generic-) NPC Entity Think Support Routines:
+	*		Generic Core (Think-) Support Routines:
 	*
 	*
 	*
 	**/
 	/**
 	*	@brief	Generic support routine taking care of the base logic that each onThink implementation relies on.
-	*			( Setup navPolicy, recategorize ground and liquid information,  check for being alive, 
+	*			( Setup navPolicy, recategorize ground and liquid information,  check for being alive,
 	*			  check for activator presence, etc).
 	*	@return	True if the caller should proceed with its specific think logic, or false if it should return early and skip the specific think logic.
 	**/
@@ -184,27 +169,33 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	*
 	*
 	**/
-	//! Tracks whether the NPC has been enabled(By use, with the intend for it to follow the player) by the player.
+	//! Tracks whether the NPC has been enabled(By use, with the intend for it to A* to sound locations) by the player.
 	bool isActivated = false;
+	//! Last time we heard a sound from the player.
+	QMTime aiLastSoundHeard = 0_ms;
 	//! Last server time when the activator was confirmed visible.
-	QMTime lastPlayerVisibleTime = 0_ms;
+	QMTime aiLastPlayerSeen = 0_ms;
 
 	/**
 	*   Explicit AI states.
 	**/
 	enum class AIThinkState {
+		//! Idle when deactivated.
+		Idle,
+		//! Idle lookout for sound events, with occasional activator checks.
 		IdleLookout,
-		PursuePlayer,
-		PursueBreadcrumb,
-		InvestigateSound
+		//! Pursue the sound source with async A*, but do not update the goal unless we get a new sound event.
+		PursueSoundInvestigation
 	};
 	//! Determines the thinking state callback to fire for the frame.
-	AIThinkState thinkAIState = AIThinkState::IdleLookout;
+	AIThinkState thinkAIState = AIThinkState::Idle;
 
 	/**
 	*	@brief	NPC Goal Z Blend Policy Adjustment Helper:
 	**/
 	void DetermineGoalZBlendPolicyState( const Vector3 &goalOrigin );
+
+
 
 	/**
 	*
@@ -218,9 +209,7 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	skm_rootmotion_set_t *rootMotionSet = nullptr;
 
 
-	//=============================================================================================
-	//=============================================================================================
-	
+
 	/**
 	*
 	*
@@ -231,13 +220,28 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	*
 	**/
 	//! Current movement state for the monster, used for both the main think dispatcher and the specific A* pursuit thinkers.
-	mm_move_t monsterMove = {};
+	mm_move_t monsterMoveState = {};
+
+	///**
+	//*	AI SlideMove Flags for the current frame, which is used to tune the behavior 
+	//*	of the slide move process in the GenericThinkFinish routine.
+	//**/
+	//enum mm_ai_move_flags_t {
+	//	//! Should simply not be the case.
+	//	NONE	= 0,
+	//	//! Moved successfully with no obstructions.
+	//	MOVED	= BIT( 0 ),
+	//	//! Move hit into an obstruction, does not imply we did not slide at all.
+	//	HIT_OBSTRUCTION = BIT( 1 ),
+	//	//! Move is completely blocked and we did not slide at all.
+	//	TRAPPED = BIT( 2 )
+	//} aiMoveFlags = mm_ai_move_flags_t::NONE;
 
 	/**
 	*	@brief	Performs the actual SlideMove processing and updates the final origin if successful.
 	*	@return	The blockedMask result from the slide move, which is important for the caller to determine if we should do any special handling for being trapped (e.g., try to jump, pick a new path, etc).
 	**/
-	const int32_t ProcessSlideMove();
+	const mm_slide_move_flags_t ProcessSlideMove();
 
 	/**
 	*    @brief    Slerp direction helper. (Local to this TU to avoid parent dependency).
@@ -258,17 +262,22 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	*
 	*
 	*
-	*	Internal Navigation Queueing and Path Following Logic API:
+	*	Internal Logic APIs:
+	*		- Navigation Agent Bounds Retrieval
+	*		- Navigation Queueing
+	*		- Path Following
 	*
 	*
 	*
 	**/
-
+	/**
+	*	@brief	Retrieve the appropriate navigation agent bounds for the entity, prioritizing navmesh-defined bounds, then nav-agent-profile-defined bounds, and finally falling back to entity-defined bounds if necessary.
+	**/
 	void GetNavigationAgentBounds( Vector3 *out_mins, Vector3 *out_maxs );
 
 	/**
 	*   @brief	Clear stale async nav request state when no navmesh is loaded.
-	*   @param	self	Debug testdummy owning the async path process.
+	*   @param	self	Sound-follow testdummy owning the async path process.
 	*   @return	True when navmesh is unavailable and caller should early-return.
 	*   @note	Prevents repeated queue refresh/debounce loops on maps without navmesh.
 	**/
@@ -281,7 +290,7 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	*    @return   True if movement/animation was updated.
 	**/
 	const bool MoveAStarToOrigin( const Vector3 &goalOrigin, bool force = false );
-	
+
 	/**
 	*	@brief	Enqueue a navigation rebuild request when the async queue is enabled.
 	*	@param	self	NPC owning the path process state.
@@ -319,41 +328,32 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 
 
 	/**
-	* 
-	* 
-	* 
+	*
+	*
+	*
 	*	Path Navigation State:
-	* 
-	* 
-	* 
+	*
+	*
+	*
 	**/
 	/**
-	*	
+	*
 	**/
 	struct PathNavigationState_t {
 		//! Current state of the async nav path process, which is used by the A* pursuit thinkers and the generic think finish routine.
 		svg_nav_path_process_t process = {};
 		//! Current policy settings for the async nav path process, which is used by the A* pursuit thinkers and the generic think finish routine.
 		svg_nav_path_policy_t policy = {};
-
 		//! Rate limit for queue-status logging so we do not spam the console repeatedly.
 		QMTime nextQueueStatusLogTime = 0_ms;
 
 		/**
 		*	@brief	Last known valid navigation fallback point (entity feet-origin space).
-		*			Used as a conservative fallback when async A* hasn't produced a path yet,
-		*			so the monster can at least attempt to move toward the player instead of just standing still.
-		**/
-		struct lastNavigationFallbackPoint_t {
-			//! Last known valid navigation point in world space. 
-			//! Used as a conservative fallback when async A* hasn't produced a path yet.
-			Vector3 origin = { 0.0f, 0.0f, 0.0f };
-			//! Whether lastValidNavigationPointOrigin contains a meaningful value.
-			bool hasPoint = false;
-		} fallBackPathPoint = {};
-
+		*	@details	Used as a conservative fallback when async A* hasn't produced a path yet,
+		*				so the monster can at least attempt to move toward the player instead of just standing still.
+		*/
 		struct goalNavigationState_t {
-		//! Tracks the last goal position used to validate cached navigation paths.
+			//! Tracks the last goal position used to validate cached navigation paths.
 			Vector3 origin = { 0.f, 0.f, 0.f };
 			//! Tracks whether last_nav_goal_origin holds valid data.
 			bool isValid = false;
@@ -375,7 +375,7 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	**/
 	/**
 	*	@brief	State information for the idle lookout scanning behavior.
-	*			Used for the onThink_Idle state, which is the default fallback state when we have no target to pursue.
+	*			Used for the `onThink_IdleLookout` state while the NPC is actively listening for new sounds.
 	*
 	*	@note	In a more complex implementation, we would probably want to have this support multiple simultaneous sound investigations with a proper queue,
 	*			and we would want the idle scan state to also keep track of which discrete heading we are currently looking at and when
@@ -392,24 +392,12 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 		//! Current discrete idle heading index (0..7) used for 45deg stepped scanning.
 		int32_t headingIndex = 0;
 		//! Target yaw degrees for the current idle heading. We lerp ideal_yaw toward this to smooth turns.
-		float targetYaw = 0.0;
+		double targetYaw = 0.0;
 	} stateIdleScan = {};
 
 	/**
-	*	@brief	Navigation state for when we are pursuing the activator's breadcrumb trail instead of the activator itself.
-	**/
-	struct StateNavigationTrail_t {
-		//! Current breadcrumb we are attempting to chase when following the trail.
-		svg_base_edict_t *targetEntity = nullptr;
-
-		//! Time marker used by the player-trail system. Monsters set this to indicate
-		//! which trail timestamp they are currently following. Defaults to 0 (no trail).
-		QMTime   trailTimeStamp = 0_ms;
-	} stateNavigationTrail = {};
-	
-	/**
-	*	@brief	Information about the most recently heard sound event that we are investigating. 
-	*			Used for the onThink_InvestigateSound state.
+	*	@brief	Information about the most recently heard sound event that we are investigating.
+    *			Used for the `onThink_PursueSoundInvestigation` state.
 	**/
 	struct StateSoundScan_t {
 		//! The cached investigation target origin of the sound event that we took note of.
@@ -429,15 +417,15 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	*
 	**/
 	//! For when dummy is standing straight up.
-	static constexpr const Vector3 DUMMY_BBOX_STANDUP_MINS	= PHYS_DEFAULT_BBOX_STANDUP_MINS;
-	static constexpr const Vector3 DUMMY_BBOX_STANDUP_MAXS	= PHYS_DEFAULT_BBOX_STANDUP_MAXS;
-	static constexpr const double DUMMY_VIEWHEIGHT_STANDUP	= PHYS_DEFAULT_VIEWHEIGHT_STANDUP;
+	static constexpr const Vector3 DUMMY_BBOX_STANDUP_MINS = PHYS_DEFAULT_BBOX_STANDUP_MINS;
+	static constexpr const Vector3 DUMMY_BBOX_STANDUP_MAXS = PHYS_DEFAULT_BBOX_STANDUP_MAXS;
+	static constexpr const double DUMMY_VIEWHEIGHT_STANDUP = PHYS_DEFAULT_VIEWHEIGHT_STANDUP;
 	//! For when dummy is crouching.
-	static constexpr const Vector3 DUMMY_BBOX_DUCKED_MINS	= PHYS_DEFAULT_BBOX_DUCKED_MINS;
-	static constexpr const Vector3 DUMMY_BBOX_DUCKED_MAXS	= PHYS_DEFAULT_BBOX_DUCKED_MAXS;
-	static constexpr const double DUMMY_VIEWHEIGHT_DUCKED	= PHYS_DEFAULT_VIEWHEIGHT_DUCKED;
+	static constexpr const Vector3 DUMMY_BBOX_DUCKED_MINS = PHYS_DEFAULT_BBOX_DUCKED_MINS;
+	static constexpr const Vector3 DUMMY_BBOX_DUCKED_MAXS = PHYS_DEFAULT_BBOX_DUCKED_MAXS;
+	static constexpr const double DUMMY_VIEWHEIGHT_DUCKED = PHYS_DEFAULT_VIEWHEIGHT_DUCKED;
 	//! For when dummy is dead.
-	static constexpr const Vector3 DUMMY_BBOX_DEAD_MINS		= { -16., -16., -36. };
-	static constexpr const Vector3 DUMMY_BBOX_DEAD_MAXS		= { 16., 16., 8. };
-	static constexpr double	DUMMY_VIEWHEIGHT_DEAD			= 8.;
+	static constexpr const Vector3 DUMMY_BBOX_DEAD_MINS = { -16., -16., -36. };
+	static constexpr const Vector3 DUMMY_BBOX_DEAD_MAXS = { 16., 16., 8. };
+	static constexpr double	DUMMY_VIEWHEIGHT_DEAD = 8.;
 };

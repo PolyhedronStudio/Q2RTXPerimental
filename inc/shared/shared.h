@@ -20,6 +20,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //
 // shared.h -- included first by ALL program modules
 //
+// Note: the above macro is defined to indicate that a 'config.h' file is available for inclusion, which may contain platform-specific configuration settings. The actual presence of 'config.h' should be checked with the #ifdef directive before including it, as shown below.
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif

@@ -50,11 +50,11 @@ static bool Nav_WriteValue( gzFile f, const T &v ) {
 *	@brief	Serialize the current navigation voxelmesh to a file.
 *	@return	True on success, false on failure.
 **/
-bool SVG_Nav_SaveVoxelMesh( const char *filename ) {
+bool SVG_Nav_SaveVoxelMesh( const char *levelName ) {
 	/**
 	*	Sanity checks: require filename and an active nav mesh.
 	**/
-	if ( !filename || !filename[ 0 ] ) {
+	if ( !levelName || !levelName[ 0 ] ) {
 		return false;
 	}
 	if ( !g_nav_mesh ) {
@@ -64,14 +64,15 @@ bool SVG_Nav_SaveVoxelMesh( const char *filename ) {
 	/**
 	*	Build full file path for the nav cache.
 	**/
-	const std::string filePath = BASEGAME "/maps/nav/" + std::string( filename ) + ".nav";
+	// Actual filename of the .nav file.
+	const std::string navMeshFilePath = Nav_GetPathForLevelNav( levelName, true );
 
 	/**
 	*	Open output file (gzip if zlib enabled).
 	**/
-	gzFile f = gzopen( filePath.c_str(), "wb" );
+	gzFile f = gzopen( navMeshFilePath.c_str(), "wb" );
 	if ( !f ) {
-		gi.dprintf( "%s: failed to open '%s'\n", __func__, filePath.c_str() );
+		gi.dprintf( "%s: failed to open '%s'\n", __func__, navMeshFilePath.c_str() );
 		return false;
 	}
 

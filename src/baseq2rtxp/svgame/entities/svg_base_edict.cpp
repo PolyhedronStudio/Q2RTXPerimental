@@ -314,10 +314,11 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     **/
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, noisePath, SD_FIELD_TYPE_LEVEL_QSTRING ),
 
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, mynoise, SD_FIELD_TYPE_EDICT ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, mynoise2, SD_FIELD_TYPE_EDICT ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, noise_index, SD_FIELD_TYPE_INT32 ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, noise_index2, SD_FIELD_TYPE_INT32 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, personalNoiseEntity, SD_FIELD_TYPE_EDICT ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, weaponNoiseEntity, SD_FIELD_TYPE_EDICT ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, impactNoiseEntity, SD_FIELD_TYPE_EDICT ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, noiseSoundIndexA, SD_FIELD_TYPE_INT32 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, noiseSoundIndexB, SD_FIELD_TYPE_INT32 ),
     /**
     *   Sound Data:
     **/
@@ -741,8 +742,8 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     noisePath = nullptr;
     mynoise = nullptr;
     mynoise2 = nullptr;
-    noise_index = 0;
-    noise_index2 = 0;
+    noiseSoundIndexA = 0;
+    noiseSoundIndexB = 0;
 
     /**
     *   Sound Data:

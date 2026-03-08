@@ -10,6 +10,7 @@
 #include "sharedgame/sg_shared.h"
 #include "sharedgame/sg_entity_events.h"
 #include "sharedgame/sg_misc.h"
+#include "sharedgame/math/sg_math_velocity.h"
 #include "sharedgame/pmove/sg_pmove.h"
 #include "sharedgame/pmove/sg_pmove_slidemove.h"
 
@@ -1798,10 +1799,10 @@ static void PM_WaterMove() {
 		#if 1
 			// Use a non-bouncy clip against the ground plane to avoid injecting upward velocity
 			// from overbounce/reflection which causes spurious kickoff/miss toggles.
-			PM_SlideClipVelocity( pm->state->pmove.velocity, pml.groundTrace.plane.normal, pm->state->pmove.velocity );
+			SG_SlideClipVelocity( pm->state->pmove.velocity, pml.groundTrace.plane.normal, pm->state->pmove.velocity );
 		#else
 			// Use a bouncy clip against the ground plane. (This oscilates the Z axis when walking on bottom and moving down/ducking.)
-			PM_BounceClipVelocity( pm->state->pmove.velocity, pml.groundTrace.plane.normal, pm->state->pmove.velocity, PM_OVERCLIP );
+			SG_BounceClipVelocity( pm->state->pmove.velocity, pml.groundTrace.plane.normal, pm->state->pmove.velocity, PM_OVERCLIP );
 		#endif
 		// Now normalize it.
 		pm->state->pmove.velocity = QM_Vector3NormalizeDP( pm->state->pmove.velocity );
@@ -1865,7 +1866,7 @@ static void PM_FlyMove( bool noClip = false ) {
 		// We may have a ground plane that is very steep.
 		// Even though we don't have a groundentity, slide along the steep plane
 		if ( pml.hasGroundPlane ) {
-			PM_BounceClipVelocity( pm->state->pmove.velocity, pml.groundTrace.plane.normal,
+			SG_BounceClipVelocity( pm->state->pmove.velocity, pml.groundTrace.plane.normal,
 				pm->state->pmove.velocity, PM_OVERCLIP );
 		}
 
@@ -1948,7 +1949,7 @@ static void PM_AirMove( void ) {
 	// though we don't have a groundentity
 	// slide along the steep plane
 	if ( pml.hasGroundPlane ) {
-		PM_BounceClipVelocity( pm->state->pmove.velocity, pml.groundTrace.plane.normal,
+		SG_BounceClipVelocity( pm->state->pmove.velocity, pml.groundTrace.plane.normal,
 			pm->state->pmove.velocity, PM_OVERCLIP );
 	}
 
@@ -2018,8 +2019,8 @@ static void PM_WalkMove( const bool canJump ) {
 	pml.forward = Vector2( pml.forward );
 	pml.right = Vector2( pml.right );
 	// project the forward and right directions onto the ground plane
-	PM_BounceClipVelocity( pml.forward, pml.groundTrace.plane.normal, pml.forward, PM_OVERCLIP );
-	PM_BounceClipVelocity( pml.right, pml.groundTrace.plane.normal, pml.right, PM_OVERCLIP );
+	SG_BounceClipVelocity( pml.forward, pml.groundTrace.plane.normal, pml.forward, PM_OVERCLIP );
+	SG_BounceClipVelocity( pml.right, pml.groundTrace.plane.normal, pml.right, PM_OVERCLIP );
 	// Normalize them.
 	pml.forward = QM_Vector3NormalizeDP( pml.forward );
 	pml.right = QM_Vector3NormalizeDP( pml.right );
@@ -2076,7 +2077,7 @@ static void PM_WalkMove( const bool canJump ) {
 	const double velocityLength = QM_Vector3LengthDP( pm->state->pmove.velocity );
 
 	// slide along the ground plane
-	PM_BounceClipVelocity( pm->state->pmove.velocity, pml.groundTrace.plane.normal,
+	SG_BounceClipVelocity( pm->state->pmove.velocity, pml.groundTrace.plane.normal,
 		pm->state->pmove.velocity, PM_OVERCLIP );
 
 	// don't decrease velocity when going up or down a slope

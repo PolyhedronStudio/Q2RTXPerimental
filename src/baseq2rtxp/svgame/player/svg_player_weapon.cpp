@@ -31,64 +31,174 @@ static bool     is_quad;
 static byte     is_silenced;
 
 /**
-*   @detail Each player can have two noise objects associated with it:
-*           a personal noise (jumping, pain, weapon firing), and a weapon
-*           target noise (bullet wall impacts)
 *
-*           Monsters that don't directly see the player can move
-*           to a noise in hopes of seeing the player from there.
+* 
+*	'Sound' entity thinking routine. The sound entity will be active and reachable by the SVG_Entity_IsVisible
+*	method for a specific amount of time, after which it'll free itself again. If we do not, we'd be having a
+*	continuous allocating of edicts. We don't want that.
+* 
+* 
 **/
-void SVG_Player_PlayerNoise( svg_base_edict_t *who, const Vector3 &where, int type ) {
-    svg_base_edict_t *noise;
+//! The lifetime of the sound entity, after which it'll free itself again. If we do not, we'd be having a continuous allocating of edicts. We don't want that.
+static constexpr QMTime SoundEntityLifetime = 6_sec;
+DECLARE_GLOBAL_CALLBACK_THINK( PlayerNoise_onThink );
+//! Implementation of the sound entity thinking routine. The sound entity will be active and reachable by the SVG_Entity_IsVisible method for a specific amount of time, after which it'll free itself again. If we do not, we'd be having a continuous allocating of edicts. We don't want that.
+DEFINE_GLOBAL_CALLBACK_THINK( PlayerNoise_onThink )( svg_base_edict_t *self ) -> void {
+	// Unlink and disable the sound entity if its lifetime has expired.
+	gi.unlinkentity( self );
+	// Not in-use anymore.
+	self->inUse = false;
+	// Escape.
 
-	// <Q2RTXP>: TODO: Just move into a game rule check function.
-	if ( deathmatch->value ) {
-		return;
+
+	//// The lifetime of this sound entity.
+	//if ( self->last_sound_time < level.time - 6_sec ) {
+	//	// Unlink.
+	//	gi.unlinkentity( self );
+	//	// Not in-use anymore.
+	//	self->inUse = false;
+	//	// Escape.
+	//	return;
+	//}
+
+	//// Set think method for the next frame.
+	//self->nextthink = level.time + FRAME_TIME_MS;
+	//self->SetThinkCallback( PlayerNoise_onThink );
+}
+
+/**
+*	Function to inspect whether a noise entity is valid for sighting purposes. 
+*	Checks if the noise entity is still within its lifetime, and if not, 
+*	unlinks it and marks it as not in-use.
+**/
+const bool SVG_PlayerNoise_IsEntityAlive( svg_base_edict_t *noise ) {
+	// Check if the noise entity is active.
+	if ( !SVG_Entity_IsActive( noise ) ) {
+		// Not valid.
+		return false;
 	}
+	// Check if the noise entity is still within its lifetime.
+	if ( noise->last_sound_time < level.time - SoundEntityLifetime ) {
+		// Unlink.
+		gi.unlinkentity( noise );
+		// Not in-use anymore.
+		noise->inUse = false;
+		// Not alife anymore.
+		return false;
+	}
+	// Alive and kicking..
+	return true;
+}
 
+/**
+*	Small utility function to setup the player noise entity for a player. 
+**/
+static inline void PlayerNoise_Setup( svg_base_edict_t *noise, svg_base_edict_t *who, const int32_t soundType ) {
+
+	if ( soundType == PLAYER_NOISE_WEAPON ) {
+		noise->s.entityType = ET_PLAYER_NOISE_WEAPON;
+	} else if ( soundType == PLAYER_NOISE_IMPACT ) {
+		noise->s.entityType = ET_PLAYER_NOISE_IMPACT;
+	} else if ( soundType == PLAYER_NOISE_SELF ) {
+		noise->s.entityType = ET_PLAYER_NOISE_PERSONAL;
+	}
+	noise->mins = { -8, -8, -8 };
+	noise->maxs = { -8, -8, -8 };
+	noise->owner = who;
+	noise->svFlags = SVF_NOCLIENT;
+	noise->nextthink = level.time + SoundEntityLifetime;
+	noise->SetThinkCallback( PlayerNoise_onThink );
+}
+
+/**
+*   @detail Each NPC entity can have three noise objects associated with it:
+*           - An entity indicating a client's own personal noise (jumping, pain, weapon firing)
+*			- A weapon target noise (weapon firing)
+*           - A target noise (bullet wall impacts)
+*
+*           Monsters that don't directly see the player can move to a noise in hopes of seeing the player from there.
+**/
+void SVG_PlayerNoise_MakeNoise( svg_base_edict_t *who, const Vector3 &where, int type ) {
+	// <Q2RTXP>: TODO: Just move into a game rule check function.
+	//if ( deathmatch->value ) {
+	//	return;
+	//}
+
+	// If the client has the FL_NOTARGET flag, then we don't want to create noise entities for them, 
+	// because the monsters won't be able to see them anyway, so it would just be a waste of resources.
 	if ( who->flags & FL_NOTARGET ) {
 		return;
 	}
 
+	// If the player doesn't have noise entities, create them.
+	svg_base_edict_t *personalNoise = who->personalNoiseEntity;
+	if ( personalNoise == nullptr ) {
+		// Personal noise entity:
+		personalNoise = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>( "player_noise" );
+		// Setup the noise entity:
+		PlayerNoise_Setup( personalNoise, who, PLAYER_NOISE_SELF );
+		// Assign the personal noise entity to the player.
+		who->personalNoiseEntity = personalNoise;
+	}
+	svg_base_edict_t *weaponNoise = who->weaponNoiseEntity;
+	if ( weaponNoise == nullptr ) {
+		// Weapon target noise entity:
+        weaponNoise = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>( "player_noise" );
+		// Setup the noise entity:
+		PlayerNoise_Setup( weaponNoise, who, PLAYER_NOISE_WEAPON );
+		// Assign the weapon noise entity to the player.
+		who->weaponNoiseEntity = weaponNoise;
+    }
+	// Impact noise entity:
+	svg_base_edict_t *impactNoise = who->impactNoiseEntity;
+	if ( impactNoise == nullptr ) {
+		// Weapon target noise entity:
+		impactNoise = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>( "player_noise" );
+		// Setup the noise entity:
+		PlayerNoise_Setup( impactNoise, who, PLAYER_NOISE_IMPACT );
+		// Assign the weapon noise entity to the player.
+		who->impactNoiseEntity = impactNoise;
+	}
 
-    if ( !who->mynoise ) {
-        noise = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>( "player_noise" );
-        VectorSet( noise->mins, -8, -8, -8 );
-        VectorSet( noise->maxs, 8, 8, 8 );
-        noise->owner = who;
-        noise->svFlags = SVF_NOCLIENT;
-        who->mynoise = noise;
-
-        noise = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>( "player_noise" );
-        VectorSet( noise->mins, -8, -8, -8 );
-        VectorSet( noise->maxs, 8, 8, 8 );
-        noise->owner = who;
-        noise->svFlags = SVF_NOCLIENT;
-        who->mynoise2 = noise;
+	// Weapon noises are prioritized over impact noises, which are prioritized over personal noises. 
+	// This is because weapon noises are more important for monsters to react to, 
+	// and impact noises are more important than personal noises.
+	svg_base_edict_t *noise = nullptr;
+	if ( type == PLAYER_NOISE_WEAPON ) {
+		noise = who->weaponNoiseEntity;
+		if ( noise ) {
+			noise->inUse = true; // <Q2RTXP>: TODO: Hmmm... This should happen at loadlevel time.
+			noise->last_sound_time = level.time;
+		}
+		level.weapon_sound_entity = noise;
+		level.weapon_sound_entity_time = level.time;
+	} else if ( type == PLAYER_NOISE_IMPACT ) {
+		noise = who->weaponNoiseEntity;
+		if ( noise ) {
+			noise->inUse = true; // <Q2RTXP>: TODO: Hmmm... This should happen at loadlevel time.
+			noise->last_sound_time = level.time;
+		}
+		level.impact_sound_entity = noise;
+		level.impact_sound_entity_time = level.time;
+    } else if ( type == PLAYER_NOISE_SELF ) {
+		noise = who->weaponNoiseEntity;
+		if ( noise ) {
+			noise->inUse = true; // <Q2RTXP>: TODO: Hmmm... This should happen at loadlevel time.
+			noise->last_sound_time = level.time;
+		}
+		level.personal_sound_entity = noise;
+		level.personal_sound_entity_time = level.time;
     }
 
-    if ( type == PNOISE_SELF || type == PNOISE_WEAPON ) {
-        noise = who->mynoise;
-        if ( noise ) {
-            noise->inUse = true; // <Q2RTXP>: TODO: Hmmm... This should happen at loadlevel time.
-        }
-        level.sound_entity = noise;
-        level.sound_entity_framenum = level.frameNumber;
-    } else { // type == PNOISE_IMPACT
-        noise = who->mynoise2;
-        if ( noise ) {
-            noise->inUse = true; // <Q2RTXP>: TODO: Hmmm... This should happen at loadlevel time.
-        }
-        level.sound2_entity = noise;
-        level.sound2_entity_framenum = level.frameNumber;
-    }
+	if ( noise != nullptr ) {
+		SVG_Util_SetEntityOrigin( noise, where, true );//VectorCopy( where, noise->s.origin );
+		
+		VectorSubtract( where, noise->maxs, noise->absMin );
+		VectorAdd( where, noise->maxs, noise->absMax );
 
-    SVG_Util_SetEntityOrigin( noise, where, true );//VectorCopy( where, noise->s.origin );
-    VectorSubtract( where, noise->maxs, noise->absMin );
-    VectorAdd( where, noise->maxs, noise->absMax );
-    noise->last_sound_time = level.time;
-
-    gi.linkentity( noise );
+		noise->last_sound_time = level.time;
+		gi.linkentity( noise );
+	}
 }
 
 /** 

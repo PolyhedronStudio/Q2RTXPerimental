@@ -479,22 +479,32 @@ void SVG_ShutdownGame( void ) {
     // Notify of shutdown.
     gi.dprintf( "==== Initiating ServerGame Shutdown ====\n" );
 
+	/**
+	*	We free edicts first since they may be referencing gamemode and level data in their shutdown, and we want to make sure that the gamemode and level are still around when that happens.
+	**/
+	gi.FreeTags( TAG_SVGAME_EDICTS );
+	/**
+	*	Free any 'level' resources that may be still allocated. 
+	*	This is important to do before freeing the gamemode, 
+	*	since the gamemode may want to reference level data in its shutdown.
+	**/
+	gi.FreeTags( TAG_SVGAME_LEVEL );
+	//! Now Nav data, which may be used by the gamemode, is freed, so we can free the gamemode itself.
+
     // Shutdown navigation system.
     SVG_Nav_Shutdown();
-
     // Shutdown the Lua VM.
     SVG_Lua_Shutdown();
 
+	/**
+	*	NOTE: The gamemode should be freed before the Lua VM since the gamemode may have Lua data that needs to be freed in its shutdown.
+	**/
+	//gi.FreeTags( TAG_SVGAME_EDICTS );
+	gi.FreeTags( TAG_SVGAME );
     // Free game mode object.
     // game.mode->Shutdown();
     delete game.mode;
     game.mode = nullptr;
-
-    // Free level, lua AND the game module its allocated ram.
-	//gi.FreeTags( TAG_SVGAME_LUA ); // <-- WID: Moved to SVG_Lua_Shutdown().
-    gi.FreeTags( TAG_SVGAME_EDICTS );
-    gi.FreeTags( TAG_SVGAME_LEVEL );
-    gi.FreeTags( TAG_SVGAME );
 
     // Notify of shutdown.
     gi.dprintf( "==== ServerGame Shutdown ====\n" );

@@ -61,6 +61,9 @@ static constexpr int32_t DUMMY_NAV_DEBUG = 1;
 static constexpr int32_t DUMMY_NAV_DEBUG = 0;
 #endif
 
+// Debug constants for tuning the test dummy's behavior and debug output.
+#define DUMMY_SEEK_IMPACT_SOUND_ONLY 1
+
 //! Maximum horizontal distance allowed for direct player pursuit before falling back.
 static constexpr double DUMMY_PLAYER_PURSUIT_MAX_DIST = 2048.0;
 //! Maximum allowed breadcrumb age before trail-follow is considered stale.
@@ -1235,9 +1238,9 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Investigate
 	*   Leave investigate mode once we reached the sound location.
 	**/
 	// Compute 2D distance to sound origin for arrival checking.
-	const double soundDist2DSqr = QM_Vector2DistanceSqr( self->stateSoundCan.origin, self->currentOrigin );
+	const double soundDist3DSqr = QM_Vector3DistanceSqr( self->stateSoundCan.origin, self->currentOrigin );
 	// If we are close enough to the sound origin, consider that we have arrived and go idle.
-	if ( soundDist2DSqr <= ( DUMMY_SOUND_INVESTIGATE_REACHED_DIST * DUMMY_SOUND_INVESTIGATE_REACHED_DIST ) ) {
+	if ( soundDist3DSqr <= ( DUMMY_SOUND_INVESTIGATE_REACHED_DIST * DUMMY_SOUND_INVESTIGATE_REACHED_DIST ) ) {
 		// Clear interest in the sound target since we have arrived.
 		self->stateSoundCan.hasOrigin = false;
 		// Set next think to idle since we have nothing to investigate anymore.
@@ -1342,23 +1345,46 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Idle )( svg
 	{
 		// Find the freshest sound event between the two possible sound entities.
 		svg_base_edict_t *foundAudibleEntity = nullptr;
-		// Note that sound_entity and sound2_entity are separate slots for noise events, 
-		// but they can come from the same source (e.g. player footsteps can trigger both). 
-		// We want to react to the freshest event regardless of which slot it is in, 
-		// so we compare timestamps to find the most recent.
-		if ( level.sound_entity && level.sound_entity->last_sound_time > self->stateSoundCan.lastTime ) {
-			// Start with sound_entity as the freshest sound if it is newer than our last processed sound time.
-			foundAudibleEntity = level.sound_entity;
-		}
-		// If sound2_entity is even newer, use that instead.
-		if ( level.sound2_entity && level.sound2_entity->last_sound_time > self->stateSoundCan.lastTime ) {
-			// If we don't have a fresh sound yet, or if sound2_entity is newer than the current freshest sound, use sound2_entity.
-			if ( !foundAudibleEntity 
-				|| ( foundAudibleEntity && ( level.sound2_entity && level.sound2_entity->last_sound_time > foundAudibleEntity->last_sound_time ) ) ) {
-				// sound2_entity is fresher than sound_entity, so use sound2_entity as the freshest sound.
-				foundAudibleEntity = level.sound2_entity;
+		//! Note that `weapon_sound_entity` and `impact_sound_entity` and `personal_sound_entity` 
+		//! are separate slots for noise events,
+		//! 
+		//! But they can come from the same source (e.g. player footsteps can trigger both). 
+		//! 
+		#ifdef DUMMY_SEEK_IMPACT_SOUND_ONLY
+			// If impact_sound_entity is even newer, use that instead.
+			if ( SVG_Entity_IsActive( level.impact_sound_entity ) && level.impact_sound_entity->last_sound_time > self->stateSoundCan.lastTime ) {
+				// If we don't have a fresh sound yet, or if sound2_entity is newer than the current freshest sound, use sound2_entity.
+				if ( !foundAudibleEntity
+					|| ( foundAudibleEntity && ( level.impact_sound_entity && level.impact_sound_entity->last_sound_time > foundAudibleEntity->last_sound_time ) ) ) {
+					// sound2_entity is fresher than sound_entity, so use sound2_entity as the freshest sound.
+					foundAudibleEntity = level.impact_sound_entity;
+				}
 			}
-		}
+		#else
+			//! We want to react to the freshest event regardless of which slot it is in, so we compare timestamps to find the most recent.
+			if ( SVG_Entity_IsActive( level.weapon_sound_entity ) && level.weapon_sound_entity->last_sound_time > self->stateSoundCan.lastTime ) {
+				// Start with sound_entity as the freshest sound if it is newer than our last processed sound time.
+				foundAudibleEntity = level.weapon_sound_entity;
+			}
+			// If impact_sound_entity is even newer, use that instead.
+			if ( SVG_Entity_IsActive( level.impact_sound_entity ) && level.impact_sound_entity->last_sound_time > self->stateSoundCan.lastTime ) {
+				// If we don't have a fresh sound yet, or if sound2_entity is newer than the current freshest sound, use sound2_entity.
+				if ( !foundAudibleEntity 
+					|| ( foundAudibleEntity && ( level.impact_sound_entity && level.impact_sound_entity->last_sound_time > foundAudibleEntity->last_sound_time ) ) ) {
+					// sound2_entity is fresher than sound_entity, so use sound2_entity as the freshest sound.
+					foundAudibleEntity = level.impact_sound_entity;
+				}
+			}
+			// If impact_sound_entity is even newer, use that instead.
+			if ( SVG_Entity_IsActive( level.personal_sound_entity ) && level.personal_sound_entity->last_sound_time > self->stateSoundCan.lastTime ) {
+				// If we don't have a fresh sound yet, or if sound2_entity is newer than the current freshest sound, use sound2_entity.
+				if ( !foundAudibleEntity
+					|| ( foundAudibleEntity && ( level.personal_sound_entity && level.personal_sound_entity->last_sound_time > foundAudibleEntity->last_sound_time ) ) ) {
+					// sound2_entity is fresher than sound_entity, so use sound2_entity as the freshest sound.
+					foundAudibleEntity = level.personal_sound_entity;
+				}
+			}
+		#endif // DUMMY_SEEK_IMPACT_SOUND_ONLY
 
 		/**
 		*	Will use the utility function to determine whether the sound source is actually audible for

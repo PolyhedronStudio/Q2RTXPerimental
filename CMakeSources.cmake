@@ -187,6 +187,8 @@ SET(SRC_BASEQ2RTXP_SHAREDGAME
 	baseq2rtxp/sharedgame/sg_skm.cpp
 	baseq2rtxp/sharedgame/sg_skm_rootmotion.cpp
 	baseq2rtxp/sharedgame/sg_usetarget_hints.cpp
+
+    baseq2rtxp/sharedgame/math/sg_math_velocity.cpp
 )
 SET(HEADERS_BASEQ2RTXP_SHAREDGAME
 	baseq2rtxp/sharedgame/sg_cmd_messages.h
@@ -206,6 +208,8 @@ SET(HEADERS_BASEQ2RTXP_SHAREDGAME
 	baseq2rtxp/sharedgame/sg_tempentity_events.h
 	baseq2rtxp/sharedgame/sg_time.h
 	baseq2rtxp/sharedgame/sg_usetarget_hints.h
+
+    baseq2rtxp/sharedgame/math/sg_math_velocity.h
 )
 #	BaseQ2RTXP ClientGame
 SET(SRC_BASEQ2RTXP_CLGAME
@@ -367,9 +371,11 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/light/svg_light_spotlight.cpp
 
 	baseq2rtxp/svgame/entities/misc/svg_misc_explobox.cpp
+    baseq2rtxp/svgame/entities/misc/svg_misc_skeletal_model.cpp
 	baseq2rtxp/svgame/entities/misc/svg_misc_teleporter.cpp
 	baseq2rtxp/svgame/entities/misc/svg_misc_teleporter_dest.cpp
 
+    baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_sfxfollow.cpp
 	baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_debug.cpp
 	
 	baseq2rtxp/svgame/entities/path/svg_path_corner.cpp
@@ -396,6 +402,7 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/svg_item_edict.cpp
 	baseq2rtxp/svgame/entities/svg_player_edict.cpp
 	baseq2rtxp/svgame/entities/svg_pushmove_edict.cpp
+    baseq2rtxp/svgame/entities/svg_npc_sound_helper.cpp
 	baseq2rtxp/svgame/entities/svg_worldspawn_edict.cpp
 	baseq2rtxp/svgame/entities/svg_entities_pushermove.cpp
 
@@ -519,9 +526,11 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/light/svg_light_light.h
 	baseq2rtxp/svgame/entities/light/svg_light_spotlight.h
 
+    baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_sfxfollow.h
     baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_debug.h
 	
 	baseq2rtxp/svgame/entities/misc/svg_misc_explobox.h
+	baseq2rtxp/svgame/entities/misc/svg_misc_skeletal_model.h
 	baseq2rtxp/svgame/entities/misc/svg_misc_teleporter.h
 	baseq2rtxp/svgame/entities/misc/svg_misc_teleporter_dest.h
 
@@ -549,6 +558,7 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 
 	baseq2rtxp/svgame/entities/svg_base_edict.h
 	baseq2rtxp/svgame/entities/svg_item_edict.h
+    baseq2rtxp/svgame/entities/svg_npc_sound_helper.h
 	baseq2rtxp/svgame/entities/svg_player_edict.h
 	baseq2rtxp/svgame/entities/svg_worldspawn_edict.h
 	baseq2rtxp/svgame/entities/svg_entities_pushermove.h

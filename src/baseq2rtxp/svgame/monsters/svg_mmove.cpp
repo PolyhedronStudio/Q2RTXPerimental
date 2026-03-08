@@ -124,13 +124,13 @@ static void MMove_StepDown( mm_move_t *monsterMove, const svg_trace_t *trace ) {
 *   @return  Slide/step move result flags.
 *   @note    All drop/jump/step logic uses the policy struct for limits.
 **/
-const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, const svg_nav_path_policy_t &policy ) {
+const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, const svg_nav_path_policy_t &policy ) {
 	svg_trace_t trace = {};
 	Vector3 startOrigin = monsterMove->state.previousOrigin = monsterMove->state.origin;
 	Vector3 startVelocity = monsterMove->state.previousVelocity = monsterMove->state.velocity;
 
 	// Perform an actual 'Step Slide'.
-	int32_t blockedMask = SVG_MMove_SlideMove( monsterMove->state.origin, monsterMove->state.velocity, monsterMove->frameTime, monsterMove->mins, monsterMove->maxs, monsterMove->monster, monsterMove->touchTraces, false /* monsterMove->hasTime */ );
+	mm_slide_move_flags_t blockedMask = SVG_MMove_SlideMove( monsterMove->state.origin, monsterMove->state.velocity, monsterMove->frameTime, monsterMove->mins, monsterMove->maxs, monsterMove->monster, monsterMove->touchTraces, false /* monsterMove->hasTime */ );
 
 	// Store for downward move XY.
 	Vector3 downOrigin = monsterMove->state.origin;

@@ -11,14 +11,20 @@
 
 
 /**
-*   @detail Each player can have two noise objects associated with it:
-*           a personal noise (jumping, pain, weapon firing), and a weapon
-*           target noise (bullet wall impacts)
-*
-*           Monsters that don't directly see the player can move
-*           to a noise in hopes of seeing the player from there.
+*	Function to inspect whether a noise entity is valid for sighting purposes.
+*	Checks if the noise entity is still within its lifetime, and if not,
+*	unlinks it and marks it as not in-use.
 **/
-void SVG_Player_PlayerNoise( svg_base_edict_t *who, const Vector3 &where, int type );
+const bool SVG_PlayerNoise_IsEntityAlive( svg_base_edict_t *noise );
+/**
+*   @detail Each NPC entity can have three noise objects associated with it:
+*           - An entity indicating a client's own personal noise (jumping, pain, weapon firing)
+*			- A weapon target noise (weapon firing)
+*           - A target noise (bullet wall impacts)
+*
+*           Monsters that don't directly see the player can move to a noise in hopes of seeing the player from there.
+**/
+void SVG_PlayerNoise_MakeNoise( svg_base_edict_t *who, const Vector3 &where, int type );
 
 /**
 *   @brief  Wraps up the new more modern SVG_Player_ProjectDistance.

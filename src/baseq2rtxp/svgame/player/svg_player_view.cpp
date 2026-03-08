@@ -174,7 +174,7 @@ void P_DamageFeedback( svg_base_edict_t *player ) {
 			ATTN_NORM
 		);
 		// Paril: pain noises alert monsters
-		SVG_Player_PlayerNoise( player, player->currentOrigin, PNOISE_SELF );
+		SVG_PlayerNoise_MakeNoise( player, player->currentOrigin, PLAYER_NOISE_SELF );
 	}
 
 	// the total alpha of the blend is always proportional to count
@@ -606,7 +606,7 @@ void P_CheckWorldEffects( void ) {
 	if ( !old_waterlevel && liquidlevel ) {
 		// Feet in.
 		if ( liquidlevel == cm_liquid_level_t::LIQUID_FEET ) {
-			SVG_Player_PlayerNoise( game.currentViewPlayer, game.currentViewPlayer->currentOrigin, PNOISE_SELF );
+			SVG_PlayerNoise_MakeNoise( game.currentViewPlayer, game.currentViewPlayer->currentOrigin, PLAYER_NOISE_SELF );
 			if ( game.currentViewPlayer->liquidInfo.type & CONTENTS_LAVA ) {
 				//gi.sound( game.currentViewPlayer, CHAN_BODY, gi.soundindex( "player/lava_in.wav" ), 1, ATTN_NORM, 0 );
 				//gi.sound( game.currentViewPlayer, CHAN_BODY, gi.soundindex( "player/burn01.wav" ), 1, ATTN_NORM, 0 );
@@ -626,7 +626,7 @@ void P_CheckWorldEffects( void ) {
 				gi.sound( game.currentViewPlayer, CHAN_BODY, gi.soundindex( "player/water_feet_in01.wav" ), 1, ATTN_NORM, 0 );
 			}
 		} else if ( liquidlevel >= cm_liquid_level_t::LIQUID_WAIST ) {
-			SVG_Player_PlayerNoise( game.currentViewPlayer, game.currentViewPlayer->currentOrigin, PNOISE_SELF );
+			SVG_PlayerNoise_MakeNoise( game.currentViewPlayer, game.currentViewPlayer->currentOrigin, PLAYER_NOISE_SELF );
 			if ( game.currentViewPlayer->liquidInfo.type & CONTENTS_LAVA ) {
 				gi.sound( game.currentViewPlayer, CHAN_BODY, gi.soundindex( "player/burn02.wav" ), 1, ATTN_NORM, 0 );
 
@@ -646,7 +646,7 @@ void P_CheckWorldEffects( void ) {
 
 	// If just completely exited a water volume while only feet in, play a sound.
 	if ( !liquidlevel && old_waterlevel == cm_liquid_level_t::LIQUID_FEET ) {
-		SVG_Player_PlayerNoise( game.currentViewPlayer, game.currentViewPlayer->currentOrigin, PNOISE_SELF );
+		SVG_PlayerNoise_MakeNoise( game.currentViewPlayer, game.currentViewPlayer->currentOrigin, PLAYER_NOISE_SELF );
 		#if 0
 			gi.sound( game.currentViewPlayer, CHAN_AUTO, gi.soundindex( "player/water_feet_out01.wav" ), 1, ATTN_NORM, 0 );
 		#endif
@@ -654,7 +654,7 @@ void P_CheckWorldEffects( void ) {
 	}
 	// If just completely exited a water volume waist or head in, play a sound.
 	if ( !liquidlevel && old_waterlevel >= cm_liquid_level_t::LIQUID_WAIST ) {
-		SVG_Player_PlayerNoise( game.currentViewPlayer, game.currentViewPlayer->currentOrigin, PNOISE_SELF );
+		SVG_PlayerNoise_MakeNoise( game.currentViewPlayer, game.currentViewPlayer->currentOrigin, PLAYER_NOISE_SELF );
 		#if 0
 			gi.sound( game.currentViewPlayer, CHAN_AUTO, gi.soundindex( "player/water_body_out01.wav" ), 1, ATTN_NORM, 0 );
 		#endif
@@ -673,7 +673,7 @@ void P_CheckWorldEffects( void ) {
 		if ( game.currentViewPlayer->airFinishedBreathTime < level.time ) {
 			// gasp for air
 			gi.sound( game.currentViewPlayer, CHAN_VOICE, gi.soundindex( "player/gasp01.wav" ), 1, ATTN_NORM, 0 );
-			SVG_Player_PlayerNoise( game.currentViewPlayer, game.currentViewPlayer->currentOrigin, PNOISE_SELF );
+			SVG_PlayerNoise_MakeNoise( game.currentViewPlayer, game.currentViewPlayer->currentOrigin, PLAYER_NOISE_SELF );
 		} else  if ( game.currentViewPlayer->airFinishedBreathTime < level.time + 11_sec ) {
 			// just break surface
 			gi.sound( game.currentViewPlayer, CHAN_VOICE, gi.soundindex( "player/gasp02.wav" ), 1, ATTN_NORM, 0 );

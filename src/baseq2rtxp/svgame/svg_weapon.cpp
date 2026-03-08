@@ -234,7 +234,7 @@ const bool fire_hit_punch_impact( svg_base_edict_t *self, const Vector3 &start, 
      //               gi.multicast( &tr.endpos, MULTICAST_PVS, false );
 
                     if ( self->client ) {
-                        SVG_Player_PlayerNoise( self, tr.endpos, PNOISE_IMPACT );
+                        SVG_PlayerNoise_MakeNoise( self, tr.endpos, PLAYER_NOISE_IMPACT );
                     }
                 //}
             }
@@ -382,7 +382,7 @@ static void fire_lead(svg_base_edict_t *self, const Vector3 &start, const Vector
                     //gi.multicast( &tr.endpos, MULTICAST_PVS, false );
 
 					if ( self->client ) {
-						SVG_Player_PlayerNoise( self, tr.endpos, PNOISE_IMPACT );
+						SVG_PlayerNoise_MakeNoise( self, tr.endpos, PLAYER_NOISE_IMPACT );
 					}
                 //}
             }

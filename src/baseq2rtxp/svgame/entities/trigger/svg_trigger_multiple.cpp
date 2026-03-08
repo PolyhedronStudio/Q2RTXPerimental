@@ -122,14 +122,14 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_trigger_multiple_t, onSpawn ) ( svg_trigger_mu
 	Super::onSpawn( self );
 
 	if ( self->sounds ) {
-		self->noise_index = gi.soundindex( "hud/chat01.wav" );
+		self->noiseSoundIndexA = gi.soundindex( "hud/chat01.wav" );
 	}
 	//if ( ent->sounds == 1 )
-	//	ent->noise_index = gi.soundindex( "misc/secret.wav" );
+	//	ent->noiseSoundIndexA = gi.soundindex( "misc/secret.wav" );
 	//else if ( ent->sounds == 2 )
-	//	ent->noise_index = gi.soundindex( "misc/talk.wav" );
+	//	ent->noiseSoundIndexA = gi.soundindex( "misc/talk.wav" );
 	//else if ( ent->sounds == 3 )
-	//	ent->noise_index = gi.soundindex( "misc/trigger1.wav" );
+	//	ent->noiseSoundIndexA = gi.soundindex( "misc/trigger1.wav" );
 
 	if ( !self->wait ) {
 		self->wait = 0.2f;

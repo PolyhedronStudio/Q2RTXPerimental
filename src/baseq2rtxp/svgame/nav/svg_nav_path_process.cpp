@@ -119,7 +119,7 @@ const bool svg_nav_path_process_t::CommitAsyncPathFromPoints( const std::vector<
 	const int32_t pointCount = ( int32_t )points.size();
 	nav_traversal_path_t newPath = {};
 	newPath.num_points = pointCount;
-	newPath.points = ( Vector3 * )gi.TagMallocz( sizeof( Vector3 ) * newPath.num_points, TAG_SVGAME_LEVEL );
+	newPath.points = ( Vector3 * )gi.TagMallocz( sizeof( Vector3 ) * newPath.num_points, TAG_SVGAME_NAVMESH );
 	memcpy( newPath.points, points.data(), sizeof( Vector3 ) * newPath.num_points );
 
 	/**

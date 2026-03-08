@@ -685,11 +685,52 @@ typedef struct qfloat3 {
 } qfloat3;
 
 
+/**
+*
+*
+*   Templated Utilities:
+*
+*
+**/
+/**
+*   @brief  Templated Epsilon types.
+**/
+template <typename T>
+struct qm_epsilon_type {};
+template <> struct qm_epsilon_type<float> { static constexpr float value{ QM_FLOAT_EPSILON }; };
+template <> struct qm_epsilon_type<double> { static constexpr double value{ QM_DOUBLE_EPSILON }; };
+
+/**
+*   @brief  Templated Type Comparisons.
+**/
+/**
+*	@brief	This will return true if the same template type is passed in for both parameters, regardless of template arguments.
+*	@details	It can be used to compare if two types are the same template, even if they have different template arguments. 
+*				For example, it would return true for `qm_is_same_template_type<std::vector, std::vector>` even if the 
+*				template arguments are different (e.g., `std::vector<int>` vs `std::vector<float>`). 
+*				
+*				It would return false for `qm_is_same_template_type<std::vector, std::list>`, 
+*				even if the template arguments are the same (e.g., `std::vector<int>` vs `std::list<int>`).
+*
+*	@note		Note that this trait only checks if the primary template is the same, not the template arguments.
+*	@return		Returns true if both template parameters are the same template, false otherwise.
+**/
+template<template<typename...> class TypeA, template<typename...> class TypeB>
+struct qm_is_same_template_type : std::false_type {};
+/**
+*	@brief	This specialization will be selected when both template parameters are the same template, 
+*			regardless of their template arguments, and will return true.
+*	@return	True if both template parameters are the same template, false otherwise.
+**/
+template<template<typename...> class Type>
+struct qm_is_same_template_type<Type, Type> : std::true_type {};
+
+
 
 /**
 *
 *
-*   QMath Utilities:
+*   QMath Modules:
 *
 *
 **/
@@ -708,10 +749,8 @@ typedef struct qfloat3 {
 //----------------------------------------------------------------------------------
 #include "shared/math/qm_vector3.h"
 
-#ifdef __cplusplus
 const int32_t DirToByte( const Vector3 &dir );
 void ByteToDir( const int32_t index, Vector3 &dir );
-#endif
 
 //----------------------------------------------------------------------------------
 // Module Functions Definition - Vector4 (Class-)Function Implementations.

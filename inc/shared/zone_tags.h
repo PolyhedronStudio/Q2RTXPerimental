@@ -41,13 +41,14 @@ Q_DEFINE_ZONETAG( TAG_SOUND, 9 )       // Sound memory goes here.
 Q_DEFINE_ZONETAG( TAG_CMODEL, 10 )      // Collision Model memory goes here.
 //! Server Game DLL tags start here.
 Q_DEFINE_ZONETAG( TAG_SVGAME,           ( 11 ) ) //! Remains allocated until the server game is shut down. (Cleared in SVG_Shutdown)
-Q_DEFINE_ZONETAG( TAG_SVGAME_LEVEL,     ( 12 ) ) //! Clear when loading a new level.
-Q_DEFINE_ZONETAG( TAG_SVGAME_EDICTS,    ( 13 ) ) //! Cleared when erasing entity heap. Happens upon loading a new level.
-Q_DEFINE_ZONETAG( TAG_SVGAME_LUA,       ( 14 ) ) //! Used by Lua, and cleared when the game module is unloaded.
+Q_DEFINE_ZONETAG( TAG_SVGAME_NAVMESH,	( 12 ) ) //! Cleared upon regeneration, a reload, map change, and server shutdown.
+Q_DEFINE_ZONETAG( TAG_SVGAME_LEVEL,     ( 13 ) ) //! Clear when loading a new level.
+Q_DEFINE_ZONETAG( TAG_SVGAME_EDICTS,    ( 14 ) ) //! Cleared when erasing entity heap. Happens upon loading a new level.
+Q_DEFINE_ZONETAG( TAG_SVGAME_LUA,       ( 15 ) ) //! Used by Lua, and cleared when the game module is unloaded.
 
 //! Client Game DLL tags start here.
-Q_DEFINE_ZONETAG( TAG_CLGAME, 15 )	        //! Remains allocated until the client game is shutdown.
-Q_DEFINE_ZONETAG( TAG_CLGAME_LEVEL, 16 )    //! Clear when loading a new level.
+Q_DEFINE_ZONETAG( TAG_CLGAME, 16 )	        //! Remains allocated until the client game is shutdown.
+Q_DEFINE_ZONETAG( TAG_CLGAME_LEVEL, 17 )    //! Clear when loading a new level.
 
 //! The Game Modules can add custom Tag Zones after TAG_MAX.
-Q_DEFINE_ZONETAG( TAG_MAX, 17 ) //! (IDs must be Within the range of UINT16_MAX).
+Q_DEFINE_ZONETAG( TAG_MAX, 18 ) //! (IDs must be Within the range of UINT16_MAX).

@@ -1,6 +1,6 @@
 {
     "rootmotionbone": "mixamorig8:Hips",
+    "hipbone": "mixamorig8:Hips",
     "headbone": "mixamorig8:Head",
-    "torsobone": "mixamorig8:Spine",
-    "hipbone": "mixamorig8:Hips"
+    "torsobone": "mixamorig8:Spine"
 }

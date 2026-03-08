@@ -54,7 +54,9 @@ static constexpr const double NAV_DEFAULT_GOAL_REBUILD_3D_DISTANCE = 32.0;
 //!
 //! Stepping:
 //! 
-// !Default maximum step height that the navigation system considers traversable without a jump.
+//! Default mimimum step height that the navigation system considers sa a stair.
+static constexpr const double NAV_DEFAULT_STEP_MIN_SIZE = PHYS_STEP_MIN_SIZE;
+//! Default maximum step height that the navigation system considers traversable without a jump.
 static constexpr const double NAV_DEFAULT_STEP_MAX_SIZE		= PHYS_STEP_MAX_SIZE;
 //! The default value used for designating a plane as being an actual obstruction, or a slope and traversable, or flat and traversable.
 static constexpr const double NAV_DEFAULT_MAX_SLOPE_NORMAL	= PHYS_MAX_SLOPE_NORMAL;

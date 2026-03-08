@@ -58,7 +58,9 @@ typedef struct nav_layer_s {
     int16_t z_quantized;
     //! Content flags (nav_layer_flags_t).
     uint32_t flags;
-	//! Optional clearance in grid cells (quantized, stored with wider range for tall ceilings).
+	//! Optional clearance in grid cells 
+	//! quantized, but stored with wider range for tall ceilings. e.g:
+	//! (Skyboxes, a church cathedral of some sorts, elevator shafts, "tunnels").
 	uint32_t clearance;
 } nav_layer_t;
 
@@ -898,7 +900,7 @@ const bool SVG_Nav_QueryMovementDirection_Advance2D_Output3D( const nav_traversa
 *	@return World-space position of the node.
 *	@note   The position is at the center of the cell in X/Y and at the layer height in Z.
 **/
-static Vector3 Nav_NodeWorldPosition( const nav_mesh_t *mesh, const nav_tile_t *tile, int32_t cell_index, const nav_layer_t *layer );
+Vector3 Nav_NodeWorldPosition( const nav_mesh_t *mesh, const nav_tile_t *tile, int32_t cell_index, const nav_layer_t *layer );
 
 /**
 *   @brief  Find a navigation node in a leaf at the given position.
@@ -1063,6 +1065,11 @@ void SVG_Nav_DebugDraw( void );
 *
 *
 **/
+/**
+*	@brief	Will return the path for a level's matching navigation filename.
+*	@return	A string containing the file path + file extension.
+**/
+const std::string Nav_GetPathForLevelNav( const char *levelName, const bool prependGameFolder = true );
 /**
 *   @brief  Calculate the world-space size of a tile.
 **/

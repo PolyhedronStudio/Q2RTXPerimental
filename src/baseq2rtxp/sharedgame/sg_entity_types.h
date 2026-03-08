@@ -45,6 +45,10 @@ typedef enum sg_entity_type_e {
 	//
 	// Effects Entities:
 	// 
+	//! Player Noise Entities.
+	ET_PLAYER_NOISE_PERSONAL,
+	ET_PLAYER_NOISE_WEAPON,
+	ET_PLAYER_NOISE_IMPACT,
 	//! Explosion Entity.
 	//ET_EXPLOSION,
 	//! Gib Entity.

@@ -7,6 +7,7 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "svgame/nav/svg_nav.h"
+#include "svgame/nav/svg_nav_clusters.h"
 #include "svgame/nav/svg_nav_load.h"
 
 #if USE_ZLIB
@@ -22,6 +23,7 @@
 #endif
 
 #include <cstdint>
+#include <limits>
 #include <unordered_map>
 #include <vector>
 
@@ -59,9 +61,9 @@ static void Nav_InitEmptyTileStorage( const nav_mesh_t *mesh, nav_tile_t *tile )
 	const int32_t presenceWords = ( cellsPerTile + 31 ) / 32;
 
 	// Allocate presence bitset.
-	tile->presence_bits = (uint32_t *)gi.TagMallocz( sizeof( uint32_t ) * presenceWords, TAG_SVGAME_LEVEL );
+	tile->presence_bits = (uint32_t *)gi.TagMallocz( sizeof( uint32_t ) * presenceWords, TAG_SVGAME_NAVMESH );
 	// Allocate per-cell array.
-	tile->cells = (nav_xy_cell_t *)gi.TagMallocz( sizeof( nav_xy_cell_t ) * cellsPerTile, TAG_SVGAME_LEVEL );
+	tile->cells = (nav_xy_cell_t *)gi.TagMallocz( sizeof( nav_xy_cell_t ) * cellsPerTile, TAG_SVGAME_NAVMESH );
 }
 
 static inline void Nav_SetPresenceBit_Load( nav_tile_t *tile, const int32_t cellIndex ) {
@@ -74,38 +76,124 @@ static inline void Nav_SetPresenceBit_Load( nav_tile_t *tile, const int32_t cell
 }
 
 /**
-*	@brief	Load a navigation voxelmesh from file into `g_nav_mesh`.
-*	@return	True on success, false on failure.
+*	@brief	Accumulate populated-cell and layer statistics for one loaded tile.
+*	@param	mesh		Navigation mesh that owns the tile storage.
+*	@param	tile		Tile to inspect.
+*	@param	io_cells	[in,out] Running populated-cell counter.
+*	@param	io_layers	[in,out] Running layer counter.
+*	@return	True when the tile could be inspected, false on invalid storage.
 **/
-bool SVG_Nav_LoadVoxelMesh( const char *fileName ) {
+static bool Nav_AccumulateTileStatistics( const nav_mesh_t *mesh, const nav_tile_t *tile, uint64_t *io_cells, uint64_t *io_layers ) {
 	/**
-	*	Sanity: require filename.
+	*	Sanity: require valid inputs so statistics stay trustworthy.
 	**/
-	if ( !fileName || !fileName[ 0 ] ) {
+	if ( !mesh || !tile || !io_cells || !io_layers ) {
 		return false;
 	}
 
-	// Actual filename of the .nav file.
-	const std::string fileNameExt = std::string( fileName ) + ".nav";
-	// Determine the game path to use for loading .nav files.
-	// <Q2RTXP>: WID: Unneccesary right now.
-	const std::string baseGame = "";// BASEGAME;
-	//if ( baseGame.empty() ) {
-	//	baseGame = BASEGAME;
-	//}
-	// Build full file path.
-	const std::string filePath = baseGame + std::string( NAV_PATH_DIR ) + fileNameExt;
+	/**
+	*	Inspect the tile through the shared safe accessor.
+	**/
+	auto cellsView = SVG_Nav_Tile_GetCells( mesh, tile );
+	const nav_xy_cell_t *cellsPtr = cellsView.first;
+	const int32_t cellsCount = cellsView.second;
+	if ( !cellsPtr || cellsCount < 0 ) {
+		return false;
+	}
 
 	/**
-	*	Build full file path.
+	*	Count only populated cells because that matches the save-side statistics.
 	**/
+	for ( int32_t cellIndex = 0; cellIndex < cellsCount; cellIndex++ ) {
+		const nav_xy_cell_t &cell = cellsPtr[ cellIndex ];
+		if ( cell.num_layers <= 0 || !cell.layers ) {
+			continue;
+		}
+
+		(*io_cells)++;
+		*io_layers += ( uint64_t )cell.num_layers;
+	}
+
+	return true;
+}
+
+/**
+*	@brief	Rebuild aggregate mesh statistics after loading serialized tile data.
+*	@param	mesh	Navigation mesh to update.
+*	@return	True when the statistics were rebuilt successfully, false otherwise.
+*	@note	This keeps load-time validation independent from generation-only counters.
+**/
+static bool Nav_RebuildLoadedStatistics( nav_mesh_t *mesh ) {
+	/**
+	*	Sanity: require a valid mesh before counting loaded storage.
+	**/
+	if ( !mesh ) {
+		return false;
+	}
+
+	/**
+	*	Accumulate world-tile statistics from the canonical tile store.
+	**/
+	uint64_t totalTiles = ( uint64_t )mesh->world_tiles.size();
+	uint64_t totalXYCells = 0;
+	uint64_t totalLayers = 0;
+	for ( const nav_tile_t &tile : mesh->world_tiles ) {
+		if ( !Nav_AccumulateTileStatistics( mesh, &tile, &totalXYCells, &totalLayers ) ) {
+			return false;
+		}
+	}
+
+	/**
+	*	Accumulate inline-model tiles because generation statistics include them too.
+	**/
+	for ( int32_t modelIndex = 0; modelIndex < mesh->num_inline_models; modelIndex++ ) {
+		const nav_inline_model_data_t &model = mesh->inline_model_data[ modelIndex ];
+		if ( model.num_tiles < 0 || ( model.num_tiles > 0 && !model.tiles ) ) {
+			return false;
+		}
+
+		for ( int32_t tileIndex = 0; tileIndex < model.num_tiles; tileIndex++ ) {
+			totalTiles++;
+			if ( !Nav_AccumulateTileStatistics( mesh, &model.tiles[ tileIndex ], &totalXYCells, &totalLayers ) ) {
+				return false;
+			}
+		}
+	}
+
+	/**
+	*	Clamp the rebuilt values into the mesh's persisted counter width.
+	**/
+	const uint64_t maxCounter = ( uint64_t )std::numeric_limits<int32_t>::max();
+	mesh->total_tiles = ( int32_t )std::min( totalTiles, maxCounter );
+	mesh->total_xy_cells = ( int32_t )std::min( totalXYCells, maxCounter );
+	mesh->total_layers = ( int32_t )std::min( totalLayers, maxCounter );
+	return true;
+}
+
+/**
+*	@brief	Load a navigation voxelmesh from file into `g_nav_mesh`.
+*	@return	True on success, false on failure.
+**/
+bool SVG_Nav_LoadVoxelMesh( const char *levelName ) {
+	/**
+	*	Sanity: require filename.
+	**/
+	if ( !levelName || !levelName[ 0 ] ) {
+		return false;
+	}
+
+	/**
+	*	Build full file path for the nav cache.
+	**/
+	// Actual filename of the .nav file.
+	const std::string navMeshFilePath = Nav_GetPathForLevelNav( levelName, true );
 
 	/**
 	*	Open nav cache file (gzip if available).
 	**/
-	gzFile f = gzopen( filePath.c_str(), "rb");
+	gzFile f = gzopen( navMeshFilePath.c_str(), "rb");
 	if ( !f ) {
-		gi.dprintf( "%s: failed to open '%s'\n", __func__, fileName );
+		gi.dprintf( "%s: failed to open '%s'\n", __func__, navMeshFilePath.c_str() );
 		return false;
 	}
 
@@ -138,7 +226,7 @@ bool SVG_Nav_LoadVoxelMesh( const char *fileName ) {
 	*	Allocate and publish the mesh instance using RAII helper.
 	*	Initialize occupancy_frame in the callback.
 	**/
-	if ( !g_nav_mesh.create( TAG_SVGAME_LEVEL, []( nav_mesh_t *mesh ) {
+	if ( !g_nav_mesh.create( TAG_SVGAME_NAVMESH, []( nav_mesh_t *mesh ) {
 		mesh->occupancy_frame = -1;
 	} ) ) {
 		gzclose( f );
@@ -155,11 +243,17 @@ bool SVG_Nav_LoadVoxelMesh( const char *fileName ) {
 	uint64_t statistic_total_xy_cells = 0;
 	// Layers.total count of Z layers across all XY cells (sum of num_layers in each cell). This reflects the overall vertical complexity of the navmesh.
 	uint64_t statistic_total_layers = 0;
-	// Read in the statistics from the file for later validation against the loaded mesh.
-    // Read saved statistics as 64-bit values to match the save-side format.
-	Nav_ReadValue( f, statistic_total_tiles );
-	Nav_ReadValue( f, statistic_total_xy_cells );
-	Nav_ReadValue( f, statistic_total_layers );
+   // Read in the statistics from the file for later validation against the loaded mesh.
+	// Version 1 files predate these counters, so only consume them from version 2+ streams.
+	if ( version >= 2 ) {
+		if ( !Nav_ReadValue( f, statistic_total_tiles ) ||
+			!Nav_ReadValue( f, statistic_total_xy_cells ) ||
+			!Nav_ReadValue( f, statistic_total_layers ) ) {
+			gzclose( f );
+			SVG_Nav_FreeMesh();
+			return false;
+		}
+	}
 
 	/**
 	*    Read generation parameters required to interpret stored tile data.
@@ -211,7 +305,7 @@ bool SVG_Nav_LoadVoxelMesh( const char *fileName ) {
 	}
 
 	// Allocate leaf array.
-	g_nav_mesh->leaf_data = (nav_leaf_data_t *)gi.TagMallocz( sizeof( nav_leaf_data_t ) * (size_t)g_nav_mesh->num_leafs, TAG_SVGAME_LEVEL );
+	g_nav_mesh->leaf_data = (nav_leaf_data_t *)gi.TagMallocz( sizeof( nav_leaf_data_t ) * (size_t)g_nav_mesh->num_leafs, TAG_SVGAME_NAVMESH );
 
 	/**
 	*	Initialize canonical world tile storage used during load.
@@ -247,7 +341,7 @@ bool SVG_Nav_LoadVoxelMesh( const char *fileName ) {
 		*	
 		*	Tiles themselves are stored canonically in `mesh->world_tiles`.
 		**/
-		leaf.tile_ids = (int32_t *)gi.TagMallocz( sizeof( int32_t ) * (size_t)leaf.num_tiles, TAG_SVGAME_LEVEL );
+		leaf.tile_ids = (int32_t *)gi.TagMallocz( sizeof( int32_t ) * (size_t)leaf.num_tiles, TAG_SVGAME_NAVMESH );
 
 		for ( int32_t t = 0; t < leaf.num_tiles; t++ ) {
 			nav_world_tile_key_t key = {};
@@ -326,7 +420,7 @@ bool SVG_Nav_LoadVoxelMesh( const char *fileName ) {
 				nav_xy_cell_t &cell = cellsPtr[ cellIndex ];
 				// Store layer count and allocate layer buffer.
 				cell.num_layers = numLayers;
-				cell.layers = (nav_layer_t *)gi.TagMallocz( sizeof( nav_layer_t ) * (size_t)numLayers, TAG_SVGAME_LEVEL );
+				cell.layers = (nav_layer_t *)gi.TagMallocz( sizeof( nav_layer_t ) * (size_t)numLayers, TAG_SVGAME_NAVMESH );
 				// Read layer data directly into allocated buffer.
 				if ( !Nav_Read( f, cell.layers, sizeof( nav_layer_t ) * (size_t)numLayers ) ) {
 					gzclose( f );
@@ -345,7 +439,7 @@ bool SVG_Nav_LoadVoxelMesh( const char *fileName ) {
 	**/
 	if ( g_nav_mesh->num_inline_models > 0 ) {
 		// Allocate per-inline-model container array.
-		g_nav_mesh->inline_model_data = (nav_inline_model_data_t *)gi.TagMallocz( sizeof( nav_inline_model_data_t ) * (size_t)g_nav_mesh->num_inline_models, TAG_SVGAME_LEVEL );
+		g_nav_mesh->inline_model_data = (nav_inline_model_data_t *)gi.TagMallocz( sizeof( nav_inline_model_data_t ) * (size_t)g_nav_mesh->num_inline_models, TAG_SVGAME_NAVMESH );
 
 		for ( int32_t i = 0; i < g_nav_mesh->num_inline_models; i++ ) {
 			nav_inline_model_data_t &model = g_nav_mesh->inline_model_data[ i ];
@@ -364,7 +458,7 @@ bool SVG_Nav_LoadVoxelMesh( const char *fileName ) {
 			}
 
 			// Allocate tile array for this model.
-			model.tiles = (nav_tile_t *)gi.TagMallocz( sizeof( nav_tile_t ) * (size_t)model.num_tiles, TAG_SVGAME_LEVEL );
+			model.tiles = (nav_tile_t *)gi.TagMallocz( sizeof( nav_tile_t ) * (size_t)model.num_tiles, TAG_SVGAME_NAVMESH );
 
 			for ( int32_t t = 0; t < model.num_tiles; t++ ) {
 				nav_tile_t &tile = model.tiles[ t ];
@@ -420,7 +514,7 @@ bool SVG_Nav_LoadVoxelMesh( const char *fileName ) {
 					nav_xy_cell_t &cell = cellsPtr[ cellIndex ];
 					// Store layer count and allocate layer buffer.
 					cell.num_layers = numLayers;
-					cell.layers = (nav_layer_t *)gi.TagMallocz( sizeof( nav_layer_t ) * (size_t)numLayers, TAG_SVGAME_LEVEL );
+					cell.layers = (nav_layer_t *)gi.TagMallocz( sizeof( nav_layer_t ) * (size_t)numLayers, TAG_SVGAME_NAVMESH );
 					// Read layer data into allocated buffer.
 					if ( !Nav_Read( f, cell.layers, sizeof( nav_layer_t ) * (size_t)numLayers ) ) {
 						gzclose( f );
@@ -478,7 +572,7 @@ bool SVG_Nav_LoadVoxelMesh( const char *fileName ) {
 		if ( g_nav_mesh->num_inline_model_runtime > 0 ) {
 			// Allocate runtime transform array.
 			g_nav_mesh->inline_model_runtime = (nav_inline_model_runtime_t *)gi.TagMallocz(
-				sizeof( nav_inline_model_runtime_t ) * (size_t)g_nav_mesh->num_inline_model_runtime, TAG_SVGAME_LEVEL );
+				sizeof( nav_inline_model_runtime_t ) * (size_t)g_nav_mesh->num_inline_model_runtime, TAG_SVGAME_NAVMESH );
 			int32_t out_index = 0;
 			for ( const auto &it : model_to_ent ) {
 				const int32_t model_index = it.first;
@@ -501,20 +595,42 @@ bool SVG_Nav_LoadVoxelMesh( const char *fileName ) {
 	}
 
 	/**
+	*	Rebuild aggregate counters now that all loaded tile storage is populated.
+	**/
+	if ( !Nav_RebuildLoadedStatistics( g_nav_mesh.get() ) ) {
+		gzclose( f );
+		SVG_Nav_FreeMesh();
+		return false;
+	}
+
+	/**
 	*	Do a quick statistics validation test to see if the loaded mesh matches expected generation statistic results. 
 	*	This can help detect mismatches between the navmesh and game configuration:
 	*	(e.g. loading a mesh generated with different parameters or from a different map version).
 	**/
-	if ( statistic_total_tiles != g_nav_mesh->total_tiles
-		|| statistic_total_xy_cells != g_nav_mesh->total_xy_cells
-		|| statistic_total_layers != g_nav_mesh->total_layers ) {
+   if ( version >= 2 &&
+		( statistic_total_tiles != ( uint64_t )g_nav_mesh->total_tiles
+		|| statistic_total_xy_cells != ( uint64_t )g_nav_mesh->total_xy_cells
+		|| statistic_total_layers != ( uint64_t )g_nav_mesh->total_layers ) ) {
 		//gzclose( f );
 		//SVG_Nav_FreeMesh();
 		//return false;
 		gi.bprintf( PRINT_WARNING, "%s: warning: loaded navmesh statistics mismatch (expected %llu tiles, %llu cells, %llu layers; got %llu tiles, %llu cells, %llu layers)\n",
-			__func__, statistic_total_tiles, statistic_total_xy_cells, statistic_total_layers,
-			g_nav_mesh->total_tiles, g_nav_mesh->total_xy_cells, g_nav_mesh->total_layers );
+          __func__,
+			( unsigned long long )statistic_total_tiles,
+			( unsigned long long )statistic_total_xy_cells,
+			( unsigned long long )statistic_total_layers,
+			( unsigned long long )( uint64_t )g_nav_mesh->total_tiles,
+			( unsigned long long )( uint64_t )g_nav_mesh->total_xy_cells,
+			( unsigned long long )( uint64_t )g_nav_mesh->total_layers );
 	}
+
+	/**
+	*	Rebuild the coarse world-tile cluster graph for loaded meshes.
+	*		Generation already does this, but loaded navmeshes must rebuild the same runtime graph
+	*		or async requests will always report `has_route=0` and fall back to unrestricted fine A*.
+	**/
+	SVG_Nav_ClusterGraph_BuildFromMesh_World( g_nav_mesh.get() );
 
 	gzclose( f );
 	return true;

@@ -52,7 +52,9 @@ struct svg_level_locals_t {
 
 	/**
 	*	Sighting entities that are being used for visibility checks.
+	* 
 	*	The client and sound entities are changed once per frame.
+	* 
 	*	The sight_entity is changed as needed.
 	**/
 	//! The client entity for sighting (for visibility checks).
@@ -68,17 +70,24 @@ struct svg_level_locals_t {
 	
 	/**
 	*	The entities that are making a sound (for sound sighting).
+	*	There are 3 types of sound:
+	*           - PNOISE_PERSONAL: An entity indicating a client's own personal noise (jumping, pain, weapon firing)
+	*			- PNOISE_WEAPONL weapon target noise (weapon firing)
+	*           - PLAYER_NOISE_IMPACT: A target noise (bullet wall impacts)
 	**/
-	//! The primary sound-emitting entity.
-    svg_base_edict_t     *sound_entity = nullptr;
-	//! Frame number for sound_entity to avoid duplicates.
-    int64_t		sound_entity_framenum = 0;
-	//! The secondary sound-emitting entity.
-    svg_base_edict_t     *sound2_entity = nullptr;
-	//! Frame number for sound2_entity to avoid duplicates.
-    int64_t		sound2_entity_framenum = 0;
+	//! The weapon sound entity (for sound sighting).
+    svg_base_edict_t     *weapon_sound_entity = nullptr;
+	QMTime weapon_sound_entity_time = 0_ms; //! To avoid duplicates.
+	//! The impact sound entity (for sound sighting).
+    svg_base_edict_t     *impact_sound_entity = nullptr;
+    QMTime impact_sound_entity_time = 0_ms; //! To avoid duplicates.
+	//! The personal noise sound entity (for sound sighting).
+	svg_base_edict_t     *personal_sound_entity = nullptr;
+	QMTime personal_sound_entity_time = 0_ms; //! To avoid duplicates.
 
-	//! The entity currently being processed.
+	/**
+	*	The entity currently being processed.
+	**/
     svg_base_edict_t *processingEntity = nullptr;   // entity running from SVG_RunFrame
 
 	//! Stack of entities currently being used for dead player bodies.

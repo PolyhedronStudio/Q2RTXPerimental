@@ -98,9 +98,9 @@ typedef enum entity_range_distance_e {
 /**
 *   Noise types for SVG_PlayerNoise
 **/
-static constexpr int32_t PNOISE_SELF = 0;
-static constexpr int32_t PNOISE_WEAPON = 1;
-static constexpr int32_t PNOISE_IMPACT = 2;
+static constexpr int32_t PLAYER_NOISE_SELF = 0;
+static constexpr int32_t PLAYER_NOISE_WEAPON = 1;
+static constexpr int32_t PLAYER_NOISE_IMPACT = 2;
 
 
 

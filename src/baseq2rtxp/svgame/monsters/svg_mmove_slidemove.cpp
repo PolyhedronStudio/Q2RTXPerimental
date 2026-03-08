@@ -69,11 +69,11 @@ const int32_t SVG_MMove_ClipVelocity( const Vector3 &in, const Vector3 &normal, 
 	// Whether we're actually blocked or not.
 	int32_t blocked = MM_VELOCITY_CLIPPED_NONE;
 	// If the plane that is blocking us has a positive z component, then assume it's a floor.
-	if ( normal.z > 0 /*PM_MIN_WALL_NORMAL_Z*/ ) {
+	if ( normal.z > 0 /*PM_MIN_WALL_NORMAL_Z*/ && normal.z != 1 ) {
 		blocked |= MM_VELOCITY_CLIPPED_FLOOR;
 	}
 	// If the plane has no Z, it is vertical Wall/Step:
-	if ( normal.z == 0 /*PM_MIN_WALL_NORMAL_Z*/ ) {
+	if ( normal.z == 1 /*PM_MIN_WALL_NORMAL_Z*/ ) {
 		blocked |= MM_VELOCITY_CLIPPED_WALL_OR_STEP;
 	}
 	// Determine how far to slide based on the incoming direction.
@@ -95,7 +95,7 @@ const int32_t SVG_MMove_ClipVelocity( const Vector3 &in, const Vector3 &normal, 
 /**
 *	@brief	Attempts to trace clip into velocity direction for the current frametime.
 **/
-const int32_t SVG_MMove_SlideMove( Vector3 &origin, Vector3 &velocity, const float frametime, const Vector3 &mins, const Vector3 &maxs, svg_base_edict_t *passEntity, mm_touch_trace_list_t &touch_traces, const bool has_time ) {
+const mm_slide_move_flags_t SVG_MMove_SlideMove( Vector3 &origin, Vector3 &velocity, const float frametime, const Vector3 &mins, const Vector3 &maxs, svg_base_edict_t *passEntity, mm_touch_trace_list_t &touch_traces, const bool has_time ) {
 	Vector3 dir = {};
 
 	Vector3 planes[ MM_MAX_CLIP_PLANES ] = {};

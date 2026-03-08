@@ -110,7 +110,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_target_earthquake_t, onSpawn ) ( svg_target_ea
     self->SetThinkCallback( &svg_target_earthquake_t::onThink );
     self->SetUseCallback( &svg_target_earthquake_t::onUse );
 
-    self->noise_index = gi.soundindex( "world/quake.wav" );
+    self->noiseSoundIndexA = gi.soundindex( "world/quake.wav" );
 }
 
 /**
@@ -119,8 +119,8 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_target_earthquake_t, onSpawn ) ( svg_target_ea
 DEFINE_MEMBER_CALLBACK_THINK( svg_target_earthquake_t, onThink )( svg_target_earthquake_t *self ) -> void { 
     // Positioned Sound.
     if ( self->last_move_time < level.time ) {
-        gi.positioned_sound( &self->s.origin, self, CHAN_AUTO, self->noise_index, 1.0f, ATTN_NONE, 0 );
-		SVG_EntityEvent_GeneralSoundEx( self, CHAN_AUTO, self->noise_index, ATTN_NONE );
+        gi.positioned_sound( &self->s.origin, self, CHAN_AUTO, self->noiseSoundIndexA, 1.0f, ATTN_NONE, 0 );
+		SVG_EntityEvent_GeneralSoundEx( self, CHAN_AUTO, self->noiseSoundIndexA, ATTN_NONE );
 
         self->last_move_time = level.time + 6.5_sec;
     }

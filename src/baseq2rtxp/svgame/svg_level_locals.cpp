@@ -29,9 +29,13 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_level_locals_t )
     //SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, sight_client, SD_FIELD_TYPE_EDICT /*SD_FIELD_TYPE_CLIENT*/ ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, sight_entity, SD_FIELD_TYPE_EDICT ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, sight_entity_framenum, SD_FIELD_TYPE_INT64 ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, sound_entity, SD_FIELD_TYPE_EDICT ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, sound_entity_framenum, SD_FIELD_TYPE_INT64 ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, sound2_entity, SD_FIELD_TYPE_EDICT ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, sound2_entity_framenum, SD_FIELD_TYPE_INT64 ),
+
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, weapon_sound_entity, SD_FIELD_TYPE_EDICT ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, weapon_sound_entity_time, SD_FIELD_TYPE_FRAMETIME ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, impact_sound_entity, SD_FIELD_TYPE_EDICT ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, impact_sound_entity_time, SD_FIELD_TYPE_FRAMETIME ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, personal_sound_entity, SD_FIELD_TYPE_EDICT ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, personal_sound_entity_time, SD_FIELD_TYPE_FRAMETIME ),
+
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, body_que, SD_FIELD_TYPE_INT32 ),
 SAVE_DESCRIPTOR_FIELDS_END();

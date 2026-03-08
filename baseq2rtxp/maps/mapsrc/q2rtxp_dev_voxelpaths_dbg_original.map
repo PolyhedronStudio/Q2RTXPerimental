@@ -2599,3 +2599,8 @@
 "origin" "736 800 304"
 "angle" "270"
 }
+// entity 16
+{
+"classname" "client_misc_model"
+"origin" "-32 -128 152"
+}

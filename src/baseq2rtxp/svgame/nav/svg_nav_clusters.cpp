@@ -8,6 +8,7 @@
 #include "svgame/svg_local.h"
 #include "svgame/svg_utils.h"
 
+#include "svgame/nav/svg_nav.h"
 #include "svgame/nav/svg_nav_clusters.h"
 
 
@@ -49,12 +50,12 @@ static void Nav_ClusterGraph_Clear( void ) {
 }
 
 /**
-*    @brief    Detect coarse cluster flags for a tile by inspecting its cells/layers.
-*    @param    mesh    Navigation mesh pointer (used for tile_size and z_quant).
-*    @param    tile    Tile to inspect for relevant cluster flags.
-*    @return   Bitmask of nav tile cluster flags (stair/water/lava/slime).
-*    @note    Uses safe accessors to avoid dereferencing possibly-null sparse
-*            tile storage. Early-outs when mesh or cell storage is missing.
+*    @brief		Detect coarse cluster flags for a tile by inspecting its cells/layers.
+*    @param		mesh    Navigation mesh pointer (used for tile_size and z_quant).
+*    @param		tile    Tile to inspect for relevant cluster flags.
+*    @return	Bitmask of nav tile cluster flags (stair/water/lava/slime).
+*    @note		Uses safe accessors to avoid dereferencing possibly-null sparse
+*				tile storage. Early-outs when mesh or cell storage is missing.
 **/
 static inline uint8_t Nav_ClusterGraph_DetectTileFlags( const nav_mesh_t *mesh, const nav_tile_t &tile ) {
 	uint8_t flags = NAV_TILE_CLUSTER_FLAG_NONE;
@@ -126,7 +127,7 @@ static nav_tile_cluster_key_t Nav_GetTileKeyForPosition( const nav_mesh_t *mesh,
 	return Nav_ClusterKey( Nav_WorldToTileCoord( pos[ 0 ], tileWorldSize ), Nav_WorldToTileCoord( pos[ 1 ], tileWorldSize ) );
 }
 
-static void Nav_ClusterGraph_BuildFromMesh_World( const nav_mesh_t *mesh ) {
+static void Nav_ClusterGraph_BuildFromMesh_World_Internal( const nav_mesh_t *mesh ) {
 	Nav_ClusterGraph_Clear();
 	if ( !mesh || mesh->num_leafs <= 0 || !mesh->leaf_data ) {
 		return;
@@ -334,7 +335,7 @@ static const bool Nav_ClusterGraph_FindRoute( const nav_mesh_t *mesh, const Vect
 }
 
 void SVG_Nav_ClusterGraph_BuildFromMesh_World( const nav_mesh_t *mesh ) {
-	Nav_ClusterGraph_BuildFromMesh_World( mesh );
+   Nav_ClusterGraph_BuildFromMesh_World_Internal( mesh );
 }
 
 /**

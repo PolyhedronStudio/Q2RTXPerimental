@@ -9,30 +9,7 @@
 
 
 
-/**
-*
-*
-*   Templated Utilities:
-*
-*
-**/
-/**
-*   @brief  Templated Epsilon types.
-**/
-template <typename T>
-struct qm_epsilon_type { };
-template <> struct qm_epsilon_type<float> { static constexpr float value{ QM_FLOAT_EPSILON }; };
-template <> struct qm_epsilon_type<double> { static constexpr double value{ QM_DOUBLE_EPSILON }; };
 
-/**
-*   @brief  Templated Type Comparisons.
-**/
-//! Returns false.
-template<template<typename...> class TypeA, template<typename...> class TypeB>
-struct qm_is_same_template_type : std::false_type { };
-//! Returns true.
-template<template<typename...> class Type>
-struct qm_is_same_template_type<Type, Type> : std::true_type { };
 
 
 
@@ -146,8 +123,8 @@ QM_API_CONSTEXPR T QM_LerpAngle( const T &angle2, const T &angle1, const T &frac
     //    _angle1 += 360;
     //}
     return angle2 + fraction * (
-        ( angle1 - angle2 > 180 ? angle1 -= static_cast<T>(360.) : angle1 ) 
-        - ( angle1 - angle2 < -180 ? angle1 += static_cast<T>(360.) : angle1 )
+        ( angle1 - angle2 > static_cast<T>( 180. ) ? angle1 -= static_cast<T>(360.) : angle1 ) 
+        - ( angle1 - angle2 < -static_cast<T>( 180. ) ? angle1 += static_cast<T>(360.) : angle1 )
         - angle2 
     );
 }
@@ -165,12 +142,13 @@ QM_API_CONSTEXPR T QM_LerpAngle( const T &angle2, const T &angle1, const T &frac
 *   @brief  Check whether two values are almost equal based on their Epislon types.
 **/
 template<typename T, T Epsilon = qm_epsilon_type<T>::value>
-QM_API_CONSTEXPR T QM_EqualsEpsilon( const T &x, const T &y ) {
+QM_API_CONSTEXPR bool QM_EqualsEpsilon( const T &x, const T &y ) {
     using std::abs;
     using std::max;
     using std::min;
+    static_assert( std::is_floating_point_v<T>, "QM_EqualsEpsilon requires floating-point T" );
     //static constexpr T Epsilon = qm_epsilon_type<T>::value;
-    return static_cast<T>( std::abs( x - y ) ) <= ( Epsilon * std::max( static_cast<T>(1.0), std::max( std::abs( x ), std::abs( y ) ) ) );
+    return ( std::abs( x - y ) ) <= ( Epsilon * std::max( static_cast<T>(1.0), std::max( std::abs( x ), std::abs( y ) ) ) );
 }
 
 
@@ -271,10 +249,12 @@ QM_API_CONSTEXPR T QM_EqualsEpsilon( const T &x, const T &y ) {
 
 /**
 *
+* 
 *
 *   Angle(s) Utilities:
 *
 *
+* 
 **/
 /**
 *   @brief  Returns the angle by clamping it within 0 to < 360. degrees using modulation.
@@ -288,9 +268,6 @@ QM_API_CONSTEXPR T QM_AngleMod( const T &value ) {
     }
     return v;//return value < ( static_cast<T>( 0. ) ? static_cast<T>( 360. ) : static_cast<T>( 0. ) ) + value;
 }
-
-
-
 /**
 *   @brief  returns angle normalized to the range [-180 < angle <= 180]
 **/

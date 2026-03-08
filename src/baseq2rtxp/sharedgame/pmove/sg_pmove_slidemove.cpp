@@ -8,6 +8,7 @@
 #include "shared/shared.h"
 
 #include "sharedgame/sg_shared.h"
+#include "sharedgame/math/sg_math_velocity.h"
 #include "sharedgame/pmove/sg_pmove.h"
 #include "sharedgame/pmove/sg_pmove_slidemove.h"
 
@@ -44,124 +45,6 @@ static inline bool QM_IsEnteringPlane( const Vector3 &vel, const Vector3 &plane,
 
 //! Uncomment for enabling second best hit plane tracing results.
 //#define SECOND_PLANE_TRACE
-
-//! Enables proper speed clamping instead of going full stop if the PM_STOP_EPSILON is reached.
-//#define PM_SLIDEMOVE_CLIPVELOCITY_CLAMPING
-//! Enables proper speed clamping instead of going full stop if the PM_STOP_EPSILON is reached.
-//#define PM_SLIDEMOVE_BOUNCEVELOCITY_CLAMPING
-
-
-
-/**
-*
-*
-*	Bounce("Bouncy Reflection") and Sliding("Clipping") velocity 
-*	to Surface Normal utilities.
-*
-*	"PM_BounceClipVelocity" usage examples:
-*		- Ground movement with slight bounce.
-*		- Collision responce that needs elasticity.
-*		- "Step" movement where a slight bounce helps prevent sticking.
-*
-*	"PM_SlideClipVelocity" usage examples:
-*		- Wall sliding, no bounce.
-*		- Surface alignment, no bounce.
-*		- Preventing penetration without bounce.
-* 
-* 
-**/
-/**
-*	@brief	Bounces("Bouncy reflection") the velocity off the surface normal.
-*	@details	Overbounce > 1 = bouncier, < 1 = less bouncy.
-*				Usage examples:
-*					- Ground movement with slight bounce.
-*					- Collision responce that needs elasticity.
-*					- "Step" movement where a slight bounce helps prevent sticking.
-*	@return	The blocked flags (1 = floor, 2 = step / wall)
-**/
-const pm_clipflags_t PM_BounceClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const double overbounce ) {
-	// Whether we're actually blocked or not.
-	pm_clipflags_t blocked = PM_VELOCITY_CLIPPED_NONE;
-
-	// If the plane that is blocking us has a positive z component, then assume it's a floor.
-	if ( normal.z > 0 /*PM_MIN_WALL_NORMAL_Z*/ ) {
-		blocked |= PM_VELOCITY_CLIPPED_FLOOR;
-	}
-	// If the plane has no Z, it is vertical Wall/Step:
-	if ( normal.z == 0 /*PM_MIN_WALL_NORMAL_Z*/ ) {
-		blocked |= PM_VELOCITY_CLIPPED_WALL_OR_STEP;
-	}
-
-	// Determine how far to slide based on the incoming direction.
-	// Finish it by scaling by the overBounce factor.
-	double backOff = QM_Vector3DotProductDP( in, normal );
-
-	// Amplifies reverse direction for bounce:
-	if ( backOff < 0. ) {
-		backOff *= overbounce;
-	// Reduces along-surface movement:
-	} else {
-		backOff /= overbounce;
-	}
-	// Reflect the velocity along the normal.
-	out = in - ( normal * backOff );
-
-	#ifdef PM_SLIDEMOVE_BOUNCEVELOCITY_CLAMPING
-	{
-		const double oldSpeed = QM_Vector3Length( in );
-		const double newSpeed = QM_Vector3Length( out );
-		if ( newSpeed > oldSpeed ) {
-			out = QM_Vector3Normalize( out );
-			out = QM_Vector3Scale( oldSpeed, out );
-		}
-	}
-	#endif
-
-	// Return blocked by flag(s).
-	return blocked;
-}
-
-/**
-*	@brief	Slides("Clips"), the velocity (strictly-)along the surface normal.
-*	@details	Usage examples:
-*					- Wall sliding, no bounce.
-*					- Surface alignment, no bounce.
-*					- Preventing penetration without bounce.
-*	@return	The blocked flags (1 = floor, 2 = step / wall)
-**/
-const pm_clipflags_t PM_SlideClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out ) {
-	// Whether we're actually blocked or not.
-	pm_clipflags_t blocked = PM_VELOCITY_CLIPPED_NONE;
-
-	// If the plane that is blocking us has a positive z component, then assume it's a floor.
-	if ( normal.z > 0 /*PM_MIN_WALL_NORMAL_Z*/ ) {
-		blocked |= PM_VELOCITY_CLIPPED_FLOOR;
-	}
-	// If the plane has no Z, it is vertical Wall/Step:
-	if ( normal.z == 0 /*PM_MIN_WALL_NORMAL_Z*/ ) {
-		blocked |= PM_VELOCITY_CLIPPED_WALL_OR_STEP;
-	}
-
-	// Determine how far to slide based on the incoming direction.
-	// Finish it by scaling with overBounce factor.
-	double backOff = QM_Vector3DotProductDP( in, normal );
-	out = in - ( normal * backOff );
-
-	#ifdef PM_SLIDEMOVE_CLIPVELOCITY_CLAMPING
-	{
-	const double oldSpeed = QM_Vector3Length( in );
-	const double newSpeed = QM_Vector3Length( out );
-	if ( newSpeed > oldSpeed ) {
-		out = QM_Vector3Normalize( out );
-		out = QM_Vector3Scale( oldSpeed, out );
-	}
-	#endif
-
-	// Return blocked by flag(s).
-	return blocked;
-}
-
-
 
 /**
 *
@@ -229,11 +112,11 @@ const pm_slidemove_flags_t PM_SlideMove_Generic(
 		if ( pml->hasGroundPlane ) {
 			#if 1
 				// Use a bouncy clip against the ground plane.
-				PM_BounceClipVelocity( pm->state->pmove.velocity, pml->groundTrace.plane.normal, pm->state->pmove.velocity, PM_OVERCLIP );
+				SG_BounceClipVelocity( pm->state->pmove.velocity, pml->groundTrace.plane.normal, pm->state->pmove.velocity, PM_OVERCLIP );
 			#else
 				// Use a non-bouncy clip against the ground plane to avoid injecting upward velocity
 				// from overbounce/reflection which causes spurious kickoff/miss toggles.
-				PM_SlideClipVelocity( pm->state->pmove.velocity, pml->groundTrace.plane.normal, pm->state->pmove.velocity );
+				SG_SlideClipVelocity( pm->state->pmove.velocity, pml->groundTrace.plane.normal, pm->state->pmove.velocity );
 				// Clear tiny vertical noise that can still remain from floating point ops / normalization.
 				if ( std::fabs( pm->state->pmove.velocity.z ) < 0.5 ) {
 					pm->state->pmove.velocity.z = 0.0;
@@ -349,9 +232,9 @@ const pm_slidemove_flags_t PM_SlideMove_Generic(
 			}
 
 			// Slide velocity along the plane.
-			PM_BounceClipVelocity( pm->state->pmove.velocity, planes[ i ], clipVelocity, PM_OVERCLIP );
+			SG_BounceClipVelocity( pm->state->pmove.velocity, planes[ i ], clipVelocity, PM_OVERCLIP );
 			// Slide endVelocity along the plane.
-			PM_BounceClipVelocity( endVelocity, planes[ i ], endClipVelocity, PM_OVERCLIP );
+			SG_BounceClipVelocity( endVelocity, planes[ i ], endClipVelocity, PM_OVERCLIP );
 
 			// See if there is a second plane that the new move enters.
 			for ( j = 0; j < numPlanes; j++ ) {
@@ -364,8 +247,8 @@ const pm_slidemove_flags_t PM_SlideMove_Generic(
 					continue;
 				}
 				// Try clipping the move to the plane.
-				PM_BounceClipVelocity( clipVelocity, planes[ j ], clipVelocity, PM_OVERCLIP );
-				PM_BounceClipVelocity( endClipVelocity, planes[ j ], endClipVelocity, PM_OVERCLIP );
+				SG_BounceClipVelocity( clipVelocity, planes[ j ], clipVelocity, PM_OVERCLIP );
+				SG_BounceClipVelocity( endClipVelocity, planes[ j ], endClipVelocity, PM_OVERCLIP );
 
 				// See if it goes back into the first clip plane.
 				if ( QM_Vector3DotProductDP( clipVelocity, planes[ i ] ) >= 0. ) {
@@ -585,12 +468,12 @@ const pm_slidemove_flags_t PM_StepSlideMove_Generic(
 			//}
 			// <Q2RTXP>: WID: Do bounce clip velocity to avoid sticking on slopes/stairs.
 			#if 0
-			PM_BounceClipVelocity( pm->state->pmove.velocity, trace.plane.normal, pm->state->pmove.velocity, PM_OVERCLIP );
+			SG_BounceClipVelocity( pm->state->pmove.velocity, trace.plane.normal, pm->state->pmove.velocity, PM_OVERCLIP );
 			#endif
 		}
 		#if 1
 		if ( trace.fraction < 1.0 ) {
-			PM_BounceClipVelocity( pm->state->pmove.velocity, trace.plane.normal, pm->state->pmove.velocity, PM_OVERCLIP );
+			SG_BounceClipVelocity( pm->state->pmove.velocity, trace.plane.normal, pm->state->pmove.velocity, PM_OVERCLIP );
 		}
 		#endif
 	}

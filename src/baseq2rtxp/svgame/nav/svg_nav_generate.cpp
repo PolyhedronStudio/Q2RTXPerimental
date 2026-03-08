@@ -142,7 +142,7 @@ static int32_t s_slope_reject_count = 0;
 *	@param	max_step	Maximum step height used to choose trace stepping interval.
 *	@param	min_normal_z	Minimum walkable surface normal Z.
 *	@param	z_quant		Quantization step used when storing layer Z samples.
-*	@param	out_layers	[out] Heap-allocated layer buffer (TAG_SVGAME_LEVEL) or nullptr.
+*	@param	out_layers	[out] Heap-allocated layer buffer (TAG_SVGAME_NAVMESH) or nullptr.
 *	@param	out_num_layers	[out] Number of layers returned in `out_layers`.
 *	@param	clip_entity	Optional inline-model clip entity for model-local sampling (nullptr for world sampling).
 *	@note	Not thread-safe due to internal static scratch storage.
@@ -381,7 +381,7 @@ static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, cons
     *        Allocate a persistent layer buffer for the caller.
     **/
     if ( num_layers > 0 ) {
-        *out_layers = (nav_layer_t *)gi.TagMallocz( sizeof(nav_layer_t) * num_layers, TAG_SVGAME_LEVEL );
+        *out_layers = (nav_layer_t *)gi.TagMallocz( sizeof(nav_layer_t) * num_layers, TAG_SVGAME_NAVMESH );
         memcpy( *out_layers, temp_layers, sizeof(nav_layer_t) * num_layers );
         *out_num_layers = num_layers;
     } else {
@@ -416,8 +416,8 @@ static bool Nav_BuildTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vector3 &le
     const int32_t presence_words = ( cells_per_tile + 31 ) / 32;
     const double tile_world_size = Nav_TileWorldSize( mesh );
 
-    tile->presence_bits = (uint32_t *)gi.TagMallocz( sizeof( uint32_t ) * presence_words, TAG_SVGAME_LEVEL );
-    tile->cells = (nav_xy_cell_t *)gi.TagMallocz( sizeof( nav_xy_cell_t ) * cells_per_tile, TAG_SVGAME_LEVEL );
+    tile->presence_bits = (uint32_t *)gi.TagMallocz( sizeof( uint32_t ) * presence_words, TAG_SVGAME_NAVMESH );
+    tile->cells = (nav_xy_cell_t *)gi.TagMallocz( sizeof( nav_xy_cell_t ) * cells_per_tile, TAG_SVGAME_NAVMESH );
 
     bool has_layers = false;
 
@@ -512,8 +512,8 @@ static bool Nav_BuildInlineTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vecto
     const int32_t presence_words = ( cells_per_tile + 31 ) / 32;
     const double tile_world_size = Nav_TileWorldSize( mesh );
 
-    tile->presence_bits = (uint32_t *)gi.TagMallocz( sizeof( uint32_t ) * presence_words, TAG_SVGAME_LEVEL );
-    tile->cells = (nav_xy_cell_t *)gi.TagMallocz( sizeof( nav_xy_cell_t ) * cells_per_tile, TAG_SVGAME_LEVEL );
+    tile->presence_bits = (uint32_t *)gi.TagMallocz( sizeof( uint32_t ) * presence_words, TAG_SVGAME_NAVMESH );
+    tile->cells = (nav_xy_cell_t *)gi.TagMallocz( sizeof( nav_xy_cell_t ) * cells_per_tile, TAG_SVGAME_NAVMESH );
 
     bool has_layers = false;
 
@@ -667,7 +667,7 @@ static void Nav_BuildInlineModelRuntime( nav_mesh_t *mesh, const std::unordered_
 
     mesh->num_inline_model_runtime = (int32_t)model_to_ent.size();
     mesh->inline_model_runtime = (nav_inline_model_runtime_t *)gi.TagMallocz(
-        sizeof( nav_inline_model_runtime_t ) * mesh->num_inline_model_runtime, TAG_SVGAME_LEVEL );
+        sizeof( nav_inline_model_runtime_t ) * mesh->num_inline_model_runtime, TAG_SVGAME_NAVMESH );
 
     int32_t out_index = 0;
     for ( const auto &it : model_to_ent ) {
@@ -711,7 +711,7 @@ void GenerateWorldMesh( nav_mesh_t *mesh ) {
     const QMTime t0 = level.time;
 
     mesh->num_leafs = num_leafs;
-    mesh->leaf_data = (nav_leaf_data_t *)gi.TagMallocz( sizeof( nav_leaf_data_t ) * num_leafs, TAG_SVGAME_LEVEL );
+    mesh->leaf_data = (nav_leaf_data_t *)gi.TagMallocz( sizeof( nav_leaf_data_t ) * num_leafs, TAG_SVGAME_NAVMESH );
 
     for ( int32_t i = 0; i < num_leafs; i++ ) {
         uint64_t leafStartMs = 0;
@@ -841,7 +841,7 @@ void GenerateWorldMesh( nav_mesh_t *mesh ) {
         if ( !temp_tile_ids.empty() ) {
             nav_leaf_data_t *leaf_data = &mesh->leaf_data[ i ];
             leaf_data->num_tiles = (int32_t)temp_tile_ids.size();
-            leaf_data->tile_ids = (int32_t *)gi.TagMallocz( sizeof( int32_t ) * leaf_data->num_tiles, TAG_SVGAME_LEVEL );
+            leaf_data->tile_ids = (int32_t *)gi.TagMallocz( sizeof( int32_t ) * leaf_data->num_tiles, TAG_SVGAME_NAVMESH );
             memcpy( leaf_data->tile_ids, temp_tile_ids.data(), sizeof( int32_t ) * leaf_data->num_tiles );
         }
     }
@@ -895,7 +895,7 @@ void GenerateInlineModelMesh( nav_mesh_t *mesh ) {
 
     mesh->num_inline_models = ( int32_t )model_to_ent.size();
     mesh->inline_model_data = ( nav_inline_model_data_t * )gi.TagMallocz(
-        sizeof( nav_inline_model_data_t ) * mesh->num_inline_models, TAG_SVGAME_LEVEL );
+        sizeof( nav_inline_model_data_t ) * mesh->num_inline_models, TAG_SVGAME_NAVMESH );
 
     Nav_BuildInlineModelRuntime( mesh, model_to_ent );
 
@@ -974,7 +974,7 @@ void GenerateInlineModelMesh( nav_mesh_t *mesh ) {
 
         if ( !tiles.empty() ) {
             out_model->num_tiles = ( int32_t )tiles.size();
-            out_model->tiles = ( nav_tile_t * )gi.TagMallocz( sizeof( nav_tile_t ) * out_model->num_tiles, TAG_SVGAME_LEVEL );
+            out_model->tiles = ( nav_tile_t * )gi.TagMallocz( sizeof( nav_tile_t ) * out_model->num_tiles, TAG_SVGAME_NAVMESH );
             memcpy( out_model->tiles, tiles.data(), sizeof( nav_tile_t ) * out_model->num_tiles );
         }
 
@@ -1046,7 +1046,7 @@ void SVG_Nav_GenerateVoxelMesh( void ) {
 		*	Allocate and publish the mesh instance using RAII helper.
 		*	Initialize occupancy_frame in the callback.
 		**/
-		if ( !g_nav_mesh.create( TAG_SVGAME_LEVEL, []( nav_mesh_t *mesh ) {
+		if ( !g_nav_mesh.create( TAG_SVGAME_NAVMESH, []( nav_mesh_t *mesh ) {
 			mesh->occupancy_frame = -1;
 		} ) ) {
 			SVG_Nav_Log( "SVG_Nav_GenerateVoxelMesh: failed to allocate nav mesh instance.\n" );

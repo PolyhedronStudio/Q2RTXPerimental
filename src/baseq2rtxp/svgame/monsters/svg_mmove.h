@@ -66,19 +66,25 @@ static constexpr double MM_STEP_GROUND_DIST	= PHYS_STEP_GROUND_DIST;
 /**
 *	Slide Move Results:
 **/
+//! Type used for the monster move results flags bitmask.
+using mm_slide_move_flags_t = int32_t;
+
 //! Faux mask for indicating no movement at all in subsystems using the monster move results flags as a bitmask. 
 //! Not actually used as a flag since it is 0, but useful for readability.
-static constexpr int32_t MM_SLIDEMOVEFLAG_NONE	= 0;
+static constexpr mm_slide_move_flags_t MM_SLIDEMOVEFLAG_NONE	= 0;
+//! Velocity was not clipped by a Floor, nor any Wall/Step.
 //! Succesfully performed the move.
-static constexpr int32_t MM_SLIDEMOVEFLAG_MOVED = BIT( 0 );
+static constexpr mm_slide_move_flags_t MM_SLIDEMOVEFLAG_MOVED	= BIT( 0 );
+//! Velocity has been clipped by a Floor, or a Wall/Step, but we were still able to move along the surface.
+static constexpr mm_slide_move_flags_t MM_SLIDEMOVEFLAG_CLIPPED = BIT( 2 );
 //! It was blocked at some point, doesn't mean it didn't slide along the blocking object.
-static constexpr int32_t MM_SLIDEMOVEFLAG_BLOCKED = BIT( 1 );
+static constexpr mm_slide_move_flags_t MM_SLIDEMOVEFLAG_BLOCKED = BIT( 3 );
 //! It is trapped.
-static constexpr int32_t MM_SLIDEMOVEFLAG_TRAPPED = BIT( 2 );
+static constexpr mm_slide_move_flags_t MM_SLIDEMOVEFLAG_TRAPPED = BIT( 4 );
 //! Blocked by a literal wall.
-static constexpr int32_t MM_SLIDEMOVEFLAG_WALL_BLOCKED = BIT( 3 );
+static constexpr mm_slide_move_flags_t MM_SLIDEMOVEFLAG_WALL_BLOCKED	= BIT( 5 );
 //! Touched at least a single plane along the way.
-static constexpr int32_t MM_SLIDEMOVEFLAG_PLANE_TOUCHED = BIT( 4 );
+static constexpr mm_slide_move_flags_t MM_SLIDEMOVEFLAG_PLANE_TOUCHED	= BIT( 6 );
 
 
 
@@ -261,7 +267,7 @@ const svg_trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, co
 *   @return  Slide/step move result flags.
 *   @note    All drop/jump/step logic uses the policy struct for limits.
 **/
-const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, const svg_nav_path_policy_t &policy );
+const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, const svg_nav_path_policy_t &policy );
 
 /**
 *	@brief	Will move the yaw to its ideal position based on the yaw speed(per frame) value.

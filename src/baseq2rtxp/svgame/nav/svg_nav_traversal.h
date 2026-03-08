@@ -116,7 +116,7 @@ const bool SVG_Nav_QueryMovementDirection( const nav_traversal_path_t *path, con
 * 	@param	mask		Content mask for the trace.
 * 	@return	Trace result.
 **/
-const inline cm_trace_t Nav_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end,
+const inline svg_trace_t Nav_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end,
 	const edict_ptr_t *clip_entity, const cm_contents_t mask );
 
 /**
@@ -134,7 +134,7 @@ const inline cm_trace_t Nav_Trace( const Vector3 &start, const Vector3 &mins, co
 *	@return	True if the traversal is possible, false otherwise.
 *	@note	This is a conservative feasibility test intended for validating edges during A*.
 **/
-const bool Nav_CanTraverseStep( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos, const edict_ptr_t *clip_entity );
+const bool Nav_CanTraverseStep( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos, const edict_ptr_t *clip_entity, const cm_contents_t stepTraceMask = CM_CONTENTMASK_MONSTERSOLID );
 /**
 * 	@brief	Performs a simple PMove-like step traversal test (3-trace) with explicit bbox.
 * 			This is intentionally conservative and is used only to validate edges in A*:
@@ -153,4 +153,23 @@ const bool Nav_CanTraverseStep( const nav_mesh_t *mesh, const Vector3 &startPos,
 **/
 // Forward-declare reject reason enum from traversal async header so callers can opt-in to receive reasons.
 #include "svgame/nav/svg_nav_traversal_async.h"
-const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos, const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t *clip_entity, const svg_nav_path_policy_t *policy, nav_edge_reject_reason_t *out_reason = nullptr );
+const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos, const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t *clip_entity, const svg_nav_path_policy_t *policy, nav_edge_reject_reason_t *out_reason = nullptr, const cm_contents_t stepTraceMask = CM_CONTENTMASK_MONSTERSOLID );
+
+/**
+* 	@brief	Validate a traversal edge using already-resolved canonical node references.
+* 	@param	mesh		Navigation mesh.
+* 	@param	start_node	Canonical start node already resolved on a walkable surface.
+* 	@param	end_node	Canonical end node already resolved on a walkable surface.
+* 	@param	mins		Agent bbox mins in nav-center space.
+* 	@param	maxs		Agent bbox maxs in nav-center space.
+* 	@param	clip_entity	Optional entity clip target (nullptr for world validation).
+* 	@param	policy		Optional traversal policy (step/drop/jump constraints).
+* 	@param	out_reason	[out] Optional reject reason when validation fails.
+* 	@param	stepTraceMask	Reserved trace mask kept aligned with the position-based overload.
+* 	@return	True if the canonical edge is traversable, false otherwise.
+* 	@note	This avoids re-resolving the same node pair from world positions, which is important for
+* 			async neighbor expansion on boundary-adjacent walkable cells.
+**/
+const bool Nav_CanTraverseStep_ExplicitBBox_NodeRefs( const nav_mesh_t *mesh, const nav_node_ref_t &start_node, const nav_node_ref_t &end_node,
+	const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t *clip_entity, const svg_nav_path_policy_t *policy,
+	nav_edge_reject_reason_t *out_reason = nullptr, const cm_contents_t stepTraceMask = CM_CONTENTMASK_MONSTERSOLID );

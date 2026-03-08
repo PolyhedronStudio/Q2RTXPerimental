@@ -5,6 +5,7 @@
 *
 *
 ********************************************************************/
+#include "shared/config.h" 
 #include "svgame/svg_local.h"
 #include "svgame/svg_utils.h"
 
@@ -276,9 +277,9 @@ void SVG_Nav_RefreshInlineModelRuntime( void );
 *
 *	@return	True if the traversal is possible, false otherwise.
 **/
-const bool Nav_CanTraverseStep( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos, const edict_ptr_t *clip_entity );
+const bool Nav_CanTraverseStep( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos, const edict_ptr_t *clip_entity, const cm_contents_t stepTraceMask );
 const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos,
-	const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t *clip_entity, const svg_nav_path_policy_t *policy, nav_edge_reject_reason_t *out_reason );
+	const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t *clip_entity, const svg_nav_path_policy_t *policy, nav_edge_reject_reason_t *out_reason, const cm_contents_t stepTraceMask  );
 
 // Convenience overload: call explicit-bbox traversal test without a policy (defaults to mesh parameters).
 static inline const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos,
@@ -497,8 +498,8 @@ void SVG_Nav_Init( void ) {
 	nav_z_quant = gi.cvar( "nav_z_quant", "2", 0 );
 	nav_tile_size = gi.cvar( "nav_tile_size", "8", 0 );
 
-	// Tunable Z tolerance for layer selection and fallback. 0 = auto.
-	nav_z_tolerance = gi.cvar( "nav_z_tolerance", std::to_string( PHYS_STEP_MIN_SIZE ).c_str(), 0 );
+  // Tunable Z tolerance for layer selection and fallback. 0 = auto-derived from mesh parameters.
+	nav_z_tolerance = gi.cvar( "nav_z_tolerance", "0", 0 );
 
 	/**
 	*   Register physics constraint CVars matching player movement:
@@ -619,7 +620,7 @@ void SVG_Nav_Shutdown( void ) {
 *	@brief	Will return the path for a level's matching navigation filename.
 *	@return	A string containing the file path + file extension.
 **/
-const std::string SVG_Nav_GetPathForLevelNav( const char *levelName ) {
+const std::string Nav_GetPathForLevelNav( const char *levelName, const bool prependGameFolder ) {
 	// Default path for the engine to find nav files at.
 	constexpr const char *NAV_PATH_DIR = "/maps/nav/";
 
@@ -627,12 +628,14 @@ const std::string SVG_Nav_GetPathForLevelNav( const char *levelName ) {
 	const std::string fileNameExt = std::string( levelName ) + ".nav";
 	// Determine the game path to use for loading .nav files.
 	// <Q2RTXP>: WID: Unneccesary right now.
-	const std::string baseGame = ""; // BASEGAME
-	//if ( baseGame.empty() ) {
-	//	baseGame = BASEGAME;
-	//}
-	// Build and return full file path.
-	return baseGame + NAV_PATH_DIR + fileNameExt;
+	const std::string baseGame = std::string( BASEGAME );
+	const std::string defaultGame = std::string( DEFAULT_GAME );
+
+	// If the DEFAULT_GAME is empty use BASE_GAME, otherwise use DEFAULT_GAME. This allows mods to specify a custom game directory for nav files while falling back to the base game if not set.
+	const std::string fullPath = ( prependGameFolder ? ( defaultGame.empty() ? baseGame : defaultGame ) : "" ) + NAV_PATH_DIR + fileNameExt;;
+
+	// Should never happen.
+	return fullPath;
 }
 
 /**
@@ -640,17 +643,19 @@ const std::string SVG_Nav_GetPathForLevelNav( const char *levelName ) {
 *	@return True if a mesh was successfully loaded, false otherwise (e.g., file not found).
 **/
 const std::tuple<const bool, const std::string> SVG_Nav_LoadMesh( const char *levelName ) {
-	// Actual filename of the .nav file.
-	const std::string navMeshFilePath = SVG_Nav_GetPathForLevelNav( levelName );
+	// Actual path of the .nav file.
+	const std::string navMeshFilePath = Nav_GetPathForLevelNav( levelName, false );
+// Actual filename of the .nav file.
+	const std::string navMeshGameDirFilePath = Nav_GetPathForLevelNav( levelName, true );
 	// Load it up if it exists, otherwise it'll just be ignored and the nav system will be inactive.
 	if ( gi.FS_FileExistsEx( navMeshFilePath.c_str(), 0 ) ) {
 		// Return whether loading succeeded or failed; if it fails, the nav system will be inactive but won't crash.
 		const bool loaded = SVG_Nav_LoadVoxelMesh( levelName );
 		// Return success status and the actual filename attempted (for logging/debugging).
-		return std::make_tuple( loaded, navMeshFilePath );
+		return std::make_tuple( loaded, navMeshGameDirFilePath );
 	}
 	// Failure.
-	return std::make_tuple( false, navMeshFilePath );
+	return std::make_tuple( false, navMeshGameDirFilePath );
 }
 
 
@@ -699,11 +704,11 @@ static void Nav_FreeTileCells( nav_tile_t *tile, int32_t cells_per_tile ) {
 
 /**
 *   @brief  Free the current navigation mesh.
-*           Releases all memory allocated for navigation data using TAG_SVGAME_LEVEL.
+*           Releases all memory allocated for navigation data using TAG_SVGAME_NAVMESH.
 **/
 /**
 *   @brief  Free the current navigation mesh.
-*           Releases all memory allocated for navigation data using TAG_SVGAME_LEVEL.
+*           Releases all memory allocated for navigation data using TAG_SVGAME_NAVMESH.
 **/
 void SVG_Nav_FreeMesh( void ) {
 	/**
@@ -805,6 +810,11 @@ void SVG_Nav_FreeMesh( void ) {
 	*	This ensures STL members (vectors, maps) are properly destroyed.
 	**/
 	g_nav_mesh.reset();
+
+	/**
+	*	Last but not least, free any remaining TAG_SVGAME_NAVMESH memory.
+	**/
+	gi.FreeTags( TAG_SVGAME_NAVMESH );
 }
 
 
@@ -896,7 +906,7 @@ static void Nav_BuildInlineModelRuntime( nav_mesh_t *mesh, const std::unordered_
 
 	mesh->num_inline_model_runtime = ( int32_t )model_to_ent.size();
 	mesh->inline_model_runtime = ( nav_inline_model_runtime_t * )gi.TagMallocz(
-		sizeof( nav_inline_model_runtime_t ) * mesh->num_inline_model_runtime, TAG_SVGAME_LEVEL );
+		sizeof( nav_inline_model_runtime_t ) * mesh->num_inline_model_runtime, TAG_SVGAME_NAVMESH );
 
 	/**
 	*	Reserve the lookup map up-front so inserts stay cheap.
@@ -1262,7 +1272,7 @@ static inline bool Nav_CellPresent( const nav_tile_t *tile, const int32_t cell_i
 *    @return	World-space center position for the node.
 *    @note	Returns a zero vector if inputs are invalid.
 **/
-static Vector3 Nav_NodeWorldPosition( const nav_mesh_t *mesh, const nav_tile_t *tile, int32_t cell_index, const nav_layer_t *layer ) {
+Vector3 Nav_NodeWorldPosition( const nav_mesh_t *mesh, const nav_tile_t *tile, int32_t cell_index, const nav_layer_t *layer ) {
 	/**
 	*    Sanity checks: require mesh, tile, and layer data.
 	**/
@@ -1302,7 +1312,7 @@ static Vector3 Nav_NodeWorldPosition( const nav_mesh_t *mesh, const nav_tile_t *
 *    @return	True if a node could be resolved from the tile.
 **/
 static bool Nav_TryResolveNodeInTile( const nav_mesh_t *mesh, const nav_tile_t *tile, const int32_t tile_id,
-	const int32_t leaf_index, const Vector3 &position, double desired_z, nav_node_ref_t *out_node ) {
+	const int32_t leaf_index, const Vector3 &position, double desired_z, nav_node_ref_t *out_node, const bool allow_closest_layer_fallback ) {
 	/**
 	*    Sanity checks: require mesh, tile, and output storage.
 	**/
@@ -1369,6 +1379,31 @@ static bool Nav_TryResolveNodeInTile( const nav_mesh_t *mesh, const nav_tile_t *
 	}
 
 	/**
+	*    Strict layer guard:
+	*        When the caller disallows fallback, reject layers whose Z is outside the
+	*        normal step-scale selection tolerance. This prevents exact neighbor expansion
+	*        from snapping to unrelated layers inside the same XY cell and turning bad
+	*        layer resolution into misleading `StepTest` failures.
+	**/
+	if ( !allow_closest_layer_fallback ) {
+		// Rebuild the same Z tolerance used by primary layer selection.
+		double z_tolerance = 0.0;
+		if ( nav_z_tolerance && nav_z_tolerance->value > 0.0f ) {
+			z_tolerance = nav_z_tolerance->value;
+		} else {
+			z_tolerance = mesh->max_step + ( mesh->z_quant * 0.5f );
+		}
+
+		// Measure how far the selected layer sits from the caller's desired Z.
+		const double selected_layer_z = ( double )cell->layers[ layer_index ].z_quantized * mesh->z_quant;
+		const double selected_delta = std::fabs( selected_layer_z - desired_z );
+		// Reject this layer when strict lookup is required and the match is too far away.
+		if ( selected_delta > z_tolerance ) {
+			return false;
+		}
+	}
+
+	/**
 	*    Populate the node reference with keys and world-space position.
 	**/
 	const nav_layer_t *layer = &cell->layers[ layer_index ];
@@ -1427,7 +1462,7 @@ static bool Nav_FindNodeInLeaf( const nav_mesh_t *mesh, const nav_leaf_data_t *l
 		}
 
 		// Attempt to resolve a node within this tile.
-		if ( Nav_TryResolveNodeInTile( mesh, tile, tile_id, leaf_index, position, desired_z, out_node ) ) {
+     if ( Nav_TryResolveNodeInTile( mesh, tile, tile_id, leaf_index, position, desired_z, out_node, allow_fallback ) ) {
 			return true;
 		}
 	}
@@ -1571,7 +1606,12 @@ const bool Nav_FindNodeForPosition( const nav_mesh_t *mesh, const Vector3 &posit
 	if ( it != mesh->world_tile_id_of.end() ) {
 		const int32_t tile_id = it->second;
 		const nav_tile_t *tile = &mesh->world_tiles[ tile_id ];
-		if ( Nav_TryResolveNodeInTile( mesh, tile, tile_id, leaf_index, position, desired_z, out_node ) ) {
+        /**
+		*    Primary-tile resolution:
+		*        Require a tolerance-respecting layer match first so endpoint lookups on
+		*        tile/cell surfaces do not immediately snap to an unrelated far-Z layer.
+		**/
+		if ( Nav_TryResolveNodeInTile( mesh, tile, tile_id, leaf_index, position, desired_z, out_node, false ) ) {
 			return true;
 		}
         // Primary tile lookup failed: emit concise diagnostic when enabled.
@@ -1600,7 +1640,12 @@ const bool Nav_FindNodeForPosition( const nav_mesh_t *mesh, const Vector3 &posit
 
 				const int32_t nb_tile_id = nb_it->second;
 				const nav_tile_t *nb_tile = &mesh->world_tiles[ nb_tile_id ];
-				if ( Nav_TryResolveNodeInTile( mesh, nb_tile, nb_tile_id, leaf_index, position, desired_z, out_node ) ) {
+                /**
+				*    Neighbor-tile fallback:
+				*        Keep seam recovery enabled while still requiring the recovered layer
+				*        to stay within the normal Z tolerance.
+				**/
+				if ( Nav_TryResolveNodeInTile( mesh, nb_tile, nb_tile_id, leaf_index, position, desired_z, out_node, false ) ) {
 					return true;
 				}
 			}

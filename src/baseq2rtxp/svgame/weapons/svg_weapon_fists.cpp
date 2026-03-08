@@ -91,7 +91,7 @@ void weapon_fists_primary_fire( svg_base_edict_t *ent ) {
     }
 
     // Notify we're making noise.
-    SVG_Player_PlayerNoise( ent, start, PNOISE_WEAPON );
+    SVG_PlayerNoise_MakeNoise( ent, start, PLAYER_NOISE_WEAPON );
 }
 /**
 *   @brief  
@@ -125,7 +125,7 @@ void weapon_fists_secondary_fire( svg_base_edict_t *ent ) {
     }
 
     // Notify we're making noise.
-    SVG_Player_PlayerNoise( ent, &start.x, PNOISE_WEAPON );
+    SVG_PlayerNoise_MakeNoise( ent, &start.x, PLAYER_NOISE_WEAPON );
 }
 
 /**

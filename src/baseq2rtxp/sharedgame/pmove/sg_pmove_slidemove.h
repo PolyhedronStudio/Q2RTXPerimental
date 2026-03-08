@@ -7,16 +7,18 @@
 ********************************************************************/
 #pragma once
 
+#include "sharedgame/math/sg_math_velocity.h"
+
 //! Maximum amount of clipping planes to test for.
 static constexpr int32_t PM_MAX_CLIP_PLANES = 8;
 //! The overclip factor for velocity clipping.
-static constexpr double PM_OVERCLIP = 1.001;
+static constexpr double PM_OVERCLIP = SG_OVERCLIP;//1.001;
 
 
 //! Can't step up onto very steep slopes
-static constexpr double PM_STEP_MIN_NORMAL = 0.7;
+static constexpr double PM_STEP_MIN_NORMAL = SG_STEP_MIN_NORMAL; // 0.7;
 //! Minimal Z Normal for testing whether something is legitimately a "WALL".
-static constexpr double PM_MIN_WALL_NORMAL_Z = 0.03125;
+static constexpr double PM_MIN_WALL_NORMAL_Z = SG_MIN_WALL_NORMAL_Z; // 0.03125;
 
 
 
@@ -46,8 +48,12 @@ enum pm_clipflags_t {
 	PM_VELOCITY_CLIPPED_NONE = 0,
 	//! Velocity has been clipped by a Floor.
 	PM_VELOCITY_CLIPPED_FLOOR = BIT( 0 ),
+	//! Velocity has been clipped by a sloped surface that is shallow enough to be considered floor.
+	PM_VELOCITY_CLIPPED_SLOPE_FLOOR = BIT( 1 ),
+	//! Velocity has been clipped by a sloped surface that is too steep to be considered floor, or a vertical wall/step.
+	PM_VELOCITY_CLIPPED_SLOPE_STEEP = BIT ( 2 ),
 	//! Velocity has been clipped by a Wall/Step.
-	PM_VELOCITY_CLIPPED_WALL_OR_STEP = BIT( 1 ),
+	PM_VELOCITY_CLIPPED_WALL_OR_STEP = BIT( 3 ),
 };
 QENUM_BIT_FLAGS( pm_clipflags_t );
 /**

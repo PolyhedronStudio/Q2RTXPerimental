@@ -81,9 +81,9 @@ void SVG_Trigger_PrintMessage( svg_base_edict_t *self, svg_base_edict_t *activat
             gi.cprintf( nullptr, PRINT_ALL, "%s\n", (const char *)self->message );
         }
         // Play custom set audio.
-        if ( self->noise_index ) {
-            //gi.sound( activator, CHAN_AUTO, self->noise_index, 1, ATTN_NORM, 0 );
-			SVG_EntityEvent_GeneralSoundEx( activator, CHAN_AUTO, self->noise_index, ATTN_NORM );
+        if ( self->noiseSoundIndexA ) {
+            //gi.sound( activator, CHAN_AUTO, self->noiseSoundIndexA, 1, ATTN_NORM, 0 );
+			SVG_EntityEvent_GeneralSoundEx( activator, CHAN_AUTO, self->noiseSoundIndexA, ATTN_NORM );
             // Play default "chat" hud sound.
         } else {
             //gi.sound( activator, CHAN_AUTO, gi.soundindex( "hud/chat01.wav" ), 1, ATTN_NORM, 0 );

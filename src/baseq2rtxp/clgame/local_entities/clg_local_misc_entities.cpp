@@ -89,10 +89,10 @@ void CLG_misc_model_PostSpawn( clg_local_entity_t *self ) {
 	// Get class locals.
 	clg_misc_model_locals_t *classLocals = static_cast<clg_misc_model_locals_t *>( self->classLocals );
 
-	// Get the modelname.
-	const char *modelName = self->model;
-	// Get a pointer to the model resource, needed for animation data.
-	classLocals->model = clgi.R_GetModelDataForName( modelName );
+	//// Get the modelname.
+	//const char *modelName = self->model;
+	//// Get a pointer to the model resource, needed for animation data.
+	//classLocals->model = clgi.R_GetModelDataForName( modelName );
 }
 
 /**

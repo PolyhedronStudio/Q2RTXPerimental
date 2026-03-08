@@ -68,8 +68,8 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_trigger_hurt_t, onTouch )( svg_trigger_hurt_t 
 
 	if ( !( self->spawnflags & svg_trigger_hurt_t::SPAWNFLAG_SILENT ) ) {
 		if ( self->debounceTouchTime < level.time ) {
-			//gi.sound( other, CHAN_AUTO, self->noise_index, 1, ATTN_NORM, 0 );
-			SVG_EntityEvent_GeneralSoundEx( other, CHAN_AUTO, self->noise_index, ATTN_NORM );
+			//gi.sound( other, CHAN_AUTO, self->noiseSoundIndexA, 1, ATTN_NORM, 0 );
+			SVG_EntityEvent_GeneralSoundEx( other, CHAN_AUTO, self->noiseSoundIndexA, ATTN_NORM );
 
 			self->debounceTouchTime = level.time + 1_sec;
 		}
@@ -107,7 +107,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_trigger_hurt_t, onSpawn )( svg_trigger_hurt_t 
 	// WID: Initialize triggers properly.
 	SVG_Util_InitTrigger( self );
 
-	self->noise_index = gi.soundindex( "world/lashit01.wav" );
+	self->noiseSoundIndexA = gi.soundindex( "world/lashit01.wav" );
 	self->SetTouchCallback( &svg_trigger_hurt_t::onTouch );
 
 	if ( !self->dmg )

@@ -141,7 +141,7 @@ void weapon_pistol_primary_fire( svg_base_edict_t *ent ) {
     gi.multicast( &muzzleFlashOrigin/*ent->s.origin*/, MULTICAST_PVS, false );
 
     // Notify we're making noise.
-    SVG_Player_PlayerNoise( ent, &muzzleFlashOrigin.x, PNOISE_WEAPON );
+    SVG_PlayerNoise_MakeNoise( ent, &muzzleFlashOrigin.x, PLAYER_NOISE_WEAPON );
 
     // Decrease clip ammo.
     //if ( !( (int)dmflags->value & DF_INFINITE_AMMO ) )
@@ -176,7 +176,7 @@ void weapon_pistol_aim_fire( svg_base_edict_t *ent ) {
     gi.multicast( &muzzleFlashOrigin, MULTICAST_PVS, false );
 
     // Notify we're making noise.
-    SVG_Player_PlayerNoise( ent, &muzzleFlashOrigin.x, PNOISE_WEAPON );
+    SVG_PlayerNoise_MakeNoise( ent, &muzzleFlashOrigin.x, PLAYER_NOISE_WEAPON );
 
     // Decrease clip ammo.
     //if ( !( (int)dmflags->value & DF_INFINITE_AMMO ) )

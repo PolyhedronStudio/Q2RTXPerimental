@@ -120,14 +120,14 @@ static const bool Nav_Debug_FindNearestLayerDelta( const nav_mesh_t *mesh, const
 	/**
 	*    Validate tile/cell indices before inspecting layers.
 	**/
-    if ( node.key.tile_index < 0 || node.key.tile_index >= ( int32_t )mesh->world_tiles.size() ) {
+	if ( node.key.tile_index < 0 || node.key.tile_index >= ( int32_t )mesh->world_tiles.size() ) {
 		return false;
 	}
 
 	// Use safe tile cell accessor to avoid dereferencing a possibly-null
 	// `tile.cells` pointer in sparse tiles.
 	const nav_tile_t &tile = mesh->world_tiles[ node.key.tile_index ];
-	auto cellsView = SVG_Nav_Tile_GetCells( mesh, const_cast<nav_tile_t *>( &tile ) );
+	auto cellsView = SVG_Nav_Tile_GetCells( mesh, const_cast< nav_tile_t * >( &tile ) );
 	const nav_xy_cell_t *cellsPtr = cellsView.first;
 	const int32_t cellsCount = cellsView.second;
 	if ( !cellsPtr || node.key.cell_index < 0 || node.key.cell_index >= cellsCount ) {
@@ -170,17 +170,266 @@ static const bool Nav_Debug_FindNearestLayerDelta( const nav_mesh_t *mesh, const
 }
 
 /**
+*  @brief	Resolve the canonical tile, cell, and layer for a nav node reference.
+*  @param	mesh		Navigation mesh.
+*  @param	node		Node reference to inspect.
+*  @param	out_tile	[out] Resolved tile pointer.
+*  @param	out_cell	[out] Resolved cell pointer.
+*  @param	out_layer	[out] Resolved layer pointer.
+*  @return	True if the node maps to valid canonical nav storage.
+**/
+static const bool Nav_TryGetNodeLayerView( const nav_mesh_t *mesh, const nav_node_ref_t &node, const nav_tile_t **out_tile, const nav_xy_cell_t **out_cell, const nav_layer_t **out_layer ) {
+	/**
+	*    Sanity checks: require mesh and output storage.
+	**/
+	if ( !mesh || !out_tile || !out_cell || !out_layer ) {
+		return false;
+	}
+
+	/**
+	*    Validate the canonical world-tile index before reading sparse storage.
+	**/
+	if ( node.key.tile_index < 0 || node.key.tile_index >= ( int32_t )mesh->world_tiles.size() ) {
+		return false;
+	}
+
+	const nav_tile_t &tile = mesh->world_tiles[ node.key.tile_index ];
+	auto cellsView = SVG_Nav_Tile_GetCells( mesh, &tile );
+	const nav_xy_cell_t *cellsPtr = cellsView.first;
+	const int32_t cellsCount = cellsView.second;
+	if ( !cellsPtr || node.key.cell_index < 0 || node.key.cell_index >= cellsCount ) {
+		return false;
+	}
+
+	const nav_xy_cell_t &cell = cellsPtr[ node.key.cell_index ];
+	auto layersView = SVG_Nav_Cell_GetLayers( &cell );
+	const nav_layer_t *layersPtr = layersView.first;
+	const int32_t layerCount = layersView.second;
+	if ( !layersPtr || node.key.layer_index < 0 || node.key.layer_index >= layerCount ) {
+		return false;
+	}
+
+	/**
+	*    Return the resolved canonical views.
+	**/
+	*out_tile = &tile;
+	*out_cell = &cell;
+	*out_layer = &layersPtr[ node.key.layer_index ];
+	return true;
+}
+
+/**
+*  @brief	Convert a node reference into global cell-grid coordinates.
+*  @param	mesh		Navigation mesh.
+*  @param	node		Node reference to inspect.
+*  @param	out_cell_x	[out] Global cell X coordinate.
+*  @param	out_cell_y	[out] Global cell Y coordinate.
+*  @return	True if the node could be mapped to a valid grid cell.
+**/
+static const bool Nav_TryGetGlobalCellCoords( const nav_mesh_t *mesh, const nav_node_ref_t &node, int32_t *out_cell_x, int32_t *out_cell_y ) {
+	/**
+	*    Sanity checks: require mesh and output storage.
+	**/
+	if ( !mesh || !out_cell_x || !out_cell_y ) {
+		return false;
+	}
+
+	/**
+	*    Resolve the canonical tile first so we can derive local cell coordinates.
+	**/
+	if ( node.key.tile_index < 0 || node.key.tile_index >= ( int32_t )mesh->world_tiles.size() ) {
+		return false;
+	}
+
+	const nav_tile_t &tile = mesh->world_tiles[ node.key.tile_index ];
+	const int32_t local_cell_x = node.key.cell_index % mesh->tile_size;
+	const int32_t local_cell_y = node.key.cell_index / mesh->tile_size;
+
+	/**
+	*    Expand tile-local coordinates into world-grid coordinates.
+	**/
+	*out_cell_x = ( tile.tile_x * mesh->tile_size ) + local_cell_x;
+	*out_cell_y = ( tile.tile_y * mesh->tile_size ) + local_cell_y;
+	return true;
+}
+
+/**
+*  @brief	Convert a global cell coordinate into a cell-center world position.
+*  @param	mesh		Navigation mesh.
+*  @param	cell_x		Global cell X coordinate.
+*  @param	cell_y		Global cell Y coordinate.
+*  @param	z		Desired world-space Z for the query point.
+*  @return	World-space cell center carrying the provided Z height.
+**/
+static inline Vector3 Nav_GlobalCellCenterToWorld( const nav_mesh_t *mesh, const int32_t cell_x, const int32_t cell_y, const double z ) {
+	return Vector3{
+		( float )( ( ( double )cell_x + 0.5 ) * mesh->cell_size_xy ),
+		( float )( ( ( double )cell_y + 0.5 ) * mesh->cell_size_xy ),
+		( float )z
+	};
+}
+
+/**
+*  @brief	Convert a quantized layer clearance value into world units.
+*  @param	mesh		Navigation mesh.
+*  @param	layer		Layer holding the quantized clearance.
+*  @return	World-space clearance above this layer's walkable floor sample.
+**/
+static inline double Nav_GetLayerClearanceWorld( const nav_mesh_t *mesh, const nav_layer_t &layer ) {
+	return mesh ? ( ( double )layer.clearance * mesh->z_quant ) : 0.0;
+}
+
+/**
+*  @brief	Compute floor-division for signed global cell coordinates.
+*  @param	value	Signed dividend.
+*  @param	divisor	Positive divisor.
+*  @return	Mathematical floor of `value / divisor`.
+**/
+static inline int32_t Nav_Traversal_FloorDiv( const int32_t value, const int32_t divisor ) {
+	/**
+	*    Sanity checks: require a positive divisor.
+	**/
+	if ( divisor <= 0 ) {
+		return 0;
+	}
+
+	/**
+	*    Use integer truncation for non-negative inputs.
+	**/
+	if ( value >= 0 ) {
+		return value / divisor;
+	}
+
+	/**
+	*    Negative inputs need explicit floor semantics.
+	**/
+	return -( ( -value + divisor - 1 ) / divisor );
+}
+
+/**
+*  @brief	Compute a positive modulo for signed global cell coordinates.
+*  @param	value	Signed input value.
+*  @param	modulus	Positive modulus.
+*  @return	Value wrapped into `[0, modulus)`.
+**/
+static inline int32_t Nav_Traversal_PosMod( const int32_t value, const int32_t modulus ) {
+	/**
+	*    Sanity checks: require a positive modulus.
+	**/
+	if ( modulus <= 0 ) {
+		return 0;
+	}
+
+	/**
+	*    Normalize the remainder into the tile-local range.
+	**/
+	const int32_t remainder = value % modulus;
+	return ( remainder < 0 ) ? ( remainder + modulus ) : remainder;
+}
+
+/**
+*  @brief	Resolve a canonical intermediate segment node directly from global cell coordinates.
+*  @param	mesh		Navigation mesh.
+*  @param	current_node	Current canonical segment start node.
+*  @param	target_cell_x	Global target cell X coordinate.
+*  @param	target_cell_y	Global target cell Y coordinate.
+*  @param	desired_z	Desired world-space Z for layer selection.
+*  @param	out_node	[out] Resolved canonical target node.
+*  @return	True if a walkable layer in the target cell could be resolved.
+*  @note	This keeps segmented XY bridge validation on exact walkable tile/cell storage instead of
+*  			falling back to a world-position lookup that can miss sparse but valid intermediate cells.
+**/
+static const bool Nav_TryResolveIntermediateSegmentNodeExact( const nav_mesh_t *mesh, const nav_node_ref_t &current_node,
+	const int32_t target_cell_x, const int32_t target_cell_y, const double desired_z, nav_node_ref_t *out_node ) {
+	/**
+	*    Sanity checks: require mesh storage, output storage, and a valid current tile reference.
+	**/
+	if ( !mesh || !out_node ) {
+		return false;
+	}
+	if ( current_node.key.tile_index < 0 || current_node.key.tile_index >= ( int32_t )mesh->world_tiles.size() ) {
+		return false;
+	}
+
+	/**
+	*    Map the requested global cell back into canonical tile-local addressing.
+	**/
+	const int32_t target_tile_x = Nav_Traversal_FloorDiv( target_cell_x, mesh->tile_size );
+	const int32_t target_tile_y = Nav_Traversal_FloorDiv( target_cell_y, mesh->tile_size );
+	const int32_t target_local_x = Nav_Traversal_PosMod( target_cell_x, mesh->tile_size );
+	const int32_t target_local_y = Nav_Traversal_PosMod( target_cell_y, mesh->tile_size );
+	const int32_t target_cell_index = ( target_local_y * mesh->tile_size ) + target_local_x;
+
+	/**
+	*    Resolve the canonical tile and reject missing sparse cells before reading layer storage.
+	**/
+	const nav_world_tile_key_t target_tile_key = { .tile_x = target_tile_x, .tile_y = target_tile_y };
+	auto tile_it = mesh->world_tile_id_of.find( target_tile_key );
+	if ( tile_it == mesh->world_tile_id_of.end() ) {
+		return false;
+	}
+
+	const int32_t target_tile_index = tile_it->second;
+	if ( target_tile_index < 0 || target_tile_index >= ( int32_t )mesh->world_tiles.size() ) {
+		return false;
+	}
+
+	const nav_tile_t *target_tile = &mesh->world_tiles[ target_tile_index ];
+	if ( !target_tile || !target_tile->presence_bits ) {
+		return false;
+	}
+
+	// Reject sparse cells that are not marked present in the tile bitset.
+	const int32_t word_index = target_cell_index >> 5;
+	const int32_t bit_index = target_cell_index & 31;
+	if ( ( target_tile->presence_bits[ word_index ] & ( 1u << bit_index ) ) == 0 ) {
+		return false;
+	}
+
+	/**
+	*    Resolve the target cell storage and select the best walkable layer for the requested step height.
+	**/
+	auto cellsView = SVG_Nav_Tile_GetCells( mesh, target_tile );
+	const nav_xy_cell_t *cellsPtr = cellsView.first;
+	const int32_t cellsCount = cellsView.second;
+	if ( !cellsPtr || target_cell_index < 0 || target_cell_index >= cellsCount ) {
+		return false;
+	}
+
+	const nav_xy_cell_t *target_cell = &cellsPtr[ target_cell_index ];
+	if ( !target_cell || target_cell->num_layers <= 0 || !target_cell->layers ) {
+		return false;
+	}
+
+	int32_t target_layer_index = -1;
+	if ( !Nav_SelectLayerIndex( mesh, target_cell, desired_z, &target_layer_index ) ) {
+		return false;
+	}
+
+	/**
+	*    Populate the resolved canonical node using the selected walkable layer.
+	**/
+	const nav_layer_t *target_layer = &target_cell->layers[ target_layer_index ];
+	out_node->key.leaf_index = current_node.key.leaf_index;
+	out_node->key.tile_index = target_tile_index;
+	out_node->key.cell_index = target_cell_index;
+	out_node->key.layer_index = target_layer_index;
+	out_node->worldPosition = Nav_NodeWorldPosition( mesh, target_tile, target_cell_index, target_layer );
+	return true;
+}
+
+/**
 *  @brief	Forward declaration for the single-step traversal helper used by segmented ramps.
-*  @param	mesh			Navigation mesh.
-*  @param	startPos	Start world position.
-*  @param	endPos		End world position.
+*  @param	mesh		Navigation mesh.
+*  @param	start_node	Resolved start node.
+*  @param	end_node	Resolved end node.
 *  @param	mins		Agent bounding box minimums.
 *  @param	maxs		Agent bounding box maximums.
 *  @param	clip_entity	Entity to use for clipping (nullptr for world).
 *  @param	policy		Optional path policy for tuning step behavior.
 *  @return	True if the traversal is possible, false otherwise.
 **/
-static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos, const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t *clip_entity, const svg_nav_path_policy_t *policy, nav_edge_reject_reason_t *out_reason = nullptr );
+static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mesh, const nav_node_ref_t &start_node, const nav_node_ref_t &end_node, const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t *clip_entity, const svg_nav_path_policy_t *policy, nav_edge_reject_reason_t *out_reason = nullptr, const cm_contents_t stepTraceMask = CM_CONTENTMASK_MONSTERSOLID );
 
 /**
 *  @brief	Performs a simple PMove-like step traversal test (3-trace) with explicit agent bbox.
@@ -197,7 +446,7 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 *  @param	policy			Optional path policy for tuning step behavior.
 *  @return	True if the traversal is possible, false otherwise.
 **/
-const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos, const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t *clip_entity, const svg_nav_path_policy_t *policy, nav_edge_reject_reason_t *out_reason ) {
+const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos, const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t *clip_entity, const svg_nav_path_policy_t *policy, nav_edge_reject_reason_t *out_reason, const cm_contents_t stepTraceMask ) {
 	/**
 	*    Sanity checks: require a valid mesh.
 	**/
@@ -206,11 +455,74 @@ const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vecto
 	}
 
 	/**
+	*    Resolve canonical start/end nodes so edge validation can work from tile/cell/layer
+	*    facts rather than generic world tracing.
+	**/
+	nav_node_ref_t start_node = {};
+	nav_node_ref_t end_node = {};
+	if ( !Nav_FindNodeForPosition( mesh, startPos, startPos[ 2 ], &start_node, true ) ||
+		!Nav_FindNodeForPosition( mesh, endPos, endPos[ 2 ], &end_node, true ) ) {
+		if ( out_reason ) {
+			*out_reason = nav_edge_reject_reason_t::NoNode;
+		}
+		return false;
+	}
+
+	/**
+	*    Early out when both points already resolve to the same canonical node.
+	**/
+	if ( start_node.key == end_node.key ) {
+		return true;
+	}
+
+	/**
+	*    Canonical-edge validation:
+	*        Reuse the already resolved node references so the validator does not
+	*        re-query the same walkable cell centers through `Nav_FindNodeForPosition()`.
+	**/
+	return Nav_CanTraverseStep_ExplicitBBox_NodeRefs( mesh, start_node, end_node, mins, maxs, clip_entity, policy, out_reason, stepTraceMask );
+}
+
+/**
+*  @brief	Validate a traversal edge from canonical node references.
+*  @param	mesh		Navigation mesh.
+*  @param	start_node	Resolved canonical start node.
+*  @param	end_node	Resolved canonical end node.
+*  @param	mins		Agent bounding box minimums.
+*  @param	maxs		Agent bounding box maximums.
+*  @param	clip_entity	Entity to use for clipping (nullptr for world).
+*  @param	policy		Optional path policy for tuning step behavior.
+*  @param	out_reason	[out] Optional reject reason.
+*  @param	stepTraceMask	Reserved mask parameter kept aligned with the position overload.
+*  @return	True if the traversal is possible, false otherwise.
+*  @note	This keeps XY validation on the walkable canonical cells already selected by the caller and
+*  			limits additional Z probing to the segmented step path only when stepping requires it.
+**/
+const bool Nav_CanTraverseStep_ExplicitBBox_NodeRefs( const nav_mesh_t *mesh, const nav_node_ref_t &start_node, const nav_node_ref_t &end_node,
+	const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t *clip_entity, const svg_nav_path_policy_t *policy,
+	nav_edge_reject_reason_t *out_reason, const cm_contents_t stepTraceMask ) {
+	/**
+	*    Sanity checks: require a valid mesh.
+	**/
+	if ( !mesh ) {
+		return false;
+	}
+
+	/**
+	*    Early out when both endpoints already reference the same canonical node.
+	**/
+	if ( start_node.key == end_node.key ) {
+		return true;
+	}
+
+	/**
 	*    Compute the required climb to determine if segmentation is needed.
 	**/
+   const Vector3 &startPos = start_node.worldPosition;
+	const Vector3 &endPos = end_node.worldPosition;
 	const double desiredDz = ( double )endPos[ 2 ] - ( double )startPos[ 2 ];
 	const double requiredUp = std::max( 0.0, desiredDz );
-	const double stepSize = ( policy ? ( double )policy->max_step_height : mesh->max_step );
+	const double stepSize = ( policy && policy->max_step_height > 0.0 ) ? ( double )policy->max_step_height : ( double )mesh->max_step;
 
 	/**
 	*    Drop cap enforcement (total edge):
@@ -221,7 +533,7 @@ const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vecto
 	const double requiredDown = std::max( 0.0, ( double )startPos[ 2 ] - ( double )endPos[ 2 ] );
 	// Reject edges that drop farther than the configured cap.
 	if ( requiredDown > 0.0 && dropCap >= 0.0 && requiredDown > dropCap ) {
-       if ( out_reason ) *out_reason = nav_edge_reject_reason_t::DropCap;
+		if ( out_reason ) *out_reason = nav_edge_reject_reason_t::DropCap;
 		return false;
 	}
 
@@ -231,51 +543,95 @@ const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vecto
 	*        we segment by XY distance to validate each cell-scale portion.
 	**/
 	const Vector3 fullDelta = QM_Vector3Subtract( endPos, startPos );
-	const double horizontalDist = sqrtf( ( fullDelta[ 0 ] * fullDelta[ 0 ] ) + ( fullDelta[ 1 ] * fullDelta[ 1 ] ) );
-	const double cellSize = ( mesh->cell_size_xy > 0.0 ) ? mesh->cell_size_xy : 0.0;
+	int32_t start_cell_x = 0;
+	int32_t start_cell_y = 0;
+	int32_t end_cell_x = 0;
+	int32_t end_cell_y = 0;
+	if ( !Nav_TryGetGlobalCellCoords( mesh, start_node, &start_cell_x, &start_cell_y ) ||
+		!Nav_TryGetGlobalCellCoords( mesh, end_node, &end_cell_x, &end_cell_y ) ) {
+		if ( out_reason ) {
+			*out_reason = nav_edge_reject_reason_t::NoNode;
+		}
+		return false;
+	}
+
+	const int32_t delta_cell_x = end_cell_x - start_cell_x;
+	const int32_t delta_cell_y = end_cell_y - start_cell_y;
 	// Determine how many segments we need for vertical climb and for multi-cell ramps.
 	const int32_t stepCountVertical = ( requiredUp > stepSize && stepSize > 0.0 )
 		? ( int32_t )std::ceil( requiredUp / stepSize )
 		: 1;
-	const int32_t stepCountHorizontal = ( cellSize > 0.0 && horizontalDist > cellSize )
-		? ( int32_t )std::ceil( horizontalDist / cellSize )
-		: 1;
-	// Use the most conservative segmentation to satisfy both climb and ramp constraints.
-	const int32_t stepCount = std::max( stepCountVertical, stepCountHorizontal );
+	const int32_t stepCountHorizontal = std::max( std::abs( delta_cell_x ), std::abs( delta_cell_y ) );
+	   // Use the most conservative segmentation to satisfy both climb and ramp constraints.
+	const int32_t stepCount = std::max( 1, std::max( stepCountVertical, stepCountHorizontal ) );
 
-	/**
-	*    Segmented ramp/stair handling:
-	*        Split long climbs into <= max_step_height sub-steps so
-	*        step validation mirrors PMove-style step constraints.
-	**/
+	 /**
+	 *    Segmented ramp/stair handling:
+	 *        Split long climbs into <= max_step_height sub-steps so
+	 *        step validation mirrors PMove-style step constraints.
+	 **/
 	if ( stepCount > 1 ) {
-		/**
-		*    Segment by the combined climb/XY requirement to validate multi-cell ramps
-		*    in smaller chunks and avoid early step-test failures.
-		**/
-		// Track the starting point of the current segment.
-		Vector3 segmentStart = startPos;
-		// Validate each sub-step in sequence.
+		  /**
+		*    Segment by canonical cell hops instead of interpolated trace points.
+		  *    This keeps each sub-step aligned with actual nav cells/layers.
+		  **/
+		nav_node_ref_t segmentStartNode = start_node;
+		   // Validate each sub-step in sequence.
 		for ( int32_t stepIndex = 1; stepIndex <= stepCount; stepIndex++ ) {
-			// Compute the fractional progress for this segment.
 			const double t = ( double )stepIndex / ( double )stepCount;
-			// Build the segment end position along the climb.
-			Vector3 segmentEnd = {
-				startPos[ 0 ] + ( float )( fullDelta[ 0 ] * t ),
-				startPos[ 1 ] + ( float )( fullDelta[ 1 ] * t ),
-				startPos[ 2 ] + ( float )( fullDelta[ 2 ] * t )
-			};
+			const int32_t segment_cell_x = start_cell_x + ( int32_t )std::lround( ( double )delta_cell_x * t );
+			const int32_t segment_cell_y = start_cell_y + ( int32_t )std::lround( ( double )delta_cell_y * t );
+
+			nav_node_ref_t segmentEndNode = {};
+			if ( stepIndex == stepCount ) {
+				segmentEndNode = end_node;
+			} else {
+             /**
+				*    Resolve the next segment from the current segment surface instead of the full-edge
+				*    interpolated Z. Intermediate cells on stairs/ramps often do not contain a node at the
+				*    synthetic interpolated height even though a valid step-sized continuation exists.
+				**/
+				// Compute the remaining vertical delta from this segment start toward the final end node.
+				const double remaining_segment_dz = ( double )end_node.worldPosition[ 2 ] - ( double )segmentStartNode.worldPosition[ 2 ];
+				// Clamp the desired rise/drop for this sub-step to one PMove-sized step.
+				const double segment_step_dz = QM_Clamp( remaining_segment_dz, -stepSize, stepSize );
+				// Use the clamped per-step surface target as the primary lookup height for this segment cell.
+				const double segment_desired_z = ( double )segmentStartNode.worldPosition[ 2 ] + segment_step_dz;
+				/**
+                 *    Resolve the intermediate segment from exact tile/cell storage so short XY bridge probes stay
+					*    aligned with walkable surface cells instead of relying on a world-position lookup.
+				**/
+                    if ( !Nav_TryResolveIntermediateSegmentNodeExact( mesh, segmentStartNode, segment_cell_x, segment_cell_y, segment_desired_z, &segmentEndNode ) ) {
+					/**
+                     *    Conservative fallback: if the stepped desired Z does not map to a walkable layer in this
+						*    exact cell, retry against the current surface height before rejecting the segment.
+					**/
+                      if ( !Nav_TryResolveIntermediateSegmentNodeExact( mesh, segmentStartNode, segment_cell_x, segment_cell_y, segmentStartNode.worldPosition[ 2 ], &segmentEndNode ) ) {
+						if ( out_reason ) {
+							*out_reason = nav_edge_reject_reason_t::NoNode;
+						}
+						return false;
+					}
+				}
+			}
+
+			/**
+			*    Skip duplicate canonical nodes produced by rounding so segmentation stays monotonic.
+			**/
+			if ( segmentStartNode.key == segmentEndNode.key ) {
+				continue;
+			}
 
 			/**
 			*    Validate the current sub-step using the single-step routine.
 			*    Abort immediately if any sub-step fails.
 			**/
-           if ( !Nav_CanTraverseStep_ExplicitBBox_Single( mesh, segmentStart, segmentEnd, mins, maxs, clip_entity, policy, out_reason ) ) {
+			if ( !Nav_CanTraverseStep_ExplicitBBox_Single( mesh, segmentStartNode, segmentEndNode, mins, maxs, clip_entity, policy, out_reason, stepTraceMask ) ) {
 				return false;
 			}
 
 			// Advance to the next segment.
-			segmentStart = segmentEnd;
+			segmentStartNode = segmentEndNode;
 		}
 
 		// All sub-steps succeeded.
@@ -285,7 +641,313 @@ const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vecto
 	/**
 	*    Fallback: use the single-step validation when no segmentation is needed.
 	**/
- return Nav_CanTraverseStep_ExplicitBBox_Single( mesh, startPos, endPos, mins, maxs, clip_entity, policy, out_reason );
+	return Nav_CanTraverseStep_ExplicitBBox_Single( mesh, start_node, end_node, mins, maxs, clip_entity, policy, out_reason, stepTraceMask );
+}
+
+/**
+*   @brief	Probe a small XY neighborhood to rescue sync endpoint node resolution on boundary origins.
+*   @param	mesh		Navigation mesh.
+*   @param	query_center	Endpoint center position that failed direct lookup.
+*   @param	start_center	Original request start center used by blend lookup.
+*   @param	goal_center	Original request goal center used by blend lookup.
+*   @param	query_is_goal	True when rescuing the goal endpoint, false for the start endpoint.
+*   @param	policy		Resolved path policy controlling blend behavior.
+*   @param	out_node	[out] Best rescued canonical node.
+*   @return	True when a nearby endpoint node was recovered.
+*   @note	This mirrors the async worker's boundary-origin hardening so sync path generation can recover
+*   		from sound or interaction points that land directly on tile or cell boundaries.
+**/
+static const bool Nav_Traversal_TryResolveBoundaryOriginNode( const nav_mesh_t *mesh, const Vector3 &query_center,
+	const Vector3 &start_center, const Vector3 &goal_center, const bool query_is_goal,
+	const svg_nav_path_policy_t &policy, nav_node_ref_t *out_node ) {
+	/**
+	*   	Sanity checks: require mesh storage and an output node reference.
+	**/
+	if ( !mesh || !out_node ) {
+		return false;
+	}
+
+	/**
+	*   	Build a compact probe ring around the failed endpoint.
+	*   		Use half-cell and one-cell offsets so boundary-origin path requests can snap onto a nearby
+	*   		valid walk surface without skipping across large gaps.
+	**/
+	const float mesh_cell_size = ( float )mesh->cell_size_xy;
+	const float half_cell_raw = mesh_cell_size * 0.5f;
+	const float half_cell = ( half_cell_raw > 1.0f ) ? half_cell_raw : 1.0f;
+	const float full_cell = ( half_cell > mesh_cell_size ) ? half_cell : mesh_cell_size;
+	const Vector3 probe_offsets[] = {
+		{ half_cell, 0.0f, 0.0f },
+		{ -half_cell, 0.0f, 0.0f },
+		{ 0.0f, half_cell, 0.0f },
+		{ 0.0f, -half_cell, 0.0f },
+		{ half_cell, half_cell, 0.0f },
+		{ half_cell, -half_cell, 0.0f },
+		{ -half_cell, half_cell, 0.0f },
+		{ -half_cell, -half_cell, 0.0f },
+		{ full_cell, 0.0f, 0.0f },
+		{ -full_cell, 0.0f, 0.0f },
+		{ 0.0f, full_cell, 0.0f },
+		{ 0.0f, -full_cell, 0.0f }
+	};
+
+	/**
+	*   	Keep the closest rescued node to the original failed endpoint.
+	**/
+	bool found_node = false;
+	double best_distance_sqr = std::numeric_limits<double>::infinity();
+	nav_node_ref_t best_node = {};
+
+	// Probe each nearby XY offset and keep the closest successfully resolved canonical node.
+	for ( const Vector3 &probe_offset : probe_offsets ) {
+		// Shift the failed endpoint by the current local probe offset.
+		const Vector3 probe_center = QM_Vector3Add( query_center, probe_offset );
+		nav_node_ref_t candidate_node = {};
+		bool resolved = false;
+
+		/**
+		*   	Reuse the caller's configured lookup policy so boundary rescue stays aligned with the
+		*   	same blend and fallback behavior as the primary endpoint resolution path.
+		**/
+		if ( policy.enable_goal_z_layer_blend ) {
+			resolved = Nav_FindNodeForPosition_BlendZ( mesh, probe_center, start_center.z, goal_center.z,
+				start_center, goal_center, policy.blend_start_dist, policy.blend_full_dist, &candidate_node, true );
+		} else {
+			const double desired_z = query_is_goal ? goal_center.z : start_center.z;
+			resolved = Nav_FindNodeForPosition( mesh, probe_center, desired_z, &candidate_node, true );
+		}
+
+		// Continue probing until we find at least one nearby canonical node.
+		if ( !resolved ) {
+			continue;
+		}
+
+		// Score the candidate by how closely its recovered world position matches the original endpoint.
+		const double candidate_distance_sqr = QM_Vector3DistanceSqr( candidate_node.worldPosition, query_center );
+		if ( !found_node || candidate_distance_sqr < best_distance_sqr ) {
+			found_node = true;
+			best_distance_sqr = candidate_distance_sqr;
+			best_node = candidate_node;
+		}
+	}
+
+	/**
+	*   	Commit the closest rescued endpoint node when probing succeeded.
+	**/
+	if ( !found_node ) {
+		return false;
+	}
+
+	*out_node = best_node;
+	return true;
+}
+
+/**
+*   @brief	Resolve one traversal endpoint using direct lookup, boundary rescue, and same-cell rescue.
+*   @param	mesh		Navigation mesh.
+*   @param	query_center	Endpoint center position to resolve.
+*   @param	start_center	Full request start center used by blended lookup.
+*   @param	goal_center	Full request goal center used by blended lookup.
+*   @param	query_is_goal	True when resolving the goal endpoint, false for the start endpoint.
+*   @param	policy		Resolved path policy used for endpoint lookup.
+*   @param	out_node	[out] Resolved canonical endpoint node.
+*   @return	True when endpoint resolution succeeded.
+*   @note	This keeps the sync traversal APIs aligned with the async worker's endpoint hardening.
+**/
+static const bool Nav_Traversal_TryResolveEndpointNode( const nav_mesh_t *mesh, const Vector3 &query_center,
+	const Vector3 &start_center, const Vector3 &goal_center, const bool query_is_goal,
+	const svg_nav_path_policy_t &policy, nav_node_ref_t *out_node ) {
+	/**
+	*   	Sanity checks: require mesh storage and an output node reference.
+	**/
+	if ( !mesh || !out_node ) {
+		return false;
+	}
+
+	/**
+	*   	Attempt direct endpoint lookup first using the requested blend policy.
+	**/
+	nav_node_ref_t resolved_node = {};
+	bool resolved = false;
+	if ( policy.enable_goal_z_layer_blend ) {
+		resolved = Nav_FindNodeForPosition_BlendZ( mesh, query_center, start_center.z, goal_center.z,
+			start_center, goal_center, policy.blend_start_dist, policy.blend_full_dist, &resolved_node, true );
+	} else {
+		const double desired_z = query_is_goal ? goal_center.z : start_center.z;
+		resolved = Nav_FindNodeForPosition( mesh, query_center, desired_z, &resolved_node, true );
+	}
+
+	/**
+	*   	Fallback to boundary-origin rescue when the raw endpoint center misses a walkable sample.
+	**/
+	if ( !resolved ) {
+		resolved = Nav_Traversal_TryResolveBoundaryOriginNode( mesh, query_center, start_center, goal_center,
+			query_is_goal, policy, &resolved_node );
+	}
+
+	/**
+	*   	Early out when both direct lookup and boundary rescue failed.
+	**/
+	if ( !resolved ) {
+		return false;
+	}
+
+	/**
+	*   	Rescue isolated same-cell layers by preferring the best-connected layer variant in that cell.
+	**/
+	Nav_AStar_TrySelectConnectedSameCellLayer( mesh, resolved_node, &policy, &resolved_node );
+	*out_node = resolved_node;
+	return true;
+}
+
+/**
+*   @brief	Resolve both traversal endpoints under one blend strategy.
+*   @param	mesh		Navigation mesh.
+*   @param	start_center	Request start in nav-center space.
+*   @param	goal_center	Request goal in nav-center space.
+*   @param	agent_mins	Agent bounding box minimums.
+*   @param	agent_maxs	Agent bounding box maximums.
+*   @param	policy		Optional path policy to copy and refine.
+*   @param	enable_goal_z_layer_blend	Whether this strategy should use blended endpoint lookup.
+*   @param	blend_start_dist	Distance at which goal-Z blending begins.
+*   @param	blend_full_dist	Distance at which goal-Z blending fully favors the goal layer.
+*   @param	out_start_node	[out] Resolved canonical start node.
+*   @param	out_goal_node	[out] Resolved canonical goal node.
+*   @return	True when both endpoints were resolved successfully.
+**/
+static const bool Nav_Traversal_TryResolveEndpointsForStrategy( const nav_mesh_t *mesh, const Vector3 &start_center,
+	const Vector3 &goal_center, const Vector3 &agent_mins, const Vector3 &agent_maxs, const svg_nav_path_policy_t *policy,
+	const bool enable_goal_z_layer_blend, const double blend_start_dist, const double blend_full_dist,
+	nav_node_ref_t *out_start_node, nav_node_ref_t *out_goal_node ) {
+	/**
+	*   	Sanity checks: require mesh storage and output nodes.
+	**/
+	if ( !mesh || !out_start_node || !out_goal_node ) {
+		return false;
+	}
+
+	/**
+	*   	Build the resolved policy snapshot for this specific endpoint strategy.
+	*   		This keeps sync endpoint lookup aligned with the agent hull and caller policy.
+	**/
+	svg_nav_path_policy_t resolvedPolicy = policy ? *policy : svg_nav_path_policy_t{};
+	resolvedPolicy.agent_mins = agent_mins;
+	resolvedPolicy.agent_maxs = agent_maxs;
+	resolvedPolicy.enable_goal_z_layer_blend = enable_goal_z_layer_blend;
+	if ( enable_goal_z_layer_blend ) {
+		resolvedPolicy.blend_start_dist = ( blend_start_dist > 0.0 ) ? blend_start_dist : resolvedPolicy.blend_start_dist;
+		resolvedPolicy.blend_full_dist = ( blend_full_dist > resolvedPolicy.blend_start_dist )
+			? blend_full_dist
+			: std::max( resolvedPolicy.blend_start_dist + mesh->z_quant, resolvedPolicy.blend_full_dist );
+	}
+
+	/**
+	*   	Resolve the start and goal endpoints under the same policy snapshot.
+	**/
+	if ( !Nav_Traversal_TryResolveEndpointNode( mesh, start_center, start_center, goal_center, false, resolvedPolicy, out_start_node ) ) {
+		return false;
+	}
+	if ( !Nav_Traversal_TryResolveEndpointNode( mesh, goal_center, start_center, goal_center, true, resolvedPolicy, out_goal_node ) ) {
+		return false;
+	}
+
+	return true;
+}
+
+/**
+*   @brief	Forward declaration for the shared sync A* search helper.
+*   @param	mesh		Navigation mesh containing the voxel tiles/cells.
+*   @param	start_node	Resolved canonical start node.
+*   @param	goal_node	Resolved canonical goal node.
+*   @param	agent_mins	Agent bounding box minimums in nav-center space.
+*   @param	agent_maxs	Agent bounding box maximums in nav-center space.
+*   @param	out_points	[out] Waypoints produced by the search.
+*   @param	policy		Optional traversal policy.
+*   @param	pathProcess	Optional per-entity path-process state.
+*   @param	tileRouteFilter	Optional coarse tile-route restriction.
+*   @return	True when a valid path was produced.
+*   @note	`Nav_Traversal_TryGeneratePointsWithEndpointFallbacks()` calls this helper before its full
+*   		definition appears later in the translation unit, so we declare it here explicitly.
+**/
+static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start_node, const nav_node_ref_t &goal_node,
+	const Vector3 &agent_mins, const Vector3 &agent_maxs, std::vector<Vector3> &out_points, const svg_nav_path_policy_t *policy = nullptr,
+	const struct svg_nav_path_process_t *pathProcess = nullptr, const std::vector<nav_tile_cluster_key_t> *tileRouteFilter = nullptr );
+
+/**
+*   @brief	Generate traversal waypoints by trying primary and fallback endpoint-resolution strategies.
+*   @param	mesh		Navigation mesh.
+*   @param	start_center	Request start in nav-center space.
+*   @param	goal_center	Request goal in nav-center space.
+*   @param	agent_mins	Agent bounding box minimums.
+*   @param	agent_maxs	Agent bounding box maximums.
+*   @param	policy		Optional path policy for traversal and endpoint tuning.
+*   @param	pathProcess	Optional path-process state for failure penalties.
+*   @param	prefer_blended_lookup	True to try blended endpoint lookup first, false to try plain lookup first.
+*   @param	blend_start_dist	Distance at which goal-Z blending begins.
+*   @param	blend_full_dist	Distance at which goal-Z blending fully favors the goal layer.
+*   @param	out_points	[out] Final traversal waypoints.
+*   @return	True when any endpoint strategy produced a valid traversal path.
+*   @note	This helper stops relying on a single layer-selection guess by trying both blended and unblended
+*   		endpoint strategies before giving up.
+**/
+static const bool Nav_Traversal_TryGeneratePointsWithEndpointFallbacks( const nav_mesh_t *mesh, const Vector3 &start_center,
+	const Vector3 &goal_center, const Vector3 &agent_mins, const Vector3 &agent_maxs, const svg_nav_path_policy_t *policy,
+	const svg_nav_path_process_t *pathProcess, const bool prefer_blended_lookup, const double blend_start_dist,
+	const double blend_full_dist, std::vector<Vector3> &out_points ) {
+	/**
+	*   	Sanity checks: require mesh storage.
+	**/
+	if ( !mesh ) {
+		return false;
+	}
+
+	/**
+	*   	Prepare the primary and secondary endpoint strategies.
+	*   		The secondary strategy flips blend usage so sync traversal is not trapped by one layer guess.
+	**/
+	const bool strategyBlendModes[] = { prefer_blended_lookup, !prefer_blended_lookup };
+	const int32_t strategyCount = ( strategyBlendModes[ 0 ] == strategyBlendModes[ 1 ] ) ? 1 : 2;
+
+	/**
+	*   	Evaluate each endpoint strategy until one produces a valid path.
+	**/
+	for ( int32_t strategyIndex = 0; strategyIndex < strategyCount; strategyIndex++ ) {
+		const bool strategyUsesBlend = strategyBlendModes[ strategyIndex ];
+		nav_node_ref_t start_node = {};
+		nav_node_ref_t goal_node = {};
+		if ( !Nav_Traversal_TryResolveEndpointsForStrategy( mesh, start_center, goal_center, agent_mins, agent_maxs,
+			policy, strategyUsesBlend, blend_start_dist, blend_full_dist, &start_node, &goal_node ) ) {
+			continue;
+		}
+
+		/**
+		*   	Fast path: identical canonical endpoints already represent a trivial path.
+		**/
+		out_points.clear();
+		if ( start_node.key == goal_node.key ) {
+			out_points.push_back( start_node.worldPosition );
+			out_points.push_back( goal_node.worldPosition );
+			return true;
+		}
+
+		/**
+		*   	Compute the coarse tile route from the resolved canonical endpoints so A* stays aligned
+		*   	with the exact surfaces that endpoint resolution recovered.
+		**/
+		std::vector<nav_tile_cluster_key_t> tileRoute;
+		const bool hasTileRoute = SVG_Nav_ClusterGraph_FindRoute( mesh, start_node.worldPosition, goal_node.worldPosition, tileRoute );
+		const std::vector<nav_tile_cluster_key_t> *routeFilter = hasTileRoute ? &tileRoute : nullptr;
+
+		/**
+		*   	Attempt A* using the currently resolved endpoint pair.
+		*   		If this fails, fall through and let the alternate endpoint strategy try again.
+		**/
+		if ( Nav_AStarSearch( mesh, start_node, goal_node, agent_mins, agent_maxs, out_points, policy, pathProcess, routeFilter ) ) {
+			return true;
+		}
+	}
+
+	return false;
 }
 
 /**
@@ -318,8 +980,8 @@ const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vecto
 *	@note	The shared helper documents neighbor offsets, drop limits, and chunked expansion so both sync and async callers stay aligned.
 **/
 static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start_node, const nav_node_ref_t &goal_node,
-	const Vector3 &agent_mins, const Vector3 &agent_maxs, std::vector<Vector3> &out_points, const svg_nav_path_policy_t *policy = nullptr,
-	const struct svg_nav_path_process_t *pathProcess = nullptr, const std::vector<nav_tile_cluster_key_t> *tileRouteFilter = nullptr ) {
+  const Vector3 &agent_mins, const Vector3 &agent_maxs, std::vector<Vector3> &out_points, const svg_nav_path_policy_t *policy,
+	const struct svg_nav_path_process_t *pathProcess, const std::vector<nav_tile_cluster_key_t> *tileRouteFilter ) {
 	/**
 	*\tPrepare the incremental A* state so we share the traversal rules with the async helpers.
 	**/
@@ -342,11 +1004,11 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
 	**/
 	while ( state.status == nav_a_star_status_t::Running ) {
 		Nav_AStar_Step( &state, expansionBudget );
- }
+	}
 
-	/**
-	*    Finalize the path when the search completes successfully.
-	**/
+	   /**
+	   *    Finalize the path when the search completes successfully.
+	   **/
 	if ( state.status == nav_a_star_status_t::Completed ) {
 		const bool ok = Nav_AStar_Finalize( &state, &out_points );
 		Nav_AStar_Reset( &state );
@@ -369,7 +1031,7 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
 	/**
 	*    Emit detailed diagnostics only when explicitly requested.
 	**/
-    if ( navDiag ) {
+	if ( navDiag ) {
 		// Rate-limit verbose diagnostics to avoid overflowing the net/console buffer
 		// when many A* failures occur in quick succession. This keeps logs
 		// useful while preventing spam that would drop messages.
@@ -434,10 +1096,10 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
   // Emit extra diagnostic payload when A* fails so callers can inspect node mapping
 	// and candidate rejection counts. This log is gated by the global async stats
 	// cvar to avoid overwhelming release logs.
-   if ( Nav_PathDiagEnabled() ) {
+	if ( Nav_PathDiagEnabled() ) {
 		gi.dprintf( "[NavPath][Diag] neighbor_tries=%d no_node=%d edge_reject=%d tile_filter_reject=%d stagnation=%d\n",
 			state.neighbor_try_count, state.no_node_count, state.edge_reject_count, state.tile_filter_reject_count, state.stagnation_count );
-       // Emit per-reason counters to show exactly which rejection paths dominated.
+	   // Emit per-reason counters to show exactly which rejection paths dominated.
 		Nav_Debug_LogEdgeRejectReasonCounters( "[NavPath][Diag]", state );
 	}
 
@@ -480,13 +1142,13 @@ const bool SVG_Nav_GenerateTraversalPathForOrigin( const Vector3 &start_origin, 
 	// Mesh pointer used for lookup/conversions.
 	const nav_mesh_t *mesh = g_nav_mesh.get();
 
-    nav_node_ref_t start_node = {};
+	nav_node_ref_t start_node = {};
 	nav_node_ref_t goal_node = {};
 
-    // Public API accepts feet-origin (z at feet). Convert to nav-center
+	// Public API accepts feet-origin (z at feet). Convert to nav-center
 	// space by applying the mesh agent center offset so node lookups use the
 	// same reference as the async path preparer.
-    const Vector3 start_center = SVG_Nav_ConvertFeetToCenter( mesh, start_origin );
+	const Vector3 start_center = SVG_Nav_ConvertFeetToCenter( mesh, start_origin );
 	const Vector3 goal_center = SVG_Nav_ConvertFeetToCenter( mesh, goal_origin );
 
 	if ( !Nav_FindNodeForPosition( mesh, start_center, start_center[ 2 ], &start_node, true ) ) {
@@ -507,7 +1169,12 @@ const bool SVG_Nav_GenerateTraversalPathForOrigin( const Vector3 &start_origin, 
 		*	to tiles on that route.
 		**/
 		std::vector<nav_tile_cluster_key_t> tileRoute;
-		const bool hasTileRoute = SVG_Nav_ClusterGraph_FindRoute( g_nav_mesh.get(), start_origin, goal_origin, tileRoute );
+     /**
+		*    Boundary-origin hardening:
+		*        Use resolved canonical node positions for the coarse route query so tile-route selection
+		*        stays aligned with the surfaces that node lookup actually recovered.
+		**/
+		const bool hasTileRoute = SVG_Nav_ClusterGraph_FindRoute( g_nav_mesh.get(), start_node.worldPosition, goal_node.worldPosition, tileRoute );
 		const std::vector<nav_tile_cluster_key_t> *routeFilter = hasTileRoute ? &tileRoute : nullptr;
 
 		if ( !Nav_AStarSearch( g_nav_mesh.get(), start_node, goal_node, g_nav_mesh->agent_mins, g_nav_mesh->agent_maxs, points, nullptr, nullptr, routeFilter ) ) {
@@ -520,7 +1187,7 @@ const bool SVG_Nav_GenerateTraversalPathForOrigin( const Vector3 &start_origin, 
 	}
 
 	out_path->num_points = ( int32_t )points.size();
-	out_path->points = ( Vector3 * )gi.TagMallocz( sizeof( Vector3 ) * out_path->num_points, TAG_SVGAME_LEVEL );
+	out_path->points = ( Vector3 * )gi.TagMallocz( sizeof( Vector3 ) * out_path->num_points, TAG_SVGAME_NAVMESH );
 	memcpy( out_path->points, points.data(), sizeof( Vector3 ) * out_path->num_points );
 
 	// Cache for always-on debug draw.
@@ -528,7 +1195,7 @@ const bool SVG_Nav_GenerateTraversalPathForOrigin( const Vector3 &start_origin, 
 
 	nav_debug_cached_path_t cached = {};
 	cached.path.num_points = out_path->num_points;
-	cached.path.points = ( Vector3 * )gi.TagMallocz( sizeof( Vector3 ) * out_path->num_points, TAG_SVGAME_LEVEL );
+	cached.path.points = ( Vector3 * )gi.TagMallocz( sizeof( Vector3 ) * out_path->num_points, TAG_SVGAME_NAVMESH );
 	memcpy( cached.path.points, out_path->points, sizeof( Vector3 ) * out_path->num_points );
 	cached.expireTime = level.time + NAV_DEBUG_PATH_RETENTION;
 	s_nav_debug_cached_paths.push_back( cached );
@@ -568,7 +1235,7 @@ const bool SVG_Nav_GenerateTraversalPathForOriginEx( const Vector3 &start_origin
 
 	SVG_Nav_FreeTraversalPath( out_path );
 
-    if ( !g_nav_mesh ) {
+	if ( !g_nav_mesh ) {
 		return false;
 	}
 	const nav_mesh_t *mesh = g_nav_mesh.get();
@@ -578,9 +1245,9 @@ const bool SVG_Nav_GenerateTraversalPathForOriginEx( const Vector3 &start_origin
 	bool startResolved = false;
 	bool goalResolved = false;
 
-    if ( enable_goal_z_layer_blend ) {
+	if ( enable_goal_z_layer_blend ) {
 		// Convert caller feet-origin to nav-center using mesh agent hull.
-        const Vector3 start_center = SVG_Nav_ConvertFeetToCenter( mesh, start_origin );
+		const Vector3 start_center = SVG_Nav_ConvertFeetToCenter( mesh, start_origin );
 		const Vector3 goal_center = SVG_Nav_ConvertFeetToCenter( mesh, goal_origin );
 
 		if ( !Nav_FindNodeForPosition_BlendZ( mesh, start_center, start_center[ 2 ], goal_center[ 2 ], start_center, goal_center,
@@ -592,15 +1259,15 @@ const bool SVG_Nav_GenerateTraversalPathForOriginEx( const Vector3 &start_origin
 			blend_start_dist, blend_full_dist, &goal_node, true ) ) {
 			return false;
 		}
-    } else {
+	} else {
 		// Convert caller feet-origin to nav-center using provided agent bbox.
-        const Vector3 start_center = SVG_Nav_ConvertFeetToCenter( mesh, start_origin );
+		const Vector3 start_center = SVG_Nav_ConvertFeetToCenter( mesh, start_origin );
 		const Vector3 goal_center = SVG_Nav_ConvertFeetToCenter( mesh, goal_origin );
 
-        if ( !Nav_FindNodeForPosition( mesh, start_center, start_center[ 2 ], &start_node, true ) ) {
+		if ( !Nav_FindNodeForPosition( mesh, start_center, start_center[ 2 ], &start_node, true ) ) {
 			return false;
 		}
-        if ( !Nav_FindNodeForPosition( mesh, goal_center, goal_center[ 2 ], &goal_node, true ) ) {
+		if ( !Nav_FindNodeForPosition( mesh, goal_center, goal_center[ 2 ], &goal_node, true ) ) {
 			return false;
 		}
 	}
@@ -615,10 +1282,15 @@ const bool SVG_Nav_GenerateTraversalPathForOriginEx( const Vector3 &start_origin
 		*	to tiles on that route.
 		**/
 		std::vector<nav_tile_cluster_key_t> tileRoute;
-		const bool hasTileRoute = SVG_Nav_ClusterGraph_FindRoute( g_nav_mesh.get(), start_origin, goal_origin, tileRoute );
+     /**
+		*    Boundary-origin hardening:
+		*        Use resolved canonical node positions for the coarse route query so tile-route selection
+		*        stays aligned with the surfaces that node lookup actually recovered.
+		**/
+		const bool hasTileRoute = SVG_Nav_ClusterGraph_FindRoute( g_nav_mesh.get(), start_node.worldPosition, goal_node.worldPosition, tileRoute );
 		const std::vector<nav_tile_cluster_key_t> *routeFilter = hasTileRoute ? &tileRoute : nullptr;
 
-        if ( !Nav_AStarSearch( mesh, start_node, goal_node, mesh->agent_mins, mesh->agent_maxs, points, nullptr, nullptr, routeFilter ) ) {
+		if ( !Nav_AStarSearch( mesh, start_node, goal_node, mesh->agent_mins, mesh->agent_maxs, points, nullptr, nullptr, routeFilter ) ) {
 			return false;
 		}
 	}
@@ -628,7 +1300,7 @@ const bool SVG_Nav_GenerateTraversalPathForOriginEx( const Vector3 &start_origin
 	}
 
 	out_path->num_points = ( int32_t )points.size();
-	out_path->points = ( Vector3 * )gi.TagMallocz( sizeof( Vector3 ) * out_path->num_points, TAG_SVGAME_LEVEL );
+	out_path->points = ( Vector3 * )gi.TagMallocz( sizeof( Vector3 ) * out_path->num_points, TAG_SVGAME_NAVMESH );
 	memcpy( out_path->points, points.data(), sizeof( Vector3 ) * out_path->num_points );
 
 	// Cache for always-on debug draw.
@@ -636,11 +1308,14 @@ const bool SVG_Nav_GenerateTraversalPathForOriginEx( const Vector3 &start_origin
 
 	nav_debug_cached_path_t cached = {};
 	cached.path.num_points = out_path->num_points;
-	cached.path.points = ( Vector3 * )gi.TagMallocz( sizeof( Vector3 ) * out_path->num_points, TAG_SVGAME_LEVEL );
+	cached.path.points = ( Vector3 * )gi.TagMallocz( sizeof( Vector3 ) * out_path->num_points, TAG_SVGAME_NAVMESH );
 	memcpy( cached.path.points, out_path->points, sizeof( Vector3 ) * out_path->num_points );
 	cached.expireTime = level.time + NAV_DEBUG_PATH_RETENTION;
 	s_nav_debug_cached_paths.push_back( cached );
 
+ /**
+	*   	Emit optional debug draw segments for the cached path.
+	**/
 	if ( NavDebug_Enabled() && nav_debug_draw_path && nav_debug_draw_path->integer != 0 ) {
 		const int32_t segmentCount = std::max( 0, out_path->num_points - 1 );
 		for ( int32_t i = 0; i < segmentCount; i++ ) {
@@ -666,22 +1341,33 @@ const bool SVG_Nav_GenerateTraversalPathForOriginEx( const Vector3 &start_origin
 
 const bool SVG_Nav_GenerateTraversalPathForOrigin_WithAgentBBox( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path,
 	const Vector3 &agent_mins, const Vector3 &agent_maxs, const svg_nav_path_policy_t *policy ) {
+   /**
+	*    Sanity checks: require output storage.
+	**/
 	if ( !out_path ) {
 		return false;
 	}
 
+   /**
+	*    Reset any previous path contents owned by the caller.
+	**/
 	SVG_Nav_FreeTraversalPath( out_path );
 
+ /**
+	*    Require a loaded navmesh before attempting sync traversal path generation.
+	**/
 	if ( !g_nav_mesh ) {
 		return false;
 	}
+
+	/**
+  *    Cache the navmesh pointer and convert public feet-origin inputs into nav-center space.
+	**/
 	const nav_mesh_t *mesh = g_nav_mesh.get();
 	if ( !mesh ) {
 		return false;
 	}
 
-	nav_node_ref_t start_node = {};
-	nav_node_ref_t goal_node = {};
 	const Vector3 start_center = SVG_Nav_ConvertFeetToCenter( mesh, start_origin, &agent_mins, &agent_maxs );
 	const Vector3 goal_center = SVG_Nav_ConvertFeetToCenter( mesh, goal_origin, &agent_mins, &agent_maxs );
 
@@ -698,38 +1384,31 @@ const bool SVG_Nav_GenerateTraversalPathForOrigin_WithAgentBBox( const Vector3 &
 			goal_center.x, goal_center.y, goal_center.z );
 	}
 
-   if ( !Nav_FindNodeForPosition( mesh, start_center, start_center[ 2 ], &start_node, true ) ) {
-		return false;
-	}
-
-  if ( !Nav_FindNodeForPosition( mesh, goal_center, goal_center[ 2 ], &goal_node, true ) ) {
-		return false;
-	}
-
+   /**
+	*    Generate traversal waypoints while honoring any caller-supplied policy blend preference first.
+	**/
 	std::vector<Vector3> points;
-	if ( start_node.key == goal_node.key ) {
-		points.push_back( start_node.worldPosition );
-		points.push_back( goal_node.worldPosition );
-	} else {
-		/**
-		*	Hierarchical pre-pass: compute a coarse tile route and restrict A* expansions
-		*	to tiles on that route.
-		**/
-		std::vector<nav_tile_cluster_key_t> tileRoute;
-     const bool hasTileRoute = SVG_Nav_ClusterGraph_FindRoute( mesh, start_origin, goal_origin, tileRoute );
-		const std::vector<nav_tile_cluster_key_t> *routeFilter = hasTileRoute ? &tileRoute : nullptr;
-
-      if ( !Nav_AStarSearch( mesh, start_node, goal_node, agent_mins, agent_maxs, points, policy, nullptr, routeFilter ) ) {
-			return false;
-		}
+    const bool prefer_blended_lookup = policy ? policy->enable_goal_z_layer_blend : false;
+	const double preferred_blend_start = policy ? policy->blend_start_dist : NAV_DEFAULT_BLEND_DIST_START;
+	const double preferred_blend_full = policy ? policy->blend_full_dist : NAV_DEFAULT_BLEND_DIST_FULL;
+	if ( !Nav_Traversal_TryGeneratePointsWithEndpointFallbacks( mesh, start_center, goal_center,
+		agent_mins, agent_maxs, policy, nullptr, prefer_blended_lookup,
+		preferred_blend_start, preferred_blend_full, points ) ) {
+		return false;
 	}
 
+ /**
+	*    Reject empty waypoint output before allocating the public path buffer.
+	**/
 	if ( points.empty() ) {
 		return false;
 	}
 
+    /**
+	*    Copy the generated waypoints into the caller-owned traversal path.
+	**/
 	out_path->num_points = ( int32_t )points.size();
-	out_path->points = ( Vector3 * )gi.TagMallocz( sizeof( Vector3 ) * out_path->num_points, TAG_SVGAME_LEVEL );
+	out_path->points = ( Vector3 * )gi.TagMallocz( sizeof( Vector3 ) * out_path->num_points, TAG_SVGAME_NAVMESH );
 	memcpy( out_path->points, points.data(), sizeof( Vector3 ) * out_path->num_points );
 	return true;
 }
@@ -752,9 +1431,9 @@ const bool SVG_Nav_GenerateTraversalPathForOriginEx_WithAgentBBox( const Vector3
 	bool startResolved = false;
 	bool goalResolved = false;
 
-    if ( enable_goal_z_layer_blend ) {
+	if ( enable_goal_z_layer_blend ) {
 		// Convert caller feet-origin to nav-center using provided agent bbox.
-        const nav_mesh_t *mesh = g_nav_mesh.get();
+		const nav_mesh_t *mesh = g_nav_mesh.get();
 		if ( !mesh ) {
 			return false;
 		}
@@ -764,7 +1443,7 @@ const bool SVG_Nav_GenerateTraversalPathForOriginEx_WithAgentBBox( const Vector3
 			blend_start_dist, blend_full_dist, &start_node, true );
 		goalResolved = Nav_FindNodeForPosition_BlendZ( mesh, goal_center, start_center[ 2 ], goal_center[ 2 ], start_center, goal_center,
 			blend_start_dist, blend_full_dist, &goal_node, true );
-    } else {
+	} else {
 		const nav_mesh_t *mesh = g_nav_mesh.get();
 		if ( !mesh ) {
 			return false;
@@ -812,7 +1491,12 @@ const bool SVG_Nav_GenerateTraversalPathForOriginEx_WithAgentBBox( const Vector3
 		*	failure penalties.
 		**/
 		std::vector<nav_tile_cluster_key_t> tileRoute;
-		const bool hasTileRoute = SVG_Nav_ClusterGraph_FindRoute( g_nav_mesh.get(), start_origin, goal_origin, tileRoute );
+     /**
+		*    Boundary-origin hardening:
+		*        Use resolved canonical node positions for the coarse route query so tile-route selection
+		*        stays aligned with the surfaces that node lookup actually recovered.
+		**/
+		const bool hasTileRoute = SVG_Nav_ClusterGraph_FindRoute( g_nav_mesh.get(), start_node.worldPosition, goal_node.worldPosition, tileRoute );
 		const std::vector<nav_tile_cluster_key_t> *routeFilter = hasTileRoute ? &tileRoute : nullptr;
 
 		if ( !Nav_AStarSearch( g_nav_mesh.get(), start_node, goal_node, agent_mins, agent_maxs, points, policy, pathProcess, routeFilter ) ) {
@@ -825,7 +1509,7 @@ const bool SVG_Nav_GenerateTraversalPathForOriginEx_WithAgentBBox( const Vector3
 	}
 
 	out_path->num_points = ( int32_t )points.size();
-	out_path->points = ( Vector3 * )gi.TagMallocz( sizeof( Vector3 ) * out_path->num_points, TAG_SVGAME_LEVEL );
+	out_path->points = ( Vector3 * )gi.TagMallocz( sizeof( Vector3 ) * out_path->num_points, TAG_SVGAME_NAVMESH );
 	memcpy( out_path->points, points.data(), sizeof( Vector3 ) * out_path->num_points );
 	return true;
 }
@@ -978,31 +1662,35 @@ const bool SVG_Nav_QueryMovementDirection( const nav_traversal_path_t *path, con
 /**
 *	@brief	Low-level trace wrapper that supports world or inline-model clip.
 **/
-const inline cm_trace_t Nav_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end,
+const inline svg_trace_t Nav_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end,
 	const edict_ptr_t *clip_entity, const cm_contents_t mask ) {
- /**
-	*    Inline-model traversal:
-    *        Only treat non-world entities as explicit inline-model clips.
-	*        World clipping is handled by the dedicated world-only branch below.
+	/**
+	*    `Inline-model` traversal:
+	*        Treat only `non-world` entities as explicit `inline-model` clips.
+	*        World clipping is handled by the dedicated `world-only` branch below.
 	**/
-    if ( clip_entity && clip_entity->s.number != ENTITYNUM_WORLD ) {
+	if ( clip_entity && clip_entity->s.number != ENTITYNUM_WORLD ) {
+		// Note that `gi.clip` treats a `nullptr` entity as a world trace, so we can directly
+		// pass the `clip_entity` through without special handling.
+
+		// <Q2RTXP>: WID: TODO: Should perform a lifted retry here as well to filter startsolid/allsolid artifacts on inline models, 
+		// but that is not currently a known issue so defer until we have repro cases.
 		return gi.clip( clip_entity, &start, &mins, &maxs, &end, mask );
 	}
 
-	/**
-	*    World-static traversal policy for nav edge validation:
- *        Always issue a world-only clip when validating nav edges without an
-	*        explicit clip entity.
+ /**
+	*    World traversal policy for nav edge validation:
+	*        Keep nav-owned collision semantics here and clip only against the
+	*        world or explicit inline-model entity. A* step testing should not
+	*        depend on the generic scene trace path because that would pull all
+	*        world entities into a validator that is supposed to reason about nav
+	*        tiles, cells, and layers.
 	*
-	*        This avoids false-positive collisions from dynamic entities that can
-	*        appear in full scene traces and keeps A* edge feasibility tied to
-	*        stable world geometry.
-	*
-   *        @note	When the initial world-only clip starts in solid, perform a
-	*                small lifted retry to filter floor-boundary precision cases
-	*                that can otherwise appear as false startsolid/allsolid hits.
+	*        @note	When the initial world clip starts in solid, perform a small
+	*                lifted retry to filter floor-boundary precision cases that can
+	*                otherwise appear as false startsolid/allsolid hits.
 	**/
- const cm_trace_t worldTrace = gi.clip( nullptr, &start, &mins, &maxs, &end, mask );
+	const svg_trace_t worldTrace = gi.clip( nullptr, &start, &mins, &maxs, &end, mask );
 
 	/**
 	*    Fast path: keep the primary world trace when it is already valid.
@@ -1022,7 +1710,7 @@ const inline cm_trace_t Nav_Trace( const Vector3 &start, const Vector3 &mins, co
 	retryStart[ 2 ] += kWorldRetryLift;
 	retryEnd[ 2 ] += kWorldRetryLift;
 
-	cm_trace_t retryTrace = gi.clip( nullptr, &retryStart, &mins, &maxs, &retryEnd, mask );
+	svg_trace_t retryTrace = gi.clip( nullptr, &retryStart, &mins, &maxs, &retryEnd, mask );
 
 	/**
 	*    Prefer the retry only when it clearly resolves solid-start artifacts.
@@ -1068,7 +1756,7 @@ const bool Nav_CanTraverseStep( const nav_mesh_t *mesh, const Vector3 &startPos,
 	const Vector3 mins = mesh->agent_mins;
 	const Vector3 maxs = mesh->agent_maxs;
 
-    return Nav_CanTraverseStep_ExplicitBBox( mesh, startPos, endPos, mins, maxs, clip_entity, &policy );
+	return Nav_CanTraverseStep_ExplicitBBox( mesh, startPos, endPos, mins, maxs, clip_entity, &policy );
 }
 
 /**
@@ -1098,16 +1786,24 @@ const bool Nav_CanTraverseStep( const nav_mesh_t *mesh, const Vector3 &startPos,
 *  @return	True if the traversal is possible, false otherwise.
 *  @note	This function assumes any segmented-ramp handling has already been applied.
 **/
-static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos, const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t *clip_entity, const svg_nav_path_policy_t *policy, nav_edge_reject_reason_t *out_reason ) {
+static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mesh, const nav_node_ref_t &start_node, const nav_node_ref_t &end_node, const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t *clip_entity, const svg_nav_path_policy_t *policy, nav_edge_reject_reason_t *out_reason, const cm_contents_t stepTraceMask ) {
+  /**
+	*    Sanity checks: require a valid mesh.
+	**/
 	if ( !mesh ) {
 		return false;
 	}
+	( void )clip_entity;
+	( void )stepTraceMask;
+
+	const Vector3 &startPos = start_node.worldPosition;
+	const Vector3 &endPos = end_node.worldPosition;
 
 	//! Tracks the last frame we reported a step-test failure.
 	static int32_t s_nav_step_test_failure_frame = -1;
 	//! Indicates whether we already printed a failure reason this frame.
 	static bool s_nav_step_test_failure_logged = false;
-	auto ReportStepTestFailureOnce = [ startPos, endPos ]( const char *reason ) {
+	auto ReportStepTestFailureOnce = [startPos, endPos]( const char *reason ) {
 		const int32_t currentFrame = ( int32_t )level.frameNumber;
 		if ( s_nav_step_test_failure_frame != currentFrame ) {
 			s_nav_step_test_failure_frame = currentFrame;
@@ -1123,389 +1819,135 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 		gi.dprintf( "[DEBUG][NavPath][StepTest] Edge from (%.1f %.1f %.1f) to (%.1f %.1f %.1f) failed: %s\n",
 			startPos[ 0 ], startPos[ 1 ], startPos[ 2 ],
 			endPos[ 0 ], endPos[ 1 ], endPos[ 2 ],
-			reason );
+			reason ? reason : "unspecified" );
 	};
 
- auto LogTraceFailureReason = [ &ReportStepTestFailureOnce ]( const char *stage, const char *reason, const cm_trace_t &trace, const bool terminalReject ) {
-		// Emit branch-level trace diagnostics when reject drawing or targeted path diagnostics are enabled.
-		if ( ( nav_debug_draw_rejects && nav_debug_draw_rejects->integer != 0 ) || Nav_PathDiagEnabled() ) {
-			gi.dprintf( "[DEBUG][NavPath][StepTest][TraceFail] stage=%s reason=%s frac=%.2f allsolid=%d startsolid=%d\n",
-				stage ? stage : "unknown",
-				reason ? reason : "unspecified",
-				( float )trace.fraction,
-				trace.allsolid ? 1 : 0,
-				trace.startsolid ? 1 : 0 );
+	/**
+	*    Resolve canonical tile/cell/layer views for both endpoints.
+	**/
+	const nav_tile_t *start_tile = nullptr;
+	const nav_xy_cell_t *start_cell = nullptr;
+	const nav_layer_t *start_layer = nullptr;
+	const nav_tile_t *end_tile = nullptr;
+	const nav_xy_cell_t *end_cell = nullptr;
+	const nav_layer_t *end_layer = nullptr;
+	if ( !Nav_TryGetNodeLayerView( mesh, start_node, &start_tile, &start_cell, &start_layer ) ||
+		!Nav_TryGetNodeLayerView( mesh, end_node, &end_tile, &end_cell, &end_layer ) ) {
+		if ( out_reason ) {
+			*out_reason = nav_edge_reject_reason_t::NoNode;
 		}
-     if ( terminalReject ) {
-			ReportStepTestFailureOnce( reason ? reason : "trace failure" );
-		}
-	};
-
-
-	/**
-	*	Set up a PMove-like, conservative step test for A* edge validation.
-	*		We must respect the caller-provided Z delta between nodes because the navmesh
-	*		nodes already encode vertical transitions (stairs/ramps/steps). We only flatten
-	*		Z for the horizontal trace portions, but we still compute the allowed climb/drop
-	*		based on the desired endpoint Z.
-	**/
-	// Keep the original Z delta between nodes.
-	const double desiredDz = ( double )endPos[ 2 ] - ( double )startPos[ 2 ];
-
-	// Small cushion to avoid precision issues on floors.
-	const double eps = 0.25;
-
-	// Determine step size: prefer policy override if provided, otherwise use mesh parameter.
-	const double stepSize = ( policy ? ( double )policy->max_step_height : mesh->max_step );
-	const double minStep = ( policy ? ( double )policy->min_step_height : eps );
-
-	/**
-	*    Drop cap enforcement: respect the caller's policy before attempting any traces
-	*    so we can early-out on overly deep downward transitions.
-	**/
-	const double dropCap = ( policy ? ( double )policy->max_drop_height_cap : ( nav_max_drop_height_cap ? nav_max_drop_height_cap->value : 128.0f ) );
-	const double requiredDown = std::max( 0.0, ( double )startPos[ 2 ] - ( double )endPos[ 2 ] );
-	/**
-	*    Reject edges that attempt to drop farther than the configured cap before tracing.
-	**/
-    if ( requiredDown > 0.0 && dropCap >= 0.0 && requiredDown > dropCap ) {
-		if ( out_reason ) *out_reason = nav_edge_reject_reason_t::DropCap;
-		NavDebug_RecordReject( startPos, endPos, NAV_DEBUG_REJECT_REASON_DROP_CAP );
-		ReportStepTestFailureOnce( "drop cap exceeded before tracing" );
 		return false;
 	}
 
 	/**
-	*    We must know how much upward travel is required before continuing.
+	*    Resolve global cell-grid coordinates so the validator can reason about local hops.
 	**/
-	const double requiredUp = std::max( 0.0, desiredDz );
-
-	// If the required climb is larger than our allowed step height, this edge is infeasible.
-        if ( requiredUp > stepSize ) {
-      /**
-		*    Diagnostics: report step-limit rejections with required climb and configured step size.
-		**/
-		if ( nav_debug_draw_rejects && nav_debug_draw_rejects->integer != 0 ) {
-			gi.dprintf( "[DEBUG][NavPath][StepTest] step limit exceeded requiredUp=%.2f stepSize=%.2f start(%.1f %.1f %.1f) end(%.1f %.1f %.1f)\n",
-				( float )requiredUp, ( float )stepSize,
-				startPos[ 0 ], startPos[ 1 ], startPos[ 2 ],
-				endPos[ 0 ], endPos[ 1 ], endPos[ 2 ] );
+	int32_t start_cell_x = 0;
+	int32_t start_cell_y = 0;
+	int32_t end_cell_x = 0;
+	int32_t end_cell_y = 0;
+	if ( !Nav_TryGetGlobalCellCoords( mesh, start_node, &start_cell_x, &start_cell_y ) ||
+		!Nav_TryGetGlobalCellCoords( mesh, end_node, &end_cell_x, &end_cell_y ) ) {
+		if ( out_reason ) {
+			*out_reason = nav_edge_reject_reason_t::NoNode;
 		}
-          if ( out_reason ) *out_reason = nav_edge_reject_reason_t::StepTest;
+		return false;
+	}
+
+	/**
+	*    Compute local traversal limits and vertical deltas.
+	**/
+	const double desiredDz = ( double )endPos[ 2 ] - ( double )startPos[ 2 ];
+	const double requiredUp = std::max( 0.0, desiredDz );
+	const double requiredDown = std::max( 0.0, -desiredDz );
+	const double stepSize = ( policy && policy->max_step_height > 0.0 ) ? ( double )policy->max_step_height : ( double )mesh->max_step;
+	const double dropCap = ( policy && policy->max_drop_height_cap > 0.0 )
+		? ( double )policy->max_drop_height_cap
+		: ( nav_max_drop_height_cap ? nav_max_drop_height_cap->value : 128.0f );
+	const double sameLevelTolerance = std::max( ( double )PHYS_STEP_GROUND_DIST, ( double )mesh->z_quant * 0.5 );
+	const double requiredClearance = std::max( 0.0, ( double )maxs[ 2 ] - ( double )mins[ 2 ] );
+
+	/**
+	*    Reject non-local single-step edges.
+	*        Segmented callers should already have split longer moves into adjacent hops.
+	**/
+	const int32_t delta_cell_x = end_cell_x - start_cell_x;
+	const int32_t delta_cell_y = end_cell_y - start_cell_y;
+	if ( std::abs( delta_cell_x ) > 1 || std::abs( delta_cell_y ) > 1 ) {
+		if ( out_reason ) {
+			*out_reason = nav_edge_reject_reason_t::StepTest;
+		}
+		ReportStepTestFailureOnce( "non-local single-step edge" );
+		return false;
+	}
+
+	/**
+	*    Ensure both endpoint layers are walkable and have enough clearance for the agent hull.
+	**/
+	if ( ( start_layer->flags & NAV_FLAG_WALKABLE ) == 0 || ( end_layer->flags & NAV_FLAG_WALKABLE ) == 0 ) {
+		if ( out_reason ) {
+			*out_reason = nav_edge_reject_reason_t::StepTest;
+		}
+		ReportStepTestFailureOnce( "layer is not marked walkable" );
+		return false;
+	}
+
+	const double startClearance = Nav_GetLayerClearanceWorld( mesh, *start_layer );
+	const double endClearance = Nav_GetLayerClearanceWorld( mesh, *end_layer );
+	if ( startClearance + PHYS_STEP_GROUND_DIST < requiredClearance ) {
+		NavDebug_RecordReject( startPos, endPos, NAV_DEBUG_REJECT_REASON_CLEARANCE );
+		if ( out_reason ) {
+			*out_reason = nav_edge_reject_reason_t::StepTest;
+		}
+		ReportStepTestFailureOnce( "start layer clearance below agent hull height" );
+		return false;
+	}
+	if ( endClearance + PHYS_STEP_GROUND_DIST < requiredClearance ) {
+		NavDebug_RecordReject( startPos, endPos, NAV_DEBUG_REJECT_REASON_CLEARANCE );
+		if ( out_reason ) {
+			*out_reason = nav_edge_reject_reason_t::StepTest;
+		}
+		ReportStepTestFailureOnce( "end layer clearance below agent hull height" );
+		return false;
+	}
+
+	/**
+	*    Same-level transitions are valid once local adjacency and clearance are satisfied.
+	**/
+	if ( std::fabs( desiredDz ) <= sameLevelTolerance ) {
+		return true;
+	}
+
+	/**
+	*    Uphill transitions must fit within the configured step height.
+	**/
+	if ( requiredUp > 0.0 ) {
+		if ( requiredUp > stepSize ) {
+			if ( out_reason ) {
+				*out_reason = nav_edge_reject_reason_t::StepTest;
+			}
 			ReportStepTestFailureOnce( "required climb exceeds configured step" );
 			return false;
-	}
-
-	// If policy wants to enforce a minimum step height, only apply it to actual "step up" edges.
-	if ( requiredUp > 0.0 && requiredUp < minStep ) {
-       /**
-		*    Diagnostics: report minimum-step rejections for tiny step heights.
-		**/
-		if ( nav_debug_draw_rejects && nav_debug_draw_rejects->integer != 0 ) {
-			gi.dprintf( "[DEBUG][NavPath][StepTest] step below minimum requiredUp=%.2f minStep=%.2f start(%.1f %.1f %.1f) end(%.1f %.1f %.1f)\n",
-				( float )requiredUp, ( float )minStep,
-				startPos[ 0 ], startPos[ 1 ], startPos[ 2 ],
-				endPos[ 0 ], endPos[ 1 ], endPos[ 2 ] );
 		}
-           if ( out_reason ) *out_reason = nav_edge_reject_reason_t::StepTest;
-			ReportStepTestFailureOnce( "step height below minimum" );
-			return false;
-	}
-
-	// Flatten Z for horizontal movement tests.
-	Vector3 start = startPos;
-	Vector3 goal = endPos;
-	goal[ 2 ] = start[ 2 ];
-
-	/**
-	*    Lift the trace origins slightly to avoid starting inside solid floor geometry.
-	*        This mirrors PMove behavior where traces begin slightly above ground contact.
-	**/
-	Vector3 startLifted = start;
-	startLifted[ 2 ] += eps;
-	Vector3 goalLifted = goal;
-	goalLifted[ 2 ] = startLifted[ 2 ];
-
-	// 1) Direct horizontal move.
-	{
-        cm_trace_t tr = Nav_Trace( startLifted, mins, maxs, goalLifted, clip_entity, CM_CONTENTMASK_SOLID );
-		if ( tr.fraction >= 1.0f && !tr.allsolid && !tr.startsolid ) {
-			return true;
-		}
-        LogTraceFailureReason( "direct", "direct_trace_blocked", tr, false );
-       /**
-		*    Diagnostics: report direct-horizontal trace failures for edge rejection analysis.
-		**/
-		if ( nav_debug_draw_rejects && nav_debug_draw_rejects->integer != 0 ) {
-			gi.dprintf( "[DEBUG][NavPath][StepTest] direct move blocked frac=%.2f allsolid=%d startsolid=%d start(%.1f %.1f %.1f) goal(%.1f %.1f %.1f)\n",
-				( float )tr.fraction,
-				tr.allsolid ? 1 : 0,
-				tr.startsolid ? 1 : 0,
-				start[ 0 ], start[ 1 ], start[ 2 ],
-				goal[ 0 ], goal[ 1 ], goal[ 2 ] );
-		}
+		return true;
 	}
 
 	/**
-	*	Step-up phase:
-	*		Only attempt the step-up if this edge actually needs to climb.
-	*		For flat/down edges we keep the start Z and just do a down-trace later.
+	*    Downward transitions must stay within the configured drop cap.
 	**/
-   Vector3 steppedStart = startLifted;
-	if ( requiredUp > 0.0 ) {
-		// Step up by the required amount (plus a tiny cushion).
-     Vector3 up = startLifted;
-		up[ 2 ] += ( requiredUp + eps );
-
-        cm_trace_t upTr = Nav_Trace( startLifted, mins, maxs, up, clip_entity, CM_CONTENTMASK_SOLID );
-		if ( upTr.allsolid || upTr.startsolid ) {
-           /**
-			*    Diagnostics: report blocked step-up traces.
-			**/
-			if ( nav_debug_draw_rejects && nav_debug_draw_rejects->integer != 0 ) {
-				gi.dprintf( "[DEBUG][NavPath][StepTest] step-up blocked allsolid=%d startsolid=%d start(%.1f %.1f %.1f) up(%.1f %.1f %.1f)\n",
-					upTr.allsolid ? 1 : 0,
-					upTr.startsolid ? 1 : 0,
-					start[ 0 ], start[ 1 ], start[ 2 ],
-					up[ 0 ], up[ 1 ], up[ 2 ] );
-			}
-           if ( out_reason ) *out_reason = nav_edge_reject_reason_t::ObstructionJump;
-			ReportStepTestFailureOnce( "step-up trace blocked" );
-			return false;
+	if ( requiredDown > dropCap ) {
+		NavDebug_RecordReject( startPos, endPos, NAV_DEBUG_REJECT_REASON_DROP_CAP );
+		if ( out_reason ) {
+			*out_reason = nav_edge_reject_reason_t::DropCap;
 		}
-
-				// Ensure we actually achieved (at least) the required step height.
-		const double actualUp = upTr.endpos[ 2 ] - start[ 2 ];
-        if ( actualUp + eps < requiredUp ) {
-			if ( out_reason ) *out_reason = nav_edge_reject_reason_t::ObstructionJump;
-			NavDebug_RecordReject( start, upTr.endpos, NAV_DEBUG_REJECT_REASON_CLEARANCE );
-          /**
-			*    Diagnostics: report insufficient clearance for step-up.
-			**/
-			if ( nav_debug_draw_rejects && nav_debug_draw_rejects->integer != 0 ) {
-				gi.dprintf( "[DEBUG][NavPath][StepTest] insufficient clearance actualUp=%.2f requiredUp=%.2f start(%.1f %.1f %.1f) end(%.1f %.1f %.1f)\n",
-					( float )actualUp, ( float )requiredUp,
-					start[ 0 ], start[ 1 ], start[ 2 ],
-					upTr.endpos[ 0 ], upTr.endpos[ 1 ], upTr.endpos[ 2 ] );
-			}
-			ReportStepTestFailureOnce( "insufficient clearance" );
-			return false;
-		}
-
-		steppedStart = upTr.endpos;
-	}
-
-	/**
-	*	Horizontal move from stepped-up position.
-	**/
- Vector3 steppedGoal = goalLifted;
-	steppedGoal[ 2 ] = steppedStart[ 2 ];
-
-	cm_trace_t fwdTr = Nav_Trace( steppedStart, mins, maxs, steppedGoal, clip_entity, CM_CONTENTMASK_SOLID );
-	if ( fwdTr.allsolid || fwdTr.startsolid || fwdTr.fraction < 1.0f ) {
-        LogTraceFailureReason( "forward", "forward_trace_blocked", fwdTr, false );
-        /**
-		*    Diagnostics: report forward trace failures before any jump fallback.
-		**/
-		if ( nav_debug_draw_rejects && nav_debug_draw_rejects->integer != 0 ) {
-			gi.dprintf( "[DEBUG][NavPath][StepTest] forward blocked frac=%.2f allsolid=%d startsolid=%d start(%.1f %.1f %.1f) goal(%.1f %.1f %.1f)\n",
-				( float )fwdTr.fraction,
-				fwdTr.allsolid ? 1 : 0,
-				fwdTr.startsolid ? 1 : 0,
-				steppedStart[ 0 ], steppedStart[ 1 ], steppedStart[ 2 ],
-				steppedGoal[ 0 ], steppedGoal[ 1 ], steppedGoal[ 2 ] );
-		}
-		// If allowed, attempt a small obstruction 'jump' to climb a low obstacle and try again.
-		if ( policy && policy->allow_small_obstruction_jump ) {
-			// Try a small jump up to the configured obstruction height and then forward.
-			Vector3 jumpUp = start;
-			jumpUp[ 2 ] += ( double )policy->max_obstruction_jump_height;
-			cm_trace_t jumpUpTr = Nav_Trace( start, mins, maxs, jumpUp, clip_entity, CM_CONTENTMASK_SOLID );
-			if ( !jumpUpTr.allsolid && !jumpUpTr.startsolid ) {
-				Vector3 jumpStart = jumpUpTr.endpos;
-				Vector3 jumpGoal = goal;
-				jumpGoal[ 2 ] = jumpStart[ 2 ];
-				cm_trace_t jumpFwdTr = Nav_Trace( jumpStart, mins, maxs, jumpGoal, clip_entity, CM_CONTENTMASK_SOLID );
-				if ( !jumpFwdTr.allsolid && !jumpFwdTr.startsolid && jumpFwdTr.fraction >= 1.0f ) {
-					// Down-trace from landing position to ensure there's ground and slope is acceptable.
-                    Vector3 down = jumpFwdTr.endpos;
-					Vector3 downEnd = down;
-					/**
-					*    Jump-landing ground reacquire depth:
-					*        Probe far enough to reacquire floors on flat/down transitions too,
-					*        not only when the edge required an uphill climb.
-					**/
-                   // Resolve a robust downward reacquire depth from policy/cvar limits.
-					const double jumpDropCap = policy
-						? ( ( policy->max_drop_height_cap > 0.0 )
-							? ( double )policy->max_drop_height_cap
-							: ( policy->enable_max_drop_height_cap ? ( double )policy->max_drop_height : ( nav_max_drop_height_cap ? nav_max_drop_height_cap->value : ( double )mesh->max_step ) ) )
-						: ( nav_max_drop_height_cap ? nav_max_drop_height_cap->value : ( double )mesh->max_step );
-					// Keep a non-trivial minimum so flat/down transitions do not false-fail as floating.
-					const double jumpMinProbeDepth = std::max( std::max( ( double )mesh->max_step, ( double )mesh->z_quant * 2.0 ), eps );
-					const double jumpProbeDepth = std::max( std::max( std::max( requiredUp, requiredDown ), jumpDropCap ), jumpMinProbeDepth ) + eps;
-					downEnd[ 2 ] -= jumpProbeDepth;
-					cm_trace_t downTr2 = Nav_Trace( down, mins, maxs, downEnd, clip_entity, CM_CONTENTMASK_SOLID );
-					if ( !downTr2.allsolid && !downTr2.startsolid && downTr2.fraction < 1.0f ) {
-						// Check normal Z threshold using policy's step-normal minimum when available.
-						const double minStepNormal = policy
-							? ( double )policy->min_step_normal
-							: ( double )mesh->max_slope_normal_z;
-						if ( downTr2.plane.normal[ 2 ] <= 0.0f || downTr2.plane.normal[ 2 ] < minStepNormal ) {
-							NavDebug_RecordReject( jumpFwdTr.endpos, downTr2.endpos, NAV_DEBUG_REJECT_REASON_SLOPE );
-                       /**
-						*    Diagnostics: report obstruction jump slope rejections.
-						**/
-						if ( nav_debug_draw_rejects && nav_debug_draw_rejects->integer != 0 ) {
-							gi.dprintf( "[DEBUG][NavPath][StepTest] jump slope too steep normalZ=%.2f minNormal=%.2f\n",
-								( float )downTr2.plane.normal[ 2 ], ( float )minStepNormal );
-						}
-							return false;
-						}
-						// Optionally cap drop height.
-                       if ( policy && policy->enable_max_drop_height_cap ) {
-							const double drop = start[ 2 ] - downTr2.endpos[ 2 ];
-							if ( drop > ( double )policy->max_drop_height_cap ) {
-								NavDebug_RecordReject( start, downTr2.endpos, NAV_DEBUG_REJECT_REASON_DROP_CAP );
-                           /**
-							*    Diagnostics: report obstruction jump drop-cap rejections.
-							**/
-							if ( nav_debug_draw_rejects && nav_debug_draw_rejects->integer != 0 ) {
-                               gi.dprintf( "[DEBUG][NavPath][StepTest] jump drop cap exceeded drop=%.2f cap=%.2f\n",
-									( float )drop, ( float )policy->max_drop_height_cap );
-							}
-                               if ( out_reason ) *out_reason = nav_edge_reject_reason_t::DropCap;
-								return false;
-							}
-						}
-						return true;
-					}
-				}
-
-           }
-		}
-		if ( out_reason ) *out_reason = nav_edge_reject_reason_t::StepTest;
-	}
-
-	/**
-	*	Step down to find supporting ground.
-	*		Trace down far enough to re-acquire the ground after a step/flat/down edge.
-	*		When climbing, drop the probe by the amount we stepped up; otherwise still probe
-	*		by a small amount to ensure we're not floating.
-	**/
-	Vector3 down = fwdTr.endpos;
-	Vector3 downStart = down;
-	// Step slightly above the surface to ensure the downward probe doesn't begin inside the floor hull.
-	downStart[ 2 ] += eps;
-	Vector3 downEnd = downStart;
-	/**
-	*    Compute the downward probe distance:
-    *        - Uphill edges need to drop at least the climb amount to re-acquire ground.
-	*        - Flat/down edges still need a generous floor reacquire probe because
-	*          the forward trace may end slightly above local ground due to collision
-	*          hull expansion and brush clipping epsilon.
-	*        - Always include a small epsilon cushion to avoid precision misses.
-	**/
-   // Ensure a robust minimum probe depth so flat/down transitions do not
-	// get misclassified as floating when the landing floor is slightly below
-	// the forward trace end position.
- const double minProbeDepth = std::max( std::max( stepSize, ( double )mesh->z_quant * 2.0 ), eps );
-	/**
-	*    Reacquire depth policy:
-	*        Include the configured drop cap so down traces still reach valid floor
-	*        contacts on shallow descents where start/end Z deltas under-report the
-	*        actual probe depth needed after forward collision resolution.
-	**/
-  const double reacquireDropCap = policy
-		? ( ( policy->max_drop_height_cap > 0.0 )
-			? ( double )policy->max_drop_height_cap
-			: ( policy->enable_max_drop_height_cap ? ( double )policy->max_drop_height : ( nav_max_drop_height_cap ? nav_max_drop_height_cap->value : ( double )mesh->max_step ) ) )
-		: ( nav_max_drop_height_cap ? nav_max_drop_height_cap->value : ( double )mesh->max_step );
-	const double probeDrop = std::max( std::max( std::max( requiredUp, requiredDown ), minProbeDepth ), reacquireDropCap ) + eps;
-	// Extend the down trace to the computed probe depth.
-	downEnd[ 2 ] -= probeDrop;
-
-	cm_trace_t downTr = Nav_Trace( downStart, mins, maxs, downEnd, clip_entity, CM_CONTENTMASK_SOLID );
-	if ( downTr.allsolid || downTr.startsolid ) {
-       LogTraceFailureReason( "down", "down_trace_blocked", downTr, true );
-      /**
-		*    Diagnostics: report blocked down traces.
-		**/
-		if ( nav_debug_draw_rejects && nav_debug_draw_rejects->integer != 0 ) {
-			gi.dprintf( "[DEBUG][NavPath][StepTest] down trace blocked allsolid=%d startsolid=%d start(%.1f %.1f %.1f) end(%.1f %.1f %.1f)\n",
-				downTr.allsolid ? 1 : 0,
-				downTr.startsolid ? 1 : 0,
-				downStart[ 0 ], downStart[ 1 ], downStart[ 2 ],
-				downEnd[ 0 ], downEnd[ 1 ], downEnd[ 2 ] );
-		}
-      if ( out_reason ) *out_reason = nav_edge_reject_reason_t::ObstructionJump;
-		ReportStepTestFailureOnce( "down trace blocked" );
+		ReportStepTestFailureOnce( "drop cap exceeded" );
 		return false;
 	}
 
-	// Must land on something (not floating).
-	if ( downTr.fraction >= 1.0f ) {
-        LogTraceFailureReason( "down", "down_trace_no_ground", downTr, true );
-     /**
-		*    Diagnostics: report floating results after step.
-		**/
-		if ( nav_debug_draw_rejects && nav_debug_draw_rejects->integer != 0 ) {
-			gi.dprintf( "[DEBUG][NavPath][StepTest] floating after step fraction=%.2f start(%.1f %.1f %.1f) end(%.1f %.1f %.1f)\n",
-				( float )downTr.fraction,
-				downStart[ 0 ], downStart[ 1 ], downStart[ 2 ],
-				downEnd[ 0 ], downEnd[ 1 ], downEnd[ 2 ] );
-		}
-     if ( out_reason ) *out_reason = nav_edge_reject_reason_t::ObstructionJump;
-		ReportStepTestFailureOnce( "floating after step" );
-		return false;
-	}
-
-	// Walkable-ish contact: ensure the surface normal respects the policy's step-normal threshold.
-	if ( downTr.plane.normal[ 2 ] <= 0.0f ) {
-      /**
-		*    Diagnostics: report invalid ground normals.
-		**/
-		if ( nav_debug_draw_rejects && nav_debug_draw_rejects->integer != 0 ) {
-			gi.dprintf( "[DEBUG][NavPath][StepTest] non-positive ground normal normalZ=%.2f\n",
-				( float )downTr.plane.normal[ 2 ] );
-		}
-      if ( out_reason ) *out_reason = nav_edge_reject_reason_t::StepTest;
-		ReportStepTestFailureOnce( "non-positive ground normal" );
-		return false;
-	}
-	const double minStepNormal = policy
-		? ( double )policy->min_step_normal
-		: ( double )mesh->max_slope_normal_z;
-	if ( downTr.plane.normal[ 2 ] < minStepNormal ) {
-      /**
-		*    Diagnostics: report slope rejections.
-		**/
-		if ( nav_debug_draw_rejects && nav_debug_draw_rejects->integer != 0 ) {
-			gi.dprintf( "[DEBUG][NavPath][StepTest] slope too steep normalZ=%.2f minNormal=%.2f\n",
-				( float )downTr.plane.normal[ 2 ], ( float )minStepNormal );
-		}
-      if ( out_reason ) *out_reason = nav_edge_reject_reason_t::StepTest;
-		ReportStepTestFailureOnce( "ground slope too steep" );
-		return false;
-	}
-
-	// Drop cap after step
-   if ( policy && policy->enable_max_drop_height_cap ) {
-		const double drop = start[ 2 ] - downTr.endpos[ 2 ];
-       if ( drop > ( double )policy->max_drop_height_cap ) {
-			NavDebug_RecordReject( start, downTr.endpos, NAV_DEBUG_REJECT_REASON_DROP_CAP );
-            /**
-			*    Diagnostics: report drop-cap failures after step.
-			**/
-			if ( nav_debug_draw_rejects && nav_debug_draw_rejects->integer != 0 ) {
-             gi.dprintf( "[DEBUG][NavPath][StepTest] drop cap exceeded after step drop=%.2f cap=%.2f\n",
-					( float )drop, ( float )policy->max_drop_height_cap );
-			}
-            if ( out_reason ) *out_reason = nav_edge_reject_reason_t::DropCap;
-			ReportStepTestFailureOnce( "drop cap exceeded after step" );
-			return false;
-		}
-	}
-
+	/**
+	*    Conservative success case:
+	*        This canonical local hop is adjacent, walkable, and satisfies clearance plus
+	*        step/drop limits, so no generic tracing is needed for A* edge validation.
+	**/
 	return true;
 }

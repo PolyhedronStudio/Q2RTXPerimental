@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <limits>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <array>
 #include <new>
@@ -46,6 +47,31 @@ enum class nav_edge_reject_reason_t : int32_t {
 };
 
 /**
+*    @brief    Cache key for a directional edge validation result between two canonical nav nodes.
+**/
+struct nav_edge_cache_key_t {
+	//! Canonical node key at the start of the directed edge.
+	nav_node_key_t from = {};
+	//! Canonical node key at the end of the directed edge.
+	nav_node_key_t to = {};
+
+	bool operator==( const nav_edge_cache_key_t &o ) const {
+		return from == o.from && to == o.to;
+	}
+};
+
+/**
+*    @brief    Hasher for directional edge validation cache keys.
+**/
+struct nav_edge_cache_key_hash_t {
+	size_t operator()( const nav_edge_cache_key_t &k ) const {
+		size_t seed = nav_node_key_hash_t{}( k.from );
+		seed ^= nav_node_key_hash_t{}( k.to ) + 0x9e3779b9 + ( seed << 6 ) + ( seed >> 2 );
+		return seed;
+	}
+};
+
+/**
 *    @brief    Working state for incremental navigation path searches.
 **/
 struct nav_a_star_state_t {
@@ -65,9 +91,13 @@ struct nav_a_star_state_t {
 	std::vector<nav_search_node_t> nodes;
 	std::vector<int32_t> open_list;
 	std::unordered_map<nav_node_key_t, int32_t, nav_node_key_hash_t> node_lookup;
+	//! Cached directional edge-validation results for this search.
+	std::unordered_map<nav_edge_cache_key_t, nav_edge_reject_reason_t, nav_edge_cache_key_hash_t> edge_validation_cache;
 
 	//! Optional tile-route filter storage/copy to extend lifetime.
 	std::vector<nav_tile_cluster_key_t> tile_route_storage;
+   //! Constant-time membership lookup for the buffered tile-route filter.
+	std::unordered_set<nav_tile_cluster_key_t, nav_tile_cluster_key_hash_t> tile_route_lookup;
 	//! Pointer to either `tile_route_storage` or nullptr when no filter applies.
 	const std::vector<nav_tile_cluster_key_t> *tileRouteFilter = nullptr;
 
@@ -95,8 +125,8 @@ struct nav_a_star_state_t {
 	*              internal storage has been changed.
 	**/
 	void RebindInternalPointers() {
-       tileRouteFilter = tile_route_storage.empty() ? nullptr : &tile_route_storage;
-		// Debug assertion: ensure non-owning pointer either null or points into our storage.
+		tileRouteFilter = tile_route_storage.empty() ? nullptr : &tile_route_storage;
+		 // Debug assertion: ensure non-owning pointer either null or points into our storage.
 		Q_assert( tileRouteFilter == nullptr || tileRouteFilter == &tile_route_storage );
 	}
 
@@ -119,8 +149,22 @@ struct nav_a_star_state_t {
 	bool saw_vertical_neighbor = false;
 	int32_t neighbor_try_count = 0;
 	int32_t no_node_count = 0;
+   //! Number of no-node failures caused by an invalid current tile reference.
+	int32_t no_node_invalid_current_tile_count = 0;
+	//! Number of no-node failures caused by missing or invalid target world tiles.
+	int32_t no_node_target_tile_count = 0;
+	//! Number of no-node failures caused by missing sparse-cell presence bits.
+	int32_t no_node_presence_count = 0;
+	//! Number of no-node failures caused by missing target cell storage.
+	int32_t no_node_cell_view_count = 0;
+	//! Number of no-node failures caused by failing to choose a compatible target layer.
+	int32_t no_node_layer_select_count = 0;
 	int32_t tile_filter_reject_count = 0;
 	int32_t edge_reject_count = 0;
+	//! Number of neighbor queries that resolved back onto the currently expanded node.
+	int32_t same_node_alias_count = 0;
+	//! Number of neighbor queries that resolved to an already-closed node entry.
+	int32_t closed_duplicate_count = 0;
 
 	//! Per-reason counters for edge rejection to help diagnose why neighbors are discarded.
 	//! Index into this array is defined by `nav_edge_reject_reason_t`.
@@ -136,7 +180,7 @@ struct nav_a_star_state_t {
 	*              the engine's tag-freeing facilities.
 	**/
 	static void *operator new( std::size_t size ) {
-		void *p = gi.TagMallocz( (int)size, TAG_SVGAME_LEVEL );
+		void *p = gi.TagMallocz( ( int )size, TAG_SVGAME_NAVMESH );
 		if ( !p ) {
 			// On allocation failure, propagate as bad_alloc to match normal new semantics.
 			throw std::bad_alloc();
@@ -155,41 +199,49 @@ struct nav_a_star_state_t {
 	}
 
 	// Copy constructor: deep-copy containers and rebind internal view pointer.
-	nav_a_star_state_t(const nav_a_star_state_t &o)
-		: status(o.status),
-		  mesh(o.mesh),
-		  agent_mins(o.agent_mins),
-		  agent_maxs(o.agent_maxs),
-		  start_node(o.start_node),
-		  goal_node(o.goal_node),
-		  nodes(o.nodes),
-		  open_list(o.open_list),
-		  node_lookup(o.node_lookup),
-		  tile_route_storage(o.tile_route_storage),
-		  policy(o.policy),
-		  pathProcess(o.pathProcess),
-		  goal_index(o.goal_index),
-		  max_nodes(o.max_nodes),
-		  search_budget_ms(o.search_budget_ms),
-		  step_start_ms(o.step_start_ms),
-		  best_f_cost_seen(o.best_f_cost_seen),
-		  stagnation_count(o.stagnation_count),
-		  hit_stagnation_limit(o.hit_stagnation_limit),
-		  hit_time_budget(o.hit_time_budget),
-		  saw_vertical_neighbor(o.saw_vertical_neighbor),
-		  neighbor_try_count(o.neighbor_try_count),
-		  no_node_count(o.no_node_count),
-		  tile_filter_reject_count(o.tile_filter_reject_count),
-		  edge_reject_count(o.edge_reject_count)
-   {
-		// Rebind pointer to our own storage (or nullptr)
+	nav_a_star_state_t( const nav_a_star_state_t &o )
+		: status( o.status ),
+		mesh( o.mesh ),
+		agent_mins( o.agent_mins ),
+		agent_maxs( o.agent_maxs ),
+		start_node( o.start_node ),
+		goal_node( o.goal_node ),
+		nodes( o.nodes ),
+		open_list( o.open_list ),
+		node_lookup( o.node_lookup ),
+		edge_validation_cache( o.edge_validation_cache ),
+		tile_route_storage( o.tile_route_storage ),
+		tile_route_lookup( o.tile_route_lookup ),
+		policy( o.policy ),
+		pathProcess( o.pathProcess ),
+		goal_index( o.goal_index ),
+		max_nodes( o.max_nodes ),
+		search_budget_ms( o.search_budget_ms ),
+		step_start_ms( o.step_start_ms ),
+		best_f_cost_seen( o.best_f_cost_seen ),
+		stagnation_count( o.stagnation_count ),
+		hit_stagnation_limit( o.hit_stagnation_limit ),
+		hit_time_budget( o.hit_time_budget ),
+		saw_vertical_neighbor( o.saw_vertical_neighbor ),
+		neighbor_try_count( o.neighbor_try_count ),
+		no_node_count( o.no_node_count ),
+		no_node_invalid_current_tile_count( o.no_node_invalid_current_tile_count ),
+		no_node_target_tile_count( o.no_node_target_tile_count ),
+		no_node_presence_count( o.no_node_presence_count ),
+		no_node_cell_view_count( o.no_node_cell_view_count ),
+		no_node_layer_select_count( o.no_node_layer_select_count ),
+		tile_filter_reject_count( o.tile_filter_reject_count ),
+		edge_reject_count( o.edge_reject_count ),
+		same_node_alias_count( o.same_node_alias_count ),
+		closed_duplicate_count( o.closed_duplicate_count ) {
+	  // Rebind pointer to our own storage (or nullptr)
 		tileRouteFilter = tile_route_storage.empty() ? nullptr : &tile_route_storage;
 		// Debug assertion: ensure non-owning pointer either null or points into our storage.
 		Q_assert( tileRouteFilter == nullptr || tileRouteFilter == &tile_route_storage );
 	}
 
 	// Copy assignment: copy containers and rebind pointer.
-	nav_a_star_state_t &operator=(const nav_a_star_state_t &o) {
+	nav_a_star_state_t &operator=( const nav_a_star_state_t &o ) {
 		if ( this == &o ) {
 			return *this;
 		}
@@ -202,7 +254,9 @@ struct nav_a_star_state_t {
 		nodes = o.nodes;
 		open_list = o.open_list;
 		node_lookup = o.node_lookup;
+		edge_validation_cache = o.edge_validation_cache;
 		tile_route_storage = o.tile_route_storage;
+		tile_route_lookup = o.tile_route_lookup;
 		policy = o.policy;
 		pathProcess = o.pathProcess;
 		goal_index = o.goal_index;
@@ -216,44 +270,59 @@ struct nav_a_star_state_t {
 		saw_vertical_neighbor = o.saw_vertical_neighbor;
 		neighbor_try_count = o.neighbor_try_count;
 		no_node_count = o.no_node_count;
+		no_node_invalid_current_tile_count = o.no_node_invalid_current_tile_count;
+		no_node_target_tile_count = o.no_node_target_tile_count;
+		no_node_presence_count = o.no_node_presence_count;
+		no_node_cell_view_count = o.no_node_cell_view_count;
+		no_node_layer_select_count = o.no_node_layer_select_count;
 		tile_filter_reject_count = o.tile_filter_reject_count;
 		edge_reject_count = o.edge_reject_count;
+		same_node_alias_count = o.same_node_alias_count;
+		closed_duplicate_count = o.closed_duplicate_count;
 
-           tileRouteFilter = tile_route_storage.empty() ? nullptr : &tile_route_storage;
-		// Debug assertion: ensure non-owning pointer either null or points into our storage.
+		tileRouteFilter = tile_route_storage.empty() ? nullptr : &tile_route_storage;
+	 // Debug assertion: ensure non-owning pointer either null or points into our storage.
 		Q_assert( tileRouteFilter == nullptr || tileRouteFilter == &tile_route_storage );
 		return *this;
 	}
 
 	// Move constructor: move containers and rebind pointer into destination.
-	nav_a_star_state_t(nav_a_star_state_t &&o) noexcept
-		: status(o.status),
-		  mesh(o.mesh),
-		  agent_mins(std::move(o.agent_mins)),
-		  agent_maxs(std::move(o.agent_maxs)),
-		  start_node(std::move(o.start_node)),
-		  goal_node(std::move(o.goal_node)),
-		  nodes(std::move(o.nodes)),
-		  open_list(std::move(o.open_list)),
-		  node_lookup(std::move(o.node_lookup)),
-		  tile_route_storage(std::move(o.tile_route_storage)),
-		  policy(o.policy),
-		  pathProcess(o.pathProcess),
-		  goal_index(o.goal_index),
-		  max_nodes(o.max_nodes),
-		  search_budget_ms(o.search_budget_ms),
-		  step_start_ms(o.step_start_ms),
-		  best_f_cost_seen(o.best_f_cost_seen),
-		  stagnation_count(o.stagnation_count),
-		  hit_stagnation_limit(o.hit_stagnation_limit),
-		  hit_time_budget(o.hit_time_budget),
-		  saw_vertical_neighbor(o.saw_vertical_neighbor),
-		  neighbor_try_count(o.neighbor_try_count),
-		  no_node_count(o.no_node_count),
-		  tile_filter_reject_count(o.tile_filter_reject_count),
-		  edge_reject_count(o.edge_reject_count)
-   {
-		// Rebind pointer to our own storage (or nullptr)
+	nav_a_star_state_t( nav_a_star_state_t &&o ) noexcept
+		: status( o.status ),
+		mesh( o.mesh ),
+		agent_mins( std::move( o.agent_mins ) ),
+		agent_maxs( std::move( o.agent_maxs ) ),
+		start_node( std::move( o.start_node ) ),
+		goal_node( std::move( o.goal_node ) ),
+		nodes( std::move( o.nodes ) ),
+		open_list( std::move( o.open_list ) ),
+		node_lookup( std::move( o.node_lookup ) ),
+		edge_validation_cache( std::move( o.edge_validation_cache ) ),
+		tile_route_storage( std::move( o.tile_route_storage ) ),
+		tile_route_lookup( std::move( o.tile_route_lookup ) ),
+		policy( o.policy ),
+		pathProcess( o.pathProcess ),
+		goal_index( o.goal_index ),
+		max_nodes( o.max_nodes ),
+		search_budget_ms( o.search_budget_ms ),
+		step_start_ms( o.step_start_ms ),
+		best_f_cost_seen( o.best_f_cost_seen ),
+		stagnation_count( o.stagnation_count ),
+		hit_stagnation_limit( o.hit_stagnation_limit ),
+		hit_time_budget( o.hit_time_budget ),
+		saw_vertical_neighbor( o.saw_vertical_neighbor ),
+		neighbor_try_count( o.neighbor_try_count ),
+		no_node_count( o.no_node_count ),
+		no_node_invalid_current_tile_count( o.no_node_invalid_current_tile_count ),
+		no_node_target_tile_count( o.no_node_target_tile_count ),
+		no_node_presence_count( o.no_node_presence_count ),
+		no_node_cell_view_count( o.no_node_cell_view_count ),
+		no_node_layer_select_count( o.no_node_layer_select_count ),
+		tile_filter_reject_count( o.tile_filter_reject_count ),
+		edge_reject_count( o.edge_reject_count ),
+		same_node_alias_count( o.same_node_alias_count ),
+		closed_duplicate_count( o.closed_duplicate_count ) {
+	  // Rebind pointer to our own storage (or nullptr)
 		tileRouteFilter = tile_route_storage.empty() ? nullptr : &tile_route_storage;
 		// Debug assertion: ensure non-owning pointer either null or points into our storage.
 		Q_assert( tileRouteFilter == nullptr || tileRouteFilter == &tile_route_storage );
@@ -263,20 +332,22 @@ struct nav_a_star_state_t {
 	}
 
 	// Move assignment: move containers then rebind pointer.
-	nav_a_star_state_t &operator=(nav_a_star_state_t &&o) noexcept {
+	nav_a_star_state_t &operator=( nav_a_star_state_t &&o ) noexcept {
 		if ( this == &o ) {
 			return *this;
 		}
 		status = o.status;
 		mesh = o.mesh;
-		agent_mins = std::move(o.agent_mins);
-		agent_maxs = std::move(o.agent_maxs);
-		start_node = std::move(o.start_node);
-		goal_node = std::move(o.goal_node);
-		nodes = std::move(o.nodes);
-		open_list = std::move(o.open_list);
-		node_lookup = std::move(o.node_lookup);
-		tile_route_storage = std::move(o.tile_route_storage);
+		agent_mins = std::move( o.agent_mins );
+		agent_maxs = std::move( o.agent_maxs );
+		start_node = std::move( o.start_node );
+		goal_node = std::move( o.goal_node );
+		nodes = std::move( o.nodes );
+		open_list = std::move( o.open_list );
+		node_lookup = std::move( o.node_lookup );
+		edge_validation_cache = std::move( o.edge_validation_cache );
+		tile_route_storage = std::move( o.tile_route_storage );
+		tile_route_lookup = std::move( o.tile_route_lookup );
 		policy = o.policy;
 		pathProcess = o.pathProcess;
 		goal_index = o.goal_index;
@@ -290,8 +361,15 @@ struct nav_a_star_state_t {
 		saw_vertical_neighbor = o.saw_vertical_neighbor;
 		neighbor_try_count = o.neighbor_try_count;
 		no_node_count = o.no_node_count;
+		no_node_invalid_current_tile_count = o.no_node_invalid_current_tile_count;
+		no_node_target_tile_count = o.no_node_target_tile_count;
+		no_node_presence_count = o.no_node_presence_count;
+		no_node_cell_view_count = o.no_node_cell_view_count;
+		no_node_layer_select_count = o.no_node_layer_select_count;
 		tile_filter_reject_count = o.tile_filter_reject_count;
 		edge_reject_count = o.edge_reject_count;
+		same_node_alias_count = o.same_node_alias_count;
+		closed_duplicate_count = o.closed_duplicate_count;
 
 		tileRouteFilter = tile_route_storage.empty() ? nullptr : &tile_route_storage;
 
@@ -341,6 +419,19 @@ nav_a_star_status_t Nav_AStar_Step( nav_a_star_state_t *state, int32_t expansion
 *              the state is not completed.
 **/
 const bool Nav_AStar_Finalize( nav_a_star_state_t *state, std::vector<Vector3> *out_points );
+
+/**
+*    @brief    Try to replace a node with a same-cell layer variant that has better local connectivity.
+*    @param    mesh         Navigation mesh.
+*    @param    seed_node    Initially resolved node in the target cell.
+*    @param    policy       Traversal policy used for neighbor compatibility checks.
+*    @param    out_node     [out] Best connected same-cell node variant.
+*    @return   True when a same-cell candidate was evaluated successfully.
+*    @note     Used to rescue start/goal layer picks that land on a locally isolated layer inside a
+*              multi-layer cell even though another layer in the same XY cell has adjacent connectivity.
+**/
+bool Nav_AStar_TrySelectConnectedSameCellLayer( const nav_mesh_t *mesh, const nav_node_ref_t &seed_node,
+	const svg_nav_path_policy_t *policy, nav_node_ref_t *out_node );
 
 /**
 *    @brief    Reset incremental state before reuse or destruction.
