@@ -91,7 +91,7 @@ typedef struct edict_s {
     
     // Sound
     int         sounds;         // Sound type/index
-    int         noise_index;    // Precached sound index
+    int         noiseSoundIndexA;    // Precached sound index
     
     // Rendering
     float       light_level;    // For client-side lighting

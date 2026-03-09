@@ -544,7 +544,7 @@ void fire_bullet(svg_base_edict_t *self, vec3_t start, vec3_t aimdir,
     }
     
     // Player noise (for AI)
-    PlayerNoise(self, tr.endpos, PNOISE_IMPACT);
+    PlayerNoise(self, tr.endpos, PLAYER_NOISE_IMPACT);
 }
 ```
 

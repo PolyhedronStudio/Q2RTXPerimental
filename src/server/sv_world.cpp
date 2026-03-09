@@ -556,7 +556,7 @@ const cm_contents_t SV_PointContents( const Vector3 *p ) {
     sv_edict_t *hit = nullptr;
 
     // Use static thread_local to avoid large stack allocation and ensure thread safety.
-    static /*thread_local*/ sv_edict_t *touchedEdicts[MAX_EDICTS] = {};
+    static thread_local sv_edict_t *touchedEdicts[MAX_EDICTS] = {};
     std::fill( std::begin( touchedEdicts ), std::end( touchedEdicts ), nullptr );
 
 	if ( !sv.cm.cache ) {
@@ -605,8 +605,8 @@ static void SV_ClipMoveToEntities(const Vector3 &start, const Vector3 *mins,
 {
     sv_edict_t *touch = nullptr;
 
-		// Use static thread_local to avoid large stack allocation and ensure thread safety.
-	static /*thread_local*/ sv_edict_t *touchlist[ MAX_EDICTS ] = {};
+	// Use static thread_local to avoid large stack allocation and ensure thread safety.
+	static thread_local sv_edict_t *touchlist[ MAX_EDICTS ] = {};
 	std::fill( std::begin( touchlist ), std::end( touchlist ), nullptr );
 
     // Query potentially touching entities using the overall move bounds

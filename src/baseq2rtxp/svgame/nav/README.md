@@ -1,13 +1,13 @@
 # Navigation Voxelmesh / Navmesh API (`svgame/nav`)
 
-This folder implements the runtime navigation voxelmesh used by SVGame entities for A* pathfinding and waypoint-following.
+This folder implements the runtime navigation voxelmesh used by SVGame entities for A*  pathfinding and waypoint-following.
 
 It is not a traditional polygon navmesh. Instead it is a sparse, tiled, multi-layer sample grid designed to work well with Quake 2 BSP collision and PMove-style stepping.
 
 Primary public headers:
 
 - `svg_nav.h` (core mesh structures, agent profile, inline-model runtime)
-- `svg_nav_traversal.h` (A* traversal path generation and path querying)
+- `svg_nav_traversal.h` (A*  traversal path generation and path querying)
 - `svg_nav_path_process.h` (per-entity path process: throttling, backoff, direction queries)
 - `svg_nav_request.h` (async request queue)
 - `svg_nav_clusters.h` (coarse tile cluster routing)
@@ -19,7 +19,7 @@ Primary public headers:
 ### 1.1 Voxelmesh, not polygons
 The nav system stores walkable surface samples on a fixed XY grid (cell size configured via cvars). Each XY cell can have multiple Z layers to represent multi-floor spaces.
 
-At runtime, A* expands across this grid and validates candidate transitions using real collision traces and conservative step logic.
+At runtime, A*  expands across this grid and validates candidate transitions using real collision traces and conservative step logic.
 
 ### 1.2 What it consists of
 Core structures (see `svg_nav.h`):
@@ -69,7 +69,7 @@ Most gameplay code uses a “feet-origin” with Z representing ground contact.
 
 All high-level traversal APIs accept feet-origin coordinates.
 
-### 2.2 Nav-center space (A* internal space)
+### 2.2 Nav-center space (A*  internal space)
 Node lookups and edge validation are performed in “nav-center space,” which is the feet-origin translated by the hull center offset.
 
 Helper:
@@ -79,7 +79,7 @@ Helper:
 Why this matters:
 
 - start/goal node selection is highly sensitive to the Z layer chosen at a given XY
-- supplying the wrong bbox (or mixing feet vs. center conventions) can shift the origin into the wrong Z layer and make A* fail
+- supplying the wrong bbox (or mixing feet vs. center conventions) can shift the origin into the wrong Z layer and make A*  fail
 
 Rule of thumb:
 
@@ -92,12 +92,12 @@ Rule of thumb:
 
 The API is easiest to use as a stack of layers:
 
-1. **Generation / load / save**: build or load a mesh for the map.
-2. **Traversal (A*)**: build a waypoint path between two origins.
-3. **Path process (per-entity)**: keep and follow a path over time; throttle rebuild.
-4. **Async request queue**: amortize path rebuild cost across frames.
-5. **Coarse cluster routing**: speed up long-distance routes.
-6. **Debug tools**: visualize mesh and paths.
+1. * * Generation / load / save* * : build or load a mesh for the map.
+2. * * Traversal (A* )* * : build a waypoint path between two origins.
+3. * * Path process (per-entity)* * : keep and follow a path over time; throttle rebuild.
+4. * * Async request queue* * : amortize path rebuild cost across frames.
+5. * * Coarse cluster routing* * : speed up long-distance routes.
+6. * * Debug tools* * : visualize mesh and paths.
 
 Each category below describes when/what/how to use.
 
@@ -105,7 +105,7 @@ Each category below describes when/what/how to use.
 
 ## 4) Generation / initialization / persistence
 
-### 4.1 Mesh generation (`svg_nav_generate.*`)
+### 4.1 Mesh generation (`svg_nav_generate.* `)
 When to use:
 
 - during development to generate nav data for the current map
@@ -119,13 +119,13 @@ Important cvars (common ones):
 
 - grid/tile: `nav_cell_size_xy`, `nav_tile_size`, `nav_z_quant`
 - traversal constraints: `nav_max_step`, `nav_max_drop`, `nav_max_drop_height_cap`, `nav_max_slope_normal_z`
-- agent bbox: `nav_agent_mins_*`, `nav_agent_maxs_*`
+- agent bbox: `nav_agent_mins_* `, `nav_agent_maxs_* `
 
 Pitfall:
 
 - any changes to agent bbox or traversal limit assumptions typically require regeneration (or ensuring saved data was built with the same constraints).
 
-### 4.2 Save/load (`svg_nav_save.*`, `svg_nav_load.*`)
+### 4.2 Save/load (`svg_nav_save.* `, `svg_nav_load.* `)
 When to use:
 
 - persist generated nav data so it doesn’t need regeneration each run
@@ -151,7 +151,7 @@ When to call:
 
 ---
 
-## 6) Traversal (A*) paths
+## 6) Traversal (A* ) paths
 
 Traversal APIs are in `svg_nav_traversal.h`. They generate a `nav_traversal_path_t` (an owned set of waypoints and metadata).
 
@@ -238,9 +238,9 @@ When to prefer `QueryDirection3D`:
 
 ---
 
-## 9) Async request queue (`svg_nav_request.*`)
+## 9) Async request queue (`svg_nav_request.* `)
 
-The async queue exists to avoid doing blocking A* solves for many agents in the same frame.
+The async queue exists to avoid doing blocking A*  solves for many agents in the same frame.
 
 When to use:
 
@@ -267,7 +267,7 @@ Usage rules:
 
 ---
 
-## 10) Coarse tile cluster routing (`svg_nav_clusters.*`)
+## 10) Coarse tile cluster routing (`svg_nav_clusters.* `)
 
 The cluster graph is a coarse adjacency graph over world tiles.
 
@@ -275,13 +275,13 @@ Intended usage:
 
 1. resolve start/goal tiles
 2. BFS across tile adjacency to get a tile route
-3. run fine A* restricted to tiles on that route
+3. run fine A*  restricted to tiles on that route
 
-This reduces fine A* search space on large maps.
+This reduces fine A*  search space on large maps.
 
 ---
 
-## 11) Debug / visualization (`svg_nav_debug.*`)
+## 11) Debug / visualization (`svg_nav_debug.* `)
 
 Use these utilities to:
 

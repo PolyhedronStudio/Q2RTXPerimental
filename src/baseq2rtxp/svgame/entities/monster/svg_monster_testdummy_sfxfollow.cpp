@@ -194,8 +194,29 @@ static bool Dummy_TryProjectGoalToWalkableZ( svg_monster_testdummy_sfxfollow_t *
 	}
 
 	int32_t layer_index = -1;
-	if ( !Nav_SelectLayerIndex( mesh, cell, center_origin.z, &layer_index ) || layer_index < 0 || layer_index >= cell->num_layers ) {
-		return false;
+   if ( !Nav_SelectLayerIndex( mesh, cell, center_origin.z, &layer_index ) || layer_index < 0 || layer_index >= cell->num_layers ) {
+		// Fallback: when the conservative selector fails (common near small steps),
+		// choose the closest-by-Z layer so the NPC can still investigate a nearby
+		// walkable surface instead of giving up entirely. This helps when the
+		// sound origin sits one quant/step away from the preferred tolerance.
+		int32_t fallback_index = -1;
+		double best_delta = std::numeric_limits<double>::infinity();
+		for ( int32_t li = 0; li < cell->num_layers; li++ ) {
+			const double layer_z = ( double )cell->layers[ li ].z_quantized * mesh->z_quant;
+			double delta = std::fabs( layer_z - center_origin.z );
+			if ( delta < best_delta ) {
+				best_delta = delta;
+				fallback_index = li;
+			}
+		}
+		if ( fallback_index < 0 ) {
+			return false;
+		}
+		layer_index = fallback_index;
+		if ( DUMMY_NAV_DEBUG ) {
+			gi.dprintf( "[NAV DEBUG] %s: conservative layer select failed, using fallback layer %d (delta=%.2f)\n",
+				__func__, layer_index, best_delta );
+		}
 	}
 
 	/**

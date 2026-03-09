@@ -45,6 +45,7 @@
     //#include <array>
     //#include <bit>
     #include <chrono>
+	#include <deque>
     //#include <array>
 	#include <limits>
     #include <list>

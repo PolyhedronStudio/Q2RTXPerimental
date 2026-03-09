@@ -1,10 +1,10 @@
-/********************************************************************
-*
-*
-*    SVGame: Navigation Request Queue Implementation
-*
-*
-********************************************************************/
+/** * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+* 
+* 
+*  SVGame: Navigation Request Queue Implementation
+* 
+* 
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * **/
 
 #include "svgame/svg_local.h"
 #include "svgame/nav/svg_nav.h"
@@ -21,14 +21,14 @@
 #include <unordered_map>
 #include <vector>
 
-/**
- *    NOTE:
- *    This file's PrepareAStar logic has been refactored so that heavy node
- *    resolution and `Nav_AStar_Init` vector allocations run on the async
- *    worker thread. The main thread now performs only lightweight validation
- *    and enqueues a small payload for the worker. The worker produces an
- *    initialized `nav_a_star_state_t` and returns it to the main thread via
- *    the async done-callback where it is moved into the queue entry.
+/** 
+* NOTE:
+* This file's PrepareAStar logic has been refactored so that heavy node
+* resolution and `Nav_AStar_Init` vector allocations run on the async
+* worker thread. The main thread now performs only lightweight validation
+* and enqueues a small payload for the worker. The worker produces an
+* initialized `nav_a_star_state_t` and returns it to the main thread via
+* the async done-callback where it is moved into the queue entry.
  **/
 
 //! Container holding queued and in-flight navigation requests.
@@ -48,6 +48,9 @@ cvar_t *nav_nav_async_queue_mode = nullptr;
 
 //! Optional debug toggle for emitting async queue statistics.
 cvar_t *s_nav_nav_async_log_stats = nullptr;
+
+//! Optional cvar to limit async worker attempts at direct LOS shortcuts based on estimated sample counts.
+extern cvar_t *nav_direct_los_attempt_max_samples;
 
 //! Master toggle cvar for async request processing.
 static cvar_t *s_nav_nav_async_enable = nullptr;
@@ -73,14 +76,14 @@ static cvar_t *s_nav_step_budget_ms = nullptr;
 //! Maximum consecutive async request failures recorded for a single path process.
 static constexpr int32_t NAV_REQUEST_MAX_CONSECUTIVE_FAILURES = 20;
 
-/**
-*    @brief    Determine whether a request status is terminal.
-*    @param    status    Status value to inspect.
-*    @return   True when the status represents a completed/cancelled/failed request.
+/** 
+*  @brief    Determine whether a request status is terminal.
+*  @param    status    Status value to inspect.
+*  @return   True when the status represents a completed/cancelled/failed request.
 **/
 static inline bool NavRequest_IsTerminalStatus( const nav_request_status_t status ) {
-	/**
-	*    Treat only terminal outcomes as finished.
+	/** 
+	*  Treat only terminal outcomes as finished.
 	**/
 	return status == nav_request_status_t::Completed
 		|| status == nav_request_status_t::Cancelled
@@ -88,12 +91,12 @@ static inline bool NavRequest_IsTerminalStatus( const nav_request_status_t statu
 }
 
 
-/**
-*    @brief    Convert an edge rejection enum value into a stable diagnostic name.
-*    @param    reason    Rejection reason value.
-*    @return   Constant string used in async queue diagnostics.
+/** 
+*  @brief    Convert an edge rejection enum value into a stable diagnostic name.
+*  @param    reason    Rejection reason value.
+*  @return   Constant string used in async queue diagnostics.
 **/
-static const char *NavRequest_EdgeRejectReasonToString( const nav_edge_reject_reason_t reason ) {
+static const char * NavRequest_EdgeRejectReasonToString( const nav_edge_reject_reason_t reason ) {
 	switch ( reason ) {
 	case nav_edge_reject_reason_t::None: return "None";
 	case nav_edge_reject_reason_t::TileRouteFilter: return "TileRouteFilter";
@@ -107,15 +110,15 @@ static const char *NavRequest_EdgeRejectReasonToString( const nav_edge_reject_re
 	}
 }
 
-/**
-*    @brief    Emit per-reason A* edge rejection counters.
-*    @param    prefix    Prefix tag for each emitted line.
-*    @param    state     Search state containing rejection counters.
+/** 
+*  @brief    Emit per-reason A*  edge rejection counters.
+*  @param    prefix    Prefix tag for each emitted line.
+*  @param    state     Search state containing rejection counters.
 **/
-static void NavRequest_LogEdgeRejectReasonCounters( const char *prefix, const nav_a_star_state_t &state ) {
-	/**
-	*    Print all configured reason buckets so failure diagnostics include both
-	*    dominant and zero-count reasons.
+static void NavRequest_LogEdgeRejectReasonCounters( const char * prefix, const nav_a_star_state_t &state ) {
+	/** 
+	*  Print all configured reason buckets so failure diagnostics include both
+	*  dominant and zero-count reasons.
 	**/
 	for ( int32_t reasonIndex = ( int32_t )nav_edge_reject_reason_t::None;
 		reasonIndex <= ( int32_t )nav_edge_reject_reason_t::Other;
@@ -131,81 +134,115 @@ static void NavRequest_LogEdgeRejectReasonCounters( const char *prefix, const na
 
 static void NavRequest_LogQueueDiagnostics( int32_t queueBefore, int32_t queueAfter, int32_t processed, int32_t requestBudget, int32_t remainingExpansions );
 static void NavRequest_RebuildHandleLookup( void );
-static void NavRequest_DestroyPrepPayload( struct nav_request_prep_payload_t *payload );
-static nav_request_entry_t *NavRequest_FindEntryByHandle( nav_request_handle_t handle );
-static nav_request_entry_t *NavRequest_FindEntryForProcess( svg_nav_path_process_t *process );
+static void NavRequest_DestroyPrepPayload( struct nav_request_prep_payload_t * payload );
+static nav_request_entry_t * NavRequest_FindEntryByHandle( nav_request_handle_t handle );
+static nav_request_entry_t * NavRequest_FindEntryForProcess( svg_nav_path_process_t * process );
 static bool NavRequest_PrepareAStarForEntry( nav_request_entry_t &entry );
 static void NavRequest_ClearProcessMarkers( nav_request_entry_t &entry );
 static bool NavRequest_FinalizePathForEntry( nav_request_entry_t &entry );
 static void NavRequest_HandleFailure( nav_request_entry_t &entry );
 
-/**
-*    @brief    Retrieve the configured per-frame queued-entry prepare budget.
-*    @return   At least one queued-entry prepare slot.
+/** 
+*  @brief    Decide whether the async worker should attempt a direct LOS shortcut for this query.
+*  @param    mesh         Navigation mesh supplying LOS sample spacing.
+*  @param    start_node   Canonical LOS start node.
+*  @param    goal_node    Canonical LOS goal node.
+*  @return   True when the configured LOS sample budget allows the direct shortcut attempt.
+*  @note     Kept local to the async request implementation so Phase 13 tuning does not widen the public traversal API.
+**/
+static bool NavRequest_ShouldAttemptDirectLosShortcut( const nav_mesh_t * mesh, const nav_node_ref_t &start_node, const nav_node_ref_t &goal_node ) {
+	/** 
+	*  Sanity checks: require mesh data before estimating LOS sample cost.
+	**/
+	if ( !mesh ) {
+		return false;
+	}
+
+	/** 
+	*  Treat zero or negative limits as "always attempt" so tuning can disable this gate explicitly.
+	**/
+	const int32_t maxSamples = nav_direct_los_attempt_max_samples ? nav_direct_los_attempt_max_samples->integer : 2048;
+	if ( maxSamples <= 0 ) {
+		return true;
+	}
+
+	/** 
+	*  Estimate LOS work using the same base sample spacing and sample-count logic used by the DDA backend.
+	**/
+	const double sampleStep = std::max( 1.0, mesh->cell_size_xy > 0.0 ? mesh->cell_size_xy : 4.0 );
+	const Vector3 delta = QM_Vector3Subtract( goal_node.worldPosition, start_node.worldPosition );
+	const double distance = std::sqrt( ( delta.x* delta.x ) + ( delta.y* delta.y ) + ( delta.z* delta.z ) );
+	const int32_t sampleCount = ( distance <= 0.001 ) ? 1 : std::clamp( ( int32_t )std::ceil( distance / sampleStep ), 1, 16384 );
+	return sampleCount <= maxSamples;
+}
+
+/** 
+*  @brief    Retrieve the configured per-frame queued-entry prepare budget.
+*  @return   At least one queued-entry prepare slot.
 **/
 static inline int32_t NavRequest_GetPrepareRequestBudget( void ) {
 	const int32_t budget = s_nav_prepare_requests_per_frame ? s_nav_prepare_requests_per_frame->integer : SVG_Nav_GetAsyncRequestBudget();
 	return std::max( 1, budget );
 }
 
-/**
-*    @brief    Retrieve the configured per-frame running-entry step budget.
-*    @return   At least one running-entry step slot.
+/** 
+*  @brief    Retrieve the configured per-frame running-entry step budget.
+*  @return   At least one running-entry step slot.
 **/
 static inline int32_t NavRequest_GetStepRequestBudget( void ) {
 	const int32_t budget = s_nav_step_requests_per_frame ? s_nav_step_requests_per_frame->integer : SVG_Nav_GetAsyncRequestBudget();
 	return std::max( 1, budget );
 }
 
-/**
-*    @brief    Retrieve the queue-level prepare-time budget in milliseconds.
-*    @return   Millisecond budget used for queued-entry preparation.
+/** 
+*  @brief    Retrieve the queue-level prepare-time budget in milliseconds.
+*  @return   Millisecond budget used for queued-entry preparation.
 **/
 static inline uint64_t NavRequest_GetPrepareBudgetMs( void ) {
 	const int32_t budgetMs = s_nav_prepare_budget_ms ? s_nav_prepare_budget_ms->integer : 4;
 	return ( uint64_t )std::max( 0, budgetMs );
 }
 
-/**
-*    @brief    Retrieve the queue-level step-time budget in milliseconds.
-*    @return   Millisecond budget used for running-entry stepping.
+/** 
+*  @brief    Retrieve the queue-level step-time budget in milliseconds.
+*  @return   Millisecond budget used for running-entry stepping.
 **/
 static inline uint64_t NavRequest_GetStepBudgetMs( void ) {
 	const int32_t budgetMs = s_nav_step_budget_ms ? s_nav_step_budget_ms->integer : 4;
 	return ( uint64_t )std::max( 0, budgetMs );
 }
 
-/**
-*    @brief    Validate that an agent bbox is well-formed.
-*    @param    mins    Minimum extents.
-*    @param    maxs    Maximum extents.
-*    @return   True when mins are strictly lower than maxs on all axes.
+/** 
+*  @brief    Validate that an agent bbox is well-formed.
+*  @param    mins    Minimum extents.
+*  @param    maxs    Maximum extents.
+*  @return   True when mins are strictly lower than maxs on all axes.
 **/
 static inline const bool NavRequest_AgentBoundsAreValid( const Vector3 &mins, const Vector3 &maxs ) {
 	return ( maxs[ 0 ] > mins[ 0 ] ) && ( maxs[ 1 ] > mins[ 1 ] ) && ( maxs[ 2 ] > mins[ 2 ] );
 }
 
-/**
-*    @brief	Project a feet-origin endpoint onto the nearest walkable Z in its current nav cell.
-*    @param	mesh		Navigation mesh used for tile/cell lookup.
-*    @param	feet_origin	Feet-origin position requested by the caller.
-*    @param	agent_mins	Feet-origin agent mins used for center conversion.
-*    @param	agent_maxs	Feet-origin agent maxs used for center conversion.
-*    @param	out_origin	[out] Feet-origin with projected walkable Z when projection succeeds.
-*    @return	True when a walkable Z projection was produced.
-*    @note	This intentionally preserves the caller's XY goal while snapping only the feet Z.
+/** 
+*  @brief	Project a feet-origin endpoint onto the nearest walkable Z in its current nav cell.
+*  @param	mesh		Navigation mesh used for tile/cell lookup.
+*  @param	feet_origin	Feet-origin position requested by the caller.
+*  @param	agent_mins	Feet-origin agent mins used for center conversion.
+*  @param	agent_maxs	Feet-origin agent maxs used for center conversion.
+*  @param	out_origin	[out] Feet-origin with projected walkable Z when projection succeeds.
+*  @return	True when a walkable Z projection was produced.
+*  @note	This intentionally preserves the caller's XY goal while snapping only the feet Z.
 **/
-static bool NavRequest_TryProjectFeetOriginToWalkableZ( const nav_mesh_t *mesh, const Vector3 &feet_origin,
-	const Vector3 &agent_mins, const Vector3 &agent_maxs, Vector3 *out_origin ) {
-	/**
-	*    Sanity checks: require mesh storage, output storage, and a valid agent hull.
+static bool NavRequest_TryProjectFeetOriginToWalkableZ( const nav_mesh_t * mesh, const Vector3 &feet_origin,
+	const Vector3 &agent_mins, const Vector3 &agent_maxs, Vector3 * out_origin ) {
+	/** 
+	*  Sanity checks: require mesh storage, output storage, and a valid agent hull.
 	**/
 	if ( !mesh || !out_origin || !NavRequest_AgentBoundsAreValid( agent_mins, agent_maxs ) ) {
 		return false;
 	}
 
-	/**
-	*    Convert the caller-provided feet-origin into nav-center space for cell lookup.
+	/** 
+	*  Convert the caller-provided feet-origin into nav-center space for cell lookup.
 	**/
 	const Vector3 center_origin = SVG_Nav_ConvertFeetToCenter( mesh, feet_origin, &agent_mins, &agent_maxs );
 	const nav_tile_cluster_key_t tile_key = SVG_Nav_GetTileKeyForPosition( mesh, center_origin );
@@ -215,20 +252,20 @@ static bool NavRequest_TryProjectFeetOriginToWalkableZ( const nav_mesh_t *mesh, 
 		return false;
 	}
 
-	/**
-	*    Resolve the tile-local XY cell and select the closest walkable layer by Z.
+	/** 
+	*  Resolve the tile-local XY cell and select the closest walkable layer by Z.
 	**/
-	const nav_tile_t *tile = &mesh->world_tiles[ tile_it->second ];
+	const nav_tile_t * tile = &mesh->world_tiles[ tile_it->second ];
 	const auto cells_view = SVG_Nav_Tile_GetCells( mesh, tile );
-	const nav_xy_cell_t *cells = cells_view.first;
+	const nav_xy_cell_t * cells = cells_view.first;
 	const int32_t cell_count = cells_view.second;
 	if ( !cells || cell_count <= 0 ) {
 		return false;
 	}
 
-	const double tile_world_size = ( double )mesh->tile_size * mesh->cell_size_xy;
-	const double tile_origin_x = ( double )tile->tile_x * tile_world_size;
-	const double tile_origin_y = ( double )tile->tile_y * tile_world_size;
+	const double tile_world_size = ( double )mesh->tile_size* mesh->cell_size_xy;
+	const double tile_origin_x = ( double )tile->tile_x* tile_world_size;
+	const double tile_origin_y = ( double )tile->tile_y* tile_world_size;
 	const double local_x = center_origin.x - tile_origin_x;
 	const double local_y = center_origin.y - tile_origin_y;
 	if ( local_x < 0.0 || local_y < 0.0 ) {
@@ -237,12 +274,12 @@ static bool NavRequest_TryProjectFeetOriginToWalkableZ( const nav_mesh_t *mesh, 
 
 	const int32_t cell_x = std::clamp( ( int32_t )std::floor( local_x / mesh->cell_size_xy ), 0, mesh->tile_size - 1 );
 	const int32_t cell_y = std::clamp( ( int32_t )std::floor( local_y / mesh->cell_size_xy ), 0, mesh->tile_size - 1 );
-	const int32_t cell_index = ( cell_y * mesh->tile_size ) + cell_x;
+	const int32_t cell_index = ( cell_y* mesh->tile_size ) + cell_x;
 	if ( cell_index < 0 || cell_index >= cell_count ) {
 		return false;
 	}
 
-	const nav_xy_cell_t *cell = &cells[ cell_index ];
+	const nav_xy_cell_t * cell = &cells[ cell_index ];
 	if ( !cell || cell->num_layers <= 0 || !cell->layers ) {
 		return false;
 	}
@@ -252,51 +289,51 @@ static bool NavRequest_TryProjectFeetOriginToWalkableZ( const nav_mesh_t *mesh, 
 		return false;
 	}
 
-	/**
-	*    Convert the selected nav-center layer height back into feet-origin space.
+	/** 
+	*  Convert the selected nav-center layer height back into feet-origin space.
 	**/
-	const float center_offset_z = ( agent_mins.z + agent_maxs.z ) * 0.5f;
-	const double projected_center_z = ( double )cell->layers[ layer_index ].z_quantized * mesh->z_quant;
-	*out_origin = feet_origin;
+	const float center_offset_z = ( agent_mins.z + agent_maxs.z )* 0.5f;
+	const double projected_center_z = ( double )cell->layers[ layer_index ].z_quantized* mesh->z_quant;
+	* out_origin = feet_origin;
 	out_origin->z = ( float )( projected_center_z - center_offset_z );
 	return true;
 }
 
 // Forward worker callbacks for async queue.
-static void NavRequest_Worker_DoInit( void *cb_arg );
-static void NavRequest_Worker_Done( void *cb_arg );
+static void NavRequest_Worker_DoInit( void * cb_arg );
+static void NavRequest_Worker_Done( void * cb_arg );
 
-/**
-*    @brief    Probe a small XY neighborhood to rescue endpoint node resolution on boundary origins.
-*    @param    mesh            Navigation mesh.
-*    @param    query_center    Endpoint center position that failed direct lookup.
-*    @param    start_center    Original request start center used by blend lookup.
-*    @param    goal_center     Original request goal center used by blend lookup.
-*    @param    query_is_goal   True when rescuing the goal endpoint, false for the start endpoint.
-*    @param    policy          Resolved path policy controlling blend behavior.
-*    @param    out_node        [out] Best rescued canonical node.
-*    @return   True when a nearby endpoint node was recovered.
-*    @note     This hardens async endpoint selection against sound origins that land on tile or cell
-*              boundaries where the raw point itself is not directly walkable even though a nearby
-*              canonical walk surface exists.
+/** 
+*  @brief    Probe a small XY neighborhood to rescue endpoint node resolution on boundary origins.
+*  @param    mesh            Navigation mesh.
+*  @param    query_center    Endpoint center position that failed direct lookup.
+*  @param    start_center    Original request start center used by blend lookup.
+*  @param    goal_center     Original request goal center used by blend lookup.
+*  @param    query_is_goal   True when rescuing the goal endpoint, false for the start endpoint.
+*  @param    policy          Resolved path policy controlling blend behavior.
+*  @param    out_node        [out] Best rescued canonical node.
+*  @return   True when a nearby endpoint node was recovered.
+*  @note     This hardens async endpoint selection against sound origins that land on tile or cell
+*            boundaries where the raw point itself is not directly walkable even though a nearby
+*            canonical walk surface exists.
 **/
-static bool NavRequest_TryResolveBoundaryOriginNode( const nav_mesh_t *mesh, const Vector3 &query_center,
+static bool NavRequest_TryResolveBoundaryOriginNode( const nav_mesh_t * mesh, const Vector3 &query_center,
 	const Vector3 &start_center, const Vector3 &goal_center, const bool query_is_goal,
-	const svg_nav_path_policy_t &policy, nav_node_ref_t *out_node ) {
-	/**
-	*    Sanity checks: require mesh storage and an output node reference.
+	const svg_nav_path_policy_t &policy, nav_node_ref_t * out_node ) {
+	/** 
+	*  Sanity checks: require mesh storage and an output node reference.
 	**/
 	if ( !mesh || !out_node ) {
 		return false;
 	}
 
-	/**
-	*    Build a compact probe ring around the failed endpoint.
-	*        Use half-cell and one-cell offsets so boundary-origin sound points can snap onto a nearby
-	*        valid walk surface without skipping across large gaps.
+	/** 
+	*  Build a compact probe ring around the failed endpoint.
+	*      Use half-cell and one-cell offsets so boundary-origin sound points can snap onto a nearby
+	*      valid walk surface without skipping across large gaps.
 	**/
 	const double mesh_cell_size = ( double )mesh->cell_size_xy;
-	const double half_cell_raw = mesh_cell_size * 0.5;
+	const double half_cell_raw = mesh_cell_size* 0.5;
 	const double half_cell = ( half_cell_raw > 1.0 ) ? half_cell_raw : 1.0;
 	const double full_cell = ( half_cell > mesh_cell_size ) ? half_cell : mesh_cell_size;
 	const Vector3 probe_offsets[ ] = {
@@ -314,8 +351,8 @@ static bool NavRequest_TryResolveBoundaryOriginNode( const nav_mesh_t *mesh, con
 		{ 0., -full_cell, 0. }
 	};
 
-	/**
-	*    Keep the closest rescued node to the original failed endpoint.
+	/** 
+	*  Keep the closest rescued node to the original failed endpoint.
 	**/
 	bool found_node = false;
 	double best_distance_sqr = std::numeric_limits<double>::infinity();
@@ -328,9 +365,9 @@ static bool NavRequest_TryResolveBoundaryOriginNode( const nav_mesh_t *mesh, con
 		nav_node_ref_t candidate_node = {};
 		bool resolved = false;
 
-		/**
-		*    Reuse the caller's configured lookup policy so boundary rescue stays aligned with the
-		*    same blend and fallback behavior as the primary endpoint resolution path.
+		/** 
+		*  Reuse the caller's configured lookup policy so boundary rescue stays aligned with the
+		*  same blend and fallback behavior as the primary endpoint resolution path.
 		**/
 		if ( policy.enable_goal_z_layer_blend ) {
 			if ( query_is_goal ) {
@@ -358,20 +395,20 @@ static bool NavRequest_TryResolveBoundaryOriginNode( const nav_mesh_t *mesh, con
 		}
 	}
 
-	/**
-	*    Commit the closest rescued endpoint node when probing succeeded.
+	/** 
+	*  Commit the closest rescued endpoint node when probing succeeded.
 	**/
 	if ( !found_node ) {
 		return false;
 	}
 
-	*out_node = best_node;
+	* out_node = best_node;
 	return true;
 }
 
-/**
- *    Small payload passed to the worker thread when preparing A*.
- *    Contains only lightweight, stable inputs gathered on the main thread.
+/** 
+* Small payload passed to the worker thread when preparing A* .
+* Contains only lightweight, stable inputs gathered on the main thread.
  **/
 struct nav_request_prep_payload_t {
 	nav_request_handle_t handle;
@@ -387,16 +424,20 @@ struct nav_request_prep_payload_t {
 	Vector3 agent_maxs;
 
 	// Owning process pointer (readonly usage on worker for diagnostics / failure penalties).
-	svg_nav_path_process_t *path_process = nullptr;
+	svg_nav_path_process_t * path_process = nullptr;
 
-	// Worker results:
+  // Worker direct-shortcut results:
+	bool direct_path_success = false;
+	std::vector<Vector3> direct_path_points = {};
+
+	// Worker search-initialization results:
 	bool init_success = false;
  std::optional<nav_a_star_state_t> initialized_state = std::nullopt;
 };
 
-/**
-*    @brief    Register cvars that control async request processing and diagnostics.
-*    @note     Safe to invoke from SVG_Nav_Init after the navigation subsystem starts.
+/** 
+*  @brief    Register cvars that control async request processing and diagnostics.
+*  @note     Safe to invoke from SVG_Nav_Init after the navigation subsystem starts.
 **/
 void SVG_Nav_RequestQueue_RegisterCvars( void ) {
 	if ( s_nav_nav_async_enable ) {
@@ -419,19 +460,19 @@ void SVG_Nav_RequestQueue_RegisterCvars( void ) {
    s_nav_request_handle_lookup.reserve( 2048 );
 }
 
-/**
-*    @brief    Rebuild the handle-to-index lookup after queue compaction.
-*    @note     This keeps `NavRequest_FindEntryByHandle` constant-time while
-*              allowing the queue to remain a dense vector.
+/** 
+*  @brief    Rebuild the handle-to-index lookup after queue compaction.
+*  @note     This keeps `NavRequest_FindEntryByHandle` constant-time while
+*            allowing the queue to remain a dense vector.
 **/
 static void NavRequest_RebuildHandleLookup( void ) {
-	/**
-	*    Reset the lookup so each surviving queue entry can publish its latest slot.
+	/** 
+	*  Reset the lookup so each surviving queue entry can publish its latest slot.
 	**/
 	s_nav_request_handle_lookup.clear();
 
-	/**
-	*    Mirror the queue order into the handle lookup table.
+	/** 
+	*  Mirror the queue order into the handle lookup table.
 	**/
 	for ( size_t index = 0; index < s_nav_request_queue.size(); index++ ) {
 		// Cache the current dense-vector slot for this request handle.
@@ -439,41 +480,41 @@ static void NavRequest_RebuildHandleLookup( void ) {
 	}
 }
 
-/**
-*    @brief    Destroy a worker payload and release its tag-allocated storage.
-*    @param    payload    Payload allocated in `NavRequest_PrepareAStarForEntry`.
+/** 
+*  @brief    Destroy a worker payload and release its tag-allocated storage.
+*  @param    payload    Payload allocated in `NavRequest_PrepareAStarForEntry`.
 **/
-static void NavRequest_DestroyPrepPayload( nav_request_prep_payload_t *payload ) {
-	/**
-	*    Guard against redundant cleanup calls from early-return paths.
+static void NavRequest_DestroyPrepPayload( nav_request_prep_payload_t * payload ) {
+	/** 
+	*  Guard against redundant cleanup calls from early-return paths.
 	**/
 	if ( payload == nullptr ) {
 		return;
 	}
 
-	/**
-	*    Run the payload destructor so in-place state ownership is released before
-	*    the engine tag allocator frees the backing memory.
+	/** 
+	*  Run the payload destructor so in-place state ownership is released before
+	*  the engine tag allocator frees the backing memory.
 	**/
 	payload->~nav_request_prep_payload_t();
 	gi.TagFree( payload );
 }
 
-/**
-*    @brief    Locate a queued entry by handle.
-*    @param    handle    Handle returned when the request was enqueued.
-*    @return   Pointer to the entry or nullptr if not found.
+/** 
+*  @brief    Locate a queued entry by handle.
+*  @param    handle    Handle returned when the request was enqueued.
+*  @return   Pointer to the entry or nullptr if not found.
 **/
-static nav_request_entry_t *NavRequest_FindEntryByHandle( nav_request_handle_t handle ) {
-	/**
-	*    Reject invalid handles before touching the lookup table.
+static nav_request_entry_t * NavRequest_FindEntryByHandle( nav_request_handle_t handle ) {
+	/** 
+	*  Reject invalid handles before touching the lookup table.
 	**/
 	if ( handle <= 0 ) {
 		return nullptr;
 	}
 
-   /**
-	*    Use the cached slot when it still matches the dense queue layout.
+   /** 
+	*  Use the cached slot when it still matches the dense queue layout.
 	**/
 	if ( const auto found = s_nav_request_handle_lookup.find( handle ); found != s_nav_request_handle_lookup.end() ) {
 		const size_t index = found->second;
@@ -482,8 +523,8 @@ static nav_request_entry_t *NavRequest_FindEntryByHandle( nav_request_handle_t h
 		}
 	}
 
-	/**
-	*    Recover from any stale lookup state by rebuilding once from the queue.
+	/** 
+	*  Recover from any stale lookup state by rebuilding once from the queue.
 	**/
 	NavRequest_RebuildHandleLookup();
 	if ( const auto found = s_nav_request_handle_lookup.find( handle ); found != s_nav_request_handle_lookup.end() ) {
@@ -496,12 +537,12 @@ static nav_request_entry_t *NavRequest_FindEntryByHandle( nav_request_handle_t h
 	return nullptr;
 }
 
-/**
-*    @brief    Locate an in-flight request owned by a path process.
-*    @param    process    Requesting path process.
-*    @return   Pointer to the matching entry or nullptr if none exist.
+/** 
+*  @brief    Locate an in-flight request owned by a path process.
+*  @param    process    Requesting path process.
+*  @return   Pointer to the matching entry or nullptr if none exist.
 **/
-static nav_request_entry_t *NavRequest_FindEntryForProcess( svg_nav_path_process_t *process ) {
+static nav_request_entry_t * NavRequest_FindEntryForProcess( svg_nav_path_process_t * process ) {
 	if ( !process ) {
 		return nullptr;
 	}
@@ -523,7 +564,7 @@ static nav_request_entry_t *NavRequest_FindEntryForProcess( svg_nav_path_process
 			// to avoid spamming release logs.
 			if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
 				gi.dprintf( "[NavAsync][Queue] Skipping terminal entry (handle=%d status=%d) for ent_process=%p\n",
-					entry.handle, ( int )entry.status, ( void * )entry.path_process );
+					entry.handle, ( int )entry.status, ( void* )entry.path_process );
 			}
 			continue;
 		}
@@ -534,28 +575,28 @@ static nav_request_entry_t *NavRequest_FindEntryForProcess( svg_nav_path_process
 	return nullptr;
 }
 
-/**
- *    @brief    Enqueue a navigation request.
- *    @note     Deduplicates requests by path process and reuses the existing handle when needed.
+/** 
+* @brief    Enqueue a navigation request.
+* @note     Deduplicates requests by path process and reuses the existing handle when needed.
  **/
-nav_request_handle_t SVG_Nav_RequestPathAsync( svg_nav_path_process_t *pathProcess, const Vector3 &start_origin,
+nav_request_handle_t SVG_Nav_RequestPathAsync( svg_nav_path_process_t * pathProcess, const Vector3 &start_origin,
 	const Vector3 &goal_origin, const svg_nav_path_policy_t &policy, const Vector3 &agent_mins,
 	const Vector3 &agent_maxs, bool force, double startIgnoreThreshold ) {
- const nav_mesh_t *mesh = g_nav_mesh.get();
+ const nav_mesh_t * mesh = g_nav_mesh.get();
 	Vector3 normalized_start = start_origin;
 	Vector3 normalized_goal = goal_origin;
 
-	/**
-	*    Project request endpoints onto the nearest walkable Z before queue bookkeeping.
-	*        This prevents mid-air or inter-floor sound origins from poisoning async endpoint selection.
+	/** 
+	*  Project request endpoints onto the nearest walkable Z before queue bookkeeping.
+	*      This prevents mid-air or inter-floor sound origins from poisoning async endpoint selection.
 	**/
 	if ( mesh ) {
 		NavRequest_TryProjectFeetOriginToWalkableZ( mesh, start_origin, agent_mins, agent_maxs, &normalized_start );
 		NavRequest_TryProjectFeetOriginToWalkableZ( mesh, goal_origin, agent_mins, agent_maxs, &normalized_goal );
 	}
 
-	/**
-	*    Sanity: require a valid process pointer and an enabled queue.
+	/** 
+	*  Sanity: require a valid process pointer and an enabled queue.
 	**/
 	if ( !pathProcess ) {
 		return 0;
@@ -565,16 +606,16 @@ nav_request_handle_t SVG_Nav_RequestPathAsync( svg_nav_path_process_t *pathProce
 		return 0;
 	}
 
-	/**
-	*    Resolve the caller's effective refresh threshold once.
-	*        Reuse the per-request start-ignore threshold when provided so queued,
-	*        preparing, and running requests all share the same notion of what counts
-	*        as insignificant start drift.
+	/** 
+	*  Resolve the caller's effective refresh threshold once.
+	*      Reuse the per-request start-ignore threshold when provided so queued,
+	*      preparing, and running requests all share the same notion of what counts
+	*      as insignificant start drift.
 	**/
 	const double effectiveRefreshThreshold = ( startIgnoreThreshold > 0.0 ) ? startIgnoreThreshold : 32.0;
 
-	/**
-	*    Deduplication: refresh existing entry parameters instead of building a new handle.
+	/** 
+	*  Deduplication: refresh existing entry parameters instead of building a new handle.
 	**/
 	// Before reusing an existing entry, remove any stale "Failed" entries for
 	// the same process so callers can re-enqueue immediately. Removing them
@@ -590,11 +631,11 @@ nav_request_handle_t SVG_Nav_RequestPathAsync( svg_nav_path_process_t *pathProce
 	}
 	if ( !removedHandles.empty() && s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
 		for ( nav_request_handle_t h : removedHandles ) {
-			gi.dprintf( "[NavAsync][Queue] Removed previously failed entry handle=%d for ent_process=%p before enqueue\n", h, ( void * )pathProcess );
+			gi.dprintf( "[NavAsync][Queue] Removed previously failed entry handle=%d for ent_process=%p before enqueue\n", h, ( void* )pathProcess );
 		}
 	}
-   /**
-	*    Rebuild the handle lookup when dense-vector erases changed queue slots.
+   /** 
+	*  Rebuild the handle lookup when dense-vector erases changed queue slots.
 	**/
 	if ( !removedHandles.empty() ) {
 		NavRequest_RebuildHandleLookup();
@@ -620,30 +661,30 @@ nav_request_handle_t SVG_Nav_RequestPathAsync( svg_nav_path_process_t *pathProce
 			// Skip enqueue/refresh when consecutive calls are too frequent and positions haven't moved.
 			if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
 				gi.dprintf( "[NavAsync][Prep] Debounced request for ent_process=%p delta_ms=%lld dx=%.2f dg=%.2f\n",
-					( void * )pathProcess, ( long long )delta.Milliseconds(), dx, dg );
+					( void* )pathProcess, ( long long )delta.Milliseconds(), dx, dg );
 			}
 			return 0;
 		}
 	}
 
-	if ( nav_request_entry_t *existing = NavRequest_FindEntryForProcess( pathProcess ) ) {
-		/**
-		*	When a non-terminal entry already exists for this process, avoid doing
-		*	expensive/mutating refresh work when the caller hasn't moved meaningfully.
-		*
-		*	Implementation notes:
-		*	 - If the entry is Queued or Running and both start/goal moved less than
-		*	   'moveThresh' units we skip updating the entry entirely. This avoids
-		*	   repeated "Refreshed existing entry" log spam and copying of resolved
-		*	   policy/hull fields.
-		*	 - We now bump the owning process's `request_generation` only when we
-		*	   actually perform a refresh (or create a new entry). This keeps the
-		*	   generation monotonic semantics local to real changes and avoids
-		*	   needing to revert a bump when we early-skip refreshes.
+	if ( nav_request_entry_t * existing = NavRequest_FindEntryForProcess( pathProcess ) ) {
+		/** 
+		* 	When a non-terminal entry already exists for this process, avoid doing
+		* 	expensive/mutating refresh work when the caller hasn't moved meaningfully.
+		* 
+		* 	Implementation notes:
+		* 	 - If the entry is Queued or Running and both start/goal moved less than
+		* 	   'moveThresh' units we skip updating the entry entirely. This avoids
+		* 	   repeated "Refreshed existing entry" log spam and copying of resolved
+		* 	   policy/hull fields.
+		* 	 - We now bump the owning process's `request_generation` only when we
+		* 	   actually perform a refresh (or create a new entry). This keeps the
+		* 	   generation monotonic semantics local to real changes and avoids
+		* 	   needing to revert a bump when we early-skip refreshes.
 		**/
 		if ( existing->status == nav_request_status_t::Queued || existing->status == nav_request_status_t::Preparing || existing->status == nav_request_status_t::Running ) {
 			const double moveThresh = ( double )effectiveRefreshThreshold;
-			const double moveThreshSqr = moveThresh * moveThresh;
+			const double moveThreshSqr = moveThresh* moveThresh;
            const double dx_sqr = QM_Vector3DistanceSqr( existing->start, normalized_start );
 			const double dg_sqr = QM_Vector3DistanceSqr( existing->goal, normalized_goal );
 			// If both start and goal moved less than threshold and caller did not force,
@@ -652,7 +693,7 @@ nav_request_handle_t SVG_Nav_RequestPathAsync( svg_nav_path_process_t *pathProce
 			if ( !force && dx_sqr <= moveThreshSqr && dg_sqr <= moveThreshSqr ) {
 				if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
 					gi.dprintf( "[NavAsync][Queue] Skipped refresh (movement below threshold) for handle=%d ent_process=%p dx_sqr=%.2f dg_sqr=%.2f\n",
-						existing->handle, ( void * )existing->path_process, dx_sqr, dg_sqr );
+						existing->handle, ( void* )existing->path_process, dx_sqr, dg_sqr );
 				}
 				// Return the existing handle without mutating the queued entry or bumping generation.
 				return existing->handle;
@@ -720,13 +761,13 @@ nav_request_handle_t SVG_Nav_RequestPathAsync( svg_nav_path_process_t *pathProce
 		existing->status = nav_request_status_t::Queued;
 		if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
 			gi.dprintf( "[NavAsync][Queue] Refreshed existing entry handle=%d for ent_process=%p (queued)\n",
-				existing->handle, ( void * )existing->path_process );
+				existing->handle, ( void* )existing->path_process );
 		}
 		return existing->handle;
 	}
 
-	/**
-	*    Handle assignment: issue a new handle, ensuring zero is never returned.
+	/** 
+	*  Handle assignment: issue a new handle, ensuring zero is never returned.
 	**/
 	// Bump generation for the process because we're about to create a new queued request.
 	pathProcess->request_generation++;
@@ -752,8 +793,8 @@ nav_request_handle_t SVG_Nav_RequestPathAsync( svg_nav_path_process_t *pathProce
 	entry.status = nav_request_status_t::Queued;
 	entry.handle = handle;
 
-	/**
-	*    Enqueue the new entry for future processing ticks.
+	/** 
+	*  Enqueue the new entry for future processing ticks.
 	**/
 	s_nav_request_queue.push_back( entry );
  // Publish the new handle slot for constant-time completion lookups.
@@ -761,7 +802,7 @@ nav_request_handle_t SVG_Nav_RequestPathAsync( svg_nav_path_process_t *pathProce
 	// Lightweight diagnostic: log new enqueue when async logging is desired.
 	if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
 		gi.dprintf( "[NavAsync][Queue] Enqueued handle=%d for ent_process=%p start=(%.1f %.1f %.1f) goal=(%.1f %.1f %.1f) force=%d\n",
-			entry.handle, ( void * )entry.path_process,
+			entry.handle, ( void* )entry.path_process,
 			entry.start.x, entry.start.y, entry.start.z,
 			entry.goal.x, entry.goal.y, entry.goal.z,
 			entry.force ? 1 : 0 );
@@ -769,22 +810,22 @@ nav_request_handle_t SVG_Nav_RequestPathAsync( svg_nav_path_process_t *pathProce
 	return handle;
 }
 
-/**
-*    @brief    Cancel a previously queued request.
-*    @note     Marks the entry so it can be removed during the next tick.
+/** 
+*  @brief    Cancel a previously queued request.
+*  @note     Marks the entry so it can be removed during the next tick.
 **/
 void SVG_Nav_CancelRequest( nav_request_handle_t handle ) {
-	/**
-	*    Guard: handle zero is invalid and must be ignored.
+	/** 
+	*  Guard: handle zero is invalid and must be ignored.
 	**/
 	if ( handle <= 0 ) {
 		return;
 	}
 
-	/**
-	*    Locate the request and update its status to cancelled.
+	/** 
+	*  Locate the request and update its status to cancelled.
 	**/
-	nav_request_entry_t *entry = NavRequest_FindEntryByHandle( handle );
+	nav_request_entry_t * entry = NavRequest_FindEntryByHandle( handle );
 	if ( !entry ) {
 		return;
 	}
@@ -793,30 +834,30 @@ void SVG_Nav_CancelRequest( nav_request_handle_t handle ) {
 		return;
 	}
 
-	/**
-	*    Cancellation wins immediately:
-	*        - Mark terminal status.
-	*        - Drop refresh intent.
-	*        - Clear owner process markers now so pending checks stop immediately.
+	/** 
+	*  Cancellation wins immediately:
+	*      - Mark terminal status.
+	*      - Drop refresh intent.
+	*      - Clear owner process markers now so pending checks stop immediately.
 	**/
 	entry->status = nav_request_status_t::Cancelled;
 	entry->needs_refresh = false;
-	NavRequest_ClearProcessMarkers( *entry );
+	NavRequest_ClearProcessMarkers( * entry );
 }
 
-/**
-*    @brief    Check if a path process currently owns a queued request.
+/** 
+*  @brief    Check if a path process currently owns a queued request.
 **/
-bool SVG_Nav_IsRequestPending( const svg_nav_path_process_t *pathProcess ) {
-	/**
-	*    Guard: invalid process pointers never own requests.
+bool SVG_Nav_IsRequestPending( const svg_nav_path_process_t * pathProcess ) {
+	/** 
+	*  Guard: invalid process pointers never own requests.
 	**/
 	if ( !pathProcess ) {
 		return false;
 	}
 
-	/**
-	*    Scan the queue for matching active entries.
+	/** 
+	*  Scan the queue for matching active entries.
 	**/
 	for ( const nav_request_entry_t &entry : s_nav_request_queue ) {
 		if ( entry.path_process != pathProcess ) {
@@ -833,27 +874,27 @@ bool SVG_Nav_IsRequestPending( const svg_nav_path_process_t *pathProcess ) {
 	return false;
 }
 
-/**
-*    @brief    Process pending requests per frame.
-*    @note     Each request now steps the incremental A* helper using the configured expansion budget.
+/** 
+*  @brief    Process pending requests per frame.
+*  @note     Each request now steps the incremental A*  helper using the configured expansion budget.
 **/
 void SVG_Nav_ProcessRequestQueue( void ) {
-	/**
-	*    Feature gate: skip work when async processing is disabled.
+	/** 
+	*  Feature gate: skip work when async processing is disabled.
 	**/
 	if ( !SVG_Nav_IsAsyncNavEnabled() ) {
 		return;
 	}
 
-	/**
-	*    Guard: wait for the navigation mesh before touching queued requests.
+	/** 
+	*  Guard: wait for the navigation mesh before touching queued requests.
 	**/
 	if ( !g_nav_mesh.get() ) {
-	 /**
-		*    No-mesh hardening:
-		*        Do not keep requests pending forever when a mesh is unavailable.
-		*        Mark active entries cancelled and clear owner process markers so
-		*        callers immediately stop reporting pending async state.
+	 /** 
+		*  No-mesh hardening:
+		*      Do not keep requests pending forever when a mesh is unavailable.
+		*      Mark active entries cancelled and clear owner process markers so
+		*      callers immediately stop reporting pending async state.
 		**/
 		if ( !s_nav_request_queue.empty() ) {
 			for ( nav_request_entry_t &entry : s_nav_request_queue ) {
@@ -875,8 +916,8 @@ void SVG_Nav_ProcessRequestQueue( void ) {
 				s_nav_request_queue.end() );
 			NavRequest_RebuildHandleLookup();
 
-			/**
-			*    Reset the fairness cursor when the queue is drained while no mesh exists.
+			/** 
+			*  Reset the fairness cursor when the queue is drained while no mesh exists.
 			**/
 			if ( s_nav_request_queue.empty() ) {
 				s_nav_request_round_robin_cursor = 0;
@@ -892,13 +933,13 @@ void SVG_Nav_ProcessRequestQueue( void ) {
 		return;
 	}
 
-	/**
-	*    Budgeting: constrain work by both request throttles and expansion caps.
+	/** 
+	*  Budgeting: constrain work by both request throttles and expansion caps.
 	**/
 	const int32_t prepareRequestBudget = NavRequest_GetPrepareRequestBudget();
 	const int32_t stepRequestBudget = NavRequest_GetStepRequestBudget();
 	const int32_t expansionsPerRequest = SVG_Nav_GetAsyncRequestExpansions();
-	const int64_t totalExpansions = ( int64_t )expansionsPerRequest * stepRequestBudget;
+	const int64_t totalExpansions = ( int64_t )expansionsPerRequest* stepRequestBudget;
 	int32_t remainingExpansions = ( int32_t )std::min( totalExpansions, ( int64_t )std::numeric_limits<int32_t>::max() );
 	int32_t prepareProcessed = 0;
 	int32_t stepProcessed = 0;
@@ -906,18 +947,18 @@ void SVG_Nav_ProcessRequestQueue( void ) {
 	const size_t queueCount = s_nav_request_queue.size();
 	size_t startIndex = 0;
 
-	/**
-	*    Start each frame from the persisted round-robin cursor so later requests are not
-	*    perpetually starved behind earlier expensive entries.
+	/** 
+	*  Start each frame from the persisted round-robin cursor so later requests are not
+	*  perpetually starved behind earlier expensive entries.
 	**/
 	if ( queueCount > 0 ) {
 		startIndex = s_nav_request_round_robin_cursor % queueCount;
 	}
 
-	/**
-   *    Service queued-entry preparation first using its own frame budget.
-	*        Keep prepares isolated from running-step work so a burst of expensive worker setup cannot
-	*        consume the same frame slice needed by already-running searches.
+	/** 
+  * Service queued-entry preparation first using its own frame budget.
+	*      Keep prepares isolated from running-step work so a burst of expensive worker setup cannot
+	*      consume the same frame slice needed by already-running searches.
 	**/
 	const uint64_t prepareStartMs = gi.GetRealSystemTime();
 	const uint64_t prepareBudgetMs = NavRequest_GetPrepareBudgetMs();
@@ -931,8 +972,8 @@ void SVG_Nav_ProcessRequestQueue( void ) {
 			break;
 		}
 
-		/**
-	   *    Visit the next queue slot relative to the current fairness cursor.
+		/** 
+	  * Visit the next queue slot relative to the current fairness cursor.
 		**/
 		const size_t entryIndex = ( startIndex + prepareVisited ) % queueCount;
 		nav_request_entry_t &entry = s_nav_request_queue[ entryIndex ];
@@ -943,8 +984,8 @@ void SVG_Nav_ProcessRequestQueue( void ) {
 			continue;
 		}
 
-	   /**
-		*    Skip entries that are not waiting for worker preparation.
+	   /** 
+		*  Skip entries that are not waiting for worker preparation.
 		**/
 		if ( entry.status != nav_request_status_t::Queued ) {
 			continue;
@@ -956,25 +997,25 @@ void SVG_Nav_ProcessRequestQueue( void ) {
 			NavRequest_ClearProcessMarkers( entry );
 			Nav_AStar_Reset( &entry.a_star );
 			if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
-				gi.dprintf( "[NavAsync][Queue] PrepareAStarForEntry failed for handle=%d path_process=%p\n", entry.handle, ( void * )entry.path_process );
+				gi.dprintf( "[NavAsync][Queue] PrepareAStarForEntry failed for handle=%d path_process=%p\n", entry.handle, ( void* )entry.path_process );
 			}
 			continue;
 		}
 		if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
-			gi.dprintf( "[NavAsync][Queue] Prepared A* for handle=%d path_process=%p\n", entry.handle, ( void * )entry.path_process );
+			gi.dprintf( "[NavAsync][Queue] Prepared A*  for handle=%d path_process=%p\n", entry.handle, ( void* )entry.path_process );
 		}
 		prepareProcessed++;
 	}
 
-	/**
-	*    Advance fairness after the prepare pass so the running-step pass does not restart at the same slot.
+	/** 
+	*  Advance fairness after the prepare pass so the running-step pass does not restart at the same slot.
 	**/
 	if ( queueCount > 0 ) {
 		startIndex = ( startIndex + prepareVisited ) % queueCount;
 	}
 
-	/**
-	*    Service running searches using a separate frame budget layered on top of per-request A* budgets.
+	/** 
+	*  Service running searches using a separate frame budget layered on top of per-request A*  budgets.
 	**/
 	const uint64_t stepStartMs = gi.GetRealSystemTime();
 	const uint64_t stepBudgetMs = NavRequest_GetStepBudgetMs();
@@ -988,23 +1029,23 @@ void SVG_Nav_ProcessRequestQueue( void ) {
 			break;
 		}
 
-		/**
-		*    Visit the next queue slot relative to the updated fairness cursor.
+		/** 
+		*  Visit the next queue slot relative to the updated fairness cursor.
 		**/
 		const size_t entryIndex = ( startIndex + stepVisited ) % queueCount;
 		nav_request_entry_t &entry = s_nav_request_queue[ entryIndex ];
 		stepVisited++;
 
-		/**
-		*    Clear markers for already-terminal entries and skip them.
+		/** 
+		*  Clear markers for already-terminal entries and skip them.
 		**/
 		if ( NavRequest_IsTerminalStatus( entry.status ) ) {
 			NavRequest_ClearProcessMarkers( entry );
 			continue;
 		}
 
-		/**
-	 *    Skip work that is not yet ready to be stepped on the main thread.
+		/** 
+	* Skip work that is not yet ready to be stepped on the main thread.
 		**/
 		if ( entry.status == nav_request_status_t::Preparing ) {
 			continue;
@@ -1014,8 +1055,8 @@ void SVG_Nav_ProcessRequestQueue( void ) {
 			continue;
 		}
 
-		/**
-		*    Advance the running incremental search and finalize when it completes.
+		/** 
+		*  Advance the running incremental search and finalize when it completes.
 		**/
 		nav_a_star_status_t starStatus = entry.a_star.status;
 		if ( starStatus == nav_a_star_status_t::Running ) {
@@ -1027,8 +1068,8 @@ void SVG_Nav_ProcessRequestQueue( void ) {
 			starStatus = Nav_AStar_Step( &entry.a_star, expansionsToUse );
 		}
 
-		/**
-	 *    Track that we serviced one running request this frame.
+		/** 
+	* Track that we serviced one running request this frame.
 		**/
 		stepProcessed++;
 
@@ -1040,7 +1081,7 @@ void SVG_Nav_ProcessRequestQueue( void ) {
 				if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
 					gi.dprintf( "[NavAsync][Queue] Deferring commit for handle=%d due to pending refresh; re-queueing.\n", entry.handle );
 				}
-				// Clear the flag and reset the working A* state so it can be
+				// Clear the flag and reset the working A*  state so it can be
 				// re-initialized by the worker using the updated parameters.
 				entry.needs_refresh = false;
 				entry.status = nav_request_status_t::Queued;
@@ -1074,15 +1115,15 @@ void SVG_Nav_ProcessRequestQueue( void ) {
 		}
 	}
 
- /**
-	*    Advance the fairness cursor to the next unvisited slot so later entries receive service on the next frame.
+ /** 
+	*  Advance the fairness cursor to the next unvisited slot so later entries receive service on the next frame.
 	**/
 	if ( queueCount > 0 ) {
 		s_nav_request_round_robin_cursor = ( startIndex + stepVisited ) % queueCount;
 	}
 
-	/**
-	*    Remove any entries that reached a terminal state so handles can be reused.
+	/** 
+	*  Remove any entries that reached a terminal state so handles can be reused.
 	**/
 	s_nav_request_queue.erase( std::remove_if( s_nav_request_queue.begin(), s_nav_request_queue.end(),
 		[]( const nav_request_entry_t &entry ) {
@@ -1092,8 +1133,8 @@ void SVG_Nav_ProcessRequestQueue( void ) {
 		} ),
 		s_nav_request_queue.end() );
 
-	/**
-	*    Clamp the fairness cursor after compaction so it always points at a valid future slot.
+	/** 
+	*  Clamp the fairness cursor after compaction so it always points at a valid future slot.
 	**/
 	if ( s_nav_request_queue.empty() ) {
 		s_nav_request_round_robin_cursor = 0;
@@ -1103,41 +1144,41 @@ void SVG_Nav_ProcessRequestQueue( void ) {
 
     const int32_t queueAfter = ( int32_t )s_nav_request_queue.size();
 	if ( queueAfter != queueBefore ) {
-		/**
-		*    Refresh cached handle slots after terminal entries were compacted away.
+		/** 
+		*  Refresh cached handle slots after terminal entries were compacted away.
 		**/
 		NavRequest_RebuildHandleLookup();
 	}
 	NavRequest_LogQueueDiagnostics( queueBefore, queueAfter, prepareProcessed + stepProcessed, prepareRequestBudget + stepRequestBudget, remainingExpansions );
 }
 
-/**
-*    @brief    Prepare incremental A* state for a queued request entry.
-*    @param    entry    Request entry to initialize before stepping.
-*    @return   True when the search state successfully entered the Running phase OR
-*              when worker has been enqueued to initialize the state. False indicates
-*              an immediate failure that should mark the request terminal.
-*
-*    NOTE: This function was refactored to enqueue heavy work to the async worker:
-*          - Main thread: compute resolved policy/agent hull and perform small sanity checks.
-*          - Worker thread: perform feet->center conversion, node resolution, tile-route lookup,
-*                           and call Nav_AStar_Init (allocations occur on worker).
-*          - Worker done-callback: move-initialize `entry.a_star` and transition entry->Running.
+/** 
+*  @brief    Prepare incremental A*  state for a queued request entry.
+*  @param    entry    Request entry to initialize before stepping.
+*  @return   True when the search state successfully entered the Running phase OR
+*            when worker has been enqueued to initialize the state. False indicates
+*            an immediate failure that should mark the request terminal.
+* 
+*  NOTE: This function was refactored to enqueue heavy work to the async worker:
+*        - Main thread: compute resolved policy/agent hull and perform small sanity checks.
+*        - Worker thread: perform feet->center conversion, node resolution, tile-route lookup,
+*                         and call Nav_AStar_Init (allocations occur on worker).
+*        - Worker done-callback: move-initialize `entry.a_star` and transition entry->Running.
 **/
 static bool NavRequest_PrepareAStarForEntry( nav_request_entry_t &entry ) {
-	/**
-	*    Only queued entries should enter worker-prep dispatch.
+	/** 
+	*  Only queued entries should enter worker-prep dispatch.
 	**/
 	if ( entry.status != nav_request_status_t::Queued ) {
 		return false;
 	}
 
-	svg_nav_path_process_t *process = entry.path_process;
+	svg_nav_path_process_t * process = entry.path_process;
 	if ( !process ) {
 		return false;
 	}
 
-	const nav_mesh_t *mesh = g_nav_mesh.get();
+	const nav_mesh_t * mesh = g_nav_mesh.get();
 	if ( !mesh ) {
 		return false;
 	}
@@ -1148,10 +1189,10 @@ static bool NavRequest_PrepareAStarForEntry( nav_request_entry_t &entry ) {
 	process->rebuild_in_progress = true;
 	process->pending_request_handle = entry.handle;
 
-	/**
-	*    Align policy constraints with the agent hull profile before running A*.
-	*    This is lightweight and deliberately kept on the main thread so the worker
-	*    can rely on a stable resolved policy snapshot.
+	/** 
+	*  Align policy constraints with the agent hull profile before running A* .
+	*  This is lightweight and deliberately kept on the main thread so the worker
+	*  can rely on a stable resolved policy snapshot.
 	**/
 	entry.resolved_policy = entry.policy;
 	const nav_agent_profile_t agentProfile = SVG_Nav_BuildAgentProfileFromCvars();
@@ -1164,10 +1205,10 @@ static bool NavRequest_PrepareAStarForEntry( nav_request_entry_t &entry ) {
 		&& ( agentProfile.maxs.x > agentProfile.mins.x )
 		&& ( agentProfile.maxs.y > agentProfile.mins.y );
 
-	/**
-	*    Resolve the agent bounds that should drive center offsets and traversal.
-	*        Prefer mesh-authored hull sizes so navigation queries stay aligned.
-	*    This selection is cheap and done on the main thread.
+	/** 
+	*  Resolve the agent bounds that should drive center offsets and traversal.
+	*      Prefer mesh-authored hull sizes so navigation queries stay aligned.
+	*  This selection is cheap and done on the main thread.
 	**/
 	Vector3 resolvedAgentMins = entry.agent_mins;
 	Vector3 resolvedAgentMaxs = entry.agent_maxs;
@@ -1181,9 +1222,9 @@ static bool NavRequest_PrepareAStarForEntry( nav_request_entry_t &entry ) {
 		resolvedAgentMaxs = agentProfile.maxs;
 	}
 
-	/**
-	*    Update the resolved policy with the chosen agent profile and traversal limits.
-	*    Store a snapshot on the entry so worker and finalizer see the same policy.
+	/** 
+	*  Update the resolved policy with the chosen agent profile and traversal limits.
+	*  Store a snapshot on the entry so worker and finalizer see the same policy.
 	**/
 	entry.resolved_policy.agent_mins = resolvedAgentMins;
 	entry.resolved_policy.agent_maxs = resolvedAgentMaxs;
@@ -1193,10 +1234,10 @@ static bool NavRequest_PrepareAStarForEntry( nav_request_entry_t &entry ) {
 	entry.resolved_policy.max_slope_normal_z = meshAgentValid ? mesh->max_slope_normal_z : agentProfile.max_slope_normal_z;
 	entry.resolved_policy.min_step_normal = entry.resolved_policy.max_slope_normal_z;
 
-	/**
-	*    Boundary guard:
-	*        External callers provide feet-origin with a valid bbox. Reject malformed
-	*        hulls before worker prep to avoid undefined conversion behavior.
+	/** 
+	*  Boundary guard:
+	*      External callers provide feet-origin with a valid bbox. Reject malformed
+	*      hulls before worker prep to avoid undefined conversion behavior.
 	**/
 	if ( !NavRequest_AgentBoundsAreValid( entry.resolved_policy.agent_mins, entry.resolved_policy.agent_maxs ) ) {
 		if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
@@ -1217,10 +1258,10 @@ static bool NavRequest_PrepareAStarForEntry( nav_request_entry_t &entry ) {
 			meshAgentValid ? 1 : 0 );
 	}
 
-	/**
-	*    Sanity: quick world-bounds check on main thread to avoid obvious worker work.
-	*    This is intentionally tiny to avoid main-thread node lookups while catching
-	*    requests that are clearly outside the nav extents.
+	/** 
+	*  Sanity: quick world-bounds check on main thread to avoid obvious worker work.
+	*  This is intentionally tiny to avoid main-thread node lookups while catching
+	*  requests that are clearly outside the nav extents.
 	**/
 	if ( entry.start.x < mesh->world_bounds.mins.x - 1.0 || entry.start.x > mesh->world_bounds.maxs.x + 1.0 ||
 		entry.start.y < mesh->world_bounds.mins.y - 1.0 || entry.start.y > mesh->world_bounds.maxs.y + 1.0 ||
@@ -1234,13 +1275,13 @@ static bool NavRequest_PrepareAStarForEntry( nav_request_entry_t &entry ) {
 		return false;
 	}
 
-	/**
-	*    Build a small payload for the worker thread. This contains only stable,
-	*    copyable inputs so the worker can operate without touching the main-thread
-	*    owned queue memory.
+	/** 
+	*  Build a small payload for the worker thread. This contains only stable,
+	*  copyable inputs so the worker can operate without touching the main-thread
+	*  owned queue memory.
 	**/
-    void *payloadMemory = gi.TagMallocz( sizeof( nav_request_prep_payload_t ), TAG_SVGAME_NAVMESH );
-	nav_request_prep_payload_t *payload = new ( payloadMemory ) nav_request_prep_payload_t();
+    void * payloadMemory = gi.TagMallocz( sizeof( nav_request_prep_payload_t ), TAG_SVGAME_NAVMESH );
+	nav_request_prep_payload_t * payload = new ( payloadMemory ) nav_request_prep_payload_t();
 	payload->handle = entry.handle;
 	payload->generation = entry.generation;
 	payload->start_feet = entry.start;
@@ -1250,10 +1291,10 @@ static bool NavRequest_PrepareAStarForEntry( nav_request_entry_t &entry ) {
 	payload->agent_maxs = resolvedAgentMaxs;
 	payload->path_process = entry.path_process;
 
-	/**
-	*    Enqueue worker task. Use stack-local asyncwork_t which Com_QueueAsyncWork
-	*    will copy via Z_CopyStruct internally. The cb_arg points to our heap
-	*    payload which the worker and done-callback will manage.
+	/** 
+	*  Enqueue worker task. Use stack-local asyncwork_t which Com_QueueAsyncWork
+	*  will copy via Z_CopyStruct internally. The cb_arg points to our heap
+	*  payload which the worker and done-callback will manage.
 	**/
 	asyncwork_t work = {};
 	work.work_cb = NavRequest_Worker_DoInit;
@@ -1261,9 +1302,9 @@ static bool NavRequest_PrepareAStarForEntry( nav_request_entry_t &entry ) {
 	work.cb_arg = payload;
 	gi.Com_QueueAsyncWork( &work );
 
-   /**
-	*    Mark the request as preparing so queue processing does not dispatch
-	*    duplicate worker init tasks while this generation is in-flight.
+   /** 
+	*  Mark the request as preparing so queue processing does not dispatch
+	*  duplicate worker init tasks while this generation is in-flight.
 	**/
 	entry.status = nav_request_status_t::Preparing;
 
@@ -1271,24 +1312,24 @@ static bool NavRequest_PrepareAStarForEntry( nav_request_entry_t &entry ) {
 	return true;
 }
 
-/**
-*    @brief    Worker thread function to perform heavy A* prep:
-*              - Convert feet->center
-*              - Resolve start/goal nodes
-*              - Optionally compute tile-route
-*              - Call Nav_AStar_Init (allocations happen here)
-*
-*    This runs on the async worker thread.
+/** 
+*  @brief    Worker thread function to perform heavy A*  prep:
+*            - Convert feet->center
+*            - Resolve start/goal nodes
+*            - Optionally compute tile-route
+*            - Call Nav_AStar_Init (allocations happen here)
+* 
+*  This runs on the async worker thread.
 **/
-static void NavRequest_Worker_DoInit( void *cb_arg ) {
+static void NavRequest_Worker_DoInit( void * cb_arg ) {
 	if ( !cb_arg ) {
 		return;
 	}
-	nav_request_prep_payload_t *p = ( nav_request_prep_payload_t * )cb_arg;
+	nav_request_prep_payload_t * p = ( nav_request_prep_payload_t* )cb_arg;
 	p->init_success = false;
  p->initialized_state.reset();
 
-	const nav_mesh_t *mesh = g_nav_mesh.get();
+	const nav_mesh_t * mesh = g_nav_mesh.get();
 	if ( !mesh ) {
 		return;
 	}
@@ -1321,11 +1362,11 @@ static void NavRequest_Worker_DoInit( void *cb_arg ) {
 		goal_ok = Nav_FindNodeForPosition( mesh, goal_center, goal_center.z, &goal_node, true );
 	}
 
-	/**
-	*    Boundary-origin rescue:
-	*        Sound and event goals can sit exactly on tile or cell boundaries where the raw endpoint
-	*        center misses a directly walkable sample. Probe a tiny local XY neighborhood before we
-	*        treat endpoint resolution as a hard failure.
+	/** 
+	*  Boundary-origin rescue:
+	*      Sound and event goals can sit exactly on tile or cell boundaries where the raw endpoint
+	*      center misses a directly walkable sample. Probe a tiny local XY neighborhood before we
+	*      treat endpoint resolution as a hard failure.
 	**/
 	if ( !start_ok ) {
 		start_ok = NavRequest_TryResolveBoundaryOriginNode( mesh, start_center, start_center, goal_center, false,
@@ -1345,10 +1386,10 @@ static void NavRequest_Worker_DoInit( void *cb_arg ) {
 		return;
 	}
 
-	/**
-	*    Rescue locally isolated start/goal layers by re-evaluating same-cell variants.
-	*        This keeps the resolved XY cell fixed while preferring a layer that actually has
-	*        adjacent connectivity under the current async traversal policy.
+	/** 
+	*  Rescue locally isolated start/goal layers by re-evaluating same-cell variants.
+	*      This keeps the resolved XY cell fixed while preferring a layer that actually has
+	*      adjacent connectivity under the current async traversal policy.
 	**/
 	Nav_AStar_TrySelectConnectedSameCellLayer( mesh, start_node, &p->resolved_policy, &start_node );
 	Nav_AStar_TrySelectConnectedSameCellLayer( mesh, goal_node, &p->resolved_policy, &goal_node );
@@ -1363,33 +1404,69 @@ static void NavRequest_Worker_DoInit( void *cb_arg ) {
 			goal_node.worldPosition.x, goal_node.worldPosition.y, goal_node.worldPosition.z );
 	}
 
- /**
-	*    Optionally compute coarse tile route filter (can be expensive on some maps).
-	*        This is policy-gated so debug entities can disable route restriction
-	*        and isolate fine traversal (`StepTest`) behavior.
+	/** 
+	*  Attempt the Phase 7 direct goal shortcut before any coarse routing or A*  initialization work.
 	**/
-	std::vector<nav_tile_cluster_key_t> tileRoute;
+	if ( start_node.key == goal_node.key ) {
+		p->direct_path_success = true;
+		p->direct_path_points.clear();
+		p->direct_path_points.push_back( start_node.worldPosition );
+		p->direct_path_points.push_back( goal_node.worldPosition );
+		if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
+			gi.dprintf( "[NavAsync][Worker] direct_shortcut trivial=1 handle=%d\n", p->handle );
+		}
+		return;
+	}
+
+  const nav_los_request_t losRequest = { .mode = nav_los_mode_t::Auto };
+  if ( NavRequest_ShouldAttemptDirectLosShortcut( mesh, start_node, goal_node )
+		&& SVG_Nav_HasLineOfSight( mesh, start_node, goal_node, p->agent_mins, p->agent_maxs, &p->resolved_policy, &losRequest, nullptr ) ) {
+		p->direct_path_success = true;
+		p->direct_path_points.clear();
+		p->direct_path_points.push_back( start_node.worldPosition );
+		p->direct_path_points.push_back( goal_node.worldPosition );
+		if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
+			gi.dprintf( "[NavAsync][Worker] direct_shortcut los=1 handle=%d\n", p->handle );
+		}
+		return;
+	}
+
+ /** 
+  * Optionally compute a coarse hierarchy route filter (with cluster fallback).
+	*      This is policy-gated so debug entities can disable route restriction
+	*      and isolate fine traversal (`StepTest`) behavior.
+	**/
+  nav_refine_corridor_t refineCorridor = {};
 	const bool routeFilterEnabled = p->resolved_policy.enable_cluster_route_filter;
-   /**
-	*    Boundary-origin hardening:
-	*        Compute the coarse tile route from the already resolved canonical nodes rather than the raw
-	*        caller origins. Sound/event goals can land on tile or cell boundaries where the raw position
-	*        maps to a less reliable cluster key even though node resolution already recovered the correct
-	*        canonical start/goal surfaces.
+  bool usedHierarchyRoute = false;
+	bool usedClusterRoute = false;
+	int32_t coarseExpansions = 0;
+   /** 
+	*  Boundary-origin hardening:
+   *     Compute the coarse route from the already resolved canonical nodes rather than the raw
+	*      caller origins. Sound/event goals can land on tile or cell boundaries where the raw position
+ *     maps to a less reliable coarse key even though node resolution already recovered the correct
+	*      canonical start/goal surfaces.
 	**/
-	const bool hasTileRoute = routeFilterEnabled && SVG_Nav_ClusterGraph_FindRoute( mesh, start_node.worldPosition, goal_node.worldPosition, tileRoute );
-	const std::vector<nav_tile_cluster_key_t> *routeFilter = hasTileRoute ? &tileRoute : nullptr;
+    const bool hasRefineCorridor = routeFilterEnabled && SVG_Nav_BuildRefineCorridor( mesh, start_node, goal_node, &p->resolved_policy, &refineCorridor,
+		&usedHierarchyRoute, &usedClusterRoute, &coarseExpansions );
 	if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
-		gi.dprintf( "[NavAsync][Worker] route_filter enabled=%d has_route=%d handle=%d\n",
+      gi.dprintf( "[NavAsync][Worker] corridor enabled=%d has_corridor=%d hierarchy=%d cluster=%d expansions=%d regions=%d portals=%d tiles=%d handle=%d\n",
 			routeFilterEnabled ? 1 : 0,
-			hasTileRoute ? 1 : 0,
+           hasRefineCorridor ? 1 : 0,
+            usedHierarchyRoute ? 1 : 0,
+			usedClusterRoute ? 1 : 0,
+			coarseExpansions,
+            ( int32_t )refineCorridor.region_path.size(),
+			( int32_t )refineCorridor.portal_path.size(),
+			( int32_t )refineCorridor.exact_tile_route.size(),
 			p->handle );
 	}
 
  // Construct the state directly inside the payload so the callback only performs one allocation.
 	p->initialized_state.emplace();
 	if ( !Nav_AStar_Init( &p->initialized_state.value(), mesh, start_node, goal_node, p->agent_mins, p->agent_maxs,
-		&p->resolved_policy, routeFilter, p->path_process ) ) {
+     &p->resolved_policy, hasRefineCorridor ? &refineCorridor : nullptr, p->path_process ) ) {
      // Drop the in-place state so failed work does not carry heavy containers forward.
 		p->initialized_state.reset();
 		if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
@@ -1402,31 +1479,31 @@ static void NavRequest_Worker_DoInit( void *cb_arg ) {
 	p->init_success = true;
 }
 
-/**
-*    @brief    Done-callback invoked on the main thread after worker finished.
-*    This moves the worker-initialized `nav_a_star_state_t` into the queue entry
-*    without performing heavy allocations on the main thread.
+/** 
+*  @brief    Done-callback invoked on the main thread after worker finished.
+*  This moves the worker-initialized `nav_a_star_state_t` into the queue entry
+*  without performing heavy allocations on the main thread.
 **/
-static void NavRequest_Worker_Done( void *cb_arg ) {
+static void NavRequest_Worker_Done( void * cb_arg ) {
 	if ( !cb_arg ) {
 		return;
 	}
-	nav_request_prep_payload_t *p = ( nav_request_prep_payload_t * )cb_arg;
+	nav_request_prep_payload_t * p = ( nav_request_prep_payload_t* )cb_arg;
 
 	// Find the queued entry by handle and ensure generation still matches.
-	nav_request_entry_t *entry = NavRequest_FindEntryByHandle( p->handle );
+	nav_request_entry_t * entry = NavRequest_FindEntryByHandle( p->handle );
 	if ( !entry ) {
      // No entry to apply to, so release the payload and any in-place worker state.
 		NavRequest_DestroyPrepPayload( p );
 		return;
 	}
 
-	/**
-	*    Cancellation/terminal guard:
-	*        If this entry already reached a terminal status, drop worker output.
+	/** 
+	*  Cancellation/terminal guard:
+	*      If this entry already reached a terminal status, drop worker output.
 	**/
 	if ( NavRequest_IsTerminalStatus( entry->status ) ) {
-		NavRequest_ClearProcessMarkers( *entry );
+		NavRequest_ClearProcessMarkers( * entry );
         NavRequest_DestroyPrepPayload( p );
 		return;
 	}
@@ -1437,13 +1514,32 @@ static void NavRequest_Worker_Done( void *cb_arg ) {
 		return;
 	}
 
-	/**
-	*    Queue-state guard:
-	*        Accept worker prep only while this request generation is still in
-	*        pre-run states. Any other state indicates a superseded transition.
+	/** 
+	*  Queue-state guard:
+	*      Accept worker prep only while this request generation is still in
+	*      pre-run states. Any other state indicates a superseded transition.
 	**/
 	if ( entry->status != nav_request_status_t::Preparing && entry->status != nav_request_status_t::Queued ) {
        NavRequest_DestroyPrepPayload( p );
+		return;
+	}
+
+	/** 
+	*  Commit a worker-prepared direct shortcut immediately without entering the incremental A*  running state.
+	**/
+	if ( p->direct_path_success ) {
+		entry->resolved_policy = p->resolved_policy;
+		entry->agent_mins = p->agent_mins;
+		entry->agent_maxs = p->agent_maxs;
+		if ( entry->path_process && entry->path_process->CommitAsyncPathFromPoints( p->direct_path_points, p->start_feet, p->goal_feet, p->resolved_policy ) ) {
+			entry->status = nav_request_status_t::Completed;
+			NavRequest_ClearProcessMarkers( * entry );
+		} else {
+			entry->status = nav_request_status_t::Failed;
+			NavRequest_HandleFailure( * entry );
+			NavRequest_ClearProcessMarkers( * entry );
+		}
+		NavRequest_DestroyPrepPayload( p );
 		return;
 	}
 
@@ -1451,8 +1547,8 @@ static void NavRequest_Worker_Done( void *cb_arg ) {
   if ( !p->init_success || !p->initialized_state.has_value() ) {
 		entry->status = nav_request_status_t::Failed;
 		// Keep resolved_policy on entry (it was copied earlier) so HandleFailure has the data it needs.
-		NavRequest_HandleFailure( *entry );
-		NavRequest_ClearProcessMarkers( *entry );
+		NavRequest_HandleFailure( * entry );
+		NavRequest_ClearProcessMarkers( * entry );
         NavRequest_DestroyPrepPayload( p );
 		return;
 	}
@@ -1471,19 +1567,19 @@ static void NavRequest_Worker_Done( void *cb_arg ) {
 	entry->status = nav_request_status_t::Running;
 
 	if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
-		gi.dprintf( "[NavAsync][Done] Prepared A* on main thread by moving worker state handle=%d (gen=%u) path_process=%p\n",
-			entry->handle, entry->generation, ( void * )entry->path_process );
+		gi.dprintf( "[NavAsync][Done] Prepared A*  on main thread by moving worker state handle=%d (gen=%u) path_process=%p\n",
+			entry->handle, entry->generation, ( void* )entry->path_process );
 	}
 
 	// Free payload memory allocated during prepare.
  NavRequest_DestroyPrepPayload( p );
 }
 
-/**
-*    @brief    Reset the owning path process markers after a queued request finishes.
+/** 
+*  @brief    Reset the owning path process markers after a queued request finishes.
 **/
 static void NavRequest_ClearProcessMarkers( nav_request_entry_t &entry ) {
-	svg_nav_path_process_t *process = entry.path_process;
+	svg_nav_path_process_t * process = entry.path_process;
 	if ( !process ) {
 		return;
 	}
@@ -1496,33 +1592,33 @@ static void NavRequest_ClearProcessMarkers( nav_request_entry_t &entry ) {
 	}
 }
 
-/**
-*    @brief    Finalize the incremental search output and commit it back to the caller.
-*    @param    entry    Request entry owning the completed state.
-*    @return   True if the path was validated and stored.
+/** 
+*  @brief    Finalize the incremental search output and commit it back to the caller.
+*  @param    entry    Request entry owning the completed state.
+*  @return   True if the path was validated and stored.
 **/
 static bool NavRequest_FinalizePathForEntry( nav_request_entry_t &entry ) {
-	svg_nav_path_process_t *process = entry.path_process;
+	svg_nav_path_process_t * process = entry.path_process;
 	if ( !process ) {
 		return false;
 	}
 
-	/**
-	*    Stale-result guard:
-	*        Async requests can be refreshed/replaced while an older request is still
-	*        running (see `SVG_Nav_RequestPathAsync` replace semantics).
-	*
-	*        If an older request finishes after a newer goal/start has already been
-	*        requested, committing the older result will cause visible path
-	*        oscillation ("ping-pong"), especially when entities switch between
-	*        breadcrumb pursuit and direct pursuit.
-	*
-	*        To prevent this, discard results when:
-	*            - The path process now refers to a different pending handle (newer work).
-	*            - The path process's latest desired goal is meaningfully different.
-	*
-	*        @note    This is intentionally conservative: a discarded commit will be
-	*        re-requested naturally by the caller on the next rebuild tick.
+	/** 
+	*  Stale-result guard:
+	*      Async requests can be refreshed/replaced while an older request is still
+	*      running (see `SVG_Nav_RequestPathAsync` replace semantics).
+	* 
+	*      If an older request finishes after a newer goal/start has already been
+	*      requested, committing the older result will cause visible path
+	*      oscillation ("ping-pong"), especially when entities switch between
+	*      breadcrumb pursuit and direct pursuit.
+	* 
+	*      To prevent this, discard results when:
+	*          - The path process now refers to a different pending handle (newer work).
+	*          - The path process's latest desired goal is meaningfully different.
+	* 
+	*      @note    This is intentionally conservative: a discarded commit will be
+	*      re-requested naturally by the caller on the next rebuild tick.
 	**/
 	// If the process has been updated to track a newer request generation, do not commit.
 	// This is the primary stale-result guard (deterministic, no distance heuristics).
@@ -1545,7 +1641,7 @@ static bool NavRequest_FinalizePathForEntry( nav_request_entry_t &entry ) {
 
 	std::vector<Vector3> points;
 	if ( !Nav_AStar_Finalize( &entry.a_star, &points ) ) {
-		// Emit temporary diagnostic describing A* state when finalize fails.
+		// Emit temporary diagnostic describing A*  state when finalize fails.
 		if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
 			gi.dprintf( "[NavAsync][Finalize] Nav_AStar_Finalize failed handle=%d status=%d nodes=%d max_nodes=%d neighbor_tries=%d no_node=%d edge_reject=%d tile_filter_reject=%d stagnation=%d hit_budget=%d hit_stagnation=%d\n",
 				entry.handle,
@@ -1565,7 +1661,7 @@ static bool NavRequest_FinalizePathForEntry( nav_request_entry_t &entry ) {
 		return false;
 	}
 	// Diagnostic: compute and print the feet->center conversion used for this completed entry.
-	const nav_mesh_t *mesh = g_nav_mesh.get();
+	const nav_mesh_t * mesh = g_nav_mesh.get();
 	if ( mesh && s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
 		const Vector3 start_center = SVG_Nav_ConvertFeetToCenter( mesh, entry.start, &entry.agent_mins, &entry.agent_maxs );
 		const Vector3 goal_center = SVG_Nav_ConvertFeetToCenter( mesh, entry.goal, &entry.agent_mins, &entry.agent_maxs );
@@ -1582,18 +1678,39 @@ static bool NavRequest_FinalizePathForEntry( nav_request_entry_t &entry ) {
 		return false;
 	}
 
-	/**
-	*    Enforce post-processed drop limits on the finalized waypoint list.
+	/** 
+	*  Apply the shared greedy LOS simplifier to the finalized nav-center points before post-processing safety checks.
+	**/
+	std::vector<Vector3> simplifiedPoints = points;
+	if ( mesh && simplifiedPoints.size() > 2 ) {
+	/** 
+	* Re-validate the more aggressive async simplification pass immediately before commit by working on a candidate copy and only swapping it in on success.
+	**/
+      nav_path_simplify_options_t simplifyOptions = {};
+		simplifyOptions.max_los_tests = nav_simplify_async_max_los_tests ? nav_simplify_async_max_los_tests->integer : 12;
+		simplifyOptions.max_elapsed_ms = 0;
+		simplifyOptions.collinear_angle_degrees = nav_simplify_collinear_angle_degrees ? ( double )nav_simplify_collinear_angle_degrees->value : 4.0;
+		simplifyOptions.remove_duplicates = true;
+		simplifyOptions.prune_collinear = true;
+		simplifyOptions.aggressiveness = nav_path_simplify_aggressiveness_t::AsyncAggressive;
+		std::vector<Vector3> candidateSimplifiedPoints = simplifiedPoints;
+        if ( SVG_Nav_SimplifyPathPoints( mesh, entry.agent_mins, entry.agent_maxs, &entry.resolved_policy, &candidateSimplifiedPoints, &simplifyOptions, nullptr ) ) {
+			simplifiedPoints.swap( candidateSimplifiedPoints );
+		}
+	}
+
+	/** 
+* Enforce post-processed drop limits on the simplified waypoint list.
 	**/
 	const double maxDrop = ( entry.resolved_policy.max_drop_height_cap > 0. )
 		? ( double )entry.resolved_policy.max_drop_height_cap
 		: ( entry.resolved_policy.enable_max_drop_height_cap ? ( double )entry.resolved_policy.max_drop_height : ( nav_max_drop_height_cap ? nav_max_drop_height_cap->value : 100. ) );
 	bool dropLimitOk = true;
-	const int32_t pointCount = ( int32_t )points.size();
+    const int32_t pointCount = ( int32_t )simplifiedPoints.size();
 	if ( pointCount > 1 ) {
 		// Iterate segments to detect drops that exceed the configured limit.
 		for ( int32_t i = 1; i < pointCount; ++i ) {
-			const double dz = points[ i - 1 ].z - points[ i ].z;
+            const double dz = simplifiedPoints[ i - 1 ].z - simplifiedPoints[ i ].z;
 			if ( dz > maxDrop ) {
 				dropLimitOk = false;
 				break;
@@ -1605,55 +1722,9 @@ static bool NavRequest_FinalizePathForEntry( nav_request_entry_t &entry ) {
 		return false;
 	}
 
-	std::vector<Vector3> smoothedPoints = points;
-	if ( mesh && smoothedPoints.size() > 2 ) {
-		/**
-		*    Apply a greedy corridor string-pull plus a small lateral offset to
-		*    reduce corner hugging without modifying the navmesh. This operates on
-		*    nav-center waypoints before they are copied into the path process.
-		**/
-		const Vector3 agent_center_mins = entry.agent_mins;
-		const Vector3 agent_center_maxs = entry.agent_maxs;
-
-		std::vector<Vector3> stringPulled;
-		stringPulled.reserve( smoothedPoints.size() );
-		stringPulled.push_back( smoothedPoints.front() );
-		size_t anchor = 0;
-		const size_t totalPoints = smoothedPoints.size();
-		while ( anchor + 1 < totalPoints ) {
-			size_t chosen = anchor + 1;
-			for ( size_t candidate = totalPoints - 1; candidate > anchor; --candidate ) {
-				if ( Nav_CanTraverseStep_ExplicitBBox( mesh, smoothedPoints[ anchor ], smoothedPoints[ candidate ], agent_center_mins, agent_center_maxs, nullptr, &entry.resolved_policy ) ) {
-					chosen = candidate;
-					break;
-				}
-			}
-			stringPulled.push_back( smoothedPoints[ chosen ] );
-			anchor = chosen;
-		}
-
-		const double agent_half_width = std::max( fabsf( entry.agent_mins.x ), fabsf( entry.agent_maxs.x ) );
-		const double max_lateral_offset = std::min( agent_half_width, 32. );
-		for ( size_t idx = 1; idx + 1 < stringPulled.size(); ++idx ) {
-			const Vector3 &prev = stringPulled[ idx - 1 ];
-			const Vector3 &next = stringPulled[ idx + 1 ];
-			Vector3 corridorCenter = QM_Vector3Add( prev, next ) * 0.5;
-			Vector3 deviation = QM_Vector3Subtract( corridorCenter, stringPulled[ idx ] );
-			const double deviationLen = QM_Vector3Length( deviation );
-			if ( deviationLen > 0.001 ) {
-				const double offsetFrac = std::min( max_lateral_offset / deviationLen, 0.5 );
-				stringPulled[ idx ] = QM_Vector3Add( stringPulled[ idx ], deviation * offsetFrac );
-			}
-		}
-
-		if ( stringPulled.size() > 1 ) {
-			smoothedPoints.swap( stringPulled );
-		}
-	}
-
-	const bool committed = process->CommitAsyncPathFromPoints( smoothedPoints, entry.start, entry.goal, entry.resolved_policy );
+    const bool committed = process->CommitAsyncPathFromPoints( simplifiedPoints, entry.start, entry.goal, entry.resolved_policy );
 	if ( committed ) {
-		gi.dprintf( "[DEBUG][NavAsync] Finalize: commit succeeded (handle=%d points=%d)\n", entry.handle, ( int )points.size() );
+       gi.dprintf( "[DEBUG][NavAsync] Finalize: commit succeeded (handle=%d points=%d)\n", entry.handle, ( int )simplifiedPoints.size() );
 	} else {
 		gi.dprintf( "[DEBUG][NavAsync] Finalize: commit failed (handle=%d)\n", entry.handle );
 	   // Emit reason-level counters here as well so commit-time failures still include rejection breakdown.
@@ -1664,16 +1735,16 @@ static bool NavRequest_FinalizePathForEntry( nav_request_entry_t &entry ) {
 	return committed;
 }
 
-/**
-*    @brief    Apply failure backoff penalties when incremental A* could not find a path.
+/** 
+*  @brief    Apply failure backoff penalties when incremental A*  could not find a path.
 **/
 static void NavRequest_HandleFailure( nav_request_entry_t &entry ) {
-	svg_nav_path_process_t *process = entry.path_process;
+	svg_nav_path_process_t * process = entry.path_process;
 	if ( !process ) {
 		return;
 	}
 
-	// Temporary diagnostic: print A* internal counters when an async request fails.
+	// Temporary diagnostic: print A*  internal counters when an async request fails.
 	if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
 		gi.dprintf( "[NavAsync][HandleFailure] handle=%d status=%d nodes=%d max_nodes=%d neighbor_tries=%d no_node=%d edge_reject=%d tile_filter_reject=%d same_node_alias=%d closed_duplicate=%d stagnation=%d hit_budget=%d hit_stagnation=%d\n",
 			entry.handle,
@@ -1690,11 +1761,11 @@ static void NavRequest_HandleFailure( nav_request_entry_t &entry ) {
 			entry.a_star.hit_time_budget ? 1 : 0,
 			entry.a_star.hit_stagnation_limit ? 1 : 0 );
 
-		/**
-		*    Emit a concise structured dump of the resolved traversal policy and
-		*    agent hull used for this failed request. This helps quickly identify
-		*    mismatches between policy limits and the navmesh that cause edge
-		*    rejection during expansion.
+		/** 
+		*  Emit a concise structured dump of the resolved traversal policy and
+		*  agent hull used for this failed request. This helps quickly identify
+		*  mismatches between policy limits and the navmesh that cause edge
+		*  rejection during expansion.
 		**/
 		gi.dprintf( "[NavAsync][HandleFailure][Detail] handle=%d agent_mins=(%.1f %.1f %.1f) agent_maxs=(%.1f %.1f %.1f) policy: max_step=%.1f min_step=%.1f max_drop=%.1f max_drop_height_cap=%.1f cap_drop=%d allow_jump=%d max_jump=%.1f max_slope=%.1f waypoint_radius=%.1f backoff_base_ms=%d backoff_max_pow=%d\n",
 			entry.handle,
@@ -1717,7 +1788,7 @@ static void NavRequest_HandleFailure( nav_request_entry_t &entry ) {
 		// correlate failures with agent/profile mismatches or local connectivity.
 		{
 			const nav_a_star_state_t &s = entry.a_star;
-			const nav_mesh_t *mesh = g_nav_mesh.get();
+			const nav_mesh_t * mesh = g_nav_mesh.get();
 			Vector3 start_center = mesh ? SVG_Nav_ConvertFeetToCenter( mesh, entry.start, &entry.agent_mins, &entry.agent_maxs ) : entry.start;
 			Vector3 goal_center = mesh ? SVG_Nav_ConvertFeetToCenter( mesh, entry.goal, &entry.agent_mins, &entry.agent_maxs ) : entry.goal;
 			gi.dprintf( "[NavAsync][HandleFailure][Pos] handle=%d start=(%.1f %.1f %.1f) start_center=(%.1f %.1f %.1f) goal=(%.1f %.1f %.1f) goal_center=(%.1f %.1f %.1f)\n",
@@ -1773,15 +1844,15 @@ static void NavRequest_HandleFailure( nav_request_entry_t &entry ) {
 	Vector3 toGoal = QM_Vector3Subtract( entry.goal, entry.start );
 	process->last_failure_yaw = QM_Vector3ToYaw( toGoal );
 	const int32_t powN = std::min( std::max( 0, process->consecutive_failures ), entry.resolved_policy.fail_backoff_max_pow );
-	const QMTime extra = QMTime::FromMilliseconds( ( int32_t )entry.resolved_policy.fail_backoff_base.Milliseconds() * ( 1 << powN ) );
+	const QMTime extra = QMTime::FromMilliseconds( ( int32_t )entry.resolved_policy.fail_backoff_base.Milliseconds()* ( 1 << powN ) );
 	process->backoff_until = level.time + extra;
 	process->next_rebuild_time = std::max( process->next_rebuild_time, process->backoff_until );
 	gi.dprintf( "[DEBUG][NavAsync] HandleFailure: handle=%d consecutive_failures=%d backoff_until=%lld\n", entry.handle, process->consecutive_failures, ( long long )process->backoff_until.Milliseconds() );
 }
 
-/**
-*    @brief    Emit diagnostics summarizing the async navigation request queue state.
-*    @note     Enabled via the `nav_nav_async_log_stats` cvar when troubleshooting queue behavior.
+/** 
+*  @brief    Emit diagnostics summarizing the async navigation request queue state.
+*  @note     Enabled via the `nav_nav_async_log_stats` cvar when troubleshooting queue behavior.
 **/
 static void NavRequest_LogQueueDiagnostics( int32_t queueBefore, int32_t queueAfter, int32_t processed, int32_t requestBudget, int32_t remainingExpansions ) {
 	if ( !s_nav_nav_async_log_stats || s_nav_nav_async_log_stats->integer == 0 ) {
@@ -1799,16 +1870,16 @@ static void NavRequest_LogQueueDiagnostics( int32_t queueBefore, int32_t queueAf
 	}
 }
 
-/**
-*    @brief    Determine if async navigation requests are enabled via cvar.
+/** 
+*  @brief    Determine if async navigation requests are enabled via cvar.
 **/
 bool SVG_Nav_IsAsyncNavEnabled( void ) {
 	SVG_Nav_RequestQueue_RegisterCvars();
 	return s_nav_nav_async_enable && s_nav_nav_async_enable->integer != 0;
 }
 
-/**
-*    @brief    Retrieve the configured per-frame request budget.
+/** 
+*  @brief    Retrieve the configured per-frame request budget.
 **/
 int32_t SVG_Nav_GetAsyncRequestBudget( void ) {
 	SVG_Nav_RequestQueue_RegisterCvars();
@@ -1816,8 +1887,8 @@ int32_t SVG_Nav_GetAsyncRequestBudget( void ) {
 	return std::max( 1, budget );
 }
 
-/**
-*    @brief    Retrieve the configured expansion budget for each request tick.
+/** 
+*  @brief    Retrieve the configured expansion budget for each request tick.
 **/
 int32_t SVG_Nav_GetAsyncRequestExpansions( void ) {
 	SVG_Nav_RequestQueue_RegisterCvars();

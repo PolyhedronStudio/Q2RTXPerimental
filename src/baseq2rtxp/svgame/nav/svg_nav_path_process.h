@@ -1,21 +1,21 @@
-/********************************************************************
-*
-*
-*	SVGame: Navigation Path Process
-*
-*	Reusable, per-entity path follow state with throttled rebuild + failure backoff.
-*
-********************************************************************/
+/** * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+* 
+* 
+* 	SVGame: Navigation Path Process
+* 
+* 	Reusable, per-entity path follow state with throttled rebuild + failure backoff.
+* 
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * **/
 #pragma once
 
 //#include "svgame/nav/svg_nav.h"
 
-/**
-*	@brief	Policy for path processing and follow behavior.
+/** 
+* 	@brief	Policy for path processing and follow behavior.
 **/
 struct svg_nav_path_policy_t {
-	/**
-	*	Timers and backoff exponent:
+	/** 
+	* 	Timers and backoff exponent:
 	**/
 	//! Minimum time interval between path rebuild attempts.
 	QMTime rebuild_interval = 250_ms;
@@ -24,8 +24,8 @@ struct svg_nav_path_policy_t {
 	//! Maximum exponent for backoff time (2^n).
 	int32_t fail_backoff_max_pow = 4;
 
-	/**
-	*	Ignore/Allow States:
+	/** 
+	* 	Ignore/Allow States:
 	**/
 	//! If true, ignore visibility when deciding whether to rebuild the path. 
 	//! This can be useful for testing and debugging, but generally we want the monster to try to rebuild more aggressively when it can see the player.
@@ -33,8 +33,8 @@ struct svg_nav_path_policy_t {
 	//! If true, ignore distance in front of the monster when deciding whether to rebuild the path.
 	bool ignore_infront		= true;
 
-	/**
-	*	Goal and Waypoint parameters:
+	/** 
+	* 	Goal and Waypoint parameters:
 	**/
 	//! Radius around waypoints to consider 'reached'.
 	double waypoint_radius = NAV_DEFAULT_WAYPOINT_RADIUS;
@@ -42,12 +42,12 @@ struct svg_nav_path_policy_t {
 	//! 2D distance change in goal position that triggers a path rebuild.
 	double rebuild_goal_dist_2d = NAV_DEFAULT_GOAL_REBUILD_2D_DISTANCE;
 	//! 3D distance change in goal position that triggers a path rebuild.
-	double rebuild_goal_dist_3d = NAV_DEFAULT_GOAL_REBUILD_3D_DISTANCE; // 48 * 48 = 2304
+	double rebuild_goal_dist_3d = NAV_DEFAULT_GOAL_REBUILD_3D_DISTANCE; // 48* 48 = 2304
 
-	/**
-	*    Goal Z-layer blending controls used to bias layer selection toward the goal's
-	*    Z when finding start/goal nodes. This helps prefer climbing stairs or reaching
-	*    an objective located on a different floor when appropriate.
+	/** 
+	*  Goal Z-layer blending controls used to bias layer selection toward the goal's
+	*  Z when finding start/goal nodes. This helps prefer climbing stairs or reaching
+	*  an objective located on a different floor when appropriate.
 	**/
 	//! If true, blend the desired layer Z between start and goal when selecting layers.
 	bool enable_goal_z_layer_blend = true;
@@ -56,17 +56,17 @@ struct svg_nav_path_policy_t {
 	//! Horizontal distance at which blending is fully biased to the goal Z (units).
 	double blend_full_dist	= NAV_DEFAULT_BLEND_DIST_FULL;
 
-	/**
-	*    Cluster-route pre-pass controls:
-	*        The async request worker can compute a coarse tile route and constrain
-	*        fine A* expansion to that route. This keeps long-range searches cheap,
-	*        but can be disabled for targeted diagnostics.
+	/** 
+	*  Cluster-route pre-pass controls:
+	*      The async request worker can compute a coarse tile route and constrain
+	*      fine A*  expansion to that route. This keeps long-range searches cheap,
+	*      but can be disabled for targeted diagnostics.
 	**/
-	//! If true, apply the hierarchical tile-route filter during async A* prep.
+	//! If true, apply the hierarchical tile-route filter during async A*  prep.
 	bool enable_cluster_route_filter = true;
 
-	/**
-	*	Traversal policy controls derived from persisted edge and feature metadata.
+	/** 
+	* 	Traversal policy controls derived from persisted edge and feature metadata.
 	**/
 	//! If true, forbid edges that explicitly enter water.
 	bool forbid_water = true;
@@ -78,7 +78,7 @@ struct svg_nav_path_policy_t {
 	bool allow_optional_walk_off = false;
 	//! If true, allow explicitly forbidden walk-off edges.
 	bool allow_forbidden_walk_off = false;
-   //! If true, allow async A* to skip long-hop probes that can already be predicted as passed-through one-cell chains.
+   //! If true, allow async A*  to skip long-hop probes that can already be predicted as passed-through one-cell chains.
 	bool enable_pass_through_pruning = true;
 	//! If true, prefer ladders when they reach the same or a relatively close goal height more directly.
 	bool prefer_ladders = true;
@@ -93,8 +93,8 @@ struct svg_nav_path_policy_t {
 	//! Additional scale applied to sparse occupancy soft costs when occupancy participation is enabled.
 	double dynamic_occupancy_soft_cost_scale = 1.0;
 
-	/**
-	*	For obstalce step handling.
+	/** 
+	* 	For obstalce step handling.
 	**/
 	//! Minimal nnormal angle that will be stepped over.
 	double min_step_normal = PHYS_MAX_SLOPE_NORMAL;
@@ -103,21 +103,21 @@ struct svg_nav_path_policy_t {
 	//! Maximum step height that can be stepped over (matches `nav_max_step`).
 	double max_step_height = PHYS_STEP_MAX_SIZE;
 
-	/**
-	*	For obstacle Jump handling:
+	/** 
+	* 	For obstacle Jump handling:
 	**/
 	//! If true, try to perform a small obstacle jump when blocked.
 	bool allow_small_obstruction_jump	= true;
 	//! Max obstruction height allowed to jump over.
 	double max_obstruction_jump_height	= NAV_DEFAULT_MAX_OBSTRUCTION_JUMP_SIZE;
 
-	/**
-	*	For fall-safety:
-	* 
-	*	max_drop_height should be smaller than (or equal to) the cap if the cap is an absolute extremity limiter. 
-	*	Two practical choices depending on your intent:
-	*	- If you want navigation to avoid any damaging falls: set cap < ~187.6 (e.g. 180) so the nav system will never accept a drop that can hurt.
-	*	- If you want to allow risky/damaging drops but still bound them: leave cap ≈ 192 (or slightly above) and keep max_drop_height as a conservative preferred threshold (e.g. 48..96).
+	/** 
+	* 	For fall-safety:
+	*  
+	* 	max_drop_height should be smaller than (or equal to) the cap if the cap is an absolute extremity limiter. 
+	* 	Two practical choices depending on your intent:
+	* 	- If you want navigation to avoid any damaging falls: set cap < ~187.6 (e.g. 180) so the nav system will never accept a drop that can hurt.
+	* 	- If you want to allow risky/damaging drops but still bound them: leave cap ≈ 192 (or slightly above) and keep max_drop_height as a conservative preferred threshold (e.g. 48..96).
 	**/
 	//! If true, do not allow moving into a drop deeper than max_drop_height.
 	bool enable_max_drop_height_cap = true;
@@ -126,18 +126,18 @@ struct svg_nav_path_policy_t {
 	//! Drop cap applied when rejecting large downward transitions (matches `nav_max_drop_height_cap`).
 	double max_drop_height_cap	= NAV_DEFAULT_MAX_DROP_HEIGHT_CAP;
 
-	/**
-	*	Agent navigation constraints derived from nav CVars.
+	/** 
+	* 	Agent navigation constraints derived from nav CVars.
 	**/
-	//! Agent bounding box minimum extents in feet-origin space (matches `nav_agent_mins_*`).
+	//! Agent bounding box minimum extents in feet-origin space (matches `nav_agent_mins_* `).
 	Vector3 agent_mins = { -16.0f, -16.0f, -36.0f };
-	//! Agent bounding box maximum extents in feet-origin space (matches `nav_agent_maxs_*`).
+	//! Agent bounding box maximum extents in feet-origin space (matches `nav_agent_maxs_* `).
 	Vector3 agent_maxs = { 16.0f, 16.0f, 36.0f };
     //! Minimum walkable surface normal Z threshold (matches `nav_max_slope_normal_z`).
 	double max_slope_normal_z = PHYS_MAX_SLOPE_NORMAL;
 
-	/**
-	*	Layer selection tuning:
+	/** 
+	* 	Layer selection tuning:
 	**/
 	//! If true, prefer the highest layer in a multi-layer XY cell when the desired Z is "close".
 	//!
@@ -158,19 +158,19 @@ struct svg_nav_path_policy_t {
 	double layer_select_prefer_z_threshold = 16.0;
 };
 
-/**
-*	@brief	Per-entity navigation path processing state.
-*	@note	Embed this in an entity to add path following behavior.
+/** 
+* 	@brief	Per-entity navigation path processing state.
+* 	@note	Embed this in an entity to add path following behavior.
 **/
 struct svg_nav_path_process_t {
-	/**
-	*
-	*
-	*
-	*	Core:
-	*
-	*
-	*
+	/** 
+	* 
+	* 
+	* 
+	* 	Core:
+	* 
+	* 
+	* 
 	**/
 	//! Current traversal path.
 	nav_traversal_path_t path = {};
@@ -186,7 +186,7 @@ struct svg_nav_path_process_t {
 	QMTime backoff_until = 0_ms;
 	//! Number of consecutive path rebuild failures.
 	int32_t consecutive_failures = 0;
-	//! Time of the last rebuild failure (used to bias A* away from recent failing paths).
+	//! Time of the last rebuild failure (used to bias A*  away from recent failing paths).
 	QMTime last_failure_time = 0_ms;
 	//! Last failing goal position (world-space) recorded when a rebuild failed.
 	Vector3 last_failure_pos = {};
@@ -207,95 +207,95 @@ struct svg_nav_path_process_t {
 	//! Z offset used to convert external feet-origin queries into internal nav-center space.
 	float path_center_offset_z = 0.0f;
 
-	/**
-	*	@brief	Policy for path processing and follow behavior.
+	/** 
+	* 	@brief	Policy for path processing and follow behavior.
 	**/
 	void Reset( void );
-	/**
-	*	@brief	Commit a finalized async traversal path and reset failure tracking.
-	*	@param	points	Finalized nav-center waypoints produced by the async rebuild.
-	*	@param	start_origin	Agent start position in entity feet-origin space.
-	*	@param	goal_origin	Agent goal position in entity feet-origin space.
-	*	@param	center_offset_z	Z offset that converts feet-origin to nav-center coordinates for this path.
-	*	@param	policy	Path policy used to enforce rebuild throttles after commit.
-	*	@return	True when the path was stored successfully.
+	/** 
+	* 	@brief	Commit a finalized async traversal path and reset failure tracking.
+	* 	@param	points	Finalized nav-center waypoints produced by the async rebuild.
+	* 	@param	start_origin	Agent start position in entity feet-origin space.
+	* 	@param	goal_origin	Agent goal position in entity feet-origin space.
+	* 	@param	center_offset_z	Z offset that converts feet-origin to nav-center coordinates for this path.
+	* 	@param	policy	Path policy used to enforce rebuild throttles after commit.
+	* 	@return	True when the path was stored successfully.
 	**/
     const bool CommitAsyncPathFromPoints( const std::vector<Vector3> &points, const Vector3 &start_origin, const Vector3 &goal_origin, const svg_nav_path_policy_t &policy );
 
 
 
-	/**
-	*
-	*
-	*
-	*	Path (Re-)Building:
-	*
-	*
-	*
+	/** 
+	* 
+	* 
+	* 
+	* 	Path (Re-)Building:
+	* 
+	* 
+	* 
 	**/
-	/**
-	*	@brief	Rebuild the path to the given goal from the given start, using the given agent
-	*			bounding box for traversal.
+	/** 
+	* 	@brief	Rebuild the path to the given goal from the given start, using the given agent
+	* 			bounding box for traversal.
 	**/
 	const bool RebuildPathToWithAgentBBox( const Vector3 &start_origin, const Vector3 &goal_origin, const svg_nav_path_policy_t &policy,
 		const Vector3 &agent_mins, const Vector3 &agent_maxs, const bool force = false );
-	/**
-	*	@brief	Used to determine if a path rebuild can be attempted at this time.
+	/** 
+	* 	@brief	Used to determine if a path rebuild can be attempted at this time.
 	**/
 	const bool CanRebuild( const svg_nav_path_policy_t &policy ) const;
-	/**
-	*	@brief	Determine if the path should be rebuilt based on the goal's 2D distance change.
-	*	@return	True if the path should be rebuilt.
+	/** 
+	* 	@brief	Determine if the path should be rebuilt based on the goal's 2D distance change.
+	* 	@return	True if the path should be rebuilt.
 	**/
 	const bool ShouldRebuildForGoal2D( const Vector3 &goal_origin, const svg_nav_path_policy_t &policy ) const;
-	/**
-	*	@brief	Determine if the path should be rebuilt based on the goal's 3D distance change.
-	*	@return	True if the path should be rebuilt.
+	/** 
+	* 	@brief	Determine if the path should be rebuilt based on the goal's 3D distance change.
+	* 	@return	True if the path should be rebuilt.
 	**/
 	const bool ShouldRebuildForGoal3D( const Vector3 &goal_origin, const svg_nav_path_policy_t &policy ) const;
-	/**
-	*	@brief	Determine if the path should be rebuilt based on the start's 2D distance change.
-	*	@return	True if the path should be rebuilt.
+	/** 
+	* 	@brief	Determine if the path should be rebuilt based on the start's 2D distance change.
+	* 	@return	True if the path should be rebuilt.
 	**/
 	const bool ShouldRebuildForStart2D( const Vector3 &start_origin, const svg_nav_path_policy_t &policy ) const;
-	/**
-	*	@brief	Determine if the path should be rebuilt based on the start's 3D distance change.
-	*	@return	True if the path should be rebuilt.
+	/** 
+	* 	@brief	Determine if the path should be rebuilt based on the start's 3D distance change.
+	* 	@return	True if the path should be rebuilt.
 	**/
 	const bool ShouldRebuildForStart3D( const Vector3 &start_origin, const svg_nav_path_policy_t &policy ) const;
-	/**
-	*	@brief	Rebuild the path to the given goal from the given start.
-	*	@return	True if the path was successfully rebuilt.
+	/** 
+	* 	@brief	Rebuild the path to the given goal from the given start.
+	* 	@return	True if the path was successfully rebuilt.
 	**/
 	const bool RebuildPathTo( const Vector3 &start_origin, const Vector3 &goal_origin, const svg_nav_path_policy_t &policy );
 
 
-	/**
-	*
-	*
-	*
-	*	Path direction/movement querying:
-	*
-	*
-	*
+	/** 
+	* 
+	* 
+	* 
+	* 	Path direction/movement querying:
+	* 
+	* 
+	* 
 	**/
-	/**
-	*	@brief	Query the next movement direction in 2D from the current origin along the path.
+	/** 
+	* 	@brief	Query the next movement direction in 2D from the current origin along the path.
 	**/
-	const bool QueryDirection2D( const Vector3 &current_origin, const svg_nav_path_policy_t &policy, Vector3 *out_dir2d );
-	/**
-	*	@brief	Query the next movement direction in 3D from the current origin along the path.
-	*	@param	current_origin	Current position of the agent.
-	*	@param	policy			Path policy (for waypoint radius).
-	*	@param	out_dir3d		[out] Resulting normalized 3D direction.
-	*	@return	True if a direction was found.
+	const bool QueryDirection2D( const Vector3 &current_origin, const svg_nav_path_policy_t &policy, Vector3 * out_dir2d );
+	/** 
+	* 	@brief	Query the next movement direction in 3D from the current origin along the path.
+	* 	@param	current_origin	Current position of the agent.
+	* 	@param	policy			Path policy (for waypoint radius).
+	* 	@param	out_dir3d		[out] Resulting normalized 3D direction.
+	* 	@return	True if a direction was found.
 	**/
-	const bool QueryDirection3D( const Vector3 &current_origin, const svg_nav_path_policy_t &policy, Vector3 *out_dir3d );
+	const bool QueryDirection3D( const Vector3 &current_origin, const svg_nav_path_policy_t &policy, Vector3 * out_dir3d );
 
-	/**
-	*   @brief  Get the next path point converted into the entity's origin space (opposite of nav-center).
-	*   @param  out_point   [out] Next path point in entity origin coordinates (feet-origin).
-	*   @return True if a next point exists.
+	/** 
+	*    @brief  Get the next path point converted into the entity's origin space (opposite of nav-center).
+	*    @param  out_point   [out] Next path point in entity origin coordinates (feet-origin).
+	*    @return True if a next point exists.
 	**/
-	const bool GetNextPathPointEntitySpace( Vector3 *out_point ) const;
+	const bool GetNextPathPointEntitySpace( Vector3 * out_point ) const;
 };

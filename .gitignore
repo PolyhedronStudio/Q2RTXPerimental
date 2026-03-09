@@ -111,3 +111,4 @@ baseq2rtxp/maps/*.bsp
 /.vscode
 /baseq2rtxp/maps/nav/**
 /baseq2rtxp/maps/nav/q2rtxp_dev_voxelpaths.nav
+*content.json

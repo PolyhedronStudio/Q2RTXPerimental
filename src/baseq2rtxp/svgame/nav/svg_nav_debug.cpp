@@ -1,12 +1,12 @@
-/********************************************************************
-*
-*
-*	SVGame: Navigation Debug Drawing
-*
-*	Debug visualization for navigation voxelmesh and pathfinding.
-*	This file contains ONLY debug draw code (no globals, no runtime logic).
-*
-********************************************************************/
+/** * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+* 
+* 
+* 	SVGame: Navigation Debug Drawing
+* 
+* 	Debug visualization for navigation voxelmesh and pathfinding.
+* 	This file contains ONLY debug draw code (no globals, no runtime logic).
+* 
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * **/
 #include "svgame/svg_local.h"
 #include "svgame/svg_utils.h"
 
@@ -24,16 +24,16 @@ std::vector<nav_debug_cached_path_t> s_nav_debug_cached_paths = {};
 
 
 
-/**
-*
-*   CVars for Navigation Debug Drawing:
-*
+/** 
+* 
+*    CVars for Navigation Debug Drawing:
+* 
 **/
 //! Master on/off. 0 = off, 1 = on.
 cvar_t *nav_debug_draw = nullptr;
 //! Only draw a specific BSP leaf index. -1 = any.
 cvar_t *nav_debug_draw_leaf = nullptr;
-//! Only draw a specific tile (grid coords). Requires "x y". "*" disables.
+//! Only draw a specific tile (grid coords). Requires "x y". "* " disables.
 cvar_t *nav_debug_draw_tile = nullptr;
 //! Budget in TE_DEBUG_TRAIL line segments per server frame.
 cvar_t *nav_debug_draw_max_segments = nullptr;
@@ -50,32 +50,35 @@ cvar_t *nav_debug_show_failed_lookups = nullptr;
 //! Optional toggle to draw/log edges rejected for clearance or drop cap violations.
 cvar_t *nav_debug_draw_rejects = nullptr;
 
-/**
-*	@brief	Describes a rejected edge for optional debug visualization.
+/** 
+* 	@brief	Describes a rejected edge for optional debug visualization.
 **/
 struct nav_debug_reject_t {
+	//! World-space start point of the rejected edge.
 	Vector3 start;
+	//! World-space end point of the rejected edge.
 	Vector3 end;
+	//! Reason for rejection, used for optional color-coding or logging.
 	nav_debug_reject_reason_t reason;
 };
 //! Stored rejection events collected during the current server frame.
-static std::vector<nav_debug_reject_t> s_nav_debug_rejects = {};
+static std::deque<nav_debug_reject_t> s_nav_debug_rejects = {};
 //! Maximum number of rejection events to retain before dropping the oldest entry.
 static constexpr size_t NAV_DEBUG_MAX_REJECTS = 512;
 
 
 
-/**
-*
-*
-*
-*	Navigation Debug Drawing - State and Helpers:
-*
-*
-*
+/** 
+* 
+* 
+* 
+* 	Navigation Debug Drawing - State and Helpers:
+* 
+* 
+* 
 **/
-/**
-* 	@brief  Purge expired cached debug paths.
+/** 
+*  	@brief  Purge expired cached debug paths.
 **/
 void NavDebug_PurgeCachedPaths( void ) {
 	const QMTime now = level.time;
@@ -90,8 +93,8 @@ void NavDebug_PurgeCachedPaths( void ) {
 	}
 }
 
-/**
-*	@brief  Clear all cached debug paths immediately.
+/** 
+* 	@brief  Clear all cached debug paths immediately.
 **/
 void NavDebug_ClearCachedPaths( void ) {
 	for ( nav_debug_cached_path_t &entry : s_nav_debug_cached_paths ) {
@@ -101,21 +104,21 @@ void NavDebug_ClearCachedPaths( void ) {
 	NavDebug_ClearRejects();
 }
 
-/**
-*	@brief	Record an edge rejection for later debug draw/logging.
+/** 
+* 	@brief	Record an edge rejection for later debug draw/logging.
 **/
 void NavDebug_RecordReject( const Vector3 &start, const Vector3 &end, nav_debug_reject_reason_t reason ) {
 	if ( !nav_debug_draw_rejects || nav_debug_draw_rejects->integer == 0 ) {
 		return;
 	}
 	if ( s_nav_debug_rejects.size() >= NAV_DEBUG_MAX_REJECTS ) {
-		s_nav_debug_rejects.erase( s_nav_debug_rejects.begin() );
+		s_nav_debug_rejects.pop_front();
 	}
-	s_nav_debug_rejects.push_back( nav_debug_reject_t{ start, end, reason } );
+	s_nav_debug_rejects.emplace_back( nav_debug_reject_t{ start, end, reason } );
 }
 
-/**
-*	@brief	Clear all recorded rejection events.
+/** 
+* 	@brief	Clear all recorded rejection events.
 **/
 void NavDebug_ClearRejects( void ) {
 	s_nav_debug_rejects.clear();
@@ -123,17 +126,17 @@ void NavDebug_ClearRejects( void ) {
 
 
 
-/**
-*
-*
-*
-*	Navigation Debug Drawing - Runtime Draw:
-*
-*
-*
+/** 
+* 
+* 
+* 
+* 	Navigation Debug Drawing - Runtime Draw:
+* 
+* 
+* 
 **/
-/**
-*	@brief	Prepare for a new frame of debug drawing.
+/** 
+* 	@brief	Prepare for a new frame of debug drawing.
 **/
 inline void NavDebug_NewFrame( void ) {
 	if ( s_nav_debug_draw_state.frame == ( int32_t )level.frameNumber ) {
@@ -143,8 +146,8 @@ inline void NavDebug_NewFrame( void ) {
 	s_nav_debug_draw_state.frame = ( int32_t )level.frameNumber;
 	s_nav_debug_draw_state.segments_used = 0;
 }
-/**
-*	@brief	Determine if we can emit the requested number of segments.
+/** 
+* 	@brief	Determine if we can emit the requested number of segments.
 **/
 inline bool NavDebug_CanEmitSegments( const int32_t count ) {
 	NavDebug_NewFrame();
@@ -156,20 +159,20 @@ inline bool NavDebug_CanEmitSegments( const int32_t count ) {
 
 	return ( s_nav_debug_draw_state.segments_used + count ) <= maxSegments;
 }
-/**
-*	@brief	Consume the given number of emitted segments.
+/** 
+* 	@brief	Consume the given number of emitted segments.
 **/
 inline void NavDebug_ConsumeSegments( const int32_t count ) {
 	s_nav_debug_draw_state.segments_used += count;
 }
-/**
-*	@brief	Check if navigation debug drawing is enabled.
+/** 
+* 	@brief	Check if navigation debug drawing is enabled.
 **/
 inline const bool NavDebug_Enabled( void ) {
 	return nav_debug_draw && nav_debug_draw->integer != 0;
 }
-/**
-*	@brief	Get the current view origin for distance filtering.
+/** 
+* 	@brief	Get the current view origin for distance filtering.
 **/
 inline Vector3 NavDebug_GetViewOrigin( void ) {
 	if ( game.currentViewPlayer ) {
@@ -177,16 +180,16 @@ inline Vector3 NavDebug_GetViewOrigin( void ) {
 	}
 
 	// Fallback: try client #1 (singleplayer typical).
-	svg_base_edict_t *ent = g_edict_pool.EdictForNumber( 1 );
+	svg_base_edict_t * ent = g_edict_pool.EdictForNumber( 1 );
 	if ( SVG_Entity_IsClient( ent, false ) ) {
 		return ent->currentOrigin + Vector3{ 0., 0., ( double )ent->viewheight };
 	}
 
 	return {};
 }
-/**
-*	@brief	Check if a position passes the distance filter.
-* 	@param	pos	Position to check.
+/** 
+* 	@brief	Check if a position passes the distance filter.
+*  	@param	pos	Position to check.
 **/
 inline const bool NavDebug_PassesDistanceFilter( const Vector3 &pos ) {
 	const double maxDist = ( nav_debug_draw_max_dist ? nav_debug_draw_max_dist->value : 0.0f );
@@ -196,19 +199,19 @@ inline const bool NavDebug_PassesDistanceFilter( const Vector3 &pos ) {
 
 	const Vector3 viewOrg = NavDebug_GetViewOrigin();
 	const Vector3 d = QM_Vector3Subtract( pos, viewOrg );
-	const double distSqr = ( d[ 0 ] * d[ 0 ] ) + ( d[ 1 ] * d[ 1 ] ) + ( d[ 2 ] * d[ 2 ] );
-	return distSqr <= ( maxDist * maxDist );
+	const double distSqr = ( d[ 0 ]* d[ 0 ] ) + ( d[ 1 ]* d[ 1 ] ) + ( d[ 2 ]* d[ 2 ] );
+	return distSqr <= ( maxDist* maxDist );
 }
-/**
-*	@return	Returns true if a tile filter is specified and outputs the wanted tile coordinates.
+/** 
+* 	@return	Returns true if a tile filter is specified and outputs the wanted tile coordinates.
 **/
-const bool NavDebug_ParseTileFilter( int32_t *outTileX, int32_t *outTileY ) {
+const bool NavDebug_ParseTileFilter( int32_t * outTileX, int32_t * outTileY ) {
 	if ( !outTileX || !outTileY || !nav_debug_draw_tile ) {
 		return false;
 	}
 
-	const char *s = nav_debug_draw_tile->string;
-	if ( !s || !s[ 0 ] || s[ 0 ] == '*' ) {
+	const char * s = nav_debug_draw_tile->string;
+	if ( !s || !s[ 0 ] || s[ 0 ] == '* ' ) {
 		return false;
 	}
 
@@ -217,13 +220,13 @@ const bool NavDebug_ParseTileFilter( int32_t *outTileX, int32_t *outTileY ) {
 		return false;
 	}
 
-	*outTileX = x;
-	*outTileY = y;
+	* outTileX = x;
+	* outTileY = y;
 	return true;
 }
-/**
-*	@brief	Filter by leaf index.
-* 	@return	Returns true if the given leaf index passes the filter.
+/** 
+* 	@brief	Filter by leaf index.
+*  	@return	Returns true if the given leaf index passes the filter.
 **/
 inline const bool NavDebug_FilterLeaf( const int32_t leafIndex ) {
 	if ( !nav_debug_draw_leaf ) {
@@ -233,9 +236,9 @@ inline const bool NavDebug_FilterLeaf( const int32_t leafIndex ) {
 	const int32_t wanted = nav_debug_draw_leaf->integer;
 	return ( wanted < 0 ) || ( wanted == leafIndex );
 }
-/**
-*	@brief	Will filter by tile coordinates.
-*	@return	Returns true if the given tile coordinates pass the filter.
+/** 
+* 	@brief	Will filter by tile coordinates.
+* 	@return	Returns true if the given tile coordinates pass the filter.
 **/
 inline const bool NavDebug_FilterTile( const int32_t tileX, const int32_t tileY ) {
 	int32_t wantedX = 0, wantedY = 0;
@@ -245,8 +248,8 @@ inline const bool NavDebug_FilterTile( const int32_t tileX, const int32_t tileY 
 
 	return tileX == wantedX && tileY == wantedY;
 }
-/**
-*	@brief	Draw a vertical tick at the given position.
+/** 
+* 	@brief	Draw a vertical tick at the given position.
 **/
 void NavDebug_DrawSampleTick( const Vector3 &pos, const double height ) {
 	// Check if we should draw sample ticks.
@@ -270,12 +273,12 @@ void NavDebug_DrawSampleTick( const Vector3 &pos, const double height ) {
 	NavDebug_ConsumeSegments( 1 );
 }
 
-/**
-*	@brief	Draw the bounding box of a tile.
-*	@param	mesh	The navigation mesh.
-*	@param	tile	The tile to draw.
+/** 
+* 	@brief	Draw the bounding box of a tile.
+* 	@param	mesh	The navigation mesh.
+* 	@param	tile	The tile to draw.
 **/
-void NavDebug_DrawTileBBox( const nav_mesh_t *mesh, const nav_tile_t *tile ) {
+void NavDebug_DrawTileBBox( const nav_mesh_t * mesh, const nav_tile_t * tile ) {
 	if ( !NavDebug_Enabled() || !nav_debug_draw_tile_bounds || nav_debug_draw_tile_bounds->integer == 0 ) {
 		return;
 	}
@@ -284,8 +287,8 @@ void NavDebug_DrawTileBBox( const nav_mesh_t *mesh, const nav_tile_t *tile ) {
 	}
 	const double tileWorldSize = Nav_TileWorldSize( mesh );
 	const Vector3 mins = {
-		( double )tile->tile_x * tileWorldSize,
-		( double )tile->tile_y * tileWorldSize,
+		( double )tile->tile_x* tileWorldSize,
+		( double )tile->tile_y* tileWorldSize,
 		( double )mesh->world_bounds.mins.z
 	};
 	const Vector3 maxs = {
@@ -295,9 +298,9 @@ void NavDebug_DrawTileBBox( const nav_mesh_t *mesh, const nav_tile_t *tile ) {
 	};
 	// Check distance filter against tile center.
 	const Vector3 tileCenter = {
-		( mins[ 0 ] + maxs[ 0 ] ) * 0.5f,
-		( mins[ 1 ] + maxs[ 1 ] ) * 0.5f,
-		( mins[ 2 ] + maxs[ 2 ] ) * 0.5f
+		( mins[ 0 ] + maxs[ 0 ] )* 0.5f,
+		( mins[ 1 ] + maxs[ 1 ] )* 0.5f,
+		( mins[ 2 ] + maxs[ 2 ] )* 0.5f
 	};
 	if ( !NavDebug_PassesDistanceFilter( tileCenter ) ) {
 		return;
@@ -309,17 +312,17 @@ void NavDebug_DrawTileBBox( const nav_mesh_t *mesh, const nav_tile_t *tile ) {
 
 
 
-/**
-*
-*
-*
-*	Debug Drawing for NavMesh
-*
-*
-*
+/** 
+* 
+* 
+* 
+* 	Debug Drawing for NavMesh
+* 
+* 
+* 
 **/
-/**
-*	@brief	Check if navigation debug drawing is enabled and draw so if it is.
+/** 
+* 	@brief	Check if navigation debug drawing is enabled and draw so if it is.
 **/
 void SVG_Nav_DebugDraw( void ) {
 	if ( !g_nav_mesh ) {
@@ -349,7 +352,7 @@ void SVG_Nav_DebugDraw( void ) {
 				const Vector3 &a = path.points[ i ];
 				const Vector3 &b = path.points[ i + 1 ];
 
-				const Vector3 mid = { ( a[ 0 ] + b[ 0 ] ) * 0.5f, ( a[ 1 ] + b[ 1 ] ) * 0.5f, ( a[ 2 ] + b[ 2 ] ) * 0.5f };
+				const Vector3 mid = { ( a[ 0 ] + b[ 0 ] )* 0.5f, ( a[ 1 ] + b[ 1 ] )* 0.5f, ( a[ 2 ] + b[ 2 ] )* 0.5f };
 				if ( !NavDebug_PassesDistanceFilter( mid ) ) {
 					continue;
 				}
@@ -359,12 +362,12 @@ void SVG_Nav_DebugDraw( void ) {
 			}
 		}
 	}
-	/**
-	*	Draw/log any edges that were rejected this frame when instrumentation is enabled.
+	/** 
+	* 	Draw/log any edges that were rejected this frame when instrumentation is enabled.
 	**/
 	if ( nav_debug_draw_rejects && nav_debug_draw_rejects->integer != 0 && !s_nav_debug_rejects.empty() ) {
 		for ( const nav_debug_reject_t &reject : s_nav_debug_rejects ) {
-			const char *reason = ( reject.reason == NAV_DEBUG_REJECT_REASON_CLEARANCE ) ? "clearance" : ( reject.reason == NAV_DEBUG_REJECT_REASON_SLOPE ? "slope" : "drop cap" );
+			const char * reason = ( reject.reason == NAV_DEBUG_REJECT_REASON_CLEARANCE ) ? "clearance" : ( reject.reason == NAV_DEBUG_REJECT_REASON_SLOPE ? "slope" : "drop cap" );
 			gi.dprintf( "[DEBUG][NavPath][Reject] %s edge from (%.1f %.1f %.1f) to (%.1f %.1f %.1f)\n",
 				reason,
 				reject.start.x, reject.start.y, reject.start.z,
@@ -378,22 +381,22 @@ void SVG_Nav_DebugDraw( void ) {
 		s_nav_debug_rejects.clear();
 	}
 
-	const nav_mesh_t *mesh = g_nav_mesh.get();
+	const nav_mesh_t * mesh = g_nav_mesh.get();
 	const double tileWorldSize = Nav_TileWorldSize( mesh );
-	const int32_t cellsPerTile = mesh->tile_size * mesh->tile_size;
+	const int32_t cellsPerTile = mesh->tile_size* mesh->tile_size;
 
-	/**
-	*	World mesh (per leaf):
+	/** 
+	* 	World mesh (per leaf):
 	**/
     for ( int32_t leafIndex = 0; leafIndex < mesh->num_leafs; leafIndex++ ) {
 		if ( !NavDebug_FilterLeaf( leafIndex ) ) {
 			continue;
 		}
 
-		const nav_leaf_data_t *leaf = &mesh->leaf_data[ leafIndex ];
+		const nav_leaf_data_t * leaf = &mesh->leaf_data[ leafIndex ];
 		// Use the safe accessor for leaf tile ids to avoid dereferencing dangling pointers.
-		auto leafTilesView = SVG_Nav_Leaf_GetTileIds( const_cast<nav_leaf_data_t *>( leaf ) );
-		const int32_t *leafTileIds = leafTilesView.first;
+		auto leafTilesView = SVG_Nav_Leaf_GetTileIds( const_cast<nav_leaf_data_t * >( leaf ) );
+		const int32_t * leafTileIds = leafTilesView.first;
 		const int32_t leafNumTiles = leafTilesView.second;
 		if ( !leafTileIds || leafNumTiles <= 0 ) {
 			continue;
@@ -404,7 +407,7 @@ void SVG_Nav_DebugDraw( void ) {
 			if ( tileId < 0 || tileId >= ( int32_t )mesh->world_tiles.size() ) {
 				continue;
 			}
-			const nav_tile_t *tile = &mesh->world_tiles[ tileId ];
+			const nav_tile_t * tile = &mesh->world_tiles[ tileId ];
 			if ( !tile ) {
 				continue;
 			}
@@ -418,22 +421,22 @@ void SVG_Nav_DebugDraw( void ) {
 
 			// Samples (top-most layer tick per XY cell).
 			if ( nav_debug_draw_samples && nav_debug_draw_samples->integer != 0 ) {
-				const double tileOriginX = tile->tile_x * tileWorldSize;
-				const double tileOriginY = tile->tile_y * tileWorldSize;
+				const double tileOriginX = tile->tile_x* tileWorldSize;
+				const double tileOriginY = tile->tile_y* tileWorldSize;
 
 				// Use safe accessor for tile cells to avoid exposing dangling arrays.
-				auto cellsView = SVG_Nav_Tile_GetCells( mesh, const_cast<nav_tile_t *>( tile ) );
-				const nav_xy_cell_t *cellsPtr = cellsView.first;
+				auto cellsView = SVG_Nav_Tile_GetCells( mesh, const_cast<nav_tile_t * >( tile ) );
+				const nav_xy_cell_t * cellsPtr = cellsView.first;
 				const int32_t actualCells = cellsView.second;
 				if ( !cellsPtr || actualCells <= 0 ) {
 					continue;
 				}
 
 				for ( int32_t cellIndex = 0; cellIndex < actualCells; cellIndex++ ) {
-					const nav_xy_cell_t *cell = &cellsPtr[ cellIndex ];
+					const nav_xy_cell_t * cell = &cellsPtr[ cellIndex ];
 					// Use safe accessor for layers to avoid dangling pointer use when data is missing.
-					auto layersView = SVG_Nav_Cell_GetLayers( const_cast<nav_xy_cell_t *>( cell ) );
-					const nav_layer_t *layersPtr = layersView.first;
+					auto layersView = SVG_Nav_Cell_GetLayers( const_cast<nav_xy_cell_t * >( cell ) );
+					const nav_layer_t * layersPtr = layersView.first;
 					const int32_t layerCount = layersView.second;
 					if ( !layersPtr || layerCount <= 0 ) {
 						continue;
@@ -442,11 +445,11 @@ void SVG_Nav_DebugDraw( void ) {
 					const int32_t cellX = cellIndex % mesh->tile_size;
 					const int32_t cellY = cellIndex / mesh->tile_size;
 
-					const nav_layer_t *layer = &layersPtr[ 0 ];
+					const nav_layer_t * layer = &layersPtr[ 0 ];
 					Vector3 p = {
-						tileOriginX + ( ( double )cellX + 0.5 ) * ( double )mesh->cell_size_xy,
-						tileOriginY + ( ( double )cellY + 0.5 ) * ( double )mesh->cell_size_xy,
-						( double )layer->z_quantized * ( double )mesh->z_quant
+						tileOriginX + ( ( double )cellX + 0.5 )* ( double )mesh->cell_size_xy,
+						tileOriginY + ( ( double )cellY + 0.5 )* ( double )mesh->cell_size_xy,
+						( double )layer->z_quantized* ( double )mesh->z_quant
 					};
 
 					NavDebug_DrawSampleTick( p, 12.0 );
@@ -460,26 +463,26 @@ void SVG_Nav_DebugDraw( void ) {
 		}
 	}
 
-	/**
-	*	Inline model mesh (optional): draw tile bounds + samples transformed into world space.
+	/** 
+	* 	Inline model mesh (optional): draw tile bounds + samples transformed into world space.
 	**/
-    /**
-	*    Inline model mesh (optional): require both inline model data and
-	*    runtime transform entries. Use safe accessor to obtain runtime view
-	*    and avoid directly dereferencing the raw runtime array pointer.
+    /** 
+	*  Inline model mesh (optional): require both inline model data and
+	*  runtime transform entries. Use safe accessor to obtain runtime view
+	*  and avoid directly dereferencing the raw runtime array pointer.
 	**/
 	auto inlineRuntimeView = SVG_Nav_Mesh_GetInlineModelRuntime( mesh );
-	const nav_inline_model_runtime_t *inlineRuntimePtr = inlineRuntimeView.first;
+	const nav_inline_model_runtime_t * inlineRuntimePtr = inlineRuntimeView.first;
 	const int32_t inlineRuntimeCount = inlineRuntimeView.second;
 	if ( mesh->num_inline_models <= 0 || !mesh->inline_model_data || inlineRuntimeCount <= 0 || !inlineRuntimePtr ) {
 		return;
 	}
 
-	/**
-	*	Map: owner_entnum -> runtime entry.
-	*	We use the cached lookup map instead of a per-frame linear scan.
+	/** 
+	* 	Map: owner_entnum -> runtime entry.
+	* 	We use the cached lookup map instead of a per-frame linear scan.
 	**/
-	auto find_runtime = [mesh]( const svg_base_edict_t *owner ) -> const nav_inline_model_runtime_t * {
+	auto find_runtime = [mesh]( const svg_base_edict_t * owner ) -> const nav_inline_model_runtime_t* {
 		if ( !owner ) {
 			return nullptr;
 		}
@@ -487,17 +490,17 @@ void SVG_Nav_DebugDraw( void ) {
 	};
 
 	for ( int32_t i = 0; i < mesh->num_inline_models; i++ ) {
-		const nav_inline_model_data_t *model = &mesh->inline_model_data[ i ];
+		const nav_inline_model_data_t * model = &mesh->inline_model_data[ i ];
 		if ( !model || model->num_tiles <= 0 || !model->tiles ) {
 			continue;
 		}
 
-     /**
-		*    Resolve the inline-model owner entity using the runtime array slot.
-		*    Prefer index-based accessors to avoid exposing raw pointers and add
-		*    robustness via a map fallback.
+     /** 
+		*  Resolve the inline-model owner entity using the runtime array slot.
+		*  Prefer index-based accessors to avoid exposing raw pointers and add
+		*  robustness via a map fallback.
 		**/
-		const nav_inline_model_runtime_t *rt = nullptr;
+		const nav_inline_model_runtime_t * rt = nullptr;
 
 		// Fast-path: try index-based lookup using helper to avoid exposing raw array pointers.
 		if ( i >= 0 ) {
@@ -521,7 +524,7 @@ void SVG_Nav_DebugDraw( void ) {
 		const Vector3 origin = rt->origin;
 
         for ( int32_t t = 0; t < model->num_tiles; t++ ) {
-			const nav_tile_t *tile = &model->tiles[ t ];
+			const nav_tile_t * tile = &model->tiles[ t ];
 			if ( !tile ) {
 				continue;
 			}
@@ -535,13 +538,13 @@ void SVG_Nav_DebugDraw( void ) {
 			// Tile bounds (translated).
 			if ( NavDebug_Enabled() && nav_debug_draw_tile_bounds && nav_debug_draw_tile_bounds->integer != 0 ) {
 				if ( NavDebug_CanEmitSegments( 12 ) ) {
-					const Vector3 minsLocal = { tile->tile_x * tileWorldSize, tile->tile_y * tileWorldSize, -4096.0 /* <Q2RTXP>: TODO: world_bounds.mins.z */ };
-					const Vector3 maxsLocal = { minsLocal[ 0 ] + tileWorldSize, minsLocal[ 1 ] + tileWorldSize, 4096.0 /* <Q2RTXP>: TODO: world_bounds.maxs.z */ };
+					const Vector3 minsLocal = { tile->tile_x* tileWorldSize, tile->tile_y* tileWorldSize, -4096.0 /*  <Q2RTXP>: TODO: world_bounds.mins.z**/ };
+					const Vector3 maxsLocal = { minsLocal[ 0 ] + tileWorldSize, minsLocal[ 1 ] + tileWorldSize, 4096.0 /*  <Q2RTXP>: TODO: world_bounds.maxs.z**/ };
 
 					const Vector3 minsWorld = QM_Vector3Add( minsLocal, origin );
 					const Vector3 maxsWorld = QM_Vector3Add( maxsLocal, origin );
 
-					const Vector3 center = { ( double )( minsWorld[ 0 ] + maxsWorld[ 0 ] ) * 0.5, ( double )( minsWorld[ 1 ] + maxsWorld[ 1 ] ) * 0.5, 0.0 };
+					const Vector3 center = { ( double )( minsWorld[ 0 ] + maxsWorld[ 0 ] )* 0.5, ( double )( minsWorld[ 1 ] + maxsWorld[ 1 ] )* 0.5, 0.0 };
 					if ( NavDebug_PassesDistanceFilter( center ) ) {
 						SVG_DebugDrawBBox_TE( minsWorld, maxsWorld, MULTICAST_PVS, false );
 						NavDebug_ConsumeSegments( 12 );
@@ -553,22 +556,22 @@ void SVG_Nav_DebugDraw( void ) {
 
 			// Samples (translated): obtain safe cell array view for this inline tile.
 			if ( nav_debug_draw_samples && nav_debug_draw_samples->integer != 0 ) {
-				const double tileOriginXLocal = tile->tile_x * tileWorldSize;
-				const double tileOriginYLocal = tile->tile_y * tileWorldSize;
+				const double tileOriginXLocal = tile->tile_x* tileWorldSize;
+				const double tileOriginYLocal = tile->tile_y* tileWorldSize;
 
 				// Use the tile accessor to get a safe pointer and count for cells.
-				auto cellsView = SVG_Nav_Tile_GetCells( mesh, const_cast<nav_tile_t *>( tile ) );
-				const nav_xy_cell_t *cellsPtr = cellsView.first;
+				auto cellsView = SVG_Nav_Tile_GetCells( mesh, const_cast<nav_tile_t * >( tile ) );
+				const nav_xy_cell_t * cellsPtr = cellsView.first;
 				const int32_t actualCells = cellsView.second;
 				if ( !cellsPtr || actualCells <= 0 ) {
 					continue;
 				}
 
 				for ( int32_t cellIndex = 0; cellIndex < actualCells; cellIndex++ ) {
-					const nav_xy_cell_t *cell = &cellsPtr[ cellIndex ];
+					const nav_xy_cell_t * cell = &cellsPtr[ cellIndex ];
 					// Validate layer array using accessor to avoid dangling pointers.
-					auto layersView = SVG_Nav_Cell_GetLayers( const_cast<nav_xy_cell_t *>( cell ) );
-					const nav_layer_t *layersPtr = layersView.first;
+					auto layersView = SVG_Nav_Cell_GetLayers( const_cast<nav_xy_cell_t * >( cell ) );
+					const nav_layer_t * layersPtr = layersView.first;
 					const int32_t layerCount = layersView.second;
 					if ( !layersPtr || layerCount <= 0 ) {
 						continue;
@@ -577,11 +580,11 @@ void SVG_Nav_DebugDraw( void ) {
 					const int32_t cellX = cellIndex % mesh->tile_size;
 					const int32_t cellY = cellIndex / mesh->tile_size;
 
-					const nav_layer_t *layer = &layersPtr[ 0 ];
+					const nav_layer_t * layer = &layersPtr[ 0 ];
 					Vector3 pLocal = {
-						tileOriginXLocal + ( ( double )cellX + 0.5 ) * ( double )mesh->cell_size_xy,
-						tileOriginYLocal + ( ( double )cellY + 0.5 ) * ( double )mesh->cell_size_xy,
-						( double )layer->z_quantized * ( double )mesh->z_quant
+						tileOriginXLocal + ( ( double )cellX + 0.5 )* ( double )mesh->cell_size_xy,
+						tileOriginYLocal + ( ( double )cellY + 0.5 )* ( double )mesh->cell_size_xy,
+						( double )layer->z_quantized* ( double )mesh->z_quant
 					};
 
 					Vector3 pWorld = QM_Vector3Add( pLocal, origin );

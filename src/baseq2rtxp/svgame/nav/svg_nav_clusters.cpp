@@ -1,10 +1,10 @@
-/********************************************************************
-*
-*
-*    SVGame: Navigation Cluster Graph Helpers - Implementation
-*
-*
-********************************************************************/
+/** * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+* 
+* 
+*  SVGame: Navigation Cluster Graph Helpers - Implementation
+* 
+* 
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * **/
 #include "svgame/svg_local.h"
 #include "svgame/svg_utils.h"
 
@@ -12,8 +12,8 @@
 #include "svgame/nav/svg_nav_clusters.h"
 
 
-/**
-*    @brief    Cluster routing configuration CVars exposed for tuning.
+/** 
+*  @brief    Cluster routing configuration CVars exposed for tuning.
 **/
 cvar_t *nav_cluster_route_weighted = nullptr;
 cvar_t *nav_cluster_cost_stair = nullptr;
@@ -54,24 +54,24 @@ static void Nav_ClusterGraph_Clear( void ) {
 	s_nav_tile_cluster_graph.nodes.clear();
 }
 
-/**
-*    @brief		Detect coarse cluster flags for a tile by inspecting its cells/layers.
-*    @param		mesh    Navigation mesh pointer (used for tile_size and z_quant).
-*    @param		tile    Tile to inspect for relevant cluster flags.
-*    @return	Bitmask of nav tile cluster flags (stair/water/lava/slime).
-*    @note		Uses safe accessors to avoid dereferencing possibly-null sparse
-*				tile storage. Early-outs when mesh or cell storage is missing.
+/** 
+*  @brief		Detect coarse cluster flags for a tile by inspecting its cells/layers.
+*  @param		mesh    Navigation mesh pointer (used for tile_size and z_quant).
+*  @param		tile    Tile to inspect for relevant cluster flags.
+*  @return	Bitmask of nav tile cluster flags (stair/water/lava/slime).
+*  @note		Uses safe accessors to avoid dereferencing possibly-null sparse
+* 				tile storage. Early-outs when mesh or cell storage is missing.
 **/
-static inline uint8_t Nav_ClusterGraph_DetectTileFlags( const nav_mesh_t *mesh, const nav_tile_t &tile ) {
+static inline uint8_t Nav_ClusterGraph_DetectTileFlags( const nav_mesh_t * mesh, const nav_tile_t &tile ) {
 	uint8_t flags = NAV_TILE_CLUSTER_FLAG_NONE;
 	// Early out when mesh is missing.
 	if ( !mesh ) {
 		return flags;
 	}
 
-	/**
-	*    Prefer the persisted coarse summaries when available so the cluster branch consumes
-	*    the same metadata already derived from the tile's fine node and edge data.
+	/** 
+	*  Prefer the persisted coarse summaries when available so the cluster branch consumes
+	*  the same metadata already derived from the tile's fine node and edge data.
 	**/
 	const uint32_t summary_bits = tile.traversal_summary_bits | tile.edge_summary_bits;
 	if ( summary_bits != NAV_TILE_SUMMARY_NONE ) {
@@ -104,8 +104,8 @@ static inline uint8_t Nav_ClusterGraph_DetectTileFlags( const nav_mesh_t *mesh, 
 
 	// Use safe accessor to obtain pointer/count for the tile's cells so we
 	// avoid direct dereference of internal C-style arrays which may be null.
-	auto cellsView = SVG_Nav_Tile_GetCells( mesh, const_cast<nav_tile_t *>( &tile ) );
-	const nav_xy_cell_t *cellsPtr = cellsView.first;
+	auto cellsView = SVG_Nav_Tile_GetCells( mesh, const_cast<nav_tile_t * >( &tile ) );
+	const nav_xy_cell_t * cellsPtr = cellsView.first;
 	const int32_t actualCells = cellsView.second;
 	if ( !cellsPtr || actualCells <= 0 ) {
 		return flags;
@@ -127,7 +127,7 @@ static inline uint8_t Nav_ClusterGraph_DetectTileFlags( const nav_mesh_t *mesh, 
 
 		// Use safe accessor for layers to avoid raw pointer indexing elsewhere.
 		auto layersView = SVG_Nav_Cell_GetLayers( &cell );
-		const nav_layer_t *layersPtr = layersView.first;
+		const nav_layer_t * layersPtr = layersView.first;
 		const int32_t layerCount = layersView.second;
 		if ( !layersPtr || layerCount <= 0 ) {
 			continue;
@@ -158,30 +158,30 @@ static inline uint8_t Nav_ClusterGraph_DetectTileFlags( const nav_mesh_t *mesh, 
 	return flags;
 }
 
-static nav_tile_cluster_key_t Nav_GetTileKeyForPosition( const nav_mesh_t *mesh, const Vector3 &pos ) {
+static nav_tile_cluster_key_t Nav_GetTileKeyForPosition( const nav_mesh_t * mesh, const Vector3 &pos ) {
 	const double tileWorldSize = Nav_TileWorldSize( mesh );
 	return Nav_ClusterKey( Nav_WorldToTileCoord( pos[ 0 ], tileWorldSize ), Nav_WorldToTileCoord( pos[ 1 ], tileWorldSize ) );
 }
 
-/**
-*    @brief	Resolve the coarse ladder anchor range for a tile from fine endpoint metadata.
-*    @param	mesh	Navigation mesh containing the tile.
-*    @param	key	Tile key to inspect.
-*    @param	out_bottom_z	[out] Lowest explicit ladder startpoint height found in the tile.
-*    @param	out_top_z	[out] Highest explicit ladder endpoint height found in the tile.
-*    @return	True when both bottom and top ladder anchors were found.
-*    @note	This derives coarse ladder intent from the same explicit start/top semantics used by the fine async traversal layer.
+/** 
+*  @brief	Resolve the coarse ladder anchor range for a tile from fine endpoint metadata.
+*  @param	mesh	Navigation mesh containing the tile.
+*  @param	key	Tile key to inspect.
+*  @param	out_bottom_z	[out] Lowest explicit ladder startpoint height found in the tile.
+*  @param	out_top_z	[out] Highest explicit ladder endpoint height found in the tile.
+*  @return	True when both bottom and top ladder anchors were found.
+*  @note	This derives coarse ladder intent from the same explicit start/top semantics used by the fine async traversal layer.
 **/
-static const bool Nav_ClusterGraph_TryGetTileLadderAnchorRange( const nav_mesh_t *mesh, const nav_tile_cluster_key_t &key, double *out_bottom_z, double *out_top_z ) {
-	/**
-	*    Sanity checks: require mesh storage and output storage.
+static const bool Nav_ClusterGraph_TryGetTileLadderAnchorRange( const nav_mesh_t * mesh, const nav_tile_cluster_key_t &key, double * out_bottom_z, double * out_top_z ) {
+	/** 
+	*  Sanity checks: require mesh storage and output storage.
 	**/
 	if ( !mesh || !out_bottom_z || !out_top_z ) {
 		return false;
 	}
 
-	/**
-	*    Resolve the canonical world tile owning this coarse tile key.
+	/** 
+	*  Resolve the canonical world tile owning this coarse tile key.
 	**/
 	const nav_world_tile_key_t worldTileKey = { .tile_x = key.tile_x, .tile_y = key.tile_y };
 	auto tileIt = mesh->world_tile_id_of.find( worldTileKey );
@@ -194,16 +194,16 @@ static const bool Nav_ClusterGraph_TryGetTileLadderAnchorRange( const nav_mesh_t
 		return false;
 	}
 
-	const nav_tile_t *tile = &mesh->world_tiles[ tileIndex ];
+	const nav_tile_t * tile = &mesh->world_tiles[ tileIndex ];
 	auto cellsView = SVG_Nav_Tile_GetCells( mesh, tile );
-	const nav_xy_cell_t *cellsPtr = cellsView.first;
+	const nav_xy_cell_t * cellsPtr = cellsView.first;
 	const int32_t cellsCount = cellsView.second;
 	if ( !cellsPtr || cellsCount <= 0 ) {
 		return false;
 	}
 
-	/**
-	*    Scan every layer and keep the outermost explicit ladder anchors.
+	/** 
+	*  Scan every layer and keep the outermost explicit ladder anchors.
 	**/
 	double bestBottomZ = std::numeric_limits<double>::infinity();
 	double bestTopZ = -std::numeric_limits<double>::infinity();
@@ -212,7 +212,7 @@ static const bool Nav_ClusterGraph_TryGetTileLadderAnchorRange( const nav_mesh_t
 	for ( int32_t cellIndex = 0; cellIndex < cellsCount; cellIndex++ ) {
 		const nav_xy_cell_t &cell = cellsPtr[ cellIndex ];
 		auto layersView = SVG_Nav_Cell_GetLayers( &cell );
-		const nav_layer_t *layersPtr = layersView.first;
+		const nav_layer_t * layersPtr = layersView.first;
 		const int32_t layerCount = layersView.second;
 		if ( !layersPtr || layerCount <= 0 ) {
 			continue;
@@ -222,29 +222,29 @@ static const bool Nav_ClusterGraph_TryGetTileLadderAnchorRange( const nav_mesh_t
 		for ( int32_t layerIndex = 0; layerIndex < layerCount; layerIndex++ ) {
 			const nav_layer_t &layer = layersPtr[ layerIndex ];
 			if ( ( layer.ladder_endpoint_flags & NAV_LADDER_ENDPOINT_STARTPOINT ) != 0 ) {
-				bestBottomZ = std::min( bestBottomZ, ( double )layer.ladder_start_z_quantized * mesh->z_quant );
+				bestBottomZ = std::min( bestBottomZ, ( double )layer.ladder_start_z_quantized* mesh->z_quant );
 				foundBottom = true;
 			}
 			if ( ( layer.ladder_endpoint_flags & NAV_LADDER_ENDPOINT_ENDPOINT ) != 0 ) {
-				bestTopZ = std::max( bestTopZ, ( double )layer.ladder_end_z_quantized * mesh->z_quant );
+				bestTopZ = std::max( bestTopZ, ( double )layer.ladder_end_z_quantized* mesh->z_quant );
 				foundTop = true;
 			}
 		}
 	}
 
-	/**
-	*    Commit the anchor range only when both explicit ladder endpoints exist.
+	/** 
+	*  Commit the anchor range only when both explicit ladder endpoints exist.
 	**/
 	if ( !foundBottom || !foundTop ) {
 		return false;
 	}
 
-	*out_bottom_z = bestBottomZ;
-	*out_top_z = bestTopZ;
+	* out_bottom_z = bestBottomZ;
+	* out_top_z = bestTopZ;
 	return true;
 }
 
-static void Nav_ClusterGraph_BuildFromMesh_Runtime( const nav_mesh_t *mesh ) {
+static void Nav_ClusterGraph_BuildFromMesh_Runtime( const nav_mesh_t * mesh ) {
 	Nav_ClusterGraph_Clear();
 	if ( !mesh || mesh->num_leafs <= 0 || !mesh->leaf_data ) {
 		return;
@@ -279,7 +279,7 @@ static void Nav_ClusterGraph_BuildFromMesh_Runtime( const nav_mesh_t *mesh ) {
 	}
 }
 
-static const bool Nav_ClusterGraph_FindRoute( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &goalPos,
+static const bool Nav_ClusterGraph_FindRoute( const nav_mesh_t * mesh, const Vector3 &startPos, const Vector3 &goalPos,
 	std::vector<nav_tile_cluster_key_t> &outRoute ) {
 	outRoute.clear();
 	if ( nav_cluster_enable && nav_cluster_enable->integer == 0 ) {
@@ -346,8 +346,8 @@ static const bool Nav_ClusterGraph_FindRoute( const nav_mesh_t *mesh, const Vect
 			cost += nav_cluster_cost_slime->value;
 		}
 
-		/**
-		*    Favor ladder-capable tiles when their explicit anchors align with a meaningful vertical objective.
+		/** 
+		*  Favor ladder-capable tiles when their explicit anchors align with a meaningful vertical objective.
 		**/
 		if ( mesh && ( flags & NAV_TILE_CLUSTER_FLAG_LADDER ) != 0 ) {
 			const double routeGoalDeltaZ = std::fabs( ( double )goalPos.z - ( double )startPos.z );
@@ -361,7 +361,7 @@ static const bool Nav_ClusterGraph_FindRoute( const nav_mesh_t *mesh, const Vect
 					const double anchorGoalDelta = std::fabs( ladderAnchorZ - ( double )goalPos.z );
 					if ( anchorGoalDelta <= NAV_CLUSTER_LADDER_GOAL_SLACK ) {
 						const double proximityFactor = 1.0 - QM_Clamp( anchorGoalDelta / NAV_CLUSTER_LADDER_GOAL_SLACK, 0.0, 1.0 );
-						cost -= NAV_CLUSTER_LADDER_INTENT_BONUS * proximityFactor;
+						cost -= NAV_CLUSTER_LADDER_INTENT_BONUS* proximityFactor;
 					}
 				}
 			}
@@ -474,33 +474,33 @@ static const bool Nav_ClusterGraph_FindRoute( const nav_mesh_t *mesh, const Vect
 	return true;
 }
 
-void SVG_Nav_ClusterGraph_BuildFromMesh_World( const nav_mesh_t *mesh ) {
+void SVG_Nav_ClusterGraph_BuildFromMesh_World( const nav_mesh_t * mesh ) {
    Nav_ClusterGraph_BuildFromMesh_Runtime( mesh );
 }
 
-/**
-*    @brief    Clear cached cluster graph state and adjacency data.
+/** 
+*  @brief    Clear cached cluster graph state and adjacency data.
 **/
 void SVG_Nav_ClusterGraph_Clear( void ) {
 	Nav_ClusterGraph_Clear();
 }
 
-/**
-*    @brief    Find a tile-route between start and goal positions via the cluster graph.
-*    @param    mesh        Navigation mesh.
-*    @param    startPos    World-space start.
-*    @param    goalPos     World-space goal.
-*    @param    outRoute    [out] Tile keys forming a route from start to goal.
-*    @return   True if a route was found.
+/** 
+*  @brief    Find a tile-route between start and goal positions via the cluster graph.
+*  @param    mesh        Navigation mesh.
+*  @param    startPos    World-space start.
+*  @param    goalPos     World-space goal.
+*  @param    outRoute    [out] Tile keys forming a route from start to goal.
+*  @return   True if a route was found.
 **/
-const bool SVG_Nav_ClusterGraph_FindRoute( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &goalPos,
+const bool SVG_Nav_ClusterGraph_FindRoute( const nav_mesh_t * mesh, const Vector3 &startPos, const Vector3 &goalPos,
 	std::vector<nav_tile_cluster_key_t> &outRoute ) {
 	return Nav_ClusterGraph_FindRoute( mesh, startPos, goalPos, outRoute );
 }
 
-/**
-*	@brief    Get the tile key for a given world position.
+/** 
+* 	@brief    Get the tile key for a given world position.
 **/
-nav_tile_cluster_key_t SVG_Nav_GetTileKeyForPosition( const nav_mesh_t *mesh, const Vector3 &pos ) {
+nav_tile_cluster_key_t SVG_Nav_GetTileKeyForPosition( const nav_mesh_t * mesh, const Vector3 &pos ) {
 	return Nav_GetTileKeyForPosition( mesh, pos );
 }

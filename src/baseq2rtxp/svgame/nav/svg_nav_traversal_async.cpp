@@ -1,10 +1,10 @@
-/********************************************************************
-*
-*
-*    SVGame: Navigation Traversal Async Helpers (implementation)
-*
-*
-********************************************************************/
+/** * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+* 
+* 
+*  SVGame: Navigation Traversal Async Helpers (implementation)
+* 
+* 
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * **/
 
 #include "svgame/svg_local.h"
 #include "svgame/nav/svg_nav_clusters.h"
@@ -31,13 +31,19 @@ extern cvar_t *nav_cost_slope_weight;
 extern cvar_t *nav_cost_drop_weight;
 extern cvar_t *nav_cost_min_cost_per_unit;
 
-//! Optional runtime cvar to tune per-call A* step budget (milliseconds).
+extern cvar_t *nav_refine_corridor_mid_tiles;
+extern cvar_t *nav_refine_corridor_far_tiles;
+extern cvar_t *nav_refine_corridor_radius_near;
+extern cvar_t *nav_refine_corridor_radius_mid;
+extern cvar_t *nav_refine_corridor_radius_far;
+
+//! Optional runtime cvar to tune per-call A*  step budget (milliseconds).
 extern cvar_t *nav_astar_step_budget_ms;
 
 inline bool Nav_PathDiagEnabled( void );
 
 // Helper: stringify rejection reason for diagnostics/telemetry.
-static const char *Nav_EdgeRejectReasonToString( nav_edge_reject_reason_t r ) {
+static const char * Nav_EdgeRejectReasonToString( nav_edge_reject_reason_t r ) {
 	switch ( r ) {
 	case nav_edge_reject_reason_t::None: return "None";
 	case nav_edge_reject_reason_t::TileRouteFilter: return "TileRouteFilter";
@@ -120,35 +126,35 @@ static constexpr Vector3 s_nav_neighbor_offsets[] = {
 	{ -2.0f, -2.0f, -1.0f }
 };
 
-/**
-*    @brief	Determine whether an async neighbor offset represents a distinct cell-hop probe.
-*    @param	offset_dir	Neighbor offset in cell/layer units.
-*    @return	True when the offset should be evaluated by async expansion.
-*    @note	Adjacent-cell layer selection already resolves the best reachable layer in the target XY cell,
-*    		so z-biased variants and long-hop variants only multiply search states without adding a stable
-*    		local traversal step. Pure vertical probes alias back onto the current node and are also skipped.
+/** 
+*  @brief	Determine whether an async neighbor offset represents a distinct cell-hop probe.
+*  @param	offset_dir	Neighbor offset in cell/layer units.
+*  @return	True when the offset should be evaluated by async expansion.
+*  @note	Adjacent-cell layer selection already resolves the best reachable layer in the target XY cell,
+*  		so z-biased variants and long-hop variants only multiply search states without adding a stable
+*  		local traversal step. Pure vertical probes alias back onto the current node and are also skipped.
 **/
 static inline bool Nav_AStar_ShouldProbeNeighborOffset( const Vector3 &offset_dir ) {
-	/**
-	*    Skip all probes that do not represent a distinct XY cell hop.
+	/** 
+	*  Skip all probes that do not represent a distinct XY cell hop.
 	**/
 	if ( offset_dir.x == 0.0f && offset_dir.y == 0.0f ) {
 		return false;
 	}
 
-    /**
-	*    Restore short XY bridge probes while keeping expansion planar.
-	*        The last known-good state produced full paths with a broader XY neighborhood available.
-	*        Re-allow up to 2-cell planar hops so async expansion can bridge sparse walkable cells,
-	*        but keep all non-step Z variants disabled so the search still extends only across XY.
+    /** 
+	*  Restore short XY bridge probes while keeping expansion planar.
+	*      The last known-good state produced full paths with a broader XY neighborhood available.
+	*      Re-allow up to 2-cell planar hops so async expansion can bridge sparse walkable cells,
+	*      but keep all non-step Z variants disabled so the search still extends only across XY.
 	**/
 	if ( std::fabs( offset_dir.x ) > 2.0f || std::fabs( offset_dir.y ) > 2.0f ) {
 		return false;
 	}
 
-	/**
-	*    Skip redundant z-biased variants for the same XY hop because adjacent-cell layer selection
-	*    already chooses the best target layer from the destination cell.
+	/** 
+	*  Skip redundant z-biased variants for the same XY hop because adjacent-cell layer selection
+	*  already chooses the best target layer from the destination cell.
 	**/
 	if ( offset_dir.z != 0.0f ) {
 		return false;
@@ -157,70 +163,82 @@ static inline bool Nav_AStar_ShouldProbeNeighborOffset( const Vector3 &offset_di
 	return true;
 }
 
-/**
-*    @brief	Apply sparse dynamic occupancy policy to a candidate async neighbor.
-*    @param	state	A* state receiving diagnostic counters.
-*    @param	mesh	Navigation mesh consulted for sparse occupancy data.
-*    @param	neighbor_node	Candidate canonical neighbor.
-*    @param	policy	Traversal policy controlling whether occupancy is ignored, softened, or hard-blocked.
-*    @param	dynamic_weight	Base runtime cost multiplier already used by the async scorer.
-*    @param	inout_extra_cost	[in,out] Accumulated neighbor cost updated with any occupancy soft cost.
-*    @return	True when the neighbor should be rejected due to hard occupancy blocking.
-*    @note	This keeps sparse occupancy local and policy-driven so callers can prefer soft-cost steering before hard blocking.
+/** 
+*  @brief	Apply sparse dynamic occupancy policy to a candidate async neighbor.
+*  @param	state	A*  state receiving diagnostic counters.
+*  @param	mesh	Navigation mesh consulted for sparse occupancy data.
+*  @param	neighbor_node	Candidate canonical neighbor.
+*  @param	policy	Traversal policy controlling whether occupancy is ignored, softened, or hard-blocked.
+*  @param	dynamic_weight	Base runtime cost multiplier already used by the async scorer.
+*  @param	inout_extra_cost	[in,out] Accumulated neighbor cost updated with any occupancy soft cost.
+*  @return	True when the neighbor should be rejected due to hard occupancy blocking.
+*  @note	This keeps sparse occupancy local and policy-driven so callers can prefer soft-cost steering before hard blocking.
 **/
-static bool Nav_AStar_ApplyDynamicOccupancyPolicy( nav_a_star_state_t *state, const nav_mesh_t *mesh, const nav_node_ref_t &neighbor_node,
-	const svg_nav_path_policy_t *policy, const double dynamic_weight, double *inout_extra_cost ) {
-	/**
-	*    Sanity checks: require mesh and output storage before consulting occupancy overlays.
+static bool Nav_AStar_ApplyDynamicOccupancyPolicy( nav_a_star_state_t * state, const nav_mesh_t * mesh, const nav_node_ref_t &neighbor_node,
+	const svg_nav_path_policy_t * policy, const double dynamic_weight, double * inout_extra_cost ) {
+	/** 
+	*  Sanity checks: require mesh and output storage before consulting occupancy overlays.
 	**/
 	if ( !mesh || !inout_extra_cost ) {
 		return false;
 	}
 
-	/**
-	*    Allow callers to disable sparse occupancy participation entirely for targeted policy experiments.
+	/** 
+	*  Allow callers to disable sparse occupancy participation entirely for targeted policy experiments.
 	**/
 	if ( policy && !policy->use_dynamic_occupancy ) {
 		return false;
 	}
 
-	/**
-	*    Read both hard and soft occupancy signals from the sparse local overlay.
+	/** 
+  * Read the authoritative sparse occupancy overlay entry once so blocked and soft-cost semantics stay consistent.
 	**/
-	const bool occupancyBlocked = SVG_Nav_Occupancy_Blocked( mesh, neighbor_node.key.tile_index, neighbor_node.key.cell_index, neighbor_node.key.layer_index );
-	const int32_t occupancySoftCost = SVG_Nav_Occupancy_SoftCost( mesh, neighbor_node.key.tile_index, neighbor_node.key.cell_index, neighbor_node.key.layer_index );
+ nav_occupancy_entry_t occupancy = {};
+	if ( !SVG_Nav_Occupancy_TryGet( mesh, neighbor_node.key.tile_index, neighbor_node.key.cell_index, neighbor_node.key.layer_index, &occupancy ) ) {
+		return false;
+	}
+	if ( state ) {
+		state->occupancy_overlay_hit_count++;
+	}
+
+	const bool occupancyBlocked = occupancy.blocked;
+	const int32_t occupancySoftCost = occupancy.soft_cost;
 	const double occupancySoftScale = policy ? std::max( 0.0, policy->dynamic_occupancy_soft_cost_scale ) : 1.0;
 
-	/**
-	*    Prefer soft-cost steering first unless the policy explicitly requests hard blocking.
+	/** 
+	*  Prefer soft-cost steering first unless the policy explicitly requests hard blocking.
 	**/
 	if ( occupancyBlocked && ( !policy || policy->hard_block_dynamic_occupancy ) ) {
 		if ( state ) {
+			state->occupancy_block_reject_count++;
 			state->edge_reject_reason_counts[(int)nav_edge_reject_reason_t::Occupancy]++;
 		}
 		return true;
 	}
 
-	/**
-	*    Convert sparse occupancy pressure into local additional traversal cost when enabled.
+	/** 
+	*  Convert sparse occupancy pressure into local additional traversal cost when enabled.
 	**/
 	const int32_t effectiveSoftCost = occupancyBlocked ? std::max( occupancySoftCost, 1 ) : occupancySoftCost;
 	if ( effectiveSoftCost > 0 && occupancySoftScale > 0.0 ) {
-		*inout_extra_cost += dynamic_weight * occupancySoftScale * ( double )effectiveSoftCost;
+     if ( state ) {
+			state->occupancy_soft_cost_hit_count++;
+		}
+		*inout_extra_cost += dynamic_weight* occupancySoftScale* ( double )effectiveSoftCost;
 	}
 
 	return false;
 }
 
-/**
-*    @brief	Append a tile-route key only when it is not already present in the buffered filter.
-*    @param	bufferedRoute	Buffered route under construction.
-*    @param	key		Tile key to append.
-*    @note	Keeps the widened coarse-route corridor stable without requiring hash support for the tile key type.
+/** 
+*  @brief	Append a tile-route key only when it is not already present in the buffered filter.
+*  @param	bufferedRoute	Buffered route under construction.
+*  @param	key		Tile key to append.
+*  @note	Keeps the widened coarse-route corridor stable without requiring hash support for the tile key type.
 **/
 static void Nav_AStar_AppendUniqueRouteTile( std::vector<nav_tile_cluster_key_t> &bufferedRoute, const nav_tile_cluster_key_t &key ) {
-	/**
-	*    Skip duplicate keys so the buffered filter stays compact and deterministic.
+	/** 
+	*  Skip duplicate keys so the buffered filter stays compact and deterministic.
 	**/
 	if ( std::find( bufferedRoute.begin(), bufferedRoute.end(), key ) != bufferedRoute.end() ) {
 		return;
@@ -230,71 +248,77 @@ static void Nav_AStar_AppendUniqueRouteTile( std::vector<nav_tile_cluster_key_t>
 	bufferedRoute.push_back( key );
 }
 
-/**
-*    @brief	Choose an adaptive tile-route corridor radius from coarse route length.
-*    @param	routeTileCount	Number of tiles in the exact coarse route.
-*    @return	Chebyshev corridor radius in tiles used to buffer the fine-search allow-list.
-*    @note	Short routes should stay narrow for performance, while long routes need wider detour freedom
-*    		to avoid getting trapped by an overly strict tile-route spine.
+/** 
+*  @brief	Choose an adaptive tile-route corridor radius from coarse route length.
+*  @param	routeTileCount	Number of tiles in the exact coarse route.
+*  @return	Chebyshev corridor radius in tiles used to buffer the fine-search allow-list.
+*  @note	Short routes should stay narrow for performance, while long routes need wider detour freedom
+*  		to avoid getting trapped by an overly strict tile-route spine.
 **/
 static int32_t Nav_AStar_ComputeRouteBufferRadius( const size_t routeTileCount ) {
-	/**
-	*    Keep short routes tight and expand only when the coarse route becomes long enough to justify it.
+	/** 
+	*  Keep short routes tight and expand only when the coarse route becomes long enough to justify it.
 	**/
-	if ( routeTileCount >= 24 ) {
-		return 3;
+	const int32_t midTileThreshold = nav_refine_corridor_mid_tiles ? std::max( 0, nav_refine_corridor_mid_tiles->integer ) : 12;
+	const int32_t farTileThreshold = nav_refine_corridor_far_tiles ? std::max( 0, nav_refine_corridor_far_tiles->integer ) : 24;
+	const int32_t nearRadius = nav_refine_corridor_radius_near ? std::clamp( nav_refine_corridor_radius_near->integer, 0, 8 ) : 1;
+	const int32_t midRadius = nav_refine_corridor_radius_mid ? std::clamp( nav_refine_corridor_radius_mid->integer, 0, 8 ) : 2;
+	const int32_t farRadius = nav_refine_corridor_radius_far ? std::clamp( nav_refine_corridor_radius_far->integer, 0, 8 ) : 3;
+	if ( routeTileCount >= (size_t)farTileThreshold ) {
+		return farRadius;
 	}
-	if ( routeTileCount >= 12 ) {
-		return 2;
+   if ( routeTileCount >= (size_t)midTileThreshold ) {
+		return midRadius;
 	}
 
-	// Default to the original one-tile local detour budget for short routes.
-	return 1;
+   // Default to the tuned near-route detour budget for short routes.
+	return nearRadius;
 }
 
-/**
-*    @brief	Build a widened fine-search corridor from the coarse cluster route.
-*    @param	exactRoute	Exact tile sequence returned by the cluster graph.
-*    @param	outBufferedRoute	[out] Buffered tile allow-list used by fine A*.
-*    @note	Fine A* still benefits from coarse routing, but distant goals need a larger local detour budget
-*    		than short routes so the search can route around geometry without abandoning the coarse path spine.
+/** 
+*	@brief	Build a widened fine-search corridor from the coarse cluster route.
+*	@param	exactRoute			Exact tile sequence returned by the cluster graph.
+*	@param	outBufferedRoute	[out] Buffered tile allow-list used by fine A* .
+* 	@return	Chebyshev corridor radius in tiles used to buffer the fine-search allow-list.
+*	@note	Fine A*  still benefits from coarse routing, but distant goals need a larger local detour budget
+*  		than short routes so the search can route around geometry without abandoning the coarse path spine.
 **/
-static void Nav_AStar_BuildBufferedTileRouteFilter( const std::vector<nav_tile_cluster_key_t> &exactRoute,
-	std::vector<nav_tile_cluster_key_t> *outBufferedRoute ) {
-	/**
-	*    Sanity checks: require output storage.
+static int32_t Nav_AStar_BuildBufferedTileRouteFilter( const std::vector<nav_tile_cluster_key_t> &exactRoute,
+	std::vector<nav_tile_cluster_key_t> * outBufferedRoute ) {
+	/** 
+	*  Sanity checks: require output storage.
 	**/
 	if ( !outBufferedRoute ) {
-		return;
+     return 0;
 	}
 
 	// Reset any existing buffered output before rebuilding it.
 	outBufferedRoute->clear();
 	if ( exactRoute.empty() ) {
-		return;
+     return 0;
 	}
 
-	/**
-	*    Derive the adaptive corridor width before reserving storage.
+	/** 
+	*  Derive the adaptive corridor width before reserving storage.
 	**/
 	const int32_t routeBufferRadius = Nav_AStar_ComputeRouteBufferRadius( exactRoute.size() );
-	const int32_t corridorWidth = ( routeBufferRadius * 2 ) + 1;
+	const int32_t corridorWidth = ( routeBufferRadius* 2 ) + 1;
 
-	/**
-    *    Reserve a coarse upper bound for the adaptive neighborhood around each route tile.
+	/** 
+   * Reserve a coarse upper bound for the adaptive neighborhood around each route tile.
 	**/
- outBufferedRoute->reserve( exactRoute.size() * corridorWidth * corridorWidth );
+	outBufferedRoute->reserve( exactRoute.size()* corridorWidth* corridorWidth );
 
-	/**
- *    Expand each route tile into an adaptive Chebyshev neighborhood.
-	*        This keeps nearby searches conservative while allowing long routes additional freedom to step
-	*        around obstacles without being pinned to an exact tile-only spine.
+	/** 
+	*  Expand each route tile into an adaptive Chebyshev neighborhood.
+	*      This keeps nearby searches conservative while allowing long routes additional freedom to step
+	*      around obstacles without being pinned to an exact tile-only spine.
 	**/
 	for ( const nav_tile_cluster_key_t &routeKey : exactRoute ) {
 		// Always keep the exact route tile first.
-		Nav_AStar_AppendUniqueRouteTile( *outBufferedRoute, routeKey );
+		Nav_AStar_AppendUniqueRouteTile( * outBufferedRoute, routeKey );
 
-     // Append the adaptive surrounding tiles as the buffered corridor.
+		// Append the adaptive surrounding tiles as the buffered corridor.
 		for ( int32_t dy = -routeBufferRadius; dy <= routeBufferRadius; dy++ ) {
 			for ( int32_t dx = -routeBufferRadius; dx <= routeBufferRadius; dx++ ) {
 				if ( dx == 0 && dy == 0 ) {
@@ -305,172 +329,174 @@ static void Nav_AStar_BuildBufferedTileRouteFilter( const std::vector<nav_tile_c
 					.tile_x = routeKey.tile_x + dx,
 					.tile_y = routeKey.tile_y + dy
 				};
-				Nav_AStar_AppendUniqueRouteTile( *outBufferedRoute, widenedKey );
+				Nav_AStar_AppendUniqueRouteTile( * outBufferedRoute, widenedKey );
 			}
 		}
+
+	return routeBufferRadius;
 	}
 }
 
 static inline double Nav_AStar_Heuristic( const Vector3 &a, const Vector3 &b ) {
 	const Vector3 delta = QM_Vector3Subtract( b, a );
-	return sqrtf( ( delta[ 0 ] * delta[ 0 ] ) + ( delta[ 1 ] * delta[ 1 ] ) + ( delta[ 2 ] * delta[ 2 ] ) );
+	return sqrtf( ( delta[ 0 ]* delta[ 0 ] ) + ( delta[ 1 ]* delta[ 1 ] ) + ( delta[ 2 ]* delta[ 2 ] ) );
 }
 
-/**
-*    @brief	Compute floor-division for signed global cell coordinates.
-*    @param	value	Signed dividend.
-*    @param	divisor	Positive divisor.
-*    @return	Mathematical floor of `value / divisor`.
-*    @note	Used to map global cell coordinates back into tile coordinates without
-*    		boundary-origin collapse on negative coordinates.
+/** 
+*  @brief	Compute floor-division for signed global cell coordinates.
+*  @param	value	Signed dividend.
+*  @param	divisor	Positive divisor.
+*  @return	Mathematical floor of `value / divisor`.
+*  @note	Used to map global cell coordinates back into tile coordinates without
+*  		boundary-origin collapse on negative coordinates.
 **/
 static inline int32_t Nav_AStar_FloorDiv( const int32_t value, const int32_t divisor ) {
-	/**
-	*    Sanity check: require a positive divisor.
+	/** 
+	*  Sanity check: require a positive divisor.
 	**/
 	if ( divisor <= 0 ) {
 		return 0;
 	}
 
-	/**
-	*    Use integer fast-path for non-negative values.
+	/** 
+	*  Use integer fast-path for non-negative values.
 	**/
 	if ( value >= 0 ) {
 		return value / divisor;
 	}
 
-	/**
-	*    Negative coordinates need explicit floor semantics rather than truncation.
+	/** 
+	*  Negative coordinates need explicit floor semantics rather than truncation.
 	**/
 	return -( ( -value + divisor - 1 ) / divisor );
 }
 
-/**
-*    @brief	Compute a positive modulo for signed global cell coordinates.
-*    @param	value	Signed input value.
-*    @param	modulus	Positive modulus.
-*    @return	Value wrapped into `[0, modulus)`.
+/** 
+*  @brief	Compute a positive modulo for signed global cell coordinates.
+*  @param	value	Signed input value.
+*  @param	modulus	Positive modulus.
+*  @return	Value wrapped into `[0, modulus)`.
 **/
 static inline int32_t Nav_AStar_PosMod( const int32_t value, const int32_t modulus ) {
-	/**
-	*    Sanity check: require a positive modulus.
+	/** 
+	*  Sanity check: require a positive modulus.
 	**/
 	if ( modulus <= 0 ) {
 		return 0;
 	}
 
-	/**
-	*    Normalize the remainder into a positive tile-local range.
+	/** 
+	*  Normalize the remainder into a positive tile-local range.
 	**/
 	const int32_t remainder = value % modulus;
 	return ( remainder < 0 ) ? ( remainder + modulus ) : remainder;
 }
 
-/**
-*    @brief	Check whether a sparse tile cell is marked present.
-*    @param	tile	Tile to query.
-*    @param	cell_index	Cell index inside the tile.
-*    @return	True if the sparse presence bit is set.
+/** 
+*  @brief	Check whether a sparse tile cell is marked present.
+*  @param	tile	Tile to query.
+*  @param	cell_index	Cell index inside the tile.
+*  @return	True if the sparse presence bit is set.
 **/
-static inline const bool Nav_AStar_CellPresent( const nav_tile_t *tile, const int32_t cell_index ) {
-	/**
-	*    Sanity checks: require tile storage and a non-negative cell index.
+static inline const bool Nav_AStar_CellPresent( const nav_tile_t * tile, const int32_t cell_index ) {
+	/** 
+	*  Sanity checks: require tile storage and a non-negative cell index.
 	**/
 	if ( !tile || !tile->presence_bits || cell_index < 0 ) {
 		return false;
 	}
 
-	/**
-	*    Read the sparse presence bit for this tile cell.
+	/** 
+	*  Read the sparse presence bit for this tile cell.
 	**/
 	const int32_t word_index = cell_index >> 5;
 	const int32_t bit_index = cell_index & 31;
 	return ( tile->presence_bits[ word_index ] & ( 1u << bit_index ) ) != 0;
 }
 
-/**
-*    @brief	Compute a canonical node world position from tile, cell, and layer storage.
-*    @param	mesh	Navigation mesh.
-*    @param	tile	Canonical world tile.
-*    @param	cell_index	Cell index inside the tile.
-*    @param	layer	Selected layer inside the cell.
-*    @return	World-space center position for the node.
+/** 
+*  @brief	Compute a canonical node world position from tile, cell, and layer storage.
+*  @param	mesh	Navigation mesh.
+*  @param	tile	Canonical world tile.
+*  @param	cell_index	Cell index inside the tile.
+*  @param	layer	Selected layer inside the cell.
+*  @return	World-space center position for the node.
 **/
-static inline Vector3 Nav_AStar_NodeWorldPosition( const nav_mesh_t *mesh, const nav_tile_t *tile, const int32_t cell_index, const nav_layer_t *layer ) {
-	/**
-	*    Sanity checks: require canonical mesh storage.
+static inline Vector3 Nav_AStar_NodeWorldPosition( const nav_mesh_t * mesh, const nav_tile_t * tile, const int32_t cell_index, const nav_layer_t * layer ) {
+	/** 
+	*  Sanity checks: require canonical mesh storage.
 	**/
 	if ( !mesh || !tile || !layer ) {
 		return Vector3{};
 	}
 
-	/**
-	*    Derive tile-local XY coordinates and convert them back to world-space cell centers.
+	/** 
+	*  Derive tile-local XY coordinates and convert them back to world-space cell centers.
 	**/
-	const double tile_world_size = ( double )mesh->tile_size * mesh->cell_size_xy;
+	const double tile_world_size = ( double )mesh->tile_size* mesh->cell_size_xy;
 	const int32_t cell_x = cell_index % mesh->tile_size;
 	const int32_t cell_y = cell_index / mesh->tile_size;
-	const double world_x = ( ( double )tile->tile_x * tile_world_size ) + ( ( double )cell_x + 0.5 ) * mesh->cell_size_xy;
-	const double world_y = ( ( double )tile->tile_y * tile_world_size ) + ( ( double )cell_y + 0.5 ) * mesh->cell_size_xy;
-	const double world_z = ( double )layer->z_quantized * mesh->z_quant;
+	const double world_x = ( ( double )tile->tile_x* tile_world_size ) + ( ( double )cell_x + 0.5 )* mesh->cell_size_xy;
+	const double world_y = ( ( double )tile->tile_y* tile_world_size ) + ( ( double )cell_y + 0.5 )* mesh->cell_size_xy;
+	const double world_z = ( double )layer->z_quantized* mesh->z_quant;
 	return Vector3{ ( float )world_x, ( float )world_y, ( float )world_z };
 }
 
-/**
-*    @brief	Select the best neighboring layer for adjacent-cell expansion.
-*    @param	mesh	Navigation mesh.
-*    @param	cell	Target XY cell containing one or more candidate layers.
-*    @param	current_node	Currently expanded canonical node.
-*    @param	offset_dir	Neighbor offset in cell/layer units.
-*    @param	policy	Traversal policy controlling step and jump allowances.
-*    @param	out_layer_index	[out] Selected target layer index.
-*    @return	True if a compatible neighboring layer was found.
-*    @note	This is stricter than generic `Nav_SelectLayerIndex()` because adjacent-cell
-*    		expansion should prefer the walk surface that continues from the current node,
-*    		not just the closest-by-Z layer inside the target cell.
+/** 
+*  @brief	Select the best neighboring layer for adjacent-cell expansion.
+*  @param	mesh	Navigation mesh.
+*  @param	cell	Target XY cell containing one or more candidate layers.
+*  @param	current_node	Currently expanded canonical node.
+*  @param	offset_dir	Neighbor offset in cell/layer units.
+*  @param	policy	Traversal policy controlling step and jump allowances.
+*  @param	out_layer_index	[out] Selected target layer index.
+*  @return	True if a compatible neighboring layer was found.
+*  @note	This is stricter than generic `Nav_SelectLayerIndex()` because adjacent-cell
+*  		expansion should prefer the walk surface that continues from the current node,
+*  		not just the closest-by-Z layer inside the target cell.
 **/
-static bool Nav_AStar_SelectNeighborLayerIndex( const nav_mesh_t *mesh, const nav_xy_cell_t *cell, const nav_node_ref_t &current_node,
-	const Vector3 &offset_dir, const svg_nav_path_policy_t *policy, int32_t *out_layer_index ) {
-	/**
-	*    Sanity checks: require mesh, cell storage, and output storage.
+static bool Nav_AStar_SelectNeighborLayerIndex( const nav_mesh_t * mesh, const nav_xy_cell_t * cell, const nav_node_ref_t &current_node,
+	const Vector3 &offset_dir, const svg_nav_path_policy_t * policy, int32_t * out_layer_index ) {
+	/** 
+	*  Sanity checks: require mesh, cell storage, and output storage.
 	**/
 	if ( !mesh || !cell || cell->num_layers <= 0 || !cell->layers || !out_layer_index ) {
 		return false;
 	}
 
-	/**
-	*    Build the same desired Z used for the current neighbor probe.
+	/** 
+	*  Build the same desired Z used for the current neighbor probe.
 	**/
 	const double current_z = current_node.worldPosition[ 2 ];
-	const double desired_z = current_z + ( ( double )offset_dir.z * mesh->z_quant );
+	const double desired_z = current_z + ( ( double )offset_dir.z* mesh->z_quant );
 
-	/**
-	*    Rebuild the local Z tolerance used by strict neighbor expansion.
+	/** 
+	*  Rebuild the local Z tolerance used by strict neighbor expansion.
 	**/
-	const double z_tolerance = mesh->max_step + ( mesh->z_quant * 0.5 );
+	const double z_tolerance = mesh->max_step + ( mesh->z_quant* 0.5 );
 
- /**
-	*    Derive the local step/jump thresholds used only for candidate ordering.
-	*        Do not hard-reject layers solely from raw Z delta here because the authoritative
-	*        segmented step validator already handles ramps and stairs later in expansion.
+ /** 
+	*  Derive the local step/jump thresholds used only for candidate ordering.
+	*      Do not hard-reject layers solely from raw Z delta here because the authoritative
+	*      segmented step validator already handles ramps and stairs later in expansion.
 	**/
 	const double step_limit = ( policy && policy->max_step_height > 0.0 ) ? ( double )policy->max_step_height : ( double )mesh->max_step;
 	const double jump_limit = ( policy && policy->allow_small_obstruction_jump ) ? ( double )policy->max_obstruction_jump_height : 0.0;
 	const double max_allowed_rise = step_limit + jump_limit;
 
- /**
-    *    Score candidates so we prefer step-compatible walk surfaces before jump-only or extreme layers.
-	*    Use two passes:
-	*        1) Strict desired-Z matching for normal adjacent-cell continuation.
-	*        2) Conservative fallback using only traversal compatibility when the desired-Z gate is too strict.
- *    @note	This selector intentionally ranks large rises last instead of hard-rejecting them.
-	*    		The later `Nav_CanTraverseStep_ExplicitBBox()` call is the authoritative gate for
-	*    		ramps, stairs, and segmented multi-cell climbs.
+ /** 
+   * Score candidates so we prefer step-compatible walk surfaces before jump-only or extreme layers.
+	*  Use two passes:
+	*      1) Strict desired-Z matching for normal adjacent-cell continuation.
+	*      2) Conservative fallback using only traversal compatibility when the desired-Z gate is too strict.
+* @note	This selector intentionally ranks large rises last instead of hard-rejecting them.
+	*  		The later `Nav_CanTraverseStep_ExplicitBBox()` call is the authoritative gate for
+	*  		ramps, stairs, and segmented multi-cell climbs.
 	**/
 	int32_t best_index = -1;
 	for ( int32_t pass_index = 0; pass_index < 2 && best_index < 0; pass_index++ ) {
-		/**
-		*    Reset pass-local scoring state before evaluating candidates.
+		/** 
+		*  Reset pass-local scoring state before evaluating candidates.
 		**/
 		int32_t pass_best_band = std::numeric_limits<int32_t>::max();
 		double pass_best_up_cost = std::numeric_limits<double>::infinity();
@@ -483,7 +509,7 @@ static bool Nav_AStar_SelectNeighborLayerIndex( const nav_mesh_t *mesh, const na
 		// Iterate over all layers in the target cell and keep the most traversal-compatible candidate.
 		for ( int32_t i = 0; i < cell->num_layers; i++ ) {
 			// Convert the quantized layer height into world-space units.
-			const double layer_z = ( double )cell->layers[ i ].z_quantized * mesh->z_quant;
+			const double layer_z = ( double )cell->layers[ i ].z_quantized* mesh->z_quant;
 			// Compare the candidate against the desired probe height.
 			const double desired_delta = std::fabs( layer_z - desired_z );
 
@@ -516,49 +542,49 @@ static bool Nav_AStar_SelectNeighborLayerIndex( const nav_mesh_t *mesh, const na
 			}
 		}
 
-		/**
-		*    If the strict pass found nothing, clear the provisional index so the fallback pass can retry.
+		/** 
+		*  If the strict pass found nothing, clear the provisional index so the fallback pass can retry.
 		**/
 		if ( pass_index == 0 && best_index >= 0 && pass_best_desired_delta > z_tolerance ) {
 			best_index = -1;
 		}
 	}
 
-	/**
-	*    Commit the best compatible neighboring layer, if any.
+	/** 
+	*  Commit the best compatible neighboring layer, if any.
 	**/
 	if ( best_index < 0 ) {
 		return false;
 	}
 
-	*out_layer_index = best_index;
+	* out_layer_index = best_index;
 	return true;
 }
 
-/**
-*    @brief	Resolve an exact neighboring canonical node from tile and cell offsets.
-*    @param	mesh	Navigation mesh.
-*    @param	current_node	Currently expanded canonical node.
-*    @param	offset_dir	Neighbor offset in cell and layer units.
-*    @param	out_node	[out] Resolved neighboring node.
-*    @return	True if a concrete neighboring node was found.
-*    @note	This bypasses world-position lookup for neighbor expansion so boundary-origin
-*    		cell centers cannot collapse back onto the current node through coordinate rounding.
+/** 
+*  @brief	Resolve an exact neighboring canonical node from tile and cell offsets.
+*  @param	mesh	Navigation mesh.
+*  @param	current_node	Currently expanded canonical node.
+*  @param	offset_dir	Neighbor offset in cell and layer units.
+*  @param	out_node	[out] Resolved neighboring node.
+*  @return	True if a concrete neighboring node was found.
+*  @note	This bypasses world-position lookup for neighbor expansion so boundary-origin
+*  		cell centers cannot collapse back onto the current node through coordinate rounding.
 **/
-static bool Nav_AStar_TryResolveNeighborNodeExact( nav_a_star_state_t *state, const nav_mesh_t *mesh, const nav_node_ref_t &current_node, const Vector3 &offset_dir,
-	const svg_nav_path_policy_t *policy, nav_node_ref_t *out_node ) {
-	/**
-	*    Sanity checks: require mesh, output storage, and a valid current tile reference.
+static bool Nav_AStar_TryResolveNeighborNodeExact( nav_a_star_state_t * state, const nav_mesh_t * mesh, const nav_node_ref_t &current_node, const Vector3 &offset_dir,
+	const svg_nav_path_policy_t * policy, nav_node_ref_t * out_node ) {
+	/** 
+	*  Sanity checks: require mesh, output storage, and a valid current tile reference.
 	**/
 	if ( !mesh || !out_node ) {
 		return false;
 	}
-  /**
-	*    Vertical same-cell probes intentionally resolve back onto the current node.
-	*        This keeps alias accounting stable and avoids treating pure layer probes as missing neighbors.
+  /** 
+	*  Vertical same-cell probes intentionally resolve back onto the current node.
+	*      This keeps alias accounting stable and avoids treating pure layer probes as missing neighbors.
 	**/
 	if ( offset_dir.x == 0.0f && offset_dir.y == 0.0f ) {
-		*out_node = current_node;
+		* out_node = current_node;
 		return true;
 	}
 
@@ -570,34 +596,34 @@ static bool Nav_AStar_TryResolveNeighborNodeExact( nav_a_star_state_t *state, co
 		return false;
 	}
 
-	/**
-	*    Resolve the current node's global cell-grid coordinates.
+	/** 
+	*  Resolve the current node's global cell-grid coordinates.
 	**/
 	const nav_tile_t &current_tile = mesh->world_tiles[ current_node.key.tile_index ];
 	const int32_t current_local_x = current_node.key.cell_index % mesh->tile_size;
 	const int32_t current_local_y = current_node.key.cell_index / mesh->tile_size;
-	const int32_t current_global_x = ( current_tile.tile_x * mesh->tile_size ) + current_local_x;
-	const int32_t current_global_y = ( current_tile.tile_y * mesh->tile_size ) + current_local_y;
+	const int32_t current_global_x = ( current_tile.tile_x* mesh->tile_size ) + current_local_x;
+	const int32_t current_global_y = ( current_tile.tile_y* mesh->tile_size ) + current_local_y;
 
-	/**
-	*    Apply the requested cell offsets in canonical grid space.
+	/** 
+	*  Apply the requested cell offsets in canonical grid space.
 	**/
 	const int32_t offset_cell_x = ( int32_t )offset_dir.x;
 	const int32_t offset_cell_y = ( int32_t )offset_dir.y;
 	const int32_t target_global_x = current_global_x + offset_cell_x;
 	const int32_t target_global_y = current_global_y + offset_cell_y;
 
-	/**
-	*    Map the global cell coordinates back to tile-local addressing.
+	/** 
+	*  Map the global cell coordinates back to tile-local addressing.
 	**/
 	const int32_t target_tile_x = Nav_AStar_FloorDiv( target_global_x, mesh->tile_size );
 	const int32_t target_tile_y = Nav_AStar_FloorDiv( target_global_y, mesh->tile_size );
 	const int32_t target_local_x = Nav_AStar_PosMod( target_global_x, mesh->tile_size );
 	const int32_t target_local_y = Nav_AStar_PosMod( target_global_y, mesh->tile_size );
-	const int32_t target_cell_index = ( target_local_y * mesh->tile_size ) + target_local_x;
+	const int32_t target_cell_index = ( target_local_y* mesh->tile_size ) + target_local_x;
 
-	/**
-	*    Resolve the canonical world tile for the target cell.
+	/** 
+	*  Resolve the canonical world tile for the target cell.
 	**/
 	const nav_world_tile_key_t target_tile_key = { .tile_x = target_tile_x, .tile_y = target_tile_y };
 	auto tile_it = mesh->world_tile_id_of.find( target_tile_key );
@@ -615,10 +641,10 @@ static bool Nav_AStar_TryResolveNeighborNodeExact( nav_a_star_state_t *state, co
 		}
 		return false;
 	}
-	const nav_tile_t *target_tile = &mesh->world_tiles[ target_tile_index ];
+	const nav_tile_t * target_tile = &mesh->world_tiles[ target_tile_index ];
 
-	/**
-	*    Reject missing sparse cells before touching cell storage.
+	/** 
+	*  Reject missing sparse cells before touching cell storage.
 	**/
 	if ( !Nav_AStar_CellPresent( target_tile, target_cell_index ) ) {
        if ( state ) {
@@ -627,11 +653,11 @@ static bool Nav_AStar_TryResolveNeighborNodeExact( nav_a_star_state_t *state, co
 		return false;
 	}
 
-	/**
-	*    Resolve the cell storage and choose the closest acceptable layer by desired Z.
+	/** 
+	*  Resolve the cell storage and choose the closest acceptable layer by desired Z.
 	**/
 	auto cellsView = SVG_Nav_Tile_GetCells( mesh, target_tile );
-	const nav_xy_cell_t *cellsPtr = cellsView.first;
+	const nav_xy_cell_t * cellsPtr = cellsView.first;
 	const int32_t cellsCount = cellsView.second;
 	if ( !cellsPtr || target_cell_index < 0 || target_cell_index >= cellsCount ) {
        if ( state ) {
@@ -640,7 +666,7 @@ static bool Nav_AStar_TryResolveNeighborNodeExact( nav_a_star_state_t *state, co
 		return false;
 	}
 
-	const nav_xy_cell_t *target_cell = &cellsPtr[ target_cell_index ];
+	const nav_xy_cell_t * target_cell = &cellsPtr[ target_cell_index ];
 	if ( !target_cell || target_cell->num_layers <= 0 || !target_cell->layers ) {
        if ( state ) {
 			state->no_node_cell_view_count++;
@@ -656,10 +682,10 @@ static bool Nav_AStar_TryResolveNeighborNodeExact( nav_a_star_state_t *state, co
 		return false;
 	}
 
-	/**
-	*    Populate the resolved canonical node reference.
+	/** 
+	*  Populate the resolved canonical node reference.
 	**/
-	const nav_layer_t *target_layer = &target_cell->layers[ target_layer_index ];
+	const nav_layer_t * target_layer = &target_cell->layers[ target_layer_index ];
 	out_node->key.leaf_index = current_node.key.leaf_index;
 	out_node->key.tile_index = target_tile_index;
 	out_node->key.cell_index = target_cell_index;
@@ -668,25 +694,25 @@ static bool Nav_AStar_TryResolveNeighborNodeExact( nav_a_star_state_t *state, co
 	return true;
 }
 
-/**
-*    @brief	Count how many adjacent probes resolve to distinct neighboring nodes for a candidate layer.
-*    @param	mesh	Navigation mesh.
-*    @param	candidate_node	Candidate node to evaluate.
-*    @param	policy	Traversal policy used by exact neighbor resolution.
-*    @return	Number of non-alias neighboring nodes resolved around this candidate.
-*    @note	This is used only for same-cell start/goal rescue so we can prefer a locally connected
-*    		layer when the first generic lookup lands on an isolated variant.
+/** 
+*  @brief	Count how many adjacent probes resolve to distinct neighboring nodes for a candidate layer.
+*  @param	mesh	Navigation mesh.
+*  @param	candidate_node	Candidate node to evaluate.
+*  @param	policy	Traversal policy used by exact neighbor resolution.
+*  @return	Number of non-alias neighboring nodes resolved around this candidate.
+*  @note	This is used only for same-cell start/goal rescue so we can prefer a locally connected
+*  		layer when the first generic lookup lands on an isolated variant.
 **/
-static int32_t Nav_AStar_CountResolvableNeighborVariants( const nav_mesh_t *mesh, const nav_node_ref_t &candidate_node, const svg_nav_path_policy_t *policy ) {
-	/**
-	*    Sanity checks: require a mesh and a valid canonical tile reference.
+static int32_t Nav_AStar_CountResolvableNeighborVariants( const nav_mesh_t * mesh, const nav_node_ref_t &candidate_node, const svg_nav_path_policy_t * policy ) {
+	/** 
+	*  Sanity checks: require a mesh and a valid canonical tile reference.
 	**/
 	if ( !mesh || candidate_node.key.tile_index < 0 || candidate_node.key.tile_index >= ( int32_t )mesh->world_tiles.size() ) {
 		return 0;
 	}
 
-	/**
-	*    Probe all configured offsets and count only distinct, non-alias neighbors.
+	/** 
+	*  Probe all configured offsets and count only distinct, non-alias neighbors.
 	**/
 	int32_t resolved_count = 0;
 	for ( const Vector3 &offset_dir : s_nav_neighbor_offsets ) {
@@ -709,19 +735,19 @@ static int32_t Nav_AStar_CountResolvableNeighborVariants( const nav_mesh_t *mesh
 	return resolved_count;
 }
 
-/**
-*    @brief	Try to rescue a node onto a better-connected same-cell layer variant.
-*    @param	mesh	Navigation mesh.
-*    @param	seed_node	Initially resolved node in the target XY cell.
-*    @param	policy	Traversal policy used for exact neighbor compatibility checks.
-*    @param	out_node	[out] Best connected same-cell layer variant.
-*    @return	True when evaluation succeeded and `out_node` was populated.
-*    @note	This keeps the original XY cell fixed while scanning only its layer stack. It is intended
-*    		to repair start or goal node picks that landed on an isolated layer inside a multi-layer cell.
+/** 
+*  @brief	Try to rescue a node onto a better-connected same-cell layer variant.
+*  @param	mesh	Navigation mesh.
+*  @param	seed_node	Initially resolved node in the target XY cell.
+*  @param	policy	Traversal policy used for exact neighbor compatibility checks.
+*  @param	out_node	[out] Best connected same-cell layer variant.
+*  @return	True when evaluation succeeded and `out_node` was populated.
+*  @note	This keeps the original XY cell fixed while scanning only its layer stack. It is intended
+*  		to repair start or goal node picks that landed on an isolated layer inside a multi-layer cell.
 **/
-bool Nav_AStar_TrySelectConnectedSameCellLayer( const nav_mesh_t *mesh, const nav_node_ref_t &seed_node, const svg_nav_path_policy_t *policy, nav_node_ref_t *out_node ) {
-	/**
-	*    Sanity checks: require mesh, output storage, and a valid canonical tile reference.
+bool Nav_AStar_TrySelectConnectedSameCellLayer( const nav_mesh_t * mesh, const nav_node_ref_t &seed_node, const svg_nav_path_policy_t * policy, nav_node_ref_t * out_node ) {
+	/** 
+	*  Sanity checks: require mesh, output storage, and a valid canonical tile reference.
 	**/
 	if ( !mesh || !out_node ) {
 		return false;
@@ -730,24 +756,24 @@ bool Nav_AStar_TrySelectConnectedSameCellLayer( const nav_mesh_t *mesh, const na
 		return false;
 	}
 
-	/**
-	*    Resolve the owning tile and cell for the seed node.
+	/** 
+	*  Resolve the owning tile and cell for the seed node.
 	**/
-	const nav_tile_t *tile = &mesh->world_tiles[ seed_node.key.tile_index ];
+	const nav_tile_t * tile = &mesh->world_tiles[ seed_node.key.tile_index ];
 	auto cellsView = SVG_Nav_Tile_GetCells( mesh, tile );
-	const nav_xy_cell_t *cellsPtr = cellsView.first;
+	const nav_xy_cell_t * cellsPtr = cellsView.first;
 	const int32_t cellsCount = cellsView.second;
 	if ( !cellsPtr || seed_node.key.cell_index < 0 || seed_node.key.cell_index >= cellsCount ) {
 		return false;
 	}
 
-	const nav_xy_cell_t *cell = &cellsPtr[ seed_node.key.cell_index ];
+	const nav_xy_cell_t * cell = &cellsPtr[ seed_node.key.cell_index ];
 	if ( !cell || cell->num_layers <= 0 || !cell->layers ) {
 		return false;
 	}
 
-	/**
-	*    Start from the original resolved node and score each same-cell layer variant.
+	/** 
+	*  Start from the original resolved node and score each same-cell layer variant.
 	**/
 	nav_node_ref_t best_node = seed_node;
 	int32_t best_neighbor_count = Nav_AStar_CountResolvableNeighborVariants( mesh, seed_node, policy );
@@ -773,32 +799,32 @@ bool Nav_AStar_TrySelectConnectedSameCellLayer( const nav_mesh_t *mesh, const na
 		}
 	}
 
-	/**
-	*    Commit the best same-cell layer variant.
+	/** 
+	*  Commit the best same-cell layer variant.
 	**/
-	*out_node = best_node;
+	* out_node = best_node;
 	return true;
 }
 
-/**
-*    @brief	Apply policy-driven fast rejection to persisted edge metadata.
-*    @param	state	Optional A* state used to record rejection diagnostics.
-*    @param	policy	Traversal policy controlling hazards and walk-off permissions.
-*    @param	edge_bits	Persisted edge metadata to inspect.
-*    @param	record_reject_reason	If true, increment the async rejection counter when the policy rejects the edge.
-*    @return	True when the edge should be rejected before deeper neighbor resolution.
-*    @note	This centralizes the hazard and walk-off policy gate so the async hot path does not duplicate the same checks in multiple places.
+/** 
+*  @brief	Apply policy-driven fast rejection to persisted edge metadata.
+*  @param	state	Optional A*  state used to record rejection diagnostics.
+*  @param	policy	Traversal policy controlling hazards and walk-off permissions.
+*  @param	edge_bits	Persisted edge metadata to inspect.
+*  @param	record_reject_reason	If true, increment the async rejection counter when the policy rejects the edge.
+*  @return	True when the edge should be rejected before deeper neighbor resolution.
+*  @note	This centralizes the hazard and walk-off policy gate so the async hot path does not duplicate the same checks in multiple places.
 **/
-static bool Nav_AStar_ShouldRejectEdgeByPolicy( nav_a_star_state_t *state, const svg_nav_path_policy_t *policy, const uint32_t edge_bits, const bool record_reject_reason ) {
-	/**
-	*    Empty metadata never causes a policy rejection by itself.
+static bool Nav_AStar_ShouldRejectEdgeByPolicy( nav_a_star_state_t * state, const svg_nav_path_policy_t * policy, const uint32_t edge_bits, const bool record_reject_reason ) {
+	/** 
+	*  Empty metadata never causes a policy rejection by itself.
 	**/
 	if ( edge_bits == NAV_EDGE_FEATURE_NONE ) {
 		return false;
 	}
 
-	/**
-	*    Reject edges entering hazards forbidden by the active traversal policy.
+	/** 
+	*  Reject edges entering hazards forbidden by the active traversal policy.
 	**/
 	if ( policy && policy->forbid_water && ( edge_bits & NAV_EDGE_FEATURE_ENTERS_WATER ) != 0 ) {
 		if ( record_reject_reason && state ) {
@@ -819,8 +845,8 @@ static bool Nav_AStar_ShouldRejectEdgeByPolicy( nav_a_star_state_t *state, const
 		return true;
 	}
 
-	/**
-	*    Reject walk-off edges unless the active traversal policy explicitly allows them.
+	/** 
+	*  Reject walk-off edges unless the active traversal policy explicitly allows them.
 	**/
 	if ( policy && !policy->allow_optional_walk_off && ( edge_bits & NAV_EDGE_FEATURE_OPTIONAL_WALK_OFF ) != 0 ) {
 		if ( record_reject_reason && state ) {
@@ -835,8 +861,8 @@ static bool Nav_AStar_ShouldRejectEdgeByPolicy( nav_a_star_state_t *state, const
 		return true;
 	}
 
-	/**
-	*    Treat pure hard-wall blocks as policy rejections before any deeper neighbor work.
+	/** 
+	*  Treat pure hard-wall blocks as policy rejections before any deeper neighbor work.
 	**/
 	if ( ( edge_bits & NAV_EDGE_FEATURE_HARD_WALL_BLOCKED ) != 0 && ( edge_bits & NAV_EDGE_FEATURE_PASSABLE ) == 0 ) {
 		if ( record_reject_reason && state ) {
@@ -848,25 +874,25 @@ static bool Nav_AStar_ShouldRejectEdgeByPolicy( nav_a_star_state_t *state, const
 	return false;
 }
 
-/**
-*    @brief	Determine whether a long-hop probe is redundant because the full one-cell chain already exists.
-*    @param	mesh	Navigation mesh.
-*    @param	current_node	Currently expanded canonical node.
-*    @param	offset_dir	Candidate neighbor offset.
-*    @param	policy	Traversal policy used for exact neighbor resolution.
-*    @return	True when the long-hop probe should be skipped in favor of the intermediate chain.
-*    @note	This is intentionally conservative: it only prunes long hops when the full one-cell chain, including the final destination, resolves through explicit one-cell steps without relying on fallback behavior.
+/** 
+*  @brief	Determine whether a long-hop probe is redundant because the full one-cell chain already exists.
+*  @param	mesh	Navigation mesh.
+*  @param	current_node	Currently expanded canonical node.
+*  @param	offset_dir	Candidate neighbor offset.
+*  @param	policy	Traversal policy used for exact neighbor resolution.
+*  @return	True when the long-hop probe should be skipped in favor of the intermediate chain.
+*  @note	This is intentionally conservative: it only prunes long hops when the full one-cell chain, including the final destination, resolves through explicit one-cell steps without relying on fallback behavior.
 **/
-static bool Nav_AStar_ShouldSkipPassedThroughProbe( const nav_mesh_t *mesh, const nav_node_ref_t &current_node, const Vector3 &offset_dir, const svg_nav_path_policy_t *policy ) {
-	/**
-	*    Sanity checks: require mesh storage before evaluating long-hop redundancy.
+static bool Nav_AStar_ShouldSkipPassedThroughProbe( const nav_mesh_t * mesh, const nav_node_ref_t &current_node, const Vector3 &offset_dir, const svg_nav_path_policy_t * policy ) {
+	/** 
+	*  Sanity checks: require mesh storage before evaluating long-hop redundancy.
 	**/
 	if ( !mesh ) {
 		return false;
 	}
 
-	/**
-	*    Only long-hop XY probes are candidates for pass-through pruning.
+	/** 
+	*  Only long-hop XY probes are candidates for pass-through pruning.
 	**/
 	const int32_t offset_cell_x = ( int32_t )offset_dir.x;
 	const int32_t offset_cell_y = ( int32_t )offset_dir.y;
@@ -875,8 +901,8 @@ static bool Nav_AStar_ShouldSkipPassedThroughProbe( const nav_mesh_t *mesh, cons
 		return false;
 	}
 
- /**
-	*    Step one cell at a time along the long-hop ray and require the full chained destination to resolve cleanly.
+ /** 
+	*  Step one cell at a time along the long-hop ray and require the full chained destination to resolve cleanly.
 	**/
 	const int32_t unit_step_x = ( offset_cell_x > 0 ) ? 1 : ( ( offset_cell_x < 0 ) ? -1 : 0 );
 	const int32_t unit_step_y = ( offset_cell_y > 0 ) ? 1 : ( ( offset_cell_y < 0 ) ? -1 : 0 );
@@ -888,8 +914,8 @@ static bool Nav_AStar_ShouldSkipPassedThroughProbe( const nav_mesh_t *mesh, cons
 			return false;
 		}
 
-		/**
-		*    Abort pruning when the one-cell chain crosses an edge forbidden by the active policy.
+		/** 
+		*  Abort pruning when the one-cell chain crosses an edge forbidden by the active policy.
 		**/
 		if ( Nav_AStar_ShouldRejectEdgeByPolicy( nullptr, policy, edge_bits, false ) ) {
 			return false;
@@ -909,24 +935,24 @@ static bool Nav_AStar_ShouldSkipPassedThroughProbe( const nav_mesh_t *mesh, cons
 	return true;
 }
 
-/**
-*	@brief	Expand all neighbor nodes for the given `current_index`.
-*	@param	state		A* state.
-*	@param	current_index	Index of the node to expand.
-*	@note	This function intentionally expands a popped node coherently in one pass.
-*			Per-call budgeting is enforced by `Nav_AStar_Step()` between node pops so we do not
-*			mark a node closed and then abandon the remainder of its neighbor list without a
-*			resume mechanism.
+/** 
+* 	@brief	Expand all neighbor nodes for the given `current_index`.
+* 	@param	state		A*  state.
+* 	@param	current_index	Index of the node to expand.
+* 	@note	This function intentionally expands a popped node coherently in one pass.
+* 			Per-call budgeting is enforced by `Nav_AStar_Step()` between node pops so we do not
+* 			mark a node closed and then abandon the remainder of its neighbor list without a
+* 			resume mechanism.
 **/
-static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t current_index ) {
-	const nav_mesh_t *mesh = state->mesh;
+static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t * state, int32_t current_index ) {
+	const nav_mesh_t * mesh = state->mesh;
 	if ( !mesh ) {
 		return;
 	}
 	nav_search_node_t &current = state->nodes[ current_index ];
 	const Vector3 &agent_mins = state->agent_mins;
 	const Vector3 &agent_maxs = state->agent_maxs;
-	const svg_nav_path_policy_t *policy = state->policy;
+	const svg_nav_path_policy_t * policy = state->policy;
 
 	// Rate-limit verbose per-neighbor diagnostics so enabling high debug levels
 	// does not flood the network/message buffer. This is intentionally coarse
@@ -936,8 +962,8 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 	const uint64_t navExpandDiagCooldownMs = 200; // ms
 
 	for ( const Vector3 &offset_dir : s_nav_neighbor_offsets ) {
-      /**
-		*    Skip offsets that do not represent a distinct async cell hop.
+      /** 
+		*  Skip offsets that do not represent a distinct async cell hop.
 		**/
 		if ( !Nav_AStar_ShouldProbeNeighborOffset( offset_dir ) ) {
 			continue;
@@ -948,30 +974,30 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 		const int32_t edge_step_dx = ( offset_dir.x > 0.0f ) ? 1 : ( ( offset_dir.x < 0.0f ) ? -1 : 0 );
 		const int32_t edge_step_dy = ( offset_dir.y > 0.0f ) ? 1 : ( ( offset_dir.y < 0.0f ) ? -1 : 0 );
 		const uint32_t sourceEdgeBits = SVG_Nav_GetEdgeFeatureBitsForOffset( mesh, current.node, edge_step_dx, edge_step_dy );
-		Vector3 scaledOffset = offset_dir;
-		scaledOffset[ 0 ] *= ( float )mesh->cell_size_xy;
-		scaledOffset[ 1 ] *= ( float )mesh->cell_size_xy;
-		scaledOffset[ 2 ] *= ( float )mesh->z_quant;
+        Vector3 scaledOffset = offset_dir;
+		scaledOffset[ 0 ] = scaledOffset[ 0 ] * ( float )mesh->cell_size_xy;
+		scaledOffset[ 1 ] = scaledOffset[ 1 ] * ( float )mesh->cell_size_xy;
+		scaledOffset[ 2 ] = scaledOffset[ 2 ] * ( float )mesh->z_quant;
 		const Vector3 neighbor_origin = QM_Vector3Add( current.node.worldPosition, scaledOffset );
 
-		/**
-		*    Apply persisted edge metadata as a cheap policy gate before canonical neighbor lookup or step validation.
+		/** 
+		*  Apply persisted edge metadata as a cheap policy gate before canonical neighbor lookup or step validation.
 		**/
         if ( Nav_AStar_ShouldRejectEdgeByPolicy( state, policy, sourceEdgeBits, true ) ) {
 			continue;
 		}
 
-		/**
-		*    Skip redundant long-hop probes when every passed-through intermediate cell is already predictably reachable.
+		/** 
+		*  Skip redundant long-hop probes when every passed-through intermediate cell is already predictably reachable.
 		**/
        if ( ( !policy || policy->enable_pass_through_pruning ) && Nav_AStar_ShouldSkipPassedThroughProbe( mesh, current.node, offset_dir, policy ) ) {
            state->pass_through_prune_count++;
 			continue;
 		}
 
-     /**
-		*    Skip nodes outside the optional hierarchical tile route discovered by the path process.
-		*        Use the prebuilt lookup table so the hot path does not linearly scan the buffered route.
+     /** 
+		*  Skip nodes outside the optional hierarchical tile route discovered by the path process.
+		*      Use the prebuilt lookup table so the hot path does not linearly scan the buffered route.
 		**/
 		if ( !state->tile_route_lookup.empty() ) {
 			const nav_tile_cluster_key_t nk = SVG_Nav_GetTileKeyForPosition( mesh, neighbor_origin );
@@ -993,16 +1019,16 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 			}
 		}
 
-		/**
-		*    Resolve exact local neighbors using canonical tile-cell addressing.
-		*        This avoids boundary-origin collapse from world-space re-lookup while keeping
-		*        strict layer selection for adjacent-cell expansion.
+		/** 
+		*  Resolve exact local neighbors using canonical tile-cell addressing.
+		*      This avoids boundary-origin collapse from world-space re-lookup while keeping
+		*      strict layer selection for adjacent-cell expansion.
 		**/
 		nav_node_ref_t neighbor_node = {};
-		/**
-      *    No-node handling:
-		*        If canonical neighbor addressing cannot resolve a valid sparse target cell/layer,
-		*        treat this offset as a true missing neighbor.
+		/** 
+     * No-node handling:
+		*      If canonical neighbor addressing cannot resolve a valid sparse target cell/layer,
+		*      treat this offset as a true missing neighbor.
 		**/
      if ( !Nav_AStar_TryResolveNeighborNodeExact( state, mesh, current.node, offset_dir, policy, &neighbor_node ) ) {
 			// No node exists at this neighbor position.
@@ -1021,8 +1047,8 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 			continue;
 		}
 
-		/**
-		*    Track neighbor aliasing explicitly when canonical neighbor resolution still maps back onto the current node.
+		/** 
+		*  Track neighbor aliasing explicitly when canonical neighbor resolution still maps back onto the current node.
 		**/
 		if ( neighbor_node.key == current.node.key ) {
 			state->same_node_alias_count++;
@@ -1045,9 +1071,9 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 			continue;
 		}
 
-		/**
-		*    The PMove-derived step test covers slopes, hills, and stairs while respecting both
-		*    agent hulls and slope/drop constraints.
+		/** 
+		*  The PMove-derived step test covers slopes, hills, and stairs while respecting both
+		*  agent hulls and slope/drop constraints.
 		**/
         // Ask the step validator for a detailed rejection reason when available.
 		nav_edge_reject_reason_t stepReason = nav_edge_reject_reason_t::None;
@@ -1092,11 +1118,11 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 
 		double extraCost = 0.0;
 
-     /**
-		*    Resolve neighbor layer flags through the shared safe node-view helper.
-		*        This keeps tile/cell/layer bounds checks centralized for hot-path callers.
+     /** 
+		*  Resolve neighbor layer flags through the shared safe node-view helper.
+		*      This keeps tile/cell/layer bounds checks centralized for hot-path callers.
 		**/
-		const nav_layer_t *neighborLayer = SVG_Nav_GetNodeLayerView( mesh, neighbor_node );
+		const nav_layer_t * neighborLayer = SVG_Nav_GetNodeLayerView( mesh, neighbor_node );
 
       if ( neighborLayer ) {
 			if ( ( neighborLayer->traversal_feature_bits & NAV_TRAVERSAL_FEATURE_WATER ) != 0 ) {
@@ -1109,19 +1135,19 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 				extraCost += 4.0f;
 			}
 
-			/**
-			*    Prefer ladders by default when the ladder endpoint reaches the goal height more directly than a long stair route.
+			/** 
+			*  Prefer ladders by default when the ladder endpoint reaches the goal height more directly than a long stair route.
 			**/
 			if ( policy && policy->prefer_ladders && ( sourceEdgeBits & NAV_EDGE_FEATURE_LADDER_PASS ) != 0 ) {
-               /**
-				*    Use the explicit ladder endpoint semantics so bias is strongest at the meaningful top/bottom ladder anchors.
+               /** 
+				*  Use the explicit ladder endpoint semantics so bias is strongest at the meaningful top/bottom ladder anchors.
 				**/
 				const bool prefer_upward_ladder = state->goal_node.worldPosition.z >= current.node.worldPosition.z;
 				const bool is_ladder_top = ( neighborLayer->ladder_endpoint_flags & NAV_LADDER_ENDPOINT_ENDPOINT ) != 0;
 				const bool is_ladder_bottom = ( neighborLayer->ladder_endpoint_flags & NAV_LADDER_ENDPOINT_STARTPOINT ) != 0;
 				const double ladder_anchor_z = prefer_upward_ladder
-					? ( double )neighborLayer->ladder_end_z_quantized * mesh->z_quant
-					: ( double )neighborLayer->ladder_start_z_quantized * mesh->z_quant;
+					? ( double )neighborLayer->ladder_end_z_quantized* mesh->z_quant
+					: ( double )neighborLayer->ladder_start_z_quantized* mesh->z_quant;
 				const bool endpoint_matches_goal_direction = prefer_upward_ladder ? is_ladder_top : is_ladder_bottom;
 				const double ladder_goal_delta = std::fabs( ladder_anchor_z - state->goal_node.worldPosition.z );
 				const double node_goal_delta = std::fabs( ( double )neighbor_node.worldPosition.z - ( double )state->goal_node.worldPosition.z );
@@ -1132,41 +1158,41 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 		}
 
 		const double dz = neighbor_node.worldPosition.z - current.node.worldPosition.z;
-		const double horizontal = sqrtf( ( neighbor_node.worldPosition.x - current.node.worldPosition.x ) * ( neighbor_node.worldPosition.x - current.node.worldPosition.x ) +
-			( neighbor_node.worldPosition.y - current.node.worldPosition.y ) * ( neighbor_node.worldPosition.y - current.node.worldPosition.y ) );
+		const double horizontal = sqrtf( ( neighbor_node.worldPosition.x - current.node.worldPosition.x )* ( neighbor_node.worldPosition.x - current.node.worldPosition.x ) +
+			( neighbor_node.worldPosition.y - current.node.worldPosition.y )* ( neighbor_node.worldPosition.y - current.node.worldPosition.y ) );
 		const double slope = ( horizontal > 0.0001f )
 			? ( fabsf( dz ) / horizontal )
 			: 0.0f;
-		extraCost += slopeWeight * slope * slope * baseDist;
+		extraCost += slopeWeight* slope* slope* baseDist;
 
 		if ( dz > 0.0 ) {
 			const double stepLimit = policy ? policy->max_step_height : ( nav_max_step ? nav_max_step->value : 18.0f );
 			if ( dz > stepLimit ) {
-				extraCost += ( dz / std::max( stepLimit, 1.0 ) ) * 2.0;
+				extraCost += ( dz / std::max( stepLimit, 1.0 ) )* 2.0;
 			}
 		} else {
 			const double drop = -dz;
 			const double maxDrop = policy ? policy->max_drop_height : ( nav_max_drop_height_cap ? nav_max_drop_height_cap->value : 128.0f );
 			if ( drop > 0.0 ) {
-				extraCost += dropWeight * ( drop / std::max( maxDrop, 1.0 ) );
+				extraCost += dropWeight* ( drop / std::max( maxDrop, 1.0 ) );
 			}
 		}
 
 		if ( policy && policy->allow_small_obstruction_jump ) {
 			const double hj = std::max( 0.0, dz - ( double )policy->max_step_height );
 			if ( hj > 0.0f ) {
-             /**
-             *    Apply additional jump cost after authoritative step validation succeeds.
-				*        Keep this as a soft preference rather than a second hard veto so segmented
-				*        stair/ramp traversal accepted by `Nav_CanTraverseStep_ExplicitBBox()` can still expand.
+             /** 
+            * Apply additional jump cost after authoritative step validation succeeds.
+				*      Keep this as a soft preference rather than a second hard veto so segmented
+				*      stair/ramp traversal accepted by `Nav_CanTraverseStep_ExplicitBBox()` can still expand.
 				**/
 				if ( hj > ( double )policy->max_obstruction_jump_height ) {
                    // Penalize climbs that exceed the preferred small-obstruction jump envelope.
 					const double overflow = hj - ( double )policy->max_obstruction_jump_height;
-					extraCost += jumpBase + jumpHeightWeight + overflow * 0.5;
+					extraCost += jumpBase + jumpHeightWeight + overflow* 0.5;
 				} else {
 				   // Apply the configured cost penalty for a small but still allowed obstruction jump.
-					const double jumpCost = jumpBase + jumpHeightWeight * ( hj / ( double )policy->max_obstruction_jump_height );
+					const double jumpCost = jumpBase + jumpHeightWeight* ( hj / ( double )policy->max_obstruction_jump_height );
 					extraCost += jumpCost;
 				}
 			}
@@ -1183,8 +1209,8 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 			extraCost -= losWeight;
 		}
 
-       /**
-		*    Apply sparse dynamic occupancy after static traversal scoring so policy can choose soft-cost steering or hard blocking.
+       /** 
+		*  Apply sparse dynamic occupancy after static traversal scoring so policy can choose soft-cost steering or hard blocking.
 		**/
 		if ( Nav_AStar_ApplyDynamicOccupancyPolicy( state, mesh, neighbor_node, policy, dynamicWeight, &extraCost ) ) {
 			continue;
@@ -1197,14 +1223,14 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 				const double tauMs = failureTauMs > 0.0f ? failureTauMs : 5000.0f;
 				const double dt = ( double )( ( now - lastFail ).Milliseconds() );
 				const double factor = std::exp( -dt / tauMs );
-				extraCost += failureWeight * ( double )factor;
+				extraCost += failureWeight* ( double )factor;
 
 				const Vector3 toLastFail = QM_Vector3Subtract( neighbor_node.worldPosition, state->pathProcess->last_failure_pos );
 				const double distToFail = QM_Vector3LengthDP( toLastFail );
 				const double failPosRadius = 64.0f;
 				if ( distToFail <= failPosRadius ) {
 					const double posFactor = 1.0f - ( distToFail / failPosRadius );
-					const double sigPenalty = failureWeight * ( double )( 0.75f * posFactor );
+					const double sigPenalty = failureWeight* ( double )( 0.75f* posFactor );
 					extraCost += sigPenalty;
 				}
 
@@ -1214,12 +1240,12 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 				const double yawThresh = 45.0f;
 				if ( fabsf( yawDelta ) <= yawThresh ) {
 					const double yawFactor = 1.0f - ( fabsf( yawDelta ) / yawThresh );
-					const double yawPenalty = failureWeight * ( double )( 0.5f * yawFactor );
+					const double yawPenalty = failureWeight* ( double )( 0.5f* yawFactor );
 					extraCost += yawPenalty;
 				}
 			}
 		} else if ( policy ) {
-			extraCost += failureWeight * ( double )policy->fail_backoff_max_pow * 0.01f;
+			extraCost += failureWeight* ( double )policy->fail_backoff_max_pow* 0.01f;
 		}
 
 		if ( current.parent_index >= 0 ) {
@@ -1229,10 +1255,10 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 			const double dot = QM_Vector3DotProductDP( fromDir, toDir );
 			const double clamped = QM_Clamp( dot, -1.0, 1.0 );
 			const double ang = acosf( clamped );
-			extraCost += turnWeight * ( ang / ( double )M_PI );
+			extraCost += turnWeight* ( ang / ( double )M_PI );
 		}
 
-		const double tentative_g = current.g_cost + std::max( baseDist * w_dist * minCostPerUnit, 0.0 ) + extraCost;
+		const double tentative_g = current.g_cost + std::max( baseDist* w_dist* minCostPerUnit, 0.0 ) + extraCost;
 
 		auto lookup_it = state->node_lookup.find( neighbor_node.key );
 		if ( lookup_it == state->node_lookup.end() ) {
@@ -1247,6 +1273,7 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 			state->nodes.push_back( neighbor_search );
 			const int32_t neighbor_index = ( int32_t )state->nodes.size() - 1;
 			state->open_list.push_back( neighbor_index );
+            state->open_push_count++;
 			state->node_lookup.emplace( neighbor_node.key, neighbor_index );
 			continue;
 		}
@@ -1254,8 +1281,8 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 		const int32_t neighbor_index = lookup_it->second;
 		nav_search_node_t &neighbor_search = state->nodes[ neighbor_index ];
 		if ( neighbor_search.closed ) {
-           /**
-			*    Track closed-duplicate resolutions separately from hard rejects.
+           /** 
+			*  Track closed-duplicate resolutions separately from hard rejects.
 			**/
 			state->closed_duplicate_count++;
 			continue;
@@ -1269,14 +1296,14 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 	}
 }
 
-/**
-*	@brief	Initialize an A* state.
-*	@note	Sets up internal containers and applies the configured per-call search budget.
+/** 
+* 	@brief	Initialize an A*  state.
+* 	@note	Sets up internal containers and applies the configured per-call search budget.
 **/
-bool Nav_AStar_Init( nav_a_star_state_t *state, const nav_mesh_t *mesh, const nav_node_ref_t &start_node,
+bool Nav_AStar_Init( nav_a_star_state_t * state, const nav_mesh_t * mesh, const nav_node_ref_t &start_node,
 	const nav_node_ref_t &goal_node, const Vector3 &agent_mins, const Vector3 &agent_maxs,
-	const svg_nav_path_policy_t *policy, const std::vector<nav_tile_cluster_key_t> *tileRoute,
-	const svg_nav_path_process_t *pathProcess ) {
+	const svg_nav_path_policy_t * policy, const nav_refine_corridor_t * refineCorridor,
+	const svg_nav_path_process_t * pathProcess ) {
 	if ( !state || !mesh ) {
 		return false;
 	}
@@ -1291,10 +1318,11 @@ bool Nav_AStar_Init( nav_a_star_state_t *state, const nav_mesh_t *mesh, const na
 	state->policy = policy;
 	state->pathProcess = pathProcess;
 	state->max_nodes = NAV_ASTAR_MAX_NODES;
+	state->refine_corridor = refineCorridor ? * refineCorridor : nav_refine_corridor_t{};
 
-	/**
-	*    Emit an opt-in diagnostic when both endpoints land in the same XY cell but on different layers.
-	*        This is a strong signal that a caller supplied an inter-floor or mid-air goal that required Z projection.
+	/** 
+	*  Emit an opt-in diagnostic when both endpoints land in the same XY cell but on different layers.
+	*      This is a strong signal that a caller supplied an inter-floor or mid-air goal that required Z projection.
 	**/
 	if ( s_nav_expand_diag_enable && s_nav_expand_diag_enable->integer != 0 && Nav_PathDiagEnabled()
 		&& start_node.key.tile_index == goal_node.key.tile_index
@@ -1330,28 +1358,31 @@ bool Nav_AStar_Init( nav_a_star_state_t *state, const nav_mesh_t *mesh, const na
 
 	state->nodes.reserve( reserveNodes );
 	state->open_list.reserve( reserveNodes / 2 );
-	state->node_lookup.reserve( reserveNodes * 2 );
-	state->edge_validation_cache.reserve( reserveNodes * 4 );
+	state->node_lookup.reserve( reserveNodes* 2 );
+	state->edge_validation_cache.reserve( reserveNodes* 4 );
 
-	if ( tileRoute && !tileRoute->empty() ) {
-     /**
-		*    Widen the coarse route into a buffered fine-search corridor.
-		*        Exact-route filtering is too restrictive for longer searches because fine A* sometimes must step
-		*        one tile off the coarse spine to realize a valid local traversal around geometry.
+   if ( state->refine_corridor.HasExactTileRoute() ) {
+		/** 
+		*  Widen the explicit refinement corridor into a buffered fine-search tile allow-list.
+		*      Exact-route filtering is too restrictive for longer searches because fine A*  sometimes must step
+		*      one tile off the coarse spine to realize a valid local traversal around geometry.
 		**/
-		Nav_AStar_BuildBufferedTileRouteFilter( *tileRoute, &state->tile_route_storage );
+		state->corridor_buffer_radius = Nav_AStar_BuildBufferedTileRouteFilter( state->refine_corridor.exact_tile_route, &state->tile_route_storage );
+		state->corridor_buffered_tile_count = ( int32_t )state->tile_route_storage.size();
 		state->tileRouteFilter = &state->tile_route_storage;
         state->tile_route_lookup.clear();
 		state->tile_route_lookup.reserve( state->tile_route_storage.size() );
 
-		/**
-		*    Mirror the buffered route into a constant-time membership table so neighbor expansion
-		*    does not linearly scan the full corridor for every tile probe.
+		/** 
+		*  Mirror the buffered route into a constant-time membership table so neighbor expansion
+		*  does not linearly scan the full corridor for every tile probe.
 		**/
 		for ( const nav_tile_cluster_key_t &routeKey : state->tile_route_storage ) {
 			state->tile_route_lookup.insert( routeKey );
 		}
 	} else {
+       state->corridor_buffer_radius = 0;
+		state->corridor_buffered_tile_count = 0;
 		state->tileRouteFilter = nullptr;
 		state->tile_route_lookup.clear();
 	}
@@ -1368,6 +1399,10 @@ bool Nav_AStar_Init( nav_a_star_state_t *state, const nav_mesh_t *mesh, const na
 
 	state->nodes.push_back( start_search );
 	state->open_list.push_back( 0 );
+    state->open_push_count = 1;
+    state->occupancy_overlay_hit_count = 0;
+	state->occupancy_soft_cost_hit_count = 0;
+	state->occupancy_block_reject_count = 0;
 	state->node_lookup.emplace( start_node.key, 0 );
 	state->best_f_cost_seen = start_search.f_cost;
 	state->stagnation_count = 0;
@@ -1384,14 +1419,14 @@ bool Nav_AStar_Init( nav_a_star_state_t *state, const nav_mesh_t *mesh, const na
 	return true;
 }
 
-/**
-*	@brief	Advance the A* search by up to `expansions` node pops.
-*	@param	state		A* state to step.
-*	@param	expansions	Maximum node expansions to perform this call.
-*	@return	Current search status after stepping.
-*	@note	This function enforces both an expansions budget and a strict per-call time budget.
+/** 
+* 	@brief	Advance the A*  search by up to `expansions` node pops.
+* 	@param	state		A*  state to step.
+* 	@param	expansions	Maximum node expansions to perform this call.
+* 	@return	Current search status after stepping.
+* 	@note	This function enforces both an expansions budget and a strict per-call time budget.
 **/
-nav_a_star_status_t Nav_AStar_Step( nav_a_star_state_t *state, int32_t expansions ) {
+nav_a_star_status_t Nav_AStar_Step( nav_a_star_state_t * state, int32_t expansions ) {
 	if ( !state || state->status != nav_a_star_status_t::Running || expansions <= 0 ) {
 		return state ? state->status : nav_a_star_status_t::Failed;
 	}
@@ -1400,19 +1435,19 @@ nav_a_star_status_t Nav_AStar_Step( nav_a_star_state_t *state, int32_t expansion
 		return state->status;
 	}
 
-	/**
-	*    Reset per-call budget state before this incremental slice begins.
-	*        `hit_time_budget` is only meant to describe the current `Nav_AStar_Step()` invocation.
-	*        If it persists across frames, later step calls will keep bailing early even when the
-	*        new per-call budget has not actually been exhausted yet.
+	/** 
+	*  Reset per-call budget state before this incremental slice begins.
+	*      `hit_time_budget` is only meant to describe the current `Nav_AStar_Step()` invocation.
+	*      If it persists across frames, later step calls will keep bailing early even when the
+	*      new per-call budget has not actually been exhausted yet.
 	**/
 	state->hit_time_budget = false;
 
-	/**
-	*    Expansion budget guard:
-	*        - `expansions` limits work per call to keep frame time predictable.
-	*        - `NAV_ASTAR_MAX_NODES` prevents unbounded node growth on pathological meshes.
-	*        - `search_budget_ms` throttles per-call time while allowing incremental continuation.
+	/** 
+	*  Expansion budget guard:
+	*      - `expansions` limits work per call to keep frame time predictable.
+	*      - `NAV_ASTAR_MAX_NODES` prevents unbounded node growth on pathological meshes.
+	*      - `search_budget_ms` throttles per-call time while allowing incremental continuation.
 	**/
 	state->step_start_ms = gi.GetRealSystemTime();
 
@@ -1445,12 +1480,14 @@ nav_a_star_status_t Nav_AStar_Step( nav_a_star_state_t *state, int32_t expansion
 				return state->nodes[ a ].f_cost < state->nodes[ b ].f_cost;
 			} );
 
-		const int32_t current_index = *best_it;
-		*best_it = state->open_list.back();
+		const int32_t current_index = * best_it;
+		* best_it = state->open_list.back();
 		state->open_list.pop_back();
+		state->open_pop_count++;
 
 		nav_search_node_t &current = state->nodes[ current_index ];
 		current.closed = true;
+		state->node_expand_count++;
 
 		if ( current.node.key == state->goal_node.key ) {
 			state->goal_index = current_index;
@@ -1472,11 +1509,11 @@ nav_a_star_status_t Nav_AStar_Step( nav_a_star_state_t *state, int32_t expansion
 	return state->status;
 }
 
-/**
-*	@brief	Finalize the A* search and extract the resulting path if successful.
-*	@return	Returns true if a valid path was found and extracted, false otherwise.
+/** 
+* 	@brief	Finalize the A*  search and extract the resulting path if successful.
+* 	@return	Returns true if a valid path was found and extracted, false otherwise.
 **/
-const bool Nav_AStar_Finalize( nav_a_star_state_t *state, std::vector<Vector3> *out_points ) {
+const bool Nav_AStar_Finalize( nav_a_star_state_t * state, std::vector<Vector3> * out_points ) {
 	if ( !state || !out_points ) {
 		return false;
 	}
@@ -1484,8 +1521,8 @@ const bool Nav_AStar_Finalize( nav_a_star_state_t *state, std::vector<Vector3> *
 		return false;
 	}
 
-	/**
-	*    Walk the parent chain from the solved node to recover the waypoint list.
+	/** 
+	*  Walk the parent chain from the solved node to recover the waypoint list.
 	**/
 	out_points->clear();
 	if ( state->start_node.key == state->goal_node.key ) {
@@ -1510,7 +1547,7 @@ const bool Nav_AStar_Finalize( nav_a_star_state_t *state, std::vector<Vector3> *
 	return true;
 }
 
-void Nav_AStar_Reset( nav_a_star_state_t *state ) {
+void Nav_AStar_Reset( nav_a_star_state_t * state ) {
 	if ( !state ) {
 		return;
 	}
@@ -1536,6 +1573,9 @@ void Nav_AStar_Reset( nav_a_star_state_t *state ) {
 	state->hit_stagnation_limit = false;
 	state->hit_time_budget = false;
 	state->saw_vertical_neighbor = false;
+	state->node_expand_count = 0;
+	state->open_push_count = 0;
+	state->open_pop_count = 0;
 	state->neighbor_try_count = 0;
 	state->no_node_count = 0;
     state->no_node_invalid_current_tile_count = 0;

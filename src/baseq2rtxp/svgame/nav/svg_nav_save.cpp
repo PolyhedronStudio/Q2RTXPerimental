@@ -1,10 +1,10 @@
-/********************************************************************
-*
-*
-*	SVGame: Navigation Voxelmesh Save - Implementation
-*
-*
-********************************************************************/
+/** * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+* 
+* 
+* 	SVGame: Navigation Voxelmesh Save - Implementation
+* 
+* 
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * **/
 #include "svgame/svg_local.h"
 #include "svgame/nav/svg_nav.h"
 #include "svgame/nav/svg_nav_save.h"
@@ -18,7 +18,7 @@
 	#define gzwrite(file, buf, len)     fwrite(buf, 1, len, file)
 	#define gzread(file, buf, len)      fread(buf, 1, len, file)
 	#define gzbuffer(file, size)        (void)0
-	#define gzFile                      FILE *
+	#define gzFile                      FILE * 
 #endif
 
 #include <cstdint>
@@ -28,11 +28,11 @@ static constexpr uint32_t NAV_MESH_SAVE_MAGIC = 0x56414E53; // "VANS"
 //! Serialized navmesh format version. Bump when persisted tile/layer payload layout changes.
 static constexpr uint32_t NAV_MESH_SAVE_VERSION = 4;
 
-/**
-*	@brief	Write raw bytes to a (possibly gzipped) file.
-*	@return	True if all bytes were written.
+/** 
+* 	@brief	Write raw bytes to a (possibly gzipped) file.
+* 	@return	True if all bytes were written.
 **/
-static bool Nav_Write( gzFile f, const void *data, const size_t size ) {
+static bool Nav_Write( gzFile f, const void * data, const size_t size ) {
 	if ( !f || !data || size == 0 ) {
 		return false;
 	}
@@ -42,19 +42,19 @@ static bool Nav_Write( gzFile f, const void *data, const size_t size ) {
 
 template<typename T>
 static bool Nav_WriteValue( gzFile f, const T &v ) {
-	/**
-	*	Write a typed POD value.
+	/** 
+	* 	Write a typed POD value.
 	**/
 	return Nav_Write( f, &v, sizeof( T ) );
 }
 
-/**
-*	@brief	Serialize the current navigation voxelmesh to a file.
-*	@return	True on success, false on failure.
+/** 
+* 	@brief	Serialize the current navigation voxelmesh to a file.
+* 	@return	True on success, false on failure.
 **/
-bool SVG_Nav_SaveVoxelMesh( const char *levelName ) {
-	/**
-	*	Sanity checks: require filename and an active nav mesh.
+bool SVG_Nav_SaveVoxelMesh( const char * levelName ) {
+	/** 
+	* 	Sanity checks: require filename and an active nav mesh.
 	**/
 	if ( !levelName || !levelName[ 0 ] ) {
 		return false;
@@ -63,14 +63,14 @@ bool SVG_Nav_SaveVoxelMesh( const char *levelName ) {
 		return false;
 	}
 
-	/**
-	*	Build full file path for the nav cache.
+	/** 
+	* 	Build full file path for the nav cache.
 	**/
 	// Actual filename of the .nav file.
 	const std::string navMeshFilePath = Nav_GetPathForLevelNav( levelName, true );
 
-	/**
-	*	Open output file (gzip if zlib enabled).
+	/** 
+	* 	Open output file (gzip if zlib enabled).
 	**/
 	gzFile f = gzopen( navMeshFilePath.c_str(), "wb" );
 	if ( !f ) {
@@ -81,10 +81,10 @@ bool SVG_Nav_SaveVoxelMesh( const char *levelName ) {
 	gzbuffer( f, 65536 );
 
 	// Snapshot the mesh pointer for readability.
-	const nav_mesh_t *mesh = g_nav_mesh.get();
+	const nav_mesh_t * mesh = g_nav_mesh.get();
 
-	/**
-	*	Write file header (magic + version).
+	/** 
+	* 	Write file header (magic + version).
 	**/
 	if ( !Nav_WriteValue( f, NAV_MESH_SAVE_MAGIC ) ||
 		!Nav_WriteValue( f, NAV_MESH_SAVE_VERSION ) ) {
@@ -92,10 +92,10 @@ bool SVG_Nav_SaveVoxelMesh( const char *levelName ) {
 		return false;
 	}
 
-	/**
-	*	Write the statistics from the navmesh generation for future load-time validation and informational purposes.
-	*	These are not strictly required for saving the mesh but will help detect mismatches between the navmesh 
-	*	and game configuration.
+	/** 
+	* 	Write the statistics from the navmesh generation for future load-time validation and informational purposes.
+	* 	These are not strictly required for saving the mesh but will help detect mismatches between the navmesh 
+	* 	and game configuration.
 	**/
     // Write statistics as 64-bit values to remain stable across platforms
 	// and match the load-side expectations (uint64_t). Cast from the mesh
@@ -108,8 +108,8 @@ bool SVG_Nav_SaveVoxelMesh( const char *levelName ) {
 	Nav_WriteValue( f, total_layers_u64 );
 
 
-	/**
-	*	Write generation parameters needed to interpret mesh data.
+	/** 
+	* 	Write generation parameters needed to interpret mesh data.
 	**/
 	Nav_WriteValue( f, g_nav_mesh->world_bounds.mins.x );
 	Nav_WriteValue( f, g_nav_mesh->world_bounds.mins.y );
@@ -126,19 +126,19 @@ bool SVG_Nav_SaveVoxelMesh( const char *levelName ) {
 	Nav_WriteValue( f, mesh->agent_mins );
 	Nav_WriteValue( f, mesh->agent_maxs );
 
-	/**
-	*	Write mesh counts.
+	/** 
+	* 	Write mesh counts.
 	**/
 	Nav_WriteValue( f, mesh->num_leafs );
 	Nav_WriteValue( f, mesh->num_inline_models );
 
-	const int32_t cellsPerTile = mesh->tile_size * mesh->tile_size;
+	const int32_t cellsPerTile = mesh->tile_size* mesh->tile_size;
 
-	/**
-	*	Write world mesh (per BSP leaf).
+	/** 
+	* 	Write world mesh (per BSP leaf).
 	**/
 	for ( int32_t i = 0; i < mesh->num_leafs; i++ ) {
-		const nav_leaf_data_t *leaf = &mesh->leaf_data[ i ];
+		const nav_leaf_data_t * leaf = &mesh->leaf_data[ i ];
 		// Write leaf header.
 		Nav_WriteValue( f, leaf->leaf_index );
 		Nav_WriteValue( f, leaf->num_tiles );
@@ -155,20 +155,20 @@ bool SVG_Nav_SaveVoxelMesh( const char *levelName ) {
 				Nav_WriteValue( f, (int32_t)0 );
 				continue;
 			}
-			const nav_tile_t *tile = &mesh->world_tiles[ tileId ];
+			const nav_tile_t * tile = &mesh->world_tiles[ tileId ];
 			// Write tile coordinates.
 			Nav_WriteValue( f, tile->tile_x );
 			Nav_WriteValue( f, tile->tile_y );
 			Nav_WriteValue( f, tile->traversal_summary_bits );
 			Nav_WriteValue( f, tile->edge_summary_bits );
 
-			/**
-			*	Count populated cells so we only serialize active cells.
+			/** 
+			* 	Count populated cells so we only serialize active cells.
 			**/
             int32_t populated = 0;
 			// Use safe accessor to iterate only valid cells in the tile.
-			auto cellsView = SVG_Nav_Tile_GetCells( mesh, const_cast<nav_tile_t *>( tile ) );
-			const nav_xy_cell_t *cellsPtr = cellsView.first;
+			auto cellsView = SVG_Nav_Tile_GetCells( mesh, const_cast<nav_tile_t * >( tile ) );
+			const nav_xy_cell_t * cellsPtr = cellsView.first;
 			const int32_t cellsCount = cellsView.second;
 			for ( int32_t c = 0; c < cellsCount; c++ ) {
 				if ( cellsPtr[ c ].num_layers > 0 && cellsPtr[ c ].layers ) {
@@ -189,35 +189,35 @@ bool SVG_Nav_SaveVoxelMesh( const char *levelName ) {
 					Nav_WriteValue( f, c );
 					Nav_WriteValue( f, cell.num_layers );
 					// Write raw layer array.
-					Nav_Write( f, cell.layers, sizeof( nav_layer_t ) * (size_t)cell.num_layers );
+					Nav_Write( f, cell.layers, sizeof( nav_layer_t )* (size_t)cell.num_layers );
 				}
 			}
 		}
 	}
 
-	/**
-	*	Write inline model mesh (model-local space).
+	/** 
+	* 	Write inline model mesh (model-local space).
 	**/
 	for ( int32_t i = 0; i < mesh->num_inline_models; i++ ) {
-		const nav_inline_model_data_t *model = &mesh->inline_model_data[ i ];
+		const nav_inline_model_data_t * model = &mesh->inline_model_data[ i ];
 		// Write model header.
 		Nav_WriteValue( f, model->model_index );
 		Nav_WriteValue( f, model->num_tiles );
 
 		for ( int32_t t = 0; t < model->num_tiles; t++ ) {
-			const nav_tile_t *tile = &model->tiles[ t ];
+			const nav_tile_t * tile = &model->tiles[ t ];
 			// Write tile coordinates.
 			Nav_WriteValue( f, tile->tile_x );
 			Nav_WriteValue( f, tile->tile_y );
 			Nav_WriteValue( f, tile->traversal_summary_bits );
 			Nav_WriteValue( f, tile->edge_summary_bits );
 
-			/**
-			*	Count populated cells so we only serialize active cells.
+			/** 
+			* 	Count populated cells so we only serialize active cells.
 			**/
             int32_t populated = 0;
-			auto cellsView = SVG_Nav_Tile_GetCells( mesh, const_cast<nav_tile_t *>( tile ) );
-			const nav_xy_cell_t *cellsPtr = cellsView.first;
+			auto cellsView = SVG_Nav_Tile_GetCells( mesh, const_cast<nav_tile_t * >( tile ) );
+			const nav_xy_cell_t * cellsPtr = cellsView.first;
 			const int32_t cellsCount = cellsView.second;
 			for ( int32_t c = 0; c < cellsCount; c++ ) {
 				if ( cellsPtr[ c ].num_layers > 0 && cellsPtr[ c ].layers ) {
@@ -238,7 +238,7 @@ bool SVG_Nav_SaveVoxelMesh( const char *levelName ) {
 					Nav_WriteValue( f, c );
 					Nav_WriteValue( f, cell.num_layers );
 					// Write raw layer array.
-					Nav_Write( f, cell.layers, sizeof( nav_layer_t ) * (size_t)cell.num_layers );
+					Nav_Write( f, cell.layers, sizeof( nav_layer_t )* (size_t)cell.num_layers );
 				}
 			}
 		}

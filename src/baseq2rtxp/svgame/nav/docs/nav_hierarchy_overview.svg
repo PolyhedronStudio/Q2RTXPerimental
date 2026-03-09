@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="640" viewBox="0 0 960 640">
+  <defs>
+    <style>
+      .title { font: 700 28px sans-serif; fill: #20242b; }
+      .label { font: 600 16px sans-serif; fill: #20242b; }
+      .small { font: 14px sans-serif; fill: #303744; }
+      .regionA { fill: #d7ecff; stroke: #4b8fd3; stroke-width: 2; }
+      .regionB { fill: #dff7da; stroke: #4a9b55; stroke-width: 2; }
+      .regionC { fill: #ffe8cc; stroke: #d08a2a; stroke-width: 2; }
+      .portal { fill: #ffd84d; stroke: #8c6f00; stroke-width: 2; }
+      .route { stroke: #c92a2a; stroke-width: 5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+      .grid { stroke: #b8c2cf; stroke-width: 1; fill: none; }
+      .brush { fill: #8a94a6; opacity: 0.22; stroke: #5a6475; stroke-width: 1.5; }
+      .callout { fill: #ffffff; stroke: #aab4c0; stroke-width: 1.5; }
+      .arrow { stroke: #20242b; stroke-width: 2; fill: none; marker-end: url(#arrowHead); }
+    </style>
+    <marker id="arrowHead" markerWidth="10" markerHeight="8" refX="8" refY="4" orient="auto">
+      <path d="M0,0 L10,4 L0,8 z" fill="#20242b"/>
+    </marker>
+  </defs>
+
+  <rect width="960" height="640" fill="#f7f9fc"/>
+  <text x="40" y="48" class="title">Static hierarchy above the fine tile/cell grid</text>
+  <text x="40" y="76" class="small">Imaginary brushes sit on the fine grid. Regions and portals are a static coarse layer built on top of that mesh.</text>
+
+  <g transform="translate(150,120)">
+    <polygon class="brush" points="230,70 330,30 410,70 310,110"/>
+    <polygon class="brush" points="90,240 180,205 245,240 155,275"/>
+
+    <g class="grid">
+      <path d="M0 120 L240 0 L480 120 L240 240 Z"/>
+      <path d="M40 140 L280 20"/>
+      <path d="M80 160 L320 40"/>
+      <path d="M120 180 L360 60"/>
+      <path d="M160 200 L400 80"/>
+      <path d="M200 220 L440 100"/>
+      <path d="M40 100 L280 220"/>
+      <path d="M80 80 L320 200"/>
+      <path d="M120 60 L360 180"/>
+      <path d="M160 40 L400 160"/>
+      <path d="M200 20 L440 140"/>
+    </g>
+
+    <polygon class="regionA" points="0,120 160,40 240,80 80,160"/>
+    <polygon class="regionA" points="80,160 240,80 320,120 160,200"/>
+    <polygon class="regionB" points="160,40 320,0 400,40 240,120"/>
+    <polygon class="regionB" points="240,120 400,40 480,80 320,160"/>
+    <polygon class="regionC" points="160,200 320,120 400,160 240,240"/>
+    <polygon class="regionC" points="80,160 160,200 240,240 160,280" opacity="0"/>
+
+    <rect x="233" y="94" width="18" height="32" rx="3" class="portal"/>
+    <rect x="312" y="132" width="18" height="32" rx="3" class="portal"/>
+
+    <path class="route" d="M70 130 L170 90 L242 110 L322 146 L390 110"/>
+
+    <circle cx="70" cy="130" r="7" fill="#1d6fd6"/>
+    <circle cx="390" cy="110" r="7" fill="#c92a2a"/>
+
+    <text x="18" y="110" class="label">start</text>
+    <text x="398" y="106" class="label">goal</text>
+    <text x="66" y="56" class="label">Region A</text>
+    <text x="300" y="16" class="label">Region B</text>
+    <text x="286" y="228" class="label">Region C</text>
+    <text x="210" y="92" class="small">portal</text>
+    <text x="340" y="178" class="small">coarse region/portal route</text>
+  </g>
+
+  <g transform="translate(665,138)">
+    <rect width="235" height="260" rx="14" class="callout"/>
+    <text x="18" y="34" class="label">Reading the diagram</text>
+    <text x="18" y="68" class="small">• the diamond grid is the fine tile/cell mesh</text>
+    <text x="18" y="96" class="small">• grey blocks are imaginary brushes/geometry</text>
+    <text x="18" y="124" class="small">• blue/green/orange shapes are static regions</text>
+    <text x="18" y="152" class="small">• yellow blocks are static portals between regions</text>
+    <text x="18" y="180" class="small">• the red path is coarse A*  over the hierarchy</text>
+    <text x="18" y="216" class="small">Fine A*  still does the final traversal,</text>
+    <text x="18" y="238" class="small">but it now starts from a bounded corridor</text>
+    <text x="18" y="260" class="small">instead of exploring the full map.</text>
+  </g>
+
+  <path class="arrow" d="M612 212 C650 212, 660 212, 680 212"/>
+</svg>
