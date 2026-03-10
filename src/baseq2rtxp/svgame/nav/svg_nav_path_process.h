@@ -8,7 +8,7 @@
 * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * **/
 #pragma once
 
-//#include "svgame/nav/svg_nav.h"
+#include "svgame/nav/svg_nav.h"
 
 /** 
 * 	@brief	Policy for path processing and follow behavior.
@@ -28,7 +28,8 @@ struct svg_nav_path_policy_t {
 	* 	Ignore/Allow States:
 	**/
 	//! If true, ignore visibility when deciding whether to rebuild the path. 
-	//! This can be useful for testing and debugging, but generally we want the monster to try to rebuild more aggressively when it can see the player.
+	//! This can be useful for testing and debugging, but generally we want the monster to 
+	//! try to rebuild more aggressively when it can see the player.
 	bool ignore_visibility	= true;
 	//! If true, ignore distance in front of the monster when deciding whether to rebuild the path.
 	bool ignore_infront		= true;
@@ -44,25 +45,49 @@ struct svg_nav_path_policy_t {
 	//! 3D distance change in goal position that triggers a path rebuild.
 	double rebuild_goal_dist_3d = NAV_DEFAULT_GOAL_REBUILD_3D_DISTANCE; // 48* 48 = 2304
 
-	/** 
-	*  Goal Z-layer blending controls used to bias layer selection toward the goal's
-	*  Z when finding start/goal nodes. This helps prefer climbing stairs or reaching
-	*  an objective located on a different floor when appropriate.
+	/**
+	*	Goal Z-layer blending controls:
+	*		When start or goal selection lands in an XY location that contains multiple
+	*		valid nav layers, the selector can derive a blended "desired Z" instead of
+	*		using only the local sample height.
+	*
+	*		This acts as a soft hint during start/goal node selection so longer horizontal
+	*		paths can progressively favor layers whose elevation better matches the final
+	*		objective. In practice, this helps the path builder commit earlier to stairs,
+	*		ramps, or other vertical connectors when the target is known to be above or
+	*		below the current floor.
+	*
+	*		Behavior is distance-driven:
+	*		- At or below `blend_start_dist`, selection remains anchored to the local
+	*		  start/query height.
+	*		- Between `blend_start_dist` and `blend_full_dist`, the desired Z is blended
+	*		  toward the goal height.
+	*		- At or beyond `blend_full_dist`, selection is fully biased to the goal Z.
+	*
+	*		Disable this only for targeted diagnostics or when comparing against purely
+	*		local closest-layer selection.
 	**/
-	//! If true, blend the desired layer Z between start and goal when selecting layers.
+	//! If true, apply horizontal-distance-based blending from local/query Z toward goal Z during layer selection.
 	bool enable_goal_z_layer_blend = true;
-	//! Horizontal distance at which blending begins (units).
-	double blend_start_dist	= NAV_DEFAULT_BLEND_DIST_START;
-	//! Horizontal distance at which blending is fully biased to the goal Z (units).
-	double blend_full_dist	= NAV_DEFAULT_BLEND_DIST_FULL;
+	//! Horizontal distance threshold where goal-height influence begins; shorter ranges keep selection fully local.
+	double blend_start_dist = NAV_DEFAULT_BLEND_DIST_START;
+	//! Horizontal distance threshold where the desired selection Z becomes fully goal-biased.
+	double blend_full_dist = NAV_DEFAULT_BLEND_DIST_FULL;
 
-	/** 
-	*  Cluster-route pre-pass controls:
-	*      The async request worker can compute a coarse tile route and constrain
-	*      fine A*  expansion to that route. This keeps long-range searches cheap,
-	*      but can be disabled for targeted diagnostics.
+	/**
+	*	Cluster-route pre-pass controls:
+	*		The async request worker can first derive a coarse long-range tile/cluster
+	*		route from the navigation hierarchy and then use that route as an allow-list
+	*		for fine-grained A* expansion.
+	*
+	*		This keeps long-distance searches bounded on large or open maps by reducing
+	*		unnecessary node expansion outside the expected corridor, while still leaving
+	*		final traversal validity to the authoritative fine traversal search.
+	*
+	*		Disable this only for targeted diagnostics, benchmarking, or direct comparison
+	*		against unrestricted fine refinement behavior.
 	**/
-	//! If true, apply the hierarchical tile-route filter during async A*  prep.
+	//! If true, apply the hierarchical tile-route filter during async A* prep.
 	bool enable_cluster_route_filter = true;
 
 	/** 
@@ -155,7 +180,7 @@ struct svg_nav_path_policy_t {
 	//! @note	Default is tuned to be slightly above a typical stair riser so the selector
 	//!			remains stable on stairs while still allowing large Z deltas to select the
 	//!			correct floor.
-	double layer_select_prefer_z_threshold = 16.0;
+	double layer_select_prefer_z_threshold = NAV_DEFAULT_STEP_MAX_SIZE + NAV_DEFAULT_STEP_MIN_SIZE;
 };
 
 /** 

@@ -33,9 +33,9 @@ static constexpr const double NAV_TILE_EPSILON = 0.001f;
 * 
 **/
 //! Default Radius around waypoints to consider 'reached':
-//! We take the half-width of a typical NPC entity (16 units) as a reasonable default for the waypoint radius, which provides a good balance between precision and leniency in path following. 
+//! We take the (half-width / waypoint-resolution) of a typical NPC entity (16 units) as a reasonable default for the waypoint radius, which provides a good balance between precision and leniency in path following. 
 //! This allows the agent to consider a waypoint reached when it is close enough, without requiring an exact position match, which can help smooth out movement and reduce jitter.
-static constexpr const double NAV_DEFAULT_WAYPOINT_RADIUS = 16.0;
+static constexpr const double NAV_DEFAULT_WAYPOINT_RADIUS = ( 18.0 / 3.125 );// PM_MAX_STEP_SIZE( 16 ) / ;
 
 //! 2D distance change in goal position that triggers a path rebuild.
 static constexpr const double NAV_DEFAULT_GOAL_REBUILD_2D_DISTANCE = 16.0;
@@ -72,10 +72,11 @@ static constexpr const double NAV_DEFAULT_MAX_OBSTRUCTION_JUMP_SIZE = 48.0;
 //! Falling:
 //! 
 //! Max allowed drop height (units, matches `nav_max_drop`).
-static constexpr const double NAV_DEFAULT_MAX_DROP_HEIGHT = 64.0;
+static constexpr const double NAV_DEFAULT_MAX_DROP_HEIGHT = 128.0;
 //! Drop cap applied when rejecting large downward transitions (matches `nav_max_drop_height_cap`).
 static constexpr const double NAV_DEFAULT_MAX_DROP_HEIGHT_CAP = 192.;
-
+//! Max vertical delta allowed for a line of sight check to succeed (units, matches `nav_los_max_vertical_delta`).
+static constexpr const double NAV_DEFAULT_LOS_MAX_VERTICAL_DELTA = ( NAV_DEFAULT_STEP_MAX_SIZE * 2 ) + ( NAV_DEFAULT_STEP_MAX_SIZE - NAV_DEFAULT_STEP_MIN_SIZE );
 
 
 /** 
@@ -86,6 +87,6 @@ static constexpr const double NAV_DEFAULT_MAX_DROP_HEIGHT_CAP = 192.;
 *  
 **/
 //! Horizontal distance at which blending begins (units).
-static constexpr const double NAV_DEFAULT_BLEND_DIST_START = NAV_DEFAULT_STEP_MAX_SIZE;
+static constexpr const double NAV_DEFAULT_BLEND_DIST_START = 18;
 //! Horizontal distance at which blending is fully biased to the goal Z (units).
-static constexpr const double NAV_DEFAULT_BLEND_DIST_FULL = 64.0;
+static constexpr const double NAV_DEFAULT_BLEND_DIST_FULL = 72.0;

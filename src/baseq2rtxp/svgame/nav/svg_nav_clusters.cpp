@@ -15,26 +15,45 @@
 /** 
 *  @brief    Cluster routing configuration CVars exposed for tuning.
 **/
+//! Toggles whether the cluster router uses feature-weighted traversal costs.
 cvar_t *nav_cluster_route_weighted = nullptr;
+//! Configured extra cost applied when traversing stair tiles within cluster routing.
 cvar_t *nav_cluster_cost_stair = nullptr;
+//! Configured extra cost applied when traversing water tiles within cluster routing.
 cvar_t *nav_cluster_cost_water = nullptr;
+//! Configured extra cost applied when traversing lava tiles within cluster routing.
 cvar_t *nav_cluster_cost_lava = nullptr;
+//! Configured extra cost applied when traversing slime tiles within cluster routing.
 cvar_t *nav_cluster_cost_slime = nullptr;
+//! When enabled, forbids stair tiles from being queued by the cluster router.
 cvar_t *nav_cluster_forbid_stair = nullptr;
+//! When enabled, forbids water tiles from being queued by the cluster router.
 cvar_t *nav_cluster_forbid_water = nullptr;
+//! When enabled, forbids lava tiles from being queued by the cluster router.
 cvar_t *nav_cluster_forbid_lava = nullptr;
+//! When enabled, forbids slime tiles from being queued by the cluster router.
 cvar_t *nav_cluster_forbid_slime = nullptr;
+//! Master switch that turns the cluster graph routing subsystem on or off.
 cvar_t *nav_cluster_enable = nullptr;
+//! Enables drawing of the computed cluster route for debugging purposes.
 cvar_t *nav_cluster_debug_draw = nullptr;
+//! Enables visualization of the cluster graph topology for debugging.
 cvar_t *nav_cluster_debug_draw_graph = nullptr;
 
 
-// Cached last tile-route for debug drawing and diagnostics.
+/**
+*	Cached last tile - route for debug drawing and diagnostics.
+**/
+//! Cache of the most recent cluster tile sequence computed by the routing subsystem.
 static std::vector<nav_tile_cluster_key_t> s_nav_cluster_last_route;
+//! Expiration timestamp guarding the debug route visualization cache.
 static QMTime s_nav_cluster_last_route_expire = 0_ms;
+//! Last computed route cost used for diagnostics and logging.
 static double s_nav_cluster_last_route_cost = 0.0;
+//! Hop count of the most recent cached cluster route.
 static int32_t s_nav_cluster_last_route_hops = 0;
 
+//! Tile-cluster graph storage (nodes + neighbor indices) reconstructed from the nav mesh.
 static nav_tile_cluster_graph_t s_nav_tile_cluster_graph = {};
 
 //! Goal-height slack used when deciding whether a tile's ladder anchors align with the coarse route objective.

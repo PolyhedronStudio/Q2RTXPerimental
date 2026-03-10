@@ -188,6 +188,13 @@ struct nav_path_simplify_options_t {
 	nav_path_simplify_aggressiveness_t aggressiveness = nav_path_simplify_aggressiveness_t::SyncConservative;
 };
 
+/**
+*  Targeted pathfinding diagnostics:
+*      These are intentionally gated behind `nav_debug_draw >= 2` to avoid
+*      spamming logs during normal gameplay.
+**/
+bool Nav_PathDiagEnabled( void );
+
 /** 
 *    @brief	Return the last recorded sync navigation query stats.
 *    @return	Const reference to the cached phase-1 debug stats snapshot.

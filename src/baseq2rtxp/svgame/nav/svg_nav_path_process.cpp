@@ -381,7 +381,10 @@ const bool svg_nav_path_process_t::RebuildPathToWithAgentBBox( const Vector3 &st
 	    this );
 	// Note: pass path-process (this) into the traversal generator to allow
 	// A*  to use recent failure/backoff timing for per-entity failure penalties.
-	gi.dprintf( "[DEBUG][NavPath] SVG_Nav_GenerateTraversalPathForOriginEx_WithAgentBBox returned %d\n", ok ? 1 : 0 );
+    // Only emit this verbose return code when verbose debug is enabled to avoid spamming logs every rebuild.
+	if ( doVerboseDebug ) {
+		gi.dprintf( "[DEBUG][NavPath] SVG_Nav_GenerateTraversalPathForOriginEx_WithAgentBBox returned %d\n", ok ? 1 : 0 );
+	}
 
 	/** 
 	* 	Drop-limit post-process:
@@ -453,7 +456,10 @@ const bool svg_nav_path_process_t::RebuildPathToWithAgentBBox( const Vector3 &st
 	const QMTime extra = QMTime::FromMilliseconds( ( int32_t )policy.fail_backoff_base.Milliseconds()* ( 1 << powN ) );
 	backoff_until = level.time + extra;
 	next_rebuild_time = std::max( next_rebuild_time, backoff_until );
-	gi.dprintf( "[DEBUG][NavPath] Pathfinding failed, consecutive_failures=%d, backoff_until=%lld\n", consecutive_failures, ( long long )backoff_until.Milliseconds() );
+    // Throttle this debug print so repeated failures do not flood the console when not debugging.
+	if ( doVerboseDebug ) {
+		gi.dprintf( "[DEBUG][NavPath] Pathfinding failed, consecutive_failures=%d, backoff_until=%lld\n", consecutive_failures, ( long long )backoff_until.Milliseconds() );
+	}
 	/** 
 	*  	Failure outcome:
 	*  		If we restored a previous path, report success so callers can keep using it.

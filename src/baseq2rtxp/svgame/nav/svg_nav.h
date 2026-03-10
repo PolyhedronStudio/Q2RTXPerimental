@@ -1,10 +1,10 @@
-/** * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+/******************************************************************** 
 * 
 * 
 * 	SVGame: Navigation Voxelmesh Generator
 * 
 * 
-* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * **/
+********************************************************************/
 #pragma once
 
 //! Define to enable default cvar values for navigation debugging features. 
@@ -16,12 +16,10 @@
 
 //! Forward declarations to minimize includes in this header, which is included widely for nav-related code.
 struct svg_base_edict_t;
+struct nav_mesh_t;
+struct nav_occupancy_entry_t;
 
-/** 
-* 	Include default constants for navigation parameters.
-**/
 #include "svgame/nav/svg_nav_const_defaults.h"
-
 // CVars defined in svg_nav.cpp (declare extern for cross-TU usage)
 extern cvar_t *nav_profile_level;
 extern cvar_t *nav_astar_step_budget_ms;
@@ -53,6 +51,7 @@ extern cvar_t *nav_max_step;
 extern cvar_t *nav_max_drop;
 extern cvar_t *nav_max_drop_height_cap;
 extern cvar_t *nav_max_slope_normal_z;
+extern cvar_t *nav_cost_los_max_vertical_delta;
 
 extern cvar_t *nav_agent_mins_x;
 extern cvar_t *nav_agent_mins_y;
@@ -75,7 +74,40 @@ extern cvar_t *nav_cost_drop_weight;
 extern cvar_t *nav_cost_goal_z_blend_factor;
 extern cvar_t *nav_cost_min_cost_per_unit;
 
+/**
+*	@brief	Convert a world-space distance into nav cells for debugging instrumentation.
+*	@param	mesh	Navigation mesh (provides accurate cell/world sizing).
+*	@param	worldDistance	Distance in world units to convert.
+*	@return	Floating-point cell count that distance spans.
+*	@note	Returns 0 when the mesh/cell size cannot be determined.
+**/
+double SVG_Nav_DebugWorldDistanceToCellCount( const nav_mesh_t * mesh, double worldDistance );
 
+/**
+*	@brief	Convert a world-space distance into nav tiles for debugging instrumentation.
+*	@param	mesh	Navigation mesh driving the conversion.
+*	@param	worldDistance	Distance in world units to convert.
+*	@return	Tile count corresponding to the provided distance.
+**/
+double SVG_Nav_DebugWorldDistanceToTileCount( const nav_mesh_t * mesh, double worldDistance );
+
+/**
+*	@brief	Convert a cvar value (with fallback) into nav cells for easier debugging of tuning knobs.
+*	@param	mesh	Navigation mesh supplying grid sizing.
+*	@param	cvar	Source cvar pointer (may be null).
+*	@param	fallbackWorldUnits	Fallback world distance if the cvar is unset or non-positive.
+*	@return	Cell count corresponding to the chosen distance.
+**/
+double SVG_Nav_DebugCvarValueToCellCount( const nav_mesh_t * mesh, const cvar_t * cvar, double fallbackWorldUnits );
+
+/**
+*	@brief	Convert a cvar value (with fallback) into nav tiles for easier debugging of tuning knobs.
+*	@param	mesh	Navigation mesh supplying tile sizing.
+*	@param	cvar	Source cvar pointer (may be null).
+*	@param	fallbackWorldUnits	Fallback world distance if the cvar is unset or non-positive.
+*	@return	Tile count corresponding to the chosen distance.
+**/
+double SVG_Nav_DebugCvarValueToTileCount( const nav_mesh_t * mesh, const cvar_t * cvar, double fallbackWorldUnits );
 
 /** 
 * 
@@ -283,10 +315,19 @@ struct nav_world_tile_key_t {
 *  @param    cell_index  Cell index inside the tile (0..cells_per_tile-1).
 *  @note     Defensive: returns when tile or presence_bits are null.
 **/
-static inline void SVG_Nav_Tile_SetPresenceBit( nav_tile_t * tile, const int32_t cell_index ) {
-	if ( !tile || !tile->presence_bits || cell_index < 0 ) {
+static inline void Nav_SetPresenceBit( nav_tile_t *tile, int32_t cell_index ) {
+	/**
+	*  Sanity: require tile pointer and a valid cell index.
+	**/
+	if ( !tile || cell_index < 0 ) {
 		return;
 	}
+
+	// Presence bitset must exist; validate via the public accessor pattern.
+	if ( !tile->presence_bits ) {
+		return;
+	}
+
 	const int32_t word_index = cell_index >> 5;
 	const int32_t bit_index = cell_index & 31;
 	tile->presence_bits[ word_index ] |= ( 1u << bit_index );
@@ -332,8 +373,7 @@ typedef struct nav_inline_model_runtime_s {
 	bool dirty;
 } nav_inline_model_runtime_t;
 
-// Forward declare nav_mesh_t so helper accessors can be declared earlier in the header.
-typedef struct nav_mesh_s nav_mesh_t;
+// Forward declaration for `nav_mesh_t` lives near the top of this header.
 
 // helper accessors declared after nav_mesh_t definition
 
@@ -396,6 +436,12 @@ static constexpr int32_t NAV_REGION_ID_NONE = -1;
 //! Sentinel used when a region does not yet reference a valid portal id.
 static constexpr int32_t NAV_PORTAL_ID_NONE = -1;
 
+
+//! Deterministic coarse region budget used to split connected tile space into portal-bearing static regions.
+static constexpr int32_t NAV_HIERARCHY_MAX_TILES_PER_REGION = 8;
+//! Regions at or above this size are logged as coarse partition saturation points.
+static constexpr int32_t NAV_HIERARCHY_OVERSIZED_REGION_TILE_COUNT = NAV_HIERARCHY_MAX_TILES_PER_REGION;
+
 /** 
 *    @brief  Compatibility hooks describing which traversal semantics a hierarchy element supports.
 **/
@@ -405,7 +451,7 @@ enum nav_hierarchy_compatibility_bits_t : uint32_t {
 	NAV_HIERARCHY_COMPAT_STAIR = ( 1u << 1 ),
 	NAV_HIERARCHY_COMPAT_LADDER = ( 1u << 2 ),
 	NAV_HIERARCHY_COMPAT_WATER = ( 1u << 3 ),
-   NAV_HIERARCHY_COMPAT_WALK_OFF = ( 1u << 4 ),
+	NAV_HIERARCHY_COMPAT_WALK_OFF = ( 1u << 4 ),
 	NAV_HIERARCHY_COMPAT_LAVA = ( 1u << 5 ),
 	NAV_HIERARCHY_COMPAT_SLIME = ( 1u << 6 )
 };
@@ -418,7 +464,7 @@ enum nav_region_flags_t : uint32_t {
 	NAV_REGION_FLAG_HAS_STAIRS = ( 1u << 0 ),
 	NAV_REGION_FLAG_HAS_LADDERS = ( 1u << 1 ),
 	NAV_REGION_FLAG_HAS_WATER = ( 1u << 2 ),
-   NAV_REGION_FLAG_ISOLATED = ( 1u << 3 ),
+	NAV_REGION_FLAG_ISOLATED = ( 1u << 3 ),
 	NAV_REGION_FLAG_HAS_LAVA = ( 1u << 4 ),
 	NAV_REGION_FLAG_HAS_SLIME = ( 1u << 5 )
 };
@@ -537,27 +583,30 @@ struct nav_portal_overlay_t {
 *    @brief  Internal hierarchy container owned by the navigation mesh.
 **/
 struct nav_hierarchy_storage_t {
-  //! Canonical-world-tile adjacency records for Phase 3 static region construction.
+	//! Canonical-world-tile adjacency records for Phase 3 static region construction.
 	std::vector<nav_tile_adjacency_t> tile_adjacency;
 	//! Flattened neighbor tile-id refs addressed by `tile_adjacency` ranges.
 	std::vector<int32_t> tile_neighbor_refs;
+
 	//! Region records built from canonical world tiles.
 	std::vector<nav_region_t> regions;
 	//! Portal records joining neighboring regions.
 	std::vector<nav_portal_t> portals;
-   //! Local runtime overlay entries aligned 1:1 with `portals`.
+
+	//! Local runtime overlay entries aligned 1:1 with `portals`.
 	std::vector<nav_portal_overlay_t> portal_overlays;
 	//! Flat tile-ref storage addressed by region ranges.
 	std::vector<nav_region_tile_ref_t> tile_refs;
 	//! Flat leaf-ref storage addressed by region ranges.
 	std::vector<nav_region_leaf_ref_t> leaf_refs;
+
 	//! Flat portal-id storage addressed by region ranges.
 	std::vector<int32_t> region_portal_refs;
- //! Debug count of regions produced by the last static partition pass.
+	//! Debug count of regions produced by the last static partition pass.
 	int32_t debug_region_count = 0;
 	//! Debug count of adjacency links produced by the last tile-adjacency pass.
 	int32_t debug_adjacency_link_count = 0;
-   //! Debug count of traversable cross-region boundary samples seen during portal extraction.
+	//! Debug count of traversable cross-region boundary samples seen during portal extraction.
 	int32_t debug_boundary_link_count = 0;
 	//! Debug count of portal records produced by the last portal extraction pass.
 	int32_t debug_portal_count = 0;
@@ -602,129 +651,16 @@ const nav_inline_model_runtime_t * SVG_Nav_GetInlineModelRuntimeByIndex( const n
 **/
 nav_agent_profile_t SVG_Nav_BuildAgentProfileFromCvars( void );
 
-/** 
-*  @brief    Runtime occupancy entry used for dynamic blocking/penalties.
-**/
-struct nav_occupancy_entry_t {
-	//! Accumulated soft cost (crowd avoidance, biasing).
-	int32_t soft_cost = 0;
-	//! Hard block flag to prevent traversal entirely.
-	bool blocked = false;
-};
-
-/** 
-*    @brief  Main navigation mesh structure.
-*         Contains both world mesh (static geometry) and inline model meshes
-*         (dynamic brush entities).
-**/
-typedef struct nav_mesh_s {
-	/** 
-	* 	World Boundaries:
-	**/
-	BBox3 world_bounds = { { -CM_MAX_WORLD_HALF_SIZE, -CM_MAX_WORLD_HALF_SIZE, -CM_MAX_WORLD_HALF_SIZE }, { CM_MAX_WORLD_HALF_SIZE, CM_MAX_WORLD_HALF_SIZE, CM_MAX_WORLD_HALF_SIZE } };
-	
-    /** 
-   *   Canonical world tile storage (unique tiles by tile_x/y):
-    * 
-   *   World tiles are owned here. Leafs reference these by id in `nav_leaf_data_t::tile_ids`.
-   *   Inline-model tiles remain per-model because they are stored in model-local space.
-    **/
-    std::vector<nav_tile_t> world_tiles;
-    std::unordered_map<nav_world_tile_key_t, int32_t, nav_world_tile_key_hash_t> world_tile_id_of;
-
-	/** 
-	* \tDynamic occupancy map keyed by (tile, cell, layer).
-	* \tUsed to avoid per-query collision checks against other actors by consulting
-	* \tpre-filled occupancy instead. Stores both hard-block and soft-cost data.
-	**/
-	std::unordered_map<uint64_t, nav_occupancy_entry_t> occupancy;
-	//! Frame number for which occupancy is currently stamped.
-	int64_t occupancy_frame = -1;
-
-    /** 
-   *   World mesh data (per-leaf):
-    **/
-    //! Number of BSP leafs.
-    int32_t num_leafs;
-    //! Array of per-leaf navigation data.
-    nav_leaf_data_t * leaf_data;
-    
-    /** 
-   *   Inline model mesh data (per-model):
-    **/
-    //! Number of inline models.
-    int32_t num_inline_models;
-    //! Array of per-inline-model navigation data.
-    nav_inline_model_data_t * inline_model_data;
-    
-	/** 
-	*    Inline model runtime (per owning entity):
-	*    Not saved; rebuilt during voxelmesh generation.
-	**/
-	int32_t num_inline_model_runtime;
-	nav_inline_model_runtime_t * inline_model_runtime;
-
-	/** 
-	* 	Inline model runtime lookup:
-	* 		Maps owning entity number -> runtime entry index.
-	* 		Used to avoid linear scans when resolving runtime transforms for a clip entity.
-	* 		Rebuilt during voxelmesh generation.
-	**/
-	std::unordered_map<int32_t, int32_t> inline_model_runtime_index_of;
-
-	/** 
-	* 	Internal static-first hierarchy scaffolding:
-	* 		- regions
-	* 		- portals
-	* 		- flattened membership/reference storage
-	**/
-	nav_hierarchy_storage_t hierarchy;
-
-    /** 
-   *   Generation parameters:
-    **/
-    //! XY grid cell size.
-    double cell_size_xy;
-    //! Z-axis quantization step.
-    double z_quant;
-    //! Number of cells per tile dimension.
-    int32_t tile_size;
-    //! Maximum step height (matches PM_STEP_MAX_SIZE).
-    double max_step;
- //! Minimum walkable surface normal Z threshold (matches PM_STEP_MIN_NORMAL).
-	double max_slope_normal_z;
-    //! Agent bounding box minimum.
-    Vector3 agent_mins;
-    //! Agent bounding box maximum.
-    Vector3 agent_maxs;
-    
-    /** 
-   *   Statistics:
-    **/
-    //! Total number of tiles generated.
-    int32_t total_tiles;
-    //! Total number of XY cells with data.
-    int32_t total_xy_cells;
-    //! Total number of Z layers across all cells.
-    int32_t total_layers;
-} nav_mesh_t;
-
-/** 
-* 	@brief	Type alias for nav_mesh_t RAII owner using TagMalloc/TagFree.
-* 	@note	Ensures proper construction/destruction and prevents memory leaks.
-**/
-using nav_mesh_raii_t = SVG_RAIIObject<nav_mesh_t>;
 
 
-
-/** 
-* 
-* 
-*  
-*   Helper Accessors:
-*  
-*  
-*  
+/**
+*
+*
+*
+*    Tile Layer/Cells API:
+*
+*
+*
 **/
 /** 
 * 	@brief	Get layers pointer and count for a nav XY cell (const overload).
@@ -734,12 +670,7 @@ using nav_mesh_raii_t = SVG_RAIIObject<nav_mesh_t>;
 * 	@note	Helper intended to prevent callers from dereferencing dangling
 * 			pointers by explicitly returning a nullptr/count when data is absent.
 **/
-static inline std::pair<const nav_layer_t * , int32_t> SVG_Nav_Cell_GetLayers( const nav_xy_cell_t * cell ) {
-	if ( !cell || !cell->layers ) {
-		return { nullptr, 0 };
-	}
-	return { cell->layers, cell->num_layers };
-}
+std::pair<const nav_layer_t *, int32_t> SVG_Nav_Cell_GetLayers( const nav_xy_cell_t *cell );
 /** 
 * 	@brief	Get layers pointer and count for a nav XY cell (mutable overload).
 * 	@param	cell	Pointer to the XY cell to query.
@@ -748,12 +679,7 @@ static inline std::pair<const nav_layer_t * , int32_t> SVG_Nav_Cell_GetLayers( c
 * 	@note	Mutable overload for callers that need to modify layer data. Returns
 * 			nullptr/count to avoid dangling pointer use when data is missing.
 **/
-static inline std::pair<nav_layer_t * , int32_t> SVG_Nav_Cell_GetLayers( nav_xy_cell_t * cell ) {
-	if ( !cell || !cell->layers ) {
-		return { nullptr, 0 };
-	}
-	return { cell->layers, cell->num_layers };
-}
+std::pair<nav_layer_t *, int32_t> SVG_Nav_Cell_GetLayers( nav_xy_cell_t *cell );
 
 /** 
 * 	@brief	Get cell array and count for a tile (mutable tile pointer).
@@ -764,13 +690,7 @@ static inline std::pair<nav_layer_t * , int32_t> SVG_Nav_Cell_GetLayers( nav_xy_
 * 	@note	Count is computed as mesh->tile_size* mesh->tile_size. Returning
 * 			nullptr/count avoids exposing dangling arrays to callers.
 **/
-static inline std::pair<nav_xy_cell_t * , int32_t> SVG_Nav_Tile_GetCells( const nav_mesh_t * mesh, nav_tile_t * tile ) {
-	if ( !mesh || !tile || !tile->cells ) {
-		return { nullptr, 0 };
-	}
-	int32_t count = mesh->tile_size* mesh->tile_size;
-	return { tile->cells, count };
-}
+std::pair<nav_xy_cell_t *, int32_t> SVG_Nav_Tile_GetCells( const nav_mesh_t *mesh, nav_tile_t *tile );
 /** 
 * 	@brief	Get cell array and count for a tile (const overload).
 * 	@param	mesh	Pointer to the nav mesh (used for tile_size).
@@ -780,16 +700,18 @@ static inline std::pair<nav_xy_cell_t * , int32_t> SVG_Nav_Tile_GetCells( const 
 * 	@note	Const overload for read-only callers. Returning nullptr/count avoids
 * 			exposing dangling arrays when data is absent.
 **/
-static inline std::pair<const nav_xy_cell_t * , int32_t> SVG_Nav_Tile_GetCells( const nav_mesh_t * mesh, const nav_tile_t * tile ) {
-	if ( !mesh || !tile || !tile->cells ) {
-		return { nullptr, 0 };
-	}
-	int32_t count = mesh->tile_size* mesh->tile_size;
-	return { tile->cells, count };
-}
+std::pair<const nav_xy_cell_t *, int32_t> SVG_Nav_Tile_GetCells( const nav_mesh_t *mesh, const nav_tile_t *tile );
 
 
-
+/**
+*
+*
+*
+*    Leaf Region/Tile ID API:
+*
+*
+*
+**/
 /** 
 * 	@brief	Get tile id array and count for a leaf (mutable overload).
 * 	@param	leaf	Pointer to the leaf data to query.
@@ -798,12 +720,7 @@ static inline std::pair<const nav_xy_cell_t * , int32_t> SVG_Nav_Tile_GetCells( 
 * 	@note	Helps prevent callers from iterating over a dangling pointer when
 * 			leaf data is absent.
 **/
-static inline std::pair<int32_t * , int32_t> SVG_Nav_Leaf_GetTileIds( nav_leaf_data_t * leaf ) {
-	if ( !leaf || !leaf->tile_ids ) {
-		return { nullptr, 0 };
-	}
-	return { leaf->tile_ids, leaf->num_tiles };
-}
+std::pair<int32_t *, int32_t> SVG_Nav_Leaf_GetTileIds( nav_leaf_data_t *leaf );
 /** 
 * 	@brief	Get tile id array and count for a leaf (const overload).
 * 	@param	leaf	Const pointer to the leaf data to query.
@@ -812,38 +729,33 @@ static inline std::pair<int32_t * , int32_t> SVG_Nav_Leaf_GetTileIds( nav_leaf_d
 * 	@note	Const overload for read-only callers; returning nullptr/count avoids
 * 			exposing dangling pointers.
 **/
-static inline std::pair<const int32_t * , int32_t> SVG_Nav_Leaf_GetTileIds( const nav_leaf_data_t * leaf ) {
-	if ( !leaf || !leaf->tile_ids ) {
-		return { nullptr, 0 };
-	}
-	return { leaf->tile_ids, leaf->num_tiles };
-}
-
+std::pair<const int32_t *, int32_t> SVG_Nav_Leaf_GetTileIds( const nav_leaf_data_t *leaf );
 /** 
 * 	@brief	Get region id array and count for a leaf (mutable overload).
 * 	@param	leaf	Pointer to the leaf data to query.
 * 	@return	A std::pair of (int32_t*  region_ids, int32_t num_regions). Returns
 * 			nullptr and 0 when leaf or region_ids are missing.
 **/
-static inline std::pair<int32_t * , int32_t> SVG_Nav_Leaf_GetRegionIds( nav_leaf_data_t * leaf ) {
-	if ( !leaf || !leaf->region_ids ) {
-		return { nullptr, 0 };
-	}
-	return { leaf->region_ids, leaf->num_regions };
-}
+std::pair<int32_t *, int32_t> SVG_Nav_Leaf_GetRegionIds( nav_leaf_data_t *leaf );
 /** 
 * 	@brief	Get region id array and count for a leaf (const overload).
 * 	@param	leaf	Const pointer to the leaf data to query.
 * 	@return	A std::pair of (const int32_t*  region_ids, int32_t num_regions). Returns
 * 			nullptr and 0 when leaf or region_ids are missing.
 **/
-static inline std::pair<const int32_t * , int32_t> SVG_Nav_Leaf_GetRegionIds( const nav_leaf_data_t * leaf ) {
-	if ( !leaf || !leaf->region_ids ) {
-		return { nullptr, 0 };
-	}
-	return { leaf->region_ids, leaf->num_regions };
-}
+std::pair<const int32_t *, int32_t> SVG_Nav_Leaf_GetRegionIds( const nav_leaf_data_t *leaf );
 
+
+
+/**
+*
+*
+*
+*    Inline-Models API:
+*
+*
+*
+**/
 /** 
 * 	@brief		Get inline-model tiles array and count (mutable overload).
 * 	@param		model	Pointer to the inline model data to query.
@@ -852,12 +764,7 @@ static inline std::pair<const int32_t * , int32_t> SVG_Nav_Leaf_GetRegionIds( co
 * 	@note		Returning nullptr/count prevents clients from using a dangling tiles
 * 				pointer when inline-model data is not present.
 **/
-static inline std::pair<nav_tile_t * , int32_t> SVG_Nav_InlineModel_GetTiles( nav_inline_model_data_t * model ) {
-	if ( !model || !model->tiles ) {
-		return { nullptr, 0 };
-	}
-	return { model->tiles, model->num_tiles };
-}
+inline std::pair<nav_tile_t *, int32_t> SVG_Nav_InlineModel_GetTiles( nav_inline_model_data_t *model );
 /** 
 * 	@brief		Get inline-model tiles array and count (const overload).
 * 	@param		model	Const pointer to the inline model data to query.
@@ -865,13 +772,7 @@ static inline std::pair<nav_tile_t * , int32_t> SVG_Nav_InlineModel_GetTiles( na
 * 				Returns nullptr and 0 when model or tiles are missing.
 * 	@note		Const overload for read-only callers; avoids exposing dangling data.
 **/
-static inline std::pair<const nav_tile_t * , int32_t> SVG_Nav_InlineModel_GetTiles( const nav_inline_model_data_t * model ) {
-	if ( !model || !model->tiles ) {
-		return { nullptr, 0 };
-	}
-	return { model->tiles, model->num_tiles };
-}
-
+std::pair<const nav_tile_t * , int32_t> SVG_Nav_InlineModel_GetTiles( const nav_inline_model_data_t * model );
 /** 
 * 	@brief	Get inline-model runtime array and count from mesh (mutable overload).
 * 	@param	mesh	Pointer to the navigation mesh.
@@ -880,12 +781,7 @@ static inline std::pair<const nav_tile_t * , int32_t> SVG_Nav_InlineModel_GetTil
 * 	@note	Runtime entries are non-owning pointers; this helper returns nullptr/count
 * 			to avoid callers holding/using dangling pointers when the mesh is absent.
 **/
-static inline std::pair<nav_inline_model_runtime_t * , int32_t> SVG_Nav_Mesh_GetInlineModelRuntime( nav_mesh_t * mesh ) {
-	if ( !mesh || !mesh->inline_model_runtime ) {
-		return { nullptr, 0 };
-	}
-	return { mesh->inline_model_runtime, mesh->num_inline_model_runtime };
-}
+std::pair<nav_inline_model_runtime_t * , int32_t> SVG_Nav_Mesh_GetInlineModelRuntime( nav_mesh_t * mesh );
 /** 
 * 	@brief		Get inline-model runtime array and count from mesh (const overload).
 * 	@param		mesh	Const pointer to the navigation mesh.
@@ -893,19 +789,14 @@ static inline std::pair<nav_inline_model_runtime_t * , int32_t> SVG_Nav_Mesh_Get
 * 				Returns nullptr and 0 when mesh or runtime array is missing.
 * 	@note		Const overload for read-only callers; avoids exposing dangling pointers.
 **/
-static inline std::pair<const nav_inline_model_runtime_t * , int32_t> SVG_Nav_Mesh_GetInlineModelRuntime( const nav_mesh_t * mesh ) {
-	if ( !mesh || !mesh->inline_model_runtime ) {
-		return { nullptr, 0 };
-	}
-	return { mesh->inline_model_runtime, mesh->num_inline_model_runtime };
-}
+std::pair<const nav_inline_model_runtime_t *, int32_t> SVG_Nav_Mesh_GetInlineModelRuntime( const nav_mesh_t *mesh );
 
 
 
 /** 
 * 
-*  
-*  
+* 
+* 
 *    Navigation System API:
 *  
 *  
@@ -941,7 +832,7 @@ void SVG_Nav_Occupancy_Clear( nav_mesh_t * mesh );
 * 	@param	cost	Soft cost to accumulate (default 1).
 * 	@param	blocked	If true, mark this location as hard blocked.
 **/
-void SVG_Nav_Occupancy_Add( nav_mesh_t * mesh, int32_t tileId, int32_t cellIndex, int32_t layerIndex, int32_t cost = 1, bool blocked = false );
+void SVG_Nav_Occupancy_Add( nav_mesh_t * mesh, int32_t tileId, int32_t cellIndex, int32_t layerIndex, int32_t cost, bool blocked );
 
 /** 
 * 	@brief	Query the dynamic occupancy soft cost for a tile/cell/layer.
@@ -983,7 +874,7 @@ void SVG_Nav_Hierarchy_ClearPortalOverlays( nav_mesh_t * mesh );
 * 	@return	True when the overlay entry was updated.
 * 	@note	This is intended for future inline-model-driven local invalidation hooks.
 **/
-bool SVG_Nav_Hierarchy_SetPortalOverlay( nav_mesh_t * mesh, int32_t portal_id, uint32_t overlay_flags, double additional_traversal_cost = 0.0 );
+bool SVG_Nav_Hierarchy_SetPortalOverlay( nav_mesh_t * mesh, int32_t portal_id, uint32_t overlay_flags, double additional_traversal_cost );
 
 /** 
 * 	@brief	Query one local portal overlay entry by compact portal id.
@@ -1025,6 +916,118 @@ struct svg_nav_path_policy_t;
 * 
 * 
 **/
+/**
+*  @brief    Runtime occupancy entry used for dynamic blocking/penalties.
+**/
+struct nav_occupancy_entry_t {
+	//! Accumulated soft cost (crowd avoidance, biasing).
+	int32_t soft_cost = 0;
+	//! Hard block flag to prevent traversal entirely.
+	bool blocked = false;
+};
+
+/**
+*    @brief  Main navigation mesh structure.
+*         Contains both world mesh (static geometry) and inline model meshes
+*         (dynamic brush entities).
+**/
+struct nav_mesh_t {
+	/**
+	* 	World Boundaries:
+	**/
+	BBox3 world_bounds = { { -CM_MAX_WORLD_HALF_SIZE, -CM_MAX_WORLD_HALF_SIZE, -CM_MAX_WORLD_HALF_SIZE }, { CM_MAX_WORLD_HALF_SIZE, CM_MAX_WORLD_HALF_SIZE, CM_MAX_WORLD_HALF_SIZE } };
+
+	/**
+	*   Canonical world tile storage (unique tiles by tile_x/y):
+	*
+	*   World tiles are owned here. Leafs reference these by id in `nav_leaf_data_t::tile_ids`.
+	*   Inline-model tiles remain per-model because they are stored in model-local space.
+	**/
+	std::vector<nav_tile_t> world_tiles;
+	std::unordered_map<nav_world_tile_key_t, int32_t, nav_world_tile_key_hash_t> world_tile_id_of;
+
+	/**
+	* \tDynamic occupancy map keyed by (tile, cell, layer).
+	* \tUsed to avoid per-query collision checks against other actors by consulting
+	* \tpre-filled occupancy instead. Stores both hard-block and soft-cost data.
+	**/
+	std::unordered_map<uint64_t, nav_occupancy_entry_t> occupancy;
+	//! Frame number for which occupancy is currently stamped.
+	int64_t occupancy_frame = -1;
+
+	/**
+   *   World mesh data (per-leaf):
+	**/
+	//! Number of BSP leafs.
+	int32_t num_leafs;
+	//! Array of per-leaf navigation data.
+	nav_leaf_data_t *leaf_data;
+
+	/**
+   *   Inline model mesh data (per-model):
+	**/
+	//! Number of inline models.
+	int32_t num_inline_models;
+	//! Array of per-inline-model navigation data.
+	nav_inline_model_data_t *inline_model_data;
+
+	/**
+	*    Inline model runtime (per owning entity):
+	*    Not saved; rebuilt during voxelmesh generation.
+	**/
+	int32_t num_inline_model_runtime;
+	nav_inline_model_runtime_t *inline_model_runtime;
+
+	/**
+	* 	Inline model runtime lookup:
+	* 		Maps owning entity number -> runtime entry index.
+	* 		Used to avoid linear scans when resolving runtime transforms for a clip entity.
+	* 		Rebuilt during voxelmesh generation.
+	**/
+	std::unordered_map<int32_t, int32_t> inline_model_runtime_index_of;
+
+	/**
+	* 	Internal static-first hierarchy scaffolding:
+	* 		- regions
+	* 		- portals
+	* 		- flattened membership/reference storage
+	**/
+	nav_hierarchy_storage_t hierarchy;
+
+	/**
+	*   Generation parameters:
+	**/
+	//! XY grid cell size.
+	double cell_size_xy;
+	//! Z-axis quantization step.
+	double z_quant;
+	//! Number of cells per tile dimension.
+	int32_t tile_size;
+	//! Maximum step height (matches PM_STEP_MAX_SIZE).
+	double max_step;
+	//! Minimum walkable surface normal Z threshold (matches PM_STEP_MIN_NORMAL).
+	double max_slope_normal_z;
+	//! Agent bounding box minimum.
+	Vector3 agent_mins;
+	//! Agent bounding box maximum.
+	Vector3 agent_maxs;
+
+	/**
+	*   Statistics:
+	**/
+	//! Total number of tiles generated.
+	int32_t total_tiles;
+	//! Total number of XY cells with data.
+	int32_t total_xy_cells;
+  //! Total number of Z layers across all cells.
+	int32_t total_layers;
+};
+
+/**
+* 	@brief	Type alias for nav_mesh_t RAII owner using TagMalloc/TagFree.
+* 	@note	Ensures proper construction/destruction and prevents memory leaks.
+**/
+using nav_mesh_raii_t = SVG_RAIIObject<nav_mesh_t>;
 /** 
 *    @brief  Global navigation mesh instance (RAII owner).
 *         Stores the complete navigation data for the current level.
@@ -1033,48 +1036,9 @@ struct svg_nav_path_policy_t;
 extern nav_mesh_raii_t g_nav_mesh;
 
 /** 
-*    @brief  Navigation CVars for generation parameters.
-*         These control the voxelmesh generation behavior and agent properties.
-**/
-extern cvar_t *nav_cell_size_xy;    //! XY grid cell size in world units.
-extern cvar_t *nav_z_quant;         //! Z-axis quantization step.
-extern cvar_t *nav_tile_size;       //! Number of cells per tile dimension.
-extern cvar_t *nav_max_step;        //! Maximum step height.
-extern cvar_t *nav_max_drop;        //! Maximum allowed downward traversal drop.
-extern cvar_t *nav_max_drop_height_cap;	//! Cap applied when rejecting excessive drops.
-extern cvar_t *nav_max_slope_normal_z;	//! Maximum walkable slope in degrees.
-extern cvar_t *nav_agent_mins_x;    //! Agent bounding box minimum X.
-extern cvar_t *nav_agent_mins_y;    //! Agent bounding box minimum Y.
-extern cvar_t *nav_agent_mins_z;    //! Agent bounding box minimum Z.
-extern cvar_t *nav_agent_maxs_x;    //! Agent bounding box maximum X.
-extern cvar_t *nav_agent_maxs_y;    //! Agent bounding box maximum Y.
-extern cvar_t *nav_agent_maxs_z;    //! Agent bounding box maximum Z.
-// Navigation A* cost tuning CVars (runtime tuning of heuristics)
-extern cvar_t *nav_cost_w_dist;
-extern cvar_t *nav_cost_jump_base;
-extern cvar_t *nav_cost_jump_height_weight;
-extern cvar_t *nav_cost_los_weight;
-extern cvar_t *nav_cost_dynamic_weight;
-extern cvar_t *nav_cost_failure_weight;
-extern cvar_t *nav_cost_failure_tau_ms;
-extern cvar_t *nav_cost_turn_weight;
-extern cvar_t *nav_cost_slope_weight;
-extern cvar_t *nav_cost_drop_weight;
-extern cvar_t *nav_cost_goal_z_blend_factor;
-extern cvar_t *nav_cost_min_cost_per_unit;
-extern cvar_t *nav_hierarchy_route_enable;
-
-/** 
 * 	@brief	Profiling and logging control CVars.
 **/
 extern cvar_t *nav_profile_level;      //!< Profiling verbosity level (0..3).
-
-/** 
-* 	@brief	Public wrapper to build the cluster graph from a mesh.
-* 	@note	Implemented in svg_nav.cpp. Generated mesh code may call this
-* 			to populate the tile-level cluster graph after generation.
-**/
-void SVG_Nav_ClusterGraph_BuildFromMesh_World( const nav_mesh_t * mesh );
 
 /** 
 * 	@brief	Lightweight logging wrapper for navigation subsystem.
@@ -1082,27 +1046,6 @@ void SVG_Nav_ClusterGraph_BuildFromMesh_World( const nav_mesh_t * mesh );
 * 			centralized logging facility without changing callsites.
 **/
 void SVG_Nav_Log( const char * fmt, ... );
-
-/** 
-* 	@brief	Reset hierarchy membership on tiles and leaves.
-* 	@param	mesh	Navigation mesh whose region membership should be cleared.
-* 	@note	Frees leaf-owned region-id arrays and restores all memberships to sentinel values.
-**/
-void SVG_Nav_Hierarchy_ResetMembership( nav_mesh_t * mesh );
-
-/** 
-* 	@brief	Clear all internal hierarchy records and memberships.
-* 	@param	mesh	Navigation mesh whose hierarchy scaffolding should be cleared.
-* 	@note	This preserves the fine navmesh while invalidating future coarse hierarchy state.
-**/
-void SVG_Nav_Hierarchy_Clear( nav_mesh_t * mesh );
-
-/** 
-* 	@brief	Build static tile adjacency, coarse regions, and the derived initial portal graph.
-* 	@param	mesh	Navigation mesh whose canonical world tiles should be partitioned.
-* 	@note	This derives conservative static connectivity from persisted tile edge metadata and merges traversable cross-region seams into initial portal records.
-**/
-void SVG_Nav_Hierarchy_BuildStaticRegions( nav_mesh_t * mesh );
 
 
 
@@ -1199,7 +1142,7 @@ void SVG_Nav_FreeMesh( void );
 * 
 * 
 * 
-*    Navigation Pathfinding Node Methods:
+*    Navigation Pathfinding Node System:
 * 
 * 
 * 
@@ -1528,30 +1471,31 @@ const bool SVG_Nav_QueryMovementDirection_Advance2D_Output3D( const nav_traversa
 void SVG_Nav_DebugDraw( void );
 
 
-/** 
-* 
-* 
-* 
-* 
+
+/**
+*
+*
+*
+*
 * 	Utility Functions:
-* 
-* 
-* 
-* 
+*
+*
+*
+*
 **/
-/** 
+/**
 * 	@brief	Will return the path for a level's matching navigation filename.
 * 	@return	A string containing the file path + file extension.
 **/
-const std::string Nav_GetPathForLevelNav( const char * levelName, const bool prependGameFolder = true );
-/** 
+const std::string Nav_GetPathForLevelNav( const char *levelName, const bool prependGameFolder = true );
+/**
 *    @brief  Calculate the world-space size of a tile.
 **/
-static inline double Nav_TileWorldSize( const nav_mesh_t * mesh ) {
+static inline double Nav_TileWorldSize( const nav_mesh_t *mesh ) {
 	// Compute world-space size of a nav tile.
-	return mesh->cell_size_xy* ( double )mesh->tile_size;
+	return mesh->cell_size_xy * ( double )mesh->tile_size;
 }
-/** 
+/**
 *    @brief  Convert world coordinate to tile grid coordinate.
 **/
 static inline int32_t Nav_WorldToTileCoord( double value, double tile_world_size ) {
@@ -1561,7 +1505,7 @@ static inline int32_t Nav_WorldToTileCoord( double value, double tile_world_size
 	// due to precision. NAV_TILE_EPSILON is a small positive value.
 	return ( int32_t )floorf( ( value + NAV_TILE_EPSILON ) / tile_world_size );
 }
-/** 
+/**
 *    @brief  Convert world coordinate to cell index within a tile.
 **/
 static inline int32_t Nav_WorldToCellCoord( double value, double tile_origin, double cell_size_xy ) {

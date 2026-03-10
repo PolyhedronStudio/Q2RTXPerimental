@@ -63,6 +63,24 @@ static constexpr int32_t DUMMY_NAV_DEBUG = 1;
 static constexpr int32_t DUMMY_NAV_DEBUG = 0;
 #endif
 
+static QMTime s_dummy_nav_debug_next_log_time = 0_ms;
+
+static bool Dummy_ShouldEmitNavDebugLog( void ) {
+	const QMTime now = level.time;
+	if ( now >= s_dummy_nav_debug_next_log_time ) {
+		s_dummy_nav_debug_next_log_time = now + 200_ms;
+		return true;
+	}
+	return false;
+}
+
+#define DUMMY_NAV_DEBUG_PRINT( ... ) \
+	do { \
+		if ( DUMMY_NAV_DEBUG != 0 && Dummy_ShouldEmitNavDebugLog() ) { \
+			gi.dprintf( __VA_ARGS__ ); \
+		} \
+	} while ( 0 )
+
 //! Maximum age of a sound event that can trigger investigation.
 static constexpr QMTime DUMMY_SOUND_INVESTIGATE_MAX_AGE = 24_sec;
 //! Maximum horizontal distance for reacting to sound events.
@@ -120,6 +138,45 @@ static bool Dummy_ShouldResetSoundInvestigationGoal( const svg_monster_testdummy
 	*   Stable same-goal refresh: keep the running request alive and let the nav queue continue its work.
 	**/
 	return false;
+}
+
+/**
+*   @brief	Determine whether the current sound goal is still retrying the same recent async failure.
+*   @param	self		Sound-follow testdummy evaluating the active goal.
+*   @param	goalOrigin	Current world-space sound goal.
+*   @param	minFailures	Minimum consecutive-failure count required before this helper returns true.
+*   @return	True when the active goal still matches a recent failure closely enough to justify retry mitigation.
+*   @note	This lets sound-follow logic react only to stable repeated failures without suppressing fresh sound updates.
+**/
+static bool Dummy_IsRetryingRecentSoundGoalFailure( const svg_monster_testdummy_sfxfollow_t *self, const Vector3 &goalOrigin, const int32_t minFailures ) {
+	/**
+	*   Sanity checks: require an entity and the requested minimum failure threshold.
+	**/
+	if ( !self || minFailures <= 0 ) {
+		return false;
+	}
+
+	/**
+	*   Require a recent failure history before considering the current goal as a retry.
+	**/
+	const svg_nav_path_process_t &pathProcess = self->pathNavigationState.process;
+	if ( pathProcess.consecutive_failures < minFailures || pathProcess.last_failure_time <= 0_ms ) {
+		return false;
+	}
+
+	/**
+	*   Compare against the path policy's rebuild thresholds so retry suppression stays aligned with nav semantics.
+	**/
+	const svg_nav_path_policy_t &policy = self->pathNavigationState.policy;
+	const double retryGoalRadius = std::max( policy.rebuild_goal_dist_3d > 0.0 ? policy.rebuild_goal_dist_3d : policy.rebuild_goal_dist_2d, 64.0 );
+	if ( QM_Vector3DistanceSqr( pathProcess.last_failure_pos, goalOrigin ) > ( retryGoalRadius * retryGoalRadius ) ) {
+		return false;
+	}
+
+	/**
+	*   Keep retry mitigation local to failures that happened recently enough to still describe the current search pocket.
+	**/
+	return ( level.time - pathProcess.last_failure_time ) <= 4_sec;
 }
 
 /**
@@ -213,10 +270,8 @@ static bool Dummy_TryProjectGoalToWalkableZ( svg_monster_testdummy_sfxfollow_t *
 			return false;
 		}
 		layer_index = fallback_index;
-		if ( DUMMY_NAV_DEBUG ) {
-			gi.dprintf( "[NAV DEBUG] %s: conservative layer select failed, using fallback layer %d (delta=%.2f)\n",
-				__func__, layer_index, best_delta );
-		}
+        DUMMY_NAV_DEBUG_PRINT( "[NAV DEBUG] %s: conservative layer select failed, using fallback layer %d (delta=%.2f)\n",
+			__func__, layer_index, best_delta );
 	}
 
 	/**
@@ -285,10 +340,10 @@ static inline void Dummy_DebugLogStateGateInputs( svg_monster_testdummy_sfxfollo
 		: -1.0;
 	const bool requestPending = SVG_Nav_IsRequestPending( &self->pathNavigationState.process );
 
-	/**
+ /**
 	*   Emit a compact, single-line state snapshot for this think tick.
 	**/
-	gi.dprintf( "[NAV DEBUG][ThinkGate] ent=%d state=%s active=%d has_act=%d vis=%d dist2d=%.1f has_sound=%d pending=%d handle=%d rebuild=%d goal=%d path_pts=%d path_idx=%d\n",
+	DUMMY_NAV_DEBUG_PRINT( "[NAV DEBUG][ThinkGate] ent=%d state=%s active=%d has_act=%d vis=%d dist2d=%.1f has_sound=%d pending=%d handle=%d rebuild=%d goal=%d path_pts=%d path_idx=%d\n",
 		self->s.number,
 		Dummy_DebugAIStateName( self->thinkAIState ),
 		self->isActivated ? 1 : 0,
@@ -1164,6 +1219,7 @@ const bool svg_monster_testdummy_sfxfollow_t::GenericThinkBegin() {
 	pathNavigationState.policy.enable_max_drop_height_cap = true;
 	pathNavigationState.policy.max_drop_height_cap = ( nav_max_drop_height_cap && nav_max_drop_height_cap->value > 0.0f ) ? nav_max_drop_height_cap->value : NAV_DEFAULT_MAX_DROP_HEIGHT_CAP;
 	pathNavigationState.policy.enable_goal_z_layer_blend = true;
+   pathNavigationState.policy.enable_cluster_route_filter = true;
 	pathNavigationState.policy.blend_start_dist = PHYS_STEP_MAX_SIZE;
 	pathNavigationState.policy.blend_full_dist = NAV_DEFAULT_BLEND_DIST_FULL;
 	// No blending seems to work!
@@ -1441,13 +1497,15 @@ const bool svg_monster_testdummy_sfxfollow_t::MoveAStarToOrigin( const Vector3 &
 	GetNavigationAgentBounds( &agent_mins, &agent_maxs );
 	Q_assert( agent_maxs.x > agent_mins.x && agent_maxs.y > agent_mins.y && agent_maxs.z > agent_mins.z );
 
-	// Debug print summarizing the request state for diagnostics.
-	if ( DUMMY_NAV_DEBUG != 0 ) {
-		gi.dprintf( "[NAV DEBUG] %s: goal=(%.1f %.1f %.1f) force=%d pathOk=%d pending=%d\n",
-			__func__, goalOrigin.x, goalOrigin.y, goalOrigin.z, ( int32_t )force,
-			( int32_t )( pathNavigationState.process.path.num_points > 0 ),
-			( int32_t )SVG_Nav_IsRequestPending( &pathNavigationState.process ) );
-	}
+	// Pre-calculate animation frame basics once per think.
+	const double currentTime = level.time.Seconds<double>();
+	const int32_t animFrameGlobal = ( int32_t )std::floor( ( float )( currentTime * 40.0f ) );
+
+   // Debug print summarizing the request state for diagnostics.
+	DUMMY_NAV_DEBUG_PRINT( "[NAV DEBUG] %s: goal=(%.1f %.1f %.1f) force=%d pathOk=%d pending=%d\n",
+		__func__, goalOrigin.x, goalOrigin.y, goalOrigin.z, ( int32_t )force,
+		( int32_t )( pathNavigationState.process.path.num_points > 0 ),
+		( int32_t )SVG_Nav_IsRequestPending( &pathNavigationState.process ) );
 
 	/**
 	*    Sanity / arrival check: stop moving if we are effectively at the goal already to prevent jitter.
@@ -1455,7 +1513,9 @@ const bool svg_monster_testdummy_sfxfollow_t::MoveAStarToOrigin( const Vector3 &
 	Vector3 toGoalDist = QM_Vector3Subtract( goalOrigin, currentOrigin );
 	// Only consider horizontal distance for arrival.
 	toGoalDist.z = 0.0f;
-	if ( QM_Vector3Length( toGoalDist ) < 0.03125f ) {
+	// Use squared length for arrival check to save a square root.
+	constexpr float arrivalThreshold = 0.03125f;
+	if ( QM_Vector3LengthSqr( toGoalDist ) < ( arrivalThreshold * arrivalThreshold ) ) {
 		// Zero horizontal velocity to prevent micro-jitter.
 		velocity.x = velocity.y = 0.0f;
 		return false;
@@ -1482,9 +1542,7 @@ const bool svg_monster_testdummy_sfxfollow_t::MoveAStarToOrigin( const Vector3 &
 
 		if ( rootMotionSet && rootMotionSet->motions[ 4 ] ) {
 			skm_rootmotion_t *rootMotion = rootMotionSet->motions[ 4 ]; // RUN
-			const double t = level.time.Seconds<double>();
-			const int32_t animFrame = ( int32_t )std::floor( ( float )( t * 40.0f ) );
-			const int32_t localFrame = ( rootMotion->frameCount > 0 ) ? ( animFrame % rootMotion->frameCount ) : 0;
+			const int32_t localFrame = ( rootMotion->frameCount > 0 ) ? ( animFrameGlobal % rootMotion->frameCount ) : 0;
 			s.frame = rootMotion->firstFrameIndex + localFrame;
 		}
 
@@ -1515,28 +1573,41 @@ const bool svg_monster_testdummy_sfxfollow_t::MoveAStarToOrigin( const Vector3 &
 	**/
 	const bool queueModeEnabled = ( nav_nav_async_queue_mode && nav_nav_async_queue_mode->integer != 0 );
 	const bool asyncNavEnabled = SVG_Nav_IsAsyncNavEnabled();
-	const bool canRebuild = pathNavigationState.process.CanRebuild( pathNavigationState.policy );
-	const bool movementWarrantsRebuild =
-		pathNavigationState.process.ShouldRebuildForGoal2D( goalOrigin, pathNavigationState.policy )
-		|| pathNavigationState.process.ShouldRebuildForGoal3D( goalOrigin, pathNavigationState.policy )
-		|| pathNavigationState.process.ShouldRebuildForStart2D( currentOrigin, pathNavigationState.policy )
-		|| pathNavigationState.process.ShouldRebuildForStart3D( currentOrigin, pathNavigationState.policy );
+	const bool retryingSameFailureGoal = Dummy_IsRetryingRecentSoundGoalFailure( this, goalOrigin, 2 );
 
 	bool queueAttempted = false;
 	bool queueResult = false;
+ /**
+	*    Suppress repeated same-goal retries briefly after several failures.
+	*        This keeps the sound-follow NPC facing the target while avoiding repeated queue churn when
+	*        the same goal has already failed multiple times and no new sound update has arrived.
+	**/
+	const bool suppressRetryChurn = retryingSameFailureGoal
+		&& pathNavigationState.process.consecutive_failures >= 3
+		&& !force
+		&& !SVG_Nav_IsRequestPending( &pathNavigationState.process );
+	if ( suppressRetryChurn ) {
+		DUMMY_NAV_DEBUG_PRINT( "[NAV DEBUG] %s: suppressing repeated same-goal retry failures=%d goal=(%.1f %.1f %.1f)\n",
+			__func__,
+			pathNavigationState.process.consecutive_failures,
+			goalOrigin.x,
+			goalOrigin.y,
+			goalOrigin.z );
+	}
+
    // Only honor an explicit force request when the goal moved beyond the configured rebuild threshold.
 	bool effectiveForce = force;
 	if ( force ) {
 		// Compute the delta relative to the last goal so we do not re-force for negligible motion.
 		const Vector3 &referenceGoal = pathNavigationState.lastGoal.isValid ? pathNavigationState.lastGoal.origin : pathNavigationState.process.path_goal_position;
-		const double dx = QM_Vector3LengthDP( QM_Vector3Subtract( goalOrigin, referenceGoal ) );
-		if ( dx <= pathNavigationState.policy.rebuild_goal_dist_2d ) {
-			effectiveForce = false;
-			if ( DUMMY_NAV_DEBUG != 0 ) {
-				gi.dprintf( "[NAV DEBUG] %s: suppressed force rebuild (dx=%.2f <= thresh=%.2f)\n",
-					__func__, dx, pathNavigationState.policy.rebuild_goal_dist_2d );
-			}
-		}
+		// Use squared distance for force rebuild check to save a square root.
+		const double dx2 = QM_Vector3DistanceSqr( goalOrigin, referenceGoal );
+		const float threshold = pathNavigationState.policy.rebuild_goal_dist_2d;
+ if ( dx2 <= ( double )( threshold * threshold ) ) {
+		effectiveForce = false;
+		DUMMY_NAV_DEBUG_PRINT( "[NAV DEBUG] %s: suppressed force rebuild (dx=%.2f <= thresh=%.2f)\n",
+			__func__, std::sqrt( dx2 ), threshold );
+	}
 	}
 
 	/**
@@ -1546,13 +1617,15 @@ const bool svg_monster_testdummy_sfxfollow_t::MoveAStarToOrigin( const Vector3 &
 	// Route-filter isolation mode: explicitly disable coarse tile filtering so neighbor diagnostics reflect pure StepTest traversal behavior.
 	pathNavigationState.policy.enable_cluster_route_filter = false;
 	#endif
-	queueAttempted = true;
-	const bool queued = TryRebuildNavigationInQueue( currentOrigin, goalOrigin, pathNavigationState.policy, agent_mins, agent_maxs, effectiveForce );
-	queueResult = queued;
-	if ( queued ) {
-		pathNavigationState.lastGoal.origin = goalOrigin;
-		pathNavigationState.lastGoal.isValid = true;
-		pathNavigationState.lastGoal.isVisible = false;
+  if ( !suppressRetryChurn ) {
+		queueAttempted = true;
+		const bool queued = TryRebuildNavigationInQueue( currentOrigin, goalOrigin, pathNavigationState.policy, agent_mins, agent_maxs, effectiveForce );
+		queueResult = queued;
+		if ( queued ) {
+			pathNavigationState.lastGoal.origin = goalOrigin;
+			pathNavigationState.lastGoal.isValid = true;
+			pathNavigationState.lastGoal.isVisible = false;
+		}
 	}
 
 	/**
@@ -1561,6 +1634,17 @@ const bool svg_monster_testdummy_sfxfollow_t::MoveAStarToOrigin( const Vector3 &
 	const QMTime now = level.time;
 	if ( DUMMY_NAV_DEBUG != 0 && now >= pathNavigationState.nextQueueStatusLogTime ) {
 		pathNavigationState.nextQueueStatusLogTime = now + 500_ms;
+
+		/**
+		*	Calculate rebuild heuristics only when logging is active to save frames.
+		**/
+		const bool canRebuild = pathNavigationState.process.CanRebuild( pathNavigationState.policy );
+		const bool movementWarrantsRebuild =
+			pathNavigationState.process.ShouldRebuildForGoal2D( goalOrigin, pathNavigationState.policy )
+			|| pathNavigationState.process.ShouldRebuildForGoal3D( goalOrigin, pathNavigationState.policy )
+			|| pathNavigationState.process.ShouldRebuildForStart2D( currentOrigin, pathNavigationState.policy )
+			|| pathNavigationState.process.ShouldRebuildForStart3D( currentOrigin, pathNavigationState.policy );
+
 		gi.dprintf( "[NAV STATUS] ent=%d attempt=%d result=%d canRebuild=%d movementWarrants=%d async=%d queueMode=%d\n",
 			s.number,
 			queueAttempted ? 1 : 0,
@@ -1607,9 +1691,7 @@ const bool svg_monster_testdummy_sfxfollow_t::MoveAStarToOrigin( const Vector3 &
 		// Run animation while following a path.
 		if ( rootMotionSet && rootMotionSet->motions[ 4 ] ) {
 			skm_rootmotion_t *rootMotion = rootMotionSet->motions[ 4 ]; // RUN
-			const double t = level.time.Seconds<double>();
-			const int32_t animFrame = ( int32_t )std::floor( ( float )( t * 40.0f ) );
-			const int32_t localFrame = ( rootMotion->frameCount > 0 ) ? ( animFrame % rootMotion->frameCount ) : 0;
+			const int32_t localFrame = ( rootMotion->frameCount > 0 ) ? ( animFrameGlobal % rootMotion->frameCount ) : 0;
 			s.frame = rootMotion->firstFrameIndex + localFrame;
 		}
 
@@ -1652,9 +1734,7 @@ const bool svg_monster_testdummy_sfxfollow_t::MoveAStarToOrigin( const Vector3 &
 	// Keep the idle animation while we are stationary and waiting for a path.
 	if ( rootMotionSet && rootMotionSet->motions[ 1 ] ) {
 		skm_rootmotion_t *rootMotion = rootMotionSet->motions[ 1 ];
-		const double t = level.time.Seconds<double>();
-		const int32_t animFrame = ( int32_t )std::floor( ( float )( t * 40.0f ) );
-		const int32_t localFrame = ( rootMotion->frameCount > 0 ) ? ( animFrame % rootMotion->frameCount ) : 0;
+		const int32_t localFrame = ( rootMotion->frameCount > 0 ) ? ( animFrameGlobal % rootMotion->frameCount ) : 0;
 		s.frame = rootMotion->firstFrameIndex + localFrame;
 	}
 
@@ -1713,13 +1793,11 @@ const bool svg_monster_testdummy_sfxfollow_t::TryRebuildNavigationInQueue( const
 	*        If the path process is not allowed to rebuild yet, skip enqueuing and
 	*        let callers keep using current path without forcing sync rebuilds.
 	**/
-	// Force bypass ensures explicit sound-goal refreshes can still queue new work.
+ // Force bypass ensures explicit sound-goal refreshes can still queue new work.
 	if ( !force && !pathNavigationState.process.CanRebuild( policy ) ) {
 		// Movement throttled/backoff prevents enqueuing now; callers should keep using current path.
-		if ( DUMMY_NAV_DEBUG ) {
-			gi.dprintf( "[DEBUG] TryQueueNavRebuild: CanRebuild() == false, throttled/backoff. ent=%d next_rebuild=%lld backoff_until=%lld\n",
-				s.number, ( long long )pathNavigationState.process.next_rebuild_time.Milliseconds(), ( long long )pathNavigationState.process.backoff_until.Milliseconds() );
-		}
+		DUMMY_NAV_DEBUG_PRINT( "[DEBUG] TryQueueNavRebuild: CanRebuild() == false, throttled/backoff. ent=%d next_rebuild=%lld backoff_until=%lld\n",
+			s.number, ( long long )pathNavigationState.process.next_rebuild_time.Milliseconds(), ( long long )pathNavigationState.process.backoff_until.Milliseconds() );
 		return true;
 	}
 
@@ -1733,11 +1811,9 @@ const bool svg_monster_testdummy_sfxfollow_t::TryRebuildNavigationInQueue( const
 		|| pathNavigationState.process.ShouldRebuildForGoal3D( goal_origin, policy )
 		|| pathNavigationState.process.ShouldRebuildForStart2D( start_origin, policy )
 		|| pathNavigationState.process.ShouldRebuildForStart3D( start_origin, policy );
-   // Force bypass ensures explicit sound-goal refreshes bypass movement heuristics.
+    // Force bypass ensures explicit sound-goal refreshes bypass movement heuristics.
 	if ( !force && !movementWarrantsRebuild ) {
-		if ( DUMMY_NAV_DEBUG ) {
-			gi.dprintf( "[DEBUG] TryQueueNavRebuild: movement does not warrant rebuild, ent=%d\n", s.number );
-		}
+		DUMMY_NAV_DEBUG_PRINT( "[DEBUG] TryQueueNavRebuild: movement does not warrant rebuild, ent=%d\n", s.number );
 		return true;
 	}
 
@@ -1773,15 +1849,14 @@ const bool svg_monster_testdummy_sfxfollow_t::TryRebuildNavigationInQueue( const
 				: pathNavigationState.process.path_goal_position;
 			// Compute the delta between the requested goal and the currently
 			// tracked goal and compare against the policy's 2D rebuild radius.
-			const double goalDx = QM_Vector3LengthDP( QM_Vector3Subtract( adjusted_goal, referenceGoal ) );
-			if ( goalDx <= pathNavigationState.policy.rebuild_goal_dist_2d ) {
-				if ( DUMMY_NAV_DEBUG ) {
-					gi.dprintf( "[DEBUG] TryQueueNavRebuild: skipping refresh because pending_handle=%d and goalDx=%.2f <= thresh=%.2f ent=%d\n",
-						pathNavigationState.process.pending_request_handle,
-						goalDx,
-						pathNavigationState.policy.rebuild_goal_dist_2d,
-						s.number );
-				}
+			const double goalDx2 = QM_Vector3DistanceSqr( adjusted_goal, referenceGoal );
+			const float threshold = pathNavigationState.policy.rebuild_goal_dist_2d;
+         if ( goalDx2 <= ( double )( threshold * threshold ) ) {
+				DUMMY_NAV_DEBUG_PRINT( "[DEBUG] TryQueueNavRebuild: skipping refresh because pending_handle=%d and goalDx=%.2f <= thresh=%.2f ent=%d\n",
+					pathNavigationState.process.pending_request_handle,
+					std::sqrt( goalDx2 ),
+					threshold,
+					s.number );
 				// Keep the existing in-flight request alive.
 				return true;
 			}
@@ -1800,20 +1875,18 @@ const bool svg_monster_testdummy_sfxfollow_t::TryRebuildNavigationInQueue( const
 	*  we ignore small start deltas while a request is running so the in-flight
 	*  search can make progress.
 	**/
-	//if ( !force && pathNavigationState.process.rebuild_in_progress ) {
-	//    // Use the last prep start as a stable reference if available.
-	//    const Vector3 referenceStart = ( pathNavigationState.process.last_prep_time > 0_ms ) ? pathNavigationState.process.last_prep_start : pathNavigationState.process.path_start_position;
-	//    const double startDx = QM_Vector3LengthDP( QM_Vector3Subtract( start_origin, referenceStart ) );
-	//    // Threshold chosen to ignore small per-frame motion but still react to real relocation.
-	//    constexpr double startIgnoreThreshold = 16.0; // units
-	//    if ( startDx <= startIgnoreThreshold ) {
-	//        if ( DUMMY_NAV_DEBUG ) {
-	//            gi.dprintf( "[DEBUG] TryQueueNavRebuild: suppressed refresh while running (startDx=%.2f <= %.2f) ent=%d\n",
-	//                startDx, startIgnoreThreshold, s.number );
-	//        }
-	//        return true;
-	//    }
-	//}
+    if ( !force && pathNavigationState.process.rebuild_in_progress ) {
+		const Vector3 referenceStart = ( pathNavigationState.process.last_prep_time > 0_ms )
+			? pathNavigationState.process.last_prep_start
+			: pathNavigationState.process.path_start_position;
+		const double startDx = QM_Vector3LengthDP( QM_Vector3Subtract( start_origin, referenceStart ) );
+		constexpr double runningStartIgnoreThreshold = 24.0; // units
+		if ( startDx <= runningStartIgnoreThreshold ) {
+			DUMMY_NAV_DEBUG_PRINT( "[DEBUG] TryQueueNavRebuild: suppressed refresh while running (startDx=%.2f <= %.2f) ent=%d\n",
+				startDx, runningStartIgnoreThreshold, s.number );
+			return true;
+		}
+	}
 
 	/**
 	*	Enqueue the rebuild request and record the handle for diagnostics.
@@ -1842,25 +1915,23 @@ const bool svg_monster_testdummy_sfxfollow_t::TryRebuildNavigationInQueue( const
 	// PrepareAStarForEntry when the entry transitions to Running. Setting them
 	// here ensures the entity has the handle immediately for early cancellation
 	// if the caller chooses to abort before the queue tick processes it.
-	pathNavigationState.process.rebuild_in_progress = true;
+ pathNavigationState.process.rebuild_in_progress = true;
 	pathNavigationState.process.pending_request_handle = handle;
-	if ( DUMMY_NAV_DEBUG ) {
-		gi.dprintf( "[DEBUG] TryQueueNavRebuild: queued rebuild handle=%d ent=%d force=%d\n", handle, s.number, force ? 1 : 0 );
-		// Also print the converted nav-center origins so we can correlate node resolution.
-		const nav_mesh_t *mesh = g_nav_mesh.get();
-		if ( mesh ) {
-			const Vector3 start_center = SVG_Nav_ConvertFeetToCenter( mesh, start_origin, &agent_mins, &agent_maxs );
-			const Vector3 goal_center = SVG_Nav_ConvertFeetToCenter( mesh, adjusted_goal, &agent_mins, &agent_maxs );
-			gi.dprintf( "[DEBUG] TryQueueNavRebuild: start=(%.1f %.1f %.1f) start_center=(%.1f %.1f %.1f) goal=(%.1f %.1f %.1f) goal_center=(%.1f %.1f %.1f)\n",
-				start_origin.x, start_origin.y, start_origin.z,
-				start_center.x, start_center.y, start_center.z,
-				adjusted_goal.x, adjusted_goal.y, adjusted_goal.z,
-				goal_center.x, goal_center.y, goal_center.z );
-		} else {
-			gi.dprintf( "[DEBUG] TryQueueNavRebuild: start=(%.1f %.1f %.1f) goal=(%.1f %.1f %.1f) (no mesh)\n",
-				start_origin.x, start_origin.y, start_origin.z,
-				adjusted_goal.x, adjusted_goal.y, adjusted_goal.z );
-		}
+	DUMMY_NAV_DEBUG_PRINT( "[DEBUG] TryQueueNavRebuild: queued rebuild handle=%d ent=%d force=%d\n", handle, s.number, force ? 1 : 0 );
+	// Also print the converted nav-center origins so we can correlate node resolution.
+	const nav_mesh_t *mesh = g_nav_mesh.get();
+	if ( mesh ) {
+		const Vector3 start_center = SVG_Nav_ConvertFeetToCenter( mesh, start_origin, &agent_mins, &agent_maxs );
+		const Vector3 goal_center = SVG_Nav_ConvertFeetToCenter( mesh, adjusted_goal, &agent_mins, &agent_maxs );
+		DUMMY_NAV_DEBUG_PRINT( "[DEBUG] TryQueueNavRebuild: start=(%.1f %.1f %.1f) start_center=(%.1f %.1f %.1f) goal=(%.1f %.1f %.1f) goal_center=(%.1f %.1f %.1f)\n",
+			start_origin.x, start_origin.y, start_origin.z,
+			start_center.x, start_center.y, start_center.z,
+			adjusted_goal.x, adjusted_goal.y, adjusted_goal.z,
+			goal_center.x, goal_center.y, goal_center.z );
+	} else {
+		DUMMY_NAV_DEBUG_PRINT( "[DEBUG] TryQueueNavRebuild: start=(%.1f %.1f %.1f) goal=(%.1f %.1f %.1f) (no mesh)\n",
+			start_origin.x, start_origin.y, start_origin.z,
+			adjusted_goal.x, adjusted_goal.y, adjusted_goal.z );
 	}
 	return true;
 }
@@ -1946,23 +2017,77 @@ void svg_monster_testdummy_sfxfollow_t::AdjustGoalZBlendPolicy( const Vector3 &g
 	agentHeight = std::max( agentHeight, meshStepHeight * 2.0 );
 
 	/**
-	*    Derive resolution and failure heuristics from nearby geometry instead of the activator.
-	*        The async worker already performs boundary-origin rescue and same-cell layer rescue,
-	*        so this policy only needs to bias endpoint selection more aggressively when the goal
-	*        geometry or recent failures suggest that those recovery paths will matter.
+	*	@brief	Derive resolution and failure heuristics from nearby geometry instead of the activator.
+	*	@details
+	*		This section computes a set of derived values and boolean gates that drive goal-Z
+	*		layer biasing and failure escalation. These values are intentionally computed from
+	*		local navmesh and movement geometry (cell size, step heights, agent height, etc.)
+	*		rather than from the activator so the policy adapts to map-specific discretization
+	*		and recent navigation outcomes.
+	*
+	*		Calculated values:
+	*			- nearLevelThreshold: vertical delta threshold considered "same level".
+	*			- nearLevelGoal: whether the goal is close enough in Z to be treated as same-layer.
+	*			- recentFailure: whether a path failure happened recently (time window = 2s).
+	*			- failureGoalRadius: spatial radius around the last failure to consider it relevant.
+	*			- failureNearGoal: whether the last failure position lies within failureGoalRadius of the goal.
+	*			- likelyLayerAmbiguity: heuristics to detect cases where layer selection may be ambiguous.
+	*			- repeatedGoalFailure: whether the same goal has failed multiple times.
+	*			- aggressiveBlend: whether to use an escalated (more aggressive) blend policy.
+	*
+	*	@note
+	*		All distances here are expressed in world units and derived from mesh/policy parameters
+	*		so the resulting thresholds scale with navmesh resolution and agent characteristics.
 	**/
 	const double nearLevelThreshold = meshStepHeight + groundSlack;
+	// Treat the goal as "near-level" when the vertical delta is within a single-step + slack.
 	const bool nearLevelGoal = ( fabsDeltaZ <= nearLevelThreshold );
+
+	// Consider a failure "recent" when it occurred within the last 2 seconds.
 	const bool recentFailure = ( pathProcess.consecutive_failures > 0 )
 		&& ( ( level.time - pathProcess.last_failure_time ) <= 2_sec );
-  const double failureGoalRadius = std::max( meshCellSize * kBlendFailureGoalCellMultiplier,
+
+	// Radius used to decide if a past failure is relevant to the current goal.
+	// Built from a multiple of the mesh cell size and any configured 3D rebuild radius,
+	// and expanded by one quantization unit to cover near-boundary cases.
+	const double failureGoalRadius = std::max( meshCellSize * kBlendFailureGoalCellMultiplier,
 		std::max( pathPolicy.rebuild_goal_dist_3d, nearLevelThreshold + meshLayerQuant ) );
+
+	// True when a recent failure occurred within failureGoalRadius of the requested goal.
+	// Uses squared-distance for efficient comparison.
 	const bool failureNearGoal = recentFailure
 		&& ( QM_Vector3DistanceSqr( pathProcess.last_failure_pos, goalOrigin ) <= ( failureGoalRadius * failureGoalRadius ) );
- const bool likelyLayerAmbiguity = ( horizDist <= std::max( meshCellSize * kBlendAmbiguityCellMultiplier,
+
+	// Heuristic indicating the navmesh may have ambiguous layer choices:
+	//    - goal is horizontally close (within a small multiple of a cell or waypoint radius),
+	//    - and the vertical delta is larger than the near-level threshold.
+	const bool likelyLayerAmbiguity = ( horizDist <= std::max( meshCellSize * kBlendAmbiguityCellMultiplier,
 		pathPolicy.waypoint_radius + meshStepHeight ) )
 		&& ( fabsDeltaZ > nearLevelThreshold );
+
+	// True when the same goal has failed multiple times (>= 2 failures) and the failure was near the goal.
+	const bool repeatedGoalFailure = failureNearGoal && pathProcess.consecutive_failures >= 2;
+
+	// Aggressive blend mode engages when a recent failure is near the goal or when the goal
+	// geometry suggests layer-selection ambiguity. This drives the policy to bias more strongly
+	// toward cross-layer exploration and to relax coarse route filters.
 	const bool aggressiveBlend = failureNearGoal || likelyLayerAmbiguity;
+
+	/**
+	*    Escalate coarse and local traversal policy after repeated same-goal failures.
+	*        The first retry remains conservative, but once the same sound goal has failed multiple times we
+	*        temporarily relax the coarse route filter and allow a modest extra rise so fine A* can explore
+	*        stair or boundary-adjacent alternatives that were previously cut off.
+	**/
+	if ( repeatedGoalFailure ) {
+		const double retryStepSlack = std::max( stepMin, meshLayerQuant );
+		pathPolicy.enable_cluster_route_filter = false;
+		pathPolicy.max_step_height = std::max( pathPolicy.max_step_height, meshStepHeight + retryStepSlack );
+		pathPolicy.max_obstruction_jump_height = std::max( pathPolicy.max_obstruction_jump_height, pathPolicy.max_step_height + groundSlack );
+		if ( deltaZ > 0.0 ) {
+			pathPolicy.ladder_preferred_height_slack = std::max( pathPolicy.ladder_preferred_height_slack, fabsDeltaZ + meshLayerQuant );
+		}
+	}
 
 	/**
 	*    Keep same-cell layer preference aligned with the actual goal elevation.

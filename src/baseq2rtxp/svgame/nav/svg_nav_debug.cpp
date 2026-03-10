@@ -352,7 +352,7 @@ void SVG_Nav_DebugDraw( void ) {
 				const Vector3 &a = path.points[ i ];
 				const Vector3 &b = path.points[ i + 1 ];
 
-				const Vector3 mid = { ( a[ 0 ] + b[ 0 ] )* 0.5f, ( a[ 1 ] + b[ 1 ] )* 0.5f, ( a[ 2 ] + b[ 2 ] )* 0.5f };
+				const Vector3 mid = { ( a[ 0 ] + b[ 0 ] ) * 0.5f, ( a[ 1 ] + b[ 1 ] ) * 0.5f, ( a[ 2 ] + b[ 2 ] ) * 0.5f };
 				if ( !NavDebug_PassesDistanceFilter( mid ) ) {
 					continue;
 				}
@@ -362,12 +362,12 @@ void SVG_Nav_DebugDraw( void ) {
 			}
 		}
 	}
-	/** 
+	/**
 	* 	Draw/log any edges that were rejected this frame when instrumentation is enabled.
 	**/
 	if ( nav_debug_draw_rejects && nav_debug_draw_rejects->integer != 0 && !s_nav_debug_rejects.empty() ) {
 		for ( const nav_debug_reject_t &reject : s_nav_debug_rejects ) {
-			const char * reason = ( reject.reason == NAV_DEBUG_REJECT_REASON_CLEARANCE ) ? "clearance" : ( reject.reason == NAV_DEBUG_REJECT_REASON_SLOPE ? "slope" : "drop cap" );
+			const char *reason = ( reject.reason == NAV_DEBUG_REJECT_REASON_CLEARANCE ) ? "clearance" : ( reject.reason == NAV_DEBUG_REJECT_REASON_SLOPE ? "slope" : "drop cap" );
 			gi.dprintf( "[DEBUG][NavPath][Reject] %s edge from (%.1f %.1f %.1f) to (%.1f %.1f %.1f)\n",
 				reason,
 				reject.start.x, reject.start.y, reject.start.z,
@@ -381,22 +381,22 @@ void SVG_Nav_DebugDraw( void ) {
 		s_nav_debug_rejects.clear();
 	}
 
-	const nav_mesh_t * mesh = g_nav_mesh.get();
+	const nav_mesh_t *mesh = g_nav_mesh.get();
 	const double tileWorldSize = Nav_TileWorldSize( mesh );
-	const int32_t cellsPerTile = mesh->tile_size* mesh->tile_size;
+	const int32_t cellsPerTile = mesh->tile_size * mesh->tile_size;
 
-	/** 
+	/**
 	* 	World mesh (per leaf):
 	**/
-    for ( int32_t leafIndex = 0; leafIndex < mesh->num_leafs; leafIndex++ ) {
+	for ( int32_t leafIndex = 0; leafIndex < mesh->num_leafs; leafIndex++ ) {
 		if ( !NavDebug_FilterLeaf( leafIndex ) ) {
 			continue;
 		}
 
-		const nav_leaf_data_t * leaf = &mesh->leaf_data[ leafIndex ];
+		const nav_leaf_data_t *leaf = &mesh->leaf_data[ leafIndex ];
 		// Use the safe accessor for leaf tile ids to avoid dereferencing dangling pointers.
-		auto leafTilesView = SVG_Nav_Leaf_GetTileIds( const_cast<nav_leaf_data_t * >( leaf ) );
-		const int32_t * leafTileIds = leafTilesView.first;
+		auto leafTilesView = SVG_Nav_Leaf_GetTileIds( const_cast< nav_leaf_data_t * >( leaf ) );
+		const int32_t *leafTileIds = leafTilesView.first;
 		const int32_t leafNumTiles = leafTilesView.second;
 		if ( !leafTileIds || leafNumTiles <= 0 ) {
 			continue;
@@ -407,7 +407,7 @@ void SVG_Nav_DebugDraw( void ) {
 			if ( tileId < 0 || tileId >= ( int32_t )mesh->world_tiles.size() ) {
 				continue;
 			}
-			const nav_tile_t * tile = &mesh->world_tiles[ tileId ];
+			const nav_tile_t *tile = &mesh->world_tiles[ tileId ];
 			if ( !tile ) {
 				continue;
 			}
@@ -421,22 +421,22 @@ void SVG_Nav_DebugDraw( void ) {
 
 			// Samples (top-most layer tick per XY cell).
 			if ( nav_debug_draw_samples && nav_debug_draw_samples->integer != 0 ) {
-				const double tileOriginX = tile->tile_x* tileWorldSize;
-				const double tileOriginY = tile->tile_y* tileWorldSize;
+				const double tileOriginX = tile->tile_x * tileWorldSize;
+				const double tileOriginY = tile->tile_y * tileWorldSize;
 
 				// Use safe accessor for tile cells to avoid exposing dangling arrays.
-				auto cellsView = SVG_Nav_Tile_GetCells( mesh, const_cast<nav_tile_t * >( tile ) );
-				const nav_xy_cell_t * cellsPtr = cellsView.first;
+				auto cellsView = SVG_Nav_Tile_GetCells( mesh, const_cast< nav_tile_t * >( tile ) );
+				const nav_xy_cell_t *cellsPtr = cellsView.first;
 				const int32_t actualCells = cellsView.second;
 				if ( !cellsPtr || actualCells <= 0 ) {
 					continue;
 				}
 
 				for ( int32_t cellIndex = 0; cellIndex < actualCells; cellIndex++ ) {
-					const nav_xy_cell_t * cell = &cellsPtr[ cellIndex ];
+					const nav_xy_cell_t *cell = &cellsPtr[ cellIndex ];
 					// Use safe accessor for layers to avoid dangling pointer use when data is missing.
-					auto layersView = SVG_Nav_Cell_GetLayers( const_cast<nav_xy_cell_t * >( cell ) );
-					const nav_layer_t * layersPtr = layersView.first;
+					auto layersView = SVG_Nav_Cell_GetLayers( const_cast< nav_xy_cell_t * >( cell ) );
+					const nav_layer_t *layersPtr = layersView.first;
 					const int32_t layerCount = layersView.second;
 					if ( !layersPtr || layerCount <= 0 ) {
 						continue;
@@ -445,11 +445,11 @@ void SVG_Nav_DebugDraw( void ) {
 					const int32_t cellX = cellIndex % mesh->tile_size;
 					const int32_t cellY = cellIndex / mesh->tile_size;
 
-					const nav_layer_t * layer = &layersPtr[ 0 ];
+					const nav_layer_t *layer = &layersPtr[ 0 ];
 					Vector3 p = {
-						tileOriginX + ( ( double )cellX + 0.5 )* ( double )mesh->cell_size_xy,
-						tileOriginY + ( ( double )cellY + 0.5 )* ( double )mesh->cell_size_xy,
-						( double )layer->z_quantized* ( double )mesh->z_quant
+						tileOriginX + ( ( double )cellX + 0.5 ) * ( double )mesh->cell_size_xy,
+						tileOriginY + ( ( double )cellY + 0.5 ) * ( double )mesh->cell_size_xy,
+						( double )layer->z_quantized * ( double )mesh->z_quant
 					};
 
 					NavDebug_DrawSampleTick( p, 12.0 );
@@ -463,44 +463,44 @@ void SVG_Nav_DebugDraw( void ) {
 		}
 	}
 
-	/** 
+	/**
 	* 	Inline model mesh (optional): draw tile bounds + samples transformed into world space.
 	**/
-    /** 
+	/**
 	*  Inline model mesh (optional): require both inline model data and
 	*  runtime transform entries. Use safe accessor to obtain runtime view
 	*  and avoid directly dereferencing the raw runtime array pointer.
 	**/
 	auto inlineRuntimeView = SVG_Nav_Mesh_GetInlineModelRuntime( mesh );
-	const nav_inline_model_runtime_t * inlineRuntimePtr = inlineRuntimeView.first;
+	const nav_inline_model_runtime_t *inlineRuntimePtr = inlineRuntimeView.first;
 	const int32_t inlineRuntimeCount = inlineRuntimeView.second;
 	if ( mesh->num_inline_models <= 0 || !mesh->inline_model_data || inlineRuntimeCount <= 0 || !inlineRuntimePtr ) {
 		return;
 	}
 
-	/** 
+	/**
 	* 	Map: owner_entnum -> runtime entry.
 	* 	We use the cached lookup map instead of a per-frame linear scan.
 	**/
-	auto find_runtime = [mesh]( const svg_base_edict_t * owner ) -> const nav_inline_model_runtime_t* {
+	auto find_runtime = [mesh]( const svg_base_edict_t *owner ) -> const nav_inline_model_runtime_t * {
 		if ( !owner ) {
 			return nullptr;
 		}
 		return SVG_Nav_GetInlineModelRuntimeForOwnerEntNum( mesh, owner->s.number );
-	};
+		};
 
 	for ( int32_t i = 0; i < mesh->num_inline_models; i++ ) {
-		const nav_inline_model_data_t * model = &mesh->inline_model_data[ i ];
+		const nav_inline_model_data_t *model = &mesh->inline_model_data[ i ];
 		if ( !model || model->num_tiles <= 0 || !model->tiles ) {
 			continue;
 		}
 
-     /** 
+	 /**
 		*  Resolve the inline-model owner entity using the runtime array slot.
 		*  Prefer index-based accessors to avoid exposing raw pointers and add
 		*  robustness via a map fallback.
 		**/
-		const nav_inline_model_runtime_t * rt = nullptr;
+		const nav_inline_model_runtime_t *rt = nullptr;
 
 		// Fast-path: try index-based lookup using helper to avoid exposing raw array pointers.
 		if ( i >= 0 ) {
@@ -523,8 +523,8 @@ void SVG_Nav_DebugDraw( void ) {
 		// This is still useful for doors/platforms that primarily translate.
 		const Vector3 origin = rt->origin;
 
-        for ( int32_t t = 0; t < model->num_tiles; t++ ) {
-			const nav_tile_t * tile = &model->tiles[ t ];
+		for ( int32_t t = 0; t < model->num_tiles; t++ ) {
+			const nav_tile_t *tile = &model->tiles[ t ];
 			if ( !tile ) {
 				continue;
 			}
@@ -538,13 +538,13 @@ void SVG_Nav_DebugDraw( void ) {
 			// Tile bounds (translated).
 			if ( NavDebug_Enabled() && nav_debug_draw_tile_bounds && nav_debug_draw_tile_bounds->integer != 0 ) {
 				if ( NavDebug_CanEmitSegments( 12 ) ) {
-					const Vector3 minsLocal = { tile->tile_x* tileWorldSize, tile->tile_y* tileWorldSize, -4096.0 /*  <Q2RTXP>: TODO: world_bounds.mins.z**/ };
+					const Vector3 minsLocal = { tile->tile_x * tileWorldSize, tile->tile_y * tileWorldSize, -4096.0 /*  <Q2RTXP>: TODO: world_bounds.mins.z**/ };
 					const Vector3 maxsLocal = { minsLocal[ 0 ] + tileWorldSize, minsLocal[ 1 ] + tileWorldSize, 4096.0 /*  <Q2RTXP>: TODO: world_bounds.maxs.z**/ };
 
 					const Vector3 minsWorld = QM_Vector3Add( minsLocal, origin );
 					const Vector3 maxsWorld = QM_Vector3Add( maxsLocal, origin );
 
-					const Vector3 center = { ( double )( minsWorld[ 0 ] + maxsWorld[ 0 ] )* 0.5, ( double )( minsWorld[ 1 ] + maxsWorld[ 1 ] )* 0.5, 0.0 };
+					const Vector3 center = { ( double )( minsWorld[ 0 ] + maxsWorld[ 0 ] ) * 0.5, ( double )( minsWorld[ 1 ] + maxsWorld[ 1 ] ) * 0.5, 0.0 };
 					if ( NavDebug_PassesDistanceFilter( center ) ) {
 						SVG_DebugDrawBBox_TE( minsWorld, maxsWorld, MULTICAST_PVS, false );
 						NavDebug_ConsumeSegments( 12 );
@@ -556,22 +556,22 @@ void SVG_Nav_DebugDraw( void ) {
 
 			// Samples (translated): obtain safe cell array view for this inline tile.
 			if ( nav_debug_draw_samples && nav_debug_draw_samples->integer != 0 ) {
-				const double tileOriginXLocal = tile->tile_x* tileWorldSize;
-				const double tileOriginYLocal = tile->tile_y* tileWorldSize;
+				const double tileOriginXLocal = tile->tile_x * tileWorldSize;
+				const double tileOriginYLocal = tile->tile_y * tileWorldSize;
 
 				// Use the tile accessor to get a safe pointer and count for cells.
-				auto cellsView = SVG_Nav_Tile_GetCells( mesh, const_cast<nav_tile_t * >( tile ) );
-				const nav_xy_cell_t * cellsPtr = cellsView.first;
+				auto cellsView = SVG_Nav_Tile_GetCells( mesh, const_cast< nav_tile_t * >( tile ) );
+				const nav_xy_cell_t *cellsPtr = cellsView.first;
 				const int32_t actualCells = cellsView.second;
 				if ( !cellsPtr || actualCells <= 0 ) {
 					continue;
 				}
 
 				for ( int32_t cellIndex = 0; cellIndex < actualCells; cellIndex++ ) {
-					const nav_xy_cell_t * cell = &cellsPtr[ cellIndex ];
+					const nav_xy_cell_t *cell = &cellsPtr[ cellIndex ];
 					// Validate layer array using accessor to avoid dangling pointers.
-					auto layersView = SVG_Nav_Cell_GetLayers( const_cast<nav_xy_cell_t * >( cell ) );
-					const nav_layer_t * layersPtr = layersView.first;
+					auto layersView = SVG_Nav_Cell_GetLayers( const_cast< nav_xy_cell_t * >( cell ) );
+					const nav_layer_t *layersPtr = layersView.first;
 					const int32_t layerCount = layersView.second;
 					if ( !layersPtr || layerCount <= 0 ) {
 						continue;
@@ -580,11 +580,11 @@ void SVG_Nav_DebugDraw( void ) {
 					const int32_t cellX = cellIndex % mesh->tile_size;
 					const int32_t cellY = cellIndex / mesh->tile_size;
 
-					const nav_layer_t * layer = &layersPtr[ 0 ];
+					const nav_layer_t *layer = &layersPtr[ 0 ];
 					Vector3 pLocal = {
-						tileOriginXLocal + ( ( double )cellX + 0.5 )* ( double )mesh->cell_size_xy,
-						tileOriginYLocal + ( ( double )cellY + 0.5 )* ( double )mesh->cell_size_xy,
-						( double )layer->z_quantized* ( double )mesh->z_quant
+						tileOriginXLocal + ( ( double )cellX + 0.5 ) * ( double )mesh->cell_size_xy,
+						tileOriginYLocal + ( ( double )cellY + 0.5 ) * ( double )mesh->cell_size_xy,
+						( double )layer->z_quantized * ( double )mesh->z_quant
 					};
 
 					Vector3 pWorld = QM_Vector3Add( pLocal, origin );

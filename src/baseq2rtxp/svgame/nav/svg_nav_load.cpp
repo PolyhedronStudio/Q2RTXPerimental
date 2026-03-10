@@ -8,6 +8,7 @@
 #include "svgame/svg_local.h"
 #include "svgame/nav/svg_nav.h"
 #include "svgame/nav/svg_nav_clusters.h"
+#include "svgame/nav/svg_nav_hierarchy.h"
 #include "svgame/nav/svg_nav_load.h"
 
 #if USE_ZLIB
@@ -68,6 +69,8 @@ static void Nav_InitEmptyTileStorage( const nav_mesh_t * mesh, nav_tile_t * tile
 	tile->cells = (nav_xy_cell_t * )gi.TagMallocz( sizeof( nav_xy_cell_t )* cellsPerTile, TAG_SVGAME_NAVMESH );
 }
 
+// <Q2RTXP>: WID: Safer method in svg_nav.cpp
+#if 0
 static inline void Nav_SetPresenceBit_Load( nav_tile_t * tile, const int32_t cellIndex ) {
 	/** 
 	* 	Mark a cell as present in the sparse tile storage.
@@ -76,6 +79,7 @@ static inline void Nav_SetPresenceBit_Load( nav_tile_t * tile, const int32_t cel
 	const int32_t bitIndex = cellIndex & 31;
 	tile->presence_bits[ wordIndex ] |= ( 1u << bitIndex );
 }
+#endif
 
 /** 
 * 	@brief	Accumulate populated-cell and layer statistics for one loaded tile.
@@ -435,8 +439,8 @@ bool SVG_Nav_LoadVoxelMesh( const char * levelName ) {
 					return false;
 				}
 
-				// Mark the cell as populated in the tile's sparse bitset.
-				Nav_SetPresenceBit_Load( &tile, cellIndex );
+              // Mark the cell as populated in the tile's sparse bitset.
+				Nav_SetPresenceBit( &tile, cellIndex );
 			}
 		}
 	}
@@ -535,8 +539,8 @@ bool SVG_Nav_LoadVoxelMesh( const char * levelName ) {
 						return false;
 					}
 
-					// Mark the cell as populated.
-					Nav_SetPresenceBit_Load( &tile, cellIndex );
+                  // Mark the cell as populated.
+					Nav_SetPresenceBit( &tile, cellIndex );
 				}
 			}
 		}

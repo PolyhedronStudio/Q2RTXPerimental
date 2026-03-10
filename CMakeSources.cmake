@@ -342,6 +342,8 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_trigger.cpp
 	baseq2rtxp/svgame/svg_utils.cpp
 	baseq2rtxp/svgame/svg_weapon.cpp
+	baseq2rtxp/svgame/memory/svg_raiiobject.cpp
+
 
 	baseq2rtxp/svgame/entities/func/svg_func_areaportal.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_button.cpp
@@ -449,12 +451,15 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/weapons/svg_weapon_fists.cpp
 	baseq2rtxp/svgame/weapons/svg_weapon_pistol.cpp
 	
-    baseq2rtxp/svgame/nav/svg_nav.cpp
+	baseq2rtxp/svgame/nav/svg_nav.cpp
     baseq2rtxp/svgame/nav/svg_nav_clusters.cpp
     baseq2rtxp/svgame/nav/svg_nav_debug.cpp
     baseq2rtxp/svgame/nav/svg_nav_generate.cpp
+    baseq2rtxp/svgame/nav/svg_nav_hierarchy.cpp
     baseq2rtxp/svgame/nav/svg_nav_load.cpp
-	baseq2rtxp/svgame/nav/svg_nav_path_process.cpp
+    baseq2rtxp/svgame/nav/svg_nav_occupancy.cpp
+    baseq2rtxp/svgame/nav/svg_nav_path_process.cpp
+	baseq2rtxp/svgame/nav/svg_nav_regions.cpp
     baseq2rtxp/svgame/nav/svg_nav_request.cpp
 	baseq2rtxp/svgame/nav/svg_nav_save.cpp
     baseq2rtxp/svgame/nav/svg_nav_traversal.cpp
@@ -484,12 +489,14 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_usetargets.h
 	baseq2rtxp/svgame/svg_weapons.h
 
-    baseq2rtxp/svgame/nav/svg_nav.H
+
+	baseq2rtxp/svgame/nav/svg_nav.H
     baseq2rtxp/svgame/nav/svg_nav_clusters.h
     baseq2rtxp/svgame/nav/svg_nav_debug.h
     baseq2rtxp/svgame/nav/svg_nav_generate.h
     baseq2rtxp/svgame/nav/svg_nav_generate_internal.h
     baseq2rtxp/svgame/nav/svg_nav_load.h
+    baseq2rtxp/svgame/nav/svg_nav_occupancy.h
 	baseq2rtxp/svgame/nav/svg_nav_path_process.h
     baseq2rtxp/svgame/nav/svg_nav_request.h
 	baseq2rtxp/svgame/nav/svg_nav_save.h

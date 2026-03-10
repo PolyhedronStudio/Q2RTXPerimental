@@ -9,6 +9,8 @@
 **/
 #pragma once
 
+// Pull in shared tag allocator APIs used by the RAII helpers.
+#include "sharedgame/sg_shared.h"
 
 
 /**
@@ -31,9 +33,7 @@ struct QTagAllocator {
 	*	@param	tag	Memory tag for tracking (e.g., TAG_SVGAME_LEVEL).
 	*	@return	Pointer to allocated memory or nullptr on failure.
 	**/
-	static void *Allocate( const size_t size, const memtag_t tag ) {
-		return gi.TagMalloc( size, tag );
-	}
+	static void *Allocate( const size_t size, const memtag_t tag );
 };
 /**
 *	@brief	Deleter functor for TagFree.
@@ -44,9 +44,7 @@ struct QTagDeleter {
 	*	@brief	Free memory using TagFree.
 	*	@param	ptr	Pointer to memory block to free.
 	**/
-	static void Deallocate( void *ptr ) {
-		gi.TagFree( ptr );
-	}
+	static void Deallocate( void *ptr );
 };
 
 

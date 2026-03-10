@@ -12,6 +12,8 @@
 #include "svgame/svg_utils.h"
 
 #include "svgame/nav/svg_nav.h"
+#include "svgame/nav/svg_nav_clusters.h"
+#include "svgame/nav/svg_nav_hierarchy.h"
 #include "svgame/nav/svg_nav_generate.h"
 #include "svgame/nav/svg_nav_path_process.h"
 
@@ -94,6 +96,7 @@ static void Nav_FreeTileCells( nav_tile_t * tile, int32_t cells_per_tile ) {
     tile->cells = nullptr;
 }
 
+#if 0
 /** 
 * 	@brief	Set presence bit for a cell within a tile.
 * 	@param	tile		Tile with an allocated `presence_bits` array.
@@ -104,6 +107,7 @@ static inline void Nav_SetPresenceBit_Load( nav_tile_t * tile, int32_t cell_inde
     const int32_t bit_index = cell_index & 31;
     tile->presence_bits[ word_index ] |= ( 1u << bit_index );
 }
+#endif
 
 /** 
 * 	@brief	Detect nav-layer content flags from a collision trace.
@@ -900,8 +904,8 @@ static bool Nav_BuildTile( nav_mesh_t * mesh, nav_tile_t * tile, const Vector3 &
                 if ( cellsPtr && cell_index >= 0 && cell_index < cellsCount ) {
                     cellsPtr[ cell_index ].num_layers = num_layers;
                     cellsPtr[ cell_index ].layers = layers;
-                    // Use public accessor to set presence bit defensively.
-                    SVG_Nav_Tile_SetPresenceBit( tile, cell_index );
+                    // Use the shared safe helper to set the sparse presence bit.
+                    Nav_SetPresenceBit( tile, cell_index );
                     has_layers = true;
                 } else {
                     // Allocation race or corruption: free layers to avoid leak.
@@ -1027,8 +1031,8 @@ static bool Nav_BuildInlineTile( nav_mesh_t * mesh, nav_tile_t * tile, const Vec
                 if ( cellsPtr && cell_index >= 0 && cell_index < cellsCount ) {
                     cellsPtr[ cell_index ].num_layers = num_layers;
                     cellsPtr[ cell_index ].layers = layers;
-                    // Use public accessor to set presence bit defensively.
-                    SVG_Nav_Tile_SetPresenceBit( tile, cell_index );
+                    // Use the shared safe helper to set the sparse presence bit.
+                    Nav_SetPresenceBit( tile, cell_index );
                     has_layers = true;
                 } else {
                     gi.TagFree( layers );
@@ -1530,9 +1534,9 @@ void SVG_Nav_GenerateVoxelMesh( void ) {
 	const QMTime genStart = QMTime::FromMilliseconds( gi.GetRealSystemTime() );
 	GenerateWorldMesh( g_nav_mesh.get() );
     GenerateInlineModelMesh( g_nav_mesh.get() );
- Nav_FinalizeGeneratedTraversalMetadata( g_nav_mesh.get() );
- /** 
-  * 	Build the initial static tile adjacency and region partition now that all persisted traversal metadata is finalized.
+	Nav_FinalizeGeneratedTraversalMetadata( g_nav_mesh.get() );
+	/** 
+	* 	Build the initial static tile adjacency and region partition now that all persisted traversal metadata is finalized.
     **/
     SVG_Nav_Hierarchy_BuildStaticRegions( g_nav_mesh.get() );
     // Emit a short inline-model generation summary to help debug missing inline tiles.

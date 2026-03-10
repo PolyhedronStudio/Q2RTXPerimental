@@ -44,7 +44,7 @@ static nav_query_debug_stats_t * s_nav_active_query_stats = nullptr;
 *      These are intentionally gated behind `nav_debug_draw >= 2` to avoid
 *      spamming logs during normal gameplay.
 **/
-inline bool Nav_PathDiagEnabled( void ) {
+bool Nav_PathDiagEnabled( void ) {
 	return nav_debug_draw && nav_debug_draw->integer >= 2;
 }
 
@@ -301,7 +301,7 @@ static void Nav_QueryStats_RecordSimplification( nav_query_debug_stats_t * stats
 	stats->simplify_output_waypoint_count = simplify_stats.output_waypoint_count;
 	stats->simplify_attempts += simplify_stats.attempts;
 	stats->simplify_successes += simplify_stats.successes;
-   stats->simplify_duplicate_prunes += simplify_stats.duplicate_prunes;
+	stats->simplify_duplicate_prunes += simplify_stats.duplicate_prunes;
 	stats->simplify_collinear_prunes += simplify_stats.collinear_prunes;
 	stats->simplify_fallback_local_replans += simplify_stats.fallback_local_replan_count;
 	stats->simplify_ms += simplify_stats.total_ms;
@@ -378,6 +378,18 @@ static bool Nav_Hierarchy_TryGetRegionIdForNode( const nav_mesh_t * mesh, const 
 }
 
 /** 
+*  @brief    Forward declarations for conservative direct-shortcut gating helpers.
+**/
+static double Nav_LOS_ComputeSampleStep( const nav_mesh_t * mesh, const nav_los_request_t * request );
+static int32_t Nav_LOS_ComputeSampleCount( const Vector3 &start_point, const Vector3 &goal_point, const double sample_step );
+static bool Nav_LOS_NodeAllowed( const nav_mesh_t * mesh, const nav_node_ref_t &node, const svg_nav_path_policy_t * policy, const nav_los_request_t * request );
+static const bool Nav_TryGetGlobalCellCoords( const nav_mesh_t * mesh, const nav_node_ref_t &node, int32_t * out_cell_x, int32_t * out_cell_y );
+static double Nav_DirectLosShortcutMaxVerticalDelta( const nav_mesh_t * mesh, const svg_nav_path_policy_t * policy );
+static bool Nav_DirectLosShortcutHasClearlyValidIntermediateHops( const nav_mesh_t * mesh, const nav_node_ref_t &start_node,
+	const nav_node_ref_t &goal_node, const Vector3 &agent_mins, const Vector3 &agent_maxs,
+	const svg_nav_path_policy_t * policy );
+
+/** 
 *    @brief	Try to build a direct two-point shortcut path between resolved canonical endpoints.
 *    @param	mesh		Navigation mesh containing the LOS/traversal data.
 *    @param	start_node	Resolved canonical start node.
@@ -413,15 +425,29 @@ static const bool Nav_Traversal_TryBuildDirectShortcutPoints( const nav_mesh_t *
 	}
 
 	/** 
-	*    	Attempt the reusable LOS accelerator before coarse routing or fine A* .
+	*	Only allow the early direct shortcut on low-risk vertical queries.
+	*	If the total height delta is not small, require explicitly valid sampled
+	*	intermediate hops; otherwise fall back to corridor routing plus the
+	*	post-A* LOS simplifier.
 	**/
-	const nav_los_request_t losRequest = { .mode = nav_los_mode_t::Auto };
+	const double verticalDelta = std::fabs( ( double )goal_node.worldPosition.z - ( double )start_node.worldPosition.z );
+	const double maxShortcutVerticalDelta = Nav_DirectLosShortcutMaxVerticalDelta( mesh, policy );
+	const bool smallVerticalDelta = verticalDelta <= maxShortcutVerticalDelta;
+	if ( !smallVerticalDelta
+		&& !Nav_DirectLosShortcutHasClearlyValidIntermediateHops( mesh, start_node, goal_node, agent_mins, agent_maxs, policy ) ) {
+		return false;
+	}
+
+	/** 
+	*	Attempt the reusable LOS accelerator before coarse routing or fine A* .
+	**/
+	const nav_los_request_t losRequest = { .mode = nav_los_mode_t::LeafTraversal };
 	if ( !SVG_Nav_HasLineOfSight( mesh, start_node, goal_node, agent_mins, agent_maxs, policy, &losRequest, nullptr ) ) {
 		return false;
 	}
 
 	/** 
-	*    	Build the minimal direct path using nav-center endpoint positions.
+	*	Build the minimal direct path using nav-center endpoint positions.
 	**/
 	out_points.push_back( start_node.worldPosition );
 	out_points.push_back( goal_node.worldPosition );
@@ -567,6 +593,127 @@ static bool Nav_Hierarchy_PortalAllowedByPolicy( const nav_portal_t &portal, con
 	}
 
 	return true;
+}
+
+/** 
+*  @brief    Return the maximum vertical delta that still qualifies as a low-risk early direct shortcut.
+*  @param    mesh     Navigation mesh providing default step and quantization values.
+*  @param    policy   Optional traversal policy overriding the step height.
+*  @return   Positive world-space height delta that can bypass the intermediate-hop preflight.
+**/
+static double Nav_DirectLosShortcutMaxVerticalDelta( const nav_mesh_t * mesh, const svg_nav_path_policy_t * policy ) {
+	/** 
+	*  Prefer the configured LOS vertical-delta cap when available, but never drop below one step plus quantization slack.
+	**/
+	const double stepLimit = ( policy && policy->max_step_height > 0.0 )
+		? ( double )policy->max_step_height
+		: ( mesh ? ( double )mesh->max_step : NAV_DEFAULT_STEP_MAX_SIZE );
+	const double zSlack = mesh ? ( double )mesh->z_quant : 0.0;
+	const double configuredLimit = ( nav_cost_los_max_vertical_delta && nav_cost_los_max_vertical_delta->value > 0.0 )
+		? ( double )nav_cost_los_max_vertical_delta->value
+		: NAV_DEFAULT_LOS_MAX_VERTICAL_DELTA;
+	return std::max( stepLimit + zSlack, configuredLimit );
+}
+
+/** 
+*  @brief    Require large-vertical-delta shortcut candidates to prove their sampled hops are obviously valid.
+*  @param    mesh         Navigation mesh containing the sampled canonical nodes.
+*  @param    start_node   Canonical LOS start node.
+*  @param    goal_node    Canonical LOS goal node.
+*  @param    agent_mins   Agent bbox minimums in nav-center space.
+*  @param    agent_maxs   Agent bbox maximums in nav-center space.
+*  @param    policy       Optional traversal policy controlling hazards and occupancy.
+*  @return   True when every sampled hop stays local and passes explicit step validation.
+*  @note     This keeps risky stair/ramp queries on the corridor+A* path unless the direct span is clearly safe.
+**/
+static bool Nav_DirectLosShortcutHasClearlyValidIntermediateHops( const nav_mesh_t * mesh, const nav_node_ref_t &start_node,
+	const nav_node_ref_t &goal_node, const Vector3 &agent_mins, const Vector3 &agent_maxs,
+	const svg_nav_path_policy_t * policy ) {
+	/** 
+	*  Sanity checks: require mesh ownership before sampling intermediate shortcut hops.
+	**/
+	if ( !mesh ) {
+		return false;
+	}
+
+	/** 
+	*  Reuse the standard LOS node-acceptance policy so occupancy and hazard vetoes stay consistent.
+	**/
+	const nav_los_request_t losRequest = { .mode = nav_los_mode_t::LeafTraversal };
+	if ( !Nav_LOS_NodeAllowed( mesh, start_node, policy, &losRequest ) || !Nav_LOS_NodeAllowed( mesh, goal_node, policy, &losRequest ) ) {
+		return false;
+	}
+
+	/** 
+	*  Only treat large vertical spans as clearly valid when we have actual intermediate samples to validate.
+	**/
+	const double sampleStep = Nav_LOS_ComputeSampleStep( mesh, &losRequest );
+	const int32_t sampleCount = Nav_LOS_ComputeSampleCount( start_node.worldPosition, goal_node.worldPosition, sampleStep );
+	if ( sampleCount <= 1 ) {
+		return false;
+	}
+
+	/** 
+	*  Local helper: every sampled hop must remain adjacent in the cell grid and pass explicit step validation.
+	**/
+	auto validateLocalHop = [&]( const nav_node_ref_t &from_node, const nav_node_ref_t &to_node ) -> bool {
+		/** 
+		*  Identical canonical nodes are trivially valid and do not need further checks.
+		**/
+		if ( from_node.key == to_node.key ) {
+			return true;
+		}
+
+		/** 
+		*  Require cell-local adjacency so the shortcut only survives when the sampled span is obviously walkable.
+		**/
+		int32_t from_cell_x = 0;
+		int32_t from_cell_y = 0;
+		int32_t to_cell_x = 0;
+		int32_t to_cell_y = 0;
+		if ( !Nav_TryGetGlobalCellCoords( mesh, from_node, &from_cell_x, &from_cell_y )
+			|| !Nav_TryGetGlobalCellCoords( mesh, to_node, &to_cell_x, &to_cell_y ) ) {
+			return false;
+		}
+		if ( std::abs( to_cell_x - from_cell_x ) > 1 || std::abs( to_cell_y - from_cell_y ) > 1 ) {
+			return false;
+		}
+
+		/** 
+		*  Preserve the existing step/drop validator so stairs, ramps, and local drops still share one authority.
+		**/
+		return Nav_CanTraverseStep_ExplicitBBox_NodeRefs( mesh, from_node, to_node, agent_mins, agent_maxs, nullptr, policy );
+	};
+
+	/** 
+	*  Sample the straight span in DDA order and require each changed canonical hop to remain obviously valid.
+	**/
+	nav_node_ref_t previousNode = start_node;
+	for ( int32_t sampleIndex = 1; sampleIndex < sampleCount; sampleIndex++ ) {
+		const double t = ( double )sampleIndex / ( double )sampleCount;
+		const Vector3 samplePoint = {
+			( float )( start_node.worldPosition.x + ( goal_node.worldPosition.x - start_node.worldPosition.x )* t ),
+			( float )( start_node.worldPosition.y + ( goal_node.worldPosition.y - start_node.worldPosition.y )* t ),
+			( float )( start_node.worldPosition.z + ( goal_node.worldPosition.z - start_node.worldPosition.z )* t )
+		};
+
+		nav_node_ref_t sampleNode = {};
+		if ( !Nav_FindNodeForPosition( mesh, samplePoint, samplePoint[ 2 ], &sampleNode, true ) ) {
+			return false;
+		}
+		if ( !Nav_LOS_NodeAllowed( mesh, sampleNode, policy, &losRequest ) ) {
+			return false;
+		}
+		if ( !validateLocalHop( previousNode, sampleNode ) ) {
+			return false;
+		}
+		previousNode = sampleNode;
+	}
+
+	/** 
+	*  Finish by validating the final sampled hop into the goal node.
+	**/
+	return validateLocalHop( previousNode, goal_node );
 }
 
 /** 
@@ -1672,7 +1819,7 @@ bool SVG_Nav_SimplifyPathPoints( const nav_mesh_t * mesh, const Vector3 &agent_m
 	/** 
 	*  Greedily keep the farthest visible point from each anchor so intermediate nodes collapse whenever LOS permits.
 	**/
-	const nav_los_request_t losRequest = { .mode = nav_los_mode_t::Auto };
+	const nav_los_request_t losRequest = { .mode = nav_los_mode_t::LeafTraversal };
 	std::vector<Vector3> simplifiedPoints;
   simplifiedPoints.reserve( workingPoints.size() );
 	simplifiedPoints.push_back( workingPoints.front() );
