@@ -81,7 +81,14 @@ static void CM_BoxContents_r( cm_box_contents_test_t &boxContentsTest, cm_conten
 		**/
 		if ( !node->plane ) {
 			mleaf_t *leaf = ( mleaf_t * )node;
-			*contents = ( cm_contents_t )( ( cm_contents_t )boxContentsTest.leafs_contents | ( cm_contents_t )leaf->contents );
+
+			/**
+			*	Accumulate into the per-call contents mask before publishing it back to the caller.
+			*	The previous code read `leafs_contents` without initializing or updating it, which made
+			*	the returned mask depend on stale stack state or the last visited leaf only.
+			**/
+			boxContentsTest.leafs_contents = ( cm_contents_t )( boxContentsTest.leafs_contents | ( cm_contents_t )leaf->contents );
+			*contents = boxContentsTest.leafs_contents;
 
 			if ( boxContentsTest.leaf_list && boxContentsTest.leaf_count < boxContentsTest.leaf_max_count ) {
 				boxContentsTest.leaf_list[ boxContentsTest.leaf_count++ ] = leaf;
@@ -134,9 +141,15 @@ const int32_t CM_BoxContents_headnode( cm_t *cm, const Vector3 &mins, const Vect
 
 		// [Out]:
 		.leaf_topnode = nullptr,
+		.leafs_contents = CONTENTS_NONE,
 	};
 
-	*contents = CONTENTS_NONE;
+	/**
+	*	Always trace into a valid contents destination so list-only callers cannot crash this helper.
+	**/
+	cm_contents_t localContents = CONTENTS_NONE;
+	cm_contents_t *contentsOut = contents ? contents : &localContents;
+	*contentsOut = CONTENTS_NONE;
 
 	/**
 	*	If no headnode was provided, default to the world's BSP root.
@@ -147,7 +160,7 @@ const int32_t CM_BoxContents_headnode( cm_t *cm, const Vector3 &mins, const Vect
 	}
 
 	// Recursively.
-	CM_BoxContents_r( boxContentsTest, contents, headnode );
+	CM_BoxContents_r( boxContentsTest, contentsOut, headnode );
 
 	// Copy over the leaf_topnode value into the topnode pointer value if it was set.
 	if ( topnode ) {
@@ -165,7 +178,7 @@ const int32_t CM_BoxContents_headnode( cm_t *cm, const Vector3 &mins, const Vect
 **/
 const int32_t CM_BoxContents( cm_t *cm, const Vector3 &mins, const Vector3 &maxs, cm_contents_t *contents, mleaf_t **list, const int32_t listsize, mnode_t **topnode ) {
 	// Map not loaded.
-	if ( !cm->cache ) {
+ if ( !cm || !cm->cache ) {
 		return 0;
 	}
 

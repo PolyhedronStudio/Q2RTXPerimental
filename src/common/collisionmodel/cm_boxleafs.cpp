@@ -151,7 +151,7 @@ const int32_t CM_BoxLeafs_headnode( cm_t *cm, const Vector3 &mins, const Vector3
 **/
 const int32_t CM_BoxLeafs( cm_t *cm, const Vector3 &mins, const Vector3 &maxs, mleaf_t **list, const int32_t listsize, mnode_t **topnode ) {
     // Map not loaded.
-    if ( !cm->cache ) {
+ if ( !cm || !cm->cache ) {
         return 0;
     }
 

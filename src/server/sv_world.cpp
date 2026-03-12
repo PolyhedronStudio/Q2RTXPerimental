@@ -45,12 +45,28 @@ typedef struct worldSector_s {
 static worldSector_t    sv_sectorNodes[SECTOR_NODES];
 static int              sv_numSectorNodes;
 
-static Vector3  sector_mins, sector_maxs;
-static sv_edict_t      **sector_list;
-static int          sector_count, sector_maxcount;
-static int          sector_type;
 //! Guards world sector area lists from concurrent readers/writers.
 static std::shared_mutex  sv_world_area_mutex;
+
+/**
+*   @brief  Per-query scratch state for `SV_AreaEdicts`.
+*   @note   Keeping this state on the caller stack avoids the previous shared file-scope
+*           area-query scratch that raced between concurrent readers.
+**/
+struct sv_area_edicts_context_t {
+    //! Query-space minimum bounds.
+    Vector3 mins = {};
+    //! Query-space maximum bounds.
+    Vector3 maxs = {};
+    //! Caller-provided output list.
+    sv_edict_t **list = nullptr;
+    //! Current output count.
+    int32_t count = 0;
+    //! Maximum amount of entities the caller can receive.
+    int32_t maxcount = 0;
+    //! Requested area list type.
+    int32_t type = AREA_SOLID;
+};
 
 
 
@@ -99,38 +115,44 @@ static worldSector_t *SV_CreateSectorNode(int depth, const vec3_t mins, const ve
 *   @brief  Called after the world model has been loaded, before linking any entities.
 **/
 void SV_ClearWorld( void ) {
-	// Clear area node data.
-	std::memset( sv_sectorNodes, 0, sizeof( sv_sectorNodes ) );
-	sv_numSectorNodes = 0;
+    /**
+    *   Serialize world-sector teardown and rebuild so concurrent traces or area queries
+    *   never observe partially reset lists or node topology.
+    **/
+    std::unique_lock<std::shared_mutex> lock( sv_world_area_mutex );
 
-	// Recreate a new area node list based on the current precached world model's mins/maxs.
-	if ( sv.cm.cache ) {
-		mmodel_t *cm = &sv.cm.cache->models[ 0 ];
-		SV_CreateSectorNode( 0, cm->mins, cm->maxs );
-	}
+    // Clear area node data.
+    std::memset( sv_sectorNodes, 0, sizeof( sv_sectorNodes ) );
+    sv_numSectorNodes = 0;
 
-	// Make sure all entities are unlinked.
-	for ( int32_t i = 0; i < ge->edictPool->max_edicts; i++ ) {
-		// Get edict pointer.s
-		sv_edict_t *ent = EDICT_FOR_NUMBER( i );
-		// Reset entity and world area linking data.
-		if ( ent != nullptr ) {
-			// Unlink.
-			ent->isLinked = false;
-			//ent->area.prev = ent->area.next = NULL;
-			ent->area = { .next = nullptr, .prev = nullptr };
-			// Reset entity cluster data.
-			ent->numberOfClusters = 0;
-			ent->headNode = -1;
+    // Recreate a new area node list based on the current precached world model's mins/maxs.
+    if ( sv.cm.cache ) {
+        mmodel_t *cm = &sv.cm.cache->models[ 0 ];
+        SV_CreateSectorNode( 0, cm->mins, cm->maxs );
+    }
 
-			// Reset entity (state-) data for non clients.
-			if ( ent->client == nullptr ) {
-				ent->Reset();
-			}
-		}
+    // Make sure all entities are unlinked.
+    for ( int32_t i = 0; i < ge->edictPool->max_edicts; i++ ) {
+        // Get edict pointer.s
+        sv_edict_t *ent = EDICT_FOR_NUMBER( i );
+        // Reset entity and world area linking data.
+        if ( ent != nullptr ) {
+            // Unlink.
+            ent->isLinked = false;
+            //ent->area.prev = ent->area.next = NULL;
+            ent->area = { .next = nullptr, .prev = nullptr };
+            // Reset entity cluster data.
+            ent->numberOfClusters = 0;
+            ent->headNode = -1;
 
-		// Reset entity world area linking data.
-	}
+            // Reset entity (state-) data for non clients.
+            if ( ent->client == nullptr ) {
+                ent->Reset();
+            }
+        }
+
+        // Reset entity world area linking data.
+    }
 }
 
 
@@ -441,52 +463,58 @@ void PF_LinkEdict( edict_ptr_t *ent ) {
 /**
 *	@brief	SV_AreaEdicts_r
 **/
-static void SV_AreaEdicts_r(worldSector_t *node)
-{
-    list_t		*start = nullptr;
-    sv_edict_t	*check = nullptr;
+static void SV_AreaEdicts_r( worldSector_t *node, sv_area_edicts_context_t &context ) {
+    list_t      *start = nullptr;
+    sv_edict_t  *check = nullptr;
 
-    // touch linked edicts
-	if ( sector_type == AREA_SOLID ) {
-		start = &node->solid_edicts;
-	} else {
-		start = &node->trigger_edicts;
-	}
-
-    LIST_FOR_EACH(sv_edict_t, check, start, area) {
-		if ( check->solid == SOLID_NOT ) {
-			continue;        // deactivated
-		}
-		if ( check->absMin[ 0 ] > sector_maxs[ 0 ]
-			|| check->absMin[ 1 ] > sector_maxs[ 1 ]
-			|| check->absMin[ 2 ] > sector_maxs[ 2 ]
-			|| check->absMax[ 0 ] < sector_mins[ 0 ]
-			|| check->absMax[ 1 ] < sector_mins[ 1 ]
-			|| check->absMax[ 2 ] < sector_mins[ 2 ] ) {
-			continue;        // not touching
-		}
-
-		if ( sector_count == sector_maxcount ) {
-			Com_WPrintf( "SV_AreaEdicts: MAXCOUNT\n" );
-			return;
-		}
-
-		sector_list[ sector_count ] = check;
-		sector_count++;
+    /**
+    *   Sanity check: malformed or not-yet-built sector trees have nothing to enumerate.
+    **/
+    if ( !node ) {
+        return;
     }
 
-	// Terminal node!
-	if ( node->axis == -1 ) {
-		return;
-	}
+    // touch linked edicts
+    if ( context.type == AREA_SOLID ) {
+        start = &node->solid_edicts;
+    } else {
+        start = &node->trigger_edicts;
+    }
+
+    LIST_FOR_EACH( sv_edict_t, check, start, area ) {
+        if ( check->solid == SOLID_NOT ) {
+            continue;        // deactivated
+        }
+        if ( check->absMin[ 0 ] > context.maxs[ 0 ]
+            || check->absMin[ 1 ] > context.maxs[ 1 ]
+            || check->absMin[ 2 ] > context.maxs[ 2 ]
+            || check->absMax[ 0 ] < context.mins[ 0 ]
+            || check->absMax[ 1 ] < context.mins[ 1 ]
+            || check->absMax[ 2 ] < context.mins[ 2 ] ) {
+            continue;        // not touching
+        }
+
+        if ( context.count == context.maxcount ) {
+            Com_WPrintf( "SV_AreaEdicts: MAXCOUNT\n" );
+            return;
+        }
+
+        context.list[ context.count ] = check;
+        context.count++;
+    }
+
+    // Terminal node!
+    if ( node->axis == -1 ) {
+        return;
+    }
 
     // recurse down both sides
-	if ( sector_maxs[ node->axis ] > node->dist ) {
-		SV_AreaEdicts_r( node->children[ 0 ] );
-	}
-	if ( sector_mins[ node->axis ] < node->dist ) {
-		SV_AreaEdicts_r( node->children[ 1 ] );
-	}
+    if ( context.maxs[ node->axis ] > node->dist ) {
+        SV_AreaEdicts_r( node->children[ 0 ], context );
+    }
+    if ( context.mins[ node->axis ] < node->dist ) {
+        SV_AreaEdicts_r( node->children[ 1 ], context );
+    }
 }
 
 /**
@@ -502,16 +530,27 @@ const int32_t SV_AreaEdicts(const Vector3 *mins, const Vector3 *maxs,
 {
     std::shared_lock<std::shared_mutex> read_lock(sv_world_area_mutex);
 
-    sector_mins = *mins;
-    sector_maxs = *maxs;
-    sector_list = list;
-    sector_count = 0;
-    sector_maxcount = maxcount;
-    sector_type = areatype;
+    /**
+    *   Reject invalid caller arguments and the no-world case before touching sector lists.
+    **/
+    if ( !mins || !maxs || !list || maxcount <= 0 || sv_numSectorNodes <= 0 ) {
+        return 0;
+    }
 
-    SV_AreaEdicts_r(sv_sectorNodes);
+    /**
+    *   Keep all per-query state local so multiple readers can safely traverse the sector tree concurrently.
+    **/
+    sv_area_edicts_context_t context = {};
+    context.mins = *mins;
+    context.maxs = *maxs;
+    context.list = list;
+    context.count = 0;
+    context.maxcount = maxcount;
+    context.type = areatype;
 
-    return sector_count;
+    SV_AreaEdicts_r( sv_sectorNodes, context );
+
+    return context.count;
 }
 
 
@@ -522,9 +561,16 @@ const int32_t SV_AreaEdicts(const Vector3 *mins, const Vector3 *maxs,
 *			object 'hull' of mins/maxs size for the entity's said 'solid'.
 **/
 static mnode_t *SV_HullForEntity( const sv_edict_t *ent, const bool includeSolidTriggers = false ) {
+    /**
+    *   Sanity checks: a missing entity or unloaded collision model cannot provide a trace hull.
+    **/
+    if ( !ent || !sv.cm.cache ) {
+        return nullptr;
+    }
+
     if ( ent->solid == SOLID_BSP || ( includeSolidTriggers && ent->solid == SOLID_TRIGGER ) ){
-		// Subtract 1 to get the modelindex into a 0-based array.
-		// ( Index 0 is reserved for no model )
+        // Subtract 1 to get the modelindex into a 0-based array.
+        // ( Index 0 is reserved for no model )
         const int32_t i = ent->s.modelindex - 1;
         
         //// account for "hole" in configstring namespace
@@ -537,9 +583,15 @@ static mnode_t *SV_HullForEntity( const sv_edict_t *ent, const bool includeSolid
                 Com_Error( ERR_DROP, "%s: inline model %d out of range", __func__, i );
                 return nullptr;
             }
+
+            /**
+            *   Solid-trigger probes must also reject invalid model indices instead of indexing beyond
+            *   the cached inline-model array.
+            **/
+            return nullptr;
         }
 
-		// Return the headnode for the model.
+        // Return the headnode for the model.
         return sv.cm.cache->models[i].headnode;
     }
 

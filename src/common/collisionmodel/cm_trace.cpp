@@ -441,7 +441,11 @@ static void CM_RecursiveHullCheck( cm_t *cm, cm_trace_reantrant_state_t *reantra
     int     side;
     double   midf;
 
-    if ( reantrantState->trResult.fraction <= p1f )
+    /**
+    *   Stop immediately when the caller provides no node or when an earlier hit is already closer.
+    *   This keeps malformed child pointers or synthetic hull edge cases from dereferencing null nodes.
+    **/
+    if ( !node || reantrantState->trResult.fraction <= p1f )
         return;     // already hit something nearer
 
 recheck:
