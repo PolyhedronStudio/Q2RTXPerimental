@@ -130,7 +130,7 @@ svg_base_edict_t *SVG_NPC_FindFreshestAudibleSound( svg_base_edict_t *listener, 
 	if ( !listener ) {
 		return nullptr;
 	}
-
+	#if 0
 	// This is the first entity to prefer by default. ( No weapon/impact sound blending. )
 	svg_base_edict_t *firstAudibleEntity = level.weapon_sound_entity;
 	// This is the second entity to prefer by default. ( No weapon/impact sound blending. )
@@ -148,7 +148,12 @@ svg_base_edict_t *SVG_NPC_FindFreshestAudibleSound( svg_base_edict_t *listener, 
 			secondAudibleEntity = level.impact_sound_entity;
 		}
 	}
-
+	#else
+	// This is the first entity to prefer by default. ( No weapon/impact sound blending. )
+	svg_base_edict_t *firstAudibleEntity = level.impact_sound_entity;
+	// This is the second entity to prefer by default. ( No weapon/impact sound blending. )
+	svg_base_edict_t *secondAudibleEntity = level.weapon_sound_entity;
+	#endif
 	/**
 	*    Select the freshest raw sound-slot candidate newer than the caller's lower bound.
 	**/
@@ -158,6 +163,34 @@ svg_base_edict_t *SVG_NPC_FindFreshestAudibleSound( svg_base_edict_t *listener, 
 	// Track the newest sound entity before optional audibility filtering.
 	svg_base_edict_t *freshestSound = nullptr;
 
+		// If blending is disabled we just prefer the weapon sound first, impact second and personal last, 
+	// based on the assumption that weapon sounds are more likely to be occluded by their impact sounds than the other way around, 
+	// and that personal sounds are generally less important to react to than world sounds.
+	// Prefer the primary world sound slot when it contains a newer event.
+	if ( SVG_PlayerNoise_IsEntityAlive( level.impact_sound_entity )
+		&& level.impact_sound_entity->last_sound_time > minTime ) {
+		freshestSound = ( usePHS == true
+			&& SVG_Util_IsEntityAudibleByPHS( listener, level.impact_sound_entity, true, debugLevel ) )
+			? level.impact_sound_entity : nullptr;
+	}
+	// Replace the candidate when the secondary world sound slot is even newer.
+	if ( SVG_PlayerNoise_IsEntityAlive( level.weapon_sound_entity )
+		&& level.weapon_sound_entity->last_sound_time > minTime ) {
+		if ( !freshestSound || level.weapon_sound_entity->last_sound_time > freshestSound->last_sound_time ) {
+			freshestSound = ( usePHS == true
+				&& SVG_Util_IsEntityAudibleByPHS( listener, level.weapon_sound_entity, true, debugLevel ) )
+				? level.weapon_sound_entity : nullptr;
+		}
+	}
+	// Replace the candidate when personal noise sound slot contains an even newer event.
+	if ( SVG_PlayerNoise_IsEntityAlive( level.personal_sound_entity )
+		&& level.personal_sound_entity->last_sound_time > minTime ) {
+		if ( !freshestSound || level.personal_sound_entity->last_sound_time > freshestSound->last_sound_time ) {
+			freshestSound = level.personal_sound_entity;
+		}
+	}
+
+	#if 0
 	/**
 	*	We prefer the first audible entity candidate when it contains a newer sound event than the caller's provided lower bound.
 	*	This is either the weapon sound or the impact sound, depending on the distance of the listener to the impact point when 
@@ -186,6 +219,7 @@ svg_base_edict_t *SVG_NPC_FindFreshestAudibleSound( svg_base_edict_t *listener, 
 			freshestSound = level.personal_sound_entity;
 		}
 	}
+	#endif
 
 	#if 0
 	// If blending is disabled we just prefer the weapon sound first, impact second and personal last, 

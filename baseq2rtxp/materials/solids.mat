@@ -1,18 +1,51 @@
 textures/clip:
 	texture_base textures/clip.png
 	base_factor 2.5
-textures/hint:
-	texture_base textures/hint.png
-	base_factor 2.5
 textures/monsterclip:
 	texture_base textures/monsterclip.png
 	base_factor 2.5
 textures/playerclip:
 	texture_base textures/playerclip.png
 	base_factor 2.5
+
+textures/basic/chrome:
+	texture_base textures/chrome.tga
+	texture_normals textures/chrome_n.tga
+	kind CHROME
+textures/basic/mirror:
+	texture_base textures/mirror.tga
+	texture_normals textures/mirror_n.tga
+	kind CHROME
+textures/basic/glass:
+	texture_base textures/glass.tga
+	texture_normals textures/glass_n.tga
+	kind GLASS
+
+textures/basic/region:
+	texture_base textures/region.tga
+	texture_normals textures/region_n.tga
+	kind GLASS
+
+textures/basic/void:
+	texture_base textures/void.tga
+	metalness_factor 0.000000
+	specular_factor 0.000000
+	base_factor 0.000000
+	emissive_factor 0.000000
+	kind UNLIT
+
+textures/hint:
+	texture_base textures/hint.png
+	base_factor 2.5
 textures/origin:
 	texture_base textures/origin.png
 	base_factor 2.5
+
+textures/trigger:
+	texture_base textures/trigger.png
+	base_factor 2.5
+	kind GLASS
+	
 textures/sky:
 	texture_base textures/sky.png
     kind SKY
@@ -22,7 +55,4 @@ textures/skylight:
     kind SKY
 	base_factor 2.5
 	is_light 1
-textures/trigger:
-	texture_base textures/trigger.png
-	base_factor 2.5
-	kind GLASS
+

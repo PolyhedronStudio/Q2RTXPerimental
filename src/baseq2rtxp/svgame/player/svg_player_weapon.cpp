@@ -40,7 +40,8 @@ static byte     is_silenced;
 * 
 **/
 //! The lifetime of the sound entity, after which it'll free itself again. If we do not, we'd be having a continuous allocating of edicts. We don't want that.
-static constexpr QMTime SoundEntityLifetime = 6_sec;
+static constexpr QMTime SoundEntityLifetime = 24_sec;
+
 DECLARE_GLOBAL_CALLBACK_THINK( PlayerNoise_onThink );
 //! Implementation of the sound entity thinking routine. The sound entity will be active and reachable by the SVG_Entity_IsVisible method for a specific amount of time, after which it'll free itself again. If we do not, we'd be having a continuous allocating of edicts. We don't want that.
 DEFINE_GLOBAL_CALLBACK_THINK( PlayerNoise_onThink )( svg_base_edict_t *self ) -> void {
@@ -102,6 +103,7 @@ static inline void PlayerNoise_Setup( svg_base_edict_t *noise, svg_base_edict_t 
 	} else if ( soundType == PLAYER_NOISE_SELF ) {
 		noise->s.entityType = ET_PLAYER_NOISE_PERSONAL;
 	}
+	noise->solid = SOLID_TRIGGER;
 	noise->mins = { -8, -8, -8 };
 	noise->maxs = { -8, -8, -8 };
 	noise->owner = who;
@@ -160,6 +162,39 @@ void SVG_PlayerNoise_MakeNoise( svg_base_edict_t *who, const Vector3 &where, int
 		who->impactNoiseEntity = impactNoise;
 	}
 
+	#if 1 // <Q2RTXP>: WID: For testing purposes we use the impact noise first above all noise types, 
+		  // so we can easily visualize monster path movement. 
+		  // We can remove this later when we're sure everything is working fine.
+	// Weapon noises are prioritized over impact noises, which are prioritized over personal noises. 
+	// This is because weapon noises are more important for monsters to react to, 
+	// and impact noises are more important than personal noises.
+	svg_base_edict_t *noise = nullptr;
+	if ( type == PLAYER_NOISE_IMPACT ) {
+		noise = who->weaponNoiseEntity;
+		if ( noise ) {
+			noise->inUse = true; // <Q2RTXP>: TODO: Hmmm... This should happen at loadlevel time.
+			noise->last_sound_time = level.time;
+		}
+		level.impact_sound_entity = noise;
+		level.impact_sound_entity_time = level.time;
+	} else if ( type == PLAYER_NOISE_WEAPON ) {
+		noise = who->weaponNoiseEntity;
+		if ( noise ) {
+			noise->inUse = true; // <Q2RTXP>: TODO: Hmmm... This should happen at loadlevel time.
+			noise->last_sound_time = level.time;
+		}
+		level.weapon_sound_entity = noise;
+		level.weapon_sound_entity_time = level.time;
+	} else if ( type == PLAYER_NOISE_SELF ) {
+		noise = who->weaponNoiseEntity;
+		if ( noise ) {
+			noise->inUse = true; // <Q2RTXP>: TODO: Hmmm... This should happen at loadlevel time.
+			noise->last_sound_time = level.time;
+		}
+		level.personal_sound_entity = noise;
+		level.personal_sound_entity_time = level.time;
+	}
+	#else
 	// Weapon noises are prioritized over impact noises, which are prioritized over personal noises. 
 	// This is because weapon noises are more important for monsters to react to, 
 	// and impact noises are more important than personal noises.
@@ -189,7 +224,7 @@ void SVG_PlayerNoise_MakeNoise( svg_base_edict_t *who, const Vector3 &where, int
 		level.personal_sound_entity = noise;
 		level.personal_sound_entity_time = level.time;
     }
-
+	#endif
 	if ( noise != nullptr ) {
 		SVG_Util_SetEntityOrigin( noise, where, true );//VectorCopy( where, noise->s.origin );
 		

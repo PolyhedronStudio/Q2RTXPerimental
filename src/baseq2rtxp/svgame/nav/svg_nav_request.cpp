@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <limits>
 #include <new>
+#include <mutex>
 #include <optional>
 #include <unordered_map>
 #include <vector>
@@ -34,6 +35,9 @@
 //! Container holding queued and in-flight navigation requests.
 static std::vector<nav_request_entry_t> s_nav_request_queue = {};
 
+//! Completed worker payloads awaiting main-thread queue application.
+static std::vector<struct nav_request_prep_payload_t *> s_nav_completed_payloads = {};
+
 //! Constant-time lookup from request handle to the current queue slot.
 static std::unordered_map<nav_request_handle_t, size_t> s_nav_request_handle_lookup = {};
 
@@ -42,6 +46,9 @@ static nav_request_handle_t s_nav_request_next_handle = 1;
 
 //! Round-robin cursor used to prevent early queue entries from monopolizing per-frame service.
 static size_t s_nav_request_round_robin_cursor = 0;
+
+//! Mutex protecting the completed-payload producer/consumer handoff list.
+static std::mutex s_nav_completed_payload_mutex;
 
 //! Toggle controlling whether path rebuilds should be enqueued via the async request queue.
 cvar_t *nav_nav_async_queue_mode = nullptr;
@@ -76,6 +83,16 @@ static cvar_t *s_nav_step_budget_ms = nullptr;
 //! Maximum consecutive async request failures recorded for a single path process.
 static constexpr int32_t NAV_REQUEST_MAX_CONSECUTIVE_FAILURES = 20;
 
+//! Number of edge-reject reason buckets recorded by A* so diagnostics can snapshot them.
+static constexpr int32_t NAV_EDGE_REJECT_REASON_BUCKETS = ( ( int32_t )nav_edge_reject_reason_t::Other - ( int32_t )nav_edge_reject_reason_t::None + 1 );
+
+//! Worker-side expansion budget used when running A* to completion on the async worker thread.
+//! Controls how many node expansions a worker may perform when attempting to finish a path.
+static cvar_t *s_nav_worker_expansions_per_run = nullptr;
+//! Worker-side time budget in milliseconds for running A* on the async worker thread (0 = no cap).
+//! Limits how long the worker may spend on a single request before yielding.
+static cvar_t *s_nav_worker_budget_ms = nullptr;
+
 /** 
 *  @brief    Determine whether a request status is terminal.
 *  @param    status    Status value to inspect.
@@ -88,6 +105,42 @@ static inline bool NavRequest_IsTerminalStatus( const nav_request_status_t statu
 	return status == nav_request_status_t::Completed
 		|| status == nav_request_status_t::Cancelled
 		|| status == nav_request_status_t::Failed;
+}
+
+/**
+ *  @brief    Find the dense-vector index for a queued entry by handle.
+ *  @param    handle    Handle returned when the request was enqueued.
+ *  @return   std::optional<size_t> index into s_nav_request_queue when found, std::nullopt otherwise.
+ *
+ *  @note     This helper exists so callers can avoid holding raw pointers into
+ *            `s_nav_request_queue` across operations that may reallocate or
+ *            compact the vector. Callers should resolve an index and then use
+ *            that index to access the vector element as-needed (re-querying
+ *            if the vector may have been mutated in-between).
+ **/
+static void NavRequest_RebuildHandleLookup( void );
+
+static std::optional<size_t> NavRequest_FindEntryIndexByHandle( nav_request_handle_t handle ) {
+	if ( handle <= 0 ) {
+		return std::nullopt;
+	}
+
+	if ( const auto found = s_nav_request_handle_lookup.find( handle ); found != s_nav_request_handle_lookup.end() ) {
+		const size_t index = found->second;
+		if ( index < s_nav_request_queue.size() && s_nav_request_queue[ index ].handle == handle ) {
+			return index;
+		}
+	}
+
+	NavRequest_RebuildHandleLookup();
+	if ( const auto found = s_nav_request_handle_lookup.find( handle ); found != s_nav_request_handle_lookup.end() ) {
+		const size_t index = found->second;
+		if ( index < s_nav_request_queue.size() && s_nav_request_queue[ index ].handle == handle ) {
+			return index;
+		}
+	}
+
+	return std::nullopt;
 }
 
 
@@ -135,6 +188,9 @@ static void NavRequest_LogEdgeRejectReasonCounters( const char * prefix, const n
 static void NavRequest_LogQueueDiagnostics( int32_t queueBefore, int32_t queueAfter, int32_t processed, int32_t requestBudget, int32_t remainingExpansions );
 static void NavRequest_RebuildHandleLookup( void );
 static void NavRequest_DestroyPrepPayload( struct nav_request_prep_payload_t * payload );
+static void NavRequest_EnqueueCompletedPayload( struct nav_request_prep_payload_t * payload );
+static void NavRequest_DrainCompletedPayloads( std::vector<nav_request_prep_payload_t *> &payloads );
+static void NavRequest_ApplyCompletedPayload( struct nav_request_prep_payload_t * payload );
 static nav_request_entry_t * NavRequest_FindEntryByHandle( nav_request_handle_t handle );
 static nav_request_entry_t * NavRequest_FindEntryForProcess( svg_nav_path_process_t * process );
 static bool NavRequest_PrepareAStarForEntry( nav_request_entry_t &entry );
@@ -148,7 +204,7 @@ static void NavRequest_HandleFailure( nav_request_entry_t &entry );
 *  @param    start_node   Canonical LOS start node.
 *  @param    goal_node    Canonical LOS goal node.
 *  @return   True when the configured LOS sample budget allows the direct shortcut attempt.
-*  @note     Kept local to the async request implementation so Phase 13 tuning does not widen the public traversal API.
+*  @note     Kept local to the async request implementation so does not widen the public traversal API.
 **/
 static bool NavRequest_ShouldAttemptDirectLosShortcut( const nav_mesh_t * mesh, const nav_node_ref_t &start_node, const nav_node_ref_t &goal_node ) {
 	/** 
@@ -432,7 +488,40 @@ struct nav_request_prep_payload_t {
 
 	// Worker search-initialization results:
 	bool init_success = false;
- std::optional<nav_a_star_state_t> initialized_state = std::nullopt;
+    std::optional<nav_a_star_state_t> initialized_state = std::nullopt;
+
+	// Worker finalization outputs (populated when the worker runs A* to completion).
+	bool final_path_success = false;
+	std::vector<Vector3> final_path_points = {};
+	nav_a_star_status_t final_state = nav_a_star_status_t::Failed;
+	int32_t worker_expansions = 0;
+	uint64_t worker_elapsed_ms = 0;
+
+	// Minimal worker-side diagnostics captured for failure handling on the main thread.
+	struct worker_diag_t {
+		int32_t neighbor_try_count = 0;
+		int32_t no_node_count = 0;
+		int32_t edge_reject_count = 0;
+		int32_t tile_filter_reject_count = 0;
+		int32_t same_node_alias_count = 0;
+		int32_t closed_duplicate_count = 0;
+		int32_t pass_through_prune_count = 0;
+		int32_t stagnation_count = 0;
+     int32_t edge_reject_reason_counts[ NAV_EDGE_REJECT_REASON_BUCKETS ];
+		worker_diag_t() {
+			neighbor_try_count = 0;
+			no_node_count = 0;
+			edge_reject_count = 0;
+            tile_filter_reject_count = 0;
+			same_node_alias_count = 0;
+			closed_duplicate_count = 0;
+			pass_through_prune_count = 0;
+			stagnation_count = 0;
+			for ( int i = 0; i < NAV_EDGE_REJECT_REASON_BUCKETS; ++i ) {
+				edge_reject_reason_counts[ i ] = 0;
+			}
+		}
+	} diag;
 };
 
 /** 
@@ -452,18 +541,25 @@ void SVG_Nav_RequestQueue_RegisterCvars( void ) {
 	s_nav_nav_async_enable = gi.cvar( "nav_nav_async_enable", "1", 0 );
 	// Reduce number of requests serviced per frame to avoid large main-thread spikes.
 	s_nav_requests_per_frame = gi.cvar( "nav_requests_per_frame", "64", 0 );
-	s_nav_prepare_requests_per_frame = gi.cvar( "nav_prepare_requests_per_frame", "8", 0 );
-	s_nav_step_requests_per_frame = gi.cvar( "nav_step_requests_per_frame", "32", 0 );
+	s_nav_prepare_requests_per_frame = gi.cvar( "nav_prepare_requests_per_frame", "64", 0 );
+	s_nav_step_requests_per_frame = gi.cvar( "nav_step_requests_per_frame", "4096", 0 );
 	// Reduce expansions per request to limit per-request CPU usage on the main thread.
 	s_nav_expansions_per_request = gi.cvar( "nav_expansions_per_request", "65536", 0 ); // temporarily reduced from 8192
-	s_nav_prepare_budget_ms = gi.cvar( "nav_prepare_budget_ms", "4", 0 );
-	s_nav_step_budget_ms = gi.cvar( "nav_step_budget_ms", "4", 0 );
+	s_nav_prepare_budget_ms = gi.cvar( "nav_prepare_budget_ms", "10", 0 );
+	s_nav_step_budget_ms = gi.cvar( "nav_step_budget_ms", "10", 0 );
+
+	// Worker-side caps: allow the async worker to run A* to completion within these limits.
+	// `nav_worker_expansions_per_run` controls a hard expansion cap per worker-run (large default).
+	// `nav_worker_budget_ms` controls a soft time cap in milliseconds (0 = no cap).
+	s_nav_worker_expansions_per_run = gi.cvar( "nav_worker_expansions_per_run", "1000000", 0 );
+	s_nav_worker_budget_ms = gi.cvar( "nav_worker_budget_ms", std::to_string( gi.frame_time_ms ).c_str(), 0);
 	nav_nav_async_queue_mode = gi.cvar( "nav_nav_async_queue_mode", "1", 0 );
 	s_nav_nav_async_log_stats = gi.cvar( "nav_nav_async_log_stats", "1", 0 );
 
 	// Reserve some reasonable default capacity to avoid repeated reallocations
 	// when many entities enqueue navigation requests during startup or stress tests.
 	s_nav_request_queue.reserve( 16384 );
+    s_nav_completed_payloads.reserve( 2048 );
 	s_nav_request_handle_lookup.reserve( 2048 );
 }
 
@@ -507,6 +603,48 @@ static void NavRequest_DestroyPrepPayload( nav_request_prep_payload_t * payload 
 	gi.TagFree( payload );
 }
 
+/**
+*  @brief	Queue a completed worker payload for later main-thread application.
+*  @param	payload	Completed worker payload produced by `NavRequest_Worker_DoInit`.
+*  @note	Keeps `NavRequest_Worker_Done` lightweight so async completion does not spend
+* 			time mutating the request queue while `Com_CompleteAsyncWork()` holds `work_lock`.
+**/
+static void NavRequest_EnqueueCompletedPayload( nav_request_prep_payload_t * payload ) {
+	/**
+	*  Ignore null payloads from defensive early-return paths.
+	**/
+	if ( payload == nullptr ) {
+		return;
+	}
+
+	/**
+	*  Append the payload into the producer/consumer handoff list.
+	**/
+	std::scoped_lock lock( s_nav_completed_payload_mutex );
+	s_nav_completed_payloads.push_back( payload );
+}
+
+/**
+*  @brief	Drain completed worker payloads into a caller-owned temporary list.
+*  @param	payloads	[out] Receives payloads ready for main-thread application.
+*  @note	Swaps the shared completion list into `payloads` so the shared mutex remains
+* 			held for only a very short duration.
+**/
+static void NavRequest_DrainCompletedPayloads( std::vector<nav_request_prep_payload_t *> &payloads ) {
+	/**
+	*  Keep the handoff list untouched when no payloads are waiting.
+	**/
+	std::scoped_lock lock( s_nav_completed_payload_mutex );
+	if ( s_nav_completed_payloads.empty() ) {
+		return;
+	}
+
+	/**
+	*  Transfer ownership of the pending payload pointers to the caller.
+	**/
+	payloads.swap( s_nav_completed_payloads );
+}
+
 /** 
 *  @brief    Locate a queued entry by handle.
 *  @param    handle    Handle returned when the request was enqueued.
@@ -520,9 +658,7 @@ static nav_request_entry_t * NavRequest_FindEntryByHandle( nav_request_handle_t 
 		return nullptr;
 	}
 
-   /** 
-	*  Use the cached slot when it still matches the dense queue layout.
-	**/
+	// Fast-path: cached lookup slot still matches the dense-vector layout.
 	if ( const auto found = s_nav_request_handle_lookup.find( handle ); found != s_nav_request_handle_lookup.end() ) {
 		const size_t index = found->second;
 		if ( index < s_nav_request_queue.size() && s_nav_request_queue[ index ].handle == handle ) {
@@ -530,9 +666,7 @@ static nav_request_entry_t * NavRequest_FindEntryByHandle( nav_request_handle_t 
 		}
 	}
 
-	/** 
-	*  Recover from any stale lookup state by rebuilding once from the queue.
-	**/
+   // Recover from any stale lookup state by rebuilding once from the queue.
 	NavRequest_RebuildHandleLookup();
 	if ( const auto found = s_nav_request_handle_lookup.find( handle ); found != s_nav_request_handle_lookup.end() ) {
 		const size_t index = found->second;
@@ -627,7 +761,7 @@ nav_request_handle_t SVG_Nav_RequestPathAsync( svg_nav_path_process_t * pathProc
 	// Before reusing an existing entry, remove any stale "Failed" entries for
 	// the same process so callers can re-enqueue immediately. Removing them
 	// avoids leaving failed handles lying around and makes retries deterministic.
-	std::vector<nav_request_handle_t> removedHandles;
+    std::vector<nav_request_handle_t> removedHandles;
 	for ( auto it = s_nav_request_queue.begin(); it != s_nav_request_queue.end(); ) {
 		if ( it->path_process == pathProcess && it->status == nav_request_status_t::Failed ) {
 			removedHandles.push_back( it->handle );
@@ -636,12 +770,12 @@ nav_request_handle_t SVG_Nav_RequestPathAsync( svg_nav_path_process_t * pathProc
 		}
 		++it;
 	}
-	if ( !removedHandles.empty() && s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
+    if ( !removedHandles.empty() && s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
 		for ( nav_request_handle_t h : removedHandles ) {
 			gi.dprintf( "[NavAsync][Queue] Removed previously failed entry handle=%d for ent_process=%p before enqueue\n", h, ( void* )pathProcess );
 		}
 	}
-   /** 
+	/** 
 	*  Rebuild the handle lookup when dense-vector erases changed queue slots.
 	**/
 	if ( !removedHandles.empty() ) {
@@ -829,7 +963,7 @@ void SVG_Nav_CancelRequest( nav_request_handle_t handle ) {
 		return;
 	}
 
-	/** 
+    /** 
 	*  Locate the request and update its status to cancelled.
 	**/
 	nav_request_entry_t * entry = NavRequest_FindEntryByHandle( handle );
@@ -863,7 +997,7 @@ bool SVG_Nav_IsRequestPending( const svg_nav_path_process_t * pathProcess ) {
 		return false;
 	}
 
-	/** 
+    /** 
 	*  Scan the queue for matching active entries.
 	**/
 	for ( const nav_request_entry_t &entry : s_nav_request_queue ) {
@@ -886,11 +1020,31 @@ bool SVG_Nav_IsRequestPending( const svg_nav_path_process_t * pathProcess ) {
 *  @note     Each request now steps the incremental A*  helper using the configured expansion budget.
 **/
 void SVG_Nav_ProcessRequestQueue( void ) {
+    /**
+	*  Drain any worker-completed payloads first so async completion stays decoupled
+	*  from the async subsystem's internal completion lock.
+	**/
+	std::vector<nav_request_prep_payload_t *> completedPayloads = {};
+	NavRequest_DrainCompletedPayloads( completedPayloads );
+
 	/** 
 	*  Feature gate: skip work when async processing is disabled.
 	**/
-   if ( !SVG_Nav_IsAsyncNavEnabled() ) {
+    if ( !SVG_Nav_IsAsyncNavEnabled() ) {
+		/**
+		*  Release drained payloads when async processing is disabled so no worker results leak.
+		**/
+		for ( nav_request_prep_payload_t * payload : completedPayloads ) {
+			NavRequest_DestroyPrepPayload( payload );
+		}
 		return;
+	}
+
+	/**
+	*  Apply drained worker results on the main-thread queue before new stepping work.
+	**/
+	for ( nav_request_prep_payload_t * payload : completedPayloads ) {
+		NavRequest_ApplyCompletedPayload( payload );
 	}
 
 	const bool diagLogging = s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0;
@@ -1438,7 +1592,7 @@ static void NavRequest_Worker_DoInit( void * cb_arg ) {
 		return;
 	}
 
-  const nav_los_request_t losRequest = { .mode = nav_los_mode_t::LeafTraversal };
+  const nav_los_request_t losRequest = { .mode = nav_los_mode_t::DDA };
   if ( NavRequest_ShouldAttemptDirectLosShortcut( mesh, start_node, goal_node )
 		&& SVG_Nav_HasLineOfSight( mesh, start_node, goal_node, p->agent_mins, p->agent_maxs, &p->resolved_policy, &losRequest, nullptr ) ) {
 		p->direct_path_success = true;
@@ -1451,8 +1605,8 @@ static void NavRequest_Worker_DoInit( void * cb_arg ) {
 		return;
 	}
 
- /** 
-  * Optionally compute a coarse hierarchy route filter (with cluster fallback).
+	/** 
+	*	Optionally compute a coarse hierarchy route filter (with cluster fallback).
 	*      This is policy-gated so debug entities can disable route restriction
 	*      and isolate fine traversal (`StepTest`) behavior.
 	**/
@@ -1466,23 +1620,27 @@ static void NavRequest_Worker_DoInit( void * cb_arg ) {
 	bool relaxRouteFilterForRetry = false;
 	if ( p->resolved_policy.enable_cluster_route_filter && p->path_process ) {
 		const svg_nav_path_process_t &pathProcess = * p->path_process;
-		const double retryGoalRadius = std::max( p->resolved_policy.rebuild_goal_dist_3d > 0.0 ? p->resolved_policy.rebuild_goal_dist_3d : p->resolved_policy.rebuild_goal_dist_2d, 64.0 );
+		const double retryGoalRadius = std::max( p->resolved_policy.rebuild_goal_dist_3d > 0.0 ? p->resolved_policy.rebuild_goal_dist_3d : p->resolved_policy.rebuild_goal_dist_2d, NAV_DEFAULT_GOAL_REBUILD_3D_DISTANCE );
 		const bool recentSameGoalFailure = pathProcess.last_failure_time > 0_ms
-			&& ( level.time - pathProcess.last_failure_time ) <= 4_sec
+			&& ( level.time - pathProcess.last_failure_time ) <= 50_ms /*4_sec*/
 			&& ( QM_Vector3DistanceSqr( pathProcess.last_failure_pos, p->goal_feet ) <= ( retryGoalRadius * retryGoalRadius ) );
       relaxRouteFilterForRetry = recentSameGoalFailure && pathProcess.consecutive_failures >= 2;
 	}
 
+	// Determine whether to apply the hierarchy route filter based on policy and retry state.
 	const bool routeFilterEnabled = p->resolved_policy.enable_cluster_route_filter && !relaxRouteFilterForRetry;
+	// Track whether the hierarchy or cluster filter was used to inform diagnostics and future tuning.
 	bool usedHierarchyRoute = false;
+	// Cluster routes are a fallback when hierarchy filtering fails to produce a viable route. Track both cases separately for diagnostics.
 	bool usedClusterRoute = false;
+	// Track the number of coarse expansions when filtering is applied to inform diagnostics and future tuning.
 	int32_t coarseExpansions = 0;
-   /** 
-	*  Boundary-origin hardening:
-   *     Compute the coarse route from the already resolved canonical nodes rather than the raw
-	*      caller origins. Sound/event goals can land on tile or cell boundaries where the raw position
- *     maps to a less reliable coarse key even though node resolution already recovered the correct
-	*      canonical start/goal surfaces.
+	/** 
+	*	Boundary-origin hardening:
+	*		Compute the coarse route from the already resolved canonical nodes rather than the raw
+	*		caller origins. Sound/event goals can land on tile or cell boundaries where the raw position
+	*		maps to a less reliable coarse key even though node resolution already recovered the correct
+	*		canonical start/goal surfaces.
 	**/
     const bool hasRefineCorridor = routeFilterEnabled && SVG_Nav_BuildRefineCorridor( mesh, start_node, goal_node, &p->resolved_policy, &refineCorridor,
 		&usedHierarchyRoute, &usedClusterRoute, &coarseExpansions );
@@ -1504,7 +1662,7 @@ static void NavRequest_Worker_DoInit( void * cb_arg ) {
 			p->handle );
 	}
 
- // Construct the state directly inside the payload so the callback only performs one allocation.
+	// Construct the state directly inside the payload so the callback only performs one allocation.
 	p->initialized_state.emplace();
 	if ( !Nav_AStar_Init( &p->initialized_state.value(), mesh, start_node, goal_node, p->agent_mins, p->agent_maxs,
      &p->resolved_policy, hasRefineCorridor ? &refineCorridor : nullptr, p->path_process ) ) {
@@ -1518,6 +1676,216 @@ static void NavRequest_Worker_DoInit( void * cb_arg ) {
 
  // Success: hand the in-place state back to the main thread via payload ownership.
 	p->init_success = true;
+
+	// Optionally run the initialized A* to completion on the worker thread subject to configured caps.
+	// This lets expensive searches finish off-thread and return final path points directly to the main thread
+	// without performing heavy allocations there. Zero caps disable worker-run behavior.
+	const int32_t workerExpansionsCap = s_nav_worker_expansions_per_run ? s_nav_worker_expansions_per_run->integer : 0;
+	const uint64_t workerBudgetMs = s_nav_worker_budget_ms ? ( uint64_t )std::max( 0, s_nav_worker_budget_ms->integer ) : 0;
+	if ( ( workerExpansionsCap != 0 ) || ( workerBudgetMs != 0 ) ) {
+		const uint64_t runStartMs = gi.GetRealSystemTime();
+		int32_t usedExpansions = 0;
+		nav_a_star_status_t runStatus = p->initialized_state->status;
+		// Run in moderate-sized chunks so we check the time/expansion caps frequently.
+		static constexpr int32_t kWorkerStepChunk = NAV_TILE_WORKER_STEP_CHUNK_SIZE;
+		while ( runStatus == nav_a_star_status_t::Running ) {
+			int32_t toUse = kWorkerStepChunk;
+			if ( workerExpansionsCap > 0 ) {
+				toUse = std::min( toUse, std::max( 0, workerExpansionsCap - usedExpansions ) );
+				if ( toUse <= 0 ) {
+					break;
+				}
+			}
+			// Step the worker-side A* and accumulate usage.
+			runStatus = Nav_AStar_Step( &p->initialized_state.value(), toUse );
+			usedExpansions += toUse;
+			// Check elapsed time cap.
+			if ( workerBudgetMs > 0 ) {
+				const uint64_t nowMs = gi.GetRealSystemTime();
+				if ( nowMs - runStartMs >= workerBudgetMs ) {
+					break;
+				}
+			}
+		}
+		// Record worker metrics into payload for the done-callback to inspect.
+		p->worker_expansions = usedExpansions;
+		p->worker_elapsed_ms = gi.GetRealSystemTime() - runStartMs;
+		p->final_state = p->initialized_state->status;
+
+		// Copy compact diagnostic counters from the worker state so the main-thread
+		// done-callback can surface meaningful failure logs without moving the full state.
+		p->diag.neighbor_try_count = p->initialized_state->neighbor_try_count;
+		p->diag.no_node_count = p->initialized_state->no_node_count;
+		p->diag.edge_reject_count = p->initialized_state->edge_reject_count;
+		p->diag.tile_filter_reject_count = p->initialized_state->tile_filter_reject_count;
+		p->diag.same_node_alias_count = p->initialized_state->same_node_alias_count;
+		p->diag.closed_duplicate_count = p->initialized_state->closed_duplicate_count;
+		p->diag.pass_through_prune_count = p->initialized_state->pass_through_prune_count;
+		p->diag.stagnation_count = p->initialized_state->stagnation_count;
+		// Snapshot per-reason edge reject buckets for richer diagnostics.
+		for ( int i = 0; i < NAV_EDGE_REJECT_REASON_BUCKETS; ++i ) {
+			p->diag.edge_reject_reason_counts[ i ] = p->initialized_state->edge_reject_reason_counts[ i ];
+		}
+
+		// If the worker finished with a completed path, finalize it on the worker and stash the points.
+		if ( p->initialized_state->status == nav_a_star_status_t::Completed ) {
+			std::vector<Vector3> workerPoints;
+			if ( Nav_AStar_Finalize( &p->initialized_state.value(), &workerPoints ) ) {
+				p->final_path_success = true;
+				p->final_path_points = std::move( workerPoints );
+			} else {
+				p->final_path_success = false;
+			}
+			// Drop the heavy in-place worker state now that we produced final points to avoid passing
+			// large containers to the main thread when not needed.
+			p->initialized_state.reset();
+		}
+		if ( diagLogging ) {
+			gi.dprintf( "[NavAsync][Worker] Done-run handle=%d expansions=%d elapsed_ms=%llu final=%d state=%d\n",
+				p->handle, p->worker_expansions, ( unsigned long long )p->worker_elapsed_ms,
+				p->final_path_success ? 1 : 0, ( int )p->final_state );
+		}
+	}
+}
+
+/**
+*  @brief	Apply a drained worker payload onto the main-thread request queue.
+*  @param	p	Completed worker payload waiting in the handoff list.
+*  @note	This contains the previous heavy `NavRequest_Worker_Done` logic, but it now runs
+* 			from `SVG_Nav_ProcessRequestQueue()` after the handoff list is drained.
+**/
+static void NavRequest_ApplyCompletedPayload( nav_request_prep_payload_t * p ) {
+	/**
+	*  Ignore null payloads from defensive early-return paths.
+	**/
+	if ( !p ) {
+		return;
+	}
+
+	/**
+	*  Read the logging toggle once for the rest of this application path.
+	**/
+	const bool diagLogging = s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0;
+
+	/**
+	*  Locate the queued entry by handle and drop the payload if the request no longer exists.
+	**/
+	const auto optIndex = NavRequest_FindEntryIndexByHandle( p->handle );
+	if ( !optIndex.has_value() ) {
+		NavRequest_DestroyPrepPayload( p );
+		return;
+	}
+	nav_request_entry_t &entry = s_nav_request_queue[ optIndex.value() ];
+
+	/**
+	*  Commit worker-finalized path points immediately when the worker already completed the search.
+	**/
+	if ( p->final_path_success ) {
+		entry.resolved_policy = p->resolved_policy;
+		entry.agent_mins = p->agent_mins;
+		entry.agent_maxs = p->agent_maxs;
+		if ( entry.path_process && entry.path_process->CommitAsyncPathFromPoints( p->final_path_points, p->start_feet, p->goal_feet, p->resolved_policy ) ) {
+			entry.status = nav_request_status_t::Completed;
+			NavRequest_ClearProcessMarkers( entry );
+		} else {
+			entry.status = nav_request_status_t::Failed;
+			NavRequest_HandleFailure( entry );
+			NavRequest_ClearProcessMarkers( entry );
+		}
+		NavRequest_DestroyPrepPayload( p );
+		return;
+	}
+
+	/**
+	*  Ignore worker output once the request already reached a terminal state.
+	**/
+	if ( NavRequest_IsTerminalStatus( entry.status ) ) {
+		NavRequest_ClearProcessMarkers( entry );
+		NavRequest_DestroyPrepPayload( p );
+		return;
+	}
+
+	/**
+	*  Reject stale worker generations so replaced requests never overwrite newer state.
+	**/
+	if ( entry.generation != p->generation ) {
+		NavRequest_DestroyPrepPayload( p );
+		return;
+	}
+
+	/**
+	*  Accept worker prep only while the request is still awaiting worker results.
+	**/
+	if ( entry.status != nav_request_status_t::Preparing && entry.status != nav_request_status_t::Queued ) {
+		NavRequest_DestroyPrepPayload( p );
+		return;
+	}
+
+	/**
+	*  Commit a worker-prepared direct shortcut without entering the incremental running phase.
+	**/
+	if ( p->direct_path_success ) {
+		entry.resolved_policy = p->resolved_policy;
+		entry.agent_mins = p->agent_mins;
+		entry.agent_maxs = p->agent_maxs;
+		if ( entry.path_process && entry.path_process->CommitAsyncPathFromPoints( p->direct_path_points, p->start_feet, p->goal_feet, p->resolved_policy ) ) {
+			entry.status = nav_request_status_t::Completed;
+			NavRequest_ClearProcessMarkers( entry );
+		} else {
+			entry.status = nav_request_status_t::Failed;
+			NavRequest_HandleFailure( entry );
+			NavRequest_ClearProcessMarkers( entry );
+		}
+		NavRequest_DestroyPrepPayload( p );
+		return;
+	}
+
+	/**
+	*  Surface worker failure diagnostics on the main thread when init never produced a live state.
+	**/
+	if ( !p->init_success || !p->initialized_state.has_value() ) {
+		entry.status = nav_request_status_t::Failed;
+		entry.a_star.neighbor_try_count = p->diag.neighbor_try_count;
+		entry.a_star.no_node_count = p->diag.no_node_count;
+		entry.a_star.edge_reject_count = p->diag.edge_reject_count;
+		entry.a_star.tile_filter_reject_count = p->diag.tile_filter_reject_count;
+		entry.a_star.same_node_alias_count = p->diag.same_node_alias_count;
+		entry.a_star.closed_duplicate_count = p->diag.closed_duplicate_count;
+		entry.a_star.pass_through_prune_count = p->diag.pass_through_prune_count;
+		entry.a_star.stagnation_count = p->diag.stagnation_count;
+		for ( int i = 0; i < NAV_EDGE_REJECT_REASON_BUCKETS; ++i ) {
+			entry.a_star.edge_reject_reason_counts[ i ] = p->diag.edge_reject_reason_counts[ i ];
+		}
+		NavRequest_HandleFailure( entry );
+		NavRequest_ClearProcessMarkers( entry );
+		NavRequest_DestroyPrepPayload( p );
+		return;
+	}
+
+	/**
+	*  Move the worker-initialized state into queue-owned storage and rebind non-owning pointers.
+	**/
+	entry.a_star = std::move( p->initialized_state.value() );
+	entry.resolved_policy = p->resolved_policy;
+	entry.agent_mins = p->agent_mins;
+	entry.agent_maxs = p->agent_maxs;
+	entry.a_star.policy = &entry.resolved_policy;
+	entry.a_star.pathProcess = entry.path_process;
+	entry.a_star.RebindInternalPointers();
+	entry.status = nav_request_status_t::Running;
+
+	/**
+	*  Emit the existing move-to-running diagnostic once the payload was applied.
+	**/
+	if ( diagLogging ) {
+		gi.dprintf( "[NavAsync][Done] Prepared A*  on main thread by moving worker state handle=%d (gen=%u) path_process=%p\n",
+			entry.handle, entry.generation, ( void* )entry.path_process );
+	}
+
+	/**
+	*  Release the drained payload after its ownership was fully transferred into the queue entry.
+	**/
+	NavRequest_DestroyPrepPayload( p );
 }
 
 /** 
@@ -1526,104 +1894,10 @@ static void NavRequest_Worker_DoInit( void * cb_arg ) {
 *  without performing heavy allocations on the main thread.
 **/
 static void NavRequest_Worker_Done( void * cb_arg ) {
-	if ( !cb_arg ) {
-		return;
-	}
-	nav_request_prep_payload_t * p = ( nav_request_prep_payload_t* )cb_arg;
-	const bool diagLogging = s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0;
-
-	// Find the queued entry by handle and ensure generation still matches.
-	nav_request_entry_t * entry = NavRequest_FindEntryByHandle( p->handle );
-	if ( !entry ) {
-     // No entry to apply to, so release the payload and any in-place worker state.
-		NavRequest_DestroyPrepPayload( p );
-		return;
-	}
-
-	/** 
-	*  Cancellation/terminal guard:
-	*      If this entry already reached a terminal status, drop worker output.
+	/**
+	*  Only enqueue the finished payload so async completion remains lightweight.
 	**/
-	if ( NavRequest_IsTerminalStatus( entry->status ) ) {
-		NavRequest_ClearProcessMarkers( * entry );
-        NavRequest_DestroyPrepPayload( p );
-		return;
-	}
-
-	// Stale-result guard: ensure the generation hasn't changed since payload creation.
-	if ( entry->generation != p->generation ) {
-       NavRequest_DestroyPrepPayload( p );
-		return;
-	}
-
-	/** 
-	*  Queue-state guard:
-	*      Accept worker prep only while this request generation is still in
-	*      pre-run states. Any other state indicates a superseded transition.
-	**/
-	if ( entry->status != nav_request_status_t::Preparing && entry->status != nav_request_status_t::Queued ) {
-       NavRequest_DestroyPrepPayload( p );
-		return;
-	}
-
-	/** 
-	*  Commit a worker-prepared direct shortcut immediately without entering the incremental A*  running state.
-	**/
-	if ( p->direct_path_success ) {
-		entry->resolved_policy = p->resolved_policy;
-		entry->agent_mins = p->agent_mins;
-		entry->agent_maxs = p->agent_maxs;
-		if ( entry->path_process && entry->path_process->CommitAsyncPathFromPoints( p->direct_path_points, p->start_feet, p->goal_feet, p->resolved_policy ) ) {
-			entry->status = nav_request_status_t::Completed;
-			NavRequest_ClearProcessMarkers( * entry );
-		} else {
-			entry->status = nav_request_status_t::Failed;
-			NavRequest_HandleFailure( * entry );
-			NavRequest_ClearProcessMarkers( * entry );
-		}
-		NavRequest_DestroyPrepPayload( p );
-		return;
-	}
-
-	// If worker failed to initialize, mark entry failed and apply backoff.
-  if ( !p->init_success || !p->initialized_state.has_value() ) {
-		entry->status = nav_request_status_t::Failed;
-		// Keep resolved_policy on entry (it was copied earlier) so HandleFailure has the data it needs.
-		NavRequest_HandleFailure( * entry );
-		NavRequest_ClearProcessMarkers( * entry );
-        NavRequest_DestroyPrepPayload( p );
-		return;
-	}
-
-	// Move the worker-initialized state into the entry using move semantics
-    // so the bulk vector storage transfers without a second nav-state heap object.
-	entry->a_star = std::move( p->initialized_state.value() );
-
-	// Ensure entry has the same resolved policy snapshot used by worker.
-	entry->resolved_policy = p->resolved_policy;
-	// Also ensure entry uses the same agent hull snapshot.
-	entry->agent_mins = p->agent_mins;
-	entry->agent_maxs = p->agent_maxs;
-
-	/** 
-	*	Rebind non-owning pointers after moving the worker state into queue-owned storage.
-	*		The worker initialized `a_star.policy` against payload-owned `resolved_policy`, so once
-	*		the payload is destroyed the live search must point at `entry->resolved_policy` instead.
-	**/
-	entry->a_star.policy = &entry->resolved_policy;
-	entry->a_star.pathProcess = entry->path_process;
-	entry->a_star.RebindInternalPointers();
-
-	// Transition to Running so the main thread can call Nav_AStar_Step.
-	entry->status = nav_request_status_t::Running;
-
-   if ( diagLogging ) {
-		gi.dprintf( "[NavAsync][Done] Prepared A*  on main thread by moving worker state handle=%d (gen=%u) path_process=%p\n",
-			entry->handle, entry->generation, ( void* )entry->path_process );
-	}
-
-	// Free payload memory allocated during prepare.
- NavRequest_DestroyPrepPayload( p );
+	NavRequest_EnqueueCompletedPayload( ( nav_request_prep_payload_t * )cb_arg );
 }
 
 /** 
@@ -1734,10 +2008,10 @@ static bool NavRequest_FinalizePathForEntry( nav_request_entry_t &entry ) {
 	**/
 	std::vector<Vector3> simplifiedPoints = points;
 	if ( mesh && simplifiedPoints.size() > 2 ) {
-	/** 
-	* Re-validate the more aggressive async simplification pass immediately before commit by working on a candidate copy and only swapping it in on success.
-	**/
-      nav_path_simplify_options_t simplifyOptions = {};
+		/** 
+		*	Re-validate the more aggressive async simplification pass immediately before commit by working on a candidate copy and only swapping it in on success.
+		**/
+		nav_path_simplify_options_t simplifyOptions = {};
 		simplifyOptions.max_los_tests = nav_simplify_async_max_los_tests ? nav_simplify_async_max_los_tests->integer : 12;
 		simplifyOptions.max_elapsed_ms = 0;
 		simplifyOptions.collinear_angle_degrees = nav_simplify_collinear_angle_degrees ? ( double )nav_simplify_collinear_angle_degrees->value : 4.0;

@@ -86,15 +86,15 @@ typedef struct cm_s {
 
     // Valid floods and check count:
     int32_t floodValid;
-    int32_t checkCount;
+    int64_t checkCount;
 
     // Null Leaf, as well as null texture, returned in case the query had invalid results
     mleaf_t nullLeaf;
     //mtexinfo_t nullTextureInfo;
 
-    //! Collision Model's bounding box hull.
+    //! Collision Model's shared bounding-box hull template used for initialization and compatibility checks.
     hull_boundingbox_t *hull_boundingbox;
-    //! Collision Model's octagon box hull.
+    //! Collision Model's shared octagon hull template used for initialization and compatibility checks.
     hull_octagonbox_t *hull_octagonbox;
 
     //! Material types, array index equals their typeID. The zero index(0) is used as the default material type.

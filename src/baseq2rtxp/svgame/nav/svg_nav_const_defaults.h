@@ -23,7 +23,8 @@ static constexpr const char * NAV_PATH_DIR = "/maps/nav/";
 //! Small epsilon to ensure max bounds map to the correct tile.
 static constexpr const double NAV_TILE_EPSILON = 0.001f;
 
-
+//! Chunk size for incremental path processing. This is the number of nodes that will be expanded per incremental step.
+static constexpr int32_t NAV_TILE_WORKER_STEP_CHUNK_SIZE = 65536;
 
 /** 
 * 
@@ -35,13 +36,16 @@ static constexpr const double NAV_TILE_EPSILON = 0.001f;
 //! Default Radius around waypoints to consider 'reached':
 //! We take the (half-width / waypoint-resolution) of a typical NPC entity (16 units) as a reasonable default for the waypoint radius, which provides a good balance between precision and leniency in path following. 
 //! This allows the agent to consider a waypoint reached when it is close enough, without requiring an exact position match, which can help smooth out movement and reduce jitter.
-static constexpr const double NAV_DEFAULT_WAYPOINT_RADIUS = ( 18.0 / 3.125 );// PM_MAX_STEP_SIZE( 16 ) / ;
+static constexpr const double NAV_DEFAULT_WAYPOINT_RADIUS = ( 18.0 );// PM_MAX_STEP_SIZE( 16 ) / ;
 
 //! 2D distance change in goal position that triggers a path rebuild.
-static constexpr const double NAV_DEFAULT_GOAL_REBUILD_2D_DISTANCE = 16.0;
+static constexpr const double NAV_DEFAULT_GOAL_REBUILD_2D_DISTANCE		= 16.0;
+//! Maximum 2D distance change in goal position that neglects a path rebuild.
+static constexpr const double NAV_DEFAULT_GOAL_REBUILD_2D_DISTANCE_MAX	= 4096.0;
 //! 3D distance change in goal position that triggers a path rebuild.
-static constexpr const double NAV_DEFAULT_GOAL_REBUILD_3D_DISTANCE = 32.0;
-
+static constexpr const double NAV_DEFAULT_GOAL_REBUILD_3D_DISTANCE		= 32.0;
+//! Maximum 3D distance change in goal position that neglects a path rebuild.
+static constexpr const double NAV_DEFAULT_GOAL_REBUILD_3D_DISTANCE_MAX	= 960.0;
 
 
 /** 
@@ -55,7 +59,7 @@ static constexpr const double NAV_DEFAULT_GOAL_REBUILD_3D_DISTANCE = 32.0;
 //! Stepping:
 //! 
 //! Default mimimum step height that the navigation system considers sa a stair.
-static constexpr const double NAV_DEFAULT_STEP_MIN_SIZE = PHYS_STEP_MIN_SIZE;
+static constexpr const double NAV_DEFAULT_STEP_MIN_SIZE		= PHYS_STEP_MIN_SIZE;
 //! Default maximum step height that the navigation system considers traversable without a jump.
 static constexpr const double NAV_DEFAULT_STEP_MAX_SIZE		= PHYS_STEP_MAX_SIZE;
 //! The default value used for designating a plane as being an actual obstruction, or a slope and traversable, or flat and traversable.
@@ -76,7 +80,7 @@ static constexpr const double NAV_DEFAULT_MAX_DROP_HEIGHT = 128.0;
 //! Drop cap applied when rejecting large downward transitions (matches `nav_max_drop_height_cap`).
 static constexpr const double NAV_DEFAULT_MAX_DROP_HEIGHT_CAP = 192.;
 //! Max vertical delta allowed for a line of sight check to succeed (units, matches `nav_los_max_vertical_delta`).
-static constexpr const double NAV_DEFAULT_LOS_MAX_VERTICAL_DELTA = ( NAV_DEFAULT_STEP_MAX_SIZE * 2 ) + ( NAV_DEFAULT_STEP_MAX_SIZE - NAV_DEFAULT_STEP_MIN_SIZE );
+static constexpr const double NAV_DEFAULT_LOS_MAX_VERTICAL_DELTA = ( NAV_DEFAULT_STEP_MAX_SIZE * 3 ) - ( NAV_DEFAULT_STEP_MIN_SIZE * 3);
 
 
 /** 

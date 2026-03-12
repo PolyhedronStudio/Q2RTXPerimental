@@ -194,6 +194,13 @@ void CM_InitBoxHull( cm_t *cm );
 *           the specified contents. If contents == CONTENTS_NONE(0) then it'll default to CONTENTS_MONSTER.
 **/
 mnode_t *CM_HeadnodeForBox( cm_t *cm, const vec3_t mins, const vec3_t maxs, const cm_contents_t contents );
+/**
+*   @brief  Determine whether the specified headnode belongs to a synthetic bounding-box hull.
+*   @param  cm          Collision model owning the shared compatibility template.
+*   @param  headnode    Headnode to classify.
+*   @return True when the headnode belongs to either the shared compatibility hull or the current thread-local hull.
+**/
+const bool CM_IsBoundingBoxHullHeadnode( const cm_t *cm, const mnode_t *headnode );
 
 
 
@@ -213,6 +220,20 @@ void CM_InitOctagonHull( cm_t *cm );
 *           the specified contents. If contents == CONTENTS_NONE(0) then it'll default to CONTENTS_MONSTER.
 **/
 mnode_t *CM_HeadnodeForOctagon( cm_t *cm, const vec3_t mins, const vec3_t maxs, const cm_contents_t contents );
+/**
+*   @brief  Determine whether the specified headnode belongs to a synthetic octagon hull.
+*   @param  cm          Collision model owning the shared compatibility template.
+*   @param  headnode    Headnode to classify.
+*   @return True when the headnode belongs to either the shared compatibility hull or the current thread-local hull.
+**/
+const bool CM_IsOctagonBoxHullHeadnode( const cm_t *cm, const mnode_t *headnode );
+/**
+*   @brief  Retrieve the octagon cylinder offset for a synthetic octagon hull headnode.
+*   @param  cm          Collision model owning the shared compatibility template.
+*   @param  headnode    Headnode whose cylinder offset should be resolved.
+*   @return Pointer to the cylinder offset for the matching synthetic octagon hull, or nullptr when the headnode is unrelated.
+**/
+const vec3_t *CM_GetOctagonBoxHullCylinderOffset( const cm_t *cm, const mnode_t *headnode );
 
 
 
@@ -254,9 +275,9 @@ const cm_contents_t CM_TransformedPointContents( cm_t *cm, const vec3_t p, mnode
 //  common/collisionmodel/cm_trace.cpp
 //
 /**
-*   @brief
+*   @brief	For reentrant
 **/
-void        CM_BoxTrace( cm_t *cm, cm_trace_t *trace,
+const cm_trace_t CM_BoxTrace( cm_t *cm,
                         const Vector3 &start, const Vector3 &end,
                         const Vector3 *mins, const Vector3 *maxs,
                         mnode_t *headnode, const cm_contents_t brushmask );
@@ -264,16 +285,11 @@ void        CM_BoxTrace( cm_t *cm, cm_trace_t *trace,
 *   @brief  Handles offseting and rotation of the end points for moving and
 *           rotating entities.
 **/
-void        CM_TransformedBoxTrace( cm_t *cm, cm_trace_t *trace,
+const cm_trace_t CM_TransformedBoxTrace( cm_t *cm,
                                     const Vector3 &start, const Vector3 &end,
                                     const Vector3 *mins, const Vector3 *maxs,
                                     mnode_t *headnode, const cm_contents_t brushmask,
                                     const vec3_t origin, const vec3_t angles );
-/**
-*   @brief
-**/
-void        CM_ClipEntity( cm_t *cm, cm_trace_t *dst, const cm_trace_t *src, const int32_t entityNumber );
- 
 
 
 //

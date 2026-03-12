@@ -17,6 +17,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 // world.c -- world query functions
 
+#include <shared_mutex>
+
 #include "server/sv_server.h"
 #include "server/sv_world.h"
 
@@ -47,6 +49,8 @@ static Vector3  sector_mins, sector_maxs;
 static sv_edict_t      **sector_list;
 static int          sector_count, sector_maxcount;
 static int          sector_type;
+//! Guards world sector area lists from concurrent readers/writers.
+static std::shared_mutex  sv_world_area_mutex;
 
 
 
@@ -158,6 +162,8 @@ static inline const bounds_packed_t _MSG_PackBoundsUint32( const Vector3 &mins, 
 **/
 void SV_LinkEdict(cm_t *cm, sv_edict_t *ent)
 {
+    std::unique_lock<std::shared_mutex> lock(sv_world_area_mutex);
+
     mleaf_t *leafs[MAX_TOTAL_ENT_LEAFS];
     int32_t clusters[MAX_TOTAL_ENT_LEAFS];
     int32_t num_leafs;
@@ -279,6 +285,8 @@ void SV_LinkEdict(cm_t *cm, sv_edict_t *ent)
 **/
 void PF_UnlinkEdict(edict_ptr_t *ent)
 {
+    std::unique_lock<std::shared_mutex> lock(sv_world_area_mutex);
+
 	// Not linked in anywhere
 	if ( !ent->area.prev ) {
 		return;
@@ -492,6 +500,8 @@ static void SV_AreaEdicts_r(worldSector_t *node)
 const int32_t SV_AreaEdicts(const Vector3 *mins, const Vector3 *maxs,
                   sv_edict_t **list, const int32_t maxcount, const int32_t areatype)
 {
+    std::shared_lock<std::shared_mutex> read_lock(sv_world_area_mutex);
+
     sector_mins = *mins;
     sector_maxs = *maxs;
     sector_list = list;
@@ -598,12 +608,31 @@ const cm_contents_t SV_PointContents( const Vector3 *p ) {
 /**
 *	@brief	SV_ClipMoveToEntities
 **/
-static void SV_ClipMoveToEntities(const Vector3 &start, const Vector3 *mins,
+static cm_trace_t SV_ClipMoveToEntities(const Vector3 &start, const Vector3 *mins,
                                   const Vector3 *maxs, const Vector3 &end,
                                   const Vector3 &moveMins, const Vector3 &moveMaxs,
-                                  const sv_edict_t *passedict, const cm_contents_t contentmask, cm_trace_t *dst )
+                                  const sv_edict_t *passedict, const cm_contents_t contentmask )
 {
     sv_edict_t *touch = nullptr;
+	cm_trace_t dst = {
+		.entityNumber = ENTITYNUM_NONE,
+		.fraction = 1.0f,
+		.endpos = end,
+		.plane = {
+			.normal = { 0.0f, 0.0f, 0.0f },
+			.dist = 0.0f,
+			.type = PLANE_NON_AXIAL,
+			.signbits = 0,
+		},
+		.surface = &nulltexinfo.c,
+		.material = &cm_default_material,
+		.plane2 = {
+			.normal = { 0.0f, 0.0f, 0.0f },
+			.dist = 0.0f,
+			.type = PLANE_NON_AXIAL,
+			.signbits = 0,
+		},
+	};
 
 	// Use static thread_local to avoid large stack allocation and ensure thread safety.
 	static thread_local sv_edict_t *touchlist[ MAX_EDICTS ] = {};
@@ -638,8 +667,8 @@ static void SV_ClipMoveToEntities(const Vector3 &start, const Vector3 *mins,
             },
         };
         // early out if we already know everything is solid from previous world or entity hits
-        if ( dst->allsolid ) {
-            return;
+        if ( dst.allsolid ) {
+            return dst;
         }
 
         touch = touchlist[ i ];
@@ -681,30 +710,32 @@ static void SV_ClipMoveToEntities(const Vector3 &start, const Vector3 *mins,
         }
 
         // might intersect, so do an exact clip
-        CM_TransformedBoxTrace( &sv.cm, &etrace, start, end, mins, maxs,
+        etrace = CM_TransformedBoxTrace( &sv.cm, start, end, mins, maxs,
                                SV_HullForEntity(touch), contentmask,
                                &touch->currentOrigin.x, &touch->currentAngles.x);
 
         //CM_ClipEntity( &sv.cm, dst, &trace, touch->s.number );
 
         if ( etrace.allsolid ) {
-            dst->allsolid = true;
+            dst.allsolid = true;
             etrace.entityNumber = touch->s.number;
         } else if ( etrace.startsolid ) {
-            dst->startsolid = true;
+            dst.startsolid = true;
             etrace.entityNumber = touch->s.number;
         }
 
-        if ( etrace.fraction < dst->fraction ) {
+        if ( etrace.fraction < dst.fraction ) {
             // make sure we keep a startsolid from a previous trace
-            const int32_t oldStartSolid = dst->startsolid;
+            const int32_t oldStartSolid = dst.startsolid;
             etrace.entityNumber = touch->s.number;
-            *dst = etrace;
+            dst = etrace;
             // jmarshall
-            const int32_t startsolid = (int32_t)dst->startsolid | oldStartSolid;
-            dst->startsolid = (bool)startsolid;
+            const int32_t startsolid = (int32_t)dst.startsolid | oldStartSolid;
+            dst.startsolid = (bool)startsolid;
         }
     }
+
+	return dst;
 }
 
 /**
@@ -757,8 +788,8 @@ const cm_trace_t q_gameabi SV_Trace( const Vector3 &start, const Vector3 *mins,
     }
 
     // First Clip to world.
-    CM_BoxTrace( 
-        &sv.cm, &trace, 
+    trace = CM_BoxTrace( 
+        &sv.cm, 
         start, end, mins, maxs,
         SV_WorldNodes( ), 
         contentmask 
@@ -780,15 +811,36 @@ const cm_trace_t q_gameabi SV_Trace( const Vector3 &start, const Vector3 *mins,
         }
     }
 
-	// If we are not clipping to the world, and the trace fraction is 1.0,
-    // test and clip to other solid entities.
-    SV_ClipMoveToEntities(
+	/**
+    *  Refine the already-computed world trace against dynamic entities without discarding the
+    *  original BSP result.
+    *      The world trace above is authoritative for floors, walls, and other BSP geometry.
+    *      Replacing it outright with an entity-only trace can erase a valid floor hit entirely,
+    *      which in turn makes movement and ground checks think nothing was beneath the mover.
+    **/
+    const cm_trace_t entityTrace = SV_ClipMoveToEntities(
         start, mins, maxs, end, 
         moveMins, moveMaxs,
         passEdict,
-        contentmask, 
-        &trace
+        contentmask
     );
+
+    /**
+    *  Keep the nearest valid hit across the world and entity passes while preserving solid-start
+    *  information from either source.
+    **/
+    if ( entityTrace.allsolid || entityTrace.fraction < trace.fraction ) {
+        const int32_t oldStartSolid = trace.startsolid;
+        const int32_t oldAllSolid = trace.allsolid;
+        trace = entityTrace;
+        trace.startsolid = (bool)( ( int32_t )trace.startsolid | oldStartSolid );
+        trace.allsolid = (bool)( ( int32_t )trace.allsolid | oldAllSolid );
+    } else if ( entityTrace.startsolid ) {
+        trace.startsolid = true;
+        if ( entityTrace.allsolid ) {
+            trace.allsolid = true;
+        }
+    }
 
     return trace;
 }
@@ -825,14 +877,14 @@ const cm_trace_t q_gameabi SV_Clip( const edict_ptr_t *clipEntity, const Vector3
     if ( sv.cm.cache ) {
         // Clip against World:
         if ( clipEntity == nullptr || ( clipEntity && clipEntity->s.number == ENTITYNUM_WORLD ) ) {
-            CM_BoxTrace( &sv.cm, &trace, start, end, mins, maxs, sv.cm.cache->nodes, contentmask );
+            trace = CM_BoxTrace( &sv.cm, start, end, mins, maxs, sv.cm.cache->nodes, contentmask );
             // Clip against clipEntity.
         } else {
             mnode_t *headNode = SV_HullForEntity( clipEntity );
 
             // Perform clip.
             if ( headNode != nullptr ) {
-                CM_TransformedBoxTrace( &sv.cm, &trace, start, end, mins, maxs, headNode, contentmask,
+                trace = CM_TransformedBoxTrace( &sv.cm, start, end, mins, maxs, headNode, contentmask,
                     &clipEntity->currentOrigin.x, &clipEntity->currentAngles.x );
 
                 if ( trace.fraction < 1. ) {

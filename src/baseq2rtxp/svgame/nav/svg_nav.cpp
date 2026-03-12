@@ -668,19 +668,19 @@ void SVG_Nav_Init( void ) {
 	//! Feature flag controlling whether hierarchy coarse routing is attempted before tile-cluster fallback.
 	nav_hierarchy_route_enable = gi.cvar( "nav_hierarchy_route_enable", "1", 0 );
 	//! Maximum LOS sample count allowed before direct-shortcut LOS is skipped for tuning.
-	nav_direct_los_attempt_max_samples = gi.cvar( "nav_direct_los_attempt_max_samples", "2048", 0 );
+	nav_direct_los_attempt_max_samples = gi.cvar( "nav_direct_los_attempt_max_samples", "32768", 0 );
 	//! Minimum 2D query distance required before hierarchy routing is preferred over local-only refinement.
-	nav_hierarchy_route_min_distance = gi.cvar( "nav_hierarchy_route_min_distance", "192", 0 );
+	nav_hierarchy_route_min_distance = gi.cvar( "nav_hierarchy_route_min_distance", "128", 0 );
 	//! Maximum LOS tests allowed during the small sync simplification pass.
-	nav_simplify_sync_max_los_tests = gi.cvar( "nav_simplify_sync_max_los_tests", "8", 0 ); // <Q2RTXP>: WID: Was 8
+	nav_simplify_sync_max_los_tests = gi.cvar( "nav_simplify_sync_max_los_tests", "32", 0 ); // <Q2RTXP>: WID: Was 8
 	//! Maximum LOS tests allowed during the more aggressive async simplification pass.
-	nav_simplify_async_max_los_tests = gi.cvar( "nav_simplify_async_max_los_tests", "8", 0 ); // <Q2RTXP>: WID: Was 8
+	nav_simplify_async_max_los_tests = gi.cvar( "nav_simplify_async_max_los_tests", "128", 0 ); // <Q2RTXP>: WID: Was 8
 	//! Maximum wall-clock milliseconds the sync simplification pass may spend per query.
-	nav_simplify_sync_max_ms = gi.cvar( "nav_simplify_sync_max_ms", "4", 0 ); // <Q2RTXP>: WID: Was 4
+	nav_simplify_sync_max_ms = gi.cvar( "nav_simplify_sync_max_ms", "0", 0 ); // <Q2RTXP>: WID: Was 4
 	//! Exact corridor tile-count threshold where refinement widening switches from near to mid radius.
-	nav_refine_corridor_mid_tiles = gi.cvar( "nav_refine_corridor_mid_tiles", "6", 0 ); // <Q2RTXP>: WID: Was 12
+	nav_refine_corridor_mid_tiles = gi.cvar( "nav_refine_corridor_mid_tiles", "12", 0 ); // <Q2RTXP>: WID: Was 6
 	//! Exact corridor tile-count threshold where refinement widening switches from mid to far radius.
-	nav_refine_corridor_far_tiles = gi.cvar( "nav_refine_corridor_far_tiles", "12", 0 ); // <Q2RTXP>: WID: Was 24
+	nav_refine_corridor_far_tiles = gi.cvar( "nav_refine_corridor_far_tiles", "24", 0 ); // <Q2RTXP>: WID: Was 12
 	//! Buffered refinement radius used for short exact corridors.
 	nav_refine_corridor_radius_near = gi.cvar( "nav_refine_corridor_radius_near", "1", 0 );
 	//! Buffered refinement radius used for mid-length exact corridors.
@@ -688,9 +688,9 @@ void SVG_Nav_Init( void ) {
 	//! Buffered refinement radius used for long exact corridors.
 	nav_refine_corridor_radius_far = gi.cvar( "nav_refine_corridor_radius_far", "3", 0 );
 	//! Minimum 2D LOS span treated as a long simplification collapse for narrow-passage clearance tuning.
-	nav_simplify_long_span_min_distance = gi.cvar( "nav_simplify_long_span_min_distance", "128", 0 );
+	nav_simplify_long_span_min_distance = gi.cvar( "nav_simplify_long_span_min_distance", "4096", 0 );
 	//! Additional clearance margin required before allowing long LOS simplification spans.
-	nav_simplify_clearance_margin = gi.cvar( "nav_simplify_clearance_margin", "16", 0 );
+	nav_simplify_clearance_margin = gi.cvar( "nav_simplify_clearance_margin", "32", 0 );
 	//! Angle threshold used when pruning nearly collinear simplified waypoints.
 	nav_simplify_collinear_angle_degrees = gi.cvar( "nav_simplify_collinear_angle_degrees", "4", 0 );
 

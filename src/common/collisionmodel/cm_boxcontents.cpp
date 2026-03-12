@@ -6,6 +6,7 @@
 *
 **/
 #include "shared/shared.h"
+
 #include "common/bsp.h"
 #include "common/cmd.h"
 #include "common/collisionmodel.h"

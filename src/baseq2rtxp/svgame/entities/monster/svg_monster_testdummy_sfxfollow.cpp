@@ -84,11 +84,11 @@ static bool Dummy_ShouldEmitNavDebugLog( void ) {
 //! Maximum age of a sound event that can trigger investigation.
 static constexpr QMTime DUMMY_SOUND_INVESTIGATE_MAX_AGE = 24_sec;
 //! Maximum horizontal distance for reacting to sound events.
-static constexpr double DUMMY_SOUND_INVESTIGATE_MAX_DIST = CM_MAX_WORLD_SIZE;
+static constexpr double DUMMY_SOUND_INVESTIGATE_MAX_DIST = 4096;
 //! Arrival radius used for ending sound investigation behavior.
-static constexpr double DUMMY_SOUND_INVESTIGATE_REACHED_DIST = 4.0;
+static constexpr double DUMMY_SOUND_INVESTIGATE_REACHED_DIST = 2.0;
 //! Idle yaw scan step in degrees per think.
-static constexpr double DUMMY_IDLE_SCAN_STEP_DEG = 45.0 / 4.;
+static constexpr double DUMMY_IDLE_SCAN_STEP_DEG = 45.0;
 //! Interval for flipping idle scan yaw direction.
 static constexpr QMTime DUMMY_IDLE_SCAN_FLIP_INTERVAL = 500_ms;
 
@@ -130,7 +130,7 @@ static bool Dummy_ShouldResetSoundInvestigationGoal( const svg_monster_testdummy
 	if ( goalDelta2DSqr > ( rebuildGoal2D * rebuildGoal2D ) ) {
 		return true;
 	}
-	if ( rebuildGoal3D > 0.0 && goalDelta3DSqr > ( rebuildGoal3D * rebuildGoal3D ) ) {
+	if ( std::abs( rebuildGoal3D ) > 0.0 && goalDelta3DSqr > ( rebuildGoal3D * rebuildGoal3D ) ) {
 		return true;
 	}
 

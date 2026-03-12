@@ -19,7 +19,28 @@ struct svg_base_edict_t;
 struct nav_mesh_t;
 struct nav_occupancy_entry_t;
 
+// Default parameters and constants for navigation mesh generation and traversal, defined as constant expressions 
+// or via cvars for tuning. These are declared here for cross-TU usage.
 #include "svgame/nav/svg_nav_const_defaults.h"
+
+/**
+*	
+**/
+//! Sentinel used when a tile or leaf has not been assigned to any hierarchy region yet.
+static constexpr int32_t NAV_REGION_ID_NONE = -1;
+//! Sentinel used when a region does not yet reference a valid portal id.
+static constexpr int32_t NAV_PORTAL_ID_NONE = -1;
+
+/**
+*
+**/
+//! Deterministic coarse region budget used to split connected tile space into portal-bearing static regions.
+static constexpr int32_t NAV_HIERARCHY_MAX_TILES_PER_REGION = 16;
+//! Regions at or above this size are logged as coarse partition saturation points.
+static constexpr int32_t NAV_HIERARCHY_OVERSIZED_REGION_TILE_COUNT = NAV_HIERARCHY_MAX_TILES_PER_REGION;
+
+
+
 // CVars defined in svg_nav.cpp (declare extern for cross-TU usage)
 extern cvar_t *nav_profile_level;
 extern cvar_t *nav_astar_step_budget_ms;
@@ -81,7 +102,7 @@ extern cvar_t *nav_cost_min_cost_per_unit;
 *	@return	Floating-point cell count that distance spans.
 *	@note	Returns 0 when the mesh/cell size cannot be determined.
 **/
-double SVG_Nav_DebugWorldDistanceToCellCount( const nav_mesh_t * mesh, double worldDistance );
+double SVG_Nav_DebugWorldDistanceToCellCount( const nav_mesh_t *mesh, double worldDistance );
 
 /**
 *	@brief	Convert a world-space distance into nav tiles for debugging instrumentation.
@@ -89,7 +110,7 @@ double SVG_Nav_DebugWorldDistanceToCellCount( const nav_mesh_t * mesh, double wo
 *	@param	worldDistance	Distance in world units to convert.
 *	@return	Tile count corresponding to the provided distance.
 **/
-double SVG_Nav_DebugWorldDistanceToTileCount( const nav_mesh_t * mesh, double worldDistance );
+double SVG_Nav_DebugWorldDistanceToTileCount( const nav_mesh_t *mesh, double worldDistance );
 
 /**
 *	@brief	Convert a cvar value (with fallback) into nav cells for easier debugging of tuning knobs.
@@ -98,7 +119,7 @@ double SVG_Nav_DebugWorldDistanceToTileCount( const nav_mesh_t * mesh, double wo
 *	@param	fallbackWorldUnits	Fallback world distance if the cvar is unset or non-positive.
 *	@return	Cell count corresponding to the chosen distance.
 **/
-double SVG_Nav_DebugCvarValueToCellCount( const nav_mesh_t * mesh, const cvar_t * cvar, double fallbackWorldUnits );
+double SVG_Nav_DebugCvarValueToCellCount( const nav_mesh_t *mesh, const cvar_t *cvar, double fallbackWorldUnits );
 
 /**
 *	@brief	Convert a cvar value (with fallback) into nav tiles for easier debugging of tuning knobs.
@@ -107,7 +128,7 @@ double SVG_Nav_DebugCvarValueToCellCount( const nav_mesh_t * mesh, const cvar_t 
 *	@param	fallbackWorldUnits	Fallback world distance if the cvar is unset or non-positive.
 *	@return	Tile count corresponding to the chosen distance.
 **/
-double SVG_Nav_DebugCvarValueToTileCount( const nav_mesh_t * mesh, const cvar_t * cvar, double fallbackWorldUnits );
+double SVG_Nav_DebugCvarValueToTileCount( const nav_mesh_t *mesh, const cvar_t *cvar, double fallbackWorldUnits );
 
 /** 
 * 
@@ -250,7 +271,7 @@ typedef struct nav_xy_cell_s {
     //! Number of Z layers at this XY position.
     int32_t num_layers;
     //! Array of Z layers at this XY position.
-    nav_layer_t * layers;
+    nav_layer_t *layers;
 } nav_xy_cell_t;
 
 /** 
@@ -264,14 +285,14 @@ typedef struct nav_tile_s {
     int32_t tile_y;
    //! Region membership assigned by the future hierarchy build. `NAV_REGION_ID_NONE` while unassigned.
 	int32_t region_id;
- //! Coarse traversal summary bits derived from the tile's fine metadata.
+	//! Coarse traversal summary bits derived from the tile's fine metadata.
 	uint32_t traversal_summary_bits;
 	//! Coarse edge-summary bits derived from the tile's fine edge metadata.
 	uint32_t edge_summary_bits;
     //! Bitset for which XY cells are present (sparse storage).
-    uint32_t * presence_bits;
+    uint32_t *presence_bits;
     //! Array of XY cells (sparse).
-    nav_xy_cell_t * cells;
+    nav_xy_cell_t *cells;
 } nav_tile_t;
 
 /** 
@@ -289,11 +310,11 @@ typedef struct nav_leaf_data_s {
 	//!	- debug drawing by leaf
 	//!	- optional leaf-local iteration
 	//!	- compatibility while migrating older leaf-centric code
-	int32_t * tile_ids;
-  //! Number of hierarchy regions touching this leaf.
+	int32_t *tile_ids;
+	//! Number of hierarchy regions touching this leaf.
 	int32_t num_regions;
 	//! Array of hierarchy-region ids overlapping this leaf.
-	int32_t * region_ids;
+	int32_t *region_ids;
 } nav_leaf_data_t;
 
 /** 
@@ -352,7 +373,7 @@ typedef struct nav_inline_model_data_s {
     //! Number of tiles for this model.
     int32_t num_tiles;
     //! Array of tiles for this model.
-    nav_tile_t * tiles;
+    nav_tile_t *tiles;
 } nav_inline_model_data_t;
 
 typedef struct nav_inline_model_runtime_s {
@@ -362,7 +383,7 @@ typedef struct nav_inline_model_runtime_s {
 	int32_t owner_entnum;
 
 	//! Cached owning entity pointer (for fast refresh).
-	svg_base_edict_t * owner_ent;
+	svg_base_edict_t *owner_ent;
 
 	//! Current world-space origin for the owning entity.
 	Vector3 origin;
@@ -430,17 +451,6 @@ struct nav_tile_cluster_graph_t {
 	// Node list storing directional neighbors.
 	std::vector<nav_tile_cluster_node_t> nodes;
 };
-
-//! Sentinel used when a tile or leaf has not been assigned to any hierarchy region yet.
-static constexpr int32_t NAV_REGION_ID_NONE = -1;
-//! Sentinel used when a region does not yet reference a valid portal id.
-static constexpr int32_t NAV_PORTAL_ID_NONE = -1;
-
-
-//! Deterministic coarse region budget used to split connected tile space into portal-bearing static regions.
-static constexpr int32_t NAV_HIERARCHY_MAX_TILES_PER_REGION = 8;
-//! Regions at or above this size are logged as coarse partition saturation points.
-static constexpr int32_t NAV_HIERARCHY_OVERSIZED_REGION_TILE_COUNT = NAV_HIERARCHY_MAX_TILES_PER_REGION;
 
 /** 
 *    @brief  Compatibility hooks describing which traversal semantics a hierarchy element supports.
@@ -634,7 +644,7 @@ void SVG_Nav_RefreshInlineModelRuntime( void );
 * @param    owner_entnum    Owning entity number (edict->s.number).
 * @return   Index into `mesh->inline_model_runtime` or -1 if not found/invalid.
  **/
-int32_t SVG_Nav_GetInlineModelRuntimeIndexForOwnerEntNum( const nav_mesh_t * mesh, const int32_t owner_entnum );
+int32_t SVG_Nav_GetInlineModelRuntimeIndexForOwnerEntNum( const nav_mesh_t *mesh, const int32_t owner_entnum );
 
 /** 
 * @brief    Lookup inline-model runtime entry by compact index with bounds checks.
@@ -642,7 +652,7 @@ int32_t SVG_Nav_GetInlineModelRuntimeIndexForOwnerEntNum( const nav_mesh_t * mes
 * @param    idx     Index into runtime array.
 * @return   Pointer to runtime entry or nullptr on invalid index.
  **/
-const nav_inline_model_runtime_t * SVG_Nav_GetInlineModelRuntimeByIndex( const nav_mesh_t * mesh, const int32_t idx );
+const nav_inline_model_runtime_t *SVG_Nav_GetInlineModelRuntimeByIndex( const nav_mesh_t *mesh, const int32_t idx );
 
 /** 
 *    @brief  Build a navigation agent profile using registered nav cvars.
@@ -706,10 +716,86 @@ std::pair<const nav_xy_cell_t *, int32_t> SVG_Nav_Tile_GetCells( const nav_mesh_
 /**
 *
 *
+*	Leaf Region/Tile ID API:
+*	@details
+*		This API provides safe, minimal-overhead accessors for per-BSP-leaf
+*		views into the navigation mesh's canonical world-tile and hierarchy-region
+*		references. The underlying `nav_leaf_data_t` stores non-owning arrays:
+*		 - `tile_ids`   : indices into `nav_mesh_t::world_tiles` for tiles touching the leaf.
+*		 - `num_tiles`  : length of `tile_ids`.
+*		 - `region_ids` : hierarchy region ids overlapping the leaf.
+*		 - `num_regions`: length of `region_ids`.
 *
-*    Leaf Region/Tile ID API:
+*		These helpers exist to:
+*		 - Avoid repeating null/dangling-pointer checks at call sites.
+*		 - Make intent explicit (mutable vs const access).
+*		 - Document that returned pointers are non-owning views and may be null.
 *
+*	Safety & semantics:
+*		 - The returned pair is (pointer, count). If the leaf pointer is null or the
+*		   underlying array pointer within `nav_leaf_data_t` is null, the functions
+*		   return `(nullptr, 0)`. Callers must test the pointer and/or count before use.
+*		 - The arrays referenced are owned by the nav mesh/leaf structures and must not
+*		   be freed or mutated by callers unless the mutable overload is used and the
+*		   caller has ownership/intent to modify.
+*		 - These accessors do not copy or clone data; they only provide a convenient,
+*		   defensive view that prevents accidental iteration over dangling pointers.
+*		 - Because the arrays are non-owning, callers must ensure the mesh/leaf lifetime
+*		   outlives any use of the returned pointers. In practice, perform queries on the
+*		   main/game thread or while holding any synchronization that protects mesh mutation.
 *
+*	Functions:
+*		 - `SVG_Nav_Leaf_GetTileIds( nav_leaf_data_t *leaf )` (mutable)
+*			   Returns `(int32_t* tile_ids, int32_t num_tiles)`. Use when you intend to
+*			   mutate the tile id list (rare).
+*		 - `SVG_Nav_Leaf_GetTileIds( const nav_leaf_data_t *leaf )` (const)
+*			   Returns `(const int32_t* tile_ids, int32_t num_tiles)` for read-only access.
+*		 - `SVG_Nav_Leaf_GetRegionIds( nav_leaf_data_t *leaf )` (mutable)
+*			   Returns `(int32_t* region_ids, int32_t num_regions)`.
+*		 - `SVG_Nav_Leaf_GetRegionIds( const nav_leaf_data_t *leaf )` (const)
+*			   Returns `(const int32_t* region_ids, int32_t num_regions)`.
+*
+*	Typical usage (step-by-step):
+*		1) Acquire a valid `nav_leaf_data_t *leaf` (from mesh->leaf_data or other API).
+*		2) Call the appropriate accessor (const or mutable) to get (ptr, count).
+*		3) Test for presence: `if ( ptr && count > 0 )` before iterating.
+*		4) Iterate using the returned count; indices are compact ints that index into
+*		   `nav_mesh_t::world_tiles` (for tile_ids) or into the hierarchy region set
+*		   (for region_ids) as documented by the mesh.
+*		5) Do not retain the raw pointer across mesh mutations or mesh frees.
+*
+*	Example (safe iteration):
+*		// Read-only example
+*		const auto [tileIds, tileCount] = SVG_Nav_Leaf_GetTileIds( leaf );
+*		if ( tileIds && tileCount > 0 ) {
+*			for ( int32_t i = 0; i < tileCount; ++i ) {
+*				int32_t tileId = tileIds[ i ]; // canonical id into mesh->world_tiles
+*				// Use tileId (debug draw, diagnostics, or lookups)
+*			}
+*		}
+*
+*		// Region ids example
+*		const auto [regionIds, regionCount] = SVG_Nav_Leaf_GetRegionIds( leaf );
+*		if ( regionIds && regionCount > 0 ) {
+*			for ( int32_t r = 0; r < regionCount; ++r ) {
+*				int32_t regionId = regionIds[ r ];
+*				// Use regionId for hierarchy queries/filters
+*			}
+*		}
+*
+*	Integration notes:
+*		 - These helpers are intentionally minimal and defensive. Prefer them over
+*		   manual field access when writing code that may run against missing or
+*		   partially-initialized leaf data (e.g., tooling, debug drawing, editor tools).
+*		 - If you require atomic snapshot semantics across multiple arrays (tile_ids +
+*		   region_ids), perform your own copy while the mesh is stable; the accessors
+*		   only provide per-array views and do not guarantee cross-array consistency
+*		   during concurrent mutations.
+*
+*	@note
+*		- The API returns raw pointers for performance and to avoid allocation overhead.
+*		- Use the const overload for most callers; use the mutable overload only when
+*		  you are intentionally modifying leaf-local arrays and understand ownership.
 *
 **/
 /** 
@@ -772,7 +858,7 @@ inline std::pair<nav_tile_t *, int32_t> SVG_Nav_InlineModel_GetTiles( nav_inline
 * 				Returns nullptr and 0 when model or tiles are missing.
 * 	@note		Const overload for read-only callers; avoids exposing dangling data.
 **/
-std::pair<const nav_tile_t * , int32_t> SVG_Nav_InlineModel_GetTiles( const nav_inline_model_data_t * model );
+std::pair<const nav_tile_t *, int32_t> SVG_Nav_InlineModel_GetTiles( const nav_inline_model_data_t *model );
 /** 
 * 	@brief	Get inline-model runtime array and count from mesh (mutable overload).
 * 	@param	mesh	Pointer to the navigation mesh.
@@ -781,7 +867,7 @@ std::pair<const nav_tile_t * , int32_t> SVG_Nav_InlineModel_GetTiles( const nav_
 * 	@note	Runtime entries are non-owning pointers; this helper returns nullptr/count
 * 			to avoid callers holding/using dangling pointers when the mesh is absent.
 **/
-std::pair<nav_inline_model_runtime_t * , int32_t> SVG_Nav_Mesh_GetInlineModelRuntime( nav_mesh_t * mesh );
+std::pair<nav_inline_model_runtime_t *, int32_t> SVG_Nav_Mesh_GetInlineModelRuntime( nav_mesh_t *mesh );
 /** 
 * 	@brief		Get inline-model runtime array and count from mesh (const overload).
 * 	@param		mesh	Const pointer to the navigation mesh.
@@ -790,38 +876,48 @@ std::pair<nav_inline_model_runtime_t * , int32_t> SVG_Nav_Mesh_GetInlineModelRun
 * 	@note		Const overload for read-only callers; avoids exposing dangling pointers.
 **/
 std::pair<const nav_inline_model_runtime_t *, int32_t> SVG_Nav_Mesh_GetInlineModelRuntime( const nav_mesh_t *mesh );
-
-
-
-/** 
-* 
-* 
-* 
-*    Navigation System API:
-*  
-*  
-*  
-**/
-/** 
+/**
 * 	@brief	Lookup an inline-model runtime entry by owning entity number.
 * 	@param	mesh	Navigation mesh.
 * 	@param	owner_entnum	Owning entity number (edict->s.number).
 * 	@return	Pointer to runtime entry if found, otherwise nullptr.
 * 	@note	This is a fast path used to avoid linear searches over `inline_model_runtime`.
 **/
-const nav_inline_model_runtime_t * SVG_Nav_GetInlineModelRuntimeForOwnerEntNum( const nav_mesh_t * mesh, const int32_t owner_entnum );
+const nav_inline_model_runtime_t *SVG_Nav_GetInlineModelRuntimeForOwnerEntNum( const nav_mesh_t *mesh, const int32_t owner_entnum );
 
-/** 
+/**
 * 	@brief	Dump the inline-model runtime index map for debugging.
 * 	@param	mesh	Navigation mesh.
 * 	@note	Intended for developer diagnostics; prints to console.
 **/
-void SVG_Nav_Debug_PrintInlineModelRuntimeIndexMap( const nav_mesh_t * mesh );
+void SVG_Nav_Debug_PrintInlineModelRuntimeIndexMap( const nav_mesh_t *mesh );
 
+
+
+/** 
+* 
+* 
+* 
+*    Navigation System Occupancy API:
+*		- This API manages dynamic occupancy data for navigation tiles, 
+*		  supporting both soft costs and hard blocks.
+*  
+*  
+*  
+**/
+/**
+*  @brief    Runtime occupancy entry used for dynamic blocking/penalties.
+**/
+struct nav_occupancy_entry_t {
+	//! Accumulated soft cost (crowd avoidance, biasing).
+	int32_t soft_cost = 0;
+	//! Hard block flag to prevent traversal entirely.
+	bool blocked = false;
+};
 /** 
 * 	@brief	Clear all dynamic occupancy records on the given mesh.
 **/
-void SVG_Nav_Occupancy_Clear( nav_mesh_t * mesh );
+void SVG_Nav_Occupancy_Clear( nav_mesh_t *mesh );
 
 /** 
 * 	@brief	Add a dynamic occupancy entry for a tile/cell/layer.
@@ -832,19 +928,19 @@ void SVG_Nav_Occupancy_Clear( nav_mesh_t * mesh );
 * 	@param	cost	Soft cost to accumulate (default 1).
 * 	@param	blocked	If true, mark this location as hard blocked.
 **/
-void SVG_Nav_Occupancy_Add( nav_mesh_t * mesh, int32_t tileId, int32_t cellIndex, int32_t layerIndex, int32_t cost, bool blocked );
+void SVG_Nav_Occupancy_Add( nav_mesh_t *mesh, int32_t tileId, int32_t cellIndex, int32_t layerIndex, int32_t cost, bool blocked );
 
 /** 
 * 	@brief	Query the dynamic occupancy soft cost for a tile/cell/layer.
 * 	@return	Accumulated soft cost (0 if none or mesh missing).
 **/
-int32_t SVG_Nav_Occupancy_SoftCost( const nav_mesh_t * mesh, int32_t tileId, int32_t cellIndex, int32_t layerIndex );
+int32_t SVG_Nav_Occupancy_SoftCost( const nav_mesh_t *mesh, int32_t tileId, int32_t cellIndex, int32_t layerIndex );
 
 /** 
 * 	@brief	Query if a tile/cell/layer is marked as hard blocked.
 * 	@return	True if blocked.
 **/
-bool SVG_Nav_Occupancy_Blocked( const nav_mesh_t * mesh, int32_t tileId, int32_t cellIndex, int32_t layerIndex );
+bool SVG_Nav_Occupancy_Blocked( const nav_mesh_t *mesh, int32_t tileId, int32_t cellIndex, int32_t layerIndex );
 
 /** 
 * 	@brief	Query the full sparse occupancy overlay entry for a tile/cell/layer.
@@ -856,15 +952,121 @@ bool SVG_Nav_Occupancy_Blocked( const nav_mesh_t * mesh, int32_t tileId, int32_t
 * 	@return	True when the sparse overlay contains an entry for the queried location.
 * 	@note	This is the authoritative local dynamic-overlay lookup and must not imply any nav or hierarchy rebuild.
 **/
-bool SVG_Nav_Occupancy_TryGet( const nav_mesh_t * mesh, int32_t tileId, int32_t cellIndex, int32_t layerIndex, nav_occupancy_entry_t * out_entry );
+bool SVG_Nav_Occupancy_TryGet( const nav_mesh_t *mesh, int32_t tileId, int32_t cellIndex, int32_t layerIndex, nav_occupancy_entry_t *out_entry );
+
+/**
+*	@brief	Navigation Hierarchy Portal Overlay API — runtime-only local invalidation layer.
+*	@details
+*		This API provides a thin, local, runtime-only overlay on top of the static
+*		hierarchy portal graph generated during navmesh construction. The static
+*		portal graph (`nav_hierarchy_storage_t::portals`) is considered authoritative
+*		and immutable from the overlay's perspective; overlays are applied per-portal
+*		at runtime to represent temporary or local conditions (moving obstacles,
+*		inline-models, temporary closures, local cost penalties) without triggering
+*		expensive global hierarchy rebuilds.
+*
+*		Key data relationships:
+*		 - `nav_portal_t`         : The static portal record (stable compact id).
+*		 - `nav_portal_overlay_t` : Per-portal runtime overlay entry (stored in
+*								   `nav_hierarchy_storage_t::portal_overlays`) aligned
+*								   1:1 with `portals`.
+*		 - `portal_id`            : Compact index into `nav_hierarchy_storage_t::portals`
+*								   and the corresponding `portal_overlays` entry.
+*		 - `nav_hierarchy_storage_t::portal_overlay_serial` :
+*								   Global serial bumped when any overlay entry changes.
+*
+*		Overlay semantics:
+*		 - Overlays MUST NOT mutate the static portal graph. They are strictly local
+*		   annotations that influence runtime routing decisions.
+*		 - Common overlay fields:
+*			 * `flags` : bitflags from `nav_portal_flags_t` mirrored into the overlay
+*						 (e.g. `NAV_PORTAL_FLAG_BLOCKED`, `NAV_PORTAL_FLAG_INVALIDATED`,
+*						 `NAV_PORTAL_FLAG_DIRTY`). These indicate how routing should
+*						 treat the portal.
+*			 * `additional_traversal_cost` : A soft penalty to add to the portal's
+*							traversal cost when computing coarse routes. Use for local
+*							penalties (crowds, hazards) while leaving the portal usable.
+*			 * `invalidation_serial` : Per-overlay serial incremented on change; can
+*							be used by caches to detect stale overlay snapshots.
+*
+*		Interpretation guidance (how pathfinding / routing should consult overlays):
+*		 - When an overlay exists for `portal_id`, callers should:
+*			 1) If overlay `flags` contains `NAV_PORTAL_FLAG_BLOCKED`, treat the portal
+*				  as impassable at the hierarchy-routing stage.
+*			 2) If overlay `flags` contains `NAV_PORTAL_FLAG_INVALIDATED`, the portal's
+*				  static connectivity may be suspect in the local region and routing
+*				  should either fall back to finer-grained node-level checks or treat
+*				  the portal as temporarily unusable depending on policy.
+*			 3) Otherwise, add `additional_traversal_cost` to the portal's base traversal
+*				  cost to bias routing away from the portal without fully blocking it.
+*			 4) Respect `NAV_PORTAL_FLAG_DIRTY` to trigger any lazy revalidation logic
+*				  the caller maintains (e.g., delayed re-sampling of portal boundary).
+*
+*		Concurrency / lifetime notes:
+*		 - Overlays are runtime-only and NOT persisted to disk. They are intended to be
+*		   cheap ephemeral state that reflects the current level runtime (movers, doors, crowds).
+*		 - Updates to overlays should generally be performed on the main/game thread.
+*		   If overlays are updated from other threads, callers must ensure synchronization
+*		   and increment `nav_hierarchy_storage_t::portal_overlay_serial` in a threadsafe
+*		   manner so any caches observing that serial can react safely.
+*
+*		Typical usage pattern (step-by-step):
+*		 1) Identify the affected portal(s) — portal ids are compact indices into
+*			the mesh's `hierarchy.portals` array (for example found during inline-model
+*			overlap testing or mover bounding-box checks).
+*		 2) Compute local overlay state:
+*			 - Decide whether portal should be temporarily blocked, invalidated, or
+*			   penalized with an additional cost, and compute the `additional_traversal_cost`.
+*		 3) Call `SVG_Nav_Hierarchy_SetPortalOverlay(mesh, portal_id, overlay_flags, additional_traversal_cost)`.
+*			 - This updates the 1:1 `portal_overlays[portal_id]` entry and bumps the
+*			   runtime overlay serials (`overlay.invalidation_serial` and
+*			   `hierarchy.portal_overlay_serial`) to allow caches to detect changes.
+*		 4) Pathfinding / coarse routing:
+*			 - When evaluating a portal during hierarchy routing, call
+*			   `SVG_Nav_Hierarchy_TryGetPortalOverlay(mesh, portal_id, &out_overlay)`.
+*			 - Apply overlay handling rules described above (block, add cost, revalidate).
+*		 5) When local condition clears (moving obstacle leaves, door reopens), either:
+*			 - Call `SVG_Nav_Hierarchy_SetPortalOverlay` to clear flags / costs for the portal,
+*			   or
+*			 - Call `SVG_Nav_Hierarchy_ClearPortalOverlays(mesh)` to reset all overlays.
+*
+*		Implementation notes for integrators:
+*		 - Use overlays for inline-model-driven local invalidation: when a mover/door
+*		   overlaps a portal boundary, set `NAV_PORTAL_FLAG_BLOCKED` (or add cost)
+*		   rather than rebuilding the static hierarchy.
+*		 - Portal overlays let you express transient, locally-scoped navigation changes
+*		   with minimal overhead and without losing the benefits of a static-first hierarchy.
+*		 - Keep overlay state minimal: prefer soft `additional_traversal_cost` for
+*		   congestion/hazard modeling and reserve hard `BLOCKED` for true impassability.
+*
+*	@note	API functions in this header:
+*		 - `SVG_Nav_Hierarchy_ClearPortalOverlays` : reset all runtime overlays.
+*		 - `SVG_Nav_Hierarchy_SetPortalOverlay`   : set/update a single portal overlay.
+*		 - `SVG_Nav_Hierarchy_TryGetPortalOverlay` : query the overlay snapshot for a portal.
+*
+*	@see	`nav_portal_t`, `nav_portal_overlay_t`, `nav_hierarchy_storage_t::portal_overlays`,
+*			`nav_hierarchy_storage_t::portal_overlay_serial`, `nav_portal_flags_t`.
+**/
+/**
+*    @brief	Path result for navigation traversal queries.
+*			Stores world-space waypoints for A*  pathfinding results.
+**/
+typedef struct nav_traversal_path_s {
+	//! Number of path points in the traversal path.
+	int32_t num_points;
+	//! Array of world-space points.
+	Vector3 *points;
+} nav_traversal_path_t;
+
+// Forward-declare policy to avoid circular includes.
+struct svg_nav_path_policy_t;
 
 /** 
 * 	@brief	Clear all local portal overlay entries while leaving the static hierarchy untouched.
 * 	@param	mesh	Navigation mesh containing the hierarchy portal overlay.
 * 	@note	This is local runtime state only and must not trigger hierarchy regeneration.
 **/
-void SVG_Nav_Hierarchy_ClearPortalOverlays( nav_mesh_t * mesh );
-
+void SVG_Nav_Hierarchy_ClearPortalOverlays( nav_mesh_t *mesh );
 /** 
 * 	@brief	Update one local portal overlay entry without mutating the static portal graph.
 * 	@param	mesh	Navigation mesh containing the hierarchy portal overlay.
@@ -874,8 +1076,7 @@ void SVG_Nav_Hierarchy_ClearPortalOverlays( nav_mesh_t * mesh );
 * 	@return	True when the overlay entry was updated.
 * 	@note	This is intended for future inline-model-driven local invalidation hooks.
 **/
-bool SVG_Nav_Hierarchy_SetPortalOverlay( nav_mesh_t * mesh, int32_t portal_id, uint32_t overlay_flags, double additional_traversal_cost );
-
+bool SVG_Nav_Hierarchy_SetPortalOverlay( nav_mesh_t *mesh, int32_t portal_id, uint32_t overlay_flags, double additional_traversal_cost );
 /** 
 * 	@brief	Query one local portal overlay entry by compact portal id.
 * 	@param	mesh	Navigation mesh containing the hierarchy portal overlay.
@@ -884,7 +1085,7 @@ bool SVG_Nav_Hierarchy_SetPortalOverlay( nav_mesh_t * mesh, int32_t portal_id, u
 * 	@return	True when the portal id is valid and an overlay snapshot was returned.
 * 	@note	The returned entry may be default-initialized when no local invalidation is active yet.
 **/
-bool SVG_Nav_Hierarchy_TryGetPortalOverlay( const nav_mesh_t * mesh, int32_t portal_id, nav_portal_overlay_t * out_overlay );
+bool SVG_Nav_Hierarchy_TryGetPortalOverlay( const nav_mesh_t *mesh, int32_t portal_id, nav_portal_overlay_t *out_overlay );
 
 /** 
 *    @brief  Build traversal-oriented node feature bits from persisted content flags.
@@ -893,19 +1094,8 @@ bool SVG_Nav_Hierarchy_TryGetPortalOverlay( const nav_mesh_t * mesh, int32_t por
 **/
 uint32_t SVG_Nav_BuildTraversalFeatureBitsFromLayerFlags( const uint32_t layer_flags );
 
-/** 
-*    @brief  Path result for navigation traversal queries.
-*         Stores world-space waypoints for A*  pathfinding results.
-**/
-typedef struct nav_traversal_path_s {
-    //! Number of path points in the traversal path.
-    int32_t num_points;
-    //! Array of world-space points.
-    Vector3 * points;
-} nav_traversal_path_t;
 
-// Forward-declare policy to avoid circular includes.
-struct svg_nav_path_policy_t;
+
 
 /** 
 * 
@@ -916,16 +1106,6 @@ struct svg_nav_path_policy_t;
 * 
 * 
 **/
-/**
-*  @brief    Runtime occupancy entry used for dynamic blocking/penalties.
-**/
-struct nav_occupancy_entry_t {
-	//! Accumulated soft cost (crowd avoidance, biasing).
-	int32_t soft_cost = 0;
-	//! Hard block flag to prevent traversal entirely.
-	bool blocked = false;
-};
-
 /**
 *    @brief  Main navigation mesh structure.
 *         Contains both world mesh (static geometry) and inline model meshes
@@ -1110,7 +1290,7 @@ const std::tuple<const bool, const std::string> SVG_Nav_LoadMesh( const char * l
 * 			The returned mapping is keyed by inline model index (N).
 * 	@note	If multiple entities reference the same "* N", the first one encountered is kept.
 **/
-void Nav_CollectInlineModelEntities( std::unordered_map<int32_t, svg_base_edict_t * > &out_model_to_ent );
+void Nav_CollectInlineModelEntities( std::unordered_map<int32_t, svg_base_edict_t *> &out_model_to_ent );
 
 
 
@@ -1215,7 +1395,7 @@ typedef struct nav_node_ref_s {
 *    @param  node  Node reference to resolve.
 *    @return Pointer to the canonical tile or nullptr on failure.
 **/
-const nav_tile_t * SVG_Nav_GetNodeTileView( const nav_mesh_t * mesh, const nav_node_ref_t &node );
+const nav_tile_t *SVG_Nav_GetNodeTileView( const nav_mesh_t *mesh, const nav_node_ref_t &node );
 
 /** 
 *    @brief  Resolve a canonical XY cell pointer from a node reference.
@@ -1223,7 +1403,7 @@ const nav_tile_t * SVG_Nav_GetNodeTileView( const nav_mesh_t * mesh, const nav_n
 *    @param  node  Node reference to resolve.
 *    @return Pointer to the canonical XY cell or nullptr on failure.
 **/
-const nav_xy_cell_t * SVG_Nav_GetNodeCellView( const nav_mesh_t * mesh, const nav_node_ref_t &node );
+const nav_xy_cell_t *SVG_Nav_GetNodeCellView( const nav_mesh_t *mesh, const nav_node_ref_t &node );
 
 /** 
 *    @brief  Resolve a canonical layer pointer from a node reference.
@@ -1231,7 +1411,7 @@ const nav_xy_cell_t * SVG_Nav_GetNodeCellView( const nav_mesh_t * mesh, const na
 *    @param  node  Node reference to resolve.
 *    @return Pointer to the canonical layer or nullptr on failure.
 **/
-const nav_layer_t * SVG_Nav_GetNodeLayerView( const nav_mesh_t * mesh, const nav_node_ref_t &node );
+const nav_layer_t *SVG_Nav_GetNodeLayerView( const nav_mesh_t *mesh, const nav_node_ref_t &node );
 
 /** 
 *    @brief  Query traversal feature bits for a canonical node.
@@ -1239,7 +1419,7 @@ const nav_layer_t * SVG_Nav_GetNodeLayerView( const nav_mesh_t * mesh, const nav
 *    @param  node  Node reference to inspect.
 *    @return Traversal feature bits for the node, or `NAV_TRAVERSAL_FEATURE_NONE` on failure.
 **/
-uint32_t SVG_Nav_GetNodeTraversalFeatureBits( const nav_mesh_t * mesh, const nav_node_ref_t &node );
+uint32_t SVG_Nav_GetNodeTraversalFeatureBits( const nav_mesh_t *mesh, const nav_node_ref_t &node );
 
 /** 
 *    @brief  Query explicit edge metadata for a canonical node and XY offset.
@@ -1249,7 +1429,7 @@ uint32_t SVG_Nav_GetNodeTraversalFeatureBits( const nav_mesh_t * mesh, const nav
 *    @param  cell_dy   Neighbor cell Y offset in `[-1, 1]`.
 *    @return Explicit edge feature bits, or `NAV_EDGE_FEATURE_NONE` when no persisted edge slot applies.
 **/
-uint32_t SVG_Nav_GetEdgeFeatureBitsForOffset( const nav_mesh_t * mesh, const nav_node_ref_t &node, const int32_t cell_dx, const int32_t cell_dy );
+uint32_t SVG_Nav_GetEdgeFeatureBitsForOffset( const nav_mesh_t *mesh, const nav_node_ref_t &node, const int32_t cell_dx, const int32_t cell_dy );
 
 /** 
 *    @brief  Query coarse tile summary bits for the tile owning a canonical node.
@@ -1257,7 +1437,7 @@ uint32_t SVG_Nav_GetEdgeFeatureBitsForOffset( const nav_mesh_t * mesh, const nav
 *    @param  node  Node reference whose tile should be inspected.
 *    @return Tile summary bits, or `NAV_TILE_SUMMARY_NONE` on failure.
 **/
-uint32_t SVG_Nav_GetTileSummaryBitsForNode( const nav_mesh_t * mesh, const nav_node_ref_t &node );
+uint32_t SVG_Nav_GetTileSummaryBitsForNode( const nav_mesh_t *mesh, const nav_node_ref_t &node );
 
 /** 
 *    @brief  Search node for A*  pathfinding.
@@ -1294,8 +1474,8 @@ typedef struct nav_search_node_s {
 * 	@param  out_layer_index     Output selected layer index.
 * 	@return True if a suitable layer index was found.
 **/
-const bool Nav_SelectLayerIndex( const nav_mesh_t * mesh, const nav_xy_cell_t * cell, double desired_z,
-	int32_t * out_layer_index );
+const bool Nav_SelectLayerIndex( const nav_mesh_t *mesh, const nav_xy_cell_t *cell, double desired_z,
+	int32_t *out_layer_index );
 /** 
 * 	@brief  Advance along a navigation path based on current origin and waypoint radius.
 * 	@param  path            Navigation traversal path.
@@ -1305,8 +1485,8 @@ const bool Nav_SelectLayerIndex( const nav_mesh_t * mesh, const nav_xy_cell_t * 
 * 	@param  out_direction    Output direction vector towards the current waypoint.
 * 	@return True if there is a valid waypoint to move towards after advancement.
 **/
-const bool SVG_Nav_QueryMovementDirection_Advance2D_Output3D( const nav_traversal_path_t * path, const Vector3 &current_origin,
-	double waypoint_radius, int32_t * inout_index, Vector3 * out_direction );
+const bool SVG_Nav_QueryMovementDirection_Advance2D_Output3D( const nav_traversal_path_t *path, const Vector3 &current_origin,
+	double waypoint_radius, int32_t *inout_index, Vector3 * out_direction );
 
 /** 
 *    @brief  Compute the world-space position for a node.
@@ -1317,7 +1497,7 @@ const bool SVG_Nav_QueryMovementDirection_Advance2D_Output3D( const nav_traversa
 * 	@return World-space position of the node.
 * 	@note   The position is at the center of the cell in X/Y and at the layer height in Z.
 **/
-Vector3 Nav_NodeWorldPosition( const nav_mesh_t * mesh, const nav_tile_t * tile, int32_t cell_index, const nav_layer_t * layer );
+Vector3 Nav_NodeWorldPosition( const nav_mesh_t *mesh, const nav_tile_t *tile, int32_t cell_index, const nav_layer_t *layer );
 
 /** 
 *    @brief  Find a navigation node in a leaf at the given position.
@@ -1330,8 +1510,8 @@ Vector3 Nav_NodeWorldPosition( const nav_mesh_t * mesh, const nav_tile_t * tile,
 * 	@param  allow_fallback  If true, allows returning a node even if traversal checks fail.
 * 	@return True if a node was found at the position.
 **/
-static bool Nav_FindNodeInLeaf( const nav_mesh_t * mesh, const nav_leaf_data_t * leaf_data, int32_t leaf_index,
-	const Vector3 &position, double desired_z, nav_node_ref_t * out_node,
+static bool Nav_FindNodeInLeaf( const nav_mesh_t *mesh, const nav_leaf_data_t *leaf_data, int32_t leaf_index,
+	const Vector3 &position, double desired_z, nav_node_ref_t *out_node,
 	bool allow_fallback );
 
 /** 
@@ -1342,8 +1522,8 @@ static bool Nav_FindNodeInLeaf( const nav_mesh_t * mesh, const nav_leaf_data_t *
 * 	@note	The blend factor is based on XY distance between seeker and goal: close targets bias toward start_z,
 * 			far targets bias toward goal_z.
 **/
-const bool Nav_SelectLayerIndex_BlendZ( const nav_mesh_t * mesh, const nav_xy_cell_t * cell, double start_z, double goal_z,
-	const Vector3 &start_pos, const Vector3 &goal_pos, const double blend_start_dist, const double blend_full_dist, int32_t * out_layer_index );
+const bool Nav_SelectLayerIndex_BlendZ( const nav_mesh_t *mesh, const nav_xy_cell_t *cell, double start_z, double goal_z,
+	const Vector3 &start_pos, const Vector3 &goal_pos, const double blend_start_dist, const double blend_full_dist, int32_t *out_layer_index );
 
 /** 
 * 	@brief  Find a navigation node for a position using BSP leaf lookup with blended Z.
@@ -1358,9 +1538,9 @@ const bool Nav_SelectLayerIndex_BlendZ( const nav_mesh_t * mesh, const nav_xy_ce
 * 	@param  blend_full_dist	Distance at which to fully use goal_z.
 * 	@note	Uses fallback search if direct leaf lookup fails and allow_fallback is true.
 **/
-const bool Nav_FindNodeForPosition_BlendZ( const nav_mesh_t * mesh, const Vector3 &position, double start_z, double goal_z,
+const bool Nav_FindNodeForPosition_BlendZ( const nav_mesh_t *mesh, const Vector3 &position, double start_z, double goal_z,
 	const Vector3 &start_pos, const Vector3 &goal_pos, const double blend_start_dist, const double blend_full_dist,
-	nav_node_ref_t * out_node, bool allow_fallback );
+	nav_node_ref_t *out_node, bool allow_fallback );
 /** 
 *    @brief  Find a navigation node for a position using BSP leaf lookup.
 *  		 Uses fallback search if direct leaf lookup fails and allow_fallback is true.
@@ -1370,8 +1550,8 @@ const bool Nav_FindNodeForPosition_BlendZ( const nav_mesh_t * mesh, const Vector
 *  	@param	allow_fallback	Allow fallback search if direct leaf lookup fails.
 * 	@return	True if a node was found, false otherwise.
 **/
-const bool Nav_FindNodeForPosition( const nav_mesh_t * mesh, const Vector3 &position, double desired_z,
-	nav_node_ref_t * out_node, bool allow_fallback );
+const bool Nav_FindNodeForPosition( const nav_mesh_t *mesh, const Vector3 &position, double desired_z,
+	nav_node_ref_t *out_node, bool allow_fallback );
 
 
 
@@ -1403,9 +1583,9 @@ const bool Nav_FindNodeForPosition( const nav_mesh_t * mesh, const Vector3 &posi
 *           lookups and A*  so callers do not need to supply a nav-centered
 *           position.
  **/
-const bool SVG_Nav_GenerateTraversalPathForOrigin( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t * out_path );
-const bool SVG_Nav_GenerateTraversalPathForOrigin_WithAgentBBox( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t * out_path,
-    const Vector3 &agent_mins, const Vector3 &agent_maxs, const struct svg_nav_path_policy_t * policy );
+const bool SVG_Nav_GenerateTraversalPathForOrigin( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path );
+const bool SVG_Nav_GenerateTraversalPathForOrigin_WithAgentBBox( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path,
+    const Vector3 &agent_mins, const Vector3 &agent_maxs, const struct svg_nav_path_policy_t *policy );
 /** 
 *   @brief  Generate a traversal path between two origins with optional goal Z-layer blending.
 *        Enables per-call control over whether the start/goal node selection prefers
@@ -1418,16 +1598,16 @@ const bool SVG_Nav_GenerateTraversalPathForOrigin_WithAgentBBox( const Vector3 &
 *   @param  blend_full_dist          Distance at which blending fully favors goal Z.
 *   @return True if a path was found, false otherwise.
  **/
-const bool SVG_Nav_GenerateTraversalPathForOriginEx( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t * out_path,
+const bool SVG_Nav_GenerateTraversalPathForOriginEx( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path,
     const bool enable_goal_z_layer_blend, const double blend_start_dist, const double blend_full_dist );
-const bool SVG_Nav_GenerateTraversalPathForOriginEx_WithAgentBBox( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t * out_path,
-    const Vector3 &agent_mins, const Vector3 &agent_maxs, const svg_nav_path_policy_t * policy, const bool enable_goal_z_layer_blend, const double blend_start_dist, const double blend_full_dist,
-    const struct svg_nav_path_process_t * pathProcess = nullptr );
+const bool SVG_Nav_GenerateTraversalPathForOriginEx_WithAgentBBox( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path,
+    const Vector3 &agent_mins, const Vector3 &agent_maxs, const svg_nav_path_policy_t *policy, const bool enable_goal_z_layer_blend, const double blend_start_dist, const double blend_full_dist,
+    const struct svg_nav_path_process_t *pathProcess = nullptr );
 /** 
 *    @brief  Free a traversal path allocated by SVG_Nav_GenerateTraversalPathForOrigin.
 *    @param  path    Path structure to free.
 **/
-void SVG_Nav_FreeTraversalPath( nav_traversal_path_t * path );
+void SVG_Nav_FreeTraversalPath( nav_traversal_path_t *path );
 
 /** 
 * 	@brief  Query movement direction along a traversal path.
@@ -1440,7 +1620,7 @@ void SVG_Nav_FreeTraversalPath( nav_traversal_path_t * path );
 *    @param  out_direction   Output normalized movement direction.
 *    @return True if a valid direction was produced, false if path is complete/invalid.
 **/
-const bool SVG_Nav_QueryMovementDirection( const nav_traversal_path_t * path, const Vector3 &current_origin, double waypoint_radius, const svg_nav_path_policy_t * policy, int32_t * inout_index, Vector3 * out_direction );
+const bool SVG_Nav_QueryMovementDirection( const nav_traversal_path_t *path, const Vector3 &current_origin, double waypoint_radius, const svg_nav_path_policy_t *policy, int32_t *inout_index, Vector3 * out_direction );
 /** 
 *    @brief  Query movement direction while advancing waypoints in 2D and emitting 3D directions.
 *         Useful for stair traversal so the vertical component can be used separately from waypoint completion.
@@ -1452,7 +1632,7 @@ const bool SVG_Nav_QueryMovementDirection( const nav_traversal_path_t * path, co
 *    @param  out_direction   Output normalized 3D movement direction.
 *    @return True if a valid direction was produced, false if the path is invalid or complete.
 **/
-const bool SVG_Nav_QueryMovementDirection_Advance2D_Output3D( const nav_traversal_path_t * path, const Vector3 &current_origin, double waypoint_radius, const svg_nav_path_policy_t * policy, int32_t * inout_index, Vector3 * out_direction );
+const bool SVG_Nav_QueryMovementDirection_Advance2D_Output3D( const nav_traversal_path_t *path, const Vector3 &current_origin, double waypoint_radius, const svg_nav_path_policy_t *policy, int32_t *inout_index, Vector3 * out_direction );
 
 
 

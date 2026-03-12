@@ -205,7 +205,7 @@ static const cm_trace_t PF_CM_BoxTrace( const Vector3 *start, const Vector3 *end
 	const Vector3 _start = *start;
 	const Vector3 _end = *end;
 	// Perform the box trace.
-	CM_BoxTrace( &cl.collisionModel, &trace, _start, _end, mins, maxs, headNode, brushMask );
+	trace = CM_BoxTrace( &cl.collisionModel, _start, _end, mins, maxs, headNode, brushMask );
 
 	// Return the box trace.
 	return trace;
@@ -238,7 +238,7 @@ static const cm_trace_t PF_CM_TransformedBoxTrace(
 	const Vector3 _angles = *angles;
 
 	// Perform the Transformed Box Trace.
-	CM_TransformedBoxTrace( &cl.collisionModel, &trace, _start, _end, mins, maxs, headnode, brushMask, &_origin.x, &_angles.x );
+	trace = CM_TransformedBoxTrace( &cl.collisionModel, _start, _end, mins, maxs, headnode, brushMask, &_origin.x, &_angles.x );
 
 	// Return the box trace.
 	return trace;
