@@ -482,6 +482,9 @@ static void SV_AreaEdicts_r( worldSector_t *node, sv_area_edicts_context_t &cont
     }
 
     LIST_FOR_EACH( sv_edict_t, check, start, area ) {
+		if ( check == nullptr || check->inUse == false ) {
+			continue;
+		}
         if ( check->solid == SOLID_NOT ) {
             continue;        // deactivated
         }
@@ -781,7 +784,7 @@ static cm_trace_t SV_ClipMoveToEntities(const Vector3 &start, const Vector3 *min
             const int32_t oldStartSolid = dst.startsolid;
             etrace.entityNumber = touch->s.number;
             dst = etrace;
-            // jmarshall
+
             const int32_t startsolid = (int32_t)dst.startsolid | oldStartSolid;
             dst.startsolid = (bool)startsolid;
         }

@@ -103,13 +103,14 @@ static inline void PlayerNoise_Setup( svg_base_edict_t *noise, svg_base_edict_t 
 	} else if ( soundType == PLAYER_NOISE_SELF ) {
 		noise->s.entityType = ET_PLAYER_NOISE_PERSONAL;
 	}
-	noise->solid = SOLID_TRIGGER;
+	//noise->solid = SOLID_TRIGGER;
 	noise->mins = { -8, -8, -8 };
 	noise->maxs = { -8, -8, -8 };
 	noise->owner = who;
 	noise->svFlags = SVF_NOCLIENT;
 	noise->nextthink = level.time + SoundEntityLifetime;
 	noise->SetThinkCallback( PlayerNoise_onThink );
+	gi.linkentity( noise );
 }
 
 /**
@@ -170,7 +171,7 @@ void SVG_PlayerNoise_MakeNoise( svg_base_edict_t *who, const Vector3 &where, int
 	// and impact noises are more important than personal noises.
 	svg_base_edict_t *noise = nullptr;
 	if ( type == PLAYER_NOISE_IMPACT ) {
-		noise = who->weaponNoiseEntity;
+		noise = who->impactNoiseEntity;
 		if ( noise ) {
 			noise->inUse = true; // <Q2RTXP>: TODO: Hmmm... This should happen at loadlevel time.
 			noise->last_sound_time = level.time;
@@ -186,7 +187,7 @@ void SVG_PlayerNoise_MakeNoise( svg_base_edict_t *who, const Vector3 &where, int
 		level.weapon_sound_entity = noise;
 		level.weapon_sound_entity_time = level.time;
 	} else if ( type == PLAYER_NOISE_SELF ) {
-		noise = who->weaponNoiseEntity;
+		noise = who->personalNoiseEntity;
 		if ( noise ) {
 			noise->inUse = true; // <Q2RTXP>: TODO: Hmmm... This should happen at loadlevel time.
 			noise->last_sound_time = level.time;
@@ -208,7 +209,7 @@ void SVG_PlayerNoise_MakeNoise( svg_base_edict_t *who, const Vector3 &where, int
 		level.weapon_sound_entity = noise;
 		level.weapon_sound_entity_time = level.time;
 	} else if ( type == PLAYER_NOISE_IMPACT ) {
-		noise = who->weaponNoiseEntity;
+		noise = who->impactNoiseEntity;
 		if ( noise ) {
 			noise->inUse = true; // <Q2RTXP>: TODO: Hmmm... This should happen at loadlevel time.
 			noise->last_sound_time = level.time;
@@ -216,7 +217,7 @@ void SVG_PlayerNoise_MakeNoise( svg_base_edict_t *who, const Vector3 &where, int
 		level.impact_sound_entity = noise;
 		level.impact_sound_entity_time = level.time;
     } else if ( type == PLAYER_NOISE_SELF ) {
-		noise = who->weaponNoiseEntity;
+		noise = who->personalNoiseEntity;
 		if ( noise ) {
 			noise->inUse = true; // <Q2RTXP>: TODO: Hmmm... This should happen at loadlevel time.
 			noise->last_sound_time = level.time;

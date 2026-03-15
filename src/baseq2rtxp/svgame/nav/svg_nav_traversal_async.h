@@ -36,22 +36,51 @@ enum class nav_a_star_status_t {
 * @brief    Reasons an edge/neighbor can be rejected during expansion.
  **/
 enum class nav_edge_reject_reason_t : int32_t {
+	//! No rejection; the edge is valid.
 	None = 0,
+	//! Rejected by a tile-route filter applied from the hierarchy or cluster route. This indicates the edge's tile is not on the allowed list for this search.
 	TileRouteFilter = 1,
+	//! Rejected because the neighbor node does not exist. This can occur when the search encounters an unexpected gap in the navmesh, such as a missing tile or cell.
 	NoNode = 2,
+	//! Rejected by edge validation traces, which can include multiple sub-reasons such as:
+	//! - The edge being completely blocked by geometry.
+	//! - The presence of an obstruction in the direct path.
+	//! - Or the edge requiring a step up that exceeds the agent's capabilities.
 	DropCap = 3,
+	//! Rejected because the edge requires a step traversal that exceeds the agent's maximum step height. This indicates that the vertical difference between the nodes is too great for the agent to traverse.
 	StepTest = 4,
+	//! Rejected because the edge is blocked by an obstruction that cannot be bypassed. 
+	//! This can occur when there is an impassable obstacle in the way, such as a solid wall or a closed door.
 	ObstructionJump = 5,
+	//! Rejected due to occupancy, which can occur when the edge leads to a node that is currently occupied by another entity or is otherwise considered impassable due to dynamic conditions in the environment.
 	Occupancy = 6,
-	Other = 7,
+	//! Rejected because the edge leads into water, which may be impassable or undesirable for certain agents depending on their capabilities and the game's mechanics.
+	EntersWater = 7,
+	//! Rejected because the edge leads into lava, which is typically impassable and causes damage to agents. This indicates that the path would require traversing through a hazardous area that should be avoided.
+	EntersLava = 8,
+	//! Rejected because the edge leads into slime, which may be impassable or undesirable for certain agents depending on their capabilities and the game's mechanics. This indicates that the path would require traversing through a hazardous area that should be avoided.
+	EntersSlime = 9,
+	//! Rejected because the edge leads off a walkable surface, which can occur when the path would require the agent to step off a ledge or platform. This indicates that the edge does not provide a safe and stable path for traversal.
+	OptionalWalkOff = 10,
+	//! Rejected because the edge leads off a walkable surface in a way that is considered forbidden for the agent, such as stepping off a high ledge or into a hazardous area. This indicates that the edge is not only unsafe but also violates the agent's movement constraints or the game's design rules.
+	ForbiddenWalkOff = 11,
+	//! Rejected for a reason not covered by the other categories. This is a catch-all for any edge rejections that don't fit into the predefined reasons, and may require additional debugging or logging to diagnose.
+	Other = 12,
 };
+
+// Compute stable bucket count from the enum so all TUs agree.
+constexpr int32_t NAV_EDGE_REJECT_REASON_BUCKETS = static_cast<int32_t>(nav_edge_reject_reason_t::Other) - static_cast<int32_t>(nav_edge_reject_reason_t::None) + 1;
+// Static assertion to ensure the bucket count is valid and positive.
+static_assert(NAV_EDGE_REJECT_REASON_BUCKETS > 0, "invalid NAV_EDGE_REJECT_REASON_BUCKETS");
 
 /** 
 *  @brief    Source of the current bounded refinement corridor.
 **/
 enum class nav_refine_corridor_source_t : uint8_t {
 	None = 0,
+	//! Corridor derived from the hierarchy route, which provides a high-level path through the tile graph and is preferred when available.
 	Hierarchy,
+	//! Corridor used as a fallback when hierarchy routing is unavailable or fails to produce a valid route. This corridor is derived from a direct tile-
 	Cluster
 };
 
@@ -224,7 +253,7 @@ struct nav_a_star_state_t {
 
 	//! Per-reason counters for edge rejection to help diagnose why neighbors are discarded.
 	//! Index into this array is defined by `nav_edge_reject_reason_t`.
-	std::array<int32_t, 8> edge_reject_reason_counts = {};
+	std::array<int32_t, NAV_EDGE_REJECT_REASON_BUCKETS> edge_reject_reason_counts = {};
 
 	// Default constructor / destructor
 	nav_a_star_state_t() = default;
@@ -519,6 +548,17 @@ nav_a_star_status_t Nav_AStar_Step( nav_a_star_state_t * state, int32_t expansio
 *            the state is not completed.
 **/
 const bool Nav_AStar_Finalize( nav_a_star_state_t * state, std::vector<Vector3> * out_points );
+
+/** 
+*  @brief    Build the best currently-known partial path from an in-flight incremental A*  state.
+*  @param    state        Running or partially explored incremental A*  state.
+*  @param    out_points   [out] Ordered waypoint list reaching the best frontier node found so far.
+*  @return   True when a usable partial path was reconstructed.
+*  @note     This walks the parent chain to the frontier node whose explored state currently appears
+*            closest to the goal. Callers use this to expose a first-usable provisional path before
+*            the full async search reaches `Completed`.
+**/
+const bool Nav_AStar_BuildBestPartialPath( const nav_a_star_state_t * state, std::vector<Vector3> * out_points );
 
 /** 
 *  @brief    Try to replace a node with a same-cell layer variant that has better local connectivity.

@@ -56,10 +56,12 @@ nav_mesh_raii_t g_nav_mesh;
 cvar_t *nav_profile_level = nullptr;
 //! Maximum allowed time per A*  step in milliseconds (used to cap processing time and allow incremental stepping).
 cvar_t *nav_astar_step_budget_ms = nullptr;
-//! Feature flag controlling whether Phase 5 hierarchy coarse routing is attempted before tile-cluster fallback.
+//! Feature flag controlling whether hierarchy coarse routing is attempted before tile-cluster fallback.
 cvar_t *nav_hierarchy_route_enable = nullptr;
 //! Maximum LOS sample count allowed before direct-shortcut LOS is skipped for tuning.
 cvar_t *nav_direct_los_attempt_max_samples = nullptr;
+//! Tuning knob controlling whether Auto LOS mode may promote DDA spans to LeafTraversal heuristically.
+cvar_t *nav_los_auto_leaf_heuristics = nullptr;
 //! Minimum 2D query distance required before hierarchy routing is preferred over local-only refinement.
 cvar_t *nav_hierarchy_route_min_distance = nullptr;
 //! Maximum LOS tests allowed during the small sync simplification pass.
@@ -267,168 +269,6 @@ uint32_t SVG_Nav_BuildTraversalFeatureBitsFromLayerFlags( const uint32_t layer_f
 }
 
 /** 
-*  @brief	Resolve the canonical world tile view for a node reference.
-*  @param	mesh	Navigation mesh owning the canonical tile storage.
-*  @param	node	Node reference whose tile should be resolved.
-*  @return	Pointer to the canonical tile, or nullptr when the node/tile is invalid.
-*  @note	This keeps hot-path callers from repeating tile-index bounds checks inline.
-**/
-const nav_tile_t * SVG_Nav_GetNodeTileView( const nav_mesh_t * mesh, const nav_node_ref_t &node ) {
-	/** 
-	* 	Sanity checks: require mesh storage and a valid canonical tile index.
-	**/
-	if ( !mesh || node.key.tile_index < 0 || node.key.tile_index >= ( int32_t )mesh->world_tiles.size() ) {
-		return nullptr;
-	}
-
-	return &mesh->world_tiles[ node.key.tile_index ];
-}
-
-/** 
-* 	@brief	Resolve the canonical XY cell view for a node reference.
-* 	@param	mesh	Navigation mesh owning the canonical tile storage.
-* 	@param	node	Node reference whose cell should be resolved.
-* 	@return	Pointer to the canonical XY cell, or nullptr when the node/cell is invalid.
-* 	@note	This composes `SVG_Nav_GetNodeTileView()` with the tile cell accessor so hot-path users can avoid duplicating both checks.
-**/
-const nav_xy_cell_t * SVG_Nav_GetNodeCellView( const nav_mesh_t * mesh, const nav_node_ref_t &node ) {
-	/** 
-	*  Resolve the owning canonical tile before touching cell storage.
-	**/
-	const nav_tile_t *tile = SVG_Nav_GetNodeTileView( mesh, node );
-	if ( !tile ) {
-		return nullptr;
-	}
-
-	/** 
-	*  Resolve the sparse cell array and validate the node's cell index.
-	**/
-	auto cellsView = SVG_Nav_Tile_GetCells( mesh, tile );
-	const nav_xy_cell_t * cellsPtr = cellsView.first;
-	const int32_t cellsCount = cellsView.second;
-	if ( !cellsPtr || node.key.cell_index < 0 || node.key.cell_index >= cellsCount ) {
-		return nullptr;
-	}
-
-	return &cellsPtr[ node.key.cell_index ];
-}
-
-/** 
-*  @brief	Map an XY neighbor offset onto the persisted per-edge direction index.
-*  @param	cell_dx	Neighbor cell X offset.
-*  @param	cell_dy	Neighbor cell Y offset.
-*  @return Persisted edge-slot index, or -1 when the offset is not one of the 8 stored directions.
-**/
-static int32_t Nav_EdgeDirIndexForOffset( const int32_t cell_dx, const int32_t cell_dy ) {
-	/** 
-	*  Persist only the immediate 8-direction XY neighborhood.
-	**/
-	if ( cell_dx == 1 && cell_dy == 0 ) return 0;
-	if ( cell_dx == -1 && cell_dy == 0 ) return 1;
-	if ( cell_dx == 0 && cell_dy == 1 ) return 2;
-	if ( cell_dx == 0 && cell_dy == -1 ) return 3;
-	if ( cell_dx == 1 && cell_dy == 1 ) return 4;
-	if ( cell_dx == 1 && cell_dy == -1 ) return 5;
-	if ( cell_dx == -1 && cell_dy == 1 ) return 6;
-	if ( cell_dx == -1 && cell_dy == -1 ) return 7;
-	return -1;
-}
-
-/** 
-*  @brief	Resolve a canonical layer pointer from a node reference.
-*  @param	mesh	Navigation mesh.
-*  @param	node	Node reference to resolve.
-*  @return Pointer to the canonical layer or nullptr on failure.
-**/
-const nav_layer_t * SVG_Nav_GetNodeLayerView( const nav_mesh_t * mesh, const nav_node_ref_t &node ) {
-	/** 
-   * Resolve the owning canonical cell before touching layer storage.
-	**/
-	const nav_xy_cell_t * cell = SVG_Nav_GetNodeCellView( mesh, node );
-	if ( !cell ) {
-		return nullptr;
-	}
-
-	/** 
-   * Resolve the target layer through the cell's safe layer view.
-	**/
-	auto layersView = SVG_Nav_Cell_GetLayers( cell );
-	const nav_layer_t * layersPtr = layersView.first;
-	const int32_t layerCount = layersView.second;
-	if ( !layersPtr || node.key.layer_index < 0 || node.key.layer_index >= layerCount ) {
-		return nullptr;
-	}
-
-	return &layersPtr[ node.key.layer_index ];
-}
-
-/** 
-*  @brief	Query traversal feature bits for a canonical node.
-*  @param	mesh	Navigation mesh.
-*  @param	node	Node reference to inspect.
-*  @return Traversal feature bits for the node, or `NAV_TRAVERSAL_FEATURE_NONE` on failure.
-**/
-uint32_t SVG_Nav_GetNodeTraversalFeatureBits( const nav_mesh_t * mesh, const nav_node_ref_t &node ) {
-	/** 
-	*  Resolve the canonical layer before reading its traversal metadata.
-	**/
-	const nav_layer_t * layer = SVG_Nav_GetNodeLayerView( mesh, node );
-	return layer ? layer->traversal_feature_bits : NAV_TRAVERSAL_FEATURE_NONE;
-}
-
-/** 
-*  @brief	Query explicit edge metadata for a canonical node and XY offset.
-*  @param	mesh	Navigation mesh.
-*  @param	node	Source node reference.
-*  @param	cell_dx	Neighbor cell X offset in `[-1, 1]`.
-*  @param	cell_dy	Neighbor cell Y offset in `[-1, 1]`.
-*  @return Explicit edge feature bits, or `NAV_EDGE_FEATURE_NONE` when no persisted edge slot applies.
-**/
-uint32_t SVG_Nav_GetEdgeFeatureBitsForOffset( const nav_mesh_t * mesh, const nav_node_ref_t &node, const int32_t cell_dx, const int32_t cell_dy ) {
-	/** 
-	*  Resolve the persisted edge slot index for this XY neighbor offset.
-	**/
-	const int32_t edge_dir_index = Nav_EdgeDirIndexForOffset( cell_dx, cell_dy );
-	if ( edge_dir_index < 0 ) {
-		return NAV_EDGE_FEATURE_NONE;
-	}
-
-	/** 
-	*  Resolve the canonical layer before reading the persisted edge metadata.
-	**/
-	const nav_layer_t * layer = SVG_Nav_GetNodeLayerView( mesh, node );
-	if ( !layer ) {
-		return NAV_EDGE_FEATURE_NONE;
-	}
-
-	/** 
-	*  Return only explicitly persisted edge data.
-	**/
-	if ( ( layer->edge_valid_mask & ( 1u << edge_dir_index ) ) == 0 ) {
-		return NAV_EDGE_FEATURE_NONE;
-	}
-
-	return layer->edge_feature_bits[ edge_dir_index ];
-}
-
-/** 
-*  @brief	Query coarse tile summary bits for the tile owning a canonical node.
-*  @param	mesh	Navigation mesh.
-*  @param	node	Node reference whose tile should be inspected.
-*  @return Tile summary bits, or `NAV_TILE_SUMMARY_NONE` on failure.
-**/
-uint32_t SVG_Nav_GetTileSummaryBitsForNode( const nav_mesh_t * mesh, const nav_node_ref_t &node ) {
-	/** 
-	*  Validate the canonical tile index before reading tile-level metadata.
-	**/
-	if ( !mesh || node.key.tile_index < 0 || node.key.tile_index >= ( int32_t )mesh->world_tiles.size() ) {
-		return NAV_TILE_SUMMARY_NONE;
-	}
-
-	return mesh->world_tiles[ node.key.tile_index ].traversal_summary_bits | mesh->world_tiles[ node.key.tile_index ].edge_summary_bits;
-}
-
-/** 
 * @brief    Convert a caller-provided feet-origin into nav-center space.
 *	@note     Helper implementation for `SVG_Nav_ConvertFeetToCenter` declared in header.
 **/
@@ -500,12 +340,8 @@ const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t * mesh, const Vect
 // Convenience overload: call explicit-bbox traversal test without a policy (defaults to mesh parameters).
 static inline const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t * mesh, const Vector3 &startPos, const Vector3 &endPos,
 	const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t * clip_entity ) {
-   return Nav_CanTraverseStep_ExplicitBBox( mesh, startPos, endPos, mins, maxs, clip_entity, nullptr, nullptr, CM_CONTENTMASK_MONSTERSOLID );
+	return Nav_CanTraverseStep_ExplicitBBox( mesh, startPos, endPos, mins, maxs, clip_entity, nullptr, nullptr, CM_CONTENTMASK_MONSTERSOLID );
 }
-// (Declaration present earlier) - definition follows below without a redundant default argument.
-
-
-
 /** 
 * 
 *    CVars for Navigation Debug Drawing:
@@ -577,11 +413,15 @@ void SVG_Nav_Init( void ) {
 		nav_z_quant = gi.cvar( "nav_z_quant", "2", 0 );
 		nav_tile_size = gi.cvar( "nav_tile_size", "32", 0 );
 	#else 
+		// X/Y grid cell size in world units.
 		nav_cell_size_xy = gi.cvar( "nav_cell_size_xy", "4", 0 );
-		nav_z_quant = gi.cvar( "nav_z_quant", "2", 0 );
-		nav_tile_size = gi.cvar( "nav_tile_size", "8", 0 );
+		// Z-axis quantization step.
+		nav_z_quant = gi.cvar( "nav_z_quant", "8", 0 );
+		//! Number of cells per tile dimension.
+		nav_tile_size = gi.cvar( "nav_tile_size", "16", 0 );
 	#endif // 
-	// Tunable Z tolerance for layer selection and fallback. 0 = auto-derived from mesh parameters.
+	// Optional Tunable Z vertical tolerance (world units) for layer selection and fallback.
+	// If <= 0, auto-derived from mesh parameters.
 	nav_z_tolerance = gi.cvar( "nav_z_tolerance", "0", 0 );
 
 	/** 
@@ -668,19 +508,21 @@ void SVG_Nav_Init( void ) {
 	//! Feature flag controlling whether hierarchy coarse routing is attempted before tile-cluster fallback.
 	nav_hierarchy_route_enable = gi.cvar( "nav_hierarchy_route_enable", "1", 0 );
 	//! Maximum LOS sample count allowed before direct-shortcut LOS is skipped for tuning.
-	nav_direct_los_attempt_max_samples = gi.cvar( "nav_direct_los_attempt_max_samples", "32768", 0 );
+	nav_direct_los_attempt_max_samples = gi.cvar( "nav_direct_los_attempt_max_samples", std::to_string( NAV_DEFAULT_DIRECT_LOS_ATTEMPT_MAX_SAMPLES ).c_str(), 0);
+    //! Auto LOS heuristic control: 0 keeps Auto on DDA whenever available, 1 enables conservative DDA->LeafTraversal promotion.
+	nav_los_auto_leaf_heuristics = gi.cvar( "nav_los_auto_leaf_heuristics", "1", 0 );
 	//! Minimum 2D query distance required before hierarchy routing is preferred over local-only refinement.
-	nav_hierarchy_route_min_distance = gi.cvar( "nav_hierarchy_route_min_distance", "128", 0 );
+	nav_hierarchy_route_min_distance = gi.cvar( "nav_hierarchy_route_min_distance", "512", 0 );
 	//! Maximum LOS tests allowed during the small sync simplification pass.
 	nav_simplify_sync_max_los_tests = gi.cvar( "nav_simplify_sync_max_los_tests", "32", 0 ); // <Q2RTXP>: WID: Was 8
 	//! Maximum LOS tests allowed during the more aggressive async simplification pass.
-	nav_simplify_async_max_los_tests = gi.cvar( "nav_simplify_async_max_los_tests", "128", 0 ); // <Q2RTXP>: WID: Was 8
+	nav_simplify_async_max_los_tests = gi.cvar( "nav_simplify_async_max_los_tests", "256", 0 ); // <Q2RTXP>: WID: Was 8
 	//! Maximum wall-clock milliseconds the sync simplification pass may spend per query.
-	nav_simplify_sync_max_ms = gi.cvar( "nav_simplify_sync_max_ms", "0", 0 ); // <Q2RTXP>: WID: Was 4
+	nav_simplify_sync_max_ms = gi.cvar( "nav_simplify_sync_max_ms", "4", 0 ); // <Q2RTXP>: WID: Was 4
 	//! Exact corridor tile-count threshold where refinement widening switches from near to mid radius.
-	nav_refine_corridor_mid_tiles = gi.cvar( "nav_refine_corridor_mid_tiles", "12", 0 ); // <Q2RTXP>: WID: Was 6
+	nav_refine_corridor_mid_tiles = gi.cvar( "nav_refine_corridor_mid_tiles", "3", 0 ); // <Q2RTXP>: WID:was12 Was 6
 	//! Exact corridor tile-count threshold where refinement widening switches from mid to far radius.
-	nav_refine_corridor_far_tiles = gi.cvar( "nav_refine_corridor_far_tiles", "24", 0 ); // <Q2RTXP>: WID: Was 12
+	nav_refine_corridor_far_tiles = gi.cvar( "nav_refine_corridor_far_tiles", "6", 0 ); // <Q2RTXP>: WID:was24 Was 12
 	//! Buffered refinement radius used for short exact corridors.
 	nav_refine_corridor_radius_near = gi.cvar( "nav_refine_corridor_radius_near", "1", 0 );
 	//! Buffered refinement radius used for mid-length exact corridors.
@@ -688,18 +530,18 @@ void SVG_Nav_Init( void ) {
 	//! Buffered refinement radius used for long exact corridors.
 	nav_refine_corridor_radius_far = gi.cvar( "nav_refine_corridor_radius_far", "3", 0 );
 	//! Minimum 2D LOS span treated as a long simplification collapse for narrow-passage clearance tuning.
-	nav_simplify_long_span_min_distance = gi.cvar( "nav_simplify_long_span_min_distance", "4096", 0 );
+	nav_simplify_long_span_min_distance = gi.cvar( "nav_simplify_long_span_min_distance", "128", 0 );
 	//! Additional clearance margin required before allowing long LOS simplification spans.
-	nav_simplify_clearance_margin = gi.cvar( "nav_simplify_clearance_margin", "32", 0 );
+	nav_simplify_clearance_margin = gi.cvar( "nav_simplify_clearance_margin", "256", 0 );
 	//! Angle threshold used when pruning nearly collinear simplified waypoints.
-	nav_simplify_collinear_angle_degrees = gi.cvar( "nav_simplify_collinear_angle_degrees", "4", 0 );
+	nav_simplify_collinear_angle_degrees = gi.cvar( "nav_simplify_collinear_angle_degrees", "45", 0 );
 
 
 	/** 
 	*    Register runtime cost-tuning CVars for A*  heuristics.
 	**/
 	// Register runtime tunable per-call A*  search budget so async worker behavior can be tuned at runtime.
-	nav_astar_step_budget_ms = gi.cvar( "nav_astar_step_budget_ms", "8", 0 );
+	nav_astar_step_budget_ms = gi.cvar( "nav_astar_step_budget_ms", "25", 0 );
 
 	nav_cost_w_dist = gi.cvar( "nav_cost_w_dist", "1.0", 0 );
 	nav_cost_jump_base = gi.cvar( "nav_cost_jump_base", "8.0", 0 );
@@ -1350,20 +1192,13 @@ const bool Nav_SelectLayerIndex( const nav_mesh_t * mesh, const nav_xy_cell_t * 
 }
 
 /** 
-*  @brief	Check whether a sparse tile cell is present in the tile bitset.
-*  @param	tile		Tile holding the presence bitset.
-*  @param	cell_index	Cell index inside the tile (0..cells_per_tile-1).
-*  @return	True if the cell is marked as present, false otherwise.
-*  @note	This helper guards accesses to sparse cell arrays.
-**/
-/** 
-	@brief	Check whether a sparse tile cell is present in the tile bitset.
-	@param	tile		Tile holding the presence bitset.
-	@param	cell_index	Cell index inside the tile (0..cells_per_tile-1).
-	@return	True if the cell is marked as present, false otherwise.
-	@note	This helper guards accesses to sparse cell arrays and validates the
-			presence_bits pointer to prevent dereferencing null pointers on
-			sparsely-populated tiles.
+*	@brief	Check whether a sparse tile cell is present in the tile bitset.
+*	@param	tile		Tile holding the presence bitset.
+*	@param	cell_index	Cell index inside the tile (0..cells_per_tile-1).
+*	@return	True if the cell is marked as present, false otherwise.
+*	@note	This helper guards accesses to sparse cell arrays and validates the
+*			presence_bits pointer to prevent dereferencing null pointers on
+*			sparsely-populated tiles.
 **/
 static inline bool Nav_CellPresent( const nav_tile_t * tile, const int32_t cell_index ) {
 	/** 
@@ -1802,343 +1637,247 @@ const bool Nav_FindNodeForPosition( const nav_mesh_t * mesh, const Vector3 &posi
 	return false;
 }
 
-/** 
-* 	@brief  Advance along a navigation path based on current origin and waypoint radius.
-* 	@param  path            Navigation traversal path.
-* 	@param  current_origin  Current 3D position of the mover.
-* 	@param  waypoint_radius  Radius around waypoints to consider them "reached".
-* 	@param  policy          Optional traversal policy for per-agent constraints.
-* 	@param  inout_index     Input/output current waypoint index in the path.
-* 	@param  out_direction    Output direction vector towards the current waypoint.
-* 	@return True if there is a valid waypoint to move towards after advancement.
+/**
+*    @brief	Project a feet-origin point onto the nearest walkable nav-layer Z in its current XY cell.
+*    @param	mesh		Navigation mesh used for tile/cell lookup.
+*    @param	feet_origin	Feet-origin point supplied by the caller.
+*    @param	agent_mins	Feet-origin agent mins used for center conversion.
+*    @param	agent_maxs	Feet-origin agent maxs used for center conversion.
+*    @param	out_origin	[out] Feet-origin point with the projected walkable Z when lookup succeeds.
+*    @return	True when a walkable layer was found for the query XY cell.
+*    @note	This preserves the caller's XY while snapping only the feet-origin Z to the best walkable layer.
 **/
-const bool SVG_Nav_QueryMovementDirection_Advance2D_Output3D( const nav_traversal_path_t * path, const Vector3 &current_origin,
-    double waypoint_radius, const svg_nav_path_policy_t * policy, int32_t * inout_index, Vector3 * out_direction ) {
-    /** 
-   * Sanity checks: validate inputs and ensure we have a usable path.
-    **/
-    if ( !path || !inout_index || !out_direction ) {
-        return false;
-    }
-    if ( path->num_points <= 0 || !path->points ) {
-        return false;
-    }
-
-    /** 
-	*	Clamp the waypoint radius to a minimum value.
-	*	This avoids degenerate behavior where micro radii prevent waypoint completion
-	*	when the mover cannot stand exactly on the path point due to collision.
-    **/
-    waypoint_radius = std::max( waypoint_radius, 2.0 );
-
-    int32_t index = * inout_index;
-    if ( index < 0 ) {
-        index = 0;
-    }
-
-    const double waypoint_radius_sqr = waypoint_radius* waypoint_radius;
-
-    // Advance using 2D distance so Z quantization / stairs don't prevent waypoint completion.
-    while ( index < path->num_points ) {
-        const Vector3 delta = QM_Vector3Subtract( path->points[ index ], current_origin );
-        const double dist_sqr = ( delta[ 0 ]* delta[ 0 ] ) + ( delta[ 1 ]* delta[ 1 ] );
-        if ( dist_sqr > waypoint_radius_sqr ) {
-            break;
-        }
-        index++;
-    }
-
-    /** 
-   * Stuck heuristic: if we are not making 2D progress towards the current waypoint,
-   * advance it after a few frames. This helps around corners where the exact waypoint
-   * position may be effectively unreachable due to collision/step resolution.
-    * 
-   * NOTE: This is intentionally conservative and only triggers when the waypoint is
-   * still relatively close in 2D (within a few radii).
-    **/
-    if ( index < path->num_points ) {
-        // Thread-local so multiple entities calling into this share no state across threads.
-        // This code runs on the game thread, but `thread_local` also avoids cross-AI bleed.
-        thread_local int32_t s_last_index = -1;
-        thread_local Vector3 s_last_origin = {};
-        thread_local double s_last_dist2d_sqr = 0.0;
-        thread_local int32_t s_no_progress_frames = 0;
-        thread_local int32_t s_last_frame = -1;
-
-        // Reset tracking when switching paths/indices or on new server frame discontinuity.
-        if ( s_last_frame != ( int32_t )level.frameNumber || s_last_index != index ) {
-            s_last_frame = ( int32_t )level.frameNumber;
-            s_last_index = index;
-            s_last_origin = current_origin;
-            const Vector3 d0 = QM_Vector3Subtract( path->points[ index ], current_origin );
-            s_last_dist2d_sqr = ( d0[ 0 ]* d0[ 0 ] ) + ( d0[ 1 ]* d0[ 1 ] );
-            s_no_progress_frames = 0;
-        } else {
-            // Compute current 2D distance to the waypoint.
-            const Vector3 d1 = QM_Vector3Subtract( path->points[ index ], current_origin );
-            const double dist2d_sqr = ( d1[ 0 ]* d1[ 0 ] ) + ( d1[ 1 ]* d1[ 1 ] );
-
-            // Only consider this if we're already fairly close to the waypoint.
-            const double near_sqr = waypoint_radius_sqr* 9.0; // within ~3 radii
-            if ( dist2d_sqr <= near_sqr ) {
-                // If we did not reduce distance (allowing a small epsilon), count a no-progress frame.
-                const double improve_eps = 1.0;
-                if ( dist2d_sqr >= ( s_last_dist2d_sqr - improve_eps ) ) {
-                    s_no_progress_frames++;
-                } else {
-                    s_no_progress_frames = 0;
-                }
-                // If stuck for a short window, advance one waypoint to try to get around the corner.
-                if ( s_no_progress_frames >= 6 && ( index + 1 ) < path->num_points ) {
-                    index++;
-                    s_no_progress_frames = 0;
-                }
-            }
-
-            // Update tracking for next call.
-            s_last_dist2d_sqr = dist2d_sqr;
-            s_last_origin = current_origin;
-            s_last_frame = ( int32_t )level.frameNumber;
-        }
-    }
-
-    if ( index >= path->num_points ) {
-        * inout_index = path->num_points;
-        return false;
-    }
-
-    Vector3 direction = QM_Vector3Subtract( path->points[ index ], current_origin );
-
-   /** 
-	*  Clamp the vertical component using separate rise and drop limits.
-	*      Upward steering should still respect the effective step limit, while downward steering
-	*      should align with the active drop policy so follow-side motion does not ignore a stricter cap.
+const bool SVG_Nav_TryProjectFeetOriginToWalkableZ( const nav_mesh_t * mesh, const Vector3 &feet_origin,
+	const Vector3 &agent_mins, const Vector3 &agent_maxs, Vector3 * out_origin ) {
+	/**
+	*    Sanity checks: require mesh storage, output storage, and a valid agent hull.
 	**/
-	if ( g_nav_mesh ) {
-		// Determine the effective upward step limit (policy overrides mesh defaults when present).
-		double stepLimit = g_nav_mesh->max_step;
-		if ( policy && policy->max_step_height > 0.0 ) {
-			stepLimit = policy->max_step_height;
-		}
-
-		// Determine the effective downward drop cap using the same preference order as path rebuild safety.
-		double dropLimit = nav_max_drop_height_cap ? nav_max_drop_height_cap->value : 100.0f;
-		if ( policy ) {
-			if ( policy->max_drop_height_cap > 0.0 ) {
-				dropLimit = policy->max_drop_height_cap;
-			} else if ( policy->enable_max_drop_height_cap && policy->max_drop_height > 0.0 ) {
-				dropLimit = policy->max_drop_height;
-			}
-		}
-
-		// Keep a small quantization slack so waypoint directions remain stable on stairs and ramps.
-		const double maxRiseDz = stepLimit + g_nav_mesh->z_quant;
-		const double maxDropDz = std::max( dropLimit, g_nav_mesh->z_quant );
-		if ( direction[ 2 ] > maxRiseDz ) {
-			direction[ 2 ] = maxRiseDz;
-		} else if ( direction[ 2 ] < -maxDropDz ) {
-			direction[ 2 ] = -maxDropDz;
-		}
+	if ( !mesh || !out_origin ) {
+		return false;
+	}
+	if ( !( agent_maxs.x > agent_mins.x ) || !( agent_maxs.y > agent_mins.y ) || !( agent_maxs.z > agent_mins.z ) ) {
+		return false;
 	}
 
-    const double length = ( double )QM_Vector3LengthDP( direction );
-    if ( length <= std::numeric_limits<double>::epsilon() ) {
-        return false;
-    }
+	/**
+	*    Convert the feet-origin query into nav-center space for tile/cell lookup.
+	**/
+	const Vector3 center_origin = SVG_Nav_ConvertFeetToCenter( mesh, feet_origin, &agent_mins, &agent_maxs );
+	const nav_tile_cluster_key_t tile_key = SVG_Nav_GetTileKeyForPosition( mesh, center_origin );
+	const nav_world_tile_key_t world_tile_key = { .tile_x = tile_key.tile_x, .tile_y = tile_key.tile_y };
+	const auto tile_it = mesh->world_tile_id_of.find( world_tile_key );
+	if ( tile_it == mesh->world_tile_id_of.end() ) {
+		return false;
+	}
 
-    * out_direction = QM_Vector3NormalizeDP( direction );
-    * inout_index = index;
-    return true;
+	/**
+	*    Resolve the tile-local XY cell that owns the query point.
+	**/
+	const nav_tile_t * tile = &mesh->world_tiles[ tile_it->second ];
+	const auto cells_view = SVG_Nav_Tile_GetCells( mesh, tile );
+	const nav_xy_cell_t * cells = cells_view.first;
+	const int32_t cell_count = cells_view.second;
+	if ( !cells || cell_count <= 0 ) {
+		return false;
+	}
+
+	const double tile_world_size = ( double )mesh->tile_size * mesh->cell_size_xy;
+	const double tile_origin_x = ( double )tile->tile_x * tile_world_size;
+	const double tile_origin_y = ( double )tile->tile_y * tile_world_size;
+	const double local_x = center_origin.x - tile_origin_x;
+	const double local_y = center_origin.y - tile_origin_y;
+	if ( local_x < 0.0 || local_y < 0.0 ) {
+		return false;
+	}
+
+	const int32_t cell_x = std::clamp( ( int32_t )std::floor( local_x / mesh->cell_size_xy ), 0, mesh->tile_size - 1 );
+	const int32_t cell_y = std::clamp( ( int32_t )std::floor( local_y / mesh->cell_size_xy ), 0, mesh->tile_size - 1 );
+	const int32_t cell_index = ( cell_y * mesh->tile_size ) + cell_x;
+	if ( cell_index < 0 || cell_index >= cell_count ) {
+		return false;
+	}
+
+	/**
+	*    Select the best walkable layer in the resolved cell using the existing selector.
+	**/
+	const nav_xy_cell_t * cell = &cells[ cell_index ];
+	if ( !cell || cell->num_layers <= 0 || !cell->layers ) {
+		return false;
+	}
+
+	int32_t layer_index = -1;
+	if ( !Nav_SelectLayerIndex( mesh, cell, center_origin.z, &layer_index ) || layer_index < 0 || layer_index >= cell->num_layers ) {
+		return false;
+	}
+
+	/**
+	*    Convert the selected walkable layer back into feet-origin space for the caller.
+	**/
+	const float center_offset_z = ( agent_mins.z + agent_maxs.z ) * 0.5f;
+	const double projected_center_z = ( double )cell->layers[ layer_index ].z_quantized * mesh->z_quant;
+	*out_origin = feet_origin;
+	out_origin->z = ( float )( projected_center_z - center_offset_z );
+	return true;
 }
 
-
-
-/**
-*
-*
-*
-*    Tile Layer/Cells API:
-*
-*
-*
-**/
-/**
+/** 
 * 	@brief	Get layers pointer and count for a nav XY cell (const overload).
 * 	@param	cell	Pointer to the XY cell to query.
-* 	@return	A std::pair of (const nav_layer_t*  layers, int32_t num_layers). Returns
-* 			nullptr and 0 when the cell or its layers are not present.
-* 	@note	Helper intended to prevent callers from dereferencing dangling
-* 			pointers by explicitly returning a nullptr/count when data is absent.
+* 	@return	A std::pair of (const nav_layer_t* layers, int32_t num_layers).
 **/
-std::pair<const nav_layer_t *, int32_t> SVG_Nav_Cell_GetLayers( const nav_xy_cell_t *cell ) {
-	if ( !cell || !cell->layers ) {
+std::pair<const nav_layer_t *, int32_t> SVG_Nav_Cell_GetLayers( const nav_xy_cell_t * cell ) {
+	/** 
+	* 	Return a defensive empty view when the cell or its layers are missing.
+	**/
+	if ( !cell || !cell->layers || cell->num_layers <= 0 ) {
 		return { nullptr, 0 };
 	}
+
 	return { cell->layers, cell->num_layers };
 }
-/**
+
+/** 
 * 	@brief	Get layers pointer and count for a nav XY cell (mutable overload).
 * 	@param	cell	Pointer to the XY cell to query.
-* 	@return	A std::pair of (nav_layer_t*  layers, int32_t num_layers). Returns
-* 			nullptr and 0 when the cell or its layers are not present.
-* 	@note	Mutable overload for callers that need to modify layer data. Returns
-* 			nullptr/count to avoid dangling pointer use when data is missing.
+* 	@return	A std::pair of (nav_layer_t* layers, int32_t num_layers).
 **/
-std::pair<nav_layer_t *, int32_t> SVG_Nav_Cell_GetLayers( nav_xy_cell_t *cell ) {
-	if ( !cell || !cell->layers ) {
+std::pair<nav_layer_t *, int32_t> SVG_Nav_Cell_GetLayers( nav_xy_cell_t * cell ) {
+	/** 
+	* 	Return a defensive empty view when the cell or its layers are missing.
+	**/
+	if ( !cell || !cell->layers || cell->num_layers <= 0 ) {
 		return { nullptr, 0 };
 	}
+
 	return { cell->layers, cell->num_layers };
 }
 
-/**
-* 	@brief	Get cell array and count for a tile (mutable tile pointer).
-* 	@param	mesh	Pointer to the nav mesh (used for tile_size).
+/** 
+* 	@brief	Get cell array and count for a tile (mutable overload).
+* 	@param	mesh	Pointer to the nav mesh.
 * 	@param	tile	Pointer to the tile to query.
-* 	@return	A std::pair of (nav_xy_cell_t*  cells, int32_t count). Returns
-* 			nullptr and 0 when mesh/tile/cells are missing.
-* 	@note	Count is computed as mesh->tile_size* mesh->tile_size. Returning
-* 			nullptr/count avoids exposing dangling arrays to callers.
+* 	@return	A std::pair of (nav_xy_cell_t* cells, int32_t count).
 **/
-std::pair<nav_xy_cell_t *, int32_t> SVG_Nav_Tile_GetCells( const nav_mesh_t *mesh, nav_tile_t *tile ) {
-	if ( !mesh || !tile || !tile->cells ) {
+std::pair<nav_xy_cell_t *, int32_t> SVG_Nav_Tile_GetCells( const nav_mesh_t * mesh, nav_tile_t * tile ) {
+	/** 
+	* 	Return a defensive empty view when mesh or tile storage is missing.
+	**/
+	if ( !mesh || !tile || !tile->cells || mesh->tile_size <= 0 ) {
 		return { nullptr, 0 };
 	}
-	int32_t count = mesh->tile_size * mesh->tile_size;
-	return { tile->cells, count };
+
+	return { tile->cells, mesh->tile_size * mesh->tile_size };
 }
-/**
+
+/** 
 * 	@brief	Get cell array and count for a tile (const overload).
-* 	@param	mesh	Pointer to the nav mesh (used for tile_size).
+* 	@param	mesh	Pointer to the nav mesh.
 * 	@param	tile	Const pointer to the tile to query.
-* 	@return	A std::pair of (const nav_xy_cell_t*  cells, int32_t count). Returns
-* 			nullptr and 0 when mesh/tile/cells are missing.
-* 	@note	Const overload for read-only callers. Returning nullptr/count avoids
-* 			exposing dangling arrays when data is absent.
+* 	@return	A std::pair of (const nav_xy_cell_t* cells, int32_t count).
 **/
-std::pair<const nav_xy_cell_t *, int32_t> SVG_Nav_Tile_GetCells( const nav_mesh_t *mesh, const nav_tile_t *tile ) {
-	if ( !mesh || !tile || !tile->cells ) {
+std::pair<const nav_xy_cell_t *, int32_t> SVG_Nav_Tile_GetCells( const nav_mesh_t * mesh, const nav_tile_t * tile ) {
+	/** 
+	* 	Return a defensive empty view when mesh or tile storage is missing.
+	**/
+	if ( !mesh || !tile || !tile->cells || mesh->tile_size <= 0 ) {
 		return { nullptr, 0 };
 	}
-	int32_t count = mesh->tile_size * mesh->tile_size;
-	return { tile->cells, count };
+
+	return { tile->cells, mesh->tile_size * mesh->tile_size };
 }
 
-
-/**
-*
-*
-*
-*    Leaf Region/Tile ID API:
-*
-*
-*
-**/
-/**
+/** 
 * 	@brief	Get tile id array and count for a leaf (mutable overload).
 * 	@param	leaf	Pointer to the leaf data to query.
-* 	@return	A std::pair of (int32_t*  tile_ids, int32_t num_tiles). Returns
-* 			nullptr and 0 when leaf or tile_ids are missing.
-* 	@note	Helps prevent callers from iterating over a dangling pointer when
-* 			leaf data is absent.
+* 	@return	A std::pair of (int32_t* tile_ids, int32_t num_tiles).
 **/
-std::pair<int32_t *, int32_t> SVG_Nav_Leaf_GetTileIds( nav_leaf_data_t *leaf ) {
-	if ( !leaf || !leaf->tile_ids ) {
+std::pair<int32_t *, int32_t> SVG_Nav_Leaf_GetTileIds( nav_leaf_data_t * leaf ) {
+	/** 
+	* 	Return a defensive empty view when the leaf or its tile ids are missing.
+	**/
+	if ( !leaf || !leaf->tile_ids || leaf->num_tiles <= 0 ) {
 		return { nullptr, 0 };
 	}
-	return { leaf->tile_ids, leaf->num_tiles };
-}
-/**
-* 	@brief	Get tile id array and count for a leaf (const overload).
-* 	@param	leaf	Const pointer to the leaf data to query.
-* 	@return	A std::pair of (const int32_t*  tile_ids, int32_t num_tiles). Returns
-* 			nullptr and 0 when leaf or tile_ids are missing.
-* 	@note	Const overload for read-only callers; returning nullptr/count avoids
-* 			exposing dangling pointers.
-**/
-std::pair<const int32_t *, int32_t> SVG_Nav_Leaf_GetTileIds( const nav_leaf_data_t *leaf ) {
-	if ( !leaf || !leaf->tile_ids ) {
-		return { nullptr, 0 };
-	}
+
 	return { leaf->tile_ids, leaf->num_tiles };
 }
 
-/**
-* 	@brief	Get region id array and count for a leaf (mutable overload).
-* 	@param	leaf	Pointer to the leaf data to query.
-* 	@return	A std::pair of (int32_t*  region_ids, int32_t num_regions). Returns
-* 			nullptr and 0 when leaf or region_ids are missing.
+/** 
+* 	@brief	Get tile id array and count for a leaf (const overload).
+* 	@param	leaf	Const pointer to the leaf data to query.
+* 	@return	A std::pair of (const int32_t* tile_ids, int32_t num_tiles).
 **/
-std::pair<int32_t *, int32_t> SVG_Nav_Leaf_GetRegionIds( nav_leaf_data_t *leaf ) {
-	if ( !leaf || !leaf->region_ids ) {
+std::pair<const int32_t *, int32_t> SVG_Nav_Leaf_GetTileIds( const nav_leaf_data_t * leaf ) {
+	/** 
+	* 	Return a defensive empty view when the leaf or its tile ids are missing.
+	**/
+	if ( !leaf || !leaf->tile_ids || leaf->num_tiles <= 0 ) {
 		return { nullptr, 0 };
 	}
+
+	return { leaf->tile_ids, leaf->num_tiles };
+}
+
+/** 
+* 	@brief	Get region id array and count for a leaf (mutable overload).
+* 	@param	leaf	Pointer to the leaf data to query.
+* 	@return	A std::pair of (int32_t* region_ids, int32_t num_regions).
+**/
+std::pair<int32_t *, int32_t> SVG_Nav_Leaf_GetRegionIds( nav_leaf_data_t * leaf ) {
+	/** 
+	* 	Return a defensive empty view when the leaf or its region ids are missing.
+	**/
+	if ( !leaf || !leaf->region_ids || leaf->num_regions <= 0 ) {
+		return { nullptr, 0 };
+	}
+
 	return { leaf->region_ids, leaf->num_regions };
 }
 
-
-
-/**
-*
-*
-*
-*    Inline-Models API:
-*
-*
-*
-**/
 /** 
-* 	@brief		Get inline-model tiles array and count (mutable overload).
-* 	@param		model	Pointer to the inline model data to query.
-* 	@return		A std::pair of (nav_tile_t*  tiles, int32_t num_tiles).
-* 				Returns nullptr and 0 when model or tiles are missing.
-* 	@note		Returning nullptr/count prevents clients from using a dangling tiles
-* 				pointer when inline-model data is not present.
+* 	@brief	Get region id array and count for a leaf (const overload).
+* 	@param	leaf	Const pointer to the leaf data to query.
+* 	@return	A std::pair of (const int32_t* region_ids, int32_t num_regions).
 **/
-std::pair<nav_tile_t * , int32_t> SVG_Nav_InlineModel_GetTiles( nav_inline_model_data_t * model ) {
-	if ( !model || !model->tiles ) {
+std::pair<const int32_t *, int32_t> SVG_Nav_Leaf_GetRegionIds( const nav_leaf_data_t * leaf ) {
+	/** 
+	* 	Return a defensive empty view when the leaf or its region ids are missing.
+	**/
+	if ( !leaf || !leaf->region_ids || leaf->num_regions <= 0 ) {
 		return { nullptr, 0 };
 	}
-	return { model->tiles, model->num_tiles };
-}
-/** 
-* 	@brief		Get inline-model tiles array and count (const overload).
-* 	@param		model	Const pointer to the inline model data to query.
-* 	@return		A std::pair of (const nav_tile_t*  tiles, int32_t num_tiles).
-* 				Returns nullptr and 0 when model or tiles are missing.
-* 	@note		Const overload for read-only callers; avoids exposing dangling data.
-**/
-std::pair<const nav_tile_t * , int32_t> SVG_Nav_InlineModel_GetTiles( const nav_inline_model_data_t * model ) {
-	if ( !model || !model->tiles ) {
-		return { nullptr, 0 };
-	}
-	return { model->tiles, model->num_tiles };
+
+	return { leaf->region_ids, leaf->num_regions };
 }
 
 /** 
 * 	@brief	Get inline-model runtime array and count from mesh (mutable overload).
 * 	@param	mesh	Pointer to the navigation mesh.
-* 	@return	A std::pair of (nav_inline_model_runtime_t*  entries, int32_t count).
-* 			Returns nullptr and 0 when mesh or runtime array is missing.
-* 	@note	Runtime entries are non-owning pointers; this helper returns nullptr/count
-* 			to avoid callers holding/using dangling pointers when the mesh is absent.
+* 	@return	A std::pair of (nav_inline_model_runtime_t* entries, int32_t count).
 **/
-std::pair<nav_inline_model_runtime_t * , int32_t> SVG_Nav_Mesh_GetInlineModelRuntime( nav_mesh_t * mesh ) {
-	if ( !mesh || !mesh->inline_model_runtime ) {
+std::pair<nav_inline_model_runtime_t *, int32_t> SVG_Nav_Mesh_GetInlineModelRuntime( nav_mesh_t * mesh ) {
+	/** 
+	* 	Return a defensive empty view when mesh or runtime storage is missing.
+	**/
+	if ( !mesh || !mesh->inline_model_runtime || mesh->num_inline_model_runtime <= 0 ) {
 		return { nullptr, 0 };
 	}
+
 	return { mesh->inline_model_runtime, mesh->num_inline_model_runtime };
 }
+
 /** 
-* 	@brief		Get inline-model runtime array and count from mesh (const overload).
-* 	@param		mesh	Const pointer to the navigation mesh.
-* 	@return		A std::pair of (const nav_inline_model_runtime_t*  entries, int32_t count).
-* 				Returns nullptr and 0 when mesh or runtime array is missing.
-* 	@note		Const overload for read-only callers; avoids exposing dangling pointers.
+* 	@brief	Get inline-model runtime array and count from mesh (const overload).
+* 	@param	mesh	Const pointer to the navigation mesh.
+* 	@return	A std::pair of (const nav_inline_model_runtime_t* entries, int32_t count).
 **/
-std::pair<const nav_inline_model_runtime_t * , int32_t> SVG_Nav_Mesh_GetInlineModelRuntime( const nav_mesh_t * mesh ) {
-	if ( !mesh || !mesh->inline_model_runtime ) {
+std::pair<const nav_inline_model_runtime_t *, int32_t> SVG_Nav_Mesh_GetInlineModelRuntime( const nav_mesh_t * mesh ) {
+	/** 
+	* 	Return a defensive empty view when mesh or runtime storage is missing.
+	**/
+	if ( !mesh || !mesh->inline_model_runtime || mesh->num_inline_model_runtime <= 0 ) {
 		return { nullptr, 0 };
 	}
+
 	return { mesh->inline_model_runtime, mesh->num_inline_model_runtime };
 }

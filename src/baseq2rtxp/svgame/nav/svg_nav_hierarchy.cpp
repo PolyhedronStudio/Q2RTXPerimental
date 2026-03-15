@@ -374,7 +374,15 @@ void Nav_Hierarchy_SortTileIdsDeterministic( const nav_mesh_t *mesh, std::vector
 /**
 * 	@brief	Derive canonical world-tile adjacency from persisted fine edge metadata.
 * 	@param	mesh	Navigation mesh whose canonical world tiles should be scanned.
+* 	@return	void
 * 	@note	Only cross-tile, conservative static edges are promoted into the adjacency graph.
+* 	@details
+* 		Scans every populated cell and layer for each canonical world tile. For each valid
+* 		edge sample that represents conservative, bidirectional static connectivity the
+* 		corresponding neighboring tile id is accumulated. Neighbor lists are collected
+* 		per-tile, sorted deterministically and compacted into the persistent adjacency
+* 		containers on the mesh. This function produces the coarse tile-level adjacency
+* 		graph used by later region-building phases.
 **/
 void Nav_Hierarchy_BuildTileAdjacency( nav_mesh_t *mesh ) {
 	/**
@@ -385,7 +393,8 @@ void Nav_Hierarchy_BuildTileAdjacency( nav_mesh_t *mesh ) {
 	}
 
 	/**
-	* 	Size the adjacency records to the canonical world-tile count and clear previous neighbor refs.
+	* 	Prepare adjacency containers sized to the canonical world-tile count.
+	* 	Clear any previous neighbor references so the rebuild starts from a clean slate.
 	**/
 	mesh->hierarchy.tile_adjacency.clear();
 	mesh->hierarchy.tile_neighbor_refs.clear();
@@ -394,34 +403,55 @@ void Nav_Hierarchy_BuildTileAdjacency( nav_mesh_t *mesh ) {
 
 	/**
 	* 	Accumulate neighbor ids per tile first so we can sort and compact them deterministically.
+	* 	We collect into a temporary per-tile vector to avoid repeated allocation and to keep the
+	* 	final storage layout stable across builds.
 	**/
 	std::vector<std::vector<int32_t>> temp_neighbors( mesh->world_tiles.size() );
 	const int32_t cells_per_tile = mesh->tile_size * mesh->tile_size;
+
+	/**
+	* 	Iterate canonical world tiles and inspect only populated sparse cells because empty
+	* 	slots cannot contribute connectivity information.
+	**/
 	for ( int32_t tile_id = 0; tile_id < ( int32_t )mesh->world_tiles.size(); tile_id++ ) {
 		nav_tile_t &tile = mesh->world_tiles[ tile_id ];
 		nav_tile_adjacency_t &adjacency = mesh->hierarchy.tile_adjacency[ tile_id ];
+
+		/**
+		* 	Record basic adjacency metadata: canonical tile id and coarse compatibility bits
+		* 	derived from the tile's persisted summaries.
+		**/
 		adjacency.tile_id = tile_id;
 		adjacency.compatibility_bits = Nav_Hierarchy_BuildTileCompatibilityBits( tile );
 
 		/**
-		* 	Inspect only populated sparse cells because empty slots cannot contribute connectivity.
+		* 	Query the sparse cell array for this tile. If the tile has no populated cells
+		* 	or lacks presence bits (sparse representation), skip it — there is nothing to scan.
 		**/
 		auto cells_view = SVG_Nav_Tile_GetCells( mesh, &tile );
 		nav_xy_cell_t *cells_ptr = cells_view.first;
 		const int32_t cells_count = cells_view.second;
 		if ( !cells_ptr || cells_count != cells_per_tile || !tile.presence_bits ) {
+			// No navigable cells in this canonical tile or inconsistent representation.
 			continue;
 		}
 
 		// Iterate every populated XY cell in this canonical world tile.
 		for ( int32_t cell_index = 0; cell_index < cells_count; cell_index++ ) {
+			// Check the sparse presence bit for this cell index.
 			const int32_t word_index = cell_index >> 5;
 			const int32_t bit_index = cell_index & 31;
 			if ( ( tile.presence_bits[ word_index ] & ( 1u << bit_index ) ) == 0 ) {
+				// This cell slot is empty in the sparse representation.
 				continue;
 			}
 
 			nav_xy_cell_t &cell = cells_ptr[ cell_index ];
+
+			/**
+			* 	Get layer array for this cell. If there are no layers, the cell cannot provide
+			* 	edge connectivity samples and is skipped.
+			**/
 			auto layers_view = SVG_Nav_Cell_GetLayers( &cell );
 			nav_layer_t *layers_ptr = layers_view.first;
 			const int32_t layer_count = layers_view.second;
@@ -429,27 +459,52 @@ void Nav_Hierarchy_BuildTileAdjacency( nav_mesh_t *mesh ) {
 				continue;
 			}
 
+			/**
+			* 	Compute local XY within tile for this cell so neighbor offsets can be resolved
+			* 	into canonical tile coordinates when edge deltas step outside the tile bounds.
+			**/
 			const int32_t local_cell_x = cell_index % mesh->tile_size;
 			const int32_t local_cell_y = cell_index / mesh->tile_size;
+
 			// Inspect every layer and promote cross-tile passable edges into canonical tile adjacency.
 			for ( int32_t layer_index = 0; layer_index < layer_count; layer_index++ ) {
 				const nav_layer_t &layer = layers_ptr[ layer_index ];
+
+				/**
+				* 	Iterate every possible persisted edge direction. Skip directions that are
+				* 	not valid for this layer (edge_valid_mask) because they do not represent
+				* 	a real boundary in the fine navmesh.
+				**/
 				for ( int32_t edge_dir_index = 0; edge_dir_index < NAV_LAYER_EDGE_DIR_COUNT; edge_dir_index++ ) {
 					if ( ( layer.edge_valid_mask & ( 1u << edge_dir_index ) ) == 0 ) {
+						// Edge slot not populated/valid for this layer.
 						continue;
 					}
 
+					/**
+					* 	Only promote edges that represent conservative bidirectional static connectivity.
+					* 	This filters out walk-off-only, forbidden walk-offs, hard-wall blocked and
+					* 	jump-obstructed edges from joining the coarse adjacency graph.
+					**/
 					const uint32_t edge_bits = layer.edge_feature_bits[ edge_dir_index ];
 					if ( !Nav_Hierarchy_EdgeAllowsStaticRegionPass( edge_bits ) ) {
 						continue;
 					}
 
+					/**
+					* 	Translate the persisted edge slot index into an XY cell delta. If the index is
+					* 	invalid, skip the sample.
+					**/
 					int32_t cell_dx = 0;
 					int32_t cell_dy = 0;
 					if ( !Nav_Hierarchy_EdgeDirDelta( edge_dir_index, &cell_dx, &cell_dy ) ) {
 						continue;
 					}
 
+					/**
+					* 	Resolve target local coordinates and then canonical tile coordinates. We only
+					* 	promote cross-tile edges — internal tile edges do not affect the tile-level graph.
+					**/
 					const int32_t target_local_x = local_cell_x + cell_dx;
 					const int32_t target_local_y = local_cell_y + cell_dy;
 					const int32_t target_tile_x = tile.tile_x + ( target_local_x < 0 ? -1 : ( target_local_x >= mesh->tile_size ? 1 : 0 ) );
@@ -457,14 +512,20 @@ void Nav_Hierarchy_BuildTileAdjacency( nav_mesh_t *mesh ) {
 
 					// Keep the region graph coarse at tile granularity by promoting only true cross-tile edges.
 					if ( target_tile_x == tile.tile_x && target_tile_y == tile.tile_y ) {
+						// Edge stays inside the same canonical tile.
 						continue;
 					}
 
+					/**
+					* 	Look up the canonical id of the neighboring tile. If the neighbor is
+					* 	absent or equals this tile, skip the edge sample.
+					**/
 					const int32_t neighbor_tile_id = Nav_Hierarchy_FindWorldTileId( mesh, target_tile_x, target_tile_y );
 					if ( neighbor_tile_id < 0 || neighbor_tile_id == tile_id ) {
 						continue;
 					}
 
+					// Accumulate the neighbor id for this tile; duplicates will be compacted later.
 					temp_neighbors[ tile_id ].push_back( neighbor_tile_id );
 				}
 			}
@@ -473,18 +534,29 @@ void Nav_Hierarchy_BuildTileAdjacency( nav_mesh_t *mesh ) {
 
 	/**
 	* 	Sort and compact neighbor ids before flattening them into the persistent adjacency store.
+	* 	This step produces deterministic ordering (tile_y, tile_x, tile_id) and removes duplicates
+	* 	so higher-level algorithms see a stable adjacency layout.
 	**/
 	for ( int32_t tile_id = 0; tile_id < ( int32_t )temp_neighbors.size(); tile_id++ ) {
 		std::vector<int32_t> &neighbors = temp_neighbors[ tile_id ];
+
+		// Deterministic sort by tile coordinates and id to make builds reproducible.
 		Nav_Hierarchy_SortTileIdsDeterministic( mesh, neighbors );
+
+		// Compact duplicate neighbor entries produced by multiple contributing cell samples.
 		neighbors.erase( std::unique( neighbors.begin(), neighbors.end() ), neighbors.end() );
 
+		/**
+		* 	Flatten the per-tile neighbor list into the mesh's persistent adjacency arrays,
+		* 	recording offsets and counts for each tile adjacency entry.
+		**/
 		nav_tile_adjacency_t &adjacency = mesh->hierarchy.tile_adjacency[ tile_id ];
 		adjacency.first_neighbor_ref = ( int32_t )mesh->hierarchy.tile_neighbor_refs.size();
 		adjacency.num_neighbor_refs = ( int32_t )neighbors.size();
 		mesh->hierarchy.tile_neighbor_refs.insert( mesh->hierarchy.tile_neighbor_refs.end(), neighbors.begin(), neighbors.end() );
 	}
 
+	// Update debug counters for the total number of adjacency links stored.
 	mesh->hierarchy.debug_adjacency_link_count = ( int32_t )mesh->hierarchy.tile_neighbor_refs.size();
 }
 
@@ -504,11 +576,13 @@ uint64_t Nav_Hierarchy_MakeRegionPairKey( const int32_t region_a, const int32_t 
 	return ( ( uint64_t )lo << 32 ) | ( uint64_t )hi;
 }
 
-
 /**
 * 	@brief	Validate that every region remains internally connected over the stored tile adjacency graph.
 * 	@param	mesh	Navigation mesh containing the freshly built hierarchy.
 * 	@return	True when every region validates successfully.
+* 	@note	This function performs a per-region DFS over the coarse tile adjacency graph and verifies
+* 			that the number of visited tiles equals the stored tile count for the region. Useful as
+* 			a post-build consistency check for Phase 3 region generation.
 **/
 bool Nav_Hierarchy_ValidateRegions( const nav_mesh_t *mesh ) {
 	/**
@@ -520,6 +594,7 @@ bool Nav_Hierarchy_ValidateRegions( const nav_mesh_t *mesh ) {
 
 	/**
 	* 	Build a reusable region lookup table over canonical tile ids for cheap membership checks.
+	* 	This allows O(1) region membership queries while traversing the adjacency graph.
 	**/
 	std::vector<int32_t> tile_region_lookup( mesh->world_tiles.size(), NAV_REGION_ID_NONE );
 	for ( int32_t tile_id = 0; tile_id < ( int32_t )mesh->world_tiles.size(); tile_id++ ) {
@@ -528,35 +603,59 @@ bool Nav_Hierarchy_ValidateRegions( const nav_mesh_t *mesh ) {
 
 	/**
 	* 	Walk each region over stored tile adjacency and confirm the visited count matches the region tile count.
+	* 	We skip trivial regions (0 or 1 tile) since they are vacuously connected.
 	**/
 	for ( const nav_region_t &region : mesh->hierarchy.regions ) {
+		// Trivial connectivity: nothing to validate for regions with <= 1 tiles.
 		if ( region.num_tile_refs <= 1 ) {
 			continue;
 		}
 
+		/**
+		* 	Prepare traversal state:
+		* 	 - `stack` holds tile ids to visit (DFS).
+		* 	 - `visited` marks canonical tiles we've already pushed to avoid re-visits.
+		* 	 - `start_tile_id` is a deterministic anchor from the region's flat tile-ref range.
+		**/
 		std::vector<int32_t> stack;
 		stack.reserve( ( size_t )region.num_tile_refs );
 		std::vector<uint8_t> visited( mesh->world_tiles.size(), 0 );
+
+		// Acquire deterministic start tile from the region's tile-ref list.
 		const int32_t start_tile_id = mesh->hierarchy.tile_refs[ region.first_tile_ref ].tile_id;
 		stack.push_back( start_tile_id );
 		visited[ start_tile_id ] = 1;
 
+		/**
+		* 	DFS over the tile adjacency graph restricted to tiles that belong to this region.
+		* 	We only push neighbor tiles that:
+		* 	 - are valid canonical tile ids,
+		* 	 - belong to the same region (checked via `tile_region_lookup`),
+		* 	 - have not been visited yet.
+		**/
 		int32_t visited_count = 0;
 		while ( !stack.empty() ) {
 			const int32_t tile_id = stack.back();
 			stack.pop_back();
 			visited_count++;
 
+			// Read adjacency for the current canonical tile.
 			const nav_tile_adjacency_t &adjacency = mesh->hierarchy.tile_adjacency[ tile_id ];
+			// Iterate neighbor refs and push eligible neighbors.
 			for ( int32_t neighbor_index = 0; neighbor_index < adjacency.num_neighbor_refs; neighbor_index++ ) {
 				const int32_t neighbor_tile_id = mesh->hierarchy.tile_neighbor_refs[ adjacency.first_neighbor_ref + neighbor_index ];
+
+				// Skip invalid neighbor ids (safety guard for corrupted adjacency arrays).
 				if ( neighbor_tile_id < 0 || neighbor_tile_id >= ( int32_t )tile_region_lookup.size() ) {
 					continue;
 				}
+
+				// Require neighbor to belong to the same region and be unvisited.
 				if ( tile_region_lookup[ neighbor_tile_id ] != region.id || visited[ neighbor_tile_id ] != 0 ) {
 					continue;
 				}
 
+				// Mark and schedule the neighbor for traversal.
 				visited[ neighbor_tile_id ] = 1;
 				stack.push_back( neighbor_tile_id );
 			}
@@ -572,294 +671,7 @@ bool Nav_Hierarchy_ValidateRegions( const nav_mesh_t *mesh ) {
 		}
 	}
 
-	return true;
-}
-
-/**
-* 	@brief	Temporary merged portal accumulator used while scanning fine cross-region boundaries.
-**/
-struct nav_portal_accumulator_t {
-	//! Ordered region id on one side of the merged portal.
-	int32_t region_a = NAV_REGION_ID_NONE;
-	//! Ordered region id on the opposite side of the merged portal.
-	int32_t region_b = NAV_REGION_ID_NONE;
-	//! Deterministic anchor tile id for `region_a`.
-	int32_t tile_id_a = -1;
-	//! Deterministic anchor tile id for `region_b`.
-	int32_t tile_id_b = -1;
-	//! Aggregated portal flags derived from contributing boundary samples.
-	uint32_t flags = NAV_PORTAL_FLAG_NONE;
-	//! Aggregated compatibility bits derived from contributing boundary samples.
-	uint32_t compatibility_bits = NAV_HIERARCHY_COMPAT_NONE;
-	//! Running sum of representative sample X positions.
-	double representative_sum_x = 0.0;
-	//! Running sum of representative sample Y positions.
-	double representative_sum_y = 0.0;
-	//! Running sum of representative sample Z positions.
-	double representative_sum_z = 0.0;
-	//! Running sum of coarse traversal cost estimates.
-	double traversal_cost_sum = 0.0;
-	//! Number of contributing boundary samples merged into this accumulator.
-	int32_t sample_count = 0;
-};
-
-/**
-* 	@brief	Build merged portal records from traversable cross-region tile boundaries.
-* 	@param	mesh	Navigation mesh containing finalized tile adjacency and region ids.
-* 	@param	sorted_tile_ids	Deterministically ordered canonical world-tile ids.
-**/
-void Nav_Hierarchy_BuildPortals( nav_mesh_t *mesh, const std::vector<int32_t> &sorted_tile_ids ) {
-	/**
-	* 	Sanity: require a mesh before scanning any cross-region boundaries.
-	**/
-	if ( !mesh ) {
-		return;
-	}
-
-	/**
-	* 	Reset previous portal storage so every rebuild starts from a clean region graph.
-	**/
-	mesh->hierarchy.portals.clear();
-	mesh->hierarchy.portal_overlays.clear();
-	mesh->hierarchy.region_portal_refs.clear();
-	mesh->hierarchy.debug_boundary_link_count = 0;
-	mesh->hierarchy.debug_portal_count = 0;
-
-	/**
-	* 	Accumulate one merged portal per unordered region pair while scanning fine edge samples.
-	**/
-	std::unordered_map<uint64_t, int32_t> accumulator_index_of;
-	std::vector<nav_portal_accumulator_t> accumulators;
-	accumulator_index_of.reserve( mesh->hierarchy.regions.size() * 2 );
-	accumulators.reserve( mesh->hierarchy.regions.size() );
-	const int32_t cells_per_tile = mesh->tile_size * mesh->tile_size;
-	const double tile_world_size = Nav_TileWorldSize( mesh );
-	for ( const int32_t tile_id : sorted_tile_ids ) {
-		const nav_tile_t &tile = mesh->world_tiles[ tile_id ];
-		const int32_t source_region_id = tile.region_id;
-		if ( source_region_id == NAV_REGION_ID_NONE ) {
-			continue;
-		}
-
-		/**
-		* 	Inspect only populated sparse cells because empty slots cannot contribute portal boundary samples.
-		**/
-		auto cells_view = SVG_Nav_Tile_GetCells( mesh, &mesh->world_tiles[ tile_id ] );
-		nav_xy_cell_t *cells_ptr = cells_view.first;
-		const int32_t cells_count = cells_view.second;
-		if ( !cells_ptr || cells_count != cells_per_tile || !tile.presence_bits ) {
-			continue;
-		}
-
-		// Inspect every populated source cell/layer and merge traversable cross-region boundaries by region pair.
-		for ( int32_t cell_index = 0; cell_index < cells_count; cell_index++ ) {
-			const int32_t word_index = cell_index >> 5;
-			const int32_t bit_index = cell_index & 31;
-			if ( ( tile.presence_bits[ word_index ] & ( 1u << bit_index ) ) == 0 ) {
-				continue;
-			}
-
-			nav_xy_cell_t &cell = cells_ptr[ cell_index ];
-			auto layers_view = SVG_Nav_Cell_GetLayers( &cell );
-			nav_layer_t *layers_ptr = layers_view.first;
-			const int32_t layer_count = layers_view.second;
-			if ( !layers_ptr || layer_count <= 0 ) {
-				continue;
-			}
-
-			const int32_t local_cell_x = cell_index % mesh->tile_size;
-			const int32_t local_cell_y = cell_index / mesh->tile_size;
-			for ( int32_t layer_index = 0; layer_index < layer_count; layer_index++ ) {
-				const nav_layer_t &layer = layers_ptr[ layer_index ];
-				for ( int32_t edge_dir_index = 0; edge_dir_index < NAV_LAYER_EDGE_DIR_COUNT; edge_dir_index++ ) {
-					if ( ( layer.edge_valid_mask & ( 1u << edge_dir_index ) ) == 0 ) {
-						continue;
-					}
-
-					const uint32_t edge_bits = layer.edge_feature_bits[ edge_dir_index ];
-					if ( !Nav_Hierarchy_EdgeAllowsStaticRegionPass( edge_bits ) ) {
-						continue;
-					}
-
-					int32_t cell_dx = 0;
-					int32_t cell_dy = 0;
-					if ( !Nav_Hierarchy_EdgeDirDelta( edge_dir_index, &cell_dx, &cell_dy ) ) {
-						continue;
-					}
-
-					const int32_t target_local_x = local_cell_x + cell_dx;
-					const int32_t target_local_y = local_cell_y + cell_dy;
-					const int32_t target_tile_x = tile.tile_x + ( target_local_x < 0 ? -1 : ( target_local_x >= mesh->tile_size ? 1 : 0 ) );
-					const int32_t target_tile_y = tile.tile_y + ( target_local_y < 0 ? -1 : ( target_local_y >= mesh->tile_size ? 1 : 0 ) );
-
-					// Keep portal extraction coarse at tile granularity by considering only true cross-tile boundaries.
-					if ( target_tile_x == tile.tile_x && target_tile_y == tile.tile_y ) {
-						continue;
-					}
-
-					const int32_t neighbor_tile_id = Nav_Hierarchy_FindWorldTileId( mesh, target_tile_x, target_tile_y );
-					if ( neighbor_tile_id < 0 || neighbor_tile_id == tile_id ) {
-						continue;
-					}
-
-					const nav_tile_t &neighbor_tile = mesh->world_tiles[ neighbor_tile_id ];
-					const int32_t target_region_id = neighbor_tile.region_id;
-					if ( target_region_id == NAV_REGION_ID_NONE || target_region_id == source_region_id ) {
-						continue;
-					}
-
-					const int32_t region_a = std::min( source_region_id, target_region_id );
-					const int32_t region_b = std::max( source_region_id, target_region_id );
-					const uint64_t portal_key = Nav_Hierarchy_MakeRegionPairKey( region_a, region_b );
-					auto accumulator_it = accumulator_index_of.find( portal_key );
-					int32_t accumulator_index = -1;
-					if ( accumulator_it == accumulator_index_of.end() ) {
-						accumulator_index = ( int32_t )accumulators.size();
-						accumulator_index_of.emplace( portal_key, accumulator_index );
-						accumulators.push_back( nav_portal_accumulator_t{ .region_a = region_a, .region_b = region_b } );
-					} else {
-						accumulator_index = accumulator_it->second;
-					}
-
-					nav_portal_accumulator_t &accumulator = accumulators[ accumulator_index ];
-					if ( accumulator.tile_id_a < 0 || accumulator.tile_id_b < 0 ) {
-						if ( source_region_id == region_a ) {
-							accumulator.tile_id_a = tile_id;
-							accumulator.tile_id_b = neighbor_tile_id;
-						} else {
-							accumulator.tile_id_a = neighbor_tile_id;
-							accumulator.tile_id_b = tile_id;
-						}
-					}
-
-					const Vector3 sample_point = Nav_NodeWorldPosition( mesh, &tile, cell_index, &layer );
-					accumulator.representative_sum_x += sample_point.x;
-					accumulator.representative_sum_y += sample_point.y;
-					accumulator.representative_sum_z += sample_point.z;
-					accumulator.traversal_cost_sum += std::sqrt( ( double )( cell_dx * cell_dx ) + ( double )( cell_dy * cell_dy ) ) * tile_world_size;
-					accumulator.sample_count++;
-					accumulator.compatibility_bits |= Nav_Hierarchy_BuildTileCompatibilityBits( tile );
-					accumulator.compatibility_bits |= Nav_Hierarchy_BuildTileCompatibilityBits( neighbor_tile );
-					if ( ( accumulator.compatibility_bits & NAV_HIERARCHY_COMPAT_STAIR ) != 0 ) {
-						accumulator.flags |= NAV_PORTAL_FLAG_SUPPORTS_STAIRS;
-					}
-					if ( ( accumulator.compatibility_bits & NAV_HIERARCHY_COMPAT_LADDER ) != 0 ) {
-						accumulator.flags |= NAV_PORTAL_FLAG_SUPPORTS_LADDER;
-					}
-					if ( ( accumulator.compatibility_bits & NAV_HIERARCHY_COMPAT_WATER ) != 0 ) {
-						accumulator.flags |= NAV_PORTAL_FLAG_SUPPORTS_WATER;
-					}
-					mesh->hierarchy.debug_boundary_link_count++;
-				}
-			}
-		}
-	}
-
-	/**
-	* 	Flatten the merged region-pair accumulators into stable portal records and region-to-portal refs.
-	**/
-	std::vector<std::vector<int32_t>> region_portal_lists( mesh->hierarchy.regions.size() );
-	mesh->hierarchy.portals.reserve( accumulators.size() );
-	for ( const nav_portal_accumulator_t &accumulator : accumulators ) {
-		nav_portal_t portal = {};
-		portal.id = ( int32_t )mesh->hierarchy.portals.size();
-		portal.region_a = accumulator.region_a;
-		portal.region_b = accumulator.region_b;
-		portal.flags = accumulator.flags;
-		portal.compatibility_bits = accumulator.compatibility_bits;
-		portal.tile_id_a = accumulator.tile_id_a;
-		portal.tile_id_b = accumulator.tile_id_b;
-		if ( accumulator.sample_count > 0 ) {
-			portal.representative_point = Vector3{
-				( float )( accumulator.representative_sum_x / ( double )accumulator.sample_count ),
-				( float )( accumulator.representative_sum_y / ( double )accumulator.sample_count ),
-				( float )( accumulator.representative_sum_z / ( double )accumulator.sample_count )
-			};
-			portal.traversal_cost = accumulator.traversal_cost_sum / ( double )accumulator.sample_count;
-		} else {
-			portal.traversal_cost = tile_world_size;
-		}
-
-		mesh->hierarchy.portals.push_back( portal );
-		region_portal_lists[ portal.region_a ].push_back( portal.id );
-		region_portal_lists[ portal.region_b ].push_back( portal.id );
-	}
-
-	/**
-	* 	Populate each region's coarse portal-reference range for future region-level routing.
-	**/
-	for ( nav_region_t &region : mesh->hierarchy.regions ) {
-		std::vector<int32_t> &portal_ids = region_portal_lists[ region.id ];
-		std::sort( portal_ids.begin(), portal_ids.end() );
-		portal_ids.erase( std::unique( portal_ids.begin(), portal_ids.end() ), portal_ids.end() );
-		region.first_portal_ref = ( int32_t )mesh->hierarchy.region_portal_refs.size();
-		region.num_portal_refs = ( int32_t )portal_ids.size();
-		mesh->hierarchy.region_portal_refs.insert( mesh->hierarchy.region_portal_refs.end(), portal_ids.begin(), portal_ids.end() );
-	}
-
-	mesh->hierarchy.debug_portal_count = ( int32_t )mesh->hierarchy.portals.size();
-	mesh->hierarchy.portal_overlays.assign( mesh->hierarchy.portals.size(), nav_portal_overlay_t{} );
-	mesh->hierarchy.portal_overlay_serial = 0;
-}
-
-/**
-* 	@brief	Validate the merged portal graph produced from region boundaries.
-* 	@param	mesh	Navigation mesh containing freshly built portal records.
-* 	@return	True when the portal graph references remain internally consistent.
-**/
-bool Nav_Hierarchy_ValidatePortalGraph( const nav_mesh_t *mesh ) {
-	/**
-	* 	Sanity: require a mesh before validating any portal graph references.
-	**/
-	if ( !mesh ) {
-		return false;
-	}
-
-	/**
-	* 	Reject invalid portal endpoints and duplicate region pairs before checking region-reference symmetry.
-	**/
-	std::unordered_map<uint64_t, int32_t> portal_pair_seen;
-	for ( const nav_portal_t &portal : mesh->hierarchy.portals ) {
-		if ( portal.region_a < 0 || portal.region_b < 0 || portal.region_a >= ( int32_t )mesh->hierarchy.regions.size() || portal.region_b >= ( int32_t )mesh->hierarchy.regions.size() || portal.region_a == portal.region_b ) {
-			SVG_Nav_Log( "[WARNING][NavHierarchy] Portal %d has invalid region endpoints (%d,%d).\n", portal.id, portal.region_a, portal.region_b );
-			return false;
-		}
-
-		const uint64_t key = Nav_Hierarchy_MakeRegionPairKey( portal.region_a, portal.region_b );
-		if ( portal_pair_seen.find( key ) != portal_pair_seen.end() ) {
-			SVG_Nav_Log( "[WARNING][NavHierarchy] Duplicate merged portal detected for region pair (%d,%d).\n", portal.region_a, portal.region_b );
-			return false;
-		}
-		portal_pair_seen.emplace( key, portal.id );
-	}
-
-	/**
-	* 	Verify that every portal appears in both owning region reference ranges.
-	**/
-	for ( const nav_portal_t &portal : mesh->hierarchy.portals ) {
-		bool found_in_a = false;
-		bool found_in_b = false;
-		const nav_region_t &region_a = mesh->hierarchy.regions[ portal.region_a ];
-		const nav_region_t &region_b = mesh->hierarchy.regions[ portal.region_b ];
-		for ( int32_t portal_ref_index = 0; portal_ref_index < region_a.num_portal_refs; portal_ref_index++ ) {
-			if ( mesh->hierarchy.region_portal_refs[ region_a.first_portal_ref + portal_ref_index ] == portal.id ) {
-				found_in_a = true;
-				break;
-			}
-		}
-		for ( int32_t portal_ref_index = 0; portal_ref_index < region_b.num_portal_refs; portal_ref_index++ ) {
-			if ( mesh->hierarchy.region_portal_refs[ region_b.first_portal_ref + portal_ref_index ] == portal.id ) {
-				found_in_b = true;
-				break;
-			}
-		}
-
-		if ( !found_in_a || !found_in_b ) {
-			SVG_Nav_Log( "[WARNING][NavHierarchy] Portal %d missing symmetric region references (a=%d b=%d).\n", portal.id, portal.region_a, portal.region_b );
-			return false;
-		}
-	}
-
+	// All regions validated successfully.
 	return true;
 }
 

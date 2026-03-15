@@ -83,10 +83,8 @@ static bool Dummy_ShouldEmitNavDebugLog( void ) {
 
 //! Maximum age of a sound event that can trigger investigation.
 static constexpr QMTime DUMMY_SOUND_INVESTIGATE_MAX_AGE = 24_sec;
-//! Maximum horizontal distance for reacting to sound events.
-static constexpr double DUMMY_SOUND_INVESTIGATE_MAX_DIST = 4096;
 //! Arrival radius used for ending sound investigation behavior.
-static constexpr double DUMMY_SOUND_INVESTIGATE_REACHED_DIST = 2.0;
+static constexpr double DUMMY_SOUND_INVESTIGATE_REACHED_DIST = 4.0;
 //! Idle yaw scan step in degrees per think.
 static constexpr double DUMMY_IDLE_SCAN_STEP_DEG = 45.0;
 //! Interval for flipping idle scan yaw direction.
@@ -112,7 +110,7 @@ static bool Dummy_ShouldResetSoundInvestigationGoal( const svg_monster_testdummy
 	*   Reuse the caller's rebuild thresholds so sound-follow goal refreshes stay aligned with the nav API.
 	**/
 	const svg_nav_path_policy_t &policy = self->pathNavigationState.policy;
-	const double rebuildGoal2D = std::max( policy.rebuild_goal_dist_2d, 8.0 );
+	const double rebuildGoal2D = std::max( policy.rebuild_goal_dist_2d, 32.0 );
 	const double rebuildGoal3D = ( policy.rebuild_goal_dist_3d > 0.0 )
 		? std::max( policy.rebuild_goal_dist_3d, rebuildGoal2D )
 		: 0.0;
@@ -138,45 +136,6 @@ static bool Dummy_ShouldResetSoundInvestigationGoal( const svg_monster_testdummy
 	*   Stable same-goal refresh: keep the running request alive and let the nav queue continue its work.
 	**/
 	return false;
-}
-
-/**
-*   @brief	Determine whether the current sound goal is still retrying the same recent async failure.
-*   @param	self		Sound-follow testdummy evaluating the active goal.
-*   @param	goalOrigin	Current world-space sound goal.
-*   @param	minFailures	Minimum consecutive-failure count required before this helper returns true.
-*   @return	True when the active goal still matches a recent failure closely enough to justify retry mitigation.
-*   @note	This lets sound-follow logic react only to stable repeated failures without suppressing fresh sound updates.
-**/
-static bool Dummy_IsRetryingRecentSoundGoalFailure( const svg_monster_testdummy_sfxfollow_t *self, const Vector3 &goalOrigin, const int32_t minFailures ) {
-	/**
-	*   Sanity checks: require an entity and the requested minimum failure threshold.
-	**/
-	if ( !self || minFailures <= 0 ) {
-		return false;
-	}
-
-	/**
-	*   Require a recent failure history before considering the current goal as a retry.
-	**/
-	const svg_nav_path_process_t &pathProcess = self->pathNavigationState.process;
-	if ( pathProcess.consecutive_failures < minFailures || pathProcess.last_failure_time <= 0_ms ) {
-		return false;
-	}
-
-	/**
-	*   Compare against the path policy's rebuild thresholds so retry suppression stays aligned with nav semantics.
-	**/
-	const svg_nav_path_policy_t &policy = self->pathNavigationState.policy;
-	const double retryGoalRadius = std::max( policy.rebuild_goal_dist_3d > 0.0 ? policy.rebuild_goal_dist_3d : policy.rebuild_goal_dist_2d, 64.0 );
-	if ( QM_Vector3DistanceSqr( pathProcess.last_failure_pos, goalOrigin ) > ( retryGoalRadius * retryGoalRadius ) ) {
-		return false;
-	}
-
-	/**
-	*   Keep retry mitigation local to failures that happened recently enough to still describe the current search pocket.
-	**/
-	return ( level.time - pathProcess.last_failure_time ) <= 4_sec;
 }
 
 /**
@@ -211,80 +170,10 @@ static bool Dummy_TryProjectGoalToWalkableZ( svg_monster_testdummy_sfxfollow_t *
 	}
 
 	/**
-	*   Convert the sound goal into nav-center space and inspect the current XY cell.
+	*   Reuse the shared nav utility so this NPC stays aligned with queue-side feet-origin projection behavior.
 	**/
-	const Vector3 center_origin = SVG_Nav_ConvertFeetToCenter( mesh, goalOrigin, &agent_mins, &agent_maxs );
-	const nav_tile_cluster_key_t tile_key = SVG_Nav_GetTileKeyForPosition( mesh, center_origin );
-	const nav_world_tile_key_t world_tile_key = { .tile_x = tile_key.tile_x, .tile_y = tile_key.tile_y };
-	const auto tile_it = mesh->world_tile_id_of.find( world_tile_key );
-	if ( tile_it == mesh->world_tile_id_of.end() ) {
-		return false;
-	}
-
-	const nav_tile_t *tile = &mesh->world_tiles[ tile_it->second ];
-	const auto cells_view = SVG_Nav_Tile_GetCells( mesh, tile );
-	const nav_xy_cell_t *cells = cells_view.first;
-	const int32_t cell_count = cells_view.second;
-	if ( !cells || cell_count <= 0 ) {
-		return false;
-	}
-
-	const double tile_world_size = ( double )mesh->tile_size * mesh->cell_size_xy;
-	const double tile_origin_x = ( double )tile->tile_x * tile_world_size;
-	const double tile_origin_y = ( double )tile->tile_y * tile_world_size;
-	const double local_x = center_origin.x - tile_origin_x;
-	const double local_y = center_origin.y - tile_origin_y;
-	if ( local_x < 0.0 || local_y < 0.0 ) {
-		return false;
-	}
-
-	const int32_t cell_x = std::clamp( ( int32_t )( local_x / mesh->cell_size_xy ), 0, mesh->tile_size - 1 );
-	const int32_t cell_y = std::clamp( ( int32_t )( local_y / mesh->cell_size_xy ), 0, mesh->tile_size - 1 );
-	const int32_t cell_index = ( cell_y * mesh->tile_size ) + cell_x;
-	if ( cell_index < 0 || cell_index >= cell_count ) {
-		return false;
-	}
-
-	const nav_xy_cell_t *cell = &cells[ cell_index ];
-	if ( !cell || cell->num_layers <= 0 || !cell->layers ) {
-		return false;
-	}
-
-	int32_t layer_index = -1;
-   if ( !Nav_SelectLayerIndex( mesh, cell, center_origin.z, &layer_index ) || layer_index < 0 || layer_index >= cell->num_layers ) {
-		// Fallback: when the conservative selector fails (common near small steps),
-		// choose the closest-by-Z layer so the NPC can still investigate a nearby
-		// walkable surface instead of giving up entirely. This helps when the
-		// sound origin sits one quant/step away from the preferred tolerance.
-		int32_t fallback_index = -1;
-		double best_delta = std::numeric_limits<double>::infinity();
-		for ( int32_t li = 0; li < cell->num_layers; li++ ) {
-			const double layer_z = ( double )cell->layers[ li ].z_quantized * mesh->z_quant;
-			double delta = std::fabs( layer_z - center_origin.z );
-			if ( delta < best_delta ) {
-				best_delta = delta;
-				fallback_index = li;
-			}
-		}
-		if ( fallback_index < 0 ) {
-			return false;
-		}
-		layer_index = fallback_index;
-        DUMMY_NAV_DEBUG_PRINT( "[NAV DEBUG] %s: conservative layer select failed, using fallback layer %d (delta=%.2f)\n",
-			__func__, layer_index, best_delta );
-	}
-
-	/**
-	*   Convert the chosen walkable layer back into feet-origin space for the request queue.
-	**/
-	const float center_offset_z = ( agent_mins.z + agent_maxs.z ) * 0.5f;
-	const double projected_center_z = ( double )cell->layers[ layer_index ].z_quantized * mesh->z_quant;
-	*outGoalOrigin = goalOrigin;
-	outGoalOrigin->z = ( float )( projected_center_z - center_offset_z );
-	return true;
+	return SVG_Nav_TryProjectFeetOriginToWalkableZ( mesh, goalOrigin, agent_mins, agent_maxs, outGoalOrigin );
 }
-
-
 
 /**
 *
@@ -906,11 +795,10 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_sfxfollow_t, onThink_IdleLoo
 	if ( audibleEntity ) {
 		// Record that we heard this sound so it is not reconsidered every frame.
 		self->aiLastSoundHeard = audibleEntity->last_sound_time;
-		// Compute freshness and distance gates for whether this sound is worth investigating.
+	  // Compute freshness for whether this sound is still worth investigating.
 		const QMTime soundAge = level.time - audibleEntity->last_sound_time;
-		const double soundDist3D = std::sqrt( QM_Vector3DistanceSqr( audibleEntity->currentOrigin, self->currentOrigin ) );
-		// Only transition when the sound is both fresh and reasonably nearby.
-		if ( soundAge <= DUMMY_SOUND_INVESTIGATE_MAX_AGE && soundDist3D <= DUMMY_SOUND_INVESTIGATE_MAX_DIST ) {
+	 // Investigate any fresh audible sound regardless of range; nav/path policy owns the route response.
+		if ( soundAge <= DUMMY_SOUND_INVESTIGATE_MAX_AGE ) {
 			// Cache the chosen investigation origin and timestamp.
 			self->stateSoundCan.origin = audibleEntity->currentOrigin;
 			self->stateSoundCan.hasOrigin = true;
@@ -1060,13 +948,12 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_sfxfollow_t, onThink_PursueS
 	**/
 	// Track whether the investigation goal changed so we can force a rebuild only in that case.
 	bool forceRebuild = false;
-	svg_base_edict_t *audibleEntity = SVG_NPC_FindFreshestAudibleSound( self, self->stateSoundCan.lastTime, 0., true, DUMMY_NAV_DEBUG );
+	svg_base_edict_t *audibleEntity = SVG_NPC_FindFreshestAudibleSound( self, self->stateSoundCan.lastTime, 512., true, DUMMY_NAV_DEBUG );
 	if ( audibleEntity ) {
 		self->aiLastSoundHeard = audibleEntity->last_sound_time;
 		const QMTime soundAge = level.time - audibleEntity->last_sound_time;
-		const double soundDist3D = std::sqrt( QM_Vector3DistanceSqr( audibleEntity->currentOrigin, self->currentOrigin ) );
-		if ( soundAge <= DUMMY_SOUND_INVESTIGATE_MAX_AGE && soundDist3D <= DUMMY_SOUND_INVESTIGATE_MAX_DIST ) {
-          /**
+		if ( soundAge <= DUMMY_SOUND_INVESTIGATE_MAX_AGE ) {
+			/**
 			*    Determine whether this refreshed sound meaningfully changed the active investigation goal.
 			**/
 			const bool shouldResetGoal = Dummy_ShouldResetSoundInvestigationGoal( self, audibleEntity->currentOrigin );
@@ -1219,8 +1106,8 @@ const bool svg_monster_testdummy_sfxfollow_t::GenericThinkBegin() {
 	pathNavigationState.policy.enable_max_drop_height_cap = true;
 	pathNavigationState.policy.max_drop_height_cap = ( nav_max_drop_height_cap && nav_max_drop_height_cap->value > 0.0f ) ? nav_max_drop_height_cap->value : NAV_DEFAULT_MAX_DROP_HEIGHT_CAP;
 	pathNavigationState.policy.enable_goal_z_layer_blend = true;
-   pathNavigationState.policy.enable_cluster_route_filter = true;
-	pathNavigationState.policy.blend_start_dist = PHYS_STEP_MAX_SIZE;
+	pathNavigationState.policy.enable_cluster_route_filter = true;
+	pathNavigationState.policy.blend_start_dist = NAV_DEFAULT_BLEND_DIST_START;
 	pathNavigationState.policy.blend_full_dist = NAV_DEFAULT_BLEND_DIST_FULL;
 	// No blending seems to work!
 	//pathNavigationState.policy.enable_goal_z_layer_blend = false;
@@ -1291,7 +1178,6 @@ const bool svg_monster_testdummy_sfxfollow_t::GenericThinkFinish( const bool pro
 	// We moved successfully, return true.
 	return true;
 }
-
 
 //=============================================================================================
 //=============================================================================================
@@ -1497,21 +1383,29 @@ const bool svg_monster_testdummy_sfxfollow_t::MoveAStarToOrigin( const Vector3 &
 	GetNavigationAgentBounds( &agent_mins, &agent_maxs );
 	Q_assert( agent_maxs.x > agent_mins.x && agent_maxs.y > agent_mins.y && agent_maxs.z > agent_mins.z );
 
+	/**
+	*    Resolve one consistent walkable-goal snapshot for this frame.
+	*        Steering, queueing, and final-approach slowdown should all reference the same projected
+	*        walkable goal so cross-level routes do not oscillate between raw sound origins and a snapped nav target.
+	**/
+	Vector3 resolvedGoalOrigin = goalOrigin;
+	Dummy_TryProjectGoalToWalkableZ( this, goalOrigin, &resolvedGoalOrigin );
+
 	// Pre-calculate animation frame basics once per think.
 	const double currentTime = level.time.Seconds<double>();
 	const int32_t animFrameGlobal = ( int32_t )std::floor( ( float )( currentTime * 40.0f ) );
 
    // Debug print summarizing the request state for diagnostics.
 	DUMMY_NAV_DEBUG_PRINT( "[NAV DEBUG] %s: goal=(%.1f %.1f %.1f) force=%d pathOk=%d pending=%d\n",
-		__func__, goalOrigin.x, goalOrigin.y, goalOrigin.z, ( int32_t )force,
+		__func__, resolvedGoalOrigin.x, resolvedGoalOrigin.y, resolvedGoalOrigin.z, ( int32_t )force,
 		( int32_t )( pathNavigationState.process.path.num_points > 0 ),
 		( int32_t )SVG_Nav_IsRequestPending( &pathNavigationState.process ) );
 
 	/**
 	*    Sanity / arrival check: stop moving if we are effectively at the goal already to prevent jitter.
 	**/
-	Vector3 toGoalDist = QM_Vector3Subtract( goalOrigin, currentOrigin );
-	// Only consider horizontal distance for arrival.
+	Vector3 toGoalDist = QM_Vector3Subtract( resolvedGoalOrigin, currentOrigin );
+	 // Only consider horizontal distance for arrival.
 	toGoalDist.z = 0.0f;
 	// Use squared length for arrival check to save a square root.
 	constexpr float arrivalThreshold = 0.03125f;
@@ -1541,7 +1435,7 @@ const bool svg_monster_testdummy_sfxfollow_t::MoveAStarToOrigin( const Vector3 &
 		SVG_MMove_FaceIdealYaw( this, ideal_yaw, yaw_speed );
 
 		if ( rootMotionSet && rootMotionSet->motions[ 4 ] ) {
-			skm_rootmotion_t *rootMotion = rootMotionSet->motions[ 4 ]; // RUN
+			skm_rootmotion_t *rootMotion = rootMotionSet->motions[ 4 ];
 			const int32_t localFrame = ( rootMotion->frameCount > 0 ) ? ( animFrameGlobal % rootMotion->frameCount ) : 0;
 			s.frame = rootMotion->firstFrameIndex + localFrame;
 		}
@@ -1549,83 +1443,69 @@ const bool svg_monster_testdummy_sfxfollow_t::MoveAStarToOrigin( const Vector3 &
 		constexpr double frameVelocity = 220.0;
 		velocity.x = ( float )( moveDir.x * frameVelocity );
 		velocity.y = ( float )( moveDir.y * frameVelocity );
-		// Mirror the fallback velocity onto the monster move state so the slide move will carry it.
 		monsterMoveState.state.velocity.x = velocity.x;
 		monsterMoveState.state.velocity.y = velocity.y;
 		return true;
-	};
+		};
 
-	/**
-	*   Guard: when no navmesh is loaded, clear stale async state and rely on
-	*       direct fallback movement so the debug state machine keeps functioning.
-	**/
+		/**
+		*   Guard: when no navmesh is loaded, clear stale async state and rely on
+		*       direct fallback movement so the debug state machine keeps functioning.
+		**/
 	if ( GuardForNullNavMesh() ) {
-		return applyDirectFallback( goalOrigin );
+		return applyDirectFallback( resolvedGoalOrigin );
 	}
 
 	/**
-	*	Attempt to queue a navigation rebuild for the target origin.
-	*	Force ensures the helpers bypass throttles/heuristics when the caller demands an immediate rebuild.
-	*	The helper will respect internal throttles unless `force` is true.
+	*    Inspect current nav-consumer state before requesting any new async work.
+	*        The nav path-process now owns rebuild throttling/progress preservation, so this
+	*        entity should prefer consuming an existing path or waiting on a pending request
+	*        instead of re-queueing equivalent direct paths every think.
 	**/
+	const bool requestPending = SVG_Nav_IsRequestPending( &pathNavigationState.process );
+	const bool hasPathPoints = ( pathNavigationState.process.path.num_points > 0 && pathNavigationState.process.path.points );
+	const bool pathExpired = hasPathPoints && pathNavigationState.process.path_index >= pathNavigationState.process.path.num_points;
+	const bool pathOk = hasPathPoints && !pathExpired;
+
 	/**
-	*    Gather and cache queue-state helpers for the upcoming logging block.
+    *	Queue async work only when the consumer truly needs a fresh request.
+	*		- Forced requests always replace/refresh the current search.
+	*		- Non-forced requests are issued only when no usable path exists and no request is already pending.
+	*	This keeps flat-ground direct-shortcut paths from being rebuilt every frame while the mover is already following them.
 	**/
 	const bool queueModeEnabled = ( nav_nav_async_queue_mode && nav_nav_async_queue_mode->integer != 0 );
 	const bool asyncNavEnabled = SVG_Nav_IsAsyncNavEnabled();
-	const bool retryingSameFailureGoal = Dummy_IsRetryingRecentSoundGoalFailure( this, goalOrigin, 2 );
 
 	bool queueAttempted = false;
 	bool queueResult = false;
- /**
-	*    Suppress repeated same-goal retries briefly after several failures.
-	*        This keeps the sound-follow NPC facing the target while avoiding repeated queue churn when
-	*        the same goal has already failed multiple times and no new sound update has arrived.
-	**/
-	const bool suppressRetryChurn = retryingSameFailureGoal
-		&& pathNavigationState.process.consecutive_failures >= 3
-		&& !force
-		&& !SVG_Nav_IsRequestPending( &pathNavigationState.process );
-	if ( suppressRetryChurn ) {
-		DUMMY_NAV_DEBUG_PRINT( "[NAV DEBUG] %s: suppressing repeated same-goal retry failures=%d goal=(%.1f %.1f %.1f)\n",
-			__func__,
-			pathNavigationState.process.consecutive_failures,
-			goalOrigin.x,
-			goalOrigin.y,
-			goalOrigin.z );
-	}
 
-   // Only honor an explicit force request when the goal moved beyond the configured rebuild threshold.
-	bool effectiveForce = force;
-	if ( force ) {
-		// Compute the delta relative to the last goal so we do not re-force for negligible motion.
-		const Vector3 &referenceGoal = pathNavigationState.lastGoal.isValid ? pathNavigationState.lastGoal.origin : pathNavigationState.process.path_goal_position;
-		// Use squared distance for force rebuild check to save a square root.
-		const double dx2 = QM_Vector3DistanceSqr( goalOrigin, referenceGoal );
-		const float threshold = pathNavigationState.policy.rebuild_goal_dist_2d;
- if ( dx2 <= ( double )( threshold * threshold ) ) {
-		effectiveForce = false;
-		DUMMY_NAV_DEBUG_PRINT( "[NAV DEBUG] %s: suppressed force rebuild (dx=%.2f <= thresh=%.2f)\n",
-			__func__, std::sqrt( dx2 ), threshold );
-	}
-	}
+    // Preserve explicit force requests so the first sound reaction and any blocked retrigger can bypass throttles immediately.
+	const bool effectiveForce = force;
 
 	/**
-	*    Build the queue policy snapshot for this request.
+  *    Build the queue policy snapshot for this request.
 	**/
 	#ifdef MONSTER_TESTDUMMY_DEBUG_BYPASS_ROUTE_FILTER
 	// Route-filter isolation mode: explicitly disable coarse tile filtering so neighbor diagnostics reflect pure StepTest traversal behavior.
 	pathNavigationState.policy.enable_cluster_route_filter = false;
 	#endif
-  if ( !suppressRetryChurn ) {
+
+	// Only queue when the consumer has no usable path yet, or when the caller explicitly forces a refresh.
+	const bool shouldQueueRequest = effectiveForce || ( !pathOk && !requestPending );
+	if ( shouldQueueRequest ) {
 		queueAttempted = true;
-		const bool queued = TryRebuildNavigationInQueue( currentOrigin, goalOrigin, pathNavigationState.policy, agent_mins, agent_maxs, effectiveForce );
+		const bool queued = TryRebuildNavigationInQueue( currentOrigin, resolvedGoalOrigin, pathNavigationState.policy, agent_mins, agent_maxs, effectiveForce );
 		queueResult = queued;
-		if ( queued ) {
-			pathNavigationState.lastGoal.origin = goalOrigin;
-			pathNavigationState.lastGoal.isValid = true;
-			pathNavigationState.lastGoal.isVisible = false;
-		}
+	}
+
+	/**
+	*    Keep the goal snapshot current only after we have either a usable path or an accepted async request.
+	*        This keeps the entity-side bookkeeping descriptive without letting it become a second rebuild-policy layer.
+	**/
+	if ( pathOk || queueResult || requestPending ) {
+		pathNavigationState.lastGoal.origin = resolvedGoalOrigin;
+		pathNavigationState.lastGoal.isValid = true;
+		pathNavigationState.lastGoal.isVisible = false;
 	}
 
 	/**
@@ -1638,53 +1518,90 @@ const bool svg_monster_testdummy_sfxfollow_t::MoveAStarToOrigin( const Vector3 &
 		/**
 		*	Calculate rebuild heuristics only when logging is active to save frames.
 		**/
-		const bool canRebuild = pathNavigationState.process.CanRebuild( pathNavigationState.policy );
-		const bool movementWarrantsRebuild =
-			pathNavigationState.process.ShouldRebuildForGoal2D( goalOrigin, pathNavigationState.policy )
-			|| pathNavigationState.process.ShouldRebuildForGoal3D( goalOrigin, pathNavigationState.policy )
-			|| pathNavigationState.process.ShouldRebuildForStart2D( currentOrigin, pathNavigationState.policy )
-			|| pathNavigationState.process.ShouldRebuildForStart3D( currentOrigin, pathNavigationState.policy );
+       const bool canRebuild = pathNavigationState.process.CanRebuild( pathNavigationState.policy );
+		const bool waitingOnPendingRequest = requestPending && !pathOk;
 
-		gi.dprintf( "[NAV STATUS] ent=%d attempt=%d result=%d canRebuild=%d movementWarrants=%d async=%d queueMode=%d\n",
+       gi.dprintf( "[NAV STATUS] ent=%d attempt=%d result=%d canRebuild=%d hasPath=%d pending=%d waiting=%d async=%d queueMode=%d\n",
 			s.number,
 			queueAttempted ? 1 : 0,
 			queueResult ? 1 : 0,
 			canRebuild ? 1 : 0,
-			movementWarrantsRebuild ? 1 : 0,
+            pathOk ? 1 : 0,
+			requestPending ? 1 : 0,
+			waitingOnPendingRequest ? 1 : 0,
 			asyncNavEnabled ? 1 : 0,
 			queueModeEnabled ? 1 : 0 );
 	}
-
-	/**
-	*    Path availability and request state checks.
-	**/
-	// We may have a path process in flight but no populated path buffer yet; check both.
-	const bool hasPathPoints = ( pathNavigationState.process.path.num_points > 0 && pathNavigationState.process.path.points );
-	const bool pathExpired = hasPathPoints && pathNavigationState.process.path_index >= pathNavigationState.process.path.num_points;
-	// Valid usable path only when points exist and we haven't consumed them all.
-	const bool pathOk = hasPathPoints && !pathExpired;
 
 	/**
 	*    Keep a movement direction container for either path-follow or fallback.
 	**/
 	Vector3 move_dir = { 0.0f, 0.0f, 0.0f };
 
-	// If we have a valid path, query and follow its movement direction.
-	if ( pathOk && pathNavigationState.process.QueryDirection3D( currentOrigin, pathNavigationState.policy, &move_dir ) ) {
+	// If we have a valid path, query and follow the shared navigation follow-state.
+	svg_nav_path_process_t::follow_state_t followState = {};
+	if ( pathOk && pathNavigationState.process.QueryFollowState( currentOrigin, pathNavigationState.policy, &followState ) ) {
 	 /**
 		*    Record the last successfully followed goal for future rebuild heuristics.
 		**/
 		// Keep the last goal snapshot current so future forced rebuild checks have a stable reference.
-		pathNavigationState.lastGoal.origin = goalOrigin;
+		pathNavigationState.lastGoal.origin = resolvedGoalOrigin;
 		pathNavigationState.lastGoal.isValid = true;
 		pathNavigationState.lastGoal.isVisible = ( activator != nullptr ) && SVG_Entity_IsVisible( this, activator );
 
-		// Face the movement direction on the horizontal plane with snappier turning.
-		Vector3 faceDir = move_dir;
+	/**
+		*    Resolve the currently active waypoint in entity space so yaw and velocity can converge on that anchor.
+		*        This keeps the monster's bbox center closer to each stair/corner waypoint instead of treating only the
+		*        final goal as important for centering.
+		**/
+		move_dir = followState.move_direction3d;
+		const bool hasActiveWaypoint = followState.has_direction;
+		const Vector3 activeWaypointOrigin = followState.active_waypoint_origin;
+		const double activeWaypointDist2D = followState.active_waypoint_dist2d;
+		const double activeWaypointDeltaZ = followState.active_waypoint_delta_z;
+		const bool waypointNeedsPreciseCentering = followState.waypoint_needs_precise_centering;
+		const bool steppedVerticalCorridorAhead = followState.stepped_vertical_corridor_ahead;
+		const bool corridorNeedsPreciseCentering = waypointNeedsPreciseCentering || steppedVerticalCorridorAhead;
+		Vector3 toActiveWaypoint = QM_Vector3Subtract( activeWaypointOrigin, currentOrigin );
+		toActiveWaypoint.z = 0.0f;
+		const Vector3 waypointDir = ( activeWaypointDist2D > 0.001 ) ? QM_Vector3Normalize( toActiveWaypoint ) : Vector3{};
+
+		/**
+	   *    Blend the queried path direction toward the active waypoint anchor before we face or move.
+		*        This keeps the path direction still guides broad navigation, but crowded stairs need a stronger pull toward the actual
+		*        anchor point so the bbox center does not skim the stair edge.
+		**/
+		Vector3 centeredMoveDir = followState.move_direction3d;
+		centeredMoveDir.z = 0.0f;
+		if ( hasActiveWaypoint && activeWaypointDist2D > 0.001 ) {
+			  // Keep stair and slope anchors influential without letting every short riser force a near-pure face-the-anchor turn.
+			const double waypointBlend = corridorNeedsPreciseCentering
+				? ( activeWaypointDeltaZ > 0.0 ? 0.75 : 0.50 )
+				: 0.35;
+			const double centeredMoveLen2 = ( centeredMoveDir.x * centeredMoveDir.x ) + ( centeredMoveDir.y * centeredMoveDir.y );
+			if ( centeredMoveLen2 > ( 0.001 * 0.001 ) ) {
+				centeredMoveDir = QM_Vector3Normalize( SlerpDirectionVector3( QM_Vector3Normalize( centeredMoveDir ), waypointDir, ( float )waypointBlend ) );
+			} else {
+				centeredMoveDir = waypointDir;
+			}
+		}
+
+		/**
+		*    Face the centered movement direction on the horizontal plane.
+		*        Raise yaw speed when a near or vertical waypoint needs tighter centering, and reduce translation when yaw
+		*        is still catching up so the monster does not drift wide off crowded stairs.
+		**/
+		Vector3 faceDir = centeredMoveDir;
 		faceDir.z = 0.0f;
+		double yawDeltaAbs = 0.0;
 		if ( ( faceDir.x * faceDir.x + faceDir.y * faceDir.y ) > 0.001f ) {
 			ideal_yaw = QM_Vector3ToYaw( faceDir );
-			yaw_speed = 15.0f; // Snappier turning for the debug variant.
+			const double currentYaw = QM_AngleMod( currentAngles[ YAW ] );
+			yawDeltaAbs = std::fabs( QM_AngleDelta( ideal_yaw, currentYaw ) );
+			const double yawSpeedBase = corridorNeedsPreciseCentering ? 32.0 : 16.0;
+			const double yawSpeedCloseBoost = ( hasActiveWaypoint && activeWaypointDist2D <= 32.0 ) ? 6.0 : 0.0;
+			const double yawSpeedTurnBoost = yawDeltaAbs * 0.10;
+			yaw_speed = ( float )QM_Clamp( yawSpeedBase + yawSpeedCloseBoost + yawSpeedTurnBoost, 10.0, 45.0 );
 			SVG_MMove_FaceIdealYaw( this, ideal_yaw, yaw_speed );
 		}
 
@@ -1695,10 +1612,64 @@ const bool svg_monster_testdummy_sfxfollow_t::MoveAStarToOrigin( const Vector3 &
 			s.frame = rootMotion->firstFrameIndex + localFrame;
 		}
 
-		// Apply horizontal velocity derived from the path direction.
-		constexpr double frameVelocity = 220.0;
-		velocity.x = ( float )( move_dir.x * frameVelocity );
-		velocity.y = ( float )( move_dir.y * frameVelocity );
+	  /**
+	 *    Apply horizontal velocity derived from the centered movement direction.
+			*        Use waypoint-centric slowdown plus yaw-alignment slowdown so the monster's center converges more closely
+		*        on each active waypoint, which helps crowded stair bands and narrow turns.
+		**/
+		double frameVelocity = 220.0;
+
+		/**
+		*    Slow translation while yaw is still aligning to avoid skating wide across a corner or stair edge.
+		**/
+		// Keep enough forward motion on stairs and slopes that the monster can keep climbing while its yaw converges.
+		const double yawSlowdownDenominator = corridorNeedsPreciseCentering ? 85.0 : 100.0;
+		const double yawAlignmentScale = ( yawSlowdownDenominator > 0.0 )
+			? QM_Clamp( 1.0 - ( yawDeltaAbs / yawSlowdownDenominator ), corridorNeedsPreciseCentering ? 0.45 : 0.55, 1.0 )
+			: 1.0;
+		frameVelocity *= yawAlignmentScale;
+
+		/**
+		*    Ease into the active waypoint so the bbox center lands closer to the waypoint anchor instead of clipping past it.
+		**/
+		if ( hasActiveWaypoint ) {
+			const double centeringRange = corridorNeedsPreciseCentering
+				? std::max( pathNavigationState.policy.waypoint_radius * 4.0, 64.0 )
+				: std::max( pathNavigationState.policy.waypoint_radius * 2.0, 24.0 );
+			const double centeringScale = ( centeringRange > 0.0 )
+				? QM_Clamp( ( activeWaypointDist2D + ( pathNavigationState.policy.waypoint_radius * 0.5 ) ) / centeringRange,
+					corridorNeedsPreciseCentering ? 0.45 : 0.50,
+					1.0 )
+				: 1.0;
+			frameVelocity *= centeringScale;
+		}
+
+		/**
+		*    Keep the final-leg slowdown as an extra guard so destination settling remains clean after intermediate centering.
+		**/
+		const bool approachingFinalGoal = followState.approaching_final_goal;
+		if ( approachingFinalGoal ) {
+			/**
+			*    Compute a conservative final-approach speed scale from horizontal goal distance.
+			**/
+			Vector3 toFinalGoal = QM_Vector3Subtract( resolvedGoalOrigin, currentOrigin );
+			toFinalGoal.z = 0.0f;
+			const double goalDist2D = std::sqrt( ( toFinalGoal.x * toFinalGoal.x ) + ( toFinalGoal.y * toFinalGoal.y ) );
+
+			/**
+			*    Begin easing down inside a short final-approach window so the monster can finish centered.
+			**/
+			constexpr double finalSlowdownRange = 64.0;
+			constexpr double finalGoalStopPadding = 0.25;
+			const double approachDist = std::max( 0.0, goalDist2D - finalGoalStopPadding );
+			const double speedScale = ( finalSlowdownRange > 0.0 )
+				? QM_Clamp( approachDist / finalSlowdownRange, 0.0, 1.0 )
+				: 1.0;
+			frameVelocity *= speedScale;
+		}
+
+		velocity.x = ( float )( centeredMoveDir.x * frameVelocity );
+		velocity.y = ( float )( centeredMoveDir.y * frameVelocity );
 
 		/**
 		*    Mirror the accepted path-follow velocity into the authoritative monster move state.
@@ -1721,7 +1692,7 @@ const bool svg_monster_testdummy_sfxfollow_t::MoveAStarToOrigin( const Vector3 &
 	monsterMoveState.state.velocity.y = 0.0f;
 
 	// While waiting on async pathing, keep facing the intended horizontal goal direction.
-	Vector3 faceGoal = QM_Vector3Subtract( goalOrigin, currentOrigin );
+	Vector3 faceGoal = QM_Vector3Subtract( resolvedGoalOrigin, currentOrigin );
 	faceGoal.z = 0.0f;
 	const float faceLen2 = ( faceGoal.x * faceGoal.x ) + ( faceGoal.y * faceGoal.y );
 	if ( faceLen2 > ( 0.001f * 0.001f ) ) {
@@ -1731,16 +1702,12 @@ const bool svg_monster_testdummy_sfxfollow_t::MoveAStarToOrigin( const Vector3 &
 		SVG_MMove_FaceIdealYaw( this, ideal_yaw, yaw_speed );
 	}
 
-	// Keep the idle animation while we are stationary and waiting for a path.
 	if ( rootMotionSet && rootMotionSet->motions[ 1 ] ) {
 		skm_rootmotion_t *rootMotion = rootMotionSet->motions[ 1 ];
 		const int32_t localFrame = ( rootMotion->frameCount > 0 ) ? ( animFrameGlobal % rootMotion->frameCount ) : 0;
 		s.frame = rootMotion->firstFrameIndex + localFrame;
 	}
 
-	/**
-	*    Face the current horizontal move direction even when awaiting async paths.
-	**/
 	const float horizLen2 = ( move_dir.x * move_dir.x ) + ( move_dir.y * move_dir.y );
 	if ( horizLen2 > ( 0.001f * 0.001f ) ) {
 		Vector3 faceDir = move_dir;
@@ -1752,6 +1719,7 @@ const bool svg_monster_testdummy_sfxfollow_t::MoveAStarToOrigin( const Vector3 &
 
 	return false;
 }
+
 /**
 *	@brief	Enqueue a navigation rebuild request when the async queue is enabled.
 *	@param	self	Monster owning the path process state.
@@ -1769,11 +1737,12 @@ const bool svg_monster_testdummy_sfxfollow_t::TryRebuildNavigationInQueue( const
 	const Vector3 &goal_origin, const svg_nav_path_policy_t &policy, const Vector3 &agent_mins,
 	const Vector3 &agent_maxs, const bool force ) {
 	/**
-	*    @brief	Attempt to enqueue an asynchronous navigation rebuild for this entity.
-	*    @note	Lightweight diagnostic logging is emitted when DUMMY_NAV_DEBUG is enabled
-	*
-	*    Guard: only enqueue when the async queue mode is explicitly enabled.
+  *    Attempt to enqueue an asynchronous navigation rebuild for this entity.
+	*        This wrapper is intentionally thin: the nav-folder path-process/request queue owns
+	*        rebuild throttling, refresh suppression, and progress preservation. The monster only
+	*        resolves its goal and forwards a request when higher-level behavior decides one is needed.
 	**/
+    // Guard: only enqueue when the async queue mode is explicitly enabled.
 	if ( !nav_nav_async_queue_mode || nav_nav_async_queue_mode->integer == 0 ) {
 		if ( DUMMY_NAV_DEBUG ) {
 			gi.dprintf( "[DEBUG] TryQueueNavRebuild: async queue mode disabled, cannot enqueue. ent=%d\n", s.number );
@@ -1789,119 +1758,33 @@ const bool svg_monster_testdummy_sfxfollow_t::TryRebuildNavigationInQueue( const
 	}
 
 	/**
-	*    Throttle guard:
-	*        If the path process is not allowed to rebuild yet, skip enqueuing and
-	*        let callers keep using current path without forcing sync rebuilds.
-	**/
- // Force bypass ensures explicit sound-goal refreshes can still queue new work.
-	if ( !force && !pathNavigationState.process.CanRebuild( policy ) ) {
-		// Movement throttled/backoff prevents enqueuing now; callers should keep using current path.
-		DUMMY_NAV_DEBUG_PRINT( "[DEBUG] TryQueueNavRebuild: CanRebuild() == false, throttled/backoff. ent=%d next_rebuild=%lld backoff_until=%lld\n",
-			s.number, ( long long )pathNavigationState.process.next_rebuild_time.Milliseconds(), ( long long )pathNavigationState.process.backoff_until.Milliseconds() );
-		return true;
-	}
-
-	/**
-	*    Movement heuristic:
-	*        Only queue rebuilds when the path process thinks goal/start movement
-	*        warrants it; this prevents re-queueing every frame for static goals.
-	**/
-	const bool movementWarrantsRebuild =
-		pathNavigationState.process.ShouldRebuildForGoal2D( goal_origin, policy )
-		|| pathNavigationState.process.ShouldRebuildForGoal3D( goal_origin, policy )
-		|| pathNavigationState.process.ShouldRebuildForStart2D( start_origin, policy )
-		|| pathNavigationState.process.ShouldRebuildForStart3D( start_origin, policy );
-    // Force bypass ensures explicit sound-goal refreshes bypass movement heuristics.
-	if ( !force && !movementWarrantsRebuild ) {
-		DUMMY_NAV_DEBUG_PRINT( "[DEBUG] TryQueueNavRebuild: movement does not warrant rebuild, ent=%d\n", s.number );
-		return true;
-	}
-
-	/**
-	*    Allow the request queue to deduplicate / refresh existing requests.
-	*    Instead of bailing out early we call the enqueue helper which will
-	*    refresh an existing entry or create a new one. This ensures the
-	*    path_process pending handle is always up-to-date and avoids the
-	*    repeated "request already pending" spam seen in logs.
-	**/
- /**
-	*    Validate the requested sound goal against the navmesh before queuing async work.
+    *    Resolve the requested sound goal against the navmesh before queueing async work.
+	*        This keeps the consumer aligned with nav-folder feet-origin projection helpers.
 	**/
 	Vector3 adjusted_goal = goal_origin;
-    if ( !Dummy_TryProjectGoalToWalkableZ( this, goal_origin, &adjusted_goal ) ) {
-		// Fall back to our current feet Z when the goal is not projectable into a walkable layer.
-		adjusted_goal.z = currentOrigin.z;
-	}
+	Dummy_TryProjectGoalToWalkableZ( this, goal_origin, &adjusted_goal );
 
-   if ( SVG_Nav_IsRequestPending( &pathNavigationState.process ) ) {
-		/**
-		*    If a request is already pending we should not refresh it for small
-		*    start-origin drifts. Only permit a non-forced refresh when the
-		*    *goal* moved beyond the configured rebuild threshold. Forced
-		*    replacements still cancel the outstanding request so a fresh entry
-		*    is created immediately.
-		**/
-		if ( !force ) {
-			// Choose the most appropriate reference goal snapshot available so
-			// comparisons remain stable across lifecycle stages.
-			const Vector3 &referenceGoal = pathNavigationState.lastGoal.isValid
-				? pathNavigationState.lastGoal.origin
-				: pathNavigationState.process.path_goal_position;
-			// Compute the delta between the requested goal and the currently
-			// tracked goal and compare against the policy's 2D rebuild radius.
-			const double goalDx2 = QM_Vector3DistanceSqr( adjusted_goal, referenceGoal );
-			const float threshold = pathNavigationState.policy.rebuild_goal_dist_2d;
-         if ( goalDx2 <= ( double )( threshold * threshold ) ) {
-				DUMMY_NAV_DEBUG_PRINT( "[DEBUG] TryQueueNavRebuild: skipping refresh because pending_handle=%d and goalDx=%.2f <= thresh=%.2f ent=%d\n",
-					pathNavigationState.process.pending_request_handle,
-					std::sqrt( goalDx2 ),
-					threshold,
-					s.number );
-				// Keep the existing in-flight request alive.
-				return true;
-			}
-		} else {
-			// Forced replacement: cancel the old request first so a fresh queued
-			// entry can be created with the force flag set.
-			ResetNavigationPath();
-		}
-	}
-
-	/**
-	*  Stronger protection: when a request is already running (rebuild_in_progress)
-	*  small changes to the start position should not trigger a refresh. The
-	*  nav queue already defers re-init via `needs_refresh` but callers that
-	*  drift the start each frame can still cause repeated worker prep. Here
-	*  we ignore small start deltas while a request is running so the in-flight
-	*  search can make progress.
+   /**
+	*    Replace any outstanding request only when the caller explicitly forces a fresh search.
+	*		Non-forced dedupe/refresh behavior should remain inside the nav-folder request API.
 	**/
-    if ( !force && pathNavigationState.process.rebuild_in_progress ) {
-		const Vector3 referenceStart = ( pathNavigationState.process.last_prep_time > 0_ms )
-			? pathNavigationState.process.last_prep_start
-			: pathNavigationState.process.path_start_position;
-		const double startDx = QM_Vector3LengthDP( QM_Vector3Subtract( start_origin, referenceStart ) );
-		constexpr double runningStartIgnoreThreshold = 24.0; // units
-		if ( startDx <= runningStartIgnoreThreshold ) {
-			DUMMY_NAV_DEBUG_PRINT( "[DEBUG] TryQueueNavRebuild: suppressed refresh while running (startDx=%.2f <= %.2f) ent=%d\n",
-				startDx, runningStartIgnoreThreshold, s.number );
+	if ( SVG_Nav_IsRequestPending( &pathNavigationState.process ) ) {
+        // Keep the existing in-flight request alive unless the caller requested an explicit replacement.
+		if ( !force ) {
 			return true;
 		}
+
+		// Forced replacement: cancel the old request first so a fresh queued entry can be created immediately.
+		ResetNavigationPath();
 	}
 
 	/**
-	*	Enqueue the rebuild request and record the handle for diagnostics.
-	*	Note: If a request is already pending and actively being prepared / running
-	*	(this entity's `pathNavigationState.process.rebuild_in_progress == true`), this helper
-	*	will avoid refreshing the existing running entry unless `force == true`
-	*	or the movement heuristics indicate a rebuild is warranted. This prevents
-	*	repeated re-initialization of in-flight searches which can starve the
-	*	incremental A* stepper and cause visible steering issues.
+ *    Enqueue the rebuild request and record the handle for diagnostics.
+	*        We pass through the nav-folder policy/bounds unchanged and let the request API
+	*        decide whether the new request should be queued or internally collapsed.
 	**/
-	// Propagate a small per-request start-ignore threshold to the async queue so
-	// the queue can avoid re-preparing entries when the start drifts slightly
-	// while a search is running. We choose the same 16-unit threshold used
-	// locally above to keep behavior consistent.
-	constexpr double startIgnoreThresholdForQueue = 32.0;
+  // Keep enough tolerance to preserve in-flight worker progress across ordinary locomotion drift.
+	constexpr double startIgnoreThresholdForQueue = 24.0;
 	const nav_request_handle_t handle = SVG_Nav_RequestPathAsync( &pathNavigationState.process, start_origin, adjusted_goal, policy, agent_mins, agent_maxs, force, startIgnoreThresholdForQueue );
 	if ( handle <= 0 ) {
 		if ( DUMMY_NAV_DEBUG ) {
@@ -1915,9 +1798,9 @@ const bool svg_monster_testdummy_sfxfollow_t::TryRebuildNavigationInQueue( const
 	// PrepareAStarForEntry when the entry transitions to Running. Setting them
 	// here ensures the entity has the handle immediately for early cancellation
 	// if the caller chooses to abort before the queue tick processes it.
- pathNavigationState.process.rebuild_in_progress = true;
+	pathNavigationState.process.rebuild_in_progress = true;
 	pathNavigationState.process.pending_request_handle = handle;
-	DUMMY_NAV_DEBUG_PRINT( "[DEBUG] TryQueueNavRebuild: queued rebuild handle=%d ent=%d force=%d\n", handle, s.number, force ? 1 : 0 );
+	DUMMY_NAV_DEBUG_PRINT( "[DEBUG] TryQueueNavRebuild: queued rebuild handle=%d ent=%d force=%d\n", handle, s.number, force );
 	// Also print the converted nav-center origins so we can correlate node resolution.
 	const nav_mesh_t *mesh = g_nav_mesh.get();
 	if ( mesh ) {
@@ -1949,16 +1832,13 @@ void svg_monster_testdummy_sfxfollow_t::ResetNavigationPath() {
 	}
 
 	/**
-	*    Clear cached path buffers and reset traversal bookkeeping.
+ *    Reset the shared path-process state through its canonical helper.
+	*        This clears cached path buffers, traversal bookkeeping, async generations,
+	*        center offsets, and failure/backoff history in one consistent place.
 	**/
-	SVG_Nav_FreeTraversalPath( &pathNavigationState.process.path );
-	pathNavigationState.process.path_index = 0;
-	pathNavigationState.process.path_goal_position = {};
-	pathNavigationState.process.path_start_position = {};
-	pathNavigationState.process.rebuild_in_progress = false;
-	pathNavigationState.process.pending_request_handle = 0;
+	pathNavigationState.process.Reset();
 
-	// Clear the last goal snapshot so heuristics treat the next goal as new and avoid suppressing rebuilds.
+	   // Clear the last goal snapshot so heuristics treat the next goal as new and avoid suppressing rebuilds.
 	pathNavigationState.lastGoal.origin = {};
 	pathNavigationState.lastGoal.isValid = false;
 	pathNavigationState.lastGoal.isVisible = false;
@@ -1971,7 +1851,7 @@ void svg_monster_testdummy_sfxfollow_t::ResetNavigationPath() {
 *			tuned to current pursuit conditions (distance, vertical delta, failures, visibility).
 **/
 void svg_monster_testdummy_sfxfollow_t::AdjustGoalZBlendPolicy( const Vector3 &goalOrigin ) {
-    /**
+	/**
 	*    Local geometry ratios used to derive blend thresholds from the active navmesh and movement policy.
 	*        These remain dimensionless on purpose so the actual world-unit distances stay anchored to
 	*        step sizes, cell sizes, and agent height instead of brittle per-map literals.
@@ -2007,10 +1887,10 @@ void svg_monster_testdummy_sfxfollow_t::AdjustGoalZBlendPolicy( const Vector3 &g
 		? mesh->z_quant
 		: std::max( stepMin, PHYS_STEP_GROUND_DIST );
 	const double meshStepHeight = ( mesh && mesh->max_step > 0.0 ) ? mesh->max_step : stepMax;
-    const double policyAgentHeight = std::max( ( double )pathPolicy.agent_maxs.z - ( double )pathPolicy.agent_mins.z, 0.0 );
+	const double policyAgentHeight = std::max( ( double )pathPolicy.agent_maxs.z - ( double )pathPolicy.agent_mins.z, 0.0 );
 	const double entityAgentHeight = std::max( ( double )maxs.z - ( double )mins.z, 0.0 );
 	const double meshAgentHeight = ( mesh != nullptr )
-      ? std::max( ( double )mesh->agent_maxs.z - ( double )mesh->agent_mins.z, 0.0 )
+		? std::max( ( double )mesh->agent_maxs.z - ( double )mesh->agent_mins.z, 0.0 )
 		: 0.0;
 	double agentHeight = std::max( policyAgentHeight, entityAgentHeight );
 	agentHeight = std::max( agentHeight, meshAgentHeight );
@@ -2042,6 +1922,8 @@ void svg_monster_testdummy_sfxfollow_t::AdjustGoalZBlendPolicy( const Vector3 &g
 	const double nearLevelThreshold = meshStepHeight + groundSlack;
 	// Treat the goal as "near-level" when the vertical delta is within a single-step + slack.
 	const bool nearLevelGoal = ( fabsDeltaZ <= nearLevelThreshold );
+	// Treat larger vertical deltas as genuine cross-level requests that may benefit from ladders and broader route exploration.
+	const bool crossLevelGoal = !nearLevelGoal;
 
 	// Consider a failure "recent" when it occurred within the last 2 seconds.
 	const bool recentFailure = ( pathProcess.consecutive_failures > 0 )
@@ -2074,6 +1956,40 @@ void svg_monster_testdummy_sfxfollow_t::AdjustGoalZBlendPolicy( const Vector3 &g
 	const bool aggressiveBlend = failureNearGoal || likelyLayerAmbiguity;
 
 	/**
+	*    Tune ladder preference from the same geometry-derived inputs that drive goal-Z blending.
+	*        Cross-level goals should bias ladders more strongly when the target height is within a
+	*        plausible ladder reach window, while near-level goals keep a milder default preference.
+	**/
+	pathPolicy.prefer_ladders = true;
+	const double ladderSlackBase = std::max( nearLevelThreshold + meshLayerQuant, meshCellSize + groundSlack );
+	pathPolicy.ladder_preferred_height_slack = crossLevelGoal
+		? std::max( ladderSlackBase, fabsDeltaZ + meshLayerQuant )
+		: std::max( ladderSlackBase, agentHeight * 0.5 );
+	pathPolicy.ladder_preference_bias = crossLevelGoal
+		? ( aggressiveBlend ? 24.0 : 18.0 )
+		: 12.0;
+
+	/**
+	*    Keep same-cell layer preference aligned with the actual goal elevation.
+	*        Upward pursuits should prefer top layers, while downward pursuits should stop forcing
+	*        top-layer bias once we know the goal sits beneath us.
+	**/
+	pathPolicy.layer_select_prefer_top = ( deltaZ >= 0.0 );
+	const double preferThresholdUpperBound = std::max( nearLevelThreshold * 2.0, agentHeight * 0.5 );
+	pathPolicy.layer_select_prefer_z_threshold = std::clamp( std::max( meshLayerQuant, nearLevelThreshold ),
+		stepMin,
+		preferThresholdUpperBound );
+
+	/**
+	*    Let ambiguous cross-level retries fall back to unrestricted fine search sooner.
+	*        This complements the async worker retry relaxation by ensuring the policy snapshot already
+	*        stops over-constraining coarse routing once we have evidence that the local floor pick was wrong.
+	**/
+	if ( crossLevelGoal && failureNearGoal ) {
+		pathPolicy.enable_cluster_route_filter = false;
+	}
+
+	/**
 	*    Escalate coarse and local traversal policy after repeated same-goal failures.
 	*        The first retry remains conservative, but once the same sound goal has failed multiple times we
 	*        temporarily relax the coarse route filter and allow a modest extra rise so fine A* can explore
@@ -2090,24 +2006,13 @@ void svg_monster_testdummy_sfxfollow_t::AdjustGoalZBlendPolicy( const Vector3 &g
 	}
 
 	/**
-	*    Keep same-cell layer preference aligned with the actual goal elevation.
-	*        Upward pursuits should prefer top layers, while downward pursuits should stop forcing
-	*        top-layer bias once we know the goal sits beneath us.
-	**/
-	pathPolicy.layer_select_prefer_top = ( deltaZ >= 0.0 );
-	const double preferThresholdUpperBound = std::max( nearLevelThreshold * 2.0, agentHeight * 0.5 );
-	pathPolicy.layer_select_prefer_z_threshold = std::clamp( std::max( meshLayerQuant, nearLevelThreshold ),
-		stepMin,
-		preferThresholdUpperBound );
-
-	/**
 	*    Keep same-level goals on the current layer unless recent failures indicate we picked the wrong layer.
 	*        This avoids unnecessary cross-floor bias for ordinary flat-ground movement while still allowing
 	*        retry escalation near recently failing sound goals.
 	**/
 	if ( nearLevelGoal && !failureNearGoal ) {
 		pathPolicy.enable_goal_z_layer_blend = false;
-        pathPolicy.blend_start_dist = std::max( meshStepHeight, meshCellSize * kBlendStartCellFraction );
+		pathPolicy.blend_start_dist = std::max( meshStepHeight, meshCellSize * kBlendStartCellFraction );
 		pathPolicy.blend_full_dist = std::max( pathPolicy.blend_start_dist + meshStepHeight, NAV_DEFAULT_BLEND_DIST_FULL );
 		return;
 	}
@@ -2118,11 +2023,11 @@ void svg_monster_testdummy_sfxfollow_t::AdjustGoalZBlendPolicy( const Vector3 &g
 	*        then reach full bias over a distance derived from cell span, vertical delta, and agent height.
 	**/
 	pathPolicy.enable_goal_z_layer_blend = true;
-   double blendStartDist = std::max( stepMin + groundSlack, meshCellSize * kBlendStartCellFraction );
+	double blendStartDist = std::max( stepMin + groundSlack, meshCellSize * kBlendStartCellFraction );
 	blendStartDist = std::min( blendStartDist, std::max( meshStepHeight, horizDist * 0.25 ) );
 	blendStartDist = std::max( blendStartDist, stepMin );
 
-    double blendFullDist = std::max( meshCellSize * kBlendFullCellMultiplier,
+	double blendFullDist = std::max( meshCellSize * kBlendFullCellMultiplier,
 		std::max( fabsDeltaZ + meshLayerQuant, nearLevelThreshold + meshStepHeight ) );
 	if ( deltaZ > 0.0 ) {
 		blendFullDist = std::max( blendFullDist, horizDist * 0.75 );
@@ -2139,7 +2044,7 @@ void svg_monster_testdummy_sfxfollow_t::AdjustGoalZBlendPolicy( const Vector3 &g
 	**/
 	if ( aggressiveBlend ) {
 		blendStartDist = stepMin;
-        blendFullDist = std::max( meshCellSize * kBlendAggressiveFullCellMultiplier,
+		blendFullDist = std::max( meshCellSize * kBlendAggressiveFullCellMultiplier,
 			nearLevelThreshold + meshLayerQuant );
 		blendFullDist = std::max( blendFullDist, blendStartDist + stepMin );
 	}

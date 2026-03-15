@@ -615,6 +615,8 @@ void Com_Quit(const char *reason, error_type_t type)
     NET_Shutdown();
     logfile_close();
     FS_Shutdown();
+
+	// <Q2RTXP>: TODO: 
     Com_ShutdownAsyncWork();
 
     Sys_Quit();

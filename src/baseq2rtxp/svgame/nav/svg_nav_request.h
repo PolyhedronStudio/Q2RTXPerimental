@@ -55,6 +55,9 @@ struct nav_request_entry_t {
 	//! async result is applied with the same policy that was used to generate it.
 	svg_nav_path_policy_t resolved_policy = {};
 
+	//! When true, LOS simplification/direct shortcut collapse must be skipped so detailed waypoints stay intact.
+	bool preserve_detailed_waypoints = false;
+
 	//! Start and goal positions for this request (feet-origin).
 	Vector3 start = {};
 	//! Goal position (feet-origin).
@@ -112,6 +115,14 @@ bool SVG_Nav_IsRequestPending( const svg_nav_path_process_t * pathProcess );
 *  @note     This should be invoked from the main nav tick so work can be throttled.
 **/
 void SVG_Nav_ProcessRequestQueue( void );
+
+/** 
+*  @brief    Return whether the async queue should receive a second late-frame service tick.
+*  @return   True when the late-frame follow-up tick is enabled.
+*  @note     The early-frame tick exposes completed worker results before entity think, while this
+*            optional late-frame tick keeps already-running searches advancing within the same frame.
+**/
+bool SVG_Nav_ShouldRunLateFrameQueueTick( void );
 
 /** 
 *  @brief    Register the cvars that control async request queue execution and diagnostics.

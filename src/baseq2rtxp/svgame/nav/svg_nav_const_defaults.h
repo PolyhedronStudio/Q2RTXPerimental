@@ -36,14 +36,14 @@ static constexpr int32_t NAV_TILE_WORKER_STEP_CHUNK_SIZE = 65536;
 //! Default Radius around waypoints to consider 'reached':
 //! We take the (half-width / waypoint-resolution) of a typical NPC entity (16 units) as a reasonable default for the waypoint radius, which provides a good balance between precision and leniency in path following. 
 //! This allows the agent to consider a waypoint reached when it is close enough, without requiring an exact position match, which can help smooth out movement and reduce jitter.
-static constexpr const double NAV_DEFAULT_WAYPOINT_RADIUS = ( 18.0 );// PM_MAX_STEP_SIZE( 16 ) / ;
+static constexpr const double NAV_DEFAULT_WAYPOINT_RADIUS = ( 16.0 );// PM_MAX_STEP_SIZE( 16 ) / ;
 
 //! 2D distance change in goal position that triggers a path rebuild.
 static constexpr const double NAV_DEFAULT_GOAL_REBUILD_2D_DISTANCE		= 16.0;
 //! Maximum 2D distance change in goal position that neglects a path rebuild.
 static constexpr const double NAV_DEFAULT_GOAL_REBUILD_2D_DISTANCE_MAX	= 4096.0;
 //! 3D distance change in goal position that triggers a path rebuild.
-static constexpr const double NAV_DEFAULT_GOAL_REBUILD_3D_DISTANCE		= 32.0;
+static constexpr const double NAV_DEFAULT_GOAL_REBUILD_3D_DISTANCE		= 36.0;
 //! Maximum 3D distance change in goal position that neglects a path rebuild.
 static constexpr const double NAV_DEFAULT_GOAL_REBUILD_3D_DISTANCE_MAX	= 960.0;
 
@@ -79,9 +79,15 @@ static constexpr const double NAV_DEFAULT_MAX_OBSTRUCTION_JUMP_SIZE = 48.0;
 static constexpr const double NAV_DEFAULT_MAX_DROP_HEIGHT = 128.0;
 //! Drop cap applied when rejecting large downward transitions (matches `nav_max_drop_height_cap`).
 static constexpr const double NAV_DEFAULT_MAX_DROP_HEIGHT_CAP = 192.;
-//! Max vertical delta allowed for a line of sight check to succeed (units, matches `nav_los_max_vertical_delta`).
-static constexpr const double NAV_DEFAULT_LOS_MAX_VERTICAL_DELTA = ( NAV_DEFAULT_STEP_MAX_SIZE * 3 ) - ( NAV_DEFAULT_STEP_MIN_SIZE * 3);
 
+
+//!
+//!	Line of Sight:
+//! 
+//! Max vertical delta allowed for a line of sight check to succeed (units, matches `nav_los_max_vertical_delta`).
+static constexpr const double NAV_DEFAULT_LOS_MAX_VERTICAL_DELTA = 8;// ( NAV_DEFAULT_STEP_MAX_SIZE * 3 ) - ( NAV_DEFAULT_STEP_MIN_SIZE * 3 );
+//! Default maximum sample count for LOS checks before skipping direct-shortcut LOS attempts for performance reasons.
+static constexpr const int32_t NAV_DEFAULT_DIRECT_LOS_ATTEMPT_MAX_SAMPLES = 32768.;
 
 /** 
 *  
@@ -91,6 +97,6 @@ static constexpr const double NAV_DEFAULT_LOS_MAX_VERTICAL_DELTA = ( NAV_DEFAULT
 *  
 **/
 //! Horizontal distance at which blending begins (units).
-static constexpr const double NAV_DEFAULT_BLEND_DIST_START = 18;
+static constexpr const double NAV_DEFAULT_BLEND_DIST_START = 2;
 //! Horizontal distance at which blending is fully biased to the goal Z (units).
-static constexpr const double NAV_DEFAULT_BLEND_DIST_FULL = 72.0;
+static constexpr const double NAV_DEFAULT_BLEND_DIST_FULL = 18.0;

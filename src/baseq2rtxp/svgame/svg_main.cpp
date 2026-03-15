@@ -23,6 +23,12 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/svg_clients.h"
 #include "svgame/nav/svg_nav.h"
 #include "svgame/nav/svg_nav_request.h"
+
+/**
+*  @brief	Temporary recovery declaration for shared nav debug drawing.
+**/
+void SVG_Nav_DebugDraw( void );
+
 #include "svgame/svg_utils.h"
 
 #include "svgame/player/svg_player_client.h"
@@ -704,7 +710,6 @@ void SVG_RunFrame(void) {
     // Reseed the mersennery twister.
     mt_rand.seed( level.frameNumber );
 
-
     #if 0
     // Exit intermissions.
     if ( level.exitintermission ) {
@@ -721,6 +726,14 @@ void SVG_RunFrame(void) {
 		return;
 	}
     #endif
+
+    /**
+    *    Run one early async-navigation service pass before any entity think.
+    *        `Com_CompleteAsyncWork()` has already fired before entering the server frame, so this early
+    *        tick can apply completed worker payloads and advance queued/running searches before monsters
+    *        decide whether they already have a usable path this frame.
+    **/
+    SVG_Nav_ProcessRequestQueue();
 
     /**
 	*	WID: LUA: CallBack.
@@ -777,7 +790,7 @@ void SVG_RunFrame(void) {
 		*   Not linked in anywhere. Skip it! (Except for neverFreeOnlyUnlink entities.)
         **/
         // 
-        if ( !ent->area.prev && ent->neverFreeOnlyUnlink ) {
+        if ( /*!ent->area.prev*/ !ent->isLinked && ent->neverFreeOnlyUnlink ) {
             continue;
         }
 
@@ -854,11 +867,14 @@ void SVG_RunFrame(void) {
 	**/
     SVG_Lua_CallBack_EndServerFrame();
 
-	/**
-	*    Advance the async navigation request queue once per server frame so queued
-	*    path rebuilds make measurable progress.
-	**/
-	SVG_Nav_ProcessRequestQueue();
+    /**
+    *    Optionally run one late-frame follow-up queue tick.
+    *        The early-frame tick exposes completed worker results before entity think, while this
+    *        second pass lets already-running incremental searches make extra progress before the frame ends.
+    **/
+    if ( SVG_Nav_ShouldRunLateFrameQueueTick() ) {
+        SVG_Nav_ProcessRequestQueue();
+    }
 
 	// Navigation debug draw (runtime).
 	// Needs a built mesh (`nav_gen_voxelmesh`) and `nav_debug_draw 1`.

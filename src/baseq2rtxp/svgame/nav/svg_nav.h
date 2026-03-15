@@ -46,6 +46,7 @@ extern cvar_t *nav_profile_level;
 extern cvar_t *nav_astar_step_budget_ms;
 
 extern cvar_t *nav_direct_los_attempt_max_samples;
+extern cvar_t *nav_los_auto_leaf_heuristics;
 
 extern cvar_t *nav_hierarchy_route_enable;
 extern cvar_t *nav_hierarchy_route_min_distance;
@@ -792,11 +793,6 @@ std::pair<const nav_xy_cell_t *, int32_t> SVG_Nav_Tile_GetCells( const nav_mesh_
 *		   only provide per-array views and do not guarantee cross-array consistency
 *		   during concurrent mutations.
 *
-*	@note
-*		- The API returns raw pointers for performance and to avoid allocation overhead.
-*		- Use the const overload for most callers; use the mutable overload only when
-*		  you are intentionally modifying leaf-local arrays and understand ownership.
-*
 **/
 /** 
 * 	@brief	Get tile id array and count for a leaf (mutable overload).
@@ -1485,141 +1481,6 @@ const bool Nav_SelectLayerIndex( const nav_mesh_t *mesh, const nav_xy_cell_t *ce
 * 	@param  out_direction    Output direction vector towards the current waypoint.
 * 	@return True if there is a valid waypoint to move towards after advancement.
 **/
-const bool SVG_Nav_QueryMovementDirection_Advance2D_Output3D( const nav_traversal_path_t *path, const Vector3 &current_origin,
-	double waypoint_radius, int32_t *inout_index, Vector3 * out_direction );
-
-/** 
-*    @brief  Compute the world-space position for a node.
-* 	@param  mesh        Navigation mesh.
-* 	@param  tile        Tile containing the node.
-* 	@param  cell_index  Index of the cell containing the node.
-* 	@param  layer       Layer containing the node.
-* 	@return World-space position of the node.
-* 	@note   The position is at the center of the cell in X/Y and at the layer height in Z.
-**/
-Vector3 Nav_NodeWorldPosition( const nav_mesh_t *mesh, const nav_tile_t *tile, int32_t cell_index, const nav_layer_t *layer );
-
-/** 
-*    @brief  Find a navigation node in a leaf at the given position.
-* 	@param  mesh        Navigation mesh.
-* 	@param  leaf_data   Leaf data containing tile references.
-* 	@param  leaf_index  Index of the leaf in the mesh.
-* 	@param  position    World-space position to query.
-* 	@param  desired_z   Desired Z height for layer selection.
-* 	@param  out_node    Output node reference if found.
-* 	@param  allow_fallback  If true, allows returning a node even if traversal checks fail.
-* 	@return True if a node was found at the position.
-**/
-static bool Nav_FindNodeInLeaf( const nav_mesh_t *mesh, const nav_leaf_data_t *leaf_data, int32_t leaf_index,
-	const Vector3 &position, double desired_z, nav_node_ref_t *out_node,
-	bool allow_fallback );
-
-/** 
-* 	@brief	Select the best layer index for a cell based on a blend of start Z and goal Z.
-* 			This helps pathfinding prefer the correct floor when chasing a target above/below.
-* 	@param	start_z	Seeker starting Z.
-* 	@param	goal_z	Target goal Z.
-* 	@note	The blend factor is based on XY distance between seeker and goal: close targets bias toward start_z,
-* 			far targets bias toward goal_z.
-**/
-const bool Nav_SelectLayerIndex_BlendZ( const nav_mesh_t *mesh, const nav_xy_cell_t *cell, double start_z, double goal_z,
-	const Vector3 &start_pos, const Vector3 &goal_pos, const double blend_start_dist, const double blend_full_dist, int32_t *out_layer_index );
-
-/** 
-* 	@brief  Find a navigation node for a position using BSP leaf lookup with blended Z.
-*  			This helps pathfinding prefer the correct floor when chasing a target above/below.
-*  			The blend factor is based on XY distance between seeker and goal: close targets bias toward start_z,
-*  			far targets bias toward goal_z.
-* 	@param  start_z	Seeker starting Z.
-* 	@param  goal_z	Target goal Z.
-* 	@param  start_pos	Seeker starting position.
-* 	@param  goal_pos	Target goal position.
-* 	@param  blend_start_dist	Distance at which to start blending toward goal_z.
-* 	@param  blend_full_dist	Distance at which to fully use goal_z.
-* 	@note	Uses fallback search if direct leaf lookup fails and allow_fallback is true.
-**/
-const bool Nav_FindNodeForPosition_BlendZ( const nav_mesh_t *mesh, const Vector3 &position, double start_z, double goal_z,
-	const Vector3 &start_pos, const Vector3 &goal_pos, const double blend_start_dist, const double blend_full_dist,
-	nav_node_ref_t *out_node, bool allow_fallback );
-/** 
-*    @brief  Find a navigation node for a position using BSP leaf lookup.
-*  		 Uses fallback search if direct leaf lookup fails and allow_fallback is true.
-* 	@param	position	World-space position to query.
-*  	@param	desired_z	Desired Z height for layer selection.
-*  	@param	out_node	Output node reference.
-*  	@param	allow_fallback	Allow fallback search if direct leaf lookup fails.
-* 	@return	True if a node was found, false otherwise.
-**/
-const bool Nav_FindNodeForPosition( const nav_mesh_t *mesh, const Vector3 &position, double desired_z,
-	nav_node_ref_t *out_node, bool allow_fallback );
-
-
-
-/** 
-* 
-* 
-* 
-*    Navigation System "Traversal Operations":
-* 
-* 
-* 
-**/
-/** 
-*    @brief  Generate a traversal path between two world-space origins.
-*         Uses the navigation voxelmesh and A*  search to produce waypoints.
-*    @param  start_origin    World-space starting origin.
-*    @param  goal_origin     World-space destination origin.
-*    @param  out_path        Output path result (caller must free).
-*    @return True if a path was found, false otherwise.
-**/
-/** 
-* @brief    Generate a traversal path between two world-space origins.
-* @param    start_origin    World-space starting origin (feet-origin, i.e. z at feet)
-* @param    goal_origin     World-space destination origin (feet-origin)
-* @param    out_path        Output path result (caller must free).
-* @note     Public traversal APIs accept feet-origin coordinates. Internally
-*           these functions convert to nav-center space (apply center Z
-*           offset computed from the agent hull) before performing node
-*           lookups and A*  so callers do not need to supply a nav-centered
-*           position.
- **/
-const bool SVG_Nav_GenerateTraversalPathForOrigin( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path );
-const bool SVG_Nav_GenerateTraversalPathForOrigin_WithAgentBBox( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path,
-    const Vector3 &agent_mins, const Vector3 &agent_maxs, const struct svg_nav_path_policy_t *policy );
-/** 
-*   @brief  Generate a traversal path between two origins with optional goal Z-layer blending.
-*        Enables per-call control over whether the start/goal node selection prefers
-*        the goal's Z when far away, preventing stuck navigation when targets are upstairs.
-*   @param  start_origin             World-space start origin.
-*   @param  goal_origin              World-space goal origin.
-*   @param  out_path                 Output path result (caller must free).
-*   @param  enable_goal_z_layer_blend  If true, blend start Z toward goal Z based on horizontal distance.
-*   @param  blend_start_dist         Distance at which blending begins.
-*   @param  blend_full_dist          Distance at which blending fully favors goal Z.
-*   @return True if a path was found, false otherwise.
- **/
-const bool SVG_Nav_GenerateTraversalPathForOriginEx( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path,
-    const bool enable_goal_z_layer_blend, const double blend_start_dist, const double blend_full_dist );
-const bool SVG_Nav_GenerateTraversalPathForOriginEx_WithAgentBBox( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path,
-    const Vector3 &agent_mins, const Vector3 &agent_maxs, const svg_nav_path_policy_t *policy, const bool enable_goal_z_layer_blend, const double blend_start_dist, const double blend_full_dist,
-    const struct svg_nav_path_process_t *pathProcess = nullptr );
-/** 
-*    @brief  Free a traversal path allocated by SVG_Nav_GenerateTraversalPathForOrigin.
-*    @param  path    Path structure to free.
-**/
-void SVG_Nav_FreeTraversalPath( nav_traversal_path_t *path );
-
-/** 
-* 	@brief  Query movement direction along a traversal path.
-*         Advances the waypoint index as the caller reaches waypoints.
-*    @param  path            Path to follow.
-*    @param  current_origin  Current world-space origin.
-*    @param  waypoint_radius Radius for waypoint completion.
-*    @param  policy          Optional traversal policy for per-agent step/drop limits.
-*    @param  inout_index     Current waypoint index (updated on success).
-*    @param  out_direction   Output normalized movement direction.
-*    @return True if a valid direction was produced, false if path is complete/invalid.
-**/
 const bool SVG_Nav_QueryMovementDirection( const nav_traversal_path_t *path, const Vector3 &current_origin, double waypoint_radius, const svg_nav_path_policy_t *policy, int32_t *inout_index, Vector3 * out_direction );
 /** 
 *    @brief  Query movement direction while advancing waypoints in 2D and emitting 3D directions.
@@ -1634,40 +1495,22 @@ const bool SVG_Nav_QueryMovementDirection( const nav_traversal_path_t *path, con
 **/
 const bool SVG_Nav_QueryMovementDirection_Advance2D_Output3D( const nav_traversal_path_t *path, const Vector3 &current_origin, double waypoint_radius, const svg_nav_path_policy_t *policy, int32_t *inout_index, Vector3 * out_direction );
 
-
-
-/** 
-*  
-*  
-*  
-* 	Navigation System Debug Visualization:
-*  
-*  
-*  
+/**
+*    @brief  Resolve the world position for a tile/cell/layer node.
+*    @param  mesh        Navigation mesh owning the tile data.
+*    @param  tile        Tile containing the node.
+*    @param  cell_index  Flat XY cell index within the tile.
+*    @param  layer       Layer inside the cell.
+*    @return World-space node position in nav-center space.
 **/
-/** 
-* 	@brief	Check if navigation debug drawing is enabled and draw so if it is.
-**/
-void SVG_Nav_DebugDraw( void );
-
-
+Vector3 Nav_NodeWorldPosition( const nav_mesh_t * mesh, const nav_tile_t * tile, int32_t cell_index, const nav_layer_t * layer );
 
 /**
-*
-*
-*
-*
-* 	Utility Functions:
-*
-*
-*
-*
+*    @brief  Free a traversal path allocated by navigation query helpers.
+*    @param  path    Path structure to free.
 **/
-/**
-* 	@brief	Will return the path for a level's matching navigation filename.
-* 	@return	A string containing the file path + file extension.
-**/
-const std::string Nav_GetPathForLevelNav( const char *levelName, const bool prependGameFolder = true );
+void SVG_Nav_FreeTraversalPath( nav_traversal_path_t * path );
+
 /**
 *    @brief  Calculate the world-space size of a tile.
 **/
@@ -1695,3 +1538,45 @@ static inline int32_t Nav_WorldToCellCoord( double value, double tile_origin, do
 	// the world position is exactly on the boundary.
 	return ( int32_t )floorf( ( ( value - tile_origin ) + NAV_TILE_EPSILON ) / cell_size_xy );
 }
+/**
+*    @brief	Project a feet-origin point onto the nearest walkable nav-layer Z in its current XY cell.
+*    @param	mesh		Navigation mesh used for tile/cell lookup.
+*    @param	feet_origin	Feet-origin point supplied by the caller.
+*    @param	agent_mins	Feet-origin agent mins used for center conversion.
+*    @param	agent_maxs	Feet-origin agent maxs used for center conversion.
+*    @param	out_origin	[out] Feet-origin point with the projected walkable Z when lookup succeeds.
+*    @return	True when a walkable layer was found for the query XY cell.
+*    @note	This preserves the caller's XY while snapping only the feet-origin Z to the best walkable layer.
+**/
+const bool SVG_Nav_TryProjectFeetOriginToWalkableZ( const nav_mesh_t * mesh, const Vector3 &feet_origin,
+	const Vector3 &agent_mins, const Vector3 &agent_maxs, Vector3 * out_origin );
+
+/**
+*  @brief	Find a navigation node using blended start/goal Z selection.
+*  @param	mesh	Navigation mesh to query.
+*  @param	position	World-space position to query.
+*  @param	start_z	Seeker starting Z height.
+*  @param	goal_z	Target goal Z height.
+*  @param	start_pos	Seeker starting position.
+*  @param	goal_pos	Target goal position.
+*  @param	blend_start_dist	Distance at which blending starts.
+*  @param	blend_full_dist	Distance at which blending fully favors goal Z.
+*  @param	out_node	[out] Output node reference.
+*  @param	allow_fallback	Allow fallback search if direct lookup fails.
+*  @return	True if a node was found, false otherwise.
+**/
+const bool Nav_FindNodeForPosition_BlendZ( const nav_mesh_t * mesh, const Vector3 &position, double start_z, double goal_z,
+	const Vector3 &start_pos, const Vector3 &goal_pos, const double blend_start_dist, const double blend_full_dist,
+	nav_node_ref_t * out_node, bool allow_fallback );
+
+/**
+*  @brief	Find a navigation node for a world-space position using tile lookup.
+*  @param	mesh	Navigation mesh to query.
+*  @param	position	World-space position to query.
+*  @param	desired_z	Desired Z height for layer selection.
+*  @param	out_node	[out] Output node reference.
+*  @param	allow_fallback	Allow fallback search if direct lookup fails.
+*  @return	True if a node was found, false otherwise.
+**/
+const bool Nav_FindNodeForPosition( const nav_mesh_t * mesh, const Vector3 &position, double desired_z,
+	nav_node_ref_t * out_node, bool allow_fallback );

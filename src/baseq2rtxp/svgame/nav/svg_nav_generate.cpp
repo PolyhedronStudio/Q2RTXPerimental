@@ -565,6 +565,57 @@ static int32_t s_trace_hit_count = 0;
 static int32_t s_slope_reject_count = 0;
 
 /** 
+* 	@brief	Coalesce sampled walkable layers that are too close to represent distinct navigable elevations.
+* 	@param	layers		Mutable sampled layer buffer.
+* 	@param	num_layers	Number of sampled layers currently stored in `layers`.
+* 	@param	max_step	Traversal step height used to derive a minimum meaningful vertical separation.
+* 	@param	z_quant		Z quantization step used by the sampled layers.
+* 	@return	Compacted layer count after near-duplicate samples were merged.
+* 	@note	This keeps tiny sub-step bumps from inflating the per-cell layer count while preserving
+* 			stair-sized transitions that still matter for traversal.
+**/
+static int32_t Nav_Generation_CoalesceWalkableLayers( nav_layer_t * layers, const int32_t num_layers, const double max_step, const double z_quant ) {
+    /** 
+    * 	Sanity checks: require a mutable layer buffer and at least two samples to compare.
+    **/
+    if ( !layers || num_layers <= 1 || z_quant <= 0.0 ) {
+        return num_layers;
+    }
+
+    /** 
+    * 	Derive the minimum vertical separation that should still count as a distinct navigable layer.
+    * 		Keep this below full step height so real stair runs remain represented, while tiny bumps collapse away.
+    **/
+    const double minNavigableVertical = std::max( z_quant, std::max( ( double )PHYS_STEP_MIN_SIZE, max_step * 0.5 ) );
+    const int32_t minSpacingQuants = std::max( 1, ( int32_t )std::lround( minNavigableVertical / z_quant ) );
+
+    /** 
+    * 	Compact the sampled list in-place, merging metadata into the kept representative layer.
+    **/
+    int32_t writeIndex = 0;
+    for ( int32_t readIndex = 1; readIndex < num_layers; readIndex++ ) {
+        // Measure the quantized spacing between the current cluster representative and the next sample.
+        const int32_t quantDelta = std::abs( layers[ readIndex ].z_quantized - layers[ writeIndex ].z_quantized );
+        // Merge sub-step vertical noise into the existing representative instead of emitting another layer.
+        if ( quantDelta < minSpacingQuants ) {
+            layers[ writeIndex ].flags |= layers[ readIndex ].flags;
+            layers[ writeIndex ].traversal_feature_bits |= layers[ readIndex ].traversal_feature_bits;
+            layers[ writeIndex ].ladder_endpoint_flags |= layers[ readIndex ].ladder_endpoint_flags;
+            layers[ writeIndex ].clearance = std::max( layers[ writeIndex ].clearance, layers[ readIndex ].clearance );
+            continue;
+        }
+
+        // Keep this sample as the next distinct navigable layer.
+        writeIndex++;
+        if ( writeIndex != readIndex ) {
+            layers[ writeIndex ] = layers[ readIndex ];
+        }
+    }
+
+    return writeIndex + 1;
+}
+
+/** 
 * 	@brief	Perform downward traces to find walkable layers at an XY position.
 * 	@param	xy_pos		XY position in the sampling space (world for world mesh, model-local for inline mesh).
 * 	@param	mins		Agent bbox mins used for trace hull.
@@ -815,6 +866,11 @@ static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, cons
                 current_z -= step_down;
             }
     }
+
+    /** 
+   * Reduce near-duplicate vertical samples before we allocate persistent layer storage.
+    **/
+    num_layers = Nav_Generation_CoalesceWalkableLayers( temp_layers, num_layers, max_step, z_quant );
 
     /** 
    * Commit results:

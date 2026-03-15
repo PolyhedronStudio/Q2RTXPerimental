@@ -9,6 +9,8 @@
 
 #include <cstdint>
 
+#include "svgame/nav/svg_nav_portals.h"
+
 struct nav_mesh_t;
 struct nav_portal_overlay_t;
 
@@ -103,7 +105,15 @@ void Nav_Hierarchy_SortTileIdsDeterministic( const nav_mesh_t *mesh, std::vector
 /**
 * 	@brief	Derive canonical world-tile adjacency from persisted fine edge metadata.
 * 	@param	mesh	Navigation mesh whose canonical world tiles should be scanned.
+* 	@return	void
 * 	@note	Only cross-tile, conservative static edges are promoted into the adjacency graph.
+* 	@details
+* 		Scans every populated cell and layer for each canonical world tile. For each valid
+* 		edge sample that represents conservative, bidirectional static connectivity the
+* 		corresponding neighboring tile id is accumulated. Neighbor lists are collected
+* 		per-tile, sorted deterministically and compacted into the persistent adjacency
+* 		containers on the mesh. This function produces the coarse tile-level adjacency
+* 		graph used by later region-building phases.
 **/
 void Nav_Hierarchy_BuildTileAdjacency( nav_mesh_t *mesh );
 
@@ -118,6 +128,9 @@ uint64_t Nav_Hierarchy_MakeRegionPairKey( const int32_t region_a, const int32_t 
 * 	@brief	Validate that every region remains internally connected over the stored tile adjacency graph.
 * 	@param	mesh	Navigation mesh containing the freshly built hierarchy.
 * 	@return	True when every region validates successfully.
+* 	@note	This function performs a per-region DFS over the coarse tile adjacency graph and verifies
+* 			that the number of visited tiles equals the stored tile count for the region. Useful as
+* 			a post-build consistency check for Phase 3 region generation.
 **/
 bool Nav_Hierarchy_ValidateRegions( const nav_mesh_t *mesh );
 /**
@@ -128,24 +141,3 @@ bool Nav_Hierarchy_ValidateRegions( const nav_mesh_t *mesh );
 void Nav_Hierarchy_LogRegionSummary( const nav_mesh_t *mesh );
 
 
-/**
-*
-*
-*
-*	Hierarchy Portals:
-*
-*
-*
-**/
-/**
-* 	@brief	Build merged portal records from traversable cross-region tile boundaries.
-* 	@param	mesh	Navigation mesh containing finalized tile adjacency and region ids.
-* 	@param	sorted_tile_ids	Deterministically ordered canonical world-tile ids.
-**/
-void Nav_Hierarchy_BuildPortals( nav_mesh_t *mesh, const std::vector<int32_t> &sorted_tile_ids );
-/**
-* 	@brief	Validate the merged portal graph produced from region boundaries.
-* 	@param	mesh	Navigation mesh containing freshly built portal records.
-* 	@return	True when the portal graph references remain internally consistent.
-**/
-bool Nav_Hierarchy_ValidatePortalGraph( const nav_mesh_t *mesh );

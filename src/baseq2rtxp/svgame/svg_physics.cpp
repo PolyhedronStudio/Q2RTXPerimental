@@ -570,7 +570,7 @@ const bool SVG_PushMover( svg_base_edict_t *pusher, const Vector3 &move, const V
 			continue;
 		}
 
-		if ( !checkPtr->area.prev /*!checkPtr->isLinked*/ ) {
+		if ( /*!checkPtr->area.prev*/ !checkPtr->isLinked) {
 			continue;       // not linked in anywhere
 		}
 

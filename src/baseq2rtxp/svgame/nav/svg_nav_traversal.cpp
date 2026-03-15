@@ -49,6 +49,169 @@ bool Nav_PathDiagEnabled( void ) {
 }
 
 /** 
+*    @brief  Resolve the canonical world tile view for a node reference.
+*    @param  mesh  Navigation mesh owning the canonical tile storage.
+*    @param  node  Node reference whose tile should be resolved.
+*    @return Pointer to the canonical tile, or nullptr when the node/tile is invalid.
+*    @note   This keeps traversal hot paths from repeating tile-index bounds checks inline.
+**/
+const nav_tile_t * SVG_Nav_GetNodeTileView( const nav_mesh_t * mesh, const nav_node_ref_t &node ) {
+	/** 
+	*    Sanity checks: require mesh storage and a valid canonical tile index.
+	**/
+	if ( !mesh || node.key.tile_index < 0 || node.key.tile_index >= ( int32_t )mesh->world_tiles.size() ) {
+		return nullptr;
+	}
+
+	return &mesh->world_tiles[ node.key.tile_index ];
+}
+
+/** 
+*    @brief  Resolve the canonical XY cell view for a node reference.
+*    @param  mesh  Navigation mesh owning the canonical tile storage.
+*    @param  node  Node reference whose cell should be resolved.
+*    @return Pointer to the canonical XY cell, or nullptr when the node/cell is invalid.
+*    @note   This composes `SVG_Nav_GetNodeTileView()` with the tile cell accessor so traversal code can avoid duplicating both checks.
+**/
+const nav_xy_cell_t * SVG_Nav_GetNodeCellView( const nav_mesh_t * mesh, const nav_node_ref_t &node ) {
+	/** 
+	*    Resolve the owning canonical tile before touching cell storage.
+	**/
+	const nav_tile_t * tile = SVG_Nav_GetNodeTileView( mesh, node );
+	if ( !tile ) {
+		return nullptr;
+	}
+
+	/** 
+	*    Resolve the sparse cell array and validate the node's cell index.
+	**/
+	auto cells_view = SVG_Nav_Tile_GetCells( mesh, tile );
+	const nav_xy_cell_t * cells_ptr = cells_view.first;
+	const int32_t cells_count = cells_view.second;
+	if ( !cells_ptr || node.key.cell_index < 0 || node.key.cell_index >= cells_count ) {
+		return nullptr;
+	}
+
+	return &cells_ptr[ node.key.cell_index ];
+}
+
+/** 
+*    @brief  Map an XY neighbor offset onto the persisted per-edge direction index.
+*    @param  cell_dx  Neighbor cell X offset.
+*    @param  cell_dy  Neighbor cell Y offset.
+*    @return Persisted edge-slot index, or -1 when the offset is not one of the 8 stored directions.
+**/
+static int32_t Nav_EdgeDirIndexForOffset( const int32_t cell_dx, const int32_t cell_dy ) {
+	/** 
+	*    Persist only the immediate 8-direction XY neighborhood.
+	**/
+	if ( cell_dx == 1 && cell_dy == 0 ) return 0;
+	if ( cell_dx == -1 && cell_dy == 0 ) return 1;
+	if ( cell_dx == 0 && cell_dy == 1 ) return 2;
+	if ( cell_dx == 0 && cell_dy == -1 ) return 3;
+	if ( cell_dx == 1 && cell_dy == 1 ) return 4;
+	if ( cell_dx == 1 && cell_dy == -1 ) return 5;
+	if ( cell_dx == -1 && cell_dy == 1 ) return 6;
+	if ( cell_dx == -1 && cell_dy == -1 ) return 7;
+	return -1;
+}
+
+/** 
+*    @brief  Resolve a canonical layer pointer from a node reference.
+*    @param  mesh  Navigation mesh.
+*    @param  node  Node reference to resolve.
+*    @return Pointer to the canonical layer or nullptr on failure.
+**/
+const nav_layer_t * SVG_Nav_GetNodeLayerView( const nav_mesh_t * mesh, const nav_node_ref_t &node ) {
+	/** 
+	*    Resolve the owning canonical cell before touching layer storage.
+	**/
+	const nav_xy_cell_t * cell = SVG_Nav_GetNodeCellView( mesh, node );
+	if ( !cell ) {
+		return nullptr;
+	}
+
+	/** 
+	*    Resolve the target layer through the cell's safe layer view.
+	**/
+	auto layers_view = SVG_Nav_Cell_GetLayers( cell );
+	const nav_layer_t * layers_ptr = layers_view.first;
+	const int32_t layer_count = layers_view.second;
+	if ( !layers_ptr || node.key.layer_index < 0 || node.key.layer_index >= layer_count ) {
+		return nullptr;
+	}
+
+	return &layers_ptr[ node.key.layer_index ];
+}
+
+/** 
+*    @brief  Query traversal feature bits for a canonical node.
+*    @param  mesh  Navigation mesh.
+*    @param  node  Node reference to inspect.
+*    @return Traversal feature bits for the node, or `NAV_TRAVERSAL_FEATURE_NONE` on failure.
+**/
+uint32_t SVG_Nav_GetNodeTraversalFeatureBits( const nav_mesh_t * mesh, const nav_node_ref_t &node ) {
+	/** 
+	*    Resolve the canonical layer before reading its traversal metadata.
+	**/
+	const nav_layer_t * layer = SVG_Nav_GetNodeLayerView( mesh, node );
+	return layer ? layer->traversal_feature_bits : NAV_TRAVERSAL_FEATURE_NONE;
+}
+
+/** 
+*    @brief  Query explicit edge metadata for a canonical node and XY offset.
+*    @param  mesh      Navigation mesh.
+*    @param  node      Source node reference.
+*    @param  cell_dx   Neighbor cell X offset in `[-1, 1]`.
+*    @param  cell_dy   Neighbor cell Y offset in `[-1, 1]`.
+*    @return Explicit edge feature bits, or `NAV_EDGE_FEATURE_NONE` when no persisted edge slot applies.
+**/
+uint32_t SVG_Nav_GetEdgeFeatureBitsForOffset( const nav_mesh_t * mesh, const nav_node_ref_t &node, const int32_t cell_dx, const int32_t cell_dy ) {
+	/** 
+	*    Resolve the persisted edge slot index for this XY neighbor offset.
+	**/
+	const int32_t edge_dir_index = Nav_EdgeDirIndexForOffset( cell_dx, cell_dy );
+	if ( edge_dir_index < 0 ) {
+		return NAV_EDGE_FEATURE_NONE;
+	}
+
+	/** 
+	*    Resolve the canonical layer before reading the persisted edge metadata.
+	**/
+	const nav_layer_t * layer = SVG_Nav_GetNodeLayerView( mesh, node );
+	if ( !layer ) {
+		return NAV_EDGE_FEATURE_NONE;
+	}
+
+	/** 
+	*    Return only explicitly persisted edge data.
+	**/
+	if ( ( layer->edge_valid_mask & ( 1u << edge_dir_index ) ) == 0 ) {
+		return NAV_EDGE_FEATURE_NONE;
+	}
+
+	return layer->edge_feature_bits[ edge_dir_index ];
+}
+
+/** 
+*    @brief  Query coarse tile summary bits for the tile owning a canonical node.
+*    @param  mesh  Navigation mesh.
+*    @param  node  Node reference whose tile should be inspected.
+*    @return Tile summary bits, or `NAV_TILE_SUMMARY_NONE` on failure.
+**/
+uint32_t SVG_Nav_GetTileSummaryBitsForNode( const nav_mesh_t * mesh, const nav_node_ref_t &node ) {
+	/** 
+	*    Validate the canonical tile index before reading tile-level metadata.
+	**/
+	const nav_tile_t * tile = SVG_Nav_GetNodeTileView( mesh, node );
+	if ( !tile ) {
+		return NAV_TILE_SUMMARY_NONE;
+	}
+
+	return tile->traversal_summary_bits | tile->edge_summary_bits;
+}
+
+/** 
 *	@brief	RAII helper used to bracket one sync query stats capture window.
 *	@note	Only the outermost sync query activates collection so nested helper calls do not clobber totals.
 **/
@@ -378,6 +541,90 @@ static bool Nav_Hierarchy_TryGetRegionIdForNode( const nav_mesh_t * mesh, const 
 }
 
 /** 
+* 	  @brief  Query the next 3D movement direction while advancing waypoints in 2D.
+* 	  @param  path            Path to follow.
+* 	  @param  current_origin  Current world-space origin.
+* 	  @param  waypoint_radius Radius for 2D waypoint completion.
+* 	  @param  policy          Optional traversal policy for per-agent step/drop limits.
+* 	  @param  inout_index     Current waypoint index (updated on success).
+* 	  @param  out_direction   Output normalized 3D movement direction.
+* 	  @return True if a valid direction was produced, false if the path is invalid or complete.
+**/
+const bool SVG_Nav_QueryMovementDirection_Advance2D_Output3D( const nav_traversal_path_t * path, const Vector3 &current_origin,
+	double waypoint_radius, const svg_nav_path_policy_t * policy, int32_t * inout_index, Vector3 * out_direction ) {
+	/** 
+	* 	Sanity checks: validate inputs and ensure we have a usable path.
+	**/
+	if ( !path || !inout_index || !out_direction ) {
+		return false;
+	}
+	if ( path->num_points <= 0 || !path->points ) {
+		return false;
+	}
+
+	/** 
+	* 	Clamp the waypoint radius to a minimum value for 2D completion.
+	**/
+	waypoint_radius = std::max( waypoint_radius, 8.0 );
+
+	int32_t index = * inout_index;
+	if ( index < 0 ) {
+		index = 0;
+	}
+
+	const double waypoint_radius_sqr = waypoint_radius * waypoint_radius;
+
+	/** 
+	* 	Advance waypoints using only horizontal distance so stair runs preserve their vertical anchors.
+	**/
+	while ( index < path->num_points ) {
+		const Vector3 delta = QM_Vector3Subtract( path->points[ index ], current_origin );
+		const double dist2d_sqr = ( delta[ 0 ] * delta[ 0 ] ) + ( delta[ 1 ] * delta[ 1 ] );
+		if ( dist2d_sqr > waypoint_radius_sqr ) {
+			break;
+		}
+		index++;
+	}
+
+	/** 
+	* 	Return false once the caller has consumed all waypoints.
+	**/
+	if ( index >= path->num_points ) {
+		*inout_index = path->num_points;
+		return false;
+	}
+
+	/** 
+	* 	Build a 3D direction toward the current waypoint while clamping extreme vertical components.
+	**/
+	Vector3 direction = QM_Vector3Subtract( path->points[ index ], current_origin );
+	if ( g_nav_mesh ) {
+		double stepLimit = g_nav_mesh->max_step;
+		if ( policy && policy->max_step_height > 0.0 ) {
+			stepLimit = policy->max_step_height;
+		}
+		const double maxDz = stepLimit + g_nav_mesh->z_quant;
+		if ( direction[ 2 ] > maxDz ) {
+			direction[ 2 ] = maxDz;
+		} else if ( direction[ 2 ] < -maxDz ) {
+			direction[ 2 ] = -maxDz;
+		}
+	}
+
+	/** 
+	* 	Validate the direction magnitude before normalizing.
+	**/
+	const double length = ( double )QM_Vector3LengthDP( direction );
+	if ( length <= std::numeric_limits<double>::epsilon() ) {
+		return false;
+	}
+
+	*out_direction = QM_Vector3NormalizeDP( direction );
+	*inout_index = index;
+	return true;
+}
+
+/** 
 *	@brief    Forward declarations for conservative direct-shortcut gating helpers.
 **/
 static double Nav_LOS_ComputeSampleStep( const nav_mesh_t * mesh, const nav_los_request_t * request );
@@ -388,6 +635,8 @@ static double Nav_DirectLosShortcutMaxVerticalDelta( const nav_mesh_t * mesh, co
 static bool Nav_DirectLosShortcutHasClearlyValidIntermediateHops( const nav_mesh_t * mesh, const nav_node_ref_t &start_node,
 	const nav_node_ref_t &goal_node, const Vector3 &agent_mins, const Vector3 &agent_maxs,
 	const svg_nav_path_policy_t * policy );
+static double Nav_Hierarchy_ComputePortalTraversalCost( const nav_portal_t &portal, const nav_portal_overlay_t * overlay,
+	const Vector3 &goal_point, const svg_nav_path_policy_t * policy );
 
 /** 
 *	  @brief	Try to build a direct two-point shortcut path between resolved canonical endpoints.
@@ -737,10 +986,74 @@ static bool Nav_Hierarchy_TryGetPortalOverlayState( const nav_mesh_t * mesh, con
 	return SVG_Nav_Hierarchy_TryGetPortalOverlay( mesh, portal_id, out_overlay );
 }
 
+/**
+*	@brief	Try to conservatively shortcut from the current coarse portal into a neighboring portal using LOS.
+*	@param	mesh	Navigation mesh containing hierarchy and canonical node data.
+*	@param	current_portal	Current portal being expanded by hierarchy coarse A*.
+*	@param	candidate_portal	Candidate neighboring portal owned by the adjacent region.
+*	@param	goal_point	Representative point for the goal region, used to bias ladder-aware costs.
+*	@param	policy	Optional traversal policy controlling hazards and ladder preference.
+*	@param	out_shortcut_cost	[out] Traversal cost to use when the shortcut succeeds.
+*	@return	True when the neighboring portal can be reached conservatively via LOS.
+*	@note	This first pass is intentionally strict: it uses portal representative points, default mesh hull bounds,
+*			respects portal compatibility and overlay blocks, and only accepts LOS when canonical endpoint resolution succeeds.
+**/
+static bool Nav_Hierarchy_TryPortalToPortalLosShortcut( const nav_mesh_t * mesh, const nav_portal_t &current_portal,
+	const nav_portal_t &candidate_portal, const Vector3 &goal_point, const svg_nav_path_policy_t * policy, double * out_shortcut_cost ) {
+	/**
+	*	Sanity checks: require mesh and output storage before resolving any canonical endpoints.
+	**/
+	if ( !mesh || !out_shortcut_cost ) {
+		return false;
+	}
+
+	/**
+	*	Reject portal pairs that disagree with the active policy before any LOS work.
+	**/
+	if ( !Nav_Hierarchy_PortalAllowedByPolicy( current_portal, policy ) || !Nav_Hierarchy_PortalAllowedByPolicy( candidate_portal, policy ) ) {
+		return false;
+	}
+
+	/**
+	*	Resolve the candidate portal overlay and reject locally invalidated transitions.
+	**/
+	nav_portal_overlay_t candidate_overlay = {};
+	if ( !Nav_Hierarchy_TryGetPortalOverlayState( mesh, candidate_portal.id, &candidate_overlay ) ) {
+		candidate_overlay = {};
+	}
+	if ( ( candidate_overlay.flags & ( NAV_PORTAL_FLAG_INVALIDATED | NAV_PORTAL_FLAG_BLOCKED ) ) != 0 ) {
+		return false;
+	}
+
+	/**
+	*	Resolve canonical LOS endpoints from the two portal representative points.
+	**/
+	nav_node_ref_t start_node = {};
+	nav_node_ref_t goal_node = {};
+	if ( !Nav_FindNodeForPosition( mesh, current_portal.representative_point, current_portal.representative_point.z, &start_node, true )
+		|| !Nav_FindNodeForPosition( mesh, candidate_portal.representative_point, candidate_portal.representative_point.z, &goal_node, true ) ) {
+		return false;
+	}
+
+	/**
+	*	Bias the reusable LOS accelerator toward the conservative backend for portal semantics.
+	**/
+	const nav_los_request_t los_request = { .mode = nav_los_mode_t::LeafTraversal };
+	if ( !SVG_Nav_HasLineOfSight( mesh, start_node, goal_node, mesh->agent_mins, mesh->agent_maxs, policy, &los_request, nullptr ) ) {
+		return false;
+	}
+
+	/**
+	*	Publish the candidate portal traversal cost so coarse A* can enqueue the neighboring region with the cheaper shortcut edge.
+	**/
+	*out_shortcut_cost = Nav_Hierarchy_ComputePortalTraversalCost( candidate_portal, &candidate_overlay, goal_point, policy );
+	return true;
+}
+
 /** 
 *	@brief    Compute the coarse traversal cost for a portal transition.
 *	@param    portal       Portal candidate being evaluated by hierarchy coarse A* .
-* @param    overlay      Optional local runtime overlay affecting portal cost.
+*	@param    overlay      Optional local runtime overlay affecting portal cost.
 *	@param    goal_point   Representative point for the goal region.
 *	@param    policy       Optional traversal policy controlling ladder preference.
 *	@return   Coarse traversal cost to step through this portal.
@@ -801,8 +1114,8 @@ static void Nav_Hierarchy_AppendUniqueTileKey( std::vector<nav_tile_cluster_key_
 *	@param    start_region_id         Region containing the canonical start node.
 *	@param    goal_region_id          Region containing the canonical goal node.
 *	@param    policy                  Optional traversal policy for coarse portal filtering.
-* @param    out_region_path         [out] Ordered compact region path from start to goal.
-* @param    out_portal_path         [out] Ordered compact portal path from start to goal.
+*	@param    out_region_path         [out] Ordered compact region path from start to goal.
+*	@param    out_portal_path         [out] Ordered compact portal path from start to goal.
 *	@param    out_coarse_expansions   [out] Number of coarse region expansions performed.
 *	@return   True when a region path was found.
 **/
@@ -820,7 +1133,7 @@ static bool Nav_Hierarchy_FindRegionPath( const nav_mesh_t * mesh, const int32_t
 	*	Reset caller outputs before attempting any coarse search.
 	**/
 	out_region_path->clear();
-  if ( out_portal_path ) {
+	if ( out_portal_path ) {
 		out_portal_path->clear();
 	}
 	if ( out_coarse_expansions ) {
@@ -925,6 +1238,18 @@ static bool Nav_Hierarchy_FindRegionPath( const nav_mesh_t * mesh, const int32_t
 			return true;
 		}
 
+       /** 
+		* 	Resolve the portal used to enter the current region so portal-to-portal LOS can
+		* 	conservatively validate cross-region hand-offs without changing the fallback route.
+		**/
+		const nav_portal_t * currentEntryPortal = nullptr;
+		if ( currentNode.via_portal_id != NAV_PORTAL_ID_NONE
+			&& currentNode.via_portal_id >= 0
+			&& currentNode.via_portal_id < ( int32_t )mesh->hierarchy.portals.size() ) {
+			// Cache the current region entry portal once for all outgoing portal candidates.
+			currentEntryPortal = &mesh->hierarchy.portals[ currentNode.via_portal_id ];
+		}
+
 		const nav_region_t &currentRegion = mesh->hierarchy.regions[ currentNode.region_id ];
 		for ( int32_t portalRefIndex = 0; portalRefIndex < currentRegion.num_portal_refs; portalRefIndex++ ) {
 			const int32_t portalId = mesh->hierarchy.region_portal_refs[ currentRegion.first_portal_ref + portalRefIndex ];
@@ -963,7 +1288,28 @@ static bool Nav_Hierarchy_FindRegionPath( const nav_mesh_t * mesh, const int32_t
 				continue;
 			}
 
-           const double tentativeGCost = currentNode.g_cost + Nav_Hierarchy_ComputePortalTraversalCost( portal, &portalOverlay, goalPoint, policy );
+			//const double tentativeGCost = currentNode.g_cost + Nav_Hierarchy_ComputePortalTraversalCost( portal, &portalOverlay, goalPoint, policy );
+			/** 
+			* 	Start from the persisted candidate-portal traversal cost, then opportunistically
+			* 	reuse the conservative portal-to-portal LOS shortcut when this region was entered
+			* 	through another portal.
+			**/
+			double portalTraversalCost = Nav_Hierarchy_ComputePortalTraversalCost( portal, &portalOverlay, goalPoint, policy );
+
+			/** 
+			* 	Only evaluate the shortcut when the current region has a valid entry portal and the
+			* 	outgoing candidate is a different portal. Failure must fall back to the existing
+			* 	region expansion so hierarchy routing remains conservative rather than brittle.
+			**/
+			if ( currentEntryPortal && currentEntryPortal->id != portal.id ) {
+				double shortcutTraversalCost = 0.0;
+				if ( Nav_Hierarchy_TryPortalToPortalLosShortcut( mesh, * currentEntryPortal, portal, goalPoint, policy, &shortcutTraversalCost ) ) {
+					// Prefer the cheaper conservative portal hand-off when LOS confirmed it explicitly.
+					portalTraversalCost = std::min( portalTraversalCost, shortcutTraversalCost );
+				}
+			}
+
+			const double tentativeGCost = currentNode.g_cost + portalTraversalCost;
 			int32_t neighborNodeIndex = nodeIndexOfRegion[ neighborRegionId ];
 			if ( neighborNodeIndex < 0 ) {
 				nav_coarse_region_search_node_t neighborNode = {};
@@ -1047,9 +1393,9 @@ static bool Nav_Hierarchy_MaterializeRegionPathToTileRoute( const nav_mesh_t * m
 *	@param    mesh          Navigation mesh containing region tile refs.
 *	@param    region_path   Ordered compact region path.
 *	@param    portal_path   Ordered compact portal path.
-* @param    overlay_block_count   Number of local portal overlay rejections encountered while building the corridor.
-* @param    overlay_penalty_count Number of local portal overlay penalties encountered while building the corridor.
-* @param    out_corridor          [out] Explicit corridor describing the bounded local refinement space.
+*	@param    overlay_block_count   Number of local portal overlay rejections encountered while building the corridor.
+*	@param    overlay_penalty_count Number of local portal overlay penalties encountered while building the corridor.
+*	@param    out_corridor          [out] Explicit corridor describing the bounded local refinement space.
 *	@return   True when the corridor contains an exact tile route.
 **/
 static bool Nav_Hierarchy_MaterializeRefineCorridor( const nav_mesh_t * mesh, const std::vector<int32_t> &region_path,
@@ -1095,7 +1441,7 @@ static bool Nav_Cluster_MaterializeRefineCorridor( const std::vector<nav_tile_cl
 	*out_corridor = {};
 	out_corridor->source = nav_refine_corridor_source_t::Cluster;
 	out_corridor->exact_tile_route = exact_tile_route;
-   out_corridor->overlay_block_count = 0;
+	out_corridor->overlay_block_count = 0;
 	out_corridor->overlay_penalty_count = 0;
 	return out_corridor->HasExactTileRoute();
 }
@@ -1147,7 +1493,7 @@ bool SVG_Nav_BuildRefineCorridor( const nav_mesh_t * mesh, const nav_node_ref_t 
 			std::vector<int32_t> regionPath;
 			std::vector<int32_t> portalPath;
 			int32_t coarseExpansions = 0;
-         int32_t overlayBlockCount = 0;
+			int32_t overlayBlockCount = 0;
 			int32_t overlayPenaltyCount = 0;
 			if ( Nav_Hierarchy_FindRegionPath( mesh, startRegionId, goalRegionId, policy, &regionPath, &portalPath, &coarseExpansions,
 				&overlayBlockCount, &overlayPenaltyCount )
@@ -1204,7 +1550,7 @@ bool SVG_Nav_BuildCoarseRouteFilter( const nav_mesh_t * mesh, const nav_node_ref
 	}
 
 	/** 
-   * Build the explicit refinement corridor first, then expose only its exact tile route for legacy callers.
+	*	Build the explicit refinement corridor first, then expose only its exact tile route for legacy callers.
 	**/
     nav_refine_corridor_t corridor = {};
 	if ( SVG_Nav_BuildRefineCorridor( mesh, start_node, goal_node, policy, &corridor,
@@ -1295,7 +1641,7 @@ static bool Nav_ShouldAttemptDirectLosShortcut( const nav_mesh_t * mesh, const n
 	/** 
 	*	Treat zero or negative limits as "always attempt" so tuning can disable this gate explicitly.
 	**/
-	const int32_t maxSamples = nav_direct_los_attempt_max_samples ? nav_direct_los_attempt_max_samples->integer : 2048;
+	const int32_t maxSamples = nav_direct_los_attempt_max_samples ? nav_direct_los_attempt_max_samples->integer : NAV_DEFAULT_DIRECT_LOS_ATTEMPT_MAX_SAMPLES;
 	if ( maxSamples <= 0 ) {
 		return true;
 	}
@@ -1641,9 +1987,47 @@ bool SVG_Nav_HasLineOfSight( const nav_mesh_t * mesh, const nav_node_ref_t &star
 	**/
 	const nav_los_mode_t requestedMode = request ? request->mode : nav_los_mode_t::Auto;
 	nav_los_mode_t resolvedMode = requestedMode;
-	if ( resolvedMode == nav_los_mode_t::Auto ) {
+   if ( resolvedMode == nav_los_mode_t::Auto ) {
 		resolvedMode = ( mesh->cell_size_xy > 0.0 && mesh->tile_size > 0 ) ? nav_los_mode_t::DDA : nav_los_mode_t::LeafTraversal;
 	}
+
+ // When callers left the mode as Auto but DDA was chosen, use a tunable
+	// conservative heuristic to prefer LeafTraversal when the segment clearly
+	// involves vertical transitions, ladders, or stair/portal semantics.
+	if ( requestedMode == nav_los_mode_t::Auto && resolvedMode == nav_los_mode_t::DDA
+		&& nav_los_auto_leaf_heuristics && nav_los_auto_leaf_heuristics->integer != 0 ) {
+		bool preferLeaf = false;
+
+		// Large vertical delta suggests the trace must respect per-leaf vertical
+		// semantics (stairs, ladders, multi-level portals).
+		const double verticalDelta = std::fabs( ( double )goal_node.worldPosition.z - ( double )start_node.worldPosition.z );
+		const double maxShortcutVerticalDelta = Nav_DirectLosShortcutMaxVerticalDelta( mesh, policy );
+		if ( verticalDelta > maxShortcutVerticalDelta ) {
+			preferLeaf = true;
+		}
+
+		// If either endpoint advertises ladders or stair presence, prefer leaf traversal
+		// so portal/leaf transitions and ladder endpoints are handled conservatively.
+		const uint32_t startTraversal = SVG_Nav_GetNodeTraversalFeatureBits( mesh, start_node );
+		const uint32_t goalTraversal = SVG_Nav_GetNodeTraversalFeatureBits( mesh, goal_node );
+		const uint32_t traversalFlags = startTraversal | goalTraversal;
+		if ( ( traversalFlags & ( NAV_TRAVERSAL_FEATURE_LADDER | NAV_TRAVERSAL_FEATURE_STAIR_PRESENCE ) ) != 0 ) {
+			preferLeaf = true;
+		}
+
+		// Tile-level summaries can also indicate ladder/stair semantics that warrant
+		// the conservative backend.
+		const uint32_t startTileSummary = SVG_Nav_GetTileSummaryBitsForNode( mesh, start_node );
+		const uint32_t goalTileSummary = SVG_Nav_GetTileSummaryBitsForNode( mesh, goal_node );
+		if ( ( ( startTileSummary | goalTileSummary ) & ( NAV_TILE_SUMMARY_LADDER | NAV_TILE_SUMMARY_STAIR ) ) != 0 ) {
+			preferLeaf = true;
+		}
+
+		if ( preferLeaf ) {
+			resolvedMode = nav_los_mode_t::LeafTraversal;
+		}
+	}
+
 	localResult.requested_mode = requestedMode;
 	localResult.resolved_mode = resolvedMode;
 
@@ -1679,7 +2063,7 @@ bool SVG_Nav_HasLineOfSight( const nav_mesh_t * mesh, const nav_node_ref_t &star
 bool SVG_Nav_SimplifyPathPoints( const nav_mesh_t * mesh, const Vector3 &agent_mins, const Vector3 &agent_maxs,
 	const svg_nav_path_policy_t * policy, std::vector<Vector3> * inout_points, const nav_path_simplify_options_t * options,
 	nav_path_simplify_stats_t * out_stats ) {
-	/** 
+	/**
 	*	Initialize output counters eagerly so callers always receive a stable snapshot.
 	**/
 	nav_path_simplify_stats_t localStats = {};
@@ -1689,12 +2073,12 @@ bool SVG_Nav_SimplifyPathPoints( const nav_mesh_t * mesh, const Vector3 &agent_m
 	}
 	const uint64_t simplifyStartMs = gi.GetRealSystemTime();
 
-	/** 
+	/**
 	*	Build the effective simplification options, keeping sync defaults conservative when the caller does not override them.
 	**/
 	nav_path_simplify_options_t simplifyOptions = {};
 	if ( options ) {
-		simplifyOptions = * options;
+		simplifyOptions = *options;
 	} else {
 		simplifyOptions.max_los_tests = nav_simplify_sync_max_los_tests ? nav_simplify_sync_max_los_tests->integer : 2;
 		simplifyOptions.max_elapsed_ms = ( uint64_t )( nav_simplify_sync_max_ms ? std::max( 0, nav_simplify_sync_max_ms->integer ) : 1 );
@@ -1704,11 +2088,11 @@ bool SVG_Nav_SimplifyPathPoints( const nav_mesh_t * mesh, const Vector3 &agent_m
 		simplifyOptions.aggressiveness = nav_path_simplify_aggressiveness_t::SyncConservative;
 	}
 
-	/** 
+	/**
 	*	Sanity checks: require mesh and mutable waypoint storage before attempting simplification.
 	**/
 	if ( !mesh || !inout_points || inout_points->size() <= 2 ) {
-       localStats.output_waypoint_count = localStats.input_waypoint_count;
+		localStats.output_waypoint_count = localStats.input_waypoint_count;
 		localStats.total_ms = ( double )( gi.GetRealSystemTime() - simplifyStartMs );
 		if ( out_stats ) {
 			*out_stats = localStats;
@@ -1716,12 +2100,12 @@ bool SVG_Nav_SimplifyPathPoints( const nav_mesh_t * mesh, const Vector3 &agent_m
 		return false;
 	}
 
-	/** 
+	/**
 	*	Start from a mutable working copy so cleanup stages can prune duplicates and near-collinear points before LOS tests.
 	**/
-	std::vector<Vector3> workingPoints = * inout_points;
+	std::vector<Vector3> workingPoints = *inout_points;
 
-	/** 
+	/**
 	*	Remove consecutive duplicate waypoints first so later collinearity and LOS checks do not spend budget on trivial repeats.
 	**/
 	if ( simplifyOptions.remove_duplicates && workingPoints.size() > 1 ) {
@@ -1730,8 +2114,8 @@ bool SVG_Nav_SimplifyPathPoints( const nav_mesh_t * mesh, const Vector3 &agent_m
 		deduplicatedPoints.push_back( workingPoints.front() );
 		for ( size_t pointIndex = 1; pointIndex < workingPoints.size(); pointIndex++ ) {
 			const Vector3 delta = QM_Vector3Subtract( workingPoints[ pointIndex ], deduplicatedPoints.back() );
-			const double dist2 = ( delta.x* delta.x ) + ( delta.y* delta.y ) + ( delta.z* delta.z );
-			if ( dist2 <= ( 0.001* 0.001 ) ) {
+			const double dist2 = ( delta.x * delta.x ) + ( delta.y * delta.y ) + ( delta.z * delta.z );
+			if ( dist2 <= ( 0.001 * 0.001 ) ) {
 				localStats.duplicate_prunes++;
 				continue;
 			}
@@ -1740,25 +2124,25 @@ bool SVG_Nav_SimplifyPathPoints( const nav_mesh_t * mesh, const Vector3 &agent_m
 		workingPoints.swap( deduplicatedPoints );
 	}
 
-	/** 
+	/**
 	*	Prune nearly-collinear interior points next so the sync pass gets cheap waypoint reduction even before LOS collapsing.
 	**/
 	if ( simplifyOptions.prune_collinear && workingPoints.size() > 2 ) {
 		std::vector<Vector3> prunedPoints;
 		prunedPoints.reserve( workingPoints.size() );
 		prunedPoints.push_back( workingPoints.front() );
-		const double angleRadians = std::max( 0.0, simplifyOptions.collinear_angle_degrees )* ( 3.14159265358979323846 / 180.0 );
+		const double angleRadians = std::max( 0.0, simplifyOptions.collinear_angle_degrees ) * ( 3.14159265358979323846 / 180.0 );
 		const double dotThreshold = std::cos( angleRadians );
 		for ( size_t pointIndex = 1; pointIndex + 1 < workingPoints.size(); pointIndex++ ) {
 			const Vector3 prevDelta = QM_Vector3Subtract( workingPoints[ pointIndex ], prunedPoints.back() );
 			const Vector3 nextDelta = QM_Vector3Subtract( workingPoints[ pointIndex + 1 ], workingPoints[ pointIndex ] );
-			const double prevLen = std::sqrt( ( prevDelta.x* prevDelta.x ) + ( prevDelta.y* prevDelta.y ) + ( prevDelta.z* prevDelta.z ) );
-			const double nextLen = std::sqrt( ( nextDelta.x* nextDelta.x ) + ( nextDelta.y* nextDelta.y ) + ( nextDelta.z* nextDelta.z ) );
+			const double prevLen = std::sqrt( ( prevDelta.x * prevDelta.x ) + ( prevDelta.y * prevDelta.y ) + ( prevDelta.z * prevDelta.z ) );
+			const double nextLen = std::sqrt( ( nextDelta.x * nextDelta.x ) + ( nextDelta.y * nextDelta.y ) + ( nextDelta.z * nextDelta.z ) );
 			if ( prevLen <= 0.001 || nextLen <= 0.001 ) {
 				localStats.collinear_prunes++;
 				continue;
 			}
-			const double dot = ( ( prevDelta.x* nextDelta.x ) + ( prevDelta.y* nextDelta.y ) + ( prevDelta.z* nextDelta.z ) ) / ( prevLen* nextLen );
+			const double dot = ( ( prevDelta.x * nextDelta.x ) + ( prevDelta.y * nextDelta.y ) + ( prevDelta.z * nextDelta.z ) ) / ( prevLen * nextLen );
 			if ( dot >= dotThreshold ) {
 				localStats.collinear_prunes++;
 				continue;
@@ -1769,7 +2153,7 @@ bool SVG_Nav_SimplifyPathPoints( const nav_mesh_t * mesh, const Vector3 &agent_m
 		workingPoints.swap( prunedPoints );
 	}
 
-	/** 
+	/**
 	*	Publish the cleanup-only result immediately when the path became trivial before any LOS collapsing was needed.
 	**/
 	if ( workingPoints.size() <= 2 ) {
@@ -1785,13 +2169,13 @@ bool SVG_Nav_SimplifyPathPoints( const nav_mesh_t * mesh, const Vector3 &agent_m
 		return false;
 	}
 
-	/** 
+	/**
 	*	Cache canonical waypoint nodes so repeated greedy LOS tests do not repeatedly resolve the same points.
 	**/
-    std::vector<nav_node_ref_t> cachedNodes( workingPoints.size() );
+	std::vector<nav_node_ref_t> cachedNodes( workingPoints.size() );
 	std::vector<uint8_t> cachedNodeValidity( workingPoints.size(), 0 );
-	auto resolvePathPointNode = [&]( const size_t pointIndex, nav_node_ref_t * out_node ) -> bool {
-		/** 
+	auto resolvePathPointNode = [&]( const size_t pointIndex, nav_node_ref_t *out_node ) -> bool {
+		/**
 		*	Reuse the cached node when this path point was already resolved earlier in the simplification pass.
 		**/
 		if ( pointIndex >= cachedNodes.size() || !out_node ) {
@@ -1802,7 +2186,7 @@ bool SVG_Nav_SimplifyPathPoints( const nav_mesh_t * mesh, const Vector3 &agent_m
 			return true;
 		}
 
-		/** 
+		/**
 		*	Resolve the canonical node directly from the finalized nav-center waypoint position.
 		**/
 		nav_node_ref_t resolvedNode = {};
@@ -1814,18 +2198,18 @@ bool SVG_Nav_SimplifyPathPoints( const nav_mesh_t * mesh, const Vector3 &agent_m
 		cachedNodeValidity[ pointIndex ] = 1;
 		*out_node = resolvedNode;
 		return true;
-	};
+		};
 
-	/** 
-	*	Greedily keep the farthest visible point from each anchor so intermediate nodes collapse whenever LOS permits.
-	**/
+		/**
+		*	Greedily keep the farthest visible point from each anchor so intermediate nodes collapse whenever LOS permits.
+		**/
 	const nav_los_request_t losRequest = { .mode = nav_los_mode_t::DDA };
 	std::vector<Vector3> simplifiedPoints;
-  simplifiedPoints.reserve( workingPoints.size() );
+	simplifiedPoints.reserve( workingPoints.size() );
 	simplifiedPoints.push_back( workingPoints.front() );
 	bool shortened = workingPoints.size() < inout_points->size();
 	size_t anchorIndex = 0;
-    const size_t pointCount = workingPoints.size();
+	const size_t pointCount = workingPoints.size();
 	auto hasLosBudgetRemaining = [&]() -> bool {
 		if ( simplifyOptions.max_los_tests > 0 && localStats.attempts >= simplifyOptions.max_los_tests ) {
 			return false;
@@ -1834,14 +2218,14 @@ bool SVG_Nav_SimplifyPathPoints( const nav_mesh_t * mesh, const Vector3 &agent_m
 			return false;
 		}
 		return true;
-	};
+		};
 	auto tryLosCandidate = [&]( const nav_node_ref_t &anchorNode, const size_t candidateIndex ) -> bool {
 		nav_node_ref_t candidateNode = {};
 		if ( !resolvePathPointNode( candidateIndex, &candidateNode ) ) {
 			return false;
 		}
 
-		/** 
+		/**
 		*	Reject long narrow-passage collapses unless both endpoints provide enough clearance margin.
 		**/
 		if ( !Nav_LOS_HasClearanceMarginForLongSpan( mesh, anchorNode, candidateNode, agent_mins, agent_maxs ) ) {
@@ -1854,22 +2238,22 @@ bool SVG_Nav_SimplifyPathPoints( const nav_mesh_t * mesh, const Vector3 &agent_m
 			return true;
 		}
 		return false;
-	};
+		};
 	while ( anchorIndex + 1 < pointCount ) {
-		/** 
+		/**
 		*	Default to preserving the next waypoint unless a longer LOS span proves safe.
 		**/
 		size_t chosenIndex = anchorIndex + 1;
 		nav_node_ref_t anchorNode = {};
 		if ( resolvePathPointNode( anchorIndex, &anchorNode ) ) {
-         /** 
+		 /**
 			*	Always try the goal first when budget allows; this is the cheapest high-value simplification win.
 			**/
 			if ( pointCount - 1 > anchorIndex + 1 && hasLosBudgetRemaining() && tryLosCandidate( anchorNode, pointCount - 1 ) ) {
 				chosenIndex = pointCount - 1;
 				shortened = true;
 			} else if ( simplifyOptions.aggressiveness == nav_path_simplify_aggressiveness_t::AsyncAggressive ) {
-				/** 
+				/**
 				*	Async mode uses an exponential farthest-jump search with bounded binary refinement to collapse more aggressively without blocking the query.
 				**/
 				size_t farthestVisible = anchorIndex + 1;
@@ -1909,7 +2293,7 @@ bool SVG_Nav_SimplifyPathPoints( const nav_mesh_t * mesh, const Vector3 &agent_m
 					shortened = true;
 				}
 			} else if ( pointCount - 1 > anchorIndex + 2 && hasLosBudgetRemaining() ) {
-				/** 
+				/**
 				*	Sync mode stays intentionally small: after the goal attempt, try at most one intermediate farthest-jump candidate.
 				**/
 				const size_t candidateIndex = anchorIndex + std::max<size_t>( 2, ( pointCount - 1 - anchorIndex ) / 2 );
@@ -1920,22 +2304,22 @@ bool SVG_Nav_SimplifyPathPoints( const nav_mesh_t * mesh, const Vector3 &agent_m
 			}
 		}
 
-		/** 
+		/**
 		*	Commit the chosen next waypoint and continue simplifying from that new anchor.
 		**/
-        simplifiedPoints.push_back( workingPoints[ chosenIndex ] );
+		simplifiedPoints.push_back( workingPoints[ chosenIndex ] );
 		anchorIndex = chosenIndex;
 	}
 
-	/** 
+	/**
 	*	Publish counters for callers and apply the simplified path only when it is strictly shorter.
 	**/
-  localStats.output_waypoint_count = shortened ? ( int32_t )simplifiedPoints.size() : ( int32_t )workingPoints.size();
+	localStats.output_waypoint_count = shortened ? ( int32_t )simplifiedPoints.size() : ( int32_t )workingPoints.size();
 	localStats.total_ms = ( double )( gi.GetRealSystemTime() - simplifyStartMs );
 	if ( out_stats ) {
 		*out_stats = localStats;
 	}
-   if ( shortened && simplifiedPoints.size() < inout_points->size() ) {
+	if ( shortened && simplifiedPoints.size() < inout_points->size() ) {
 		*inout_points = std::move( simplifiedPoints );
 		return true;
 	}
@@ -1980,6 +2364,11 @@ static const char * Nav_EdgeRejectReasonToString( const nav_edge_reject_reason_t
 	case nav_edge_reject_reason_t::StepTest: return "StepTest";
 	case nav_edge_reject_reason_t::ObstructionJump: return "ObstructionJump";
 	case nav_edge_reject_reason_t::Occupancy: return "Occupancy";
+	case nav_edge_reject_reason_t::EntersWater: return "EntersWater";
+	case nav_edge_reject_reason_t::EntersLava: return "EntersLava";
+	case nav_edge_reject_reason_t::EntersSlime: return "EntersSlime";
+	case nav_edge_reject_reason_t::OptionalWalkOff: return "OptionalWalkOff";
+	case nav_edge_reject_reason_t::ForbiddenWalkOff: return "ForbiddenWalkOff";
 	case nav_edge_reject_reason_t::Other: return "Other";
 	default: return "Unknown";
 	}
@@ -2411,7 +2800,7 @@ const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t * mesh, const Vect
 *	 @param	out_reason	[out] Optional reject reason.
 *	 @param	stepTraceMask	Reserved mask parameter kept aligned with the position overload.
 *	 @return	True if the traversal is possible, false otherwise.
-*	 @note	This keeps XY validation on the walkable canonical cells already selected by the caller and
+*	 @note		This keeps XY validation on the walkable canonical cells already selected by the caller and
 *	 			limits additional Z probing to the segmented step path only when stepping requires it.
 **/
 const bool Nav_CanTraverseStep_ExplicitBBox_NodeRefs( const nav_mesh_t * mesh, const nav_node_ref_t &start_node, const nav_node_ref_t &end_node,

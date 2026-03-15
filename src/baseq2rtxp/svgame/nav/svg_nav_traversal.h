@@ -352,6 +352,59 @@ const bool SVG_Nav_QueryMovementDirection( const nav_traversal_path_t * path, co
 	double waypoint_radius, const svg_nav_path_policy_t * policy, int32_t * inout_index, Vector3 * out_direction );
 
 
+/** 
+*    @brief  Resolve the canonical world tile view for a node reference.
+*    @param  mesh  Navigation mesh owning the canonical tile storage.
+*    @param  node  Node reference whose tile should be resolved.
+*    @return Pointer to the canonical tile, or nullptr when the node/tile is invalid.
+*    @note   This keeps traversal helpers from repeating tile-index bounds checks inline.
+**/
+const nav_tile_t *SVG_Nav_GetNodeTileView( const nav_mesh_t *mesh, const nav_node_ref_t &node );
+
+/** 
+*    @brief  Resolve the canonical XY cell view for a node reference.
+*    @param  mesh  Navigation mesh owning the canonical tile storage.
+*    @param  node  Node reference whose cell should be resolved.
+*    @return Pointer to the canonical XY cell, or nullptr when the node/cell is invalid.
+*    @note   This composes `SVG_Nav_GetNodeTileView()` with the tile cell accessor so traversal code can avoid duplicating both checks.
+**/
+const nav_xy_cell_t *SVG_Nav_GetNodeCellView( const nav_mesh_t *mesh, const nav_node_ref_t &node );
+
+/** 
+*    @brief  Resolve a canonical layer pointer from a node reference.
+*    @param  mesh  Navigation mesh.
+*    @param  node  Node reference to resolve.
+*    @return Pointer to the canonical layer or nullptr on failure.
+**/
+const nav_layer_t *SVG_Nav_GetNodeLayerView( const nav_mesh_t *mesh, const nav_node_ref_t &node );
+
+/** 
+*    @brief  Query traversal feature bits for a canonical node.
+*    @param  mesh  Navigation mesh.
+*    @param  node  Node reference to inspect.
+*    @return Traversal feature bits for the node, or `NAV_TRAVERSAL_FEATURE_NONE` on failure.
+**/
+uint32_t SVG_Nav_GetNodeTraversalFeatureBits( const nav_mesh_t *mesh, const nav_node_ref_t &node );
+
+/** 
+*    @brief  Query explicit edge metadata for a canonical node and XY offset.
+*    @param  mesh      Navigation mesh.
+*    @param  node      Source node reference.
+*    @param  cell_dx   Neighbor cell X offset in `[-1, 1]`.
+*    @param  cell_dy   Neighbor cell Y offset in `[-1, 1]`.
+*    @return Explicit edge feature bits, or `NAV_EDGE_FEATURE_NONE` when no persisted edge slot applies.
+**/
+uint32_t SVG_Nav_GetEdgeFeatureBitsForOffset( const nav_mesh_t *mesh, const nav_node_ref_t &node, const int32_t cell_dx, const int32_t cell_dy );
+
+/** 
+*    @brief  Query coarse tile summary bits for the tile owning a canonical node.
+*    @param  mesh  Navigation mesh.
+*    @param  node  Node reference whose tile should be inspected.
+*    @return Tile summary bits, or `NAV_TILE_SUMMARY_NONE` on failure.
+**/
+uint32_t SVG_Nav_GetTileSummaryBitsForNode( const nav_mesh_t *mesh, const nav_node_ref_t &node );
+
+
 
 /** 
 * 

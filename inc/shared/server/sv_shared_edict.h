@@ -134,6 +134,8 @@ struct sv_shared_edict_t {
 
 		// Not in use by default.
 		inUse = false;
+        // Note: area list linking/unlinking must be performed by server world code
+		// while holding the world-area write lock. Do not modify `area` here.
 		// Not linked for collision by default.
 		isLinked = false;
 		// Not linked into the world by default.
@@ -146,11 +148,11 @@ struct sv_shared_edict_t {
 
         // FIXME: move these fields to a server private sv_entity_t
         //! Linked to a division node or leaf
-        area = { .next = nullptr, .prev = nullptr };
+		// area clearing must be done by server code that holds the world-area lock
 
         // If -1, use headNode instead.
-        numberOfClusters = 0;
-		lastCluster = 0;
+        numberOfClusters = -1;
+		lastCluster = -1;
         for ( int32_t i = 0; i < MAX_ENT_CLUSTERS; i++ ) {
 			clusterNumbers[ i ] = 0;
         }

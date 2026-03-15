@@ -10,6 +10,7 @@
 // Includes: local and navigation headers.
 #include "svgame/svg_local.h"
 #include <cstring>
+#include <limits>
 
 #include "svgame/nav/svg_nav.h"
 #include "svgame/nav/svg_nav_clusters.h"
@@ -38,7 +39,7 @@ static svg_nav_path_policy_t SVG_Nav_BuildPolicyFromAgentProfile( const nav_agen
     policy.max_drop_height = profile.max_drop_height;
     policy.max_drop_height_cap = profile.max_drop_height_cap;
     policy.max_slope_normal_z = profile.max_slope_normal_z;
-  policy.min_step_normal = profile.max_slope_normal_z;
+	policy.min_step_normal = profile.max_slope_normal_z;
     return policy;
 }
 
@@ -50,6 +51,65 @@ static svg_nav_path_policy_t SVG_Nav_BuildPolicyFromAgentProfile( const nav_agen
 **/
 static inline const float SVG_Nav_ComputeFeetToCenterOffsetZ( const Vector3 &mins, const Vector3 &maxs ) {
 	return ( mins.z + maxs.z )* 0.5f;
+}
+
+/**
+*	@brief	Select the best waypoint index when committing a freshly rebuilt async path.
+*	@param	path_points		Waypoint buffer in nav-center space.
+*	@param	point_count		Number of waypoints in `path_points`.
+*	@param	current_center_origin	Current mover origin in nav-center space.
+*	@param	waypoint_radius	Completion radius used by path following.
+*	@return	Index of the waypoint that best preserves forward progress on the new path.
+*	@note	This prevents async recommits from snapping the consumer back to the first
+*			start-adjacent waypoint every frame, which otherwise causes yaw jitter and
+*			tiny corrective movement on simple direct-shortcut paths.
+**/
+static int32_t SVG_Nav_SelectCommitPathIndex( const Vector3 * path_points, const int32_t point_count,
+	const Vector3 &current_center_origin, const double waypoint_radius ) {
+	/**
+	*	Sanity checks: fall back to the first waypoint when the incoming path is invalid.
+	**/
+	if ( !path_points || point_count <= 1 ) {
+		return 0;
+	}
+
+	/**
+	*	Find the waypoint nearest to the mover's current nav-center position.
+	*		This preserves progress when the async worker replaces the path with a newer
+	*		snapshot while the monster is already moving along the route.
+	**/
+	int32_t nearest_index = 0;
+	double nearest_dist2 = std::numeric_limits<double>::max();
+	for ( int32_t i = 0; i < point_count; i++ ) {
+		// Measure squared distance in full 3D nav-center space.
+		const Vector3 to_waypoint = QM_Vector3Subtract( path_points[ i ], current_center_origin );
+		const double dist2 =
+			( double )to_waypoint.x * ( double )to_waypoint.x +
+			( double )to_waypoint.y * ( double )to_waypoint.y +
+			( double )to_waypoint.z * ( double )to_waypoint.z;
+		// Keep the nearest waypoint encountered so far.
+		if ( dist2 < nearest_dist2 ) {
+			nearest_dist2 = dist2;
+			nearest_index = i;
+		}
+	}
+
+	/**
+	*	Advance past an already-reached waypoint when we are within the follow radius.
+	*		This is the critical fix for 2-point direct paths where waypoint 0 is a fresh
+	*		start sample close to the monster's current location.
+	**/
+	const double waypoint_radius2 = waypoint_radius > 0.0
+		? waypoint_radius * waypoint_radius
+		: 0.0;
+	if ( nearest_index < ( point_count - 1 ) && nearest_dist2 <= waypoint_radius2 ) {
+		return nearest_index + 1;
+	}
+
+	/**
+	*	Otherwise keep following the nearest unresolved waypoint.
+	**/
+	return nearest_index;
 }
 
 /** 
@@ -89,13 +149,15 @@ void svg_nav_path_process_t::Reset( void ) {
 }
 
 /** 
- * 	@brief	Commit a finalized async traversal path and reset failure tracking.
- * 	@param	points	Finalized nav-center waypoints produced by the async rebuild.
+ * 	@brief	Commit an async traversal path snapshot and reset failure tracking.
+ * 	@param	points	Nav-center waypoints produced by either a provisional worker checkpoint or a finalized async rebuild.
  * 	@param	start_origin	Agent start position in entity feet-origin space.
  * 	@param	goal_origin	Agent goal position in entity feet-origin space.
- * 	@param	center_offset_z	Z offset that converts feet-origin to nav-center coordinates for this path.
  * 	@param	policy	Path policy informing throttle timing after commit.
  * 	@return	True when the path was stored successfully.
+ * 	@note	Worker streaming is allowed to replace the stored path repeatedly with longer valid snapshots while
+ * 			the async search continues in the background. This function therefore treats every committed point list
+ * 			as the current best authoritative route rather than assuming it is already final.
  **/
 const bool svg_nav_path_process_t::CommitAsyncPathFromPoints( const std::vector<Vector3> &points, const Vector3 &start_origin,
 	const Vector3 &goal_origin, const svg_nav_path_policy_t &policy ) {
@@ -116,21 +178,40 @@ const bool svg_nav_path_process_t::CommitAsyncPathFromPoints( const std::vector<
  /** 
 	 * 	Copy the waypoints into a traversal path owned by this process.
 	 **/
-	const int32_t pointCount = ( int32_t )points.size();
+    const int32_t pointCount = ( int32_t )points.size();
 	nav_traversal_path_t newPath = {};
 	newPath.num_points = pointCount;
 	newPath.points = ( Vector3* )gi.TagMallocz( sizeof( Vector3 )* newPath.num_points, TAG_SVGAME_NAVMESH );
 	memcpy( newPath.points, points.data(), sizeof( Vector3 )* newPath.num_points );
 
-	/** 
+	/**
+	 * 	Translate the current feet-origin start into nav-center space before selecting
+	 * 	a preserved waypoint index on the freshly committed path.
+	 **/
+	const float center_offset_z = SVG_Nav_ComputeFeetToCenterOffsetZ( policy.agent_mins, policy.agent_maxs );
+	Vector3 current_center_origin = start_origin;
+	current_center_origin.z += center_offset_z;
+
+	/**
+	 * 	Pick the most appropriate starting index on the new path so async recommits do
+	 * 	not snap the mover back to a start-adjacent waypoint every frame.
+	 **/
+	const int32_t preserved_path_index = SVG_Nav_SelectCommitPathIndex(
+		newPath.points,
+		newPath.num_points,
+		current_center_origin,
+		policy.waypoint_radius );
+
+    /** 
 	 * 	Update stored path metadata and reset failure state.
+	 * 		Worker streaming replaces the stored route wholesale so the mover always follows the newest valid snapshot.
 	 **/
 	SVG_Nav_FreeTraversalPath( &path );
 	path = newPath;
-	path_index = 0;
+	path_index = preserved_path_index;
 	path_start_position = start_origin;
 	path_goal_position = goal_origin;
-   path_center_offset_z = SVG_Nav_ComputeFeetToCenterOffsetZ( policy.agent_mins, policy.agent_maxs );
+	path_center_offset_z = center_offset_z;
 	consecutive_failures = 0;
 	backoff_until = 0_ms;
 	next_rebuild_time = level.time + policy.rebuild_interval;
@@ -154,13 +235,17 @@ const bool svg_nav_path_process_t::GetNextPathPointEntitySpace( Vector3 * out_po
 	if ( path.num_points <= 0 || !path.points ) {
 		return false;
 	}
+	// Require the current path index to still address a valid waypoint.
+	if ( path_index < 0 || path_index >= path.num_points ) {
+		return false;
+	}
 
- /** 
+	/** 
 	* 	Output the stored path point in entity/world origin space.
 	* 		The navigation system now operates directly in entity-origin coordinates
 	* 		(center-based bounding boxes), so no feet-origin center offset is applied.
 	**/
- * out_point = path.points[ path_index ];
+	*out_point = path.points[ path_index ];
 	( * out_point )[ 2 ] -= path_center_offset_z;
 	return true;
 }
@@ -232,9 +317,10 @@ const bool svg_nav_path_process_t::RebuildPathToWithAgentBBox( const Vector3 &st
 	resolvedPolicy.max_drop_height_cap = profilePolicy.max_drop_height_cap;
 	resolvedPolicy.max_slope_normal_z = profilePolicy.max_slope_normal_z;
 
-	/** 
-	* 	Pre-check: warn if the vertical gap already exceeds the effective step height.
-	* 		This is diagnostic only; A*  can still find a route via ramps/stairs.
+    /** 
+	* 	Pre-check: detect whether the target behaves like a same-level move or a multi-level route.
+	* 		Large vertical gaps are expected for stairs, ladders, and floor changes, so they must not be
+	* 		treated as impossible purely because the raw endpoint delta exceeds one step height.
 	**/
 	// Compute absolute Z difference between endpoints.
 	const float zGap = fabsf( goal_origin.z - start_origin.z );
@@ -300,7 +386,7 @@ const bool svg_nav_path_process_t::RebuildPathToWithAgentBBox( const Vector3 &st
 	**/
 	//const bool hasExistingPath = ( path.num_points > 0 && path.points );
 	const float goalMovedZ = fabsf( goal_origin.z - path_goal_position.z );
-	const float forceZThreshold = ( stepLimit > 0.0f ) ? ( stepLimit* 2.0f ) : 36.0f;
+	const float forceZThreshold = ( stepLimit > 0.0f ) ? ( stepLimit* 2.0f ) : NAV_DEFAULT_STEP_MAX_SIZE * 2;
 	const bool forceForGoalZ = ( goalMovedZ >= forceZThreshold );
 	// Only bypass movement heuristics when the goal moved floors; do not bypass time-based backoff.
 	const bool throttleBypass = forceForGoalZ;
@@ -663,6 +749,138 @@ const bool svg_nav_path_process_t::RebuildPathTo( const Vector3 &start_origin, c
 * 
 * 
 **/
+/**
+*	@brief	Return whether one adjacent path segment behaves like a step-sized vertical transition.
+*	@param	path		Traversal path whose stored nav-center waypoints will be inspected.
+*	@param	from_index	Index of the first waypoint in the segment.
+*	@param	to_index	Index of the second waypoint in the segment.
+*	@param	step_threshold	Maximum Z delta still considered a normal step-sized rise/drop.
+*	@return	True when the indexed segment encodes a meaningful but still step-sized vertical change.
+*	@note	This helper is shared by follow-state classification so stair runs keep their intermediate
+*			anchors longer before callers blend toward later waypoints.
+**/
+static bool SVG_Nav_PathSegmentIsStepSizedVerticalTransition( const nav_traversal_path_t &path, const int32_t from_index, const int32_t to_index, const double step_threshold ) {
+	/**
+	* 	Sanity checks: require valid waypoint indices and a positive threshold.
+	**/
+	if ( !path.points || path.num_points <= 0 || from_index < 0 || to_index < 0 || from_index >= path.num_points || to_index >= path.num_points || step_threshold <= 0.0 ) {
+		return false;
+	}
+
+	/**
+	* 	Measure the vertical delta and keep only meaningful step-sized transitions.
+	**/
+	const double delta_z = std::fabs( ( double )path.points[ to_index ].z - ( double )path.points[ from_index ].z );
+	return delta_z > 1.0 && delta_z <= step_threshold;
+}
+
+/**
+*	@brief	Return whether one waypoint behaves like a stair/corner anchor.
+*	@param	path		Traversal path whose stored nav-center waypoints will be inspected.
+*	@param	waypoint_index	Current active waypoint index.
+*	@param	step_threshold	Maximum Z delta still considered a normal step-sized rise/drop.
+*	@return	True when either adjacent segment around the active waypoint behaves like a step-sized rise/drop.
+**/
+static bool SVG_Nav_PathWaypointNeedsPreciseCentering( const nav_traversal_path_t &path, const int32_t waypoint_index, const double step_threshold ) {
+	/**
+	* 	Treat the active waypoint as a precision anchor when either neighboring segment behaves like a stair step.
+	**/
+	return SVG_Nav_PathSegmentIsStepSizedVerticalTransition( path, waypoint_index - 1, waypoint_index, step_threshold )
+		|| SVG_Nav_PathSegmentIsStepSizedVerticalTransition( path, waypoint_index, waypoint_index + 1, step_threshold );
+}
+
+/**
+*	@brief	Return whether the current waypoint sits inside a repeated stepped vertical corridor.
+*	@param	path		Traversal path whose stored nav-center waypoints will be inspected.
+*	@param	waypoint_index	Current active waypoint index.
+*	@param	step_threshold	Maximum Z delta still considered a normal step-sized rise/drop.
+*	@return	True when two adjacent step-sized segments appear back-to-back around the active anchor.
+*	@note	This lets callers keep stronger centering through short stair bands instead of steering away
+*			as soon as the first intermediate anchor changes.
+**/
+static bool SVG_Nav_PathWaypointHasSteppedCorridorAhead( const nav_traversal_path_t &path, const int32_t waypoint_index, const double step_threshold ) {
+	/**
+	* 	Classify corridor-like stair runs by looking for repeated adjacent step-sized transitions.
+	**/
+	const bool previous_to_current = SVG_Nav_PathSegmentIsStepSizedVerticalTransition( path, waypoint_index - 1, waypoint_index, step_threshold );
+	const bool current_to_next = SVG_Nav_PathSegmentIsStepSizedVerticalTransition( path, waypoint_index, waypoint_index + 1, step_threshold );
+	const bool next_to_next_next = SVG_Nav_PathSegmentIsStepSizedVerticalTransition( path, waypoint_index + 1, waypoint_index + 2, step_threshold );
+	return ( previous_to_current && current_to_next ) || ( current_to_next && next_to_next_next );
+}
+
+/**
+*	@brief	Query a reusable shared follow-state bundle for the current path.
+*	@param	current_origin	Current feet-origin position of the mover.
+*	@param	policy		Path-follow policy controlling waypoint radius and stair limits.
+*	@param	out_state	[out] Shared follow-state bundle for steering/velocity code.
+*	@return	True when the path yielded a valid direction to follow.
+*	@note	This helper commits waypoint advancement first, then reports the active waypoint and
+*			whether it behaves like a stair/corner anchor that needs tighter centering.
+**/
+const bool svg_nav_path_process_t::QueryFollowState( const Vector3 &current_origin, const svg_nav_path_policy_t &policy, follow_state_t * out_state ) {
+	/**
+	* 	Sanity checks: require output storage and a valid path buffer.
+	**/
+	if ( !out_state ) {
+		return false;
+	}
+	*out_state = {};
+	if ( path.num_points <= 0 || !path.points ) {
+		return false;
+	}
+
+	/**
+	* 	Query the next path direction using the shared 3D advancement logic.
+	**/
+	Vector3 moveDirection3D = {};
+	if ( !QueryDirection3D( current_origin, policy, &moveDirection3D ) ) {
+		return false;
+	}
+
+	/**
+	* 	Resolve the active waypoint after `QueryDirection3D` committed any waypoint advancement.
+	**/
+	Vector3 activeWaypointOrigin = {};
+	if ( !GetNextPathPointEntitySpace( &activeWaypointOrigin ) ) {
+		return false;
+	}
+
+	/**
+	* 	Measure the active waypoint in feet-origin space so callers can shape centering and slowdown.
+	**/
+	Vector3 toActiveWaypoint = QM_Vector3Subtract( activeWaypointOrigin, current_origin );
+	const double activeWaypointDeltaZ = std::fabs( ( double )toActiveWaypoint.z );
+	toActiveWaypoint.z = 0.0f;
+	const double activeWaypointDist2D = std::sqrt( ( toActiveWaypoint.x * toActiveWaypoint.x ) + ( toActiveWaypoint.y * toActiveWaypoint.y ) );
+
+	/**
+	* 	Treat any meaningful vertical waypoint change as a precision anchor.
+	* 		This keeps stair runs and small multi-level transitions centered longer before callers steer away.
+	**/
+	double stepThreshold = NAV_DEFAULT_STEP_MAX_SIZE;
+	if ( policy.max_step_height > 0.0 ) {
+		stepThreshold = policy.max_step_height;
+	}
+ const double minStepThreshold = policy.min_step_height > 0.0 ? policy.min_step_height : ( double )NAV_DEFAULT_STEP_MIN_SIZE;
+	const double stepThresholdWithSlack = stepThreshold + std::max( ( double )PHYS_STEP_GROUND_DIST, 1.0 );
+	const bool waypointNeedsPreciseCentering = SVG_Nav_PathWaypointNeedsPreciseCentering( path, path_index, stepThresholdWithSlack )
+        || ( activeWaypointDeltaZ >= minStepThreshold && activeWaypointDeltaZ <= stepThresholdWithSlack );
+	const bool steppedVerticalCorridorAhead = SVG_Nav_PathWaypointHasSteppedCorridorAhead( path, path_index, stepThresholdWithSlack );
+
+	/**
+	* 	Publish the shared follow-state result to the caller.
+	**/
+	out_state->has_direction = true;
+	out_state->move_direction3d = moveDirection3D;
+	out_state->active_waypoint_origin = activeWaypointOrigin;
+	out_state->active_waypoint_dist2d = activeWaypointDist2D;
+	out_state->active_waypoint_delta_z = activeWaypointDeltaZ;
+	out_state->waypoint_needs_precise_centering = waypointNeedsPreciseCentering;
+   out_state->stepped_vertical_corridor_ahead = steppedVerticalCorridorAhead;
+	out_state->approaching_final_goal = path_index >= std::max( 0, path.num_points - 2 );
+	return true;
+}
+
 /** 
 * 	@brief	Query the next movement direction in 2D from the current origin along the path.
 **/
@@ -783,4 +1001,29 @@ const bool svg_nav_path_process_t::QueryDirection3D( const Vector3 &current_orig
 	**/
 	* out_dir3d = QM_Vector3Normalize( dir );
 	return true;
+}
+
+/**
+ *    @brief
+ *        Heuristic helper to detect a single outlier floor sample that is
+ *        substantially below both endpoints of a tested neighbor segment.
+ *
+ *    @param from            Segment start position (nav-center space).
+ *    @param to              Segment end position (nav-center space).
+ *    @param sampledFloorZ   Floor Z sampled under the neighbor point.
+ *    @param dropCap         Allowed drop cap used to qualify outliers.
+ *    @return True when the sampled floor appears to be an isolated outlier
+ *            (both endpoints sit well above the sampled floor by a margin).
+ **/
+static bool SVG_Nav_IsOutlierDropSample(const Vector3 &from, const Vector3 &to, float sampledFloorZ, float dropCap)
+{
+	// Compute endpoint extrema without relying on std::min/std::max overloads.
+	const float minEndpointZ = (from.z < to.z) ? from.z : to.z;
+	const float maxEndpointZ = (from.z > to.z) ? from.z : to.z;
+
+	// Consider the sample an outlier only when both endpoints sit farther above
+	// the sampled floor than `dropCap + 64` world units. The extra margin avoids
+	// rejecting genuine long drops while still filtering sporadic erroneous samples.
+	return (minEndpointZ - sampledFloorZ) > (dropCap + 64.0f)
+		&& (maxEndpointZ - sampledFloorZ) > (dropCap + 64.0f);
 }

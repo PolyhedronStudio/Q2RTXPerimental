@@ -545,8 +545,14 @@ void svg_base_edict_t::DispatchDieCallback( svg_base_edict_t *inflictor, svg_bas
 *   Reconstructs the object, optionally retaining the entityDictionary.
 **/
 void svg_base_edict_t::Reset( const bool retainDictionary ) {
-    // Reset base-class state first and keep a copy of it so we can restore it
-    using Base = sv_shared_edict_t<svg_base_edict_t, svg_client_t>;
+	// Reset base-class state first and keep a copy of it so we can restore it
+	using Base = sv_shared_edict_t<svg_base_edict_t, svg_client_t>;
+
+	// Unlink from world and free if we were linked.
+	if ( isLinked || ( area.next != nullptr || area.prev != nullptr ) ) {
+		gi.unlinkentity( this );
+	}
+	
 	// Call base-class Reset(...)
     Base::Reset( retainDictionary );
     

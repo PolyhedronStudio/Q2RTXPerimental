@@ -9,6 +9,11 @@
 #include "svgame/nav/svg_nav.h"
 #include "svgame/nav/svg_nav_save.h"
 
+/**
+*  @brief	Temporary recovery declaration for shared nav filename resolution.
+**/
+const std::string Nav_GetPathForLevelNav( const char * levelName, const bool prependGameFolder = true );
+
 #if USE_ZLIB
 	#include <zlib.h>
 #else

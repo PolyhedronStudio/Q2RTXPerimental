@@ -18,9 +18,9 @@ struct svg_nav_path_policy_t {
 	* 	Timers and backoff exponent:
 	**/
 	//! Minimum time interval between path rebuild attempts.
-	QMTime rebuild_interval = 250_ms;
+   QMTime rebuild_interval = 0_ms;
 	//! Base time for exponential backoff on path rebuild failures.
-	QMTime fail_backoff_base = 100_ms;
+	QMTime fail_backoff_base = 25_ms;
 	//! Maximum exponent for backoff time (2^n).
 	int32_t fail_backoff_max_pow = 4;
 
@@ -304,6 +304,39 @@ struct svg_nav_path_process_t {
 	* 
 	* 
 	**/
+    /**
+	* 	@brief	Shared follow-state bundle returned by `QueryFollowState`.
+	* 	@note	Keeps waypoint-selection and stair-centering semantics inside navigation code so
+	* 			monster callers can consume one reusable follow description.
+	**/
+	struct follow_state_t {
+		//! True when `move_direction3d` contains a usable direction for this frame.
+		bool has_direction = false;
+		//! Normalized 3D direction returned by the shared path query.
+		Vector3 move_direction3d = {};
+		//! Active waypoint converted into feet-origin/entity space.
+		Vector3 active_waypoint_origin = {};
+		//! Horizontal distance from current origin to the active waypoint.
+		double active_waypoint_dist2d = 0.0;
+		//! Absolute vertical delta between current origin and active waypoint.
+		double active_waypoint_delta_z = 0.0;
+		//! True when the active waypoint should keep tighter stair/corner centering.
+		bool waypoint_needs_precise_centering = false;
+      //! True when the current anchor sits inside a repeated step-sized vertical corridor.
+		bool stepped_vertical_corridor_ahead = false;
+		//! True when the current active waypoint is the final path point.
+		bool approaching_final_goal = false;
+	};
+	/**
+	* 	@brief	Query reusable follow state for the current path.
+	* 	@param	current_origin	Current feet-origin position of the mover.
+	* 	@param	policy		Path-follow policy controlling waypoint radius and stair limits.
+	* 	@param	out_state	[out] Shared follow-state bundle for steering/velocity code.
+	* 	@return	True when a valid follow direction was produced.
+	* 	@note	This centralizes waypoint advancement, active-waypoint selection, and stair-anchor
+	* 			classification so monster code does not duplicate those navigation decisions.
+	**/
+	const bool QueryFollowState( const Vector3 &current_origin, const svg_nav_path_policy_t &policy, follow_state_t * out_state );
 	/** 
 	* 	@brief	Query the next movement direction in 2D from the current origin along the path.
 	**/

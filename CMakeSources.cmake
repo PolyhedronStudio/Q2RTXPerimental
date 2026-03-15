@@ -458,6 +458,7 @@ SET(SRC_BASEQ2RTXP_SVGAME
     baseq2rtxp/svgame/nav/svg_nav_hierarchy.cpp
     baseq2rtxp/svgame/nav/svg_nav_load.cpp
     baseq2rtxp/svgame/nav/svg_nav_occupancy.cpp
+  baseq2rtxp/svgame/nav/svg_nav_portals.cpp
     baseq2rtxp/svgame/nav/svg_nav_path_process.cpp
 	baseq2rtxp/svgame/nav/svg_nav_regions.cpp
     baseq2rtxp/svgame/nav/svg_nav_request.cpp
