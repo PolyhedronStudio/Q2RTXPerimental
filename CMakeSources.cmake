@@ -377,8 +377,9 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/misc/svg_misc_teleporter.cpp
 	baseq2rtxp/svgame/entities/misc/svg_misc_teleporter_dest.cpp
 
-    baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_sfxfollow.cpp
-	baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_debug.cpp
+ #baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_sfxfollow.cpp
+ baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_debug_stub.cpp
+	#baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_sfxfollow.cpp
 	
 	baseq2rtxp/svgame/entities/path/svg_path_corner.cpp
 
@@ -451,20 +452,22 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/weapons/svg_weapon_fists.cpp
 	baseq2rtxp/svgame/weapons/svg_weapon_pistol.cpp
 	
-	baseq2rtxp/svgame/nav/svg_nav.cpp
-    baseq2rtxp/svgame/nav/svg_nav_clusters.cpp
-    baseq2rtxp/svgame/nav/svg_nav_debug.cpp
-    baseq2rtxp/svgame/nav/svg_nav_generate.cpp
-    baseq2rtxp/svgame/nav/svg_nav_hierarchy.cpp
-    baseq2rtxp/svgame/nav/svg_nav_load.cpp
-    baseq2rtxp/svgame/nav/svg_nav_occupancy.cpp
-  baseq2rtxp/svgame/nav/svg_nav_portals.cpp
-    baseq2rtxp/svgame/nav/svg_nav_path_process.cpp
-	baseq2rtxp/svgame/nav/svg_nav_regions.cpp
-    baseq2rtxp/svgame/nav/svg_nav_request.cpp
-	baseq2rtxp/svgame/nav/svg_nav_save.cpp
-    baseq2rtxp/svgame/nav/svg_nav_traversal.cpp
-    baseq2rtxp/svgame/nav/svg_nav_traversal_async.cpp
+    baseq2rtxp/svgame/nav2/nav2_bench.cpp
+    baseq2rtxp/svgame/nav2/nav2_budget.cpp
+    baseq2rtxp/svgame/nav2/nav2_corridor.cpp
+    baseq2rtxp/svgame/nav2/nav2_goal_candidates.cpp
+    baseq2rtxp/svgame/nav2/nav2_memory.cpp
+    baseq2rtxp/svgame/nav2/nav2_query_job.cpp
+    baseq2rtxp/svgame/nav2/nav2_query_state.cpp
+    baseq2rtxp/svgame/nav2/nav2_runtime.cpp
+    baseq2rtxp/svgame/nav2/nav2_query_iface.cpp
+    baseq2rtxp/svgame/nav2/nav2_scheduler.cpp
+    baseq2rtxp/svgame/nav2/nav2_span_adjacency.cpp
+    baseq2rtxp/svgame/nav2/nav2_span_grid.cpp
+    baseq2rtxp/svgame/nav2/nav2_span_grid_build.cpp
+    baseq2rtxp/svgame/nav2/nav2_serialize.cpp
+    baseq2rtxp/svgame/nav2/nav2_snapshot.cpp
+    baseq2rtxp/svgame/nav2/nav2_worker_iface.cpp
 )
 SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_chase.h
@@ -490,21 +493,25 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_usetargets.h
 	baseq2rtxp/svgame/svg_weapons.h
 
+    baseq2rtxp/svgame/nav2/nav2_bench.h
+    baseq2rtxp/svgame/nav2/nav2_budget.h
+    baseq2rtxp/svgame/nav2/nav2_corridor.h
+    baseq2rtxp/svgame/nav2/nav2_goal_candidates.h
+    baseq2rtxp/svgame/nav2/nav2_memory.h
+    baseq2rtxp/svgame/nav2/nav2_runtime.h
+    baseq2rtxp/svgame/nav2/nav2_format.h
+    baseq2rtxp/svgame/nav2/nav2_query_job.h
+    baseq2rtxp/svgame/nav2/nav2_query_iface_internal.h
+    baseq2rtxp/svgame/nav2/nav2_query_state.h
+    baseq2rtxp/svgame/nav2/nav2_save_load.h
+    baseq2rtxp/svgame/nav2/nav2_scheduler.h
+    baseq2rtxp/svgame/nav2/nav2_serialize.h
+    baseq2rtxp/svgame/nav2/nav2_snapshot.h
+    baseq2rtxp/svgame/nav2/nav2_worker_iface.h
+    baseq2rtxp/svgame/nav2/nav2_topology.h
+    baseq2rtxp/svgame/nav2/nav2_query_iface.h
 
-	baseq2rtxp/svgame/nav/svg_nav.H
-    baseq2rtxp/svgame/nav/svg_nav_clusters.h
-    baseq2rtxp/svgame/nav/svg_nav_debug.h
-    baseq2rtxp/svgame/nav/svg_nav_generate.h
-    baseq2rtxp/svgame/nav/svg_nav_generate_internal.h
-    baseq2rtxp/svgame/nav/svg_nav_load.h
-    baseq2rtxp/svgame/nav/svg_nav_occupancy.h
-	baseq2rtxp/svgame/nav/svg_nav_path_process.h
-    baseq2rtxp/svgame/nav/svg_nav_request.h
-	baseq2rtxp/svgame/nav/svg_nav_save.h
-    baseq2rtxp/svgame/nav/svg_nav_traversal.h
-    baseq2rtxp/svgame/nav/svg_nav_traversal_async.h
-
-	baseq2rtxp/svgame/lua/svg_lua_callfunction.hpp
+    baseq2rtxp/svgame/lua/svg_lua_callfunction.hpp
 	baseq2rtxp/svgame/lua/svg_lua_signals.hpp
 	
 	baseq2rtxp/svgame/lua/svg_lua_gamelib.hpp
@@ -534,8 +541,8 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/light/svg_light_light.h
 	baseq2rtxp/svgame/entities/light/svg_light_spotlight.h
 
-    baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_sfxfollow.h
-    baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_debug.h
+    #baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_sfxfollow.h
+    #baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_debug.h
 	
 	baseq2rtxp/svgame/entities/misc/svg_misc_explobox.h
 	baseq2rtxp/svgame/entities/misc/svg_misc_skeletal_model.h

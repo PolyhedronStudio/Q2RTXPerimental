@@ -610,9 +610,9 @@ void SV_BuildClientFrame( client_t *client ) {
 	// If the client is in a valid cluster, calc full PVS.
 	if ( clientCluster >= 0 ) {
 		// {VS:
-		CM_FatPVS( client->cm, clientPVS, &viewOrigin.x, DVIS_PVS2 );
+		CM_FatPVS( client->cm, clientPVS, &viewOrigin.x, DVIS_PVS2, { { 8., 8., 8. }, { -8., -8., -8. } } );
 		// PHS:
-		CM_FatPVS( client->cm, clientPHS, &viewOrigin.x, DVIS_PHS );
+		CM_FatPVS( client->cm, clientPHS, &viewOrigin.x, DVIS_PHS, { { 8., 8., 8. }, { -8., -8., -8. } } );
 		// Store last valid cluster for this client.
 		client->last_valid_cluster = clientCluster;
 	} else {

@@ -315,6 +315,17 @@ typedef struct {
     *   @note   Also checks portalareas so that doors block sight.
     **/
     const bool( *inPVS )( const Vector3 *p1, const Vector3 *p2 );
+	/**
+	*	@brief	Check whether a point and an axis-aligned bounding box are within visible areas.
+	*	@param	p1		Point to test visibility from (world-space).
+	*	@param	mins	Minimum corner of the axis-aligned bounding box (world-space).
+	*	@param	maxs	Maximum corner of the axis-aligned bounding box (world-space).
+	*	@param	vis		Visibility type bitmask (DVIS_PVS / DVIS_PHS etc).
+	*	@return	True if any leaf touched by the box is visible from p1 given the vis type and area connectivity.
+	*	@note	This is similar to PF_inVIS but uses a bounding box for the second operand. It gathers
+	*			the leafs overlapped by the box and verifies cluster visibility + area connectivity.
+	**/
+	const bool ( *inFatPVS )( const vec3_t *p1, const vec3_t *mins, const vec3_t *maxs, const int32_t vis );
     /**
     *   @return True if the points p1 to p2 are within two hearable areas.
     *   @note   Also checks portalareas so that doors block hearing.

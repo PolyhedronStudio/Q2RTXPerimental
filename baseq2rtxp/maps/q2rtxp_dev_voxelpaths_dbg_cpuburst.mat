@@ -2,7 +2,9 @@ textures/dark/tex_03,
 textures/dark/tex_07,
 textures/dark/tex_13:
 	texture_base **.png
+	texture_normals **_n.tga
 	base_factor 2.5
+	bump_scale 1.0
 	metalness_factor 0.000000
 	specular_factor 0.125
 	default_radiance 1
@@ -12,7 +14,9 @@ textures/green/tex_07,
 textures/green/tex_08,
 textures/green/tex_10:
 	texture_base **.png
+	texture_normals **_n.tga
 	base_factor 1.0
+	bump_scale 1.0
 	metalness_factor 0.000000
 	specular_factor 0.125
 	default_radiance 1
@@ -22,7 +26,9 @@ textures/light/tex_03,
 textures/light/tex_06,
 textures/light/tex_08:
 	texture_base **.png
+	texture_normals **_n.tga
 	base_factor 1.0
+	bump_scale 1.0
 	metalness_factor 0.000000
 	specular_factor 0.125
 	default_radiance 1
@@ -32,7 +38,9 @@ textures/orange/tex_08,
 textures/orange/tex_09,
 textures/orange/tex_10:
 	texture_base **.png
+	texture_normals **_n.tga
 	base_factor 1.0
+	bump_scale 1.0
 	metalness_factor 0.000000
 	specular_factor 0.125
 	default_radiance 1
@@ -42,7 +50,9 @@ textures/purple/tex_08,
 textures/purple/tex_09,
 textures/purple/tex_10:
 	texture_base **.png
+	texture_normals **_n.tga
 	base_factor 1.0
+	bump_scale 1.0
 	metalness_factor 0.000000
 	specular_factor 0.125
 	default_radiance 1
@@ -51,7 +61,9 @@ textures/purple/tex_10:
 textures/red/tex_08,
 textures/red/tex_10:
 	texture_base **.png
+	texture_normals **_n.tga
 	base_factor 1.0
+	bump_scale 1.0
 	metalness_factor 0.000000
 	specular_factor 0.125
 	default_radiance 1

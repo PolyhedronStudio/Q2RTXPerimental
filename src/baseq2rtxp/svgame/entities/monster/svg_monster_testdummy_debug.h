@@ -12,10 +12,8 @@
 ********************************************************************/
 #pragma once
 
-// Navigation policy.
-#include "svgame/nav/svg_nav.h"
-// Navigation and pathfinding.
-#include "svgame/nav/svg_nav_path_process.h"
+// Nav2.
+#include "svgame/nav2/nav2_types.h"
 
 // Monster Move
 #include "svgame/monsters/svg_mmove.h"
@@ -296,7 +294,7 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	*			of immediate synchronous execution so we do not spam blocking calls.
 	**/
 	const bool TryRebuildNavigationInQueue( const Vector3 &start_origin,
-		const Vector3 &goal_origin, const svg_nav_path_policy_t &policy, const Vector3 &agent_mins,
+		const Vector3 &goal_origin, const nav2_path_policy_t &policy, const Vector3 &agent_mins,
 		const Vector3 &agent_maxs, const bool force = false );
 	/**
 	*    @brief	Reset cached navigation path state for the test dummy.
@@ -332,9 +330,9 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	**/
 	struct PathNavigationState_t {
 		//! Current state of the async nav path process, which is used by the A* pursuit thinkers and the generic think finish routine.
-		svg_nav_path_process_t process = {};
+		//nav2_path_process_t process = {};
 		//! Current policy settings for the async nav path process, which is used by the A* pursuit thinkers and the generic think finish routine.
-		svg_nav_path_policy_t policy = {};
+		//nav2_path_policy_t policy = {};
 
 		//! Rate limit for queue-status logging so we do not spam the console repeatedly.
 		QMTime nextQueueStatusLogTime = 0_ms;

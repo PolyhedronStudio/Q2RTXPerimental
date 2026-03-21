@@ -63,7 +63,7 @@ struct QTagDeleter {
 *	@tparam	T	Type of object to manage.
 *	@note	Provides convenient shorthand for common case of TagMalloc/TagFree management.
 *	@example
-*		qtag_owner_t<nav_mesh_t> mesh_owner;
+*		qtag_owner_t<nav2_mesh_t> mesh_owner;
 *		if ( mesh_owner.create( TAG_SVGAME_LEVEL ) ) {
 *			mesh_owner->total_tiles = 0;
 *		}

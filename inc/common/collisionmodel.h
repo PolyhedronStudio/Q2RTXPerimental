@@ -117,7 +117,7 @@ const bool CM_HeadnodeVisible( mnode_t *headnode, byte *visbits );
 *   @brief  The client will interpolate the view position,
 *           so we can't use a single PVS point
 **/
-byte *CM_FatPVS( cm_t *cm, byte *mask, const vec3_t org, const int32_t vis );
+byte *CM_FatPVS( cm_t *cm, byte *mask, const vec3_t org, const int32_t vis, const BBox3 viewBounds = { {-8., -8., -8. }, { 8., 8., 8. } } );
 
 
 

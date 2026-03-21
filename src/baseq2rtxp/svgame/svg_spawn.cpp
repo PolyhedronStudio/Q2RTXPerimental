@@ -38,8 +38,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/svg_gamemode.h"
 #include "svgame/gamemodes/svg_gm_basemode.h"
 
-#include "svgame/nav/svg_nav.h"
-#include "svgame/nav/svg_nav_load.h"
+// Nav2.
+#include "svgame/nav2/nav2_types.h"
+#include "svgame/nav2/nav2_save_load.h"
 
 
 
@@ -703,10 +704,11 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
 	**/
 	// Initialize navigation system after entities have post-spawned.
 	// This ensures all inline models (brush entities) have their proper modelindex set.
-	SVG_Nav_Init();
-	// Restore the navmesh for this map.
-	auto loadResult = SVG_Nav_LoadMesh( level.mapname );
-	if ( std::get<0>( loadResult ) == false ) {
-		gi.dprintf( "No navmesh found for map '%s' at path '%s'.\n", level.mapname, std::get<1>( loadResult ).c_str() );
-	}
+	SVG_Nav2_Runtime_Init();
+	// <Q2RTXP>: WID: Navmesh saving/loading is currently disabled, since the navmesh data structures are still in flux and not fully integrated with the rest of the codebase yet.
+	//// Restore the navmesh for this map.
+	//auto loadResult = SVG_Nav_LoadMesh( level.mapname );
+	//if ( std::get<0>( loadResult ) == false ) {
+	//	gi.dprintf( "No navmesh found for map '%s' at path '%s'.\n", level.mapname, std::get<1>( loadResult ).c_str() );
+	//}
 }

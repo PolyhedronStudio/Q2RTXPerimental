@@ -337,9 +337,10 @@ const bool CM_HeadnodeVisible( mnode_t *node, byte *visbits ) {
 *	@param	mask	Output visibility mask (`VIS_MAX_BYTES` bytes).
 *	@param	org		Center point used for the fat PVS box.
 *	@param	vis		Visibility mode forwarded to `BSP_ClusterVis`.
+*	@param	viewBounds	Bounds added to `org` to define the fat PVS box.
 *	@return	Pointer to `mask`.
 **/
-byte *CM_FatPVS( cm_t *cm, byte *mask, const vec3_t org, const int32_t vis ) {
+byte *CM_FatPVS( cm_t *cm, byte *mask, const vec3_t org, const int32_t vis, const BBox3 viewBounds ) {
 	byte    temp[ VIS_MAX_BYTES ] = {};
 	mleaf_t *leafs[ 64 ] = {};
 	int32_t	clusters[ 64 ] = {};
@@ -360,9 +361,13 @@ byte *CM_FatPVS( cm_t *cm, byte *mask, const vec3_t org, const int32_t vis ) {
 	// This reduces pop-in when the view origin moves small distances.
 	vec3_t  mins = { }, maxs = { };
 	for ( i = 0; i < 3; i++ ) {
-		mins[ i ] = org[ i ] - 8.f;
-		maxs[ i ] = org[ i ] + 8.f;
+		mins[ i ] = org[ i ] + viewBounds.mins[ i ];
+		maxs[ i ] = org[ i ] + viewBounds.maxs[ i ];
 	}
+	//for ( i = 0; i < 3; i++ ) {
+	//	mins[ i ] = org[ i ] - 8.f;
+	//	maxs[ i ] = org[ i ] + 8.f;
+	//}
 
 	// Test the box against the BSP tree to find all the leafs it touches.
 	count = CM_BoxLeafs( cm, mins, maxs, leafs, q_countof( leafs ), NULL );

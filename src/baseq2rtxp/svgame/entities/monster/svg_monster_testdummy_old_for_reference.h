@@ -11,8 +11,6 @@
 
 // Needed.
 #include "svgame/entities/svg_base_edict.h"
-#include "svgame/nav/svg_nav.h"
-#include "svgame/nav/svg_nav_path_process.h"
 
 
 /**
@@ -192,8 +190,8 @@ struct svg_monster_testdummy_t : public svg_base_edict_t {
     /**
     *   Navigation path following state:
     **/
-    //svg_nav_path_process_t pathNavigationState.process = {};
-    //svg_nav_path_policy_t pathNavigationState.policy = {};
+    nav2_path_process_t pathNavigationState.process = {};
+    //nav2_path_policy_t pathNavigationState.policy = {};
     ////! Tracks the last goal position used to validate cached navigation paths.
     //Vector3 last_nav_goal_origin = {};
     ////! Tracks whether last_nav_goal_origin holds valid data.

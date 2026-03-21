@@ -26,16 +26,15 @@
 // Player trail (Q2/Q2RTX pursuit trail)
 #include "svgame/player/svg_player_trail.h"
 
-#include "svgame/nav/svg_nav.h"
-// Navigation cluster routing (coarse tile routing pre-pass).
-#include "svgame/nav/svg_nav_clusters.h"
-// Async navigation queue helpers.
-#include "svgame/nav/svg_nav_request.h"
-// Traversal helpers required for path invalidation.
-#include "svgame/nav/svg_nav_traversal.h"
-
 // TestDummy Monster
 #include "svgame/entities/monster/svg_monster_testdummy_debug.h"
+
+const Vector3 svg_monster_testdummy_debug_t::DUMMY_BBOX_STANDUP_MINS = PHYS_DEFAULT_BBOX_STANDUP_MINS;
+const Vector3 svg_monster_testdummy_debug_t::DUMMY_BBOX_STANDUP_MAXS = PHYS_DEFAULT_BBOX_STANDUP_MAXS;
+const Vector3 svg_monster_testdummy_debug_t::DUMMY_BBOX_DUCKED_MINS = PHYS_DEFAULT_BBOX_DUCKED_MINS;
+const Vector3 svg_monster_testdummy_debug_t::DUMMY_BBOX_DUCKED_MAXS = PHYS_DEFAULT_BBOX_DUCKED_MAXS;
+const Vector3 svg_monster_testdummy_debug_t::DUMMY_BBOX_DEAD_MINS = { -16., -16., -36. };
+const Vector3 svg_monster_testdummy_debug_t::DUMMY_BBOX_DEAD_MAXS = { 16., 16., 8. };
 
 
 //! Optional debug toggle for emitting async queue statistics.
@@ -843,7 +842,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarToPlay
 			// Cancel any pending request for the player target since we are switching to a new trail-following target.
 			// This also prevents any in-flight async work for the player target from coming back and interfering with 
 			// our new trail-following target after we switch modes.
-			SVG_Nav_CancelRequest( ( nav_request_handle_t )self->pathNavigationState.process.pending_request_handle );
+			SVG_Nav2_CancelRequest( ( nav_request_handle_t )self->pathNavigationState.process.pending_request_handle );
 			// Clear pending request state so it does not interfere with our new trail-following target.
 			self->pathNavigationState.process.pending_request_handle = 0;
 			// Clear any rebuild state so it does not interfere with our new trail-following target.
@@ -1847,7 +1846,7 @@ void svg_monster_testdummy_debug_t::GetNavigationAgentBounds( Vector3 *out_mins,
 	}
 
 	// First priority: navmesh-defined agent bounds if available and valid.
-	const nav_mesh_t *mesh = g_nav_mesh.get();
+	const nav2_mesh_t *mesh = g_nav_mesh.get();
 	const bool meshAgentValid = mesh != nullptr
 		&& ( mesh->agent_maxs.z > mesh->agent_mins.z )
 		&& ( mesh->agent_maxs.x > mesh->agent_mins.x )
@@ -2086,7 +2085,7 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
 		*        Keep default behavior unless the dedicated debug define asks us to
 		*        bypass the hierarchical route filter for StepTest isolation.
 		**/
-		svg_nav_path_policy_t &queuePolicy = pathNavigationState.policy;
+		nav2_path_policy_t &queuePolicy = pathNavigationState.policy;
 		#if MONSTER_TESTDUMMY_DEBUG_BYPASS_ROUTE_FILTER
 		// Route-filter isolation mode: explicitly disable coarse tile filtering so
 		// neighbor diagnostics reflect pure StepTest traversal behavior.
@@ -2235,7 +2234,7 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
 *			of immediate synchronous execution so we do not spam blocking calls.
 **/
 const bool svg_monster_testdummy_debug_t::TryRebuildNavigationInQueue( const Vector3 &start_origin,
-	const Vector3 &goal_origin, const svg_nav_path_policy_t &policy, const Vector3 &agent_mins,
+	const Vector3 &goal_origin, const nav2_path_policy_t &policy, const Vector3 &agent_mins,
 	const Vector3 &agent_maxs, const bool force )
 {
 	/**
@@ -2377,7 +2376,7 @@ const bool svg_monster_testdummy_debug_t::TryRebuildNavigationInQueue( const Vec
 	if ( DUMMY_NAV_DEBUG ) {
 		gi.dprintf( "[DEBUG] TryQueueNavRebuild: queued rebuild handle=%d ent=%d force=%d\n", handle, s.number, force ? 1 : 0 );
 		// Also print the converted nav-center origins so we can correlate node resolution.
-		const nav_mesh_t *mesh = g_nav_mesh.get();
+		const nav2_mesh_t *mesh = g_nav_mesh.get();
 		if ( mesh ) {
 			const Vector3 start_center = SVG_Nav_ConvertFeetToCenter( mesh, start_origin, &agent_mins, &agent_maxs );
 			const Vector3 goal_center = SVG_Nav_ConvertFeetToCenter( mesh, goal_origin, &agent_mins, &agent_maxs );

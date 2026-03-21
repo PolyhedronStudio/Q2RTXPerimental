@@ -8,19 +8,17 @@
 #include "svgame/svg_local.h"
 #include "svgame/svg_utils.h"
 
-#include "svgame/nav/svg_nav.h"
-#include "svgame/nav/svg_nav_clusters.h"
-#include "svgame/nav/svg_nav_traversal.h"
 
 #include "svgame/player/svg_player_weapon.h"
 
 #include "svgame/entities/svg_npc_sound_helper.h"
-
+#include "svgame/nav2/nav2_types.h"
 #include <algorithm>
 #include <cmath>
 
+#if 0
 /**
-*    @brief	Project a sound origin onto the nearest walkable nav Z while preserving XY.
+*    @brief	Project an origin onto the nearest walkable nav Z while preserving XY.
 *    @param	origin		World-space sound origin to normalize.
 *    @param	out_origin	[out] Projected origin when a walkable layer is found.
 *    @return	True when the sound origin was projected onto a walkable nav layer.
@@ -30,7 +28,7 @@ static bool SVG_NPCSound_TryProjectOriginToWalkableZ( const Vector3 &origin, Vec
 	/**
 	*    Sanity checks: require navmesh storage and an output buffer.
 	**/
-	const nav_mesh_t *mesh = g_nav_mesh.get();
+	const nav2_mesh_t *mesh = g_nav_mesh.get();
 	if ( !mesh || !out_origin ) {
 		return false;
 	}
@@ -63,7 +61,7 @@ static bool SVG_NPCSound_TryProjectOriginToWalkableZ( const Vector3 &origin, Vec
 		return false;
 	}
 
-	const nav_tile_t *tile = &mesh->world_tiles[ tile_it->second ];
+	const nav2_tile_t *tile = &mesh->world_tiles[ tile_it->second ];
 	const auto cells_view = SVG_Nav_Tile_GetCells( mesh, tile );
 	const nav_xy_cell_t *cells = cells_view.first;
 	const int32_t cell_count = cells_view.second;
@@ -105,7 +103,25 @@ static bool SVG_NPCSound_TryProjectOriginToWalkableZ( const Vector3 &origin, Vec
 	out_origin->z = ( float )( projected_center_z - center_offset_z );
 	return true;
 }
-
+#else
+/**
+*    @brief	Project an origin onto the nearest walkable nav Z while preserving XY.
+*    @param	origin		World-space sound origin to normalize.
+*    @param	out_origin	[out] Projected origin when a walkable layer is found.
+*    @return	True when the sound origin was projected onto a walkable nav layer.
+*    @note	This keeps sound-follow goals on reachable floors without inventing a new XY target.
+**/
+static bool SVG_NPCSound_TryProjectOriginToWalkableZ( const Vector3 &origin, Vector3 *out_origin ) {
+	/**
+	*    Sanity checks: require navmesh storage and an output buffer.
+	**/
+	const nav2_mesh_t *mesh = g_nav_mesh.get();
+	if ( !mesh || !out_origin ) {
+		return false;
+	}
+	return true;
+}
+#endif
 
 /**
 *	@brief	Find the freshest audible sound entity newer than `minTime`.

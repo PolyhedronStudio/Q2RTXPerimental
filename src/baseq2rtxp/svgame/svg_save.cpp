@@ -23,7 +23,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/svg_clients.h"
 #include "svgame/svg_edict_pool.h"
 
-#include "svgame/nav/svg_nav.h"
+
+#include "svgame/nav2/nav2_save_load.h"
 
 #include "svgame/entities/svg_player_edict.h"
 #include "svgame/entities/svg_worldspawn_edict.h"
@@ -603,11 +604,14 @@ void SVG_ReadLevel(const char *filename)
 	// Rebuild portal states from entities' refcounts so the world collision reflects saved state.
 	RestoreAreaPortalStatesFromEntities();
 
+	// Initialize navigation system (registers cvars like `nav_debug_draw`).
+	SVG_Nav2_Runtime_Init();
 	// Restore the navmesh for this map.
-	auto loadResult = SVG_Nav_LoadMesh( level.mapname );
-	if ( std::get<0>( loadResult ) == false ) {
-		gi.dprintf( "No navmesh found for map '%s' at path '%s'.\n", level.mapname, std::get<1>( loadResult ).c_str() );
-	}
+	// <Q2RTXP>: WID: Navmesh saving/loading is currently disabled, since the navmesh data structures are still in flux and not fully integrated with the rest of the codebase yet.
+	//auto loadResult = SVG_Nav2_LoadMesh( level.mapname );
+	//if ( std::get<0>( loadResult ) == false ) {
+	//	gi.dprintf( "No navmesh found for map '%s' at path '%s'.\n", level.mapname, std::get<1>( loadResult ).c_str() );
+	//}
 
     // Connect all movewith entities.
     //SVG_MoveWith_FindParentTargetEntities();

@@ -492,6 +492,20 @@ static q_noreturn void PF_error(const char *fmt, ...)
 *
 *
 **/
+
+
+
+
+
+/**
+*
+*
+*
+*	CollisionModel:
+*
+*
+*
+**/
 /*
 =================
 PF_setmodel
@@ -606,6 +620,76 @@ static const bool PF_inVIS(const Vector3 *p1, const Vector3 *p2, const int32_t v
         return false;       // a door blocks it
     return true;
 }
+
+/**
+*	@brief	Check whether a point and an axis-aligned bounding box are within visible areas.
+*	@param	p1		Point to test visibility from (world-space).
+*	@param	mins	Minimum corner of the axis-aligned bounding box (world-space).
+*	@param	maxs	Maximum corner of the axis-aligned bounding box (world-space).
+*	@param	vis		Visibility type bitmask (DVIS_PVS / DVIS_PHS etc).
+*	@return	True if any leaf touched by the box is visible from p1 given the vis type and area connectivity.
+*	@note	This is similar to PF_inVIS but uses a bounding box for the second operand. It gathers
+*			the leafs overlapped by the box and verifies cluster visibility + area connectivity.
+**/
+static const bool PF_inFatPVS( const vec3_t *p1, const vec3_t *mins, const vec3_t *maxs, const int32_t vis ) {
+	mleaf_t *leaf1;
+	mleaf_t *leaflist[ 1024 ];
+	int32_t nleafs, i;
+	byte mask[ VIS_MAX_BYTES ];
+	bsp_t *bsp = sv.cm.cache;
+
+	/**
+	*	Sanity: require a loaded BSP/collision model cache.
+	**/
+	if ( !bsp ) {
+		Com_Error( ERR_DROP, "%s: no map loaded", __func__ );
+	}
+
+	/**
+	*	Compute visibility mask for the cluster containing the source point.
+	**/
+	leaf1 = BSP_PointLeaf( bsp->nodes, p1[ 0 ] );
+	BSP_ClusterVis( bsp, mask, leaf1->cluster, vis );
+
+	/**
+	*	Accumulate leafs overlapped by the given bounding box.
+	*	We use the existing box-to-leafs helper which returns the list of leaf pointers.
+	**/
+	// Request up to 1024 leafs; this is a practical upper bound for typical maps.
+	nleafs = PF_CM_BoxLeafs( mins[ 0 ], maxs[ 0 ], leaflist, sizeof( leaflist ), nullptr );
+	if ( nleafs <= 0 ) {
+		// No leafs touched by the box -> not visible.
+		return false;
+	}
+
+	/**
+	*	Iterate overlapping leafs and test cluster visibility + area connectivity.
+	*	If any leaf in the box is in the visible cluster mask and its area is connected,
+	*	the box is considered visible from p1.
+	**/
+	for ( i = 0; i < nleafs; i++ ) {
+		mleaf_t *l = leaflist[ i ];
+
+		// Skip invalid cluster entries.
+		if ( l->cluster == -1 )
+			continue;
+
+		// Cluster must be set in the visibility bitmap.
+		if ( !Q_IsBitSet( mask, l->cluster ) )
+			continue;
+
+		// Also ensure areas are connected so doors/portals block visibility.
+		if ( !CM_AreasConnected( &sv.cm, leaf1->area, l->area ) )
+			continue;
+
+		// Visible: early out.
+		return true;
+	}
+
+	// No overlapping leaf passed the visibility/connectivity tests.
+	return false;
+}
+
 
 /**
 *	@brief	Returns the leaf the point is in.
@@ -1342,6 +1426,7 @@ void SV_InitGameProgs(void) {
     imports.GetAreaPortalState = PF_GetAreaPortalState;
     imports.AreasConnected = PF_AreasConnected;
     imports.inPVS = PF_inPVS;
+	imports.inFatPVS = PF_inFatPVS;
     imports.inPHS = PF_inPHS;
     imports.setmodel = PF_setmodel;
 

@@ -8,9 +8,7 @@
 #include "svgame/svg_local.h"
 #include "svgame/svg_utils.h"
 
-#include "svgame/nav/svg_nav.h"
-#include "svgame/nav/svg_nav_path_process.h"
-
+#include "svgame/nav2/nav2_types.h"
 #include "svg_mmove.h"
 #include "svg_mmove_slidemove.h"
 
@@ -124,7 +122,7 @@ static void MMove_StepDown( mm_move_t *monsterMove, const svg_trace_t *trace ) {
 *   @return  Slide/step move result flags.
 *   @note    All drop/jump/step logic uses the policy struct for limits.
 **/
-const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, const svg_nav_path_policy_t &policy ) {
+const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, const nav2_path_policy_t &policy ) {
 	svg_trace_t trace = {};
 	Vector3 startOrigin = monsterMove->state.previousOrigin = monsterMove->state.origin;
 	Vector3 startVelocity = monsterMove->state.previousVelocity = monsterMove->state.velocity;

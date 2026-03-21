@@ -146,7 +146,7 @@ public:
 	*	@param	init_fn	Callback invoked after construction for custom initialization.
 	*	@return	True if allocation, construction, and initialization succeeded.
 	*	@example
-	*		owner.create( TAG_SVGAME_LEVEL, []( nav_mesh_t *mesh ) {
+	*		owner.create( TAG_SVGAME_LEVEL, []( nav2_mesh_t *mesh ) {
 	*			mesh->occupancy_frame = -1;
 	*		} );
 	**/
@@ -203,7 +203,7 @@ public:
 	explicit operator bool() const {
 		return _ptr != nullptr;
 	}
-
+	
 	/**
 	*	@brief	Access object members via pointer syntax.
 	**/

@@ -50,10 +50,10 @@ void V_CalculateLocalPVS( const vec3_t viewOrigin ) {
     cl.localPVS.leafCluster = cl.localPVS.leaf->cluster;
 
     if ( cl.localPVS.leafCluster >= 0 ) {
-        CM_FatPVS( &cl.collisionModel, cl.localPVS.pvs, viewOrigin, DVIS_PVS );
+        CM_FatPVS( &cl.collisionModel, cl.localPVS.pvs, viewOrigin, DVIS_PVS, { { 8., 8., 8. }, { -8., -8., -8. } } );
         cl.localPVS.lastValidCluster = cl.localPVS.leafCluster;
     } else {
-        BSP_ClusterVis( cl.collisionModel.cache, cl.localPVS.pvs, cl.localPVS.lastValidCluster, DVIS_PVS /*DVIS_PVS2*/ );
+		BSP_ClusterVis( cl.collisionModel.cache, cl.localPVS.pvs, cl.localPVS.lastValidCluster, DVIS_PVS /*DVIS_PVS2*/);
     }
 }
 

@@ -13,7 +13,7 @@
 * 
 *	Default values used for physics and obstruction step handling. These are used as defaults for the player move as well as 
 *	for the monster movement and navigation systems. For the later, these defaults can be overridden on a per-move basis via 
-*	the svg_nav_path_policy_t struct, which is used to communicate navigation constraints and settings from the 
+*	the nav2_path_policy_t struct, which is used to communicate navigation constraints and settings from the 
 *	navigation system to the movement system.
 *
 *

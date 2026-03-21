@@ -35,13 +35,6 @@
 // TestDummy Monster
 #include "svgame/entities/monster/svg_monster_testdummy_debug.h"
 
-// Navigation cluster routing (coarse tile routing pre-pass).
-#include "svgame/nav/svg_nav_clusters.h"
-// Async navigation queue helpers.
-#include "svgame/nav/svg_nav_request.h"
-// Traversal helpers required for path invalidation.
-#include "svgame/nav/svg_nav_traversal.h"
-
 // Local debug toggle for noisy per-frame prints in this test monster.
 static constexpr bool DUMMY_NAV_DEBUG = true;
 
@@ -67,7 +60,7 @@ inline void SVG_Monster_GetNavigationAgentBounds( const svg_monster_testdummy_t 
    *	Prefer the live navmesh agent bounds when available.
     *        This keeps the query hull aligned with the mesh that was generated.
     **/
-  const nav_mesh_t *mesh = g_nav_mesh.get();
+  const nav2_mesh_t *mesh = g_nav_mesh.get();
     const bool meshAgentValid = mesh
         && ( mesh->agent_maxs.z > mesh->agent_mins.z )
         && ( mesh->agent_maxs.x > mesh->agent_mins.x )
@@ -227,7 +220,7 @@ void SVG_Monster_ResetNavigationPath( svg_monster_testdummy_debug_t *self ) {
 *		of immediate synchronous execution so we do not spam blocking calls.
 **/
 bool SVG_Monster_TryQueueNavigationRebuild( svg_monster_testdummy_debug_t *self, const Vector3 &start_origin,
-    const Vector3 &goal_origin, const svg_nav_path_policy_t &policy, const Vector3 &agent_mins,
+    const Vector3 &goal_origin, const nav2_path_policy_t &policy, const Vector3 &agent_mins,
     const Vector3 &agent_maxs, const bool force = false ) {
     /**
     *    @brief	Attempt to enqueue an asynchronous navigation rebuild for this entity.
@@ -368,7 +361,7 @@ bool SVG_Monster_TryQueueNavigationRebuild( svg_monster_testdummy_debug_t *self,
     if ( DUMMY_NAV_DEBUG ) {
         gi.dprintf( "[DEBUG] TryQueueNavRebuild: queued rebuild handle=%d ent=%d force=%d\n", handle, self->s.number, force ? 1 : 0 );
         // Also print the converted nav-center origins so we can correlate node resolution.
-        const nav_mesh_t *mesh = g_nav_mesh.get();
+        const nav2_mesh_t *mesh = g_nav_mesh.get();
         if ( mesh ) {
             const Vector3 start_center = SVG_Nav_ConvertFeetToCenter( mesh, start_origin, &agent_mins, &agent_maxs );
             const Vector3 goal_center = SVG_Nav_ConvertFeetToCenter( mesh, goal_origin, &agent_mins, &agent_maxs );

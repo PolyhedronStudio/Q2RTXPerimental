@@ -21,13 +21,23 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/svg_commands_server.h"
 #include "svgame/svg_edict_pool.h"
 #include "svgame/svg_clients.h"
-#include "svgame/nav/svg_nav.h"
-#include "svgame/nav/svg_nav_request.h"
+#include "svgame/nav2/nav2_bench.h"
+#include "svgame/nav2/nav2_scheduler.h"
+#include "svgame/nav2/nav2_worker_iface.h"
+
 
 /**
 *  @brief	Temporary recovery declaration for shared nav debug drawing.
 **/
 void SVG_Nav_DebugDraw( void );
+
+/**
+*\t@brief	Compatibility no-op placeholder for shared nav debug drawing.
+*\t@note	This keeps the server link surface intact while the debug draw path is restored elsewhere.
+**/
+void SVG_Nav_DebugDraw( void ) {
+    // Intentionally empty until the shared nav debug draw implementation is reinstated.
+}
 
 #include "svgame/svg_utils.h"
 
@@ -45,7 +55,10 @@ void SVG_Nav_DebugDraw( void );
 #include "svgame/gamemodes/svg_gm_basemode.h"
 #include "svgame/svg_gamemode.h"
 
-#include "svgame/nav/svg_nav.h"
+#include "svgame/nav2/nav2_types.h"
+#include "svgame/nav2/nav2_runtime.h"
+#include "svgame/nav2/nav2_types.h"
+#include "svgame/nav2/nav2_runtime.h"
 
 /**
 *	General used Game Objects.
@@ -465,7 +478,13 @@ void SVG_InitGame( void ) {
         game.clients[ i ].pers.spawned = false;
     }
 	// Initialize navigation system (registers cvars like `nav_debug_draw`).
-	SVG_Nav_Init();
+	SVG_Nav2_Runtime_Init();
+    // Register nav2 benchmark cvars before future nav2 stages begin publishing measurements.
+    SVG_Nav2_Bench_RegisterCvars();
+    // Initialize the nav2 scheduler foundation so later staged query systems can bind onto it.
+    SVG_Nav2_Scheduler_Init();
+    // Initialize the nav2 worker interface so scheduler slices can use async or inline fallback execution.
+    SVG_Nav2_Worker_Init();
 
 	// <Q2RTXP>: WID: Happens in SVG_SpawnEntities now since we need the map's entities to initialize the nav system.
 
@@ -498,7 +517,11 @@ void SVG_ShutdownGame( void ) {
 	//! Now Nav data, which may be used by the gamemode, is freed, so we can free the gamemode itself.
 
     // Shutdown navigation system.
-    SVG_Nav_Shutdown();
+    SVG_Nav2_Runtime_Shutdown();
+  // Shutdown the nav2 worker interface before the scheduler runtime releases queued job state.
+    SVG_Nav2_Worker_Shutdown();
+ // Shutdown the nav2 scheduler foundation after nav users have released their references.
+    SVG_Nav2_Scheduler_Shutdown();
     // Shutdown the Lua VM.
     SVG_Lua_Shutdown();
 
@@ -709,6 +732,8 @@ void SVG_RunFrame(void) {
     level.time += FRAME_TIME_MS;
     // Reseed the mersennery twister.
     mt_rand.seed( level.frameNumber );
+    // Reset the nav2 scheduler frame budget and worker mode bookkeeping for this server frame.
+    SVG_Nav2_Scheduler_BeginFrame( level.frameNumber );
 
     #if 0
     // Exit intermissions.
@@ -733,7 +758,9 @@ void SVG_RunFrame(void) {
     *        tick can apply completed worker payloads and advance queued/running searches before monsters
     *        decide whether they already have a usable path this frame.
     **/
-    SVG_Nav_ProcessRequestQueue();
+    // <Q2RTXP? WID: OldNav: SVG_Nav_ProcessRequestQueue();
+    // Service the nav2 scheduler foundation early so completed worker slices are visible before entity think.
+    SVG_Nav2_Scheduler_Service();
 
     /**
 	*	WID: LUA: CallBack.
@@ -840,8 +867,8 @@ void SVG_RunFrame(void) {
 	// Update movewith entities.
     SVG_PushMove_UpdateMoveWithEntities();
 	//! Make sure to update the navigation system.
-	SVG_Nav_RefreshInlineModelRuntime();
-
+	// <Q2RTXP? WID: OldNav: SVG_Nav_RefreshInlineModelRuntime();
+	
 	/**
 	*	WID: LUA: CallBack.
 	**/
@@ -872,9 +899,11 @@ void SVG_RunFrame(void) {
     *        The early-frame tick exposes completed worker results before entity think, while this
     *        second pass lets already-running incremental searches make extra progress before the frame ends.
     **/
-    if ( SVG_Nav_ShouldRunLateFrameQueueTick() ) {
-        SVG_Nav_ProcessRequestQueue();
-    }
+	// <Q2RTXP? WID: OldNav: if ( SVG_Nav_ShouldRunLateFrameQueueTick() ) {
+	// <Q2RTXP? WID: OldNav:    SVG_Nav_ProcessRequestQueue();
+	// <Q2RTXP? WID: OldNav: }
+    // Give the nav2 scheduler foundation one late-frame follow-up service pass.
+    SVG_Nav2_Scheduler_Service();
 
 	// Navigation debug draw (runtime).
 	// Needs a built mesh (`nav_gen_voxelmesh`) and `nav_debug_draw 1`.
