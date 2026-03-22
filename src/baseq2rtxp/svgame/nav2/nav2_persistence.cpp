@@ -19,7 +19,7 @@
 *
 **/
 /**
-*\t@brief\tCompact bundle metadata written at the start of the persistence payload section table.
+* @brief Compact bundle metadata written at the start of the persistence payload section table.
 **/
 struct nav2_persistence_bundle_meta_t {
     //! Number of serialized region-layer records.
@@ -37,7 +37,7 @@ struct nav2_persistence_bundle_meta_t {
 };
 
 /**
-*\t@brief\tFlat serialized representation of one region-layer node.
+* @brief Flat serialized representation of one region-layer node.
 **/
 struct nav2_persistence_region_layer_t {
     int32_t region_layer_id = NAV_REGION_ID_NONE;
@@ -55,7 +55,7 @@ struct nav2_persistence_region_layer_t {
 };
 
 /**
-*\t@brief\tFlat serialized representation of one hierarchy node.
+* @brief Flat serialized representation of one hierarchy node.
 **/
 struct nav2_persistence_hierarchy_node_t {
     int32_t node_id = -1;
@@ -71,7 +71,7 @@ struct nav2_persistence_hierarchy_node_t {
 };
 
 /**
-*\t@brief\tFlat serialized representation of one hierarchy edge.
+* @brief Flat serialized representation of one hierarchy edge.
 **/
 struct nav2_persistence_hierarchy_edge_t {
     int32_t edge_id = -1;
@@ -88,7 +88,7 @@ struct nav2_persistence_hierarchy_edge_t {
 };
 
 /**
-*\t@brief\tFlat serialized representation of one mover-local model record.
+* @brief Flat serialized representation of one mover-local model record.
 **/
 struct nav2_persistence_mover_model_t {
     int32_t owner_entnum = -1;
@@ -101,7 +101,7 @@ struct nav2_persistence_mover_model_t {
 };
 
 /**
-*\t@brief\tFlat serialized representation of one sparse occupancy record.
+* @brief Flat serialized representation of one sparse occupancy record.
 **/
 struct nav2_persistence_occupancy_record_t {
     int32_t occupancy_id = -1;
@@ -122,7 +122,7 @@ struct nav2_persistence_occupancy_record_t {
 };
 
 /**
-*\t@brief\tFlat serialized representation of one dynamic overlay entry.
+* @brief Flat serialized representation of one dynamic overlay entry.
 **/
 struct nav2_persistence_overlay_entry_t {
     int32_t overlay_id = -1;
@@ -135,7 +135,7 @@ struct nav2_persistence_overlay_entry_t {
 };
 
 /**
-*\t@brief\tDecoded bundle section offsets used while writing or reading a persistence blob.
+* @brief Decoded bundle section offsets used while writing or reading a persistence blob.
 **/
 struct nav2_persistence_section_offsets_t {
     //! Region-layer section descriptor.
@@ -160,10 +160,10 @@ static constexpr uint32_t NAV2_PERSISTENCE_SECTION_COUNT = 4;
 *
 **/
 /**
-*\t@brief\tAppend raw bytes into a serialized blob.
-*\t@param\tblob\tSerialized blob being built.
-*\t@param\tdata\tSource bytes to append.
-*\t@param\tsize\tNumber of bytes to append.
+* @brief Append raw bytes into a serialized blob.
+* @param blob Serialized blob being built.
+* @param data Source bytes to append.
+* @param size Number of bytes to append.
 **/
 static void SVG_Nav2_Persistence_AppendBytes( nav2_serialized_blob_t *blob, const void *data, const size_t size ) {
     // Validate the destination blob and source pointer before mutating the byte buffer.
@@ -177,12 +177,12 @@ static void SVG_Nav2_Persistence_AppendBytes( nav2_serialized_blob_t *blob, cons
 }
 
 /**
-*\t@brief\tOverwrite bytes already present in a serialized blob.
-*\t@param\tblob\tSerialized blob being updated.
-*\t@param\toffset\tByte offset to overwrite.
-*\t@param\tdata\tSource bytes to copy into the blob.
-*\t@param\tsize\tNumber of bytes to overwrite.
-*\t@return\tTrue when the overwrite fit inside the blob.
+* @brief Overwrite bytes already present in a serialized blob.
+* @param blob Serialized blob being updated.
+* @param offset Byte offset to overwrite.
+* @param data Source bytes to copy into the blob.
+* @param size Number of bytes to overwrite.
+* @return True when the overwrite fit inside the blob.
 **/
 static const bool SVG_Nav2_Persistence_OverwriteBytes( nav2_serialized_blob_t *blob, const size_t offset, const void *data, const size_t size ) {
     // Reject invalid overwrite requests before mutating any existing bytes.
@@ -196,12 +196,12 @@ static const bool SVG_Nav2_Persistence_OverwriteBytes( nav2_serialized_blob_t *b
 }
 
 /**
-*\t@brief\tRead one POD value from a byte buffer.
-*\t@param\tdata\tSource buffer to read from.
-*\t@param\tsize\tBuffer size in bytes.
-*\t@param\toffset\t[in,out] Cursor offset into the buffer.
-*\t@param\toutValue\t[out] Value receiving the decoded bytes.
-*\t@return\tTrue when the read succeeded without exceeding the bounds.
+* @brief Read one POD value from a byte buffer.
+* @param data Source buffer to read from.
+* @param size Buffer size in bytes.
+* @param offset [in,out] Cursor offset into the buffer.
+* @param outValue [out] Value receiving the decoded bytes.
+* @return True when the read succeeded without exceeding the bounds.
 **/
 template<typename T>
 static const bool SVG_Nav2_Persistence_ReadValue( const uint8_t *data, const size_t size, size_t *offset, T *outValue ) {
@@ -217,11 +217,11 @@ static const bool SVG_Nav2_Persistence_ReadValue( const uint8_t *data, const siz
 }
 
 /**
-*\t@brief\tInitialize a versioned nav2 persistence header.
-*\t@param\tpolicy\tSerialization policy driving the header contents.
-*\t@param\tsectionCount\tNumber of payload sections that will be written.
-*\t@param\tmagic\tMagic value to embed in the header.
-*\t@return\tInitialized nav2 header.
+* @brief Initialize a versioned nav2 persistence header.
+* @param policy Serialization policy driving the header contents.
+* @param sectionCount Number of payload sections that will be written.
+* @param magic Magic value to embed in the header.
+* @return Initialized nav2 header.
 **/
 static nav2_serialized_header_t SVG_Nav2_Persistence_MakeHeader( const nav2_serialization_policy_t &policy, const uint32_t sectionCount, const uint32_t magic ) {
     // Build a stable header that mirrors the chosen policy and declared section count.
@@ -238,11 +238,11 @@ static nav2_serialized_header_t SVG_Nav2_Persistence_MakeHeader( const nav2_seri
 }
 
 /**
-*\t@brief\tCreate a section descriptor at the current end of a blob.
-*\t@param\tblob\tBlob being built.
-*\t@param\ttype\tSection type being appended.
-*\t@param\tversion\tSection version to publish.
-*\t@return\tInitialized section descriptor.
+* @brief Create a section descriptor at the current end of a blob.
+* @param blob Blob being built.
+* @param type Section type being appended.
+* @param version Section version to publish.
+* @return Initialized section descriptor.
 **/
 static nav2_serialized_section_desc_t SVG_Nav2_Persistence_BeginSection( nav2_serialized_blob_t *blob, const nav2_serialized_section_type_t type, const uint32_t version ) {
     // Capture the current byte offset so the final descriptor stays offset-addressable.
@@ -254,9 +254,9 @@ static nav2_serialized_section_desc_t SVG_Nav2_Persistence_BeginSection( nav2_se
 }
 
 /**
-*\t@brief\tFinalize a section descriptor after the payload bytes were appended.
-*\t@param\tblob\tBlob that owns the payload bytes.
-*\t@param\tsection\tSection descriptor to finalize.
+* @brief Finalize a section descriptor after the payload bytes were appended.
+* @param blob Blob that owns the payload bytes.
+* @param section Section descriptor to finalize.
 **/
 static void SVG_Nav2_Persistence_EndSection( nav2_serialized_blob_t *blob, nav2_serialized_section_desc_t *section ) {
     // Publish the final section size only after all payload bytes have been appended.
@@ -267,9 +267,9 @@ static void SVG_Nav2_Persistence_EndSection( nav2_serialized_blob_t *blob, nav2_
 }
 
 /**
-*\t@brief\tAppend one serialized region layer record into a blob.
-*\t@param\tlayer\tRegion-layer source record.
-*\t@param\tblob\tBlob receiving the bytes.
+* @brief Append one serialized region layer record into a blob.
+* @param layer Region-layer source record.
+* @param blob Blob receiving the bytes.
 **/
 static void SVG_Nav2_Persistence_AppendRegionLayerRecord( const nav2_region_layer_t &layer, nav2_serialized_blob_t *blob ) {
     // Mirror the region-layer into a flat POD payload suitable for round-trip persistence.
@@ -290,9 +290,9 @@ static void SVG_Nav2_Persistence_AppendRegionLayerRecord( const nav2_region_laye
 }
 
 /**
-*\t@brief\tAppend one serialized hierarchy node record into a blob.
-*\t@param\tnode\tHierarchy node source record.
-*\t@param\tblob\tBlob receiving the bytes.
+* @brief Append one serialized hierarchy node record into a blob.
+* @param node Hierarchy node source record.
+* @param blob Blob receiving the bytes.
 **/
 static void SVG_Nav2_Persistence_AppendHierarchyNodeRecord( const nav2_hierarchy_node_t &node, nav2_serialized_blob_t *blob ) {
     // Mirror the hierarchy node into a flat POD payload suitable for round-trip persistence.
@@ -311,9 +311,9 @@ static void SVG_Nav2_Persistence_AppendHierarchyNodeRecord( const nav2_hierarchy
 }
 
 /**
-*\t@brief\tAppend one serialized hierarchy edge record into a blob.
-*\t@param\tedge\tHierarchy edge source record.
-*\t@param\tblob\tBlob receiving the bytes.
+* @brief Append one serialized hierarchy edge record into a blob.
+* @param edge Hierarchy edge source record.
+* @param blob Blob receiving the bytes.
 **/
 static void SVG_Nav2_Persistence_AppendHierarchyEdgeRecord( const nav2_hierarchy_edge_t &edge, nav2_serialized_blob_t *blob ) {
     // Mirror the hierarchy edge into a flat POD payload suitable for round-trip persistence.
@@ -333,9 +333,9 @@ static void SVG_Nav2_Persistence_AppendHierarchyEdgeRecord( const nav2_hierarchy
 }
 
 /**
-*\t@brief\tAppend one serialized mover-local model record into a blob.
-*\t@param\tmodel\tMover-local model source record.
-*\t@param\tblob\tBlob receiving the bytes.
+* @brief Append one serialized mover-local model record into a blob.
+* @param model Mover-local model source record.
+* @param blob Blob receiving the bytes.
 **/
 static void SVG_Nav2_Persistence_AppendMoverModelRecord( const nav2_mover_local_model_t &model, nav2_serialized_blob_t *blob ) {
     // Mirror the mover-local model into a flat POD payload suitable for round-trip persistence.
@@ -349,9 +349,9 @@ static void SVG_Nav2_Persistence_AppendMoverModelRecord( const nav2_mover_local_
 }
 
 /**
-*\t@brief\tAppend one serialized occupancy record into a blob.
-*\t@param\trecord\tOccupancy source record.
-*\t@param\tblob\tBlob receiving the bytes.
+* @brief Append one serialized occupancy record into a blob.
+* @param record Occupancy source record.
+* @param blob Blob receiving the bytes.
 **/
 static void SVG_Nav2_Persistence_AppendOccupancyRecord( const nav2_occupancy_record_t &record, nav2_serialized_blob_t *blob ) {
     // Mirror the occupancy record into a flat POD payload suitable for round-trip persistence.
@@ -375,9 +375,9 @@ static void SVG_Nav2_Persistence_AppendOccupancyRecord( const nav2_occupancy_rec
 }
 
 /**
-*\t@brief\tAppend one serialized overlay entry into a blob.
-*\t@param\tentry\tOverlay source record.
-*\t@param\tblob\tBlob receiving the bytes.
+* @brief Append one serialized overlay entry into a blob.
+* @param entry Overlay source record.
+* @param blob Blob receiving the bytes.
 **/
 static void SVG_Nav2_Persistence_AppendOverlayEntry( const nav2_occupancy_overlay_entry_t &entry, nav2_serialized_blob_t *blob ) {
     // Mirror the overlay entry into a flat POD payload suitable for round-trip persistence.
@@ -393,12 +393,12 @@ static void SVG_Nav2_Persistence_AppendOverlayEntry( const nav2_occupancy_overla
 }
 
 /**
-*\t@brief\tRebuild region-layer graph data from a decoded payload.
-*\t@param\tbundle\tBundle receiving the decoded region-layer graph.
-*\t@param\tdata\tSource payload bytes.
-*\t@param\tsize\tPayload byte size.
-*\t@param\toffset\t[in,out] Cursor into the payload.
-*\t@return\tTrue when the payload decoded successfully.
+* @brief Rebuild region-layer graph data from a decoded payload.
+* @param bundle Bundle receiving the decoded region-layer graph.
+* @param data Source payload bytes.
+* @param size Payload byte size.
+* @param offset [in,out] Cursor into the payload.
+* @return True when the payload decoded successfully.
 **/
 static const bool SVG_Nav2_Persistence_ReadRegionLayers( nav2_persistence_bundle_t *bundle, const uint8_t *data, const size_t size, size_t *offset ) {
     // Decode the count header before resizing the runtime graph.
@@ -441,12 +441,12 @@ static const bool SVG_Nav2_Persistence_ReadRegionLayers( nav2_persistence_bundle
 }
 
 /**
-*\t@brief\tRebuild hierarchy graph data from a decoded payload.
-*\t@param\tbundle\tBundle receiving the decoded hierarchy graph.
-*\t@param\tdata\tSource payload bytes.
-*\t@param\tsize\tPayload byte size.
-*\t@param\toffset\t[in,out] Cursor into the payload.
-*\t@return\tTrue when the payload decoded successfully.
+* @brief Rebuild hierarchy graph data from a decoded payload.
+* @param bundle Bundle receiving the decoded hierarchy graph.
+* @param data Source payload bytes.
+* @param size Payload byte size.
+* @param offset [in,out] Cursor into the payload.
+* @return True when the payload decoded successfully.
 **/
 static const bool SVG_Nav2_Persistence_ReadHierarchy( nav2_persistence_bundle_t *bundle, const uint8_t *data, const size_t size, size_t *offset ) {
     // Decode the node count before rebuilding the runtime graph.
@@ -518,12 +518,12 @@ static const bool SVG_Nav2_Persistence_ReadHierarchy( nav2_persistence_bundle_t 
 }
 
 /**
-*\t@brief\tRebuild mover-local models from a decoded payload.
-*\t@param\tbundle\tBundle receiving the decoded mover-local models.
-*\t@param\tdata\tSource payload bytes.
-*\t@param\tsize\tPayload byte size.
-*\t@param\toffset\t[in,out] Cursor into the payload.
-*\t@return\tTrue when the payload decoded successfully.
+* @brief Rebuild mover-local models from a decoded payload.
+* @param bundle Bundle receiving the decoded mover-local models.
+* @param data Source payload bytes.
+* @param size Payload byte size.
+* @param offset [in,out] Cursor into the payload.
+* @return True when the payload decoded successfully.
 **/
 static const bool SVG_Nav2_Persistence_ReadMoverModels( nav2_persistence_bundle_t *bundle, const uint8_t *data, const size_t size, size_t *offset ) {
     // Decode the mover-local model count before rebuilding the runtime vector.
@@ -552,12 +552,12 @@ static const bool SVG_Nav2_Persistence_ReadMoverModels( nav2_persistence_bundle_
 }
 
 /**
-*\t@brief\tRebuild occupancy and dynamic overlay data from a decoded payload.
-*\t@param\tbundle\tBundle receiving the decoded occupancy and overlay state.
-*\t@param\tdata\tSource payload bytes.
-*\t@param\tsize\tPayload byte size.
-*\t@param\toffset\t[in,out] Cursor into the payload.
-*\t@return\tTrue when the payload decoded successfully.
+* @brief Rebuild occupancy and dynamic overlay data from a decoded payload.
+* @param bundle Bundle receiving the decoded occupancy and overlay state.
+* @param data Source payload bytes.
+* @param size Payload byte size.
+* @param offset [in,out] Cursor into the payload.
+* @return True when the payload decoded successfully.
 **/
 static const bool SVG_Nav2_Persistence_ReadOccupancyOverlay( nav2_persistence_bundle_t *bundle, const uint8_t *data, const size_t size, size_t *offset ) {
     // Decode both counts before rebuilding the two runtime containers.
@@ -619,10 +619,10 @@ static const bool SVG_Nav2_Persistence_ReadOccupancyOverlay( nav2_persistence_bu
 }
 
 /**
-*\t@brief\tFind the first section descriptor matching a requested type.
-*\t@param\tsections\tDecoded section descriptor table.
-*\t@param\ttype\tRequested section type.
-*\t@return\tPointer to the matching descriptor, or nullptr when absent.
+* @brief Find the first section descriptor matching a requested type.
+* @param sections Decoded section descriptor table.
+* @param type Requested section type.
+* @return Pointer to the matching descriptor, or nullptr when absent.
 **/
 static const nav2_serialized_section_desc_t *SVG_Nav2_Persistence_FindSection( const std::vector<nav2_serialized_section_desc_t> &sections, const nav2_serialized_section_type_t type ) {
     // Scan the small section list directly because the persistence foundation uses a fixed number of sections.
@@ -643,10 +643,10 @@ static const nav2_serialized_section_desc_t *SVG_Nav2_Persistence_FindSection( c
 *
 **/
 /**
-*\t@brief\tBuild a versioned nav2 persistence blob containing the supplied bundle.
-*\t@param\tbundle\tNav2 bundle to serialize.
-*\t@param\toutBlob\t[out] Blob receiving the serialized bytes.
-*\t@return\tStructured build result including byte count.
+* @brief Build a versioned nav2 persistence blob containing the supplied bundle.
+* @param bundle Nav2 bundle to serialize.
+* @param outBlob [out] Blob receiving the serialized bytes.
+* @return Structured build result including byte count.
 **/
 nav2_persistence_result_t SVG_Nav2_Persistence_BuildBundleBlob( const nav2_persistence_bundle_t &bundle, nav2_serialized_blob_t *outBlob ) {
     // Reject requests that do not provide output storage for the serialized blob.
@@ -727,11 +727,11 @@ nav2_persistence_result_t SVG_Nav2_Persistence_BuildBundleBlob( const nav2_persi
 }
 
 /**
-*\t@brief\tDecode a versioned nav2 persistence blob back into a nav2 bundle.
-*\t@param\tblob\tSerialized blob to decode.
-*\t@param\tpolicy\tExpected serialization policy.
-*\t@param\toutBundle\t[out] Bundle receiving decoded state.
-*\t@return\tStructured load result including validation state.
+* @brief Decode a versioned nav2 persistence blob back into a nav2 bundle.
+* @param blob Serialized blob to decode.
+* @param policy Expected serialization policy.
+* @param outBundle [out] Bundle receiving decoded state.
+* @return Structured load result including validation state.
 **/
 nav2_persistence_result_t SVG_Nav2_Persistence_ReadBundleBlob( const nav2_serialized_blob_t &blob,
     const nav2_serialization_policy_t &policy, nav2_persistence_bundle_t *outBundle ) {
@@ -805,9 +805,9 @@ nav2_persistence_result_t SVG_Nav2_Persistence_ReadBundleBlob( const nav2_serial
 }
 
 /**
-*\t@brief\tEmit a bounded debug summary for the nav2 persistence bundle.
-*\t@param\tbundle\tBundle to report.
-*\t@param\tlimit\tMaximum number of entries to print.
+* @brief Emit a bounded debug summary for the nav2 persistence bundle.
+* @param bundle Bundle to report.
+* @param limit Maximum number of entries to print.
 **/
 void SVG_Nav2_DebugPrintPersistenceBundle( const nav2_persistence_bundle_t &bundle, const int32_t limit ) {
     // Avoid noisy diagnostics when no useful output was requested.
@@ -855,7 +855,7 @@ void SVG_Nav2_DebugPrintPersistenceBundle( const nav2_persistence_bundle_t &bund
 }
 
 /**
-*\t@brief\tKeep the nav2 persistence module represented in the build.
+* @brief Keep the nav2 persistence module represented in the build.
 **/
 void SVG_Nav2_Persistence_ModuleAnchor( void ) {
 }

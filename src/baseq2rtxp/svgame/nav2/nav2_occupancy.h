@@ -25,7 +25,7 @@
 *
 **/
 /**
-*\t@brief\tSparse occupancy decision for local pruning.
+* @brief Sparse occupancy decision for local pruning.
 **/
 enum class nav2_occupancy_decision_t : uint8_t {
     None = 0,
@@ -37,7 +37,7 @@ enum class nav2_occupancy_decision_t : uint8_t {
 };
 
 /**
-*\t@brief\tStable occupancy flags describing the state of one localized record.
+* @brief Stable occupancy flags describing the state of one localized record.
 **/
 enum nav2_occupancy_flag_t : uint32_t {
     NAV2_OCCUPANCY_FLAG_NONE = 0,
@@ -56,7 +56,7 @@ enum nav2_occupancy_flag_t : uint32_t {
 };
 
 /**
-*\t@brief\tStable occupancy kind describing what a record represents.
+* @brief Stable occupancy kind describing what a record represents.
 **/
 enum class nav2_occupancy_kind_t : uint8_t {
     None = 0,
@@ -79,7 +79,7 @@ enum class nav2_occupancy_kind_t : uint8_t {
 *
 **/
 /**
-*\t@brief\tStable pointer-free occupancy record used for local pruning.
+* @brief Stable pointer-free occupancy record used for local pruning.
 **/
 struct nav2_occupancy_record_t {
     //! Stable record id.
@@ -115,7 +115,7 @@ struct nav2_occupancy_record_t {
 };
 
 /**
-*\t@brief\tStable sparse occupancy overlay entry keyed by topology-local ids.
+* @brief Stable sparse occupancy overlay entry keyed by topology-local ids.
 **/
 struct nav2_occupancy_overlay_entry_t {
     //! Stable overlay id.
@@ -135,7 +135,7 @@ struct nav2_occupancy_overlay_entry_t {
 };
 
 /**
-*\t@brief\tSparse occupancy collection used by nav2.
+* @brief Sparse occupancy collection used by nav2.
 **/
 struct nav2_occupancy_grid_t {
     //! Stable records in deterministic order.
@@ -151,7 +151,7 @@ struct nav2_occupancy_grid_t {
 };
 
 /**
-*\t@brief\tSparse dynamic overlay collection used by nav2.
+* @brief Sparse dynamic overlay collection used by nav2.
 **/
 struct nav2_dynamic_overlay_t {
     //! Stable overlay entries in deterministic order.
@@ -161,7 +161,7 @@ struct nav2_dynamic_overlay_t {
 };
 
 /**
-*\t@brief\tBounded summary for one occupancy query or prune pass.
+* @brief Bounded summary for one occupancy query or prune pass.
 **/
 struct nav2_occupancy_summary_t {
     //! Records accepted as free.
@@ -191,114 +191,114 @@ struct nav2_occupancy_summary_t {
 *
 **/
 /**
-*\t@brief\tClear a sparse occupancy grid to an empty state.
-*\t@param\tgrid\tOccupancy grid to reset.
+* @brief Clear a sparse occupancy grid to an empty state.
+* @param grid Occupancy grid to reset.
 **/
 void SVG_Nav2_OccupancyGrid_Clear( nav2_occupancy_grid_t *grid );
 
 /**
-*\t@brief\tClear a dynamic overlay collection to an empty state.
-*\t@param\toverlay\tOverlay collection to reset.
+* @brief Clear a dynamic overlay collection to an empty state.
+* @param overlay Overlay collection to reset.
 **/
 void SVG_Nav2_DynamicOverlay_Clear( nav2_dynamic_overlay_t *overlay );
 
 /**
-*\t@brief\tAppend or update a sparse occupancy record.
-*\t@param\tgrid\tOccupancy grid to mutate.
-*\t@param\trecord\tRecord payload to append.
-*\t@return\tTrue when the record was stored.
+* @brief Append or update a sparse occupancy record.
+* @param grid Occupancy grid to mutate.
+* @param record Record payload to append.
+* @return True when the record was stored.
 **/
 const bool SVG_Nav2_OccupancyGrid_Upsert( nav2_occupancy_grid_t *grid, const nav2_occupancy_record_t &record );
 
 /**
-*\t@brief\tAppend or update a dynamic overlay entry.
-*\t@param\toverlay\tOverlay collection to mutate.
-*\t@param\tentry\tOverlay payload to append.
-*\t@return\tTrue when the entry was stored.
+* @brief Append or update a dynamic overlay entry.
+* @param overlay Overlay collection to mutate.
+* @param entry Overlay payload to append.
+* @return True when the entry was stored.
 **/
 const bool SVG_Nav2_DynamicOverlay_Upsert( nav2_dynamic_overlay_t *overlay, const nav2_occupancy_overlay_entry_t &entry );
 
 /**
-*\t@brief\tResolve a sparse occupancy record by span id.
-*\t@param\tgrid\tOccupancy grid to inspect.
-*\t@param\tspan_id	Stable span id to resolve.
-*\t@param\tout_record	[out] Resolved occupancy record.
-*\t@return\tTrue when a matching record exists.
+* @brief Resolve a sparse occupancy record by span id.
+* @param grid Occupancy grid to inspect.
+* @param span_id	Stable span id to resolve.
+* @param out_record	[out] Resolved occupancy record.
+* @return True when a matching record exists.
 **/
 const bool SVG_Nav2_OccupancyGrid_TryResolveSpan( const nav2_occupancy_grid_t &grid, const int32_t span_id, nav2_occupancy_record_t *out_record );
 
 /**
-*\t@brief\tResolve a sparse occupancy record by edge id.
-*\t@param\tgrid\tOccupancy grid to inspect.
-*\t@param\tedge_id\tStable edge id to resolve.
-*\t@param\tout_record	[out] Resolved occupancy record.
-*\t@return\tTrue when a matching record exists.
+* @brief Resolve a sparse occupancy record by edge id.
+* @param grid Occupancy grid to inspect.
+* @param edge_id Stable edge id to resolve.
+* @param out_record	[out] Resolved occupancy record.
+* @return True when a matching record exists.
 **/
 const bool SVG_Nav2_OccupancyGrid_TryResolveEdge( const nav2_occupancy_grid_t &grid, const int32_t edge_id, nav2_occupancy_record_t *out_record );
 
 /**
-*\t@brief\tEvaluate a span against the sparse occupancy grid and dynamic overlay.
-*\t@param\tgrid\tOccupancy grid to inspect.
-*\t@param\toverlay\tOverlay collection to inspect.
-*\t@param\tspan\tSpan being considered for pruning.
-*\t@param\tmover_ref	Optional mover reference for mover-local pruning.
-*\t@param\tout_summary	[out] Optional summary receiving query results.
-*\t@return\tTrue when the span remains traversable after local pruning.
+* @brief Evaluate a span against the sparse occupancy grid and dynamic overlay.
+* @param grid Occupancy grid to inspect.
+* @param overlay Overlay collection to inspect.
+* @param span Span being considered for pruning.
+* @param mover_ref	Optional mover reference for mover-local pruning.
+* @param out_summary	[out] Optional summary receiving query results.
+* @return True when the span remains traversable after local pruning.
 **/
 const bool SVG_Nav2_EvaluateSpanOccupancy( const nav2_occupancy_grid_t &grid, const nav2_dynamic_overlay_t &overlay, const nav2_span_t &span,
     const nav2_corridor_mover_ref_t *mover_ref, nav2_occupancy_summary_t *out_summary = nullptr );
 
 /**
-*\t@brief\tEvaluate a corridor segment against the sparse occupancy grid and dynamic overlay.
-*\t@param\tgrid\tOccupancy grid to inspect.
-*\t@param\toverlay\tOverlay collection to inspect.
-*\t@param\tsegment\tCorridor segment being considered.
-*\t@param\tmover_ref	Optional mover reference for mover-local pruning.
-*\t@param\tout_summary	[out] Optional summary receiving query results.
-*\t@return\tTrue when the segment remains compatible after local pruning.
+* @brief Evaluate a corridor segment against the sparse occupancy grid and dynamic overlay.
+* @param grid Occupancy grid to inspect.
+* @param overlay Overlay collection to inspect.
+* @param segment Corridor segment being considered.
+* @param mover_ref	Optional mover reference for mover-local pruning.
+* @param out_summary	[out] Optional summary receiving query results.
+* @return True when the segment remains compatible after local pruning.
 **/
 const bool SVG_Nav2_EvaluateCorridorSegmentOccupancy( const nav2_occupancy_grid_t &grid, const nav2_dynamic_overlay_t &overlay, const nav2_corridor_segment_t &segment,
     const nav2_corridor_mover_ref_t *mover_ref, nav2_occupancy_summary_t *out_summary = nullptr );
 
 /**
-*\t@brief\tEvaluate a fine-search node against occupancy and dynamic overlay state.
-*\t@param\tgrid\tOccupancy grid to inspect.
-*\t@param\toverlay\tOverlay collection to inspect.
-*\t@param\tnode\tFine-search node being considered.
-*\t@param\tmover_ref	Optional mover reference for mover-local pruning.
-*\t@param\tout_summary	[out] Optional summary receiving query results.
-*\t@return\tTrue when the node remains compatible after local pruning.
+* @brief Evaluate a fine-search node against occupancy and dynamic overlay state.
+* @param grid Occupancy grid to inspect.
+* @param overlay Overlay collection to inspect.
+* @param node Fine-search node being considered.
+* @param mover_ref	Optional mover reference for mover-local pruning.
+* @param out_summary	[out] Optional summary receiving query results.
+* @return True when the node remains compatible after local pruning.
 **/
 const bool SVG_Nav2_EvaluateFineNodeOccupancy( const nav2_occupancy_grid_t &grid, const nav2_dynamic_overlay_t &overlay, const nav2_fine_astar_node_t &node,
     const nav2_corridor_mover_ref_t *mover_ref, nav2_occupancy_summary_t *out_summary = nullptr );
 
 /**
-*\t@brief\tMerge a span-grid occupancy source into the sparse occupancy grid.
-*\t@param\tgrid\tOccupancy grid to mutate.
-*\t@param\tspan_grid	Span grid source to translate.
-*\t@param\tstamp_frame	Frame stamp to record on imported records.
-*\t@return\tTrue when at least one record was imported.
+* @brief Merge a span-grid occupancy source into the sparse occupancy grid.
+* @param grid Occupancy grid to mutate.
+* @param span_grid	Span grid source to translate.
+* @param stamp_frame	Frame stamp to record on imported records.
+* @return True when at least one record was imported.
 **/
 const bool SVG_Nav2_ImportSpanGridOccupancy( nav2_occupancy_grid_t *grid, const nav2_span_grid_t &span_grid, const int64_t stamp_frame );
 
 /**
-*\t@brief\tMerge a corridor into sparse occupancy and overlay summaries.
-*\t@param\tgrid\tOccupancy grid to mutate.
-*\t@param\tcoridor	Corridor to import.
-*\t@param\tstamp_frame	Frame stamp to record on imported records.
-*\t@return\tTrue when at least one record was imported.
+* @brief Merge a corridor into sparse occupancy and overlay summaries.
+* @param grid Occupancy grid to mutate.
+* @param coridor	Corridor to import.
+* @param stamp_frame	Frame stamp to record on imported records.
+* @return True when at least one record was imported.
 **/
 const bool SVG_Nav2_ImportCorridorOccupancy( nav2_occupancy_grid_t *grid, const nav2_corridor_t &corridor, const int64_t stamp_frame );
 
 /**
-*\t@brief\tEmit a bounded debug summary for occupancy and overlay data.
-*\t@param\tgrid\tOccupancy grid to report.
-*\t@param\toverlay\tDynamic overlay to report.
-*\t@param\tlimit	Maximum number of entries to print.
+* @brief Emit a bounded debug summary for occupancy and overlay data.
+* @param grid Occupancy grid to report.
+* @param overlay Dynamic overlay to report.
+* @param limit	Maximum number of entries to print.
 **/
 void SVG_Nav2_DebugPrintOccupancy( const nav2_occupancy_grid_t &grid, const nav2_dynamic_overlay_t &overlay, const int32_t limit = 16 );
 
 /**
-*\t@brief\tKeep the nav2 occupancy module represented in the build.
+* @brief Keep the nav2 occupancy module represented in the build.
 **/
 void SVG_Nav2_Occupancy_ModuleAnchor( void );

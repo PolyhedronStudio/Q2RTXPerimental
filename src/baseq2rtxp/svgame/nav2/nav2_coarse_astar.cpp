@@ -20,9 +20,9 @@
 *
 **/
 /**
-*\t@brief\tAllocate the next stable coarse-node id in a solver state.
-*\t@param\tstate\tSolver state to inspect.
-*\t@return\tStable node id for the next appended frontier node.
+* @brief Allocate the next stable coarse-node id in a solver state.
+* @param state Solver state to inspect.
+* @return Stable node id for the next appended frontier node.
 **/
 static int32_t SVG_Nav2_AllocateCoarseNodeId( const nav2_coarse_astar_state_t &state ) {
     // Keep node ids monotonic so reconstruction remains deterministic.
@@ -34,9 +34,9 @@ static int32_t SVG_Nav2_AllocateCoarseNodeId( const nav2_coarse_astar_state_t &s
 }
 
 /**
-*\t@brief\tAllocate the next stable coarse-edge id in a solver state.
-*\t@param\tstate\tSolver state to inspect.
-*\t@return\tStable edge id for the next appended frontier edge.
+* @brief Allocate the next stable coarse-edge id in a solver state.
+* @param state Solver state to inspect.
+* @return Stable edge id for the next appended frontier edge.
 **/
 static int32_t SVG_Nav2_AllocateCoarseEdgeId( const nav2_coarse_astar_state_t &state ) {
     // Keep edge ids monotonic so debug output and path reconstruction remain stable.
@@ -48,9 +48,9 @@ static int32_t SVG_Nav2_AllocateCoarseEdgeId( const nav2_coarse_astar_state_t &s
 }
 
 /**
-*\t@brief\tReturn the hierarchy node id for one candidate when available.
-*\t@param\tcandidate\tCandidate to inspect.
-*\t@return\tHierarchy-node id, or `-1` when no stable id is available.
+* @brief Return the hierarchy node id for one candidate when available.
+* @param candidate Candidate to inspect.
+* @return Hierarchy-node id, or `-1` when no stable id is available.
 **/
 static int32_t SVG_Nav2_CandidateHierarchyNodeId( const nav2_goal_candidate_t &candidate ) {
     // The candidate type already stores stable topology ids; keep the mapping explicit.
@@ -65,9 +65,9 @@ static int32_t SVG_Nav2_CandidateHierarchyNodeId( const nav2_goal_candidate_t &c
 }
 
 /**
-*\t@brief\tClassify a candidate into a coarse node kind.
-*\t@param\tcandidate\tCandidate to inspect.
-*\t@return\tStable coarse node kind.
+* @brief Classify a candidate into a coarse node kind.
+* @param candidate Candidate to inspect.
+* @return Stable coarse node kind.
 **/
 static nav2_coarse_astar_node_kind_t SVG_Nav2_ClassifyCandidateNodeKind( const nav2_goal_candidate_t &candidate ) {
     // Preserve vertical intent by mapping semantic candidate types into the matching coarse node kinds.
@@ -95,10 +95,10 @@ static nav2_coarse_astar_node_kind_t SVG_Nav2_ClassifyCandidateNodeKind( const n
 }
 
 /**
-*\t@brief\tCreate a coarse node from a candidate.
-*\t@param\tcandidate\tCandidate to convert.
-*\t@param\tnodeId\tStable node id to assign.
-*\t@return\tCoarse-node payload.
+* @brief Create a coarse node from a candidate.
+* @param candidate Candidate to convert.
+* @param nodeId Stable node id to assign.
+* @return Coarse-node payload.
 **/
 static nav2_coarse_astar_node_t SVG_Nav2_MakeNodeFromCandidate( const nav2_goal_candidate_t &candidate, const int32_t nodeId ) {
     // Mirror the candidate into a stable coarse-search node.
@@ -141,11 +141,11 @@ static nav2_coarse_astar_node_t SVG_Nav2_MakeNodeFromCandidate( const nav2_goal_
 }
 
 /**
-*\t@brief\tConvert a hierarchy node into a coarse frontier node.
-*\t@param\thierarchyNode\tHierarchy source node.
-*\t@param\tnodeId\tStable node id to assign.
-*\t@param\tkind\tSemantic kind to assign.
-*\t@return\tCoarse-node payload.
+* @brief Convert a hierarchy node into a coarse frontier node.
+* @param hierarchyNode Hierarchy source node.
+* @param nodeId Stable node id to assign.
+* @param kind Semantic kind to assign.
+* @return Coarse-node payload.
 **/
 static nav2_coarse_astar_node_t SVG_Nav2_MakeNodeFromHierarchyNode( const nav2_hierarchy_node_t &hierarchyNode, const int32_t nodeId, const nav2_coarse_astar_node_kind_t kind ) {
     // Copy the hierarchy node into the coarse solver so the frontier can reason about the node with stable ids.
@@ -185,12 +185,12 @@ static nav2_coarse_astar_node_t SVG_Nav2_MakeNodeFromHierarchyNode( const nav2_h
 }
 
 /**
-*\t@brief\tCreate a stable coarse edge between two nodes from a hierarchy edge.
-*\t@param\tfromNode\tSource coarse node.
-*\t@param\ttoNode\tDestination coarse node.
-*\t@param\thierarchyEdge\tHierarchy edge used as the source semantic cue.
-*\t@param\tedgeId\tStable edge id to assign.
-*\t@return\tCoarse-edge payload.
+* @brief Create a stable coarse edge between two nodes from a hierarchy edge.
+* @param fromNode Source coarse node.
+* @param toNode Destination coarse node.
+* @param hierarchyEdge Hierarchy edge used as the source semantic cue.
+* @param edgeId Stable edge id to assign.
+* @return Coarse-edge payload.
 **/
 static nav2_coarse_astar_edge_t SVG_Nav2_MakeEdgeFromHierarchyEdge( const nav2_coarse_astar_node_t &fromNode, const nav2_coarse_astar_node_t &toNode, const nav2_hierarchy_edge_t &hierarchyEdge, const int32_t edgeId ) {
     // Translate the hierarchy edge into a solver edge while preserving route commitments.
@@ -248,10 +248,10 @@ static nav2_coarse_astar_edge_t SVG_Nav2_MakeEdgeFromHierarchyEdge( const nav2_c
 }
 
 /**
-*\t@brief\tCompute a cheap heuristic between two coarse nodes.
-*\t@param\tfromNode\tSource node.
-*\t@param\ttoNode\tDestination node.
-*\t@return\tHeuristic cost estimate.
+* @brief Compute a cheap heuristic between two coarse nodes.
+* @param fromNode Source node.
+* @param toNode Destination node.
+* @return Heuristic cost estimate.
 **/
 static double SVG_Nav2_Heuristic( const nav2_coarse_astar_node_t &fromNode, const nav2_coarse_astar_node_t &toNode ) {
     // Use the allowed Z-band and topology data to produce a stable lower bound.
@@ -262,9 +262,9 @@ static double SVG_Nav2_Heuristic( const nav2_coarse_astar_node_t &fromNode, cons
 }
 
 /**
-*\t@brief\tFind the lowest-f-score node index in the frontier.
-*\t@param\tstate\tSolver state to inspect.
-*\t@return\tFrontier index, or `-1` when empty.
+* @brief Find the lowest-f-score node index in the frontier.
+* @param state Solver state to inspect.
+* @return Frontier index, or `-1` when empty.
 **/
 static int32_t SVG_Nav2_FindBestFrontierNodeIndex( const nav2_coarse_astar_state_t &state ) {
     // Scan the frontier linearly because the initial solver version prioritizes simplicity and determinism.
@@ -285,10 +285,10 @@ static int32_t SVG_Nav2_FindBestFrontierNodeIndex( const nav2_coarse_astar_state
 }
 
 /**
-*\t@brief\tReconstruct a stable path from a terminal node.
-*\t@param\tstate\tSolver state to inspect.
-*\t@param\tterminalNodeId\tTerminal node id to unwind.
-*\t@param\tout_path\t[out] Path buffer receiving reconstructed node and edge ids.
+* @brief Reconstruct a stable path from a terminal node.
+* @param state Solver state to inspect.
+* @param terminalNodeId Terminal node id to unwind.
+* @param out_path [out] Path buffer receiving reconstructed node and edge ids.
 **/
 static void SVG_Nav2_ReconstructPath( const nav2_coarse_astar_state_t &state, const int32_t terminalNodeId, nav2_coarse_astar_path_t *out_path ) {
     // Rebuild the result path from goal to start using the stored parent links.
@@ -325,10 +325,10 @@ static void SVG_Nav2_ReconstructPath( const nav2_coarse_astar_state_t &state, co
 }
 
 /**
-*\t@brief\tApply budget accounting and prune stale or invalid nodes before expanding.
-*\t@param\tstate\tSolver state to mutate.
-*\t@param\tnode\tNode selected for expansion.
-*\t@return\tTrue when the node should be expanded.
+* @brief Apply budget accounting and prune stale or invalid nodes before expanding.
+* @param state Solver state to mutate.
+* @param node Node selected for expansion.
+* @return True when the node should be expanded.
 **/
 static const bool SVG_Nav2_ShouldExpandNode( nav2_coarse_astar_state_t *state, const nav2_coarse_astar_node_t &node ) {
     // Reject nodes that have already been rendered stale or cancelled by the scheduler.
@@ -361,8 +361,8 @@ static const bool SVG_Nav2_ShouldExpandNode( nav2_coarse_astar_state_t *state, c
 *
 **/
 /**
-*\t@brief\tReset a coarse A* solver state.
-*\t@param\tstate\t[out] Solver state to reset.
+* @brief Reset a coarse A* solver state.
+* @param state [out] Solver state to reset.
 **/
 void SVG_Nav2_CoarseAStar_Reset( nav2_coarse_astar_state_t *state ) {
     // Guard null callers so the helper remains easy to use.
@@ -375,13 +375,13 @@ void SVG_Nav2_CoarseAStar_Reset( nav2_coarse_astar_state_t *state ) {
 }
 
 /**
-*\t@brief\tInitialize a coarse A* solver from a hierarchy graph and goal candidates.
-*\t@param\tstate\t[out] Solver state to initialize.
-*\t@param\thierarchyGraph\tHierarchy graph to search.
-*\t@param\tstartCandidate\tSelected start candidate.
-*\t@param\tgoalCandidate\tSelected goal candidate.
-*\t@param\tsolverId\tStable solver identifier.
-*\t@return\tTrue when initialization succeeded.
+* @brief Initialize a coarse A* solver from a hierarchy graph and goal candidates.
+* @param state [out] Solver state to initialize.
+* @param hierarchyGraph Hierarchy graph to search.
+* @param startCandidate Selected start candidate.
+* @param goalCandidate Selected goal candidate.
+* @param solverId Stable solver identifier.
+* @return True when initialization succeeded.
 **/
 const bool SVG_Nav2_CoarseAStar_Init( nav2_coarse_astar_state_t *state, const nav2_hierarchy_graph_t &hierarchyGraph,
     const nav2_goal_candidate_t &startCandidate, const nav2_goal_candidate_t &goalCandidate, const uint64_t solverId ) {
@@ -423,11 +423,11 @@ const bool SVG_Nav2_CoarseAStar_Init( nav2_coarse_astar_state_t *state, const na
 }
 
 /**
-*\t@brief\tAdvance a coarse A* solver by one budgeted slice.
-*\t@param\tstate\tSolver state to advance.
-*\t@param\tbudgetSlice\tBudget slice controlling this step.
-*\t@param\tout_result\t[out] Optional result snapshot.
-*\t@return\tTrue when the solver made progress or completed.
+* @brief Advance a coarse A* solver by one budgeted slice.
+* @param state Solver state to advance.
+* @param budgetSlice Budget slice controlling this step.
+* @param out_result [out] Optional result snapshot.
+* @return True when the solver made progress or completed.
 **/
 const bool SVG_Nav2_CoarseAStar_Step( nav2_coarse_astar_state_t *state, const nav2_budget_slice_t &budgetSlice, nav2_coarse_astar_result_t *out_result ) {
     // Require a live solver with at least one frontier node.
@@ -550,9 +550,9 @@ const bool SVG_Nav2_CoarseAStar_Step( nav2_coarse_astar_state_t *state, const na
 }
 
 /**
-*\t@brief\tReturn whether a coarse A* solver has reached a terminal state.
-*\t@param\tstate\tSolver state to inspect.
-*\t@return\tTrue when the solver is done, cancelled, failed, or stale.
+* @brief Return whether a coarse A* solver has reached a terminal state.
+* @param state Solver state to inspect.
+* @return True when the solver is done, cancelled, failed, or stale.
 **/
 const bool SVG_Nav2_CoarseAStar_IsTerminal( const nav2_coarse_astar_state_t *state ) {
     // Terminal states are represented directly in the solver status.
@@ -571,9 +571,9 @@ const bool SVG_Nav2_CoarseAStar_IsTerminal( const nav2_coarse_astar_state_t *sta
 }
 
 /**
-*\t@brief\tEmit a bounded debug summary for the coarse A* state.
-*\t@param\tstate\tSolver state to report.
-*\t@param\tlimit\tMaximum number of nodes or edges to print.
+* @brief Emit a bounded debug summary for the coarse A* state.
+* @param state Solver state to report.
+* @param limit Maximum number of nodes or edges to print.
 **/
 void SVG_Nav2_DebugPrintCoarseAStar( const nav2_coarse_astar_state_t &state, const int32_t limit ) {
     // Skip diagnostics when nothing useful could be printed.
@@ -621,7 +621,7 @@ void SVG_Nav2_DebugPrintCoarseAStar( const nav2_coarse_astar_state_t &state, con
 }
 
 /**
-*\t@brief\tKeep the nav2 coarse A* module represented in the build.
+* @brief Keep the nav2 coarse A* module represented in the build.
 **/
 void SVG_Nav2_CoarseAStar_ModuleAnchor( void ) {
 }

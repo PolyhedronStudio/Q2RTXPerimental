@@ -21,7 +21,7 @@
 *
 **/
 /**
-*\t@brief\tStable corridor-local fine search status.
+* @brief Stable corridor-local fine search status.
 **/
 enum class nav2_fine_astar_status_t : uint8_t {
     None = 0,
@@ -36,7 +36,7 @@ enum class nav2_fine_astar_status_t : uint8_t {
 };
 
 /**
-*\t@brief\tStable node kind for corridor-constrained fine search.
+* @brief Stable node kind for corridor-constrained fine search.
 **/
 enum class nav2_fine_astar_node_kind_t : uint8_t {
     None = 0,
@@ -50,7 +50,7 @@ enum class nav2_fine_astar_node_kind_t : uint8_t {
 };
 
 /**
-*\t@brief\tStable edge kind for corridor-constrained fine search.
+* @brief Stable edge kind for corridor-constrained fine search.
 **/
 enum class nav2_fine_astar_edge_kind_t : uint8_t {
     None = 0,
@@ -62,7 +62,7 @@ enum class nav2_fine_astar_edge_kind_t : uint8_t {
 };
 
 /**
-*\t@brief\tFlags describing one fine-search node.
+* @brief Flags describing one fine-search node.
 **/
 enum nav2_fine_astar_node_flag_t : uint32_t {
     NAV2_FINE_ASTAR_NODE_FLAG_NONE = 0,
@@ -75,7 +75,7 @@ enum nav2_fine_astar_node_flag_t : uint32_t {
 };
 
 /**
-*\t@brief\tFlags describing one fine-search edge.
+* @brief Flags describing one fine-search edge.
 **/
 enum nav2_fine_astar_edge_flag_t : uint32_t {
     NAV2_FINE_ASTAR_EDGE_FLAG_NONE = 0,
@@ -102,7 +102,7 @@ enum nav2_fine_astar_edge_flag_t : uint32_t {
 *
 **/
 /**
-*\t@brief\tStable reference to one fine frontier node.
+* @brief Stable reference to one fine frontier node.
 **/
 struct nav2_fine_astar_node_ref_t {
     //! Stable node id.
@@ -111,8 +111,8 @@ struct nav2_fine_astar_node_ref_t {
     int32_t node_index = -1;
 
     /**
-    *\t@brief\tReturn whether this reference points to a concrete frontier node.
-    *\t@return\tTrue when the id and index are both valid.
+    * @brief Return whether this reference points to a concrete frontier node.
+    * @return True when the id and index are both valid.
     **/
     const bool IsValid() const {
         return node_id >= 0 && node_index >= 0;
@@ -120,7 +120,7 @@ struct nav2_fine_astar_node_ref_t {
 };
 
 /**
-*\t@brief\tOne corridor-local fine-search node.
+* @brief One corridor-local fine-search node.
 **/
 struct nav2_fine_astar_node_t {
     //! Stable node id.
@@ -158,7 +158,7 @@ struct nav2_fine_astar_node_t {
 };
 
 /**
-*\t@brief\tOne corridor-local fine-search edge.
+* @brief One corridor-local fine-search edge.
 **/
 struct nav2_fine_astar_edge_t {
     //! Stable edge id.
@@ -184,7 +184,7 @@ struct nav2_fine_astar_edge_t {
 };
 
 /**
-*\t@brief\tFine-search path buffer.
+* @brief Fine-search path buffer.
 **/
 struct nav2_fine_astar_path_t {
     //! Nodes in start-to-goal order.
@@ -194,7 +194,7 @@ struct nav2_fine_astar_path_t {
 };
 
 /**
-*\t@brief\tFine-search diagnostics accumulated while advancing the solver.
+* @brief Fine-search diagnostics accumulated while advancing the solver.
 **/
 struct nav2_fine_astar_diagnostics_t {
     //! Number of nodes expanded.
@@ -216,7 +216,7 @@ struct nav2_fine_astar_diagnostics_t {
 };
 
 /**
-*\t@brief\tResumable corridor-constrained fine-search state.
+* @brief Resumable corridor-constrained fine-search state.
 **/
 struct nav2_fine_astar_state_t {
     //! Stable solver status.
@@ -244,7 +244,7 @@ struct nav2_fine_astar_state_t {
 };
 
 /**
-*\t@brief\tCompact result wrapper returned when the fine solver completes or pauses.
+* @brief Compact result wrapper returned when the fine solver completes or pauses.
 **/
 struct nav2_fine_astar_result_t {
     //! Search status after the latest solver step.
@@ -266,44 +266,44 @@ struct nav2_fine_astar_result_t {
 *
 **/
 /**
-*\t@brief\tReset a fine A* solver state.
-*\t@param\tstate\t[out] Solver state to reset.
+* @brief Reset a fine A* solver state.
+* @param state [out] Solver state to reset.
 **/
 void SVG_Nav2_FineAStar_Reset( nav2_fine_astar_state_t *state );
 
 /**
-*\t@brief\tInitialize a fine A* solver from a corridor and its coarse state.
-*\t@param\tstate\t[out] Solver state to initialize.
-*\t@param\tcorridor\tCorridor to refine.
-*\t@param\tsolverId\tStable solver identifier.
-*\t@return\tTrue when initialization succeeded.
+* @brief Initialize a fine A* solver from a corridor and its coarse state.
+* @param state [out] Solver state to initialize.
+* @param corridor Corridor to refine.
+* @param solverId Stable solver identifier.
+* @return True when initialization succeeded.
 **/
 const bool SVG_Nav2_FineAStar_Init( nav2_fine_astar_state_t *state, const nav2_corridor_t &corridor, const uint64_t solverId );
 
 /**
-*\t@brief\tAdvance a fine A* solver by one budgeted slice.
-*\t@param\tstate\tSolver state to advance.
-*\t@param\tbudgetSlice\tBudget slice controlling this step.
-*\t@param\tout_result\t[out] Optional result snapshot.
-*\t@return\tTrue when the solver made progress or completed.
+* @brief Advance a fine A* solver by one budgeted slice.
+* @param state Solver state to advance.
+* @param budgetSlice Budget slice controlling this step.
+* @param out_result [out] Optional result snapshot.
+* @return True when the solver made progress or completed.
 **/
 const bool SVG_Nav2_FineAStar_Step( nav2_fine_astar_state_t *state, const nav2_budget_slice_t &budgetSlice, nav2_fine_astar_result_t *out_result = nullptr );
 
 /**
-*\t@brief\tReturn whether a fine A* solver has reached a terminal state.
-*\t@param\tstate\tSolver state to inspect.
-*\t@return\tTrue when the solver is done, cancelled, failed, or stale.
+* @brief Return whether a fine A* solver has reached a terminal state.
+* @param state Solver state to inspect.
+* @return True when the solver is done, cancelled, failed, or stale.
 **/
 const bool SVG_Nav2_FineAStar_IsTerminal( const nav2_fine_astar_state_t *state );
 
 /**
-*\t@brief\tEmit a bounded debug summary for the fine A* state.
-*\t@param\tstate\tSolver state to report.
-*\t@param\tlimit\tMaximum number of nodes or edges to print.
+* @brief Emit a bounded debug summary for the fine A* state.
+* @param state Solver state to report.
+* @param limit Maximum number of nodes or edges to print.
 **/
 void SVG_Nav2_DebugPrintFineAStar( const nav2_fine_astar_state_t &state, const int32_t limit = 16 );
 
 /**
-*\t@brief\tKeep the nav2 fine A* module represented in the build.
+* @brief Keep the nav2 fine A* module represented in the build.
 **/
 void SVG_Nav2_FineAStar_ModuleAnchor( void );
