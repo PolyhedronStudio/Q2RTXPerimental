@@ -11,7 +11,7 @@
 
 #include "svgame/entities/info/svg_info_player_start.h"
 
-#include "svgame/entities/monster/svg_monster_testdummy_debug.h"
+//#include "svgame/entities/monster/svg_monster_testdummy_sfxfollow.h"
 
 #include "svgame/entities/svg_player_edict.h"
 #include "svgame/entities/svg_worldspawn_edict.h"

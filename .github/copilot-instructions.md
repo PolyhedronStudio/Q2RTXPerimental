@@ -6,22 +6,26 @@
 - Prefer tabs for indentation; otherwise, use 4 spaces unless the file predominantly uses a different indent width. Match the immediate file’s indentation quirks.
 - When implementing new systems, prefer enforcing drop limits both in A* edge validation and in path-following safety checks.
 - When adjusting monster navigation/movement, always account for slopes and stairs (walkable surfaces, step-up/step-down) alongside cornering and center-origin hull issues.
+- For repository planning and implementation, treat `svgame/nav2/` as the sole active navigation system head; do not intertwine new masterplan work with `svgame/oldnav/` mechanics, types, or callable surfaces.
 
 ## Code Style
 - Follow consistent formatting rules across the project.
 - Adhere to naming conventions as specified in the project documentation.
--- Prefer Doxygen-style comments. Two canonical styles are accepted and should be used depending on context.
+- Prefer Doxygen-style comments. Two canonical styles are accepted and should be used depending on context.
+- In generated Doxygen blocks, use actual tab characters between the leading `*` and each tag, and between tags and their text. Do not write literal `\t` escape sequences when a real tab character is intended.
 
-  1) Aligned tags (used when tags are long or multiple tags should visually align). The aligned form uses an extra tab after the longest tag column for spacing:
-
+  1) Aligned tags (used when tags are long or multiple tags should visually align). The aligned form uses real tab characters after the leading `*` and between columns for spacing:
+    
   ```cpp
   /**
   *	@brief		Append a breadcrumb at `spot` into the circular trail buffer.
   *	@details	Helper function for `PlayerTrail_New` and `PlayerTrail_Add`. Stores the given
-  *	@param	spot	World-space feet-origin position to store as a breadcrumb.
-  *	@note	Stores the current `level.time` in the breadcrumb's `timestamp`
-  *			and computes a yaw based on the vector from the previous
-  *			breadcrumb to this one.
+  *	@param	spot			World-space feet-origin position to store as a breadcrumb.
+  *	@param	spot2			World-space feet-origin position to store as a breadcrumb.
+  *	@param	spot2_example	World-space feet-origin position to store as a breadcrumb.
+  *	@note		Stores the current `level.time` in the breadcrumb's `timestamp`
+  *				and computes a yaw based on the vector from the previous
+  *				breadcrumb to this one.
   **/
   ```
 
@@ -38,7 +42,7 @@
   ```
 
   In both forms:
-  - Use tabs for indentation inside the comment block and after the leading `*`.
+  - Use actual tab characters for indentation inside the comment block and after the leading `*`.
   - Align tags vertically when using the aligned style (add extra tabs if needed so the tag columns line up up to the longest tag).
   - Prefer the compact style for short/simple functions and the aligned style for more complex functions or when multiple tags/columns improve readability.
 - Use explanatory // comments before small code blocks.
@@ -55,6 +59,12 @@ Example:
 //! An actual descriptive name of what this variable is and/or might be used for.
 int32_t descriptiveVariableName;
 ```
+
+## Navigation Ownership
+
+- `src/baseq2rtxp/svgame/nav2/` is the primary navigation system and must continue absorbing ownership of navigation behavior, types, defaults, and entrypoints.
+- `src/baseq2rtxp/svgame/oldnav/` is reference-only migration material. Do not add new production dependencies from nav2 or gameplay code back into oldnav.
+- When migrating navigation code, prefer introducing nav2-owned names and surfaces first, then shrinking oldnav coupling behind temporary compatibility seams until it can be removed entirely.
 
 ## Control-flow / condition intent comments
 
@@ -125,7 +135,7 @@ if ( zDelta < zStepThreshold ) {
 // Use this as the canonical example for QueryDirection-style functions.
 ```cpp
 /**
-*	@brief  Query the next 3D movement direction while advancing 2D waypoints.
+*	@brief	Query the next 3D movement direction while advancing 2D waypoints.
 *	@param  current_origin	Current agent feet-origin.
 *	@param  policy		Path-follow policy (waypoint radius, etc.).
 *	@param  out_dir3d	[out] Normalized 3D direction if available.
@@ -216,32 +226,32 @@ Enforcement: any PR that modifies C++ files must include in its description a co
 ### Template for new/modified functions (copy into PR description to show compliance):
 ```cpp
 /**
-*    @brief	Short description of function purpose.
-*    @param	... (if applicable)
-*    @return	... (if applicable)
-*    @note	Any important notes or invariants.
+*	@brief	Short description of function purpose.
+*	@param	... (if applicable)
+*	@return	... (if applicable)
+*	@note	Any important notes or invariants.
 **/
 ReturnType FuncName( Params ) {
-    /**
-    *    Sanity checks / early returns.
-    **/
-    if ( ... ) {
-        // Brief comment for why we return
-        return ...;
-    }
+	/**
+	*	Sanity checks / early returns.
+	**/
+	if ( ... ) {
+		// Brief comment for why we return
+		return ...;
+	}
 
-    /**
-    *    Logical subsection A: what it does and why.
-    **/
-    // Line-level comment: explain key calculations
-    auto v = ComputeSomething( ... );
+	/**
+	*	Logical subsection A: what it does and why.
+	**/
+	// Line-level comment: explain key calculations
+	auto v = ComputeSomething( ... );
 
-    /**
-    *    Logical subsection B: e.g., pathfinding, animation selection, physics step.
-    **/
-    // ...more commented steps...
+	/**
+	*	Logical subsection B: e.g., pathfinding, animation selection, physics step.
+	**/
+	// ...more commented steps...
 
-    return result;
+	return result;
 }
 ```
 When in doubt: add a comment. It's preferable to be slightly verbose rather than leave intent unclear.
@@ -250,9 +260,9 @@ When in doubt: add a comment. It's preferable to be slightly verbose rather than
 
 ```cpp
 /**
-*    Movement handling.
-*        - Handles stepping up/down stairs and slope corrections.
-*        - Uses nav heuristics to avoid large drops.
+*	Movement handling.
+*		- Handles stepping up/down stairs and slope corrections.
+*		- Uses nav heuristics to avoid large drops.
 **/
 ```
 
@@ -261,35 +271,35 @@ When in doubt: add a comment. It's preferable to be slightly verbose rather than
 - Also comment small/sanity-check code blocks inside functions (e.g., null checks, early returns) so future readers immediately see intent.
 - Example function header with Doxygen tags and a commented sanity-check block:
 
+// I think you already do this but, add all the useful doxygens here like this, with a tabbed indent and a tab after that:
 ```cpp
 /**
-*    I think you already do this but, add all the useful doxygens here like this, with a tabbed indent and a tab after that:
-*    @brief	This is an example line.
-*    @description	But you're intended to add any relevant and useful parameters, notes,
-*                into this list here.
+*	@brief			This is an example line.
+*	@description	But you're intended to add any relevant and useful parameters, notes,
+*					into this list here.
 **/
 bool ResetNumbersList( int *numList, int numCount ) {
-    // Sanity check: ensure caller provided a valid list.
-    if ( numList == nullptr ) {
-        // Developer print the actual error we are facing.
-        gi.dprintf( "%s: numList == (nullptr)!", __func__ );
-        // We failed, thus return false.
-        return false;
-    }
+	// Sanity check: ensure caller provided a valid list.
+	if ( numList == nullptr ) {
+		// Developer print the actual error we are facing.
+		gi.dprintf( "%s: numList == (nullptr)!", __func__ );
+		// We failed, thus return false.
+		return false;
+	}
 
     /**
-    * We will iterate the list, resetting each entry one at a time
-    * so that we do not stall the process.
-    **/
-    // Iterate over the numbers list.
-    for ( int32_t i = 0; i < numCount; i++ ) {
-        // Print the value as developer.
-        gi.dprintf( "%s: (#%d)", __func__, numList[ i ] );
-        // Reset the entry to 0.
-        numList[ i ] = 0;
-    }
-    // Completed successfully, return true.
-    return true;
+    *	We will iterate the list, resetting each entry one at a time
+	*	so that we do not stall the process.
+	**/
+	// Iterate over the numbers list.
+	for ( int32_t i = 0; i < numCount; i++ ) {
+		// Print the value as developer.
+		gi.dprintf( "%s: (#%d)", __func__, numList[ i ] );
+		// Reset the entry to 0.
+		numList[ i ] = 0;
+	}
+	// Completed successfully, return true.
+	return true;
 }
 ```
 
@@ -298,7 +308,7 @@ bool ResetNumbersList( int *numList, int numCount ) {
 
 ```cpp
 /**
-*    @brief	ember helper: Face a horizontal target smoothly by blending between a hint direction and the exact target direction.
+*	@brief	ember helper: Face a horizontal target smoothly by blending between a hint direction and the exact target direction.
 **/
 void svg_monster_testdummy_t::FaceTargetHorizontal( const Vector3 &directionHint, const Vector3 &targetPoint, float blendFactor, float yawSpeed ) {
     // Initially initialize to current yaw. (It will slerp so what we eventually face targetPoint ).

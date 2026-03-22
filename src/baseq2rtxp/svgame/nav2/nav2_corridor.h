@@ -7,11 +7,13 @@
 ********************************************************************/
 #pragma once
 
-#include "svgame/svg_local.h"
-
 #include "svgame/nav2/nav2_query_iface.h"
 
 #include <vector>
+
+
+struct nav2_span_t;
+struct nav2_span_edge_t;
 
 
 /**
@@ -87,7 +89,16 @@ enum nav2_corridor_segment_flag_t : uint32_t {
     NAV_CORRIDOR_SEGMENT_FLAG_HAS_TRAVERSAL_FEATURES = ( 1u << 9 ),
     NAV_CORRIDOR_SEGMENT_FLAG_HAS_EDGE_FEATURES = ( 1u << 10 ),
     NAV_CORRIDOR_SEGMENT_FLAG_HAS_LADDER_ENDPOINT = ( 1u << 11 ),
-    NAV_CORRIDOR_SEGMENT_FLAG_HAS_MOVER_REF = ( 1u << 12 )
+    NAV_CORRIDOR_SEGMENT_FLAG_HAS_MOVER_REF = ( 1u << 12 ),
+    NAV_CORRIDOR_SEGMENT_FLAG_MOVER_STAGE_BOARDING = ( 1u << 13 ),
+    NAV_CORRIDOR_SEGMENT_FLAG_MOVER_STAGE_RIDE = ( 1u << 14 ),
+    NAV_CORRIDOR_SEGMENT_FLAG_MOVER_STAGE_EXIT = ( 1u << 15 ),
+    NAV_CORRIDOR_SEGMENT_FLAG_POLICY_COMPATIBLE = ( 1u << 16 ),
+    NAV_CORRIDOR_SEGMENT_FLAG_POLICY_Z_MISMATCH = ( 1u << 17 ),
+    NAV_CORRIDOR_SEGMENT_FLAG_POLICY_TOPOLOGY_MISMATCH = ( 1u << 18 ),
+    NAV_CORRIDOR_SEGMENT_FLAG_POLICY_MOVER_MISMATCH = ( 1u << 19 ),
+    NAV_CORRIDOR_SEGMENT_FLAG_POLICY_SOFT_PENALIZED = ( 1u << 20 ),
+    NAV_CORRIDOR_SEGMENT_FLAG_POLICY_WOULD_REJECT = ( 1u << 21 )
 };
 
 /**
@@ -242,6 +253,8 @@ struct nav2_corridor_segment_t {
     uint8_t ladder_endpoint_flags = NAV_LADDER_ENDPOINT_NONE;
     //! Stable mover reference attached to this segment when known.
     nav2_corridor_mover_ref_t mover_ref = {};
+    //! Aggregate soft-penalty published by nav2 corridor policy evaluation for this segment.
+    double policy_penalty = 0.0;
 };
 
 /**
@@ -260,6 +273,10 @@ struct nav2_corridor_t {
     int32_t overlay_block_count = 0;
     //! Number of local portal overlay penalties encountered while building the corridor.
     int32_t overlay_penalty_count = 0;
+    //! Number of explicit segments that currently violate one or more nav2-owned refinement-policy checks.
+    int32_t policy_mismatch_count = 0;
+    //! Aggregate soft-penalty currently published by nav2-owned refinement-policy evaluation.
+    double policy_penalty_total = 0.0;
     //! Topology metadata for the corridor start endpoint.
     nav2_corridor_topology_ref_t start_topology = {};
     //! Topology metadata for the corridor goal endpoint.
@@ -292,6 +309,37 @@ struct nav2_corridor_t {
     const bool HasSegments() const {
         return !segments.empty();
     }
+};
+
+/**
+*	@brief	Compatibility result returned when staged fine-refinement probes evaluate one span or edge against a nav2 corridor.
+*	@note	This gives current and future refinement code one nav2-owned place to read corridor rejection and penalty semantics without depending on legacy corridor internals.
+**/
+struct nav2_corridor_refine_eval_t {
+    //! True when at least one explicit segment was considered during evaluation.
+    bool matched_segment = false;
+    //! True when the evaluated span or edge remains compatible with the published corridor semantics.
+    bool compatible = false;
+    //! Segment id that best matched the evaluated span or edge when one was found.
+    int32_t matched_segment_id = -1;
+    //! Aggregate evaluation flags describing why the candidate was accepted, penalized, or rejected.
+    uint32_t flags = 0;
+    //! Aggregate soft penalty contributed by corridor-policy mismatches.
+    double penalty = 0.0;
+};
+
+/**
+*	@brief	Evaluation flags returned by staged corridor-refinement compatibility helpers.
+**/
+enum nav2_corridor_refine_eval_flag_t : uint32_t {
+    NAV_CORRIDOR_REFINE_EVAL_FLAG_NONE = 0,
+    NAV_CORRIDOR_REFINE_EVAL_FLAG_MATCHED_SEGMENT = ( 1u << 0 ),
+    NAV_CORRIDOR_REFINE_EVAL_FLAG_Z_MISMATCH = ( 1u << 1 ),
+    NAV_CORRIDOR_REFINE_EVAL_FLAG_TOPOLOGY_MISMATCH = ( 1u << 2 ),
+    NAV_CORRIDOR_REFINE_EVAL_FLAG_CONNECTOR_MISMATCH = ( 1u << 3 ),
+    NAV_CORRIDOR_REFINE_EVAL_FLAG_MOVER_MISMATCH = ( 1u << 4 ),
+    NAV_CORRIDOR_REFINE_EVAL_FLAG_SOFT_PENALIZED = ( 1u << 5 ),
+    NAV_CORRIDOR_REFINE_EVAL_FLAG_WOULD_REJECT = ( 1u << 6 )
 };
 
 
@@ -354,3 +402,29 @@ void SVG_Nav2_DebugPrintCorridor( const nav2_corridor_t &corridor );
 **/
 const bool SVG_Nav2_BuildCorridorForEndpoints( const nav2_query_mesh_t *mesh, const Vector3 &start_origin, const Vector3 &goal_origin,
     const nav2_query_policy_t *policy, const Vector3 &agent_mins, const Vector3 &agent_maxs, nav2_corridor_t *out_corridor );
+
+/**
+*	@brief	Evaluate one precision-layer span against the published nav2 corridor commitments.
+*	@param	corridor	Corridor supplying Z-band, topology, and connector commitments.
+*	@param	span	Precision-layer span being considered for incremental refinement.
+*	@param	mover_ref	Optional mover reference for mover-local refinement candidates.
+*	@param	out_eval	[out] Aggregate compatibility result.
+*	@return	True when the candidate remains compatible with the published corridor semantics.
+*	@note	This is the Task 3.2 compatibility adapter that lets staged refinement consume corridor policy incrementally without reintroducing legacy solver coupling.
+**/
+const bool SVG_Nav2_EvaluateSpanForCorridor( const nav2_corridor_t &corridor, const nav2_span_t &span,
+    const nav2_corridor_mover_ref_t *mover_ref, nav2_corridor_refine_eval_t *out_eval );
+
+/**
+*	@brief	Evaluate one precision-layer adjacency edge against the published nav2 corridor commitments.
+*	@param	corridor	Corridor supplying Z-band, topology, and connector commitments.
+*	@param	from_span	Source span of the evaluated edge.
+*	@param	to_span	Destination span of the evaluated edge.
+*	@param	edge	Precision-layer adjacency edge being considered for incremental refinement.
+*	@param	mover_ref	Optional mover reference for mover-local refinement candidates.
+*	@param	out_eval	[out] Aggregate compatibility result.
+*	@return	True when the edge remains compatible with the published corridor semantics.
+*	@note	This adapter mirrors the current staged rejection and penalty semantics so future fine A* can adopt them directly.
+**/
+const bool SVG_Nav2_EvaluateSpanEdgeForCorridor( const nav2_corridor_t &corridor, const nav2_span_t &from_span, const nav2_span_t &to_span,
+    const nav2_span_edge_t &edge, const nav2_corridor_mover_ref_t *mover_ref, nav2_corridor_refine_eval_t *out_eval );

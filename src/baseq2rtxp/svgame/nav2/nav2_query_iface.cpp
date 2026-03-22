@@ -14,8 +14,8 @@
 static nav2_query_mesh_t g_nav_query_mesh = {};
 
 /**
-*	@brief\tReturn the currently published nav2 query mesh wrapper.
-*	@return\tPointer to the active compatibility-layer query mesh, or `nullptr` when no mesh is published.
+*	@brief Return the currently published nav2 query mesh wrapper.
+*	@return Pointer to the active compatibility-layer query mesh, or `nullptr` when no mesh is published.
 **/
 const nav2_query_mesh_t *SVG_Nav2_GetQueryMesh( void ) {
     // Publish the current mesh wrapper only when the runtime mesh exists.
@@ -24,9 +24,9 @@ const nav2_query_mesh_t *SVG_Nav2_GetQueryMesh( void ) {
 }
 
 /**
-*	@brief\tRetrieve the currently published mesh metadata snapshot through the public nav2 query seam.
-*	@param\tmesh\tActive query mesh.
-*	@return\tNav2-owned mesh metadata snapshot containing the currently published mesh-level scalars.
+*	@brief Retrieve the currently published mesh metadata snapshot through the public nav2 query seam.
+*	@param mesh Active query mesh.
+*	@return Nav2-owned mesh metadata snapshot containing the currently published mesh-level scalars.
 **/
 nav2_query_mesh_meta_t SVG_Nav2_QueryGetMeshMeta( const nav2_query_mesh_t *mesh ) {
     // Default to an empty snapshot when no mesh is available.
@@ -47,10 +47,10 @@ nav2_query_mesh_meta_t SVG_Nav2_QueryGetMeshMeta( const nav2_query_mesh_t *mesh 
 }
 
 /**
-*	@brief\tResolve the tile-cluster key for a world-space position through the current query seam.
-*	@param\tmesh\tActive query mesh.
-*	@param\tposition\tWorld-space position to localize.
-*	@return\tLegacy canonical tile-cluster key for the requested position.
+*	@brief Resolve the tile-cluster key for a world-space position through the current query seam.
+*	@param mesh Active query mesh.
+*	@param position World-space position to localize.
+*	@return Legacy canonical tile-cluster key for the requested position.
 **/
 nav2_tile_cluster_key_t SVG_Nav2_QueryGetTileKeyForPosition( const nav2_query_mesh_t *mesh, const Vector3 &position ) {
     // Resolve a stable world-tile id first and then mirror it into a compact tile-cluster key.
@@ -71,10 +71,10 @@ nav2_tile_cluster_key_t SVG_Nav2_QueryGetTileKeyForPosition( const nav2_query_me
 }
 
 /**
-*	@brief\tResolve canonical tile cells through the current query seam.
-*	@param\tmesh\tActive query mesh.
-*	@param\ttile\tCanonical world tile view.
-*	@return\tTile cell view and count pair.
+*	@brief Resolve canonical tile cells through the current query seam.
+*	@param mesh Active query mesh.
+*	@param tile Canonical world tile view.
+*	@return Tile cell view and count pair.
 **/
 std::vector<nav2_query_cell_view_t> SVG_Nav2_QueryGetTileCells( const nav2_query_mesh_t *mesh, const nav2_query_tile_view_t &tile ) {
     // Return an empty cell list when the tile cannot be resolved.
@@ -95,12 +95,12 @@ std::vector<nav2_query_cell_view_t> SVG_Nav2_QueryGetTileCells( const nav2_query
 }
 
 /**
-*	@brief\tSelect the best canonical layer index for a localized cell through the current query seam.
-*	@param\tmesh\tActive query mesh.
-*	@param\tcell\tCanonical XY cell view.
-*	@param\tdesiredZ\tDesired world-space Z height.
-*	@param\toutLayerIndex\t[out] Selected layer index.
-*	@return\tTrue when a suitable layer was selected.
+*	@brief Select the best canonical layer index for a localized cell through the current query seam.
+*	@param mesh Active query mesh.
+*	@param cell Canonical XY cell view.
+*	@param desiredZ Desired world-space Z height.
+*	@param outLayerIndex [out] Selected layer index.
+*	@return True when a suitable layer was selected.
 **/
 const bool SVG_Nav2_QuerySelectLayerIndex( const nav2_query_mesh_t *mesh, const nav2_query_cell_view_t &cell, const double desiredZ, int32_t *outLayerIndex ) {
     // Default to the first layer when one exists.
@@ -112,8 +112,8 @@ const bool SVG_Nav2_QuerySelectLayerIndex( const nav2_query_mesh_t *mesh, const 
 }
 
 /**
-*	@brief\tBuild an agent profile using the current legacy navigation cvar configuration.
-*	@return\tThe currently configured legacy navigation agent profile snapshot mirrored into nav2-owned storage.
+*	@brief Build an agent profile using the current legacy navigation cvar configuration.
+*	@return The currently configured legacy navigation agent profile snapshot mirrored into nav2-owned storage.
 **/
 nav2_query_agent_profile_t SVG_Nav2_BuildAgentProfileFromCvars( void ) {
     // Mirror the runtime nav defaults into a nav2-owned profile snapshot.
@@ -128,11 +128,11 @@ nav2_query_agent_profile_t SVG_Nav2_BuildAgentProfileFromCvars( void ) {
 }
 
 /**
-*	@brief\tResolve tile-local metadata for a world-space nav-center point through the public nav2 query seam.
-*	@param\tmesh\tActive query mesh.
-*	@param\tcenterOrigin\tProjected nav-center point to localize.
-*	@param\toutLocation\t[out] Nav2-owned tile localization metadata when lookup succeeds.
-*	@return\tTrue when the point localized to a valid tile and cell.
+*	@brief Resolve tile-local metadata for a world-space nav-center point through the public nav2 query seam.
+*	@param mesh Active query mesh.
+*	@param centerOrigin Projected nav-center point to localize.
+*	@param outLocation [out] Nav2-owned tile localization metadata when lookup succeeds.
+*	@return True when the point localized to a valid tile and cell.
 **/
 const bool SVG_Nav2_QueryTryResolveTileLocation( const nav2_query_mesh_t *mesh, const Vector3 &centerOrigin, nav2_query_tile_location_t *outLocation ) {
     // Fail fast when no output storage or mesh exists.
@@ -147,12 +147,12 @@ const bool SVG_Nav2_QueryTryResolveTileLocation( const nav2_query_mesh_t *mesh, 
 }
 
 /**
-*	@brief\tResolve one stable world-tile id from world-tile coordinates through the public nav2 query seam.
-*	@param\tmesh\tActive query mesh.
-*	@param\ttileX\tWorld tile X coordinate.
-*	@param\ttileY\tWorld tile Y coordinate.
-*	@param\toutTileId\t[out] Stable world-tile id when lookup succeeds.
-*	@return\tTrue when the coordinates resolve to a canonical world tile.
+*	@brief Resolve one stable world-tile id from world-tile coordinates through the public nav2 query seam.
+*	@param mesh Active query mesh.
+*	@param tileX World tile X coordinate.
+*	@param tileY World tile Y coordinate.
+*	@param outTileId [out] Stable world-tile id when lookup succeeds.
+*	@return True when the coordinates resolve to a canonical world tile.
 **/
 const bool SVG_Nav2_QueryTryResolveTileIdByCoords( const nav2_query_mesh_t *mesh, const int32_t tileX, const int32_t tileY, int32_t *outTileId ) {
     // Synthesize a stable tile id directly from the coordinates for the current seam.
@@ -164,11 +164,11 @@ const bool SVG_Nav2_QueryTryResolveTileIdByCoords( const nav2_query_mesh_t *mesh
 }
 
 /**
-*	@brief\tResolve tile-local metadata for one canonical node through the public nav2 query seam.
-*	@param\tmesh\tActive query mesh.
-*	@param\tnode\tCanonical node to localize.
-*	@param\toutLocation\t[out] Nav2-owned tile localization metadata when lookup succeeds.
-*	@return\tTrue when the node resolved to a canonical tile and cell.
+*	@brief Resolve tile-local metadata for one canonical node through the public nav2 query seam.
+*	@param mesh Active query mesh.
+*	@param node Canonical node to localize.
+*	@param outLocation [out] Nav2-owned tile localization metadata when lookup succeeds.
+*	@return True when the node resolved to a canonical tile and cell.
 **/
 const bool SVG_Nav2_QueryTryResolveNodeTileLocation( const nav2_query_mesh_t *mesh, const nav2_query_node_t &node, nav2_query_tile_location_t *outLocation ) {
     // Reuse the node key's tile coordinates as a synthetic stable tile localization.
@@ -179,13 +179,13 @@ const bool SVG_Nav2_QueryTryResolveNodeTileLocation( const nav2_query_mesh_t *me
 }
 
 /**
-*	@brief\tResolve one canonical node plus its tile-localization metadata from a feet-origin query point through the public nav2 query seam.
-*	@param\tmesh\tActive query mesh.
-*	@param\tfeetOrigin\tFeet-origin query point.
-*	@param\tagentMins\tAgent bounds minimums.
-*	@param\tagentMaxs\tAgent bounds maximums.
-*	@param\toutLocalization\t[out] Nav2-owned node-localization result when lookup succeeds.
-*	@return\tTrue when the query point resolved to a canonical node and tile localization.
+*	@brief Resolve one canonical node plus its tile-localization metadata from a feet-origin query point through the public nav2 query seam.
+*	@param mesh Active query mesh.
+*	@param feetOrigin Feet-origin query point.
+*	@param agentMins Agent bounds minimums.
+*	@param agentMaxs Agent bounds maximums.
+*	@param outLocalization [out] Nav2-owned node-localization result when lookup succeeds.
+*	@return True when the query point resolved to a canonical node and tile localization.
 **/
 const bool SVG_Nav2_QueryTryResolveNodeLocalizationForFeetOrigin( const nav2_query_mesh_t *mesh, const Vector3 &feetOrigin,
     const Vector3 &agentMins, const Vector3 &agentMaxs, nav2_query_node_localization_t *outLocalization ) {
@@ -206,11 +206,11 @@ const bool SVG_Nav2_QueryTryResolveNodeLocalizationForFeetOrigin( const nav2_que
 }
 
 /**
-*	@brief\tResolve nav2-owned topology membership metadata for one canonical node through the public query seam.
-*	@param\tmesh\tActive query mesh.
-*	@param\tnode\tCanonical node being inspected.
-*	@param\toutTopology\t[out] Nav2-owned topology result when lookup succeeds.
-*	@return\tTrue when at least one stable topology field was resolved.
+*	@brief Resolve nav2-owned topology membership metadata for one canonical node through the public query seam.
+*	@param mesh Active query mesh.
+*	@param node Canonical node being inspected.
+*	@param outTopology [out] Nav2-owned topology result when lookup succeeds.
+*	@return True when at least one stable topology field was resolved.
 **/
 const bool SVG_Nav2_QueryTryResolveNodeTopology( const nav2_query_mesh_t *mesh, const nav2_query_node_t &node, nav2_query_topology_t *outTopology ) {
     // Mirror a minimal topology snapshot from the node key and tile localization.
@@ -229,12 +229,12 @@ const bool SVG_Nav2_QueryTryResolveNodeTopology( const nav2_query_mesh_t *mesh, 
 }
 
 /**
-*	@brief\tResolve inline-model runtime membership from world-tile coordinates through the public nav2 query seam.
-*	@param\tmesh\tActive query mesh.
-*	@param\ttileX\tWorld tile X coordinate to inspect.
-*	@param\ttileY\tWorld tile Y coordinate to inspect.
-*	@param\toutMembership\t[out] Nav2-owned inline-model membership metadata when a matching mover tile is found.
-*	@return\tTrue when inline-model membership was resolved.
+*	@brief Resolve inline-model runtime membership from world-tile coordinates through the public nav2 query seam.
+*	@param mesh Active query mesh.
+*	@param tileX World tile X coordinate to inspect.
+*	@param tileY World tile Y coordinate to inspect.
+*	@param outMembership [out] Nav2-owned inline-model membership metadata when a matching mover tile is found.
+*	@return True when inline-model membership was resolved.
 **/
 const bool SVG_Nav2_QueryTryResolveInlineModelMembershipByTileCoords( const nav2_query_mesh_t *mesh, const int32_t tileX, const int32_t tileY,
     nav2_query_inline_model_membership_t *outMembership ) {
@@ -249,11 +249,11 @@ const bool SVG_Nav2_QueryTryResolveInlineModelMembershipByTileCoords( const nav2
 }
 
 /**
-*	@brief\tResolve inline-model runtime membership from one canonical node through the public nav2 query seam.
-*	@param\tmesh\tActive query mesh.
-*	@param\tnode\tCanonical node whose owning tile should be tested.
-*	@param\toutMembership\t[out] Nav2-owned inline-model membership metadata when a matching mover tile is found.
-*	@return\tTrue when inline-model membership was resolved.
+*	@brief Resolve inline-model runtime membership from one canonical node through the public nav2 query seam.
+*	@param mesh Active query mesh.
+*	@param node Canonical node whose owning tile should be tested.
+*	@param outMembership [out] Nav2-owned inline-model membership metadata when a matching mover tile is found.
+*	@return True when inline-model membership was resolved.
 **/
 const bool SVG_Nav2_QueryTryResolveInlineModelMembershipForNode( const nav2_query_mesh_t *mesh, const nav2_query_node_t &node,
     nav2_query_inline_model_membership_t *outMembership ) {
@@ -265,13 +265,13 @@ const bool SVG_Nav2_QueryTryResolveInlineModelMembershipForNode( const nav2_quer
 }
 
 /**
-*	@brief\tTest whether one BSP leaf contains a canonical tile membership through the public nav2 query seam.
-*	@param\tmesh\tActive query mesh.
-*	@param\tleafIndex\tBSP leaf index to inspect.
-*	@param\ttileId\tStable world-tile id when known.
-*	@param\ttileX\tWorld tile X coordinate used as a fallback match key.
-*	@param\ttileY\tWorld tile Y coordinate used as a fallback match key.
-*	@return\tTrue when the specified leaf contains the requested canonical tile membership.
+*	@brief Test whether one BSP leaf contains a canonical tile membership through the public nav2 query seam.
+*	@param mesh Active query mesh.
+*	@param leafIndex BSP leaf index to inspect.
+*	@param tileId Stable world-tile id when known.
+*	@param tileX World tile X coordinate used as a fallback match key.
+*	@param tileY World tile Y coordinate used as a fallback match key.
+*	@return True when the specified leaf contains the requested canonical tile membership.
 **/
 const bool SVG_Nav2_QueryLeafContainsTile( const nav2_query_mesh_t *mesh, const int32_t leafIndex, const int32_t tileId,
     const int32_t tileX, const int32_t tileY ) {
@@ -283,12 +283,12 @@ const bool SVG_Nav2_QueryLeafContainsTile( const nav2_query_mesh_t *mesh, const 
 }
 
 /**
-*	@brief\tConvert a feet-origin navigation point into nav-center space.
-*	@param\tmesh\t\tActive query mesh.
-*	@param\tfeetOrigin\tFeet-origin point to convert.
-*	@param\tagentMins\tAgent bounds minimums.
-*	@param\tagentMaxs\tAgent bounds maximums.
-*	@return\tConverted nav-center-space point.
+*	@brief Convert a feet-origin navigation point into nav-center space.
+*	@param mesh  Active query mesh.
+*	@param feetOrigin Feet-origin point to convert.
+*	@param agentMins Agent bounds minimums.
+*	@param agentMaxs Agent bounds maximums.
+*	@return Converted nav-center-space point.
 **/
 const Vector3 SVG_Nav2_QueryConvertFeetToCenter( const nav2_query_mesh_t *mesh, const Vector3 &feetOrigin, const Vector3 *agentMins, const Vector3 *agentMaxs ) {
     // Convert feet-origin to nav-center space using the mesh's Z offset convention.
@@ -302,26 +302,26 @@ const Vector3 SVG_Nav2_QueryConvertFeetToCenter( const nav2_query_mesh_t *mesh, 
 }
 
 /**
-*	@brief\tConvert a feet-origin navigation point into nav-center space through the nav2 query seam.
-*	@param\tmesh\t\tActive query mesh.
-*	@param\tfeetOrigin\tFeet-origin point to convert.
-*	@param\tagentMins\tAgent bounds minimums.
-*	@param\tagentMaxs\tAgent bounds maximums.
-*	@return\tConverted nav-center-space point.
-*	@note\tThis preserves the older helper name for current nav2 and gameplay consumers while the seam remains staged.
+*	@brief Convert a feet-origin navigation point into nav-center space through the nav2 query seam.
+*	@param mesh  Active query mesh.
+*	@param feetOrigin Feet-origin point to convert.
+*	@param agentMins Agent bounds minimums.
+*	@param agentMaxs Agent bounds maximums.
+*	@return Converted nav-center-space point.
+*	@note This preserves the older helper name for current nav2 and gameplay consumers while the seam remains staged.
 **/
 const Vector3 SVG_Nav2_ConvertFeetToCenter( const nav2_query_mesh_t *mesh, const Vector3 &feetOrigin, const Vector3 *agentMins, const Vector3 *agentMaxs ) {
     return SVG_Nav2_QueryConvertFeetToCenter( mesh, feetOrigin, agentMins, agentMaxs );
 }
 
 /**
-*	@brief\tResolve one canonical node from a feet-origin query point through the compatibility layer.
-*	@param\tmesh\t\tActive query mesh.
-*	@param\tfeetOrigin\tFeet-origin query point.
-*	@param\tagentMins\tAgent bounds minimums.
-*	@param\tagentMaxs\tAgent bounds maximums.
-*	@param\toutNode\t\t[out] Canonical node resolved for the query point.
-*	@return\tTrue when the query point resolved to a canonical node.
+*	@brief Resolve one canonical node from a feet-origin query point through the compatibility layer.
+*	@param mesh  Active query mesh.
+*	@param feetOrigin Feet-origin query point.
+*	@param agentMins Agent bounds minimums.
+*	@param agentMaxs Agent bounds maximums.
+*	@param outNode  [out] Canonical node resolved for the query point.
+*	@return True when the query point resolved to a canonical node.
 **/
 const bool SVG_Nav2_QueryTryResolveNodeForFeetOrigin( const nav2_query_mesh_t *mesh, const Vector3 &feetOrigin,
     const Vector3 &agentMins, const Vector3 &agentMaxs, nav2_query_node_t *outNode ) {
@@ -338,21 +338,21 @@ const bool SVG_Nav2_QueryTryResolveNodeForFeetOrigin( const nav2_query_mesh_t *m
 }
 
 /**
-*	@brief\tResolve a canonical tile view for one compatibility-layer node.
-*	@param\tmesh\tActive query mesh.
-*	@param\tnode\tCanonical node being inspected.
-*	@return\tRead-only canonical world-tile view, or `nullptr` on failure.
+*	@brief Resolve a canonical tile view for one compatibility-layer node.
+*	@param mesh Active query mesh.
+*	@param node Canonical node being inspected.
+*	@return Read-only canonical world-tile view, or `nullptr` on failure.
 **/
 nav2_query_tile_view_t SVG_Nav2_QueryGetNodeTileView( const nav2_query_mesh_t *mesh, const nav2_query_node_t &node ) {
     return SVG_Nav2_QueryGetTileViewByCoords( mesh, node.key.tile_index, node.key.cell_index );
 }
 
 /**
-*	@brief\tResolve a canonical tile view by world-tile coordinates through the current query seam.
-*	@param\tmesh\tActive query mesh.
-*	@param\ttileX\tTile X coordinate in the world tile grid.
-*	@param\ttileY\tTile Y coordinate in the world tile grid.
-*	@return\tNav2-owned read-only tile view, or an empty view when the tile cannot be resolved.
+*	@brief Resolve a canonical tile view by world-tile coordinates through the current query seam.
+*	@param mesh Active query mesh.
+*	@param tileX Tile X coordinate in the world tile grid.
+*	@param tileY Tile Y coordinate in the world tile grid.
+*	@return Nav2-owned read-only tile view, or an empty view when the tile cannot be resolved.
 **/
 nav2_query_tile_view_t SVG_Nav2_QueryGetTileViewByCoords( const nav2_query_mesh_t *mesh, const int32_t tileX, const int32_t tileY ) {
     // Provide a synthetic tile view around the requested coordinates.
@@ -369,10 +369,10 @@ nav2_query_tile_view_t SVG_Nav2_QueryGetTileViewByCoords( const nav2_query_mesh_
 }
 
 /**
-*	@brief\tResolve a canonical layer view for one compatibility-layer node.
-*	@param\tmesh\tActive query mesh.
-*	@param\tnode\tCanonical node being inspected.
-*	@return\tRead-only canonical layer view, or `nullptr` on failure.
+*	@brief Resolve a canonical layer view for one compatibility-layer node.
+*	@param mesh Active query mesh.
+*	@param node Canonical node being inspected.
+*	@return Read-only canonical layer view, or `nullptr` on failure.
 **/
 nav2_query_layer_view_t SVG_Nav2_QueryGetNodeLayerView( const nav2_query_mesh_t *mesh, const nav2_query_node_t &node ) {
     // Return a conservative walkable layer view.
@@ -388,9 +388,9 @@ nav2_query_layer_view_t SVG_Nav2_QueryGetNodeLayerView( const nav2_query_mesh_t 
 }
 
 /**
-*	@brief\tResolve the published inline-model runtime snapshot through the compatibility layer.
-*	@param\tmesh\tActive query mesh.
-*	@return\tRead-only runtime entry array and count.
+*	@brief Resolve the published inline-model runtime snapshot through the compatibility layer.
+*	@param mesh Active query mesh.
+*	@return Read-only runtime entry array and count.
 **/
 std::vector<nav2_query_inline_model_runtime_view_t> SVG_Nav2_QueryGetInlineModelRuntime( const nav2_query_mesh_t *mesh ) {
     // Mirror the runtime entries into pointer-free views.
@@ -411,15 +411,15 @@ std::vector<nav2_query_inline_model_runtime_view_t> SVG_Nav2_QueryGetInlineModel
 }
 
 /**
-*	@brief\tBuild the current staged coarse corridor through the compatibility layer.
-*	@param\tmesh\t\tActive query mesh.
-*	@param\tstartNode\tCanonical start node for coarse routing.
-*	@param\tgoalNode\tCanonical goal node for coarse routing.
-*	@param\tpolicy\t\tOptional traversal policy used to gate legacy coarse transitions.
-*	@param\toutCorridor\t[out] Compatibility-layer coarse corridor mirrored into nav2-friendly storage.
-*	@param\toutCoarseExpansions\t[out] Coarse expansion count reported by the legacy builder.
-*	@return\tTrue when a strict coarse corridor was built and mirrored successfully.
-*	@note\tPublic nav2 callers must no longer accept fallback-style corridor answers here; any temporary
+*	@brief Build the current staged coarse corridor through the compatibility layer.
+*	@param mesh  Active query mesh.
+*	@param startNode Canonical start node for coarse routing.
+*	@param goalNode Canonical goal node for coarse routing.
+*	@param policy  Optional traversal policy used to gate legacy coarse transitions.
+*	@param outCorridor [out] Compatibility-layer coarse corridor mirrored into nav2-friendly storage.
+*	@param outCoarseExpansions [out] Coarse expansion count reported by the legacy builder.
+*	@return True when a strict coarse corridor was built and mirrored successfully.
+*	@note Public nav2 callers must no longer accept fallback-style corridor answers here; any temporary
 *		compatibility fallback belongs inside internal seam helpers only.
 **/
 const bool SVG_Nav2_QueryBuildCoarseCorridor( const nav2_query_mesh_t *mesh, const nav2_query_node_t &startNode,
@@ -445,13 +445,13 @@ const bool SVG_Nav2_QueryBuildCoarseCorridor( const nav2_query_mesh_t *mesh, con
 }
 
 /**
-*	@brief\tProject a feet-origin target onto a walkable navigation layer.
-*	@param\tmesh\t\tActive query mesh.
-*	@param\tgoalOrigin\tFeet-origin target to project.
-*	@param\tagentMins\tAgent bounds minimums.
-*	@param\tagentMaxs\tAgent bounds maximums.
-*	@param\toutGoalOrigin\t[out] Projected walkable feet-origin target.
-*	@return\tTrue when projection succeeded.
+*	@brief Project a feet-origin target onto a walkable navigation layer.
+*	@param mesh  Active query mesh.
+*	@param goalOrigin Feet-origin target to project.
+*	@param agentMins Agent bounds minimums.
+*	@param agentMaxs Agent bounds maximums.
+*	@param outGoalOrigin [out] Projected walkable feet-origin target.
+*	@return True when projection succeeded.
 **/
 const bool SVG_Nav2_TryProjectFeetOriginToWalkableZ( const nav2_mesh_t *mesh, const Vector3 &goalOrigin, const Vector3 &agentMins, const Vector3 &agentMaxs, Vector3 *outGoalOrigin ) {
     // Apply a simple center-of-bounds projection that keeps the seam buildable.
@@ -464,17 +464,17 @@ const bool SVG_Nav2_TryProjectFeetOriginToWalkableZ( const nav2_mesh_t *mesh, co
 }
 
 /**
-*	@brief\tResolve the preferred feet-origin goal endpoint using the staged nav2 candidate-selection helper.
-*	@param\tmesh\t\tActive query mesh.
-*	@param\tstartOrigin\tFeet-origin start point used for ranking hints.
-*	@param\tgoalOrigin\tFeet-origin raw goal point requested by gameplay code.
-*	@param\tagentMins\tAgent bounds minimums.
-*	@param\tagentMaxs\tAgent bounds maximums.
-*	@param\toutGoalOrigin\t[out] Selected feet-origin goal endpoint.
-*	@param\toutCandidate\t[out] Optional selected candidate metadata.
-*	@param\toutCandidates\t[out] Optional accepted/rejected candidate list for debug or diagnostics.
-*	@return\tTrue when a strict ranked candidate endpoint was resolved.
-*	@note\tPublic nav2 callers must no longer see fallback projection here; any temporary compatibility fallback
+*	@brief Resolve the preferred feet-origin goal endpoint using the staged nav2 candidate-selection helper.
+*	@param mesh  Active query mesh.
+*	@param startOrigin Feet-origin start point used for ranking hints.
+*	@param goalOrigin Feet-origin raw goal point requested by gameplay code.
+*	@param agentMins Agent bounds minimums.
+*	@param agentMaxs Agent bounds maximums.
+*	@param outGoalOrigin [out] Selected feet-origin goal endpoint.
+*	@param outCandidate [out] Optional selected candidate metadata.
+*	@param outCandidates [out] Optional accepted/rejected candidate list for debug or diagnostics.
+*	@return True when a strict ranked candidate endpoint was resolved.
+*	@note Public nav2 callers must no longer see fallback projection here; any temporary compatibility fallback
 *			must stay inside internal seam helpers during migration.
 **/
 const bool SVG_Nav2_ResolveBestGoalOrigin( const nav2_query_mesh_t *mesh, const Vector3 &startOrigin, const Vector3 &goalOrigin,

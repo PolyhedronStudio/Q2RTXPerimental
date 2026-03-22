@@ -9,11 +9,15 @@
 #include "svgame/svg_signalio.h"
 // Nav2.
 #include "svgame/nav2/nav2_bench.h"
+#include "svgame/nav2/nav2_debug_draw.h"
+#include "svgame/nav2/nav2_scheduler.h"
+#include "svgame/nav2/nav2_span_adjacency.h"
+#include "svgame/nav2/nav2_span_grid_build.h"
 #include "svgame/nav2/nav2_types.h"
 #include "svgame/nav2/nav2_save_load.h"
 
 // Monster types for AI debug introspection.
-#include "svgame/entities/monster/svg_monster_testdummy_debug.h"
+//#include "svgame/entities/monster/svg_monster_testdummy_sfxfollow.h"
 
 /**
 *   @brief  
@@ -21,6 +25,163 @@
 void ServerCommand_Test_f(void)
 {
     gi.cprintf(NULL, PRINT_HIGH, "ServerCommand_Test_f()\n");
+}
+
+/**
+*\t@brief\tRun bounded live scheduler/query debug validation overlays for nav2 jobs.
+*\t@note\tUsage: sv nav_query_debug_validate [max_jobs]
+*\t\t\tThis command emits bounded job snapshot/stage diagnostics and in-world overlays
+*\t\t\tthrough the Task 3.3 debug seam so scheduler/query compatibility markers can be
+*\t\t\tverified under active runtime state without persistent log spam.
+**/
+static void ServerCommand_NavQueryDebugValidate_f( void ) {
+    /**
+    *\tResolve a bounded job output cap from the optional command argument.
+    **/
+    int32_t maxJobs = 4;
+    if ( gi.argc() >= 3 ) {
+        maxJobs = std::max( 1, atoi( gi.argv( 2 ) ) );
+        maxJobs = std::min( maxJobs, 32 );
+    }
+
+    /**
+    *\tRequire an active scheduler runtime before attempting query-stage debug validation.
+    **/
+    nav2_scheduler_runtime_t *schedulerRuntime = SVG_Nav2_Scheduler_GetRuntime();
+    if ( !schedulerRuntime ) {
+        gi.cprintf( nullptr, PRINT_HIGH, "nav_query_debug_validate: scheduler runtime unavailable\n" );
+        return;
+    }
+
+    /**
+    *\tRequire at least one active job so the debug draw seam has live stage and snapshot state to inspect.
+    **/
+    if ( schedulerRuntime->jobs.empty() ) {
+        gi.cprintf( nullptr, PRINT_HIGH, "nav_query_debug_validate: no active nav2 jobs\n" );
+        return;
+    }
+
+    /**
+    *\tEmit bounded per-job debug diagnostics and overlays through the existing nav2 debug draw seam.
+    **/
+    const int32_t jobCount = ( int32_t )schedulerRuntime->jobs.size();
+    const int32_t debugCount = std::min( maxJobs, jobCount );
+    for ( int32_t i = 0; i < debugCount; i++ ) {
+        SVG_Nav2_DebugDrawQueryJob( schedulerRuntime->jobs[ i ], schedulerRuntime->snapshot_runtime );
+    }
+
+    /**
+    *\tPrint one compact summary line so callers can confirm bounded validation coverage.
+    **/
+    gi.cprintf( nullptr, PRINT_HIGH, "nav_query_debug_validate: reported %d/%d job(s)\n", debugCount, jobCount );
+}
+
+/**
+*	@brief	Build and validate local span adjacency from the active nav2 span-grid snapshot.
+*	@note	Usage: sv nav_span_adjacency_validate
+*			This command runs a bounded legality summary so Task 4.3 can be validated
+*			against live map data without per-edge log spam.
+**/
+static void ServerCommand_NavSpanAdjacencyValidate_f( void ) {
+    /**
+    *    Build a fresh sparse span-grid snapshot from the active nav2 runtime mesh first,
+    *    because adjacency validation depends on currently published map and collision state.
+    **/
+    nav2_span_grid_t spanGrid = {};
+    nav2_span_grid_build_stats_t spanBuildStats = {};
+    if ( !SVG_Nav2_BuildSpanGridFromMesh( SVG_Nav2_Runtime_GetMesh(), &spanGrid, &spanBuildStats ) ) {
+        gi.cprintf( nullptr, PRINT_HIGH, "nav_span_adjacency_validate: span-grid build failed\n" );
+        return;
+    }
+
+    /**
+    *    Build local span adjacency over the generated sparse span-grid so transition legality
+    *    probes execute on real runtime geometry.
+    **/
+    nav2_span_adjacency_t adjacency = {};
+    if ( !SVG_Nav2_BuildSpanAdjacency( spanGrid, &adjacency ) ) {
+        gi.cprintf( nullptr, PRINT_HIGH, "nav_span_adjacency_validate: adjacency build failed\n" );
+        return;
+    }
+
+    /**
+    *    Emit a compact legality summary so the caller can inspect passable/soft/hard counts
+    *    and explicit trace/contents invalidation totals without per-edge diagnostics.
+    **/
+    nav2_span_adjacency_summary_t summary = {};
+    if ( !SVG_Nav2_BuildSpanAdjacencySummary( adjacency, &summary ) ) {
+        gi.cprintf( nullptr, PRINT_HIGH, "nav_span_adjacency_validate: summary build failed\n" );
+        return;
+    }
+
+    /**
+    *    Print one bounded result line for runtime validation.
+    **/
+    gi.cprintf( nullptr, PRINT_HIGH,
+        "nav_span_adjacency_validate: sampled=%d spans=%d edges=%d passable=%d soft=%d hard=%d trace_blocked=%d contents_blocked=%d drop=%d liquid=%d\n",
+        spanBuildStats.sampled_columns,
+        spanBuildStats.emitted_spans,
+        summary.edge_count,
+        summary.passable_count,
+        summary.soft_penalized_count,
+        summary.hard_invalid_count,
+        summary.trace_invalidated_count,
+        summary.contents_invalidated_count,
+        summary.controlled_drop_count,
+        summary.liquid_transition_count );
+}
+
+/**
+*	@brief	Build and validate the nav2 sparse span-grid on the active runtime mesh publication.
+*	@note	Usage: sv nav_span_grid_validate [draw_columns]
+*			When draw_columns is provided and greater than zero, the command also emits bounded
+*			in-world span markers through the nav2 debug draw seam.
+**/
+static void ServerCommand_NavSpanGridValidate_f( void ) {
+    /**
+    *    Parse optional bounded draw-column count so runtime validation stays explicit and low-noise.
+    **/
+    int32_t drawColumns = 0;
+    if ( gi.argc() >= 3 ) {
+        drawColumns = std::max( 0, atoi( gi.argv( 2 ) ) );
+        drawColumns = std::min( drawColumns, 256 );
+    }
+
+    /**
+    *    Build a span-grid snapshot from the currently published nav2 runtime mesh so validation uses live map state.
+    **/
+    nav2_span_grid_t spanGrid = {};
+    nav2_span_grid_build_stats_t stats = {};
+    if ( !SVG_Nav2_BuildSpanGridFromMesh( SVG_Nav2_Runtime_GetMesh(), &spanGrid, &stats ) ) {
+        gi.cprintf( nullptr, PRINT_HIGH, "nav_span_grid_validate: build failed (mesh/imports/bounds unavailable)\n" );
+        return;
+    }
+
+    /**
+    *    Report a bounded one-line summary so Task 4.2 runtime validation can confirm sampled-domain outcomes.
+    **/
+    gi.cprintf( nullptr, PRINT_HIGH,
+        "nav_span_grid_validate: sampled=%d columns=%d spans=%d reject=(solid_point=%d floor_trace=%d floor_miss=%d slope=%d clearance=%d solid_box=%d) hazards=(water=%d slime=%d lava=%d)\n",
+        stats.sampled_columns,
+        stats.emitted_columns,
+        stats.emitted_spans,
+        stats.rejected_solid_point,
+        stats.rejected_floor_trace,
+        stats.rejected_floor_miss,
+        stats.rejected_slope,
+        stats.rejected_clearance,
+        stats.rejected_solid_box,
+        stats.spans_with_water,
+        stats.spans_with_slime,
+        stats.spans_with_lava );
+
+    /**
+    *    Optionally draw a bounded subset of sparse columns so operators can inspect real map overlays directly.
+    **/
+    if ( drawColumns > 0 ) {
+        SVG_Nav2_DebugDrawSpanGrid( spanGrid, drawColumns );
+        gi.cprintf( nullptr, PRINT_HIGH, "nav_span_grid_validate: drew %d column(s) (bounded)\n", drawColumns );
+    }
 }
 
 /**
@@ -370,6 +531,154 @@ static void ServerCommand_NavBenchPath_f( void ) {
 	gi.cprintf( nullptr, PRINT_HIGH, "nav_bench_path: legacy benchmark path removed\n" );
 }
 
+/**
+*	@brief	Run a minimal static-nav serializer round-trip benchmark through the nav2 benchmark harness.
+*	@note	Usage: sv nav_bench_roundtrip
+*	@note	This uses a deterministic nav2-owned sample payload so the caller path exists before broader regression scenarios are wired in.
+**/
+static void ServerCommand_NavBenchRoundTrip_f( void ) {
+    /**
+    *    Build a deterministic nav2-owned sample span grid so the benchmark helper can be exercised from a concrete developer-facing command without depending on oldnav or unfinished runtime mesh extraction seams.
+    **/
+    nav2_span_grid_t sampleGrid = {};
+    sampleGrid.tile_size = 1;
+    sampleGrid.cell_size_xy = 32.0;
+    sampleGrid.z_quant = 1.0;
+
+    // Populate one sparse column with one stable traversable span.
+    nav2_span_column_t sampleColumn = {};
+    sampleColumn.tile_x = 0;
+    sampleColumn.tile_y = 0;
+    sampleColumn.tile_id = 0;
+
+    // Populate one deterministic span carrying representative topology and movement metadata.
+    nav2_span_t sampleSpan = {};
+    sampleSpan.span_id = 0;
+    sampleSpan.floor_z = 0.0;
+    sampleSpan.ceiling_z = 64.0;
+    sampleSpan.preferred_z = 16.0;
+    sampleSpan.leaf_id = 1;
+    sampleSpan.cluster_id = 2;
+    sampleSpan.area_id = 3;
+    sampleSpan.region_layer_id = 4;
+    sampleSpan.movement_flags = NAV_FLAG_WALKABLE;
+    sampleSpan.surface_flags = NAV_TILE_SUMMARY_NONE;
+    sampleSpan.topology_flags = NAV_TRAVERSAL_FEATURE_NONE;
+    sampleSpan.connector_hint_mask = 0;
+    sampleColumn.spans.push_back( sampleSpan );
+    sampleGrid.columns.push_back( sampleColumn );
+
+    /**
+    *    Build a deterministic adjacency payload with a single self-edge so the round-trip covers both span-grid and adjacency section encoding without needing a larger generated nav asset.
+    **/
+    nav2_span_adjacency_t sampleAdjacency = {};
+    nav2_span_edge_t sampleEdge = {};
+    sampleEdge.edge_id = 0;
+    sampleEdge.from_span_id = 0;
+    sampleEdge.to_span_id = 0;
+    sampleEdge.from_column_index = 0;
+    sampleEdge.to_column_index = 0;
+    sampleEdge.from_span_index = 0;
+    sampleEdge.to_span_index = 0;
+    sampleEdge.delta_x = 0;
+    sampleEdge.delta_y = 0;
+    sampleEdge.vertical_delta = 0.0;
+    sampleEdge.cost = 1.0;
+    sampleEdge.soft_penalty_cost = 0.0;
+    sampleEdge.movement = nav2_span_edge_movement_t::HorizontalPass;
+    sampleEdge.legality = nav2_span_edge_legality_t::Passable;
+    sampleEdge.feature_bits = NAV_EDGE_FEATURE_PASSABLE;
+    sampleEdge.flags = NAV2_SPAN_EDGE_FLAG_PASSABLE;
+    sampleAdjacency.edges.push_back( sampleEdge );
+
+    /**
+    *    Configure the round-trip as a standalone static-asset cache payload so serializer validation exercises the same format family used by the current Task 5.1 cache foundation.
+    **/
+    nav2_serialization_policy_t policy = {};
+    policy.category = nav2_serialized_category_t::StaticAsset;
+    policy.transport = nav2_serialized_transport_t::EngineFilesystem;
+    policy.map_identity = 0x4E41563252544C31ull;
+
+    /**
+    *    Run the benchmark-owned round-trip helper and capture both the compact benchmark summary and the detailed serializer result for concise developer output.
+    **/
+    nav2_bench_roundtrip_summary_t summary = {};
+    nav2_serialized_roundtrip_result_t detailedResult = {};
+    const bool success = SVG_Nav2_Bench_RunStaticNavRoundTrip( policy, sampleGrid, sampleAdjacency,
+        &summary, &detailedResult, "StaticNavRoundTripSample" );
+
+    /**
+    *    Optionally exercise the standalone cache workflow as well so the benchmark-owned round-trip helper is validated against a real nav cache file on disk.
+    **/
+    if ( gi.argc() >= 3 ) {
+        // Capture the caller-supplied cache path once so the filesystem round-trip stays deterministic.
+        const char *cachePath = gi.argv( 2 );
+
+        // Build a standalone cache blob from the same sample payload used by the in-memory benchmark path.
+        nav2_serialized_blob_t cacheBlob = {};
+        const nav2_serialization_result_t cacheBuildResult = SVG_Nav2_Serialize_BuildStaticNavBlob( policy, sampleGrid, sampleAdjacency, &cacheBlob );
+        if ( !cacheBuildResult.success ) {
+            gi.cprintf( nullptr, PRINT_HIGH, "nav_bench_roundtrip: cache build failed for '%s'\n", cachePath );
+        } else {
+            // Write the blob through the filesystem helper so the command exercises the same cache path used by static nav assets.
+            const nav2_serialization_result_t cacheWriteResult = SVG_Nav2_Serialize_WriteCacheFile( cachePath, cacheBlob );
+            if ( !cacheWriteResult.success ) {
+                gi.cprintf( nullptr, PRINT_HIGH, "nav_bench_roundtrip: cache write failed for '%s'\n", cachePath );
+            } else {
+                // Read the written file back through the engine filesystem path so the command validates the standalone cache workflow end-to-end.
+                nav2_serialized_header_t cacheHeader = {};
+                nav2_span_grid_t cacheGrid = {};
+                nav2_span_adjacency_t cacheAdjacency = {};
+                const nav2_serialization_result_t cacheReadResult = SVG_Nav2_Serialize_ReadStaticNavCacheFile( cachePath, policy,
+                    &cacheHeader, &cacheGrid, &cacheAdjacency );
+                if ( !cacheReadResult.success ) {
+                    gi.cprintf( nullptr, PRINT_HIGH, "nav_bench_roundtrip: cache read failed for '%s' (compat=%u)\n",
+                        cachePath, ( uint32_t )cacheReadResult.validation.compatibility );
+                } else {
+                    // Reuse the benchmark-owned round-trip helper on the decoded file payload so the cache workflow feeds back into the same regression accounting path.
+                    nav2_bench_roundtrip_summary_t cacheSummary = {};
+                    nav2_serialized_roundtrip_result_t cacheDetailedResult = {};
+                    const bool cacheRoundTripOk = SVG_Nav2_Bench_RunStaticNavRoundTrip( policy, cacheGrid, cacheAdjacency,
+                        &cacheSummary, &cacheDetailedResult, cachePath );
+
+                    // Emit one compact cache-workflow summary line so operators can tell whether the on-disk path matched the in-memory payload.
+                    gi.cprintf( nullptr, PRINT_HIGH,
+                        "nav_bench_roundtrip_cache: path='%s' success=%d compat=%u primary=%s build_ms=%.3f read_ms=%.3f bytes=(%u/%u)\n",
+                        cachePath,
+                        cacheRoundTripOk ? 1 : 0,
+                        ( uint32_t )cacheReadResult.validation.compatibility,
+                        SVG_Nav2_Bench_RoundTripSummaryName( cacheSummary ),
+                        cacheDetailedResult.build_elapsed_ms,
+                        cacheDetailedResult.read_elapsed_ms,
+                        cacheDetailedResult.build_result.byte_count,
+                        cacheDetailedResult.read_result.byte_count );
+                }
+            }
+        }
+    }
+
+    /**
+    *    Print one compact result line so developers can confirm the caller seam works without introducing the log spam that earlier navigation diagnostics produced.
+    **/
+    gi.cprintf( nullptr, PRINT_HIGH,
+        "nav_bench_roundtrip: success=%d mismatch_count=%u primary=%s build_ms=%.3f read_ms=%.3f build_bytes=%u read_bytes=%u\n",
+        success ? 1 : 0,
+        summary.mismatch_count,
+        SVG_Nav2_Bench_RoundTripSummaryName( summary ),
+        detailedResult.build_elapsed_ms,
+        detailedResult.read_elapsed_ms,
+        detailedResult.build_result.byte_count,
+        detailedResult.read_result.byte_count );
+
+    /**
+    *    If benchmark collection is enabled, surface the latest aggregate snapshot too so developers can confirm the result flowed through the benchmark record path instead of bypassing it.
+    **/
+    if ( SVG_Nav2_Bench_IsEnabled() ) {
+        // Reuse the existing benchmark summary output path instead of adding new ad hoc logging.
+        ServerCommand_NavQueryStats_f();
+    }
+}
+
 /*
 ==============================================================================
 
@@ -638,6 +947,14 @@ void SVG_ServerCommand(void) {
     //    ServerCommand_NavLoad_f();
     else if ( Q_stricmp( cmd, "nav_cell" ) == 0 )
         ServerCommand_NavCell_f();
+    else if ( Q_stricmp( cmd, "nav_bench_roundtrip" ) == 0 )
+        ServerCommand_NavBenchRoundTrip_f();
+    else if ( Q_stricmp( cmd, "nav_span_grid_validate" ) == 0 )
+        ServerCommand_NavSpanGridValidate_f();
+    else if ( Q_stricmp( cmd, "nav_span_adjacency_validate" ) == 0 )
+        ServerCommand_NavSpanAdjacencyValidate_f();
+  else if ( Q_stricmp( cmd, "nav_query_debug_validate" ) == 0 )
+        ServerCommand_NavQueryDebugValidate_f();
 	//else if ( Q_stricmp( cmd, "nav_query_stats" ) == 0 )
  //       ServerCommand_NavQueryStats_f();
  //   else if ( Q_stricmp( cmd, "nav_bench_path" ) == 0 )

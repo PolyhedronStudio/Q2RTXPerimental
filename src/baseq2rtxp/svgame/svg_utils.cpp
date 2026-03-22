@@ -497,7 +497,7 @@ svg_base_edict_t *SVG_Util_CreateTempEventEntity( const Vector3 &origin, const s
 void SVG_Util_TouchTriggers(svg_base_edict_t *ent) {
     svg_base_edict_t *hit;
 
-    static svg_base_edict_t *touchedEdicts[ MAX_EDICTS ] = {};
+    static thread_local svg_base_edict_t *touchedEdicts[ MAX_EDICTS ] = {};
 	std::fill( std::begin( touchedEdicts ), std::end( touchedEdicts ), nullptr );
 
 	// Dead Clients and (NPC) Monsters don't activate triggers.
@@ -539,7 +539,7 @@ void SVG_Util_TouchTriggers(svg_base_edict_t *ent) {
 void SVG_Util_TouchSolids(svg_base_edict_t *ent) {
     svg_base_edict_t *hit = nullptr;
 
-    static svg_base_edict_t *touchedEdicts[ MAX_EDICTS ] = {};
+    static thread_local svg_base_edict_t *touchedEdicts[ MAX_EDICTS ] = {};
     std::fill( std::begin( touchedEdicts ), std::end( touchedEdicts ), nullptr );
 
     const Vector3 absMin = ent->absMin;
@@ -709,7 +709,7 @@ const bool SVG_Util_KillBox( svg_base_edict_t *ent, const bool bspClipping, sg_m
     //// [Paril-KEX] don't gib other players in coop if we're not colliding
     //if ( from_spawning && ent->client && coop->integer && !G_ShouldPlayersCollide( false ) )
     //    mask &= ~CONTENTS_PLAYER;
-    static svg_base_edict_t *touchedEdicts[ MAX_EDICTS ];
+    static thread_local  svg_base_edict_t *touchedEdicts[ MAX_EDICTS ];
     std::fill( std::begin( touchedEdicts ), std::end( touchedEdicts ), nullptr );
 
     const Vector3 absMin = ent->absMin;

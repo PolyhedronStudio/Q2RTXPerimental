@@ -430,6 +430,123 @@ void SVG_Nav2_Bench_RecordFailure( nav2_bench_query_t *query, const nav2_bench_f
 }
 
 /**
+*	@brief	Build a compact benchmark-facing summary from a serializer round-trip result.
+*	@param	result	Structured serializer round-trip result to summarize.
+*	@return	Compact summary suitable for benchmark and regression callers.
+**/
+nav2_bench_roundtrip_summary_t SVG_Nav2_Bench_SummarizeRoundTripResult( const nav2_serialized_roundtrip_result_t &result ) {
+    /**
+    *    Start from deterministic defaults and then mirror only the small subset of serializer state that benchmark callers need for failure classification and compact reporting.
+    **/
+    nav2_bench_roundtrip_summary_t summary = {};
+    summary.success = result.success;
+    summary.mismatch_count = result.mismatch_count;
+    summary.primary_mismatch = nav2_serialized_roundtrip_mismatch_t::None;
+
+    /**
+    *    Find the first observed mismatch category in enum order so callers have a deterministic primary label without scanning raw mismatch arrays themselves.
+    **/
+    for ( size_t mismatchIndex = 1; mismatchIndex < ( size_t )nav2_serialized_roundtrip_mismatch_t::Count; mismatchIndex++ ) {
+        if ( result.mismatch_counts[ mismatchIndex ] == 0 ) {
+            continue;
+        }
+
+        summary.primary_mismatch = ( nav2_serialized_roundtrip_mismatch_t )mismatchIndex;
+        break;
+    }
+    return summary;
+}
+
+/**
+*	@brief	Record serializer round-trip diagnostics into an active benchmark query.
+*	@param	query	Active benchmark query state.
+*	@param	result	Structured serializer round-trip result to record.
+*	@note	This helper records serialization timing buckets and maps any mismatch to the existing serialization failure taxonomy.
+**/
+void SVG_Nav2_Bench_RecordRoundTripResult( nav2_bench_query_t *query, const nav2_serialized_roundtrip_result_t &result ) {
+    /**
+    *    Ignore calls when no active benchmark query is collecting results so serializer callers can invoke this helper with minimal surrounding branch logic.
+    **/
+    if ( !query || !query->active || !query->enabled ) {
+        return;
+    }
+
+    /**
+    *    Convert the serializer-owned result into a compact benchmark summary so later callers can inspect one small value instead of the full serializer structure.
+    **/
+    const nav2_bench_roundtrip_summary_t summary = SVG_Nav2_Bench_SummarizeRoundTripResult( result );
+
+    /**
+    *    Attribute in-memory blob construction time to the serialization-write bucket and deserialization/readback time to the serialization-read bucket.
+    **/
+  SVG_Nav2_Bench_AddDuration( query, nav2_bench_timing_bucket_t::SerializationWrite, result.build_elapsed_ms );
+    SVG_Nav2_Bench_AddDuration( query, nav2_bench_timing_bucket_t::SerializationRead, result.read_elapsed_ms );
+
+    /**
+    *    Record the existing serializer failure taxonomy whenever the round-trip does not match exactly, keeping benchmark failure reporting aligned with the masterplan's regression vocabulary.
+    **/
+    if ( !summary.success || summary.mismatch_count > 0 ) {
+        SVG_Nav2_Bench_RecordFailure( query, nav2_bench_failure_t::SerializationRoundTripMismatch );
+    }
+}
+
+/**
+*	@brief	Run a static-nav serializer round-trip through the benchmark harness.
+*	@param	policy	Serialization policy describing the payload.
+*	@param	spanGrid	Source span-grid payload to round-trip.
+*	@param	adjacency	Source adjacency payload to round-trip.
+*	@param	outSummary	[out] Optional compact benchmark-facing summary of the round-trip result.
+*	@param	outDetailedResult	[out] Optional detailed serializer result for regression callers that need mismatch counts.
+*	@param	scenarioLabel	Optional scenario label override used in benchmark diagnostics.
+*	@return	True when the serializer round-trip completed and the decoded payload matched exactly.
+*	@note	This helper keeps round-trip execution benchmark-owned so later regression callers do not need to wire serializer timing and failure reporting manually.
+**/
+const bool SVG_Nav2_Bench_RunStaticNavRoundTrip( const nav2_serialization_policy_t &policy,
+    const nav2_span_grid_t &spanGrid, const nav2_span_adjacency_t &adjacency,
+    nav2_bench_roundtrip_summary_t *outSummary,
+    nav2_serialized_roundtrip_result_t *outDetailedResult,
+    const char *scenarioLabel ) {
+    /**
+    *    Start with deterministic defaults for all optional outputs so callers never observe stale benchmark or serializer state if the helper exits early.
+    **/
+    if ( outSummary ) {
+        *outSummary = nav2_bench_roundtrip_summary_t{};
+    }
+    if ( outDetailedResult ) {
+        *outDetailedResult = nav2_serialized_roundtrip_result_t{};
+    }
+
+    /**
+    *    Route the round-trip through the existing benchmark query lifecycle so timing, failure taxonomy, and scenario aggregation remain centralized inside nav2_bench.
+    **/
+    nav2_bench_query_t query = {};
+    SVG_Nav2_Bench_BeginQuery( &query, nav2_bench_scenario_t::SaveLoadRoundTripContinuity, scenarioLabel );
+
+    /**
+    *    Execute the serializer-owned static-nav round-trip validation and preserve the detailed result locally so it can be copied back to callers after benchmark recording finishes.
+    **/
+    nav2_serialized_roundtrip_result_t detailedResult = {};
+    const bool success = SVG_Nav2_Serialize_ValidateStaticNavRoundTrip( policy, spanGrid, adjacency, &detailedResult );
+
+    /**
+    *    Feed serializer timing and mismatch information through the benchmark helper before closing the query so aggregate scenario records capture the round-trip work consistently.
+    **/
+    SVG_Nav2_Bench_RecordRoundTripResult( &query, detailedResult );
+    SVG_Nav2_Bench_EndQuery( &query, success );
+
+    /**
+    *    Publish optional caller-facing outputs after the benchmark query is complete so regression code can inspect both the compact and detailed summaries without re-running serializer work.
+    **/
+    if ( outSummary ) {
+        *outSummary = SVG_Nav2_Bench_SummarizeRoundTripResult( detailedResult );
+    }
+    if ( outDetailedResult ) {
+        *outDetailedResult = detailedResult;
+    }
+    return success;
+}
+
+/**
 *	@brief	Commit a completed benchmark query into the aggregate scenario record.
 *	@param	query	Active benchmark query state.
 *	@param	success	True when the measured query completed successfully.
@@ -573,6 +690,18 @@ const char *SVG_Nav2_Bench_TimingBucketName( const nav2_bench_timing_bucket_t bu
     default: break;
     }
     return "Unknown";
+}
+
+/**
+*	@brief	Return a compact display name for the primary mismatch in a benchmark round-trip summary.
+*	@param	summary	Compact round-trip summary to inspect.
+*	@return	Constant string naming the primary mismatch, or `None` when no mismatch was recorded.
+**/
+const char *SVG_Nav2_Bench_RoundTripSummaryName( const nav2_bench_roundtrip_summary_t &summary ) {
+    /**
+    *    Reuse the serializer-owned mismatch naming helper so benchmark callers do not duplicate enum-to-string policy.
+    **/
+    return SVG_Nav2_Serialize_RoundTripMismatchName( summary.primary_mismatch );
 }
 
 /**

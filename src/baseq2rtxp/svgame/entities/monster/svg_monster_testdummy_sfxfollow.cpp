@@ -31,8 +31,11 @@
 
 // Removed oldnav headers to keep the testdummy on nav2 query interfaces.
 // Keeping the following includes for nav2 functionality.
+#include "svgame/nav2/nav2_default_consts.h"
+#include "svgame/nav2/nav2_types.h"
 #include "svgame/nav2/nav2_query_iface.h"
 #include "svgame/nav2/nav2_corridor.h"
+#include "svgame/nav2/nav2_debug_draw.h"
 #include "svgame/nav2/nav2_policy.h"
 
 // TestDummy Monster
@@ -126,7 +129,7 @@ static bool Dummy_TryBuildDebugCorridor( svg_monster_testdummy_sfxfollow_t *self
 	*	Keep corridor diagnostics rate-limited and opt-in so Task 3.2 does not reintroduce log spam.
 	**/
 	if ( DUMMY_NAV_DEBUG != 0 && Dummy_ShouldEmitNavDebugLog() ) {
-		SVG_Nav2_DebugPrintCorridor( corridor );
+        SVG_Nav2_DebugDrawCorridor( corridor, nav2_debug_corridor_verbosity_t::IncludeSegments, 3 );
 	}
 	return true;
 }
@@ -1184,23 +1187,23 @@ const bool svg_monster_testdummy_sfxfollow_t::GenericThinkBegin() {
 	/**
 	*	Setup A* Navigation Policy: stairs, drops, and obstruction jumping.
 	**/
-   pathNavigationState.policy.waypoint_radius = NAV2_DEFAULT_WAYPOINT_RADIUS;
-	pathNavigationState.policy.min_step_height = NAV2_DEFAULT_STEP_MIN_SIZE;
+   pathNavigationState.policy.waypoint_radius = NAV_DEFAULT_WAYPOINT_RADIUS;
+	pathNavigationState.policy.min_step_height = NAV_DEFAULT_STEP_MIN_SIZE;
 
- pathNavigationState.policy.max_step_height = NAV2_DEFAULT_STEP_MAX_SIZE;
-	pathNavigationState.policy.max_drop_height = NAV2_DEFAULT_MAX_DROP_HEIGHT;
+ pathNavigationState.policy.max_step_height = NAV_DEFAULT_STEP_MAX_SIZE;
+	pathNavigationState.policy.max_drop_height = NAV_DEFAULT_MAX_DROP_HEIGHT;
 	pathNavigationState.policy.enable_max_drop_height_cap = true;
    pathNavigationState.policy.max_drop_height_cap = SVG_Nav2_Policy_GetMaxDropHeightCap();
 	pathNavigationState.policy.enable_goal_z_layer_blend = true;
 	pathNavigationState.policy.enable_cluster_route_filter = true;
- pathNavigationState.policy.blend_start_dist = NAV2_DEFAULT_BLEND_DIST_START;
-	pathNavigationState.policy.blend_full_dist = NAV2_DEFAULT_BLEND_DIST_FULL;
+ pathNavigationState.policy.blend_start_dist = NAV_DEFAULT_BLEND_DIST_START;
+	pathNavigationState.policy.blend_full_dist = NAV_DEFAULT_BLEND_DIST_FULL;
 	// No blending seems to work!
 	//pathNavigationState.policy.enable_goal_z_layer_blend = false;
 	//pathNavigationState.policy.blend_start_dist = PHYS_STEP_MAX_SIZE;
 	//pathNavigationState.policy.blend_full_dist = 128.0;
 	pathNavigationState.policy.allow_small_obstruction_jump = true;
- pathNavigationState.policy.max_obstruction_jump_height = NAV2_DEFAULT_MAX_OBSTRUCTION_JUMP_SIZE;
+ pathNavigationState.policy.max_obstruction_jump_height = NAV_DEFAULT_MAX_OBSTRUCTION_JUMP_SIZE;
 
 	/**
 	*   Keep the monster move policy pointer synchronized with the active path-follow policy.
@@ -1307,16 +1310,16 @@ void svg_monster_testdummy_sfxfollow_t::AdjustGoalZBlendPolicy( const Vector3 &g
 	*	Start from the nav2-owned default blend window each time so per-think adjustments remain deterministic.
 	**/
 	pathNavigationState.policy.enable_goal_z_layer_blend = true;
-	pathNavigationState.policy.blend_start_dist = NAV2_DEFAULT_BLEND_DIST_START;
-	pathNavigationState.policy.blend_full_dist = NAV2_DEFAULT_BLEND_DIST_FULL;
+	pathNavigationState.policy.blend_start_dist = NAV_DEFAULT_BLEND_DIST_START;
+	pathNavigationState.policy.blend_full_dist = NAV_DEFAULT_BLEND_DIST_FULL;
 
 	/**
 	*	For farther or more vertically separated goals, widen the blend-full distance so layer selection
 	*	can bias toward the destination height earlier and remain stable across longer multi-level pursuits.
 	**/
-	if ( goalDist2D > 128.0 || goalDeltaZ > NAV2_DEFAULT_STEP_MAX_SIZE ) {
+	if ( goalDist2D > 128.0 || goalDeltaZ > NAV_DEFAULT_STEP_MAX_SIZE ) {
 		// Use the larger of the existing default and a distance-aware widened blend window.
-		pathNavigationState.policy.blend_full_dist = std::max( NAV2_DEFAULT_BLEND_DIST_FULL, std::min( goalDist2D * 0.25, 128.0 ) );
+		pathNavigationState.policy.blend_full_dist = std::max( NAV_DEFAULT_BLEND_DIST_FULL, std::min( goalDist2D * 0.25, 128.0 ) );
 	}
 }
 
@@ -1352,21 +1355,21 @@ const mm_slide_move_flags_t svg_monster_testdummy_sfxfollow_t::ProcessSlideMove(
    /**
 	*	Mirror the currently active nav2 policy fields into the legacy movement-policy shape that the older step-slide helper still consumes.
 	**/
-	nav2_path_policy_t legacyPolicy = {};
-	legacyPolicy.min_step_normal = pathNavigationState.policy.min_step_normal;
-	legacyPolicy.min_step_height = pathNavigationState.policy.min_step_height;
-	legacyPolicy.max_step_height = pathNavigationState.policy.max_step_height;
-	legacyPolicy.allow_small_obstruction_jump = pathNavigationState.policy.allow_small_obstruction_jump;
-	legacyPolicy.max_obstruction_jump_height = pathNavigationState.policy.max_obstruction_jump_height;
-	legacyPolicy.enable_max_drop_height_cap = pathNavigationState.policy.enable_max_drop_height_cap;
-	legacyPolicy.max_drop_height = pathNavigationState.policy.max_drop_height;
-	legacyPolicy.max_drop_height_cap = pathNavigationState.policy.max_drop_height_cap;
+	nav2_path_policy_t pathPolicy = {};
+	pathPolicy.min_step_normal = pathNavigationState.policy.min_step_normal;
+	pathPolicy.min_step_height = pathNavigationState.policy.min_step_height;
+	pathPolicy.max_step_height = pathNavigationState.policy.max_step_height;
+	pathPolicy.allow_small_obstruction_jump = pathNavigationState.policy.allow_small_obstruction_jump;
+	pathPolicy.max_obstruction_jump_height = pathNavigationState.policy.max_obstruction_jump_height;
+	pathPolicy.enable_max_drop_height_cap = pathNavigationState.policy.enable_max_drop_height_cap;
+	pathPolicy.max_drop_height = pathNavigationState.policy.max_drop_height;
+	pathPolicy.max_drop_height_cap = pathNavigationState.policy.max_drop_height_cap;
 
 	/**
 	*	Forward the mirrored movement policy into the staged step-slide helper while gameplay still relies on the older movement implementation.
 	**/
 	// Perform the slide move and get the blocked mask describing the result of the movement attempt.
-	const mm_slide_move_flags_t blockedMask = SVG_MMove_StepSlideMove( &monsterMoveState, legacyPolicy );
+	const mm_slide_move_flags_t blockedMask = SVG_MMove_StepSlideMove( &monsterMoveState, pathPolicy );
 
 	// Return the blocked mask so the caller can decide how to react to obstructions.
 	return blockedMask;
@@ -1478,9 +1481,9 @@ const bool svg_monster_testdummy_sfxfollow_t::GuardForNullNavMesh() {
 	*   Cancel tracked handle first so queue state transitions to terminal.
 	**/
 	if ( pathNavigationState.process.pending_request_handle > 0 ) {
-        SVG_Nav2_CancelRequest( ( nav2_query_handle_t )pathNavigationState.process.pending_request_handle );
+		// Wrap the raw pending handle through the nav2-owned query-handle helper before canceling it.
+		SVG_Nav2_CancelRequest( SVG_Nav2_QueryMakeHandle( pathNavigationState.process.pending_request_handle ) );
 	}
-
 	/**
 	*   Clear local markers so callers stop reporting pending async work.
 	**/
@@ -1616,7 +1619,7 @@ const bool svg_monster_testdummy_sfxfollow_t::MoveAStarToOrigin( const Vector3 &
 	const bool effectiveForce = force;
 
 	/**
-  *    Build the queue policy snapshot for this request.
+	*    Build the queue policy snapshot for this request.
 	**/
 	#ifdef MONSTER_TESTDUMMY_DEBUG_BYPASS_ROUTE_FILTER
 	// Route-filter isolation mode: explicitly disable coarse tile filtering so neighbor diagnostics reflect pure StepTest traversal behavior.

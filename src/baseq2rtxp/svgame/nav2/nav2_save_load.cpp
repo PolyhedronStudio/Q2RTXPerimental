@@ -152,11 +152,7 @@ nav2_save_load_result_t SVG_Nav2_SaveLoad_ReadRuntimeHeader( game_read_context_t
 *	@note	The current policy reconstructs scheduler and worker runtime state rather than attempting to restore in-flight jobs.
 **/
 void SVG_Nav2_SaveLoad_RebuildRuntimeStateAfterLoad( void ) {
-    /**
-   *    Task 2.3 defines the persistence policy boundary only: transient scheduler and worker state must be
-    *    reconstructed after load instead of being deserialized directly. The concrete runtime reset wiring is
-    *    intentionally deferred so this foundation layer does not take hard compile-time dependencies on later
-    *    scheduler and worker implementation units.
-    **/
-  return;
+    // Task 2.3 defines the persistence policy boundary only: transient scheduler and worker state must be reconstructed after load instead of being deserialized directly.
+    // The concrete runtime reset wiring is intentionally deferred so this foundation layer does not take hard compile-time dependencies on later scheduler and worker implementation units.
+    return;
 }

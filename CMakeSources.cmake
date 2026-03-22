@@ -377,8 +377,8 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/misc/svg_misc_teleporter.cpp
 	baseq2rtxp/svgame/entities/misc/svg_misc_teleporter_dest.cpp
 
- #baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_sfxfollow.cpp
- baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_debug_stub.cpp
+    #baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_sfxfollow.cpp
+    baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_debug_stub.cpp
 	#baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_sfxfollow.cpp
 	
 	baseq2rtxp/svgame/entities/path/svg_path_corner.cpp
@@ -454,19 +454,34 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	
     baseq2rtxp/svgame/nav2/nav2_bench.cpp
     baseq2rtxp/svgame/nav2/nav2_budget.cpp
+    baseq2rtxp/svgame/nav2/nav2_coarse_astar.cpp
+    baseq2rtxp/svgame/nav2/nav2_connectors.cpp
     baseq2rtxp/svgame/nav2/nav2_corridor.cpp
+    baseq2rtxp/svgame/nav2/nav2_corridor_build.cpp
+    baseq2rtxp/svgame/nav2/nav2_debug_draw.cpp
+    baseq2rtxp/svgame/nav2/nav2_entity_semantics.cpp
+    baseq2rtxp/svgame/nav2/nav2_fine_astar.cpp
     baseq2rtxp/svgame/nav2/nav2_goal_candidates.cpp
+    baseq2rtxp/svgame/nav2/nav2_hierarchy_graph.cpp
     baseq2rtxp/svgame/nav2/nav2_memory.cpp
+    baseq2rtxp/svgame/nav2/nav2_mover_local_nav.cpp
+    baseq2rtxp/svgame/nav2/nav2_occupancy.cpp
+    baseq2rtxp/svgame/nav2/nav2_persistence.cpp
+    #baseq2rtxp/svgame/nav2/nav2_postprocess.cpp
     baseq2rtxp/svgame/nav2/nav2_query_job.cpp
     baseq2rtxp/svgame/nav2/nav2_query_state.cpp
+    baseq2rtxp/svgame/nav2/nav2_region_layers.cpp
     baseq2rtxp/svgame/nav2/nav2_runtime.cpp
     baseq2rtxp/svgame/nav2/nav2_query_iface.cpp
+    baseq2rtxp/svgame/nav2/nav2_save_load.cpp
     baseq2rtxp/svgame/nav2/nav2_scheduler.cpp
+    baseq2rtxp/svgame/nav2/nav2_serialize.cpp
     baseq2rtxp/svgame/nav2/nav2_span_adjacency.cpp
     baseq2rtxp/svgame/nav2/nav2_span_grid.cpp
     baseq2rtxp/svgame/nav2/nav2_span_grid_build.cpp
-    baseq2rtxp/svgame/nav2/nav2_serialize.cpp
     baseq2rtxp/svgame/nav2/nav2_snapshot.cpp
+    baseq2rtxp/svgame/nav2/nav2_topology.cpp
+    baseq2rtxp/svgame/nav2/nav2_types.cpp
     baseq2rtxp/svgame/nav2/nav2_worker_iface.cpp
 )
 SET(HEADERS_BASEQ2RTXP_SVGAME
@@ -496,10 +511,24 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
     baseq2rtxp/svgame/nav2/nav2_bench.h
     baseq2rtxp/svgame/nav2/nav2_budget.h
     baseq2rtxp/svgame/nav2/nav2_corridor.h
+    baseq2rtxp/svgame/nav2/nav2_connectors.h
+    baseq2rtxp/svgame/nav2/nav2_region_layers.h
+    baseq2rtxp/svgame/nav2/nav2_hierarchy_graph.h
+    baseq2rtxp/svgame/nav2/nav2_coarse_astar.h
+    baseq2rtxp/svgame/nav2/nav2_corridor_build.h
+    baseq2rtxp/svgame/nav2/nav2_fine_astar.h
+    baseq2rtxp/svgame/nav2/nav2_occupancy.h
+    baseq2rtxp/svgame/nav2/nav2_persistence.h
+    baseq2rtxp/svgame/nav2/nav2_save_load.h
+    baseq2rtxp/svgame/nav2/nav2_debug_draw.h
+    baseq2rtxp/svgame/nav2/nav2_entity_semantics.h
     baseq2rtxp/svgame/nav2/nav2_goal_candidates.h
     baseq2rtxp/svgame/nav2/nav2_memory.h
+    baseq2rtxp/svgame/nav2/nav2_mover_local_nav.h
+    baseq2rtxp/svgame/nav2/nav2_fine_astar.h
     baseq2rtxp/svgame/nav2/nav2_runtime.h
     baseq2rtxp/svgame/nav2/nav2_format.h
+    #baseq2rtxp/svgame/nav2/nav2_postprocess.h
     baseq2rtxp/svgame/nav2/nav2_query_job.h
     baseq2rtxp/svgame/nav2/nav2_query_iface_internal.h
     baseq2rtxp/svgame/nav2/nav2_query_state.h

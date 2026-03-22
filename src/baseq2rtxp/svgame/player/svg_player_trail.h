@@ -8,7 +8,7 @@
 ********************************************************************/
 #pragma once
 
-struct svg_monster_testdummy_debug_t;
+struct svg_monster_testdummy_sfxfollow_t;
 
 /**
     @brief	Initialize the player breadcrumb trail system.
@@ -45,7 +45,7 @@ void PlayerTrail_New( const Vector3 &spot );
             `self->trail_time` and performs simple visibility checks to
             prefer an immediately visible breadcrumb when available.
 **/
-svg_base_edict_t *PlayerTrail_PickFirst( svg_monster_testdummy_debug_t *self );
+svg_base_edict_t *PlayerTrail_PickFirst( svg_monster_testdummy_sfxfollow_t *self );
 
 /**
     @brief	Pick the next trail spot for `self` after the current pick.
@@ -53,7 +53,7 @@ svg_base_edict_t *PlayerTrail_PickFirst( svg_monster_testdummy_debug_t *self );
     @return	Pointer to the next breadcrumb edict, or nullptr if the trail
             system is not active.
 **/
-svg_base_edict_t *PlayerTrail_PickNext( svg_monster_testdummy_debug_t *self );
+svg_base_edict_t *PlayerTrail_PickNext( svg_monster_testdummy_sfxfollow_t *self );
 
 /**
     @brief	Return the most recently added breadcrumb spot.

@@ -7,8 +7,6 @@
 ********************************************************************/
 #pragma once
 
-#include "svgame/svg_local.h"
-
 #include "svgame/nav2/nav2_types.h"
 
 

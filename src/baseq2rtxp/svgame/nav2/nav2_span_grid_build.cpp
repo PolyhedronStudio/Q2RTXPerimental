@@ -35,6 +35,9 @@ static constexpr double NAV2_SPAN_GRID_FLOOR_PROBE = 256.0;
 //! Epsilon used when offsetting support and clearance probes away from collision planes.
 static constexpr double NAV2_SPAN_GRID_TRACE_EPSILON = 1.0;
 
+//! Latest bounded diagnostics snapshot from the most recent span-grid build pass.
+static nav2_span_grid_build_stats_t nav2_span_grid_last_build_stats = {};
+
 
 /**
 *	@brief	Resolve conservative rasterization parameters from the active mesh.
@@ -255,7 +258,7 @@ static void SVG_Nav2_SpanGrid_BuildSampleBounds( const Vector3 &sample_center, c
 *	@return	True when the sampled column produced a conservative traversable span.
 **/
 static const bool SVG_Nav2_SpanGrid_TryBuildSpanAtPoint( const nav2_mesh_t *mesh, const nav2_span_grid_t &grid, const Vector3 &column_center,
-	const int32_t span_id, nav2_span_t *out_span ) {
+    const int32_t span_id, nav2_span_t *out_span, nav2_span_grid_build_stats_t *build_stats ) {
 	/**
 	*    Require output storage and the collision trace imports before attempting support classification.
 	**/
@@ -279,6 +282,9 @@ static const bool SVG_Nav2_SpanGrid_TryBuildSpanAtPoint( const nav2_mesh_t *mesh
 	**/
 	const cm_contents_t pointContents = gi.pointcontents( &column_center );
 	if ( ( pointContents & CONTENTS_SOLID ) != 0 ) {
+       if ( build_stats ) {
+			build_stats->rejected_solid_point++;
+		}
 		return false;
 	}
 
@@ -291,6 +297,13 @@ static const bool SVG_Nav2_SpanGrid_TryBuildSpanAtPoint( const nav2_mesh_t *mesh
 	floorProbeEnd.z -= ( float )NAV2_SPAN_GRID_FLOOR_PROBE;
 	const cm_trace_t floorTrace = gi.trace( &floorProbeStart, &agentMins, &agentMaxs, &floorProbeEnd, nullptr, CM_CONTENTMASK_PLAYERSOLID );
 	if ( floorTrace.startsolid || floorTrace.allsolid || floorTrace.fraction >= 1.0 ) {
+       if ( build_stats ) {
+			if ( floorTrace.startsolid || floorTrace.allsolid ) {
+				build_stats->rejected_floor_trace++;
+			} else {
+				build_stats->rejected_floor_miss++;
+			}
+		}
 		return false;
 	}
 
@@ -299,6 +312,9 @@ static const bool SVG_Nav2_SpanGrid_TryBuildSpanAtPoint( const nav2_mesh_t *mesh
 	**/
 	const double minimumSlopeNormal = ( mesh && mesh->agent_profile.max_slope_normal_z > 0.0 ) ? mesh->agent_profile.max_slope_normal_z : PHYS_MAX_SLOPE_NORMAL;
  if ( floorTrace.plane.type != PLANE_Z && floorTrace.plane.normal[ 2 ] < minimumSlopeNormal ) {
+		if ( build_stats ) {
+			build_stats->rejected_slope++;
+		}
 		return false;
 	}
 
@@ -313,6 +329,9 @@ static const bool SVG_Nav2_SpanGrid_TryBuildSpanAtPoint( const nav2_mesh_t *mesh
 	const double floorZ = floorTrace.endpos.z;
 	const double ceilingZ = clearanceTrace.endpos.z;
 	if ( ( ceilingZ - floorZ ) < NAV2_SPAN_GRID_MIN_CLEARANCE ) {
+       if ( build_stats ) {
+			build_stats->rejected_clearance++;
+		}
 		return false;
 	}
 
@@ -334,6 +353,9 @@ static const bool SVG_Nav2_SpanGrid_TryBuildSpanAtPoint( const nav2_mesh_t *mesh
 	const vec3_t sampleMaxsVec = { sampleMaxs.x, sampleMaxs.y, sampleMaxs.z };
 	(void)gi.CM_BoxContents( sampleMinsVec, sampleMaxsVec, &boxContents, leafList.data(), ( int32_t )leafList.size(), &topNode );
 	if ( ( boxContents & CONTENTS_SOLID ) != 0 ) {
+       if ( build_stats ) {
+			build_stats->rejected_solid_box++;
+		}
 		return false;
 	}
 
@@ -350,14 +372,23 @@ static const bool SVG_Nav2_SpanGrid_TryBuildSpanAtPoint( const nav2_mesh_t *mesh
 	if ( ( pointContents & CONTENTS_WATER ) != 0 || ( boxContents & CONTENTS_WATER ) != 0 ) {
 		out_span->movement_flags |= NAV_FLAG_WATER;
 		out_span->surface_flags |= NAV_TILE_SUMMARY_WATER;
+       if ( build_stats ) {
+			build_stats->spans_with_water++;
+		}
 	}
 	if ( ( pointContents & CONTENTS_LAVA ) != 0 || ( boxContents & CONTENTS_LAVA ) != 0 ) {
 		out_span->movement_flags |= NAV_FLAG_LAVA;
 		out_span->surface_flags |= NAV_TILE_SUMMARY_LAVA;
+       if ( build_stats ) {
+			build_stats->spans_with_lava++;
+		}
 	}
 	if ( ( pointContents & CONTENTS_SLIME ) != 0 || ( boxContents & CONTENTS_SLIME ) != 0 ) {
 		out_span->movement_flags |= NAV_FLAG_SLIME;
 		out_span->surface_flags |= NAV_TILE_SUMMARY_SLIME;
+       if ( build_stats ) {
+			build_stats->spans_with_slime++;
+		}
 	}
 	SVG_Nav2_SpanGrid_ResolvePointTopology( standingCenter, out_span );
 	return SVG_Nav2_SpanIsValid( *out_span );
@@ -378,7 +409,8 @@ static const bool SVG_Nav2_SpanGrid_TryBuildSpanAtPoint( const nav2_mesh_t *mesh
 *	@return	True when at least a valid rasterization pass completed.
 *	@note	This Milestone 4 pass intentionally performs one conservative floor/clearance sample per XY column.
 **/
-const bool SVG_Nav2_BuildSpanGridFromMesh( const nav2_mesh_t *mesh, nav2_span_grid_t *out_grid ) {
+const bool SVG_Nav2_BuildSpanGridFromMesh( const nav2_mesh_t *mesh, nav2_span_grid_t *out_grid,
+	nav2_span_grid_build_stats_t *out_stats ) {
 	/**
 	*    Require both mesh storage and output storage before beginning any rasterization work.
 	**/
@@ -386,6 +418,7 @@ const bool SVG_Nav2_BuildSpanGridFromMesh( const nav2_mesh_t *mesh, nav2_span_gr
 		return false;
 	}
 	*out_grid = {};
+	nav2_span_grid_build_stats_t buildStats = {};
 
 	/**
 	*    Reject rasterization when the active mesh is not published or the collision-model imports are unavailable.
@@ -426,6 +459,11 @@ const bool SVG_Nav2_BuildSpanGridFromMesh( const nav2_mesh_t *mesh, nav2_span_gr
 		*    Walk the row in deterministic X order so later serialization and compare-mode tools observe stable column order.
 		**/
 		for ( int32_t cellX = minCellX; cellX < maxCellX; cellX++ ) {
+         /**
+			*    Count every sampled XY column so diagnostics can report raster-domain size independent of emitted spans.
+			**/
+			buildStats.sampled_columns++;
+
 			/**
 			*    Build the world-space center point for the sampled XY column.
 			**/
@@ -439,7 +477,7 @@ const bool SVG_Nav2_BuildSpanGridFromMesh( const nav2_mesh_t *mesh, nav2_span_gr
 			*    Attempt one conservative span sample for the current XY column and skip empty space without emitting dead columns.
 			**/
 			nav2_span_t span = {};
-			if ( !SVG_Nav2_SpanGrid_TryBuildSpanAtPoint( mesh, *out_grid, columnCenter, nextSpanId, &span ) ) {
+         if ( !SVG_Nav2_SpanGrid_TryBuildSpanAtPoint( mesh, *out_grid, columnCenter, nextSpanId, &span, &buildStats ) ) {
 				continue;
 			}
 
@@ -448,8 +486,23 @@ const bool SVG_Nav2_BuildSpanGridFromMesh( const nav2_mesh_t *mesh, nav2_span_gr
 			**/
 			nav2_span_column_t &column = SVG_Nav2_SpanGrid_AppendColumn( mesh, out_grid, columnCenter );
 			column.spans.push_back( span );
+           buildStats.emitted_columns++;
+			buildStats.emitted_spans++;
 			nextSpanId++;
 		}
+	}
+
+	/**
+	*	Rebuild reverse indices after rasterization so topology-local lookup helpers can consume stable pointer-free memberships.
+	**/
+	(void)SVG_Nav2_SpanGrid_RebuildReverseIndices( out_grid );
+
+	/**
+	*    Publish diagnostics snapshots for optional callers and deferred debug reporting.
+	**/
+	nav2_span_grid_last_build_stats = buildStats;
+	if ( out_stats ) {
+		*out_stats = buildStats;
 	}
 
 	/**
@@ -472,5 +525,25 @@ const bool SVG_Nav2_BuildSpanGrid( nav2_span_grid_t *out_grid ) {
 	if ( !mesh ) {
 		return false;
 	}
-	return SVG_Nav2_BuildSpanGridFromMesh( mesh, out_grid );
+    return SVG_Nav2_BuildSpanGridFromMesh( mesh, out_grid, nullptr );
+}
+
+/**
+*	@brief	Return bounded diagnostics from the most recent span-grid build pass.
+*	@param	out_stats	[out] Receives the latest builder diagnostics snapshot.
+*	@return	True when diagnostics were copied.
+**/
+const bool SVG_Nav2_GetLastSpanGridBuildStats( nav2_span_grid_build_stats_t *out_stats ) {
+	/**
+	*    Require output storage before copying diagnostics.
+	**/
+	if ( !out_stats ) {
+		return false;
+	}
+
+	/**
+	*    Copy the latest bounded diagnostics snapshot.
+	**/
+	*out_stats = nav2_span_grid_last_build_stats;
+	return true;
 }

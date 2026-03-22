@@ -19,7 +19,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "svgame/svg_local.h"
 #include "svgame/svg_utils.h"
-#include "svgame/entities/monster/svg_monster_testdummy_debug.h"
+//#include "svgame/entities/monster/svg_monster_testdummy_sfxfollow.h"
 
 #include "sharedgame/sg_means_of_death.h"
 #include "sharedgame/sg_tempentity_events.h"

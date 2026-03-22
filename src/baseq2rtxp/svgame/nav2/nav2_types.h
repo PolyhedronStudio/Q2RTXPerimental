@@ -178,7 +178,11 @@ enum nav2_edge_feature_bits_t : uint32_t {
 	//! Edge is blocked by a jump obstruction (may require special handling).
 	NAV_EDGE_FEATURE_JUMP_OBSTRUCTION = ( 1u << 9 ),
 	//! Edge is blocked by a hard wall (impassable for non-destructive agents).
-	NAV_EDGE_FEATURE_HARD_WALL_BLOCKED = ( 1u << 10 )
+	NAV_EDGE_FEATURE_HARD_WALL_BLOCKED = ( 1u << 10 ),
+	//! Edge failed explicit transition trace validation in adjacency legality probing.
+	NAV_TRAVERSAL_FEATURE_TRACE_BLOCKED = ( 1u << 11 ),
+	//! Edge failed explicit destination contents validation in adjacency legality probing.
+	NAV_TRAVERSAL_FEATURE_CONTENTS_BLOCKED = ( 1u << 12 )
 };
 
 /**

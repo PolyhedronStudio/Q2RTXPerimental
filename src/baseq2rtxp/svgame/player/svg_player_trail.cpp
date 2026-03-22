@@ -21,7 +21,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 
 #include "svgame/entities/svg_player_edict.h"
-#include "svgame/entities/monster/svg_monster_testdummy_debug.h"
+//#include "svgame/entities/monster/svg_monster_testdummy_sfxfollow.h"
 
 #include "svgame/player/svg_player_trail.h"
 
@@ -137,7 +137,7 @@ void PlayerTrail_New( const Vector3 &spot )
 *	@return	The chosen breadcrumb edict or nullptr if the trail system is
 *			not active.
 **/
-svg_base_edict_t *PlayerTrail_PickFirst( svg_monster_testdummy_debug_t *self )
+svg_base_edict_t *PlayerTrail_PickFirst( svg_monster_testdummy_sfxfollow_t *self )
 {
     int32_t marker = 0;
     int32_t n = 0;
@@ -147,6 +147,10 @@ svg_base_edict_t *PlayerTrail_PickFirst( svg_monster_testdummy_debug_t *self )
         return nullptr;
     }
 
+		// <Q2RTXP>: WID: Re-enable later on.
+	#if 1
+	return nullptr;
+	#else
     /**
     *	Walk backwards from the head until we find a breadcrumb newer than
     *	`self->trail_time`. This skips breadcrumbs we've already followed or
@@ -167,6 +171,7 @@ svg_base_edict_t *PlayerTrail_PickFirst( svg_monster_testdummy_debug_t *self )
     if ( SVG_Entity_IsVisible( static_cast< svg_base_edict_t* >( self ), trail[ PREV( marker ) ] ) ) {
         return trail[ PREV( marker ) ];
     }
+	#endif
 
     return trail[ marker ];
 }
@@ -178,7 +183,7 @@ svg_base_edict_t *PlayerTrail_PickFirst( svg_monster_testdummy_debug_t *self )
 *	@return	The next breadcrumb edict or nullptr if the trail system is
 *			not active.
 **/
-svg_base_edict_t *PlayerTrail_PickNext( svg_monster_testdummy_debug_t *self )
+svg_base_edict_t *PlayerTrail_PickNext( svg_monster_testdummy_sfxfollow_t *self )
 {
     int32_t marker = 0;
     int32_t n = 0;
@@ -187,6 +192,10 @@ svg_base_edict_t *PlayerTrail_PickNext( svg_monster_testdummy_debug_t *self )
         return nullptr;
     }
 
+	// <Q2RTXP>: WID: Re-enable later on.
+	#if 1
+		return nullptr;
+	#else
     // Find the first candidate as in PickFirst, then return it.
     for ( marker = trail_head, n = TRAIL_LENGTH; n; n-- ) {
         if ( trail[ marker ]->timestamp <= self->stateNavigationTrail.trailTimeStamp ) {
@@ -195,7 +204,7 @@ svg_base_edict_t *PlayerTrail_PickNext( svg_monster_testdummy_debug_t *self )
             break;
         }
     }
-
+	#endif
     return trail[ marker ];
 }
 	

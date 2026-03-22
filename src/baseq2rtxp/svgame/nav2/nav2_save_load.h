@@ -7,6 +7,7 @@
 ********************************************************************/
 #pragma once
 
+#include "svgame/nav2/nav2_persistence.h"
 #include "svgame/nav2/nav2_runtime.h"
 #include "svgame/nav2/nav2_serialize.h"
 
@@ -44,6 +45,8 @@ struct nav2_save_load_result_t {
     bool success = false;
     //! Structured serialization validation result used primarily by load paths.
     nav2_serialized_validation_t validation = {};
+    //! Number of bytes written to or loaded from the payload.
+    uint32_t byte_count = 0;
 };
 
 
@@ -75,7 +78,35 @@ nav2_save_load_result_t SVG_Nav2_SaveLoad_ReadRuntimeHeader( game_read_context_t
     const nav2_serialization_policy_t &policy, nav2_serialized_header_t *outHeader );
 
 /**
+*\t@brief\tWrite a nav2 persistence bundle through the savegame context in one versioned chunk.
+*\t@param\tctx\tSavegame write context receiving the bundle bytes.
+*\t@param\tbundle\tNav2 bundle to persist.
+*\t@return\tStructured save result for diagnostics.
+*\t@note\tThe payload is written as a versioned nav2 persistence blob so load paths can validate and reconstruct the nav2 runtime bundle deterministically.
+**/
+nav2_save_load_result_t SVG_Nav2_SaveLoad_WritePersistenceBundle( game_write_context_t *ctx, const nav2_persistence_bundle_t &bundle );
+
+/**
+*\t@brief\tRead a nav2 persistence bundle through the savegame context and reconstruct runtime state.
+*\t@param\tctx\tSavegame read context providing the bundle bytes.
+*\t@param\tpolicy\tExpected serialization policy used to validate the payload.
+*\t@param\toutBundle\t[out] Bundle receiving the decoded state.
+*\t@return\tStructured load result including compatibility validation.
+*\t@note\tThis decodes the versioned nav2 blob and returns the reconstructed nav2-owned persistence bundle without mutating runtime singletons.
+**/
+nav2_save_load_result_t SVG_Nav2_SaveLoad_ReadPersistenceBundle( game_read_context_t *ctx,
+    const nav2_serialization_policy_t &policy, nav2_persistence_bundle_t *outBundle );
+
+/**
 *	@brief	Reset nav2 runtime systems after a load transition according to the Task 2.3 persistence policy.
 *	@note	The current policy reconstructs scheduler and worker runtime state rather than attempting to restore in-flight jobs.
 **/
 void SVG_Nav2_SaveLoad_RebuildRuntimeStateAfterLoad( void );
+
+/**
+*\t@brief\tRebuild nav2 runtime state from a decoded persistence bundle after load.
+*\t@param\tbundle\tDecoded bundle to publish into runtime state.
+*\t@return\tTrue when runtime state could be updated from the decoded bundle.
+*\t@note\tThis is the bundle-level integration seam for future load hooks that want to restore nav2-owned state without reaching into oldnav.
+**/
+const bool SVG_Nav2_SaveLoad_RebuildRuntimeStateFromBundle( const nav2_persistence_bundle_t &bundle );

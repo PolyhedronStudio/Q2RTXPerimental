@@ -334,6 +334,18 @@ struct svg_monster_testdummy_sfxfollow_t : public svg_base_edict_t {
 	*
 	*
 	**/
+		/**
+	*	@brief	Navigation state for when we are pursuing the activator's breadcrumb trail instead of the activator itself.
+	**/
+	struct StateNavigationTrail_t {
+		//! Current breadcrumb we are attempting to chase when following the trail.
+		svg_base_edict_t *targetEntity = nullptr;
+
+		//! Time marker used by the player-trail system. Monsters set this to indicate
+		//! which trail timestamp they are currently following. Defaults to 0 (no trail).
+		QMTime   trailTimeStamp = 0_ms;
+	} stateNavigationTrail = {};
+
 	/**
 	*
 	**/
@@ -341,7 +353,7 @@ struct svg_monster_testdummy_sfxfollow_t : public svg_base_edict_t {
 		//! Current state of the async nav path process, which is used by the A* pursuit thinkers and the generic think finish routine.
         nav2_query_process_t process = {};
 		//! Current policy settings for the async nav path process, which is used by the A* pursuit thinkers and the generic think finish routine.
-      nav2_query_policy_t policy = {};
+		nav2_query_policy_t policy = {};
 		//! Rate limit for queue-status logging so we do not spam the console repeatedly.
 		QMTime nextQueueStatusLogTime = 0_ms;
 
