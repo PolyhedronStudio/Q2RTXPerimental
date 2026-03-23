@@ -249,6 +249,13 @@ const bool SVG_Nav2_HierarchyGraph_AppendNode( nav2_hierarchy_graph_t *graph, co
 const bool SVG_Nav2_HierarchyGraph_AppendEdge( nav2_hierarchy_graph_t *graph, const nav2_hierarchy_edge_t &edge );
 
 /**
+* @brief Validate a hierarchy graph for stable ids and adjacency consistency.
+* @param graph Graph to inspect.
+* @return True when hierarchical nodes/edges are internally consistent.
+**/
+const bool SVG_Nav2_ValidateHierarchyGraph( const nav2_hierarchy_graph_t &graph );
+
+/**
 * @brief Build a coarse hierarchy graph from region layers.
 * @param regionLayers Region-layer graph providing vertical and topological commitments.
 * @param out_graph [out] Hierarchy graph receiving the coarse graph.

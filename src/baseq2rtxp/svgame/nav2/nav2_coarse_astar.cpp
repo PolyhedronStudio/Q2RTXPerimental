@@ -7,6 +7,9 @@
 ********************************************************************/
 #include "svgame/nav2/nav2_coarse_astar.h"
 
+// Movement constants used to bound vertical transitions in the coarse solver.
+#include "sharedgame/pmove/sg_pmove.h"
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -48,20 +51,178 @@ static int32_t SVG_Nav2_AllocateCoarseEdgeId( const nav2_coarse_astar_state_t &s
 }
 
 /**
+*	@brief	Validate the coarse A* solver state.
+*	@param	state	Solver state to inspect.
+*	@return	True when the solver state is internally consistent.
+**/
+const bool SVG_Nav2_CoarseAStar_ValidateState( const nav2_coarse_astar_state_t *state ) {
+    /**
+    *	Sanity-check the input pointer before validating state.
+    **/
+    // Return false when the state pointer is missing.
+    if ( !state ) {
+        return false;
+    }
+
+    /**
+    *	Ensure every frontier node has a stable id and valid Z band.
+    **/
+    // Iterate over all frontier nodes.
+    for ( size_t nodeIndex = 0; nodeIndex < state->nodes.size(); ++nodeIndex ) {
+        // Cache the node being inspected.
+        const nav2_coarse_astar_node_t &node = state->nodes[ nodeIndex ];
+        // Reject nodes without valid ids.
+        if ( node.node_id < 0 ) {
+            return false;
+        }
+        // Reject nodes without a valid Z band.
+        if ( !node.allowed_z_band.IsValid() ) {
+            return false;
+        }
+        // Validate the parent id if present.
+        if ( node.parent_node_id >= 0 && node.parent_node_id == node.node_id ) {
+            return false;
+        }
+    }
+
+    /**
+    *	Ensure every frontier edge has stable ids and valid Z bands.
+    **/
+    // Iterate over all frontier edges.
+    for ( size_t edgeIndex = 0; edgeIndex < state->edges.size(); ++edgeIndex ) {
+        // Cache the edge being inspected.
+        const nav2_coarse_astar_edge_t &edge = state->edges[ edgeIndex ];
+        // Reject edges without valid ids.
+        if ( edge.edge_id < 0 ) {
+            return false;
+        }
+        // Reject edges without a valid Z band.
+        if ( !edge.allowed_z_band.IsValid() ) {
+            return false;
+        }
+    }
+
+    // State appears internally consistent.
+    return true;
+}
+
+/**
 * @brief Return the hierarchy node id for one candidate when available.
 * @param candidate Candidate to inspect.
 * @return Hierarchy-node id, or `-1` when no stable id is available.
 **/
 static int32_t SVG_Nav2_CandidateHierarchyNodeId( const nav2_goal_candidate_t &candidate ) {
-    // The candidate type already stores stable topology ids; keep the mapping explicit.
+    /**
+    *	Prefer a direct hierarchy mapping when the candidate already exposes a layer index.
+    **/
+    // Use the layer index as the coarse hierarchy hint when available.
     if ( candidate.layer_index >= 0 ) {
         return candidate.layer_index;
     }
-    // Fall back to the canonical tile identifier when the candidate does not expose a dedicated hierarchy id.
+
+    /**
+    *	Fallback to tile identifiers only when a hierarchy id is not present.
+    **/
+    // Use the canonical tile id as a fallback hierarchy hint.
     if ( candidate.tile_id >= 0 ) {
         return candidate.tile_id;
     }
+
+    /**
+    *	Last resort: return the local candidate id.
+    **/
+    // Return the candidate id as a last resort placeholder.
     return candidate.candidate_id;
+}
+
+/**
+*	@brief	Select the best hierarchy node to represent a coarse endpoint.
+*	@param	graph	Hierarchy graph to search.
+*	@param	candidate	Endpoint candidate metadata.
+*	@return	Stable hierarchy node id or -1 when no suitable node was found.
+**/
+static int32_t SVG_Nav2_SelectHierarchyNodeForCandidate( const nav2_hierarchy_graph_t &graph, const nav2_goal_candidate_t &candidate ) {
+    /**
+    *	Require a populated hierarchy graph before searching for candidate matches.
+    **/
+    // Bail out when no hierarchy nodes are available.
+    if ( graph.nodes.empty() ) {
+        // Return invalid to signal no match.
+        return -1;
+    }
+
+    /**
+    *	Score hierarchy nodes based on topology alignment with the candidate.
+    **/
+    // Track the best matching node id and score.
+    int32_t bestNodeId = -1;
+    int32_t bestScore = -1;
+    double bestZDelta = std::numeric_limits<double>::infinity();
+
+    // Evaluate every hierarchy node for a topology match.
+    for ( const nav2_hierarchy_node_t &node : graph.nodes ) {
+        // Skip nodes that do not carry a valid Z band.
+        if ( !node.allowed_z_band.IsValid() ) {
+            continue;
+        }
+
+        // Score the node based on topology membership and stability.
+        int32_t score = 0;
+        if ( candidate.leaf_index >= 0 && candidate.leaf_index == node.topology.leaf_index ) {
+            score = 3;
+        } else if ( candidate.cluster_id >= 0 && candidate.cluster_id == node.topology.cluster_id ) {
+            score = 2;
+        } else if ( candidate.area_id >= 0 && candidate.area_id == node.topology.area_id ) {
+            score = 1;
+        }
+
+        // Skip nodes that do not match any topology criteria.
+        if ( score <= 0 ) {
+            continue;
+        }
+
+        // Compute the vertical delta between the candidate and the hierarchy node.
+        const double zDelta = std::fabs( candidate.center_origin.z - node.allowed_z_band.preferred_z );
+
+        // Prefer higher scores and tighter Z alignment.
+        if ( score > bestScore || ( score == bestScore && zDelta < bestZDelta ) ) {
+            bestScore = score;
+            bestZDelta = zDelta;
+            bestNodeId = node.node_id;
+        }
+    }
+
+    // Return the best match found, or -1 if no match exists.
+    return bestNodeId;
+}
+
+/**
+*	@brief	Resolve a hierarchy node id for a coarse frontier node.
+*	@param	graph	Hierarchy graph to search.
+*	@param	node	Frontier node to resolve.
+*	@return	Stable hierarchy node id or -1 when no suitable node was found.
+**/
+static int32_t SVG_Nav2_ResolveHierarchyNodeForFrontier( const nav2_hierarchy_graph_t &graph, const nav2_coarse_astar_node_t &node ) {
+    /**
+    *	If the node already carries a hierarchy id, return it immediately.
+    **/
+    // Keep the explicit hierarchy id when it is already present.
+    if ( node.hierarchy_node_id >= 0 ) {
+        return node.hierarchy_node_id;
+    }
+
+    /**
+    *	Fallback to matching by topology metadata.
+    **/
+    // Construct a pseudo-candidate to reuse the topology matching logic.
+    nav2_goal_candidate_t pseudoCandidate = {};
+    pseudoCandidate.leaf_index = node.topology.leaf_index;
+    pseudoCandidate.cluster_id = node.topology.cluster_id;
+    pseudoCandidate.area_id = node.topology.area_id;
+    pseudoCandidate.center_origin = Vector3{ 0.0f, 0.0f, ( float )node.allowed_z_band.preferred_z };
+
+    // Reuse the candidate selector to find a matching hierarchy node.
+    return SVG_Nav2_SelectHierarchyNodeForCandidate( graph, pseudoCandidate );
 }
 
 /**
@@ -385,40 +546,67 @@ void SVG_Nav2_CoarseAStar_Reset( nav2_coarse_astar_state_t *state ) {
 **/
 const bool SVG_Nav2_CoarseAStar_Init( nav2_coarse_astar_state_t *state, const nav2_hierarchy_graph_t &hierarchyGraph,
     const nav2_goal_candidate_t &startCandidate, const nav2_goal_candidate_t &goalCandidate, const uint64_t solverId ) {
-    // Validate output storage before building frontier state.
+  /**
+    *	Sanity-check the output state and the hierarchy graph before building frontier state.
+    **/
+    // Require a valid solver state and a populated hierarchy graph.
     if ( !state || hierarchyGraph.nodes.empty() ) {
+        // Return false when initialization prerequisites are missing.
         return false;
     }
 
-    // Reset the solver and bind the query context.
+    /**
+    *	Reset the solver and bind the query context for a fresh coarse search.
+    **/
+    // Reset the state to deterministic defaults.
     SVG_Nav2_CoarseAStar_Reset( state );
+    // Assign the stable solver identifier.
     state->solver_id = solverId;
+    // Mark the solver as actively running.
     state->status = nav2_coarse_astar_status_t::Running;
+    // Store the selected candidates for later diagnostics.
     state->start_candidate = startCandidate;
     state->goal_candidate = goalCandidate;
+    // Bind the hierarchy graph used for expansion.
+    state->hierarchy_graph = &hierarchyGraph;
+    state->hierarchy_graph_bound = true;
+    // Assign the benchmark scenario for the query state.
     state->query_state.bench_scenario = startCandidate.flags & NAV_GOAL_CANDIDATE_FLAG_NEIGHBOR_SAMPLE ? nav2_bench_scenario_t::SameFloorOpen : nav2_bench_scenario_t::SameFloorOpen;
+    // Set the active stage to coarse search.
     state->query_state.stage = nav2_query_stage_t::CoarseSearch;
+    // Mark the result as pending until the search completes.
     state->query_state.result_status = nav2_query_result_status_t::Pending;
 
-    // Seed the frontier with the start and goal candidates so later slices can grow outward.
+    /**
+    *	Seed the frontier with start and goal nodes derived from the candidate endpoints.
+    **/
+    // Allocate stable ids for the start and goal nodes.
     const int32_t startNodeId = SVG_Nav2_AllocateCoarseNodeId( *state );
     const int32_t goalNodeId = startNodeId + 1;
+    // Build the start node from the candidate and attach a hierarchy match.
     nav2_coarse_astar_node_t startNode = SVG_Nav2_MakeNodeFromCandidate( startCandidate, startNodeId );
     startNode.kind = nav2_coarse_astar_node_kind_t::Start;
     startNode.g_score = 0.0;
     startNode.h_score = SVG_Nav2_Heuristic( startNode, SVG_Nav2_MakeNodeFromCandidate( goalCandidate, goalNodeId ) );
     startNode.f_score = startNode.h_score;
+    startNode.hierarchy_node_id = SVG_Nav2_SelectHierarchyNodeForCandidate( hierarchyGraph, startCandidate );
     state->nodes.push_back( startNode );
 
+    // Build the goal node from the candidate and attach a hierarchy match.
     nav2_coarse_astar_node_t goalNode = SVG_Nav2_MakeNodeFromCandidate( goalCandidate, goalNodeId );
     goalNode.kind = nav2_coarse_astar_node_kind_t::Goal;
     goalNode.g_score = 0.0;
     goalNode.h_score = 0.0;
     goalNode.f_score = 0.0;
+    goalNode.hierarchy_node_id = SVG_Nav2_SelectHierarchyNodeForCandidate( hierarchyGraph, goalCandidate );
     state->nodes.push_back( goalNode );
 
-    // Mark the solver as owning a frontier slice so later service calls can resume deterministically.
+    /**
+    *	Mark the solver as owning a frontier slice so later slices can resume deterministically.
+    **/
+    // Flag that the solver has an active frontier to resume later.
     state->has_frontier_slice = true;
+    // Return true to signal successful initialization.
     return true;
 }
 
@@ -430,19 +618,30 @@ const bool SVG_Nav2_CoarseAStar_Init( nav2_coarse_astar_state_t *state, const na
 * @return True when the solver made progress or completed.
 **/
 const bool SVG_Nav2_CoarseAStar_Step( nav2_coarse_astar_state_t *state, const nav2_budget_slice_t &budgetSlice, nav2_coarse_astar_result_t *out_result ) {
+    /**
+    *	Sanity-check the solver state before spending a slice.
+    **/
     // Require a live solver with at least one frontier node.
     if ( !state || state->status != nav2_coarse_astar_status_t::Running || state->nodes.empty() ) {
+        // Return false so the scheduler can decide whether to reschedule.
         return false;
     }
 
-    // Record the budget slice on the query state so the scheduler can resume deterministically.
+    /**
+    *	Record the budget slice on the query state so the scheduler can resume deterministically.
+    **/
+    // Assign the current slice to the query state.
     state->query_state.active_slice = budgetSlice;
+    // Record the slice consumed by the query.
     state->query_state.progress.slices_consumed++;
     state->diagnostics.slices_consumed++;
     state->diagnostics.resumes++;
     state->query_state.progress.coarse_expansions = state->diagnostics.expansions;
 
-    // Respect cancellation and restart requests before doing any new work.
+    /**
+    *	Respect cancellation and restart requests before doing any new work.
+    **/
+    // Cancel the solver when the query requested cancellation.
     if ( state->query_state.cancel_requested ) {
         state->status = nav2_coarse_astar_status_t::Cancelled;
         state->query_state.result_status = nav2_query_result_status_t::Cancelled;
@@ -453,6 +652,7 @@ const bool SVG_Nav2_CoarseAStar_Step( nav2_coarse_astar_state_t *state, const na
         }
         return true;
     }
+    // Pause the solver when a restart is requested.
     if ( state->query_state.restart_requested ) {
         state->diagnostics.pauses++;
         state->status = nav2_coarse_astar_status_t::Partial;
@@ -465,7 +665,10 @@ const bool SVG_Nav2_CoarseAStar_Step( nav2_coarse_astar_state_t *state, const na
         return true;
     }
 
-    // Pull the best frontier node and evaluate whether it is still worth expanding.
+    /**
+    *	Select the next frontier node and ensure it is still valid to expand.
+    **/
+    // Pick the best frontier node based on f-score.
     const int32_t bestIndex = SVG_Nav2_FindBestFrontierNodeIndex( *state );
     if ( bestIndex < 0 ) {
         state->status = nav2_coarse_astar_status_t::Failed;
@@ -478,6 +681,7 @@ const bool SVG_Nav2_CoarseAStar_Step( nav2_coarse_astar_state_t *state, const na
         return true;
     }
 
+    // Capture the node we are expanding for this slice.
     const nav2_coarse_astar_node_t currentNode = state->nodes[ ( size_t )bestIndex ];
     if ( !SVG_Nav2_ShouldExpandNode( state, currentNode ) ) {
         if ( out_result ) {
@@ -488,7 +692,10 @@ const bool SVG_Nav2_CoarseAStar_Step( nav2_coarse_astar_state_t *state, const na
         return true;
     }
 
-    // If the best node already corresponds to the goal, reconstruct and stop.
+    /**
+    *	Check for goal completion before expanding neighbors.
+    **/
+    // Stop when the current node corresponds to the goal candidate.
     if ( currentNode.kind == nav2_coarse_astar_node_kind_t::Goal || currentNode.hierarchy_node_id == state->goal_candidate.candidate_id ) {
         SVG_Nav2_ReconstructPath( *state, currentNode.node_id, &state->path );
         state->status = nav2_coarse_astar_status_t::Success;
@@ -505,45 +712,153 @@ const bool SVG_Nav2_CoarseAStar_Step( nav2_coarse_astar_state_t *state, const na
         return true;
     }
 
-    // Expand the current node to its hierarchy neighbors using the coarse graph edges.
-    const nav2_hierarchy_graph_t *hierarchyGraph = nullptr;
-    // The solver stores node ids only, so the caller is expected to rebind the graph through the query state in later tasks.
-    // For now, the search keeps a synthetic fallback expansion so the resumable frontier is functional.
-    if ( hierarchyGraph == nullptr ) {
-        // Create a direct fallback move toward the goal so the solver can still make bounded progress.
-        nav2_coarse_astar_node_t nextNode = state->nodes.back();
-        nextNode.node_id = SVG_Nav2_AllocateCoarseNodeId( *state );
-        nextNode.parent_node_id = currentNode.node_id;
-        nextNode.parent_edge_id = SVG_Nav2_AllocateCoarseEdgeId( *state );
-        nextNode.g_score = currentNode.g_score + 1.0;
-        nextNode.h_score = SVG_Nav2_Heuristic( nextNode, state->nodes.back() );
-        nextNode.f_score = nextNode.g_score + nextNode.h_score;
-        nextNode.kind = nav2_coarse_astar_node_kind_t::Fallback;
-        nextNode.flags |= NAV2_COARSE_ASTAR_NODE_FLAG_PARTIAL;
-        state->nodes.push_back( nextNode );
-        state->edges.push_back( SVG_Nav2_MakeEdgeFromHierarchyEdge( currentNode, nextNode, nav2_hierarchy_edge_t{}, nextNode.parent_edge_id ) );
-        state->diagnostics.expansions++;
+    /**
+    *	Resolve the hierarchy graph reference for expansion.
+    **/
+    // Require a bound hierarchy graph to perform expansion.
+    if ( !state->hierarchy_graph_bound || state->hierarchy_graph == nullptr ) {
         state->status = nav2_coarse_astar_status_t::Partial;
         state->query_state.result_status = nav2_query_result_status_t::Partial;
-        state->query_state.has_provisional_result = true;
         if ( out_result ) {
             *out_result = {};
             out_result->status = state->status;
-            out_result->has_path = !state->path.node_ids.empty();
-            out_result->path = state->path;
+            out_result->diagnostics = state->diagnostics;
+        }
+        return true;
+    }
+    const nav2_hierarchy_graph_t &hierarchyGraph = *state->hierarchy_graph;
+
+    /**
+    *	Resolve the hierarchy node for the current frontier node.
+    **/
+    // Find the hierarchy node associated with the frontier node.
+    const int32_t hierarchyNodeId = SVG_Nav2_ResolveHierarchyNodeForFrontier( hierarchyGraph, currentNode );
+    nav2_hierarchy_node_ref_t hierarchyRef = {};
+    if ( hierarchyNodeId < 0 || !SVG_Nav2_HierarchyGraph_TryResolve( hierarchyGraph, hierarchyNodeId, &hierarchyRef ) ) {
+        state->diagnostics.policy_prunes++;
+        state->status = nav2_coarse_astar_status_t::Partial;
+        state->query_state.result_status = nav2_query_result_status_t::Partial;
+        if ( out_result ) {
+            *out_result = {};
+            out_result->status = state->status;
             out_result->diagnostics = state->diagnostics;
         }
         return true;
     }
 
-    // Future hierarchy-backed expansion path: retained as a simple fallback until the scheduler wires a live graph pointer into the query state.
-    state->diagnostics.expansions++;
+    /**
+    *	Iterate hierarchy edges and expand neighbors within the granted budget.
+    **/
+    // Track remaining expansion budget for this slice.
+    uint32_t remainingExpansions = budgetSlice.granted_expansions;
+    // Use a minimum expansion count when the slice does not specify a budget.
+    if ( remainingExpansions == 0 ) {
+        remainingExpansions = 1;
+    }
+
+    // Grab the hierarchy node for adjacency traversal.
+    const nav2_hierarchy_node_t &hierarchyNode = hierarchyGraph.nodes[ ( size_t )hierarchyRef.node_index ];
+
+    // Iterate over outgoing hierarchy edges to expand neighbors.
+    for ( size_t edgeIdx = 0; edgeIdx < hierarchyNode.outgoing_edge_ids.size() && remainingExpansions > 0; ++edgeIdx ) {
+        // Resolve the hierarchy edge id into a concrete edge.
+        const int32_t hierarchyEdgeId = hierarchyNode.outgoing_edge_ids[ edgeIdx ];
+        const nav2_hierarchy_edge_t *hierarchyEdge = nullptr;
+        for ( const nav2_hierarchy_edge_t &edgeCandidate : hierarchyGraph.edges ) {
+            if ( edgeCandidate.edge_id == hierarchyEdgeId ) {
+                hierarchyEdge = &edgeCandidate;
+                break;
+            }
+        }
+
+        /**
+        *	Skip edges that could not be resolved.
+        **/
+        // Continue when the edge id is invalid.
+        if ( !hierarchyEdge ) {
+            continue;
+        }
+
+        /**
+        *	Reject edges that are explicitly marked hard-invalid.
+        **/
+        // Reject edges that violate hard constraints.
+        if ( ( hierarchyEdge->flags & NAV2_HIERARCHY_EDGE_FLAG_HARD_INVALID ) != 0 ) {
+            state->diagnostics.hard_invalid_prunes++;
+            continue;
+        }
+
+        /**
+        *	Reject edges that require mover or portal commitments when not present.
+        **/
+        // Skip portal edges when no connector id is attached.
+        if ( ( hierarchyEdge->flags & NAV2_HIERARCHY_EDGE_FLAG_REQUIRES_PORTAL ) != 0 && hierarchyEdge->connector_id < 0 ) {
+            state->diagnostics.policy_prunes++;
+            continue;
+        }
+        // Skip mover edges when no mover reference exists.
+        if ( ( hierarchyEdge->flags & NAV2_HIERARCHY_EDGE_FLAG_REQUIRES_MOVER ) != 0 && !hierarchyEdge->mover_ref.IsValid() ) {
+            state->diagnostics.mover_prunes++;
+            continue;
+        }
+
+        /**
+        *	Apply a conservative drop-limit check using step constants.
+        **/
+        // Compute vertical delta between the current node and the edge target.
+        const double targetZ = hierarchyEdge->allowed_z_band.preferred_z;
+        const double zDelta = std::fabs( currentNode.allowed_z_band.preferred_z - targetZ );
+        // Skip edges that exceed step limits to avoid unsafe drops.
+        if ( zDelta > PM_STEP_MAX_SIZE ) {
+            state->diagnostics.policy_prunes++;
+            continue;
+        }
+
+        /**
+        *	Resolve the destination hierarchy node.
+        **/
+        // Resolve the hierarchy node on the other end of the edge.
+        nav2_hierarchy_node_ref_t destHierarchyRef = {};
+        if ( !SVG_Nav2_HierarchyGraph_TryResolve( hierarchyGraph, hierarchyEdge->to_node_id, &destHierarchyRef ) ) {
+            state->diagnostics.policy_prunes++;
+            continue;
+        }
+
+        /**
+        *	Create or reuse a frontier node for the destination hierarchy node.
+        **/
+        // Build a new coarse node for the destination.
+        nav2_coarse_astar_node_t neighborNode = SVG_Nav2_MakeNodeFromHierarchyNode( hierarchyGraph.nodes[ ( size_t )destHierarchyRef.node_index ], SVG_Nav2_AllocateCoarseNodeId( *state ), nav2_coarse_astar_node_kind_t::RegionLayer );
+        neighborNode.parent_node_id = currentNode.node_id;
+        neighborNode.parent_edge_id = SVG_Nav2_AllocateCoarseEdgeId( *state );
+        neighborNode.g_score = currentNode.g_score + hierarchyEdge->base_cost + hierarchyEdge->topology_penalty;
+        neighborNode.h_score = SVG_Nav2_Heuristic( neighborNode, state->nodes.back() );
+        neighborNode.f_score = neighborNode.g_score + neighborNode.h_score;
+
+        // Push the neighbor node into the frontier.
+        state->nodes.push_back( neighborNode );
+        // Translate the hierarchy edge into a coarse edge.
+        state->edges.push_back( SVG_Nav2_MakeEdgeFromHierarchyEdge( currentNode, neighborNode, *hierarchyEdge, neighborNode.parent_edge_id ) );
+
+        // Record one expansion for diagnostics and slicing.
+        state->diagnostics.expansions++;
+        state->query_state.progress.coarse_expansions = state->diagnostics.expansions;
+        // Decrement the remaining expansion budget.
+        remainingExpansions--;
+    }
+
+    /**
+    *	Publish a partial result when the slice budget is exhausted.
+    **/
+    // Mark the solver as partially complete to request another slice.
     state->status = nav2_coarse_astar_status_t::Partial;
     state->query_state.result_status = nav2_query_result_status_t::Partial;
     state->query_state.has_provisional_result = true;
     if ( out_result ) {
         *out_result = {};
         out_result->status = state->status;
+        out_result->has_path = !state->path.node_ids.empty();
+        out_result->path = state->path;
         out_result->diagnostics = state->diagnostics;
     }
     return true;

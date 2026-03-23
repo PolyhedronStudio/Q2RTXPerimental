@@ -166,25 +166,25 @@ struct nav2_corridor_tile_ref_t {
 **/
 struct nav2_corridor_topology_ref_t {
     //! BSP leaf id when known.
-    int32_t leaf_index = -1;
+    int32_t leaf_index = NAV_LEAF_INDEX_NONE;
     //! BSP cluster id when known.
-    int32_t cluster_id = -1;
+    int32_t cluster_id = NAV_CLUSTER_ID_NONE;
     //! BSP area id when known.
-    int32_t area_id = -1;
+    int32_t area_id = NAV_AREA_ID_NONE;
     //! Coarse hierarchy region id when known.
     int32_t region_id = NAV_REGION_ID_NONE;
     //! Coarse hierarchy portal id when known.
     int32_t portal_id = NAV_PORTAL_ID_NONE;
     //! Canonical world-tile storage id when known.
-    int32_t tile_id = -1;
+    int32_t tile_id = NAV_TILE_ID_NONE;
     //! World tile X coordinate when known.
     int32_t tile_x = 0;
     //! World tile Y coordinate when known.
     int32_t tile_y = 0;
     //! Tile-local cell index when known.
-    int32_t cell_index = -1;
+    int32_t cell_index = NAV_CELL_INDEX_NONE;
     //! Tile-local layer index when known.
-    int32_t layer_index = -1;
+    int32_t layer_index = NAV_LAYER_INDEX_NONE;
 };
 
 /**

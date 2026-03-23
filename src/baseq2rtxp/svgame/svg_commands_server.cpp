@@ -9,7 +9,12 @@
 #include "svgame/svg_signalio.h"
 // Nav2.
 #include "svgame/nav2/nav2_bench.h"
+#include "svgame/nav2/nav2_connectors.h"
+#include "svgame/nav2/nav2_corridor.h"
 #include "svgame/nav2/nav2_debug_draw.h"
+#include "svgame/nav2/nav2_dynamic_overlay.h"
+#include "svgame/nav2/nav2_entity_semantics.h"
+#include "svgame/nav2/nav2_occupancy.h"
 #include "svgame/nav2/nav2_scheduler.h"
 #include "svgame/nav2/nav2_span_adjacency.h"
 #include "svgame/nav2/nav2_span_grid_build.h"
@@ -25,6 +30,371 @@
 void ServerCommand_Test_f(void)
 {
     gi.cprintf(NULL, PRINT_HIGH, "ServerCommand_Test_f()\n");
+}
+
+/**
+*	@brief	Rebuild and validate nav2 dynamic edge overlay modulation from active runtime data.
+*	@note	Usage: sv nav_dynamic_overlay_validate [max_print]
+*			This command emits bounded dynamic overlay diagnostics without persistent log spam.
+**/
+static void ServerCommand_NavDynamicOverlayValidate_f( void ) {
+    /**
+    *	Parse optional bounded print count so diagnostics remain concise.
+    **/
+    int32_t maxPrint = 8;
+    if ( gi.argc() >= 3 ) {
+        maxPrint = std::max( 0, atoi( gi.argv( 2 ) ) );
+        maxPrint = std::min( maxPrint, 64 );
+    }
+
+    /**
+    *	Build a fresh span-grid snapshot from active runtime mesh publication.
+    **/
+    nav2_span_grid_t spanGrid = {};
+    nav2_span_grid_build_stats_t spanBuildStats = {};
+    if ( !SVG_Nav2_BuildSpanGridFromMesh( SVG_Nav2_Runtime_GetMesh(), &spanGrid, &spanBuildStats ) ) {
+        gi.cprintf( nullptr, PRINT_HIGH, "nav_dynamic_overlay_validate: span-grid build failed\n" );
+        return;
+    }
+
+    /**
+    *	Gather active entities and classify inline BSP semantics for occupancy and connector extraction.
+    **/
+    std::vector<svg_base_edict_t *> activeEntities = {};
+    activeEntities.reserve( ( size_t )g_edict_pool.num_edicts );
+    for ( int32_t entnum = 0; entnum < g_edict_pool.num_edicts; entnum++ ) {
+        svg_base_edict_t *ent = g_edict_pool.EdictForNumber( entnum );
+        if ( !ent || !SVG_Entity_IsActive( ent ) ) {
+            continue;
+        }
+        activeEntities.push_back( ent );
+    }
+
+    nav2_inline_bsp_entity_list_t semantics = {};
+    SVG_Nav2_ClassifyInlineBspEntities( activeEntities, &semantics );
+
+    /**
+    *	Extract current connector set used for dynamic edge overlay projection.
+    **/
+    nav2_connector_list_t connectors = {};
+    if ( !SVG_Nav2_ExtractConnectors( spanGrid, activeEntities, &connectors ) ) {
+        gi.cprintf( nullptr, PRINT_HIGH, "nav_dynamic_overlay_validate: no connectors extracted\n" );
+        return;
+    }
+
+    /**
+    *	Rebuild sparse occupancy and occupancy overlay used as dynamic modulation inputs.
+    **/
+    nav2_scheduler_runtime_t *schedulerRuntime = SVG_Nav2_Scheduler_GetRuntime();
+    nav2_snapshot_runtime_t *snapshotRuntime = schedulerRuntime ? &schedulerRuntime->snapshot_runtime : nullptr;
+    nav2_occupancy_grid_t occupancyGrid = {};
+    nav2_dynamic_overlay_t occupancyOverlay = {};
+    nav2_occupancy_summary_t occupancySummary = {};
+    if ( !SVG_Nav2_RebuildDynamicOccupancy( &occupancyGrid, &occupancyOverlay, spanGrid, &semantics,
+        snapshotRuntime, gi.GetServerFrameNumber ? gi.GetServerFrameNumber() : 0, &occupancySummary ) ) {
+        gi.cprintf( nullptr, PRINT_HIGH, "nav_dynamic_overlay_validate: occupancy rebuild produced no records\n" );
+        return;
+    }
+
+    /**
+    *	Rebuild dynamic edge overlay cache and publish bounded modulation diagnostics.
+    **/
+    nav2_dynamic_edge_overlay_cache_t dynamicOverlayCache = {};
+    nav2_dynamic_overlay_summary_t overlaySummary = {};
+    if ( !SVG_Nav2_DynamicOverlay_Rebuild( &dynamicOverlayCache, connectors, occupancyGrid, occupancyOverlay,
+        snapshotRuntime, gi.GetServerFrameNumber ? gi.GetServerFrameNumber() : 0, &overlaySummary ) ) {
+        gi.cprintf( nullptr, PRINT_HIGH, "nav_dynamic_overlay_validate: no dynamic overlay entries produced\n" );
+        return;
+    }
+
+    /**
+    *	Run one bounded localized invalidation pass for diagnostics and version-stamping visibility.
+    **/
+    int32_t localizedInvalidated = 0;
+    SVG_Nav2_DynamicOverlay_InvalidateLocalized( &dynamicOverlayCache,
+        occupancyGrid.records.empty() ? -1 : occupancyGrid.records.front().leaf_id,
+        occupancyGrid.records.empty() ? -1 : occupancyGrid.records.front().cluster_id,
+        connectors.connectors.empty() ? -1 : connectors.connectors.front().connector_id,
+        occupancyGrid.records.empty() ? NAV_REGION_ID_NONE : occupancyGrid.records.front().mover_region_id,
+        overlaySummary.published_connector_version,
+        &localizedInvalidated );
+    overlaySummary.localized_invalidation_count = localizedInvalidated;
+
+    /**
+    *	Print one compact summary line for runtime validation and snapshot publication tracking.
+    **/
+    gi.cprintf( nullptr, PRINT_HIGH,
+        "nav_dynamic_overlay_validate: entries=%d pass=%d penalize=%d wait=%d block=%d door=%d mover=%d congestion=%d hazard=%d localized_invalid=%d q=(edict:%d leaf:%d contents:%d) connector_ver=%u connectors=%d occupancy=%d overlays=%d sampled_columns=%d spans=%d\n",
+        overlaySummary.entry_count,
+        overlaySummary.pass_count,
+        overlaySummary.penalize_count,
+        overlaySummary.wait_count,
+        overlaySummary.block_count,
+        overlaySummary.door_count,
+        overlaySummary.mover_count,
+        overlaySummary.congestion_count,
+        overlaySummary.hazard_count,
+        overlaySummary.localized_invalidation_count,
+        overlaySummary.localized_entity_query_count,
+        overlaySummary.localized_leaf_query_count,
+        overlaySummary.localized_contents_query_count,
+        overlaySummary.published_connector_version,
+        ( int32_t )connectors.connectors.size(),
+        ( int32_t )occupancyGrid.records.size(),
+        ( int32_t )occupancyOverlay.entries.size(),
+        spanBuildStats.sampled_columns,
+        spanBuildStats.emitted_spans );
+
+    /**
+    *	Emit bounded dynamic overlay details only when explicitly requested.
+    **/
+    if ( maxPrint > 0 ) {
+        SVG_Nav2_DebugPrintDynamicOverlay( dynamicOverlayCache, maxPrint );
+    }
+}
+
+/**
+*	@brief	Build and validate localized nav2 occupancy and dynamic overlay state from active runtime data.
+*	@note	Usage: sv nav_occupancy_validate [max_print]
+*			This command emits bounded occupancy/overlay diagnostics without introducing persistent log spam.
+**/
+static void ServerCommand_NavOccupancyValidate_f( void ) {
+    /**
+    *	Parse optional bounded print limit so validation diagnostics remain concise.
+    **/
+    int32_t maxPrint = 8;
+    if ( gi.argc() >= 3 ) {
+        maxPrint = std::max( 0, atoi( gi.argv( 2 ) ) );
+        maxPrint = std::min( maxPrint, 64 );
+    }
+
+    /**
+    *	Build a fresh sparse span-grid snapshot from active runtime mesh publication.
+    **/
+    nav2_span_grid_t spanGrid = {};
+    nav2_span_grid_build_stats_t spanBuildStats = {};
+    if ( !SVG_Nav2_BuildSpanGridFromMesh( SVG_Nav2_Runtime_GetMesh(), &spanGrid, &spanBuildStats ) ) {
+        gi.cprintf( nullptr, PRINT_HIGH, "nav_occupancy_validate: span-grid build failed\n" );
+        return;
+    }
+
+    /**
+    *	Gather active entities and classify inline BSP semantics for occupancy role mapping.
+    **/
+    std::vector<svg_base_edict_t *> activeEntities = {};
+    activeEntities.reserve( ( size_t )g_edict_pool.num_edicts );
+    for ( int32_t entnum = 0; entnum < g_edict_pool.num_edicts; entnum++ ) {
+        svg_base_edict_t *ent = g_edict_pool.EdictForNumber( entnum );
+        if ( !ent || !SVG_Entity_IsActive( ent ) ) {
+            continue;
+        }
+        activeEntities.push_back( ent );
+    }
+
+    nav2_inline_bsp_entity_list_t semantics = {};
+    SVG_Nav2_ClassifyInlineBspEntities( activeEntities, &semantics );
+
+    /**
+    *	Rebuild occupancy/overlay state and publish occupancy version through scheduler snapshot runtime.
+    **/
+    nav2_scheduler_runtime_t *schedulerRuntime = SVG_Nav2_Scheduler_GetRuntime();
+    nav2_snapshot_runtime_t *snapshotRuntime = schedulerRuntime ? &schedulerRuntime->snapshot_runtime : nullptr;
+    nav2_occupancy_grid_t occupancyGrid = {};
+    nav2_dynamic_overlay_t dynamicOverlay = {};
+    nav2_occupancy_summary_t summary = {};
+    const bool rebuilt = SVG_Nav2_RebuildDynamicOccupancy( &occupancyGrid, &dynamicOverlay, spanGrid,
+        &semantics, snapshotRuntime, gi.GetServerFrameNumber ? gi.GetServerFrameNumber() : 0, &summary );
+    if ( !rebuilt ) {
+        gi.cprintf( nullptr, PRINT_HIGH, "nav_occupancy_validate: no occupancy records imported\n" );
+        return;
+    }
+
+    /**
+    *	Print one compact summary line so callers can confirm localized occupancy categories and version publication.
+    **/
+    gi.cprintf( nullptr, PRINT_HIGH,
+        "nav_occupancy_validate: records=%d overlays=%d free=%d soft=%d interact=%d temp=%d blocked=%d revalidate=%d entity=%d hazard=%d localized=%d occ_ver=%u sampled_columns=%d spans=%d\n",
+        ( int32_t )occupancyGrid.records.size(),
+        ( int32_t )dynamicOverlay.entries.size(),
+        summary.free_count,
+        summary.soft_penalty_count,
+        summary.requires_interaction_count,
+        summary.temporarily_unavailable_count,
+        summary.hard_block_count,
+        summary.revalidate_count,
+        summary.entity_count,
+        summary.hazard_count,
+        summary.localized_entity_samples,
+        summary.published_occupancy_version,
+        spanBuildStats.sampled_columns,
+        spanBuildStats.emitted_spans );
+
+    /**
+    *	Emit bounded details only when explicitly requested.
+    **/
+    if ( maxPrint > 0 ) {
+        SVG_Nav2_DebugPrintOccupancy( occupancyGrid, dynamicOverlay, maxPrint );
+    }
+}
+
+/**
+*	@brief	Build and validate Task 6.3 connector extraction from active runtime span/entity state.
+*	@note	Usage: sv nav_connectors_validate [max_print]
+*			This command emits bounded connector coverage and availability diagnostics without
+*			introducing persistent log spam.
+**/
+static void ServerCommand_NavConnectorsValidate_f( void ) {
+    /**
+    *    Parse an optional bounded print limit so connector diagnostics remain concise.
+    **/
+    int32_t maxPrint = 8;
+    if ( gi.argc() >= 3 ) {
+        maxPrint = std::max( 0, atoi( gi.argv( 2 ) ) );
+        maxPrint = std::min( maxPrint, 64 );
+    }
+
+    /**
+    *    Build a fresh sparse span-grid snapshot from active runtime mesh publication.
+    **/
+    nav2_span_grid_t spanGrid = {};
+    nav2_span_grid_build_stats_t spanBuildStats = {};
+    if ( !SVG_Nav2_BuildSpanGridFromMesh( SVG_Nav2_Runtime_GetMesh(), &spanGrid, &spanBuildStats ) ) {
+        gi.cprintf( nullptr, PRINT_HIGH, "nav_connectors_validate: span-grid build failed\n" );
+        return;
+    }
+
+    /**
+    *    Gather active entities into a bounded list for inline-model connector extraction.
+    **/
+    std::vector<svg_base_edict_t *> activeEntities = {};
+    activeEntities.reserve( ( size_t )g_edict_pool.num_edicts );
+    for ( int32_t entnum = 0; entnum < g_edict_pool.num_edicts; entnum++ ) {
+        svg_base_edict_t *ent = g_edict_pool.EdictForNumber( entnum );
+        if ( !ent || !SVG_Entity_IsActive( ent ) ) {
+            continue;
+        }
+        activeEntities.push_back( ent );
+    }
+
+    /**
+    *    Extract combined span/entity connectors and produce a compact connector summary.
+    **/
+    nav2_connector_list_t connectors = {};
+    if ( !SVG_Nav2_ExtractConnectors( spanGrid, activeEntities, &connectors ) ) {
+        gi.cprintf( nullptr, PRINT_HIGH, "nav_connectors_validate: no connectors extracted\n" );
+        return;
+    }
+
+    nav2_connector_summary_t summary = {};
+    if ( !SVG_Nav2_BuildConnectorSummary( connectors, &summary ) ) {
+        gi.cprintf( nullptr, PRINT_HIGH, "nav_connectors_validate: summary build failed\n" );
+        return;
+    }
+
+    /**
+    *    Print one compact Task 6.3 coverage line and optionally emit bounded connector detail lines.
+    **/
+    gi.cprintf( nullptr, PRINT_HIGH,
+        "nav_connectors_validate: total=%d portal=%d stair=%d ladder=%d door=%d mover(board=%d ride=%d exit=%d) span=%d entity=%d unavailable=%d reusable=%d sampled_columns=%d emitted_spans=%d\n",
+        summary.total_count,
+        summary.portal_count,
+        summary.stair_count,
+        summary.ladder_count,
+        summary.door_count,
+        summary.mover_boarding_count,
+        summary.mover_ride_count,
+        summary.mover_exit_count,
+        summary.span_connector_count,
+        summary.entity_connector_count,
+        summary.unavailable_count,
+        summary.reusable_count,
+        spanBuildStats.sampled_columns,
+        spanBuildStats.emitted_spans );
+
+    // Emit bounded connector details only when explicitly requested by the caller.
+    if ( maxPrint > 0 ) {
+        SVG_Nav2_DebugPrintConnectors( connectors, maxPrint );
+    }
+}
+
+/**
+*	@brief	Build and report a nav2 corridor between two entity origins.
+*	@note	Usage: sv nav_corridor_validate [start_entnum] [goal_entnum] [max_segments]
+*			This command emits a bounded corridor summary using the Task 8.2 extraction seam
+*			without adding persistent log spam.
+**/
+static void ServerCommand_NavCorridorValidate_f( void ) {
+    /**
+    *	Parse optional entity and segment limits so callers can keep debug output bounded.
+    **/
+    // Default to entity 1 for the start and goal when arguments are omitted.
+    int32_t startEntnum = 1;
+    int32_t goalEntnum = 1;
+    int32_t maxSegments = 6;
+    if ( gi.argc() >= 3 ) {
+        // Capture the caller-provided start entity number.
+        startEntnum = std::max( 0, atoi( gi.argv( 2 ) ) );
+    }
+    if ( gi.argc() >= 4 ) {
+        // Capture the caller-provided goal entity number.
+        goalEntnum = std::max( 0, atoi( gi.argv( 3 ) ) );
+    }
+    if ( gi.argc() >= 5 ) {
+        // Clamp the segment output cap to keep diagnostics bounded.
+        maxSegments = std::max( 0, atoi( gi.argv( 4 ) ) );
+        maxSegments = std::min( maxSegments, 32 );
+    }
+
+    /**
+    *	Require an active nav2 query mesh before attempting corridor extraction.
+    **/
+    // Resolve the current nav2 mesh wrapper from the query seam.
+    const nav2_query_mesh_t *mesh = SVG_Nav2_GetQueryMesh();
+    if ( !mesh || !mesh->IsValid() ) {
+        gi.cprintf( nullptr, PRINT_HIGH, "nav_corridor_validate: nav2 mesh unavailable\n" );
+        return;
+    }
+
+    /**
+    *	Resolve start and goal entity origins for the corridor query.
+    **/
+    // Resolve the start entity and verify it is active.
+    svg_base_edict_t *startEnt = g_edict_pool.EdictForNumber( startEntnum );
+    if ( !startEnt || !SVG_Entity_IsActive( startEnt ) ) {
+        gi.cprintf( nullptr, PRINT_HIGH, "nav_corridor_validate: start entity %d inactive\n", startEntnum );
+        return;
+    }
+
+    // Resolve the goal entity and verify it is active.
+    svg_base_edict_t *goalEnt = g_edict_pool.EdictForNumber( goalEntnum );
+    if ( !goalEnt || !SVG_Entity_IsActive( goalEnt ) ) {
+        gi.cprintf( nullptr, PRINT_HIGH, "nav_corridor_validate: goal entity %d inactive\n", goalEntnum );
+        return;
+    }
+
+    /**
+    *	Build the corridor and emit a bounded summary through the debug draw seam.
+    **/
+    // Capture the start and goal origins in feet-origin space.
+    const Vector3 startOrigin = startEnt->currentOrigin;
+    const Vector3 goalOrigin = goalEnt->currentOrigin;
+
+    // Use a conservative default policy snapshot for this debug call.
+    nav2_query_policy_t policy = {};
+
+    // Attempt to build the corridor from the nav2 seam.
+    nav2_corridor_t corridor = {};
+    if ( !SVG_Nav2_BuildCorridorForEndpoints( mesh, startOrigin, goalOrigin, &policy,
+        policy.agent_mins, policy.agent_maxs, &corridor ) ) {
+        gi.cprintf( nullptr, PRINT_HIGH, "nav_corridor_validate: corridor build failed\n" );
+        return;
+    }
+
+    // Emit a bounded corridor summary for diagnostics.
+    SVG_Nav2_DebugDrawCorridor( corridor,
+        maxSegments > 0 ? nav2_debug_corridor_verbosity_t::IncludeSegments : nav2_debug_corridor_verbosity_t::SummaryOnly,
+        maxSegments );
+    gi.cprintf( nullptr, PRINT_HIGH, "nav_corridor_validate: reported corridor (segments=%d)\n", maxSegments );
 }
 
 /**
@@ -615,8 +985,9 @@ static void ServerCommand_NavBenchRoundTrip_f( void ) {
         const char *cachePath = gi.argv( 2 );
 
         // Build a standalone cache blob from the same sample payload used by the in-memory benchmark path.
-        nav2_serialized_blob_t cacheBlob = {};
-        const nav2_serialization_result_t cacheBuildResult = SVG_Nav2_Serialize_BuildStaticNavBlob( policy, sampleGrid, sampleAdjacency, &cacheBlob );
+        nav2_serialized_blob_t cacheBlob = {}; 
+        const nav2_serialization_result_t cacheBuildResult = SVG_Nav2_Serialize_BuildStaticNavBlob( policy, sampleGrid, sampleAdjacency,
+            nullptr, nullptr, nullptr, &cacheBlob ); 
         if ( !cacheBuildResult.success ) {
             gi.cprintf( nullptr, PRINT_HIGH, "nav_bench_roundtrip: cache build failed for '%s'\n", cachePath );
         } else {
@@ -626,11 +997,14 @@ static void ServerCommand_NavBenchRoundTrip_f( void ) {
                 gi.cprintf( nullptr, PRINT_HIGH, "nav_bench_roundtrip: cache write failed for '%s'\n", cachePath );
             } else {
                 // Read the written file back through the engine filesystem path so the command validates the standalone cache workflow end-to-end.
-                nav2_serialized_header_t cacheHeader = {};
-                nav2_span_grid_t cacheGrid = {};
-                nav2_span_adjacency_t cacheAdjacency = {};
+                nav2_serialized_header_t cacheHeader = {}; 
+                nav2_span_grid_t cacheGrid = {}; 
+                nav2_span_adjacency_t cacheAdjacency = {}; 
+                nav2_connector_list_t cacheConnectors = {}; 
+                nav2_region_layer_graph_t cacheRegionLayers = {}; 
+                nav2_hierarchy_graph_t cacheHierarchy = {}; 
                 const nav2_serialization_result_t cacheReadResult = SVG_Nav2_Serialize_ReadStaticNavCacheFile( cachePath, policy,
-                    &cacheHeader, &cacheGrid, &cacheAdjacency );
+                    &cacheHeader, &cacheGrid, &cacheAdjacency, &cacheConnectors, &cacheRegionLayers, &cacheHierarchy ); 
                 if ( !cacheReadResult.success ) {
                     gi.cprintf( nullptr, PRINT_HIGH, "nav_bench_roundtrip: cache read failed for '%s' (compat=%u)\n",
                         cachePath, ( uint32_t )cacheReadResult.validation.compatibility );
@@ -941,10 +1315,10 @@ void SVG_ServerCommand(void) {
         ServerCommand_Test_f();
     else if ( Q_stricmp( cmd, "nav_gen_voxelmesh" ) == 0 )
         ServerCommand_NavGenVoxelMesh_f();
-    //else if ( Q_stricmp( cmd, "nav_save" ) == 0 )
-    //    ServerCommand_NavSave_f();
-    //else if ( Q_stricmp( cmd, "nav_load" ) == 0 )
-    //    ServerCommand_NavLoad_f();
+    else if ( Q_stricmp( cmd, "nav_save" ) == 0 )
+        ServerCommand_NavSave_f();
+    else if ( Q_stricmp( cmd, "nav_load" ) == 0 )
+        ServerCommand_NavLoad_f();
     else if ( Q_stricmp( cmd, "nav_cell" ) == 0 )
         ServerCommand_NavCell_f();
     else if ( Q_stricmp( cmd, "nav_bench_roundtrip" ) == 0 )
@@ -953,8 +1327,16 @@ void SVG_ServerCommand(void) {
         ServerCommand_NavSpanGridValidate_f();
     else if ( Q_stricmp( cmd, "nav_span_adjacency_validate" ) == 0 )
         ServerCommand_NavSpanAdjacencyValidate_f();
+    else if ( Q_stricmp( cmd, "nav_connectors_validate" ) == 0 )
+        ServerCommand_NavConnectorsValidate_f();
+ else if ( Q_stricmp( cmd, "nav_occupancy_validate" ) == 0 )
+        ServerCommand_NavOccupancyValidate_f();
+  else if ( Q_stricmp( cmd, "nav_dynamic_overlay_validate" ) == 0 )
+        ServerCommand_NavDynamicOverlayValidate_f();
   else if ( Q_stricmp( cmd, "nav_query_debug_validate" ) == 0 )
         ServerCommand_NavQueryDebugValidate_f();
+  else if ( Q_stricmp( cmd, "nav_corridor_validate" ) == 0 )
+        ServerCommand_NavCorridorValidate_f();
 	//else if ( Q_stricmp( cmd, "nav_query_stats" ) == 0 )
  //       ServerCommand_NavQueryStats_f();
  //   else if ( Q_stricmp( cmd, "nav_bench_path" ) == 0 )

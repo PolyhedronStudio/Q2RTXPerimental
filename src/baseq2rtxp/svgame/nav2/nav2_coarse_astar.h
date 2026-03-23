@@ -242,6 +242,10 @@ struct nav2_coarse_astar_state_t {
     nav2_goal_candidate_t start_candidate = {};
     //! Accepted goal candidate.
     nav2_goal_candidate_t goal_candidate = {};
+ //! Bound hierarchy graph used for coarse expansion.
+    const nav2_hierarchy_graph_t *hierarchy_graph = nullptr;
+    //! True when a hierarchy graph has been bound to this solver instance.
+    bool hierarchy_graph_bound = false;
     //! Frontier nodes available for expansion.
     std::vector<nav2_coarse_astar_node_t> nodes = {};
     //! Stored frontier edges.
@@ -295,6 +299,13 @@ void SVG_Nav2_CoarseAStar_Reset( nav2_coarse_astar_state_t *state );
 **/
 const bool SVG_Nav2_CoarseAStar_Init( nav2_coarse_astar_state_t *state, const nav2_hierarchy_graph_t &hierarchyGraph,
     const nav2_goal_candidate_t &startCandidate, const nav2_goal_candidate_t &goalCandidate, const uint64_t solverId );
+
+/**
+* @brief Validate the current solver state for stable ids and parent links.
+* @param state Solver state to inspect.
+* @return True when the frontier state is internally consistent.
+**/
+const bool SVG_Nav2_CoarseAStar_ValidateState( const nav2_coarse_astar_state_t *state );
 
 /**
 * @brief Advance a coarse A* solver by one budgeted slice.

@@ -526,7 +526,8 @@ const bool SVG_Nav2_Bench_RunStaticNavRoundTrip( const nav2_serialization_policy
     *    Execute the serializer-owned static-nav round-trip validation and preserve the detailed result locally so it can be copied back to callers after benchmark recording finishes.
     **/
     nav2_serialized_roundtrip_result_t detailedResult = {};
-    const bool success = SVG_Nav2_Serialize_ValidateStaticNavRoundTrip( policy, spanGrid, adjacency, &detailedResult );
+    const bool success = SVG_Nav2_Serialize_ValidateStaticNavRoundTrip( policy, spanGrid, adjacency,
+        nullptr, nullptr, nullptr, &detailedResult );
 
     /**
     *    Feed serializer timing and mismatch information through the benchmark helper before closing the query so aggregate scenario records capture the round-trip work consistently.

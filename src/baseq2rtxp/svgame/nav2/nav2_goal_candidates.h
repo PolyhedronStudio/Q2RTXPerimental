@@ -123,7 +123,7 @@ struct nav2_goal_candidate_t {
     //! Layer index inside the resolved cell when available.
     int32_t layer_index = -1;
     //! BSP leaf index backing the candidate position when available.
-    int32_t leaf_index = -1;
+    int32_t leaf_index = NAV_LEAF_INDEX_NONE;
     //! BSP cluster id backing the candidate position when available.
     int32_t cluster_id = -1;
     //! BSP area id backing the candidate position when available.

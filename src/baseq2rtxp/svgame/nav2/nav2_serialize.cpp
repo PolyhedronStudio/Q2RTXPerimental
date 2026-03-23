@@ -24,6 +24,12 @@
 static constexpr uint32_t NAV2_SERIALIZED_SECTION_VERSION_SPAN_GRID = 1;
 //! Current section version used for serialized adjacency payloads.
 static constexpr uint32_t NAV2_SERIALIZED_SECTION_VERSION_ADJACENCY = 1;
+//! Current section version used for serialized connector payloads.
+static constexpr uint32_t NAV2_SERIALIZED_SECTION_VERSION_CONNECTORS = 1;
+//! Current section version used for serialized region-layer payloads.
+static constexpr uint32_t NAV2_SERIALIZED_SECTION_VERSION_REGION_LAYERS = 1;
+//! Current section version used for serialized hierarchy graph payloads.
+static constexpr uint32_t NAV2_SERIALIZED_SECTION_VERSION_HIERARCHY_GRAPH = 1;
 
 /**
 *	@brief	Compact serialized metadata describing one persisted span-grid payload.
@@ -107,6 +113,235 @@ struct nav2_serialized_span_t {
 struct nav2_serialized_adjacency_meta_t {
 	//! Number of serialized adjacency edges.
 	uint32_t edge_count = 0;
+};
+
+/**
+*	@brief	Compact serialized metadata describing one persisted connector payload.
+*	@note	The connector section is flat, so only a connector count is required.
+**/
+struct nav2_serialized_connector_meta_t {
+	//! Number of serialized connectors.
+	uint32_t connector_count = 0;
+};
+
+/**
+*	@brief	Compact serialized payload for one connector anchor.
+*	@note	Keeps the anchor pointer-free while preserving topology and world/local positions.
+**/
+struct nav2_serialized_connector_anchor_t {
+	//! Stable span id for the anchor.
+	int32_t span_id = -1;
+	//! Stable column index for the anchor.
+	int32_t column_index = -1;
+	//! Stable span index for the anchor.
+	int32_t span_index = -1;
+	//! Owning BSP leaf id.
+	int32_t leaf_id = -1;
+	//! Owning BSP cluster id.
+	int32_t cluster_id = -1;
+	//! Owning BSP area id.
+	int32_t area_id = -1;
+	//! World-space anchor origin.
+	Vector3 world_origin = {};
+	//! Mover-local anchor origin.
+	Vector3 local_origin = {};
+	//! True when the anchor is valid.
+	uint8_t valid = 0;
+	//! Padding for stable alignment.
+	uint8_t reserved0 = 0;
+	//! Padding for stable alignment.
+	uint16_t reserved1 = 0;
+};
+
+/**
+*	@brief	Compact serialized payload for one connector record.
+*	@note	Mirrors stable connector metadata used by hierarchy and corridor extraction.
+**/
+struct nav2_serialized_connector_t {
+	//! Stable connector id.
+	int32_t connector_id = -1;
+	//! Connector kind bitmask.
+	uint32_t connector_kind = NAV2_CONNECTOR_KIND_NONE;
+	//! Owning entity number when present.
+	int32_t owner_entnum = -1;
+	//! Inline model index when present.
+	int32_t inline_model_index = -1;
+	//! Primary connector anchor.
+	nav2_serialized_connector_anchor_t start = {};
+	//! Secondary connector anchor.
+	nav2_serialized_connector_anchor_t end = {};
+	//! Allowed minimum Z.
+	double allowed_min_z = 0.0;
+	//! Allowed maximum Z.
+	double allowed_max_z = 0.0;
+	//! Base traversal cost.
+	double base_cost = 0.0;
+	//! Policy penalty.
+	double policy_penalty = 0.0;
+	//! Movement restriction mask.
+	uint32_t movement_restrictions = 0;
+	//! Source role flags.
+	uint32_t source_role_flags = NAV2_INLINE_BSP_ROLE_NONE;
+	//! True when reusable.
+	uint8_t reusable = 0;
+	//! True when dynamically available.
+	uint8_t dynamically_available = 0;
+	//! Padding for stable alignment.
+	uint16_t reserved0 = 0;
+	//! Availability version stamp.
+	uint32_t availability_version = 0;
+};
+
+/**
+*	@brief	Compact serialized metadata describing one persisted region-layer payload.
+*	@note	Region-layer sections include node and edge counts for strict bounds checking.
+**/
+struct nav2_serialized_region_layer_meta_t {
+	//! Number of serialized region-layer nodes.
+	uint32_t layer_count = 0;
+	//! Number of serialized region-layer edges.
+	uint32_t edge_count = 0;
+};
+
+/**
+*	@brief	Compact serialized payload for one region-layer node.
+*	@note	Outgoing/incoming edge ids are stored in a separate flat array with ranges.
+**/
+struct nav2_serialized_region_layer_t {
+	//! Stable region-layer id.
+	int32_t region_layer_id = NAV_REGION_ID_NONE;
+	//! Region-layer semantic kind.
+	nav2_region_layer_kind_t kind = nav2_region_layer_kind_t::None;
+	//! BSP leaf id when known.
+	int32_t leaf_id = -1;
+	//! BSP cluster id when known.
+	int32_t cluster_id = -1;
+	//! BSP area id when known.
+	int32_t area_id = -1;
+	//! Connector id when known.
+	int32_t connector_id = -1;
+	//! Mover entity number when known.
+	int32_t mover_entnum = -1;
+	//! Inline model index when known.
+	int32_t inline_model_index = -1;
+	//! Allowed Z band.
+	nav2_corridor_z_band_t allowed_z_band = {};
+	//! Topology reference.
+	nav2_corridor_topology_ref_t topology = {};
+	//! Tile reference.
+	nav2_corridor_tile_ref_t tile_ref = {};
+	//! Stable node flags.
+	uint32_t flags = NAV2_REGION_LAYER_FLAG_NONE;
+	//! Offset into the outgoing edge id array.
+	uint32_t outgoing_edge_offset = 0;
+	//! Number of outgoing edges.
+	uint32_t outgoing_edge_count = 0;
+	//! Offset into the incoming edge id array.
+	uint32_t incoming_edge_offset = 0;
+	//! Number of incoming edges.
+	uint32_t incoming_edge_count = 0;
+};
+
+/**
+*	@brief	Compact serialized payload for one region-layer edge.
+**/
+struct nav2_serialized_region_layer_edge_t {
+	//! Stable edge id.
+	int32_t edge_id = -1;
+	//! Source region-layer id.
+	int32_t from_region_layer_id = NAV_REGION_ID_NONE;
+	//! Destination region-layer id.
+	int32_t to_region_layer_id = NAV_REGION_ID_NONE;
+	//! Edge semantic kind.
+	nav2_region_layer_edge_kind_t kind = nav2_region_layer_edge_kind_t::None;
+	//! Stable edge flags.
+	uint32_t flags = NAV2_REGION_LAYER_EDGE_FLAG_NONE;
+	//! Base traversal cost.
+	double base_cost = 0.0;
+	//! Topology penalty.
+	double topology_penalty = 0.0;
+	//! Allowed Z band.
+	nav2_corridor_z_band_t allowed_z_band = {};
+	//! Connector id.
+	int32_t connector_id = -1;
+	//! Topology reference.
+	nav2_corridor_topology_ref_t topology = {};
+	//! Mover reference.
+	nav2_corridor_mover_ref_t mover_ref = {};
+};
+
+/**
+*	@brief	Compact serialized metadata describing one persisted hierarchy graph payload.
+*	@note	Hierarchy sections include node and edge counts for strict bounds checking.
+**/
+struct nav2_serialized_hierarchy_meta_t {
+	//! Number of serialized hierarchy nodes.
+	uint32_t node_count = 0;
+	//! Number of serialized hierarchy edges.
+	uint32_t edge_count = 0;
+};
+
+/**
+*	@brief	Compact serialized payload for one hierarchy node.
+*	@note	Outgoing/incoming edge ids are stored in a separate flat array with ranges.
+**/
+struct nav2_serialized_hierarchy_node_t {
+	//! Stable node id.
+	int32_t node_id = -1;
+	//! High-level node kind.
+	nav2_hierarchy_node_kind_t kind = nav2_hierarchy_node_kind_t::None;
+	//! Region-layer id when known.
+	int32_t region_layer_id = NAV_REGION_ID_NONE;
+	//! Region-layer index when known.
+	int32_t region_layer_index = -1;
+	//! Connector id when known.
+	int32_t connector_id = -1;
+	//! Mover entity number when known.
+	int32_t mover_entnum = -1;
+	//! Inline model index when known.
+	int32_t inline_model_index = -1;
+	//! Topology reference.
+	nav2_corridor_topology_ref_t topology = {};
+	//! Allowed Z band.
+	nav2_corridor_z_band_t allowed_z_band = {};
+	//! Stable node flags.
+	uint32_t flags = NAV2_HIERARCHY_NODE_FLAG_NONE;
+	//! Offset into the outgoing edge id array.
+	uint32_t outgoing_edge_offset = 0;
+	//! Number of outgoing edges.
+	uint32_t outgoing_edge_count = 0;
+	//! Offset into the incoming edge id array.
+	uint32_t incoming_edge_offset = 0;
+	//! Number of incoming edges.
+	uint32_t incoming_edge_count = 0;
+};
+
+/**
+*	@brief	Compact serialized payload for one hierarchy edge.
+**/
+struct nav2_serialized_hierarchy_edge_t {
+	//! Stable edge id.
+	int32_t edge_id = -1;
+	//! Source node id.
+	int32_t from_node_id = -1;
+	//! Destination node id.
+	int32_t to_node_id = -1;
+	//! Edge kind.
+	nav2_hierarchy_edge_kind_t kind = nav2_hierarchy_edge_kind_t::None;
+	//! Stable edge flags.
+	uint32_t flags = NAV2_HIERARCHY_EDGE_FLAG_NONE;
+	//! Base traversal cost.
+	double base_cost = 0.0;
+	//! Topology penalty.
+	double topology_penalty = 0.0;
+	//! Allowed Z band.
+	nav2_corridor_z_band_t allowed_z_band = {};
+	//! Connector id when known.
+	int32_t connector_id = -1;
+	//! Region-layer id when known.
+	int32_t region_layer_id = NAV_REGION_ID_NONE;
+	//! Mover reference.
+	nav2_corridor_mover_ref_t mover_ref = {};
 };
 
 /**
@@ -199,6 +434,274 @@ static const bool Nav2_Serialize_CompareRoundTripHeader( const nav2_serialized_h
 		&& expectedHeader.compatibility_flags == actualHeader.compatibility_flags;
 	if ( !matches ) {
 		Nav2_Serialize_RecordRoundTripMismatch( outResult, nav2_serialized_roundtrip_mismatch_t::Header );
+	}
+	return matches;
+}
+
+/**
+*	@brief	Compare two corridor topology references by raw persisted bytes.
+*	@param	expectedTopology	Expected topology reference.
+*	@param	actualTopology	Decoded topology reference.
+*	@return	True when every persisted topology field matches.
+*	@note	These topology references are pointer-free scalar records, so byte-wise comparison keeps the call sites compact.
+**/
+static const bool Nav2_Serialize_AreTopologyRefsEqual( const nav2_corridor_topology_ref_t &expectedTopology,
+	const nav2_corridor_topology_ref_t &actualTopology ) {
+	/**
+	*	Compare the full persisted topology record in one step so round-trip validators stay concise.
+	**/
+	return std::memcmp( &expectedTopology, &actualTopology, sizeof( expectedTopology ) ) == 0;
+}
+
+/**
+*	@brief	Compare two corridor tile references by raw persisted bytes.
+*	@param	expectedTileRef	Expected tile reference.
+*	@param	actualTileRef	Decoded tile reference.
+*	@return	True when every persisted tile-reference field matches.
+*	@note	Tile references are stable scalar identifiers only, so byte-wise comparison is safe here.
+**/
+static const bool Nav2_Serialize_AreTileRefsEqual( const nav2_corridor_tile_ref_t &expectedTileRef,
+	const nav2_corridor_tile_ref_t &actualTileRef ) {
+	/**
+	*	Compare the full persisted tile-reference record in one step so node comparers stay readable.
+	**/
+	return std::memcmp( &expectedTileRef, &actualTileRef, sizeof( expectedTileRef ) ) == 0;
+}
+
+/**
+*	@brief	Compare two corridor mover references by raw persisted bytes.
+*	@param	expectedMoverRef	Expected mover reference.
+*	@param	actualMoverRef	Decoded mover reference.
+*	@return	True when every persisted mover-reference field matches.
+*	@note	Mover references are pointer-free scalar identifiers, so byte-wise comparison keeps the round-trip validators simple.
+**/
+static const bool Nav2_Serialize_AreMoverRefsEqual( const nav2_corridor_mover_ref_t &expectedMoverRef,
+	const nav2_corridor_mover_ref_t &actualMoverRef ) {
+	/**
+	*	Compare the full persisted mover-reference record in one step so edge comparers stay concise.
+	**/
+	return std::memcmp( &expectedMoverRef, &actualMoverRef, sizeof( expectedMoverRef ) ) == 0;
+}
+
+/**
+*	@brief	Compare two connector payloads field-by-field for round-trip identity.
+*	@param	expectedConnectors	Original connector payload.
+*	@param	actualConnectors	Decoded connector payload.
+*	@param	outResult	[in,out] Round-trip result receiving mismatch counts.
+*	@return	True when the two connector payloads match exactly.
+**/
+static const bool Nav2_Serialize_CompareRoundTripConnectors( const nav2_connector_list_t &expectedConnectors,
+	const nav2_connector_list_t &actualConnectors, nav2_serialized_roundtrip_result_t *outResult ) {
+	bool matches = true;
+
+	/**
+	*    Compare connector counts first so structural drift is reported before descending into connector payload fields.
+	**/
+	if ( expectedConnectors.connectors.size() != actualConnectors.connectors.size() ) {
+		Nav2_Serialize_RecordRoundTripMismatch( outResult, nav2_serialized_roundtrip_mismatch_t::Connector );
+		matches = false;
+	}
+
+	/**
+	*    Compare connectors in deterministic order across the shared prefix so payload drift is still reported even if counts differ.
+	**/
+	const size_t sharedCount = std::min( expectedConnectors.connectors.size(), actualConnectors.connectors.size() );
+	for ( size_t connectorIndex = 0; connectorIndex < sharedCount; connectorIndex++ ) {
+		const nav2_connector_t &expected = expectedConnectors.connectors[ connectorIndex ];
+		const nav2_connector_t &actual = actualConnectors.connectors[ connectorIndex ];
+		const bool connectorMatches = expected.connector_id == actual.connector_id
+			&& expected.connector_kind == actual.connector_kind
+			&& expected.owner_entnum == actual.owner_entnum
+			&& expected.inline_model_index == actual.inline_model_index
+			&& expected.allowed_min_z == actual.allowed_min_z
+			&& expected.allowed_max_z == actual.allowed_max_z
+			&& expected.base_cost == actual.base_cost
+			&& expected.policy_penalty == actual.policy_penalty
+			&& expected.movement_restrictions == actual.movement_restrictions
+			&& expected.source_role_flags == actual.source_role_flags
+			&& expected.reusable == actual.reusable
+			&& expected.dynamically_available == actual.dynamically_available
+			&& expected.availability_version == actual.availability_version
+			&& expected.start.span_ref.span_id == actual.start.span_ref.span_id
+			&& expected.start.span_ref.column_index == actual.start.span_ref.column_index
+			&& expected.start.span_ref.span_index == actual.start.span_ref.span_index
+			&& expected.start.leaf_id == actual.start.leaf_id
+			&& expected.start.cluster_id == actual.start.cluster_id
+			&& expected.start.area_id == actual.start.area_id
+			&& expected.start.world_origin == actual.start.world_origin
+			&& expected.start.local_origin == actual.start.local_origin
+			&& expected.start.valid == actual.start.valid
+			&& expected.end.span_ref.span_id == actual.end.span_ref.span_id
+			&& expected.end.span_ref.column_index == actual.end.span_ref.column_index
+			&& expected.end.span_ref.span_index == actual.end.span_ref.span_index
+			&& expected.end.leaf_id == actual.end.leaf_id
+			&& expected.end.cluster_id == actual.end.cluster_id
+			&& expected.end.area_id == actual.end.area_id
+			&& expected.end.world_origin == actual.end.world_origin
+			&& expected.end.local_origin == actual.end.local_origin
+			&& expected.end.valid == actual.end.valid;
+		if ( !connectorMatches ) {
+			Nav2_Serialize_RecordRoundTripMismatch( outResult, nav2_serialized_roundtrip_mismatch_t::Connector );
+			matches = false;
+		}
+	}
+	return matches;
+}
+
+/**
+*	@brief	Compare two region-layer graphs field-by-field for round-trip identity.
+*	@param	expectedGraph	Original region-layer graph.
+*	@param	actualGraph	Decoded region-layer graph.
+*	@param	outResult	[in,out] Round-trip result receiving mismatch counts.
+*	@return	True when the two region-layer graphs match exactly.
+**/
+static const bool Nav2_Serialize_CompareRoundTripRegionLayers( const nav2_region_layer_graph_t &expectedGraph,
+	const nav2_region_layer_graph_t &actualGraph, nav2_serialized_roundtrip_result_t *outResult ) {
+	bool matches = true;
+
+	/**
+	*    Compare node and edge counts first so structural drift is reported before descending into payload fields.
+	**/
+	if ( expectedGraph.layers.size() != actualGraph.layers.size() ) {
+		Nav2_Serialize_RecordRoundTripMismatch( outResult, nav2_serialized_roundtrip_mismatch_t::RegionLayer );
+		matches = false;
+	}
+	if ( expectedGraph.edges.size() != actualGraph.edges.size() ) {
+		Nav2_Serialize_RecordRoundTripMismatch( outResult, nav2_serialized_roundtrip_mismatch_t::RegionLayerEdge );
+		matches = false;
+	}
+
+	/**
+	*    Compare region-layer nodes in deterministic order across the shared prefix.
+	**/
+	const size_t sharedLayerCount = std::min( expectedGraph.layers.size(), actualGraph.layers.size() );
+	for ( size_t layerIndex = 0; layerIndex < sharedLayerCount; layerIndex++ ) {
+		const nav2_region_layer_t &expected = expectedGraph.layers[ layerIndex ];
+		const nav2_region_layer_t &actual = actualGraph.layers[ layerIndex ];
+		const bool layerMatches = expected.region_layer_id == actual.region_layer_id
+			&& expected.kind == actual.kind
+			&& expected.leaf_id == actual.leaf_id
+			&& expected.cluster_id == actual.cluster_id
+			&& expected.area_id == actual.area_id
+			&& expected.connector_id == actual.connector_id
+			&& expected.mover_entnum == actual.mover_entnum
+			&& expected.inline_model_index == actual.inline_model_index
+			&& expected.allowed_z_band.min_z == actual.allowed_z_band.min_z
+			&& expected.allowed_z_band.max_z == actual.allowed_z_band.max_z
+			&& expected.allowed_z_band.preferred_z == actual.allowed_z_band.preferred_z
+          && Nav2_Serialize_AreTopologyRefsEqual( expected.topology, actual.topology )
+			&& Nav2_Serialize_AreTileRefsEqual( expected.tile_ref, actual.tile_ref )
+			&& expected.flags == actual.flags
+			&& expected.outgoing_edge_ids == actual.outgoing_edge_ids
+			&& expected.incoming_edge_ids == actual.incoming_edge_ids;
+		if ( !layerMatches ) {
+			Nav2_Serialize_RecordRoundTripMismatch( outResult, nav2_serialized_roundtrip_mismatch_t::RegionLayer );
+			matches = false;
+		}
+	}
+
+	/**
+	*    Compare region-layer edges in deterministic order across the shared prefix.
+	**/
+	const size_t sharedEdgeCount = std::min( expectedGraph.edges.size(), actualGraph.edges.size() );
+	for ( size_t edgeIndex = 0; edgeIndex < sharedEdgeCount; edgeIndex++ ) {
+		const nav2_region_layer_edge_t &expected = expectedGraph.edges[ edgeIndex ];
+		const nav2_region_layer_edge_t &actual = actualGraph.edges[ edgeIndex ];
+		const bool edgeMatches = expected.edge_id == actual.edge_id
+			&& expected.from_region_layer_id == actual.from_region_layer_id
+			&& expected.to_region_layer_id == actual.to_region_layer_id
+			&& expected.kind == actual.kind
+			&& expected.flags == actual.flags
+			&& expected.base_cost == actual.base_cost
+			&& expected.topology_penalty == actual.topology_penalty
+			&& expected.allowed_z_band.min_z == actual.allowed_z_band.min_z
+			&& expected.allowed_z_band.max_z == actual.allowed_z_band.max_z
+			&& expected.allowed_z_band.preferred_z == actual.allowed_z_band.preferred_z
+			&& expected.connector_id == actual.connector_id
+          && Nav2_Serialize_AreTopologyRefsEqual( expected.topology, actual.topology )
+			&& Nav2_Serialize_AreMoverRefsEqual( expected.mover_ref, actual.mover_ref );
+		if ( !edgeMatches ) {
+			Nav2_Serialize_RecordRoundTripMismatch( outResult, nav2_serialized_roundtrip_mismatch_t::RegionLayerEdge );
+			matches = false;
+		}
+	}
+	return matches;
+}
+
+/**
+*	@brief	Compare two hierarchy graphs field-by-field for round-trip identity.
+*	@param	expectedGraph	Original hierarchy graph.
+*	@param	actualGraph	Decoded hierarchy graph.
+*	@param	outResult	[in,out] Round-trip result receiving mismatch counts.
+*	@return	True when the two hierarchy graphs match exactly.
+**/
+static const bool Nav2_Serialize_CompareRoundTripHierarchy( const nav2_hierarchy_graph_t &expectedGraph,
+	const nav2_hierarchy_graph_t &actualGraph, nav2_serialized_roundtrip_result_t *outResult ) {
+	bool matches = true;
+
+	/**
+	*    Compare node and edge counts first so structural drift is reported before descending into payload fields.
+	**/
+	if ( expectedGraph.nodes.size() != actualGraph.nodes.size() ) {
+		Nav2_Serialize_RecordRoundTripMismatch( outResult, nav2_serialized_roundtrip_mismatch_t::HierarchyNode );
+		matches = false;
+	}
+	if ( expectedGraph.edges.size() != actualGraph.edges.size() ) {
+		Nav2_Serialize_RecordRoundTripMismatch( outResult, nav2_serialized_roundtrip_mismatch_t::HierarchyEdge );
+		matches = false;
+	}
+
+	/**
+	*    Compare hierarchy nodes in deterministic order across the shared prefix.
+	**/
+	const size_t sharedNodeCount = std::min( expectedGraph.nodes.size(), actualGraph.nodes.size() );
+	for ( size_t nodeIndex = 0; nodeIndex < sharedNodeCount; nodeIndex++ ) {
+		const nav2_hierarchy_node_t &expected = expectedGraph.nodes[ nodeIndex ];
+		const nav2_hierarchy_node_t &actual = actualGraph.nodes[ nodeIndex ];
+		const bool nodeMatches = expected.node_id == actual.node_id
+			&& expected.kind == actual.kind
+			&& expected.region_layer_id == actual.region_layer_id
+			&& expected.region_layer_index == actual.region_layer_index
+			&& expected.connector_id == actual.connector_id
+			&& expected.mover_entnum == actual.mover_entnum
+			&& expected.inline_model_index == actual.inline_model_index
+          && Nav2_Serialize_AreTopologyRefsEqual( expected.topology, actual.topology )
+			&& expected.allowed_z_band.min_z == actual.allowed_z_band.min_z
+			&& expected.allowed_z_band.max_z == actual.allowed_z_band.max_z
+			&& expected.allowed_z_band.preferred_z == actual.allowed_z_band.preferred_z
+			&& expected.flags == actual.flags
+			&& expected.outgoing_edge_ids == actual.outgoing_edge_ids
+			&& expected.incoming_edge_ids == actual.incoming_edge_ids;
+		if ( !nodeMatches ) {
+			Nav2_Serialize_RecordRoundTripMismatch( outResult, nav2_serialized_roundtrip_mismatch_t::HierarchyNode );
+			matches = false;
+		}
+	}
+
+	/**
+	*    Compare hierarchy edges in deterministic order across the shared prefix.
+	**/
+	const size_t sharedEdgeCount = std::min( expectedGraph.edges.size(), actualGraph.edges.size() );
+	for ( size_t edgeIndex = 0; edgeIndex < sharedEdgeCount; edgeIndex++ ) {
+		const nav2_hierarchy_edge_t &expected = expectedGraph.edges[ edgeIndex ];
+		const nav2_hierarchy_edge_t &actual = actualGraph.edges[ edgeIndex ];
+		const bool edgeMatches = expected.edge_id == actual.edge_id
+			&& expected.from_node_id == actual.from_node_id
+			&& expected.to_node_id == actual.to_node_id
+			&& expected.kind == actual.kind
+			&& expected.flags == actual.flags
+			&& expected.base_cost == actual.base_cost
+			&& expected.topology_penalty == actual.topology_penalty
+			&& expected.allowed_z_band.min_z == actual.allowed_z_band.min_z
+			&& expected.allowed_z_band.max_z == actual.allowed_z_band.max_z
+			&& expected.allowed_z_band.preferred_z == actual.allowed_z_band.preferred_z
+			&& expected.connector_id == actual.connector_id
+			&& expected.region_layer_id == actual.region_layer_id
+           && Nav2_Serialize_AreMoverRefsEqual( expected.mover_ref, actual.mover_ref );
+		if ( !edgeMatches ) {
+			Nav2_Serialize_RecordRoundTripMismatch( outResult, nav2_serialized_roundtrip_mismatch_t::HierarchyEdge );
+			matches = false;
+		}
 	}
 	return matches;
 }
@@ -526,6 +1029,292 @@ static nav2_serialized_span_edge_t Nav2_Serialize_BuildSerializedEdge( const nav
 }
 
 /**
+*	@brief	Build one compact serialized connector anchor record from runtime metadata.
+*	@param	anchor	Runtime connector anchor to mirror.
+*	@return	Compact serialized anchor payload.
+**/
+static nav2_serialized_connector_anchor_t Nav2_Serialize_BuildSerializedConnectorAnchor( const nav2_connector_anchor_t &anchor ) {
+	// Mirror the runtime anchor into a plain old data payload suitable for stable binary serialization.
+	nav2_serialized_connector_anchor_t serializedAnchor = {};
+	serializedAnchor.span_id = anchor.span_ref.span_id;
+	serializedAnchor.column_index = anchor.span_ref.column_index;
+	serializedAnchor.span_index = anchor.span_ref.span_index;
+	serializedAnchor.leaf_id = anchor.leaf_id;
+	serializedAnchor.cluster_id = anchor.cluster_id;
+	serializedAnchor.area_id = anchor.area_id;
+	serializedAnchor.world_origin = anchor.world_origin;
+	serializedAnchor.local_origin = anchor.local_origin;
+	serializedAnchor.valid = anchor.valid ? 1u : 0u;
+	return serializedAnchor;
+}
+
+/**
+*	@brief	Rebuild one runtime connector anchor from its serialized payload.
+*	@param	serializedAnchor	Serialized anchor payload to decode.
+*	@return	Runtime connector anchor rebuilt from serialized fields.
+**/
+static nav2_connector_anchor_t Nav2_Serialize_BuildRuntimeConnectorAnchor( const nav2_serialized_connector_anchor_t &serializedAnchor ) {
+	// Start from deterministic defaults before mirroring each serialized scalar field.
+	nav2_connector_anchor_t anchor = {};
+	anchor.span_ref.span_id = serializedAnchor.span_id;
+	anchor.span_ref.column_index = serializedAnchor.column_index;
+	anchor.span_ref.span_index = serializedAnchor.span_index;
+	anchor.leaf_id = serializedAnchor.leaf_id;
+	anchor.cluster_id = serializedAnchor.cluster_id;
+	anchor.area_id = serializedAnchor.area_id;
+	anchor.world_origin = serializedAnchor.world_origin;
+	anchor.local_origin = serializedAnchor.local_origin;
+	anchor.valid = ( serializedAnchor.valid != 0 );
+	return anchor;
+}
+
+/**
+*	@brief	Build one compact serialized connector record from runtime metadata.
+*	@param	connector	Runtime connector to mirror.
+*	@return	Compact serialized connector payload.
+**/
+static nav2_serialized_connector_t Nav2_Serialize_BuildSerializedConnector( const nav2_connector_t &connector ) {
+	// Mirror the runtime connector into a plain old data payload suitable for stable binary serialization.
+	nav2_serialized_connector_t serializedConnector = {};
+	serializedConnector.connector_id = connector.connector_id;
+	serializedConnector.connector_kind = connector.connector_kind;
+	serializedConnector.owner_entnum = connector.owner_entnum;
+	serializedConnector.inline_model_index = connector.inline_model_index;
+	serializedConnector.start = Nav2_Serialize_BuildSerializedConnectorAnchor( connector.start );
+	serializedConnector.end = Nav2_Serialize_BuildSerializedConnectorAnchor( connector.end );
+	serializedConnector.allowed_min_z = connector.allowed_min_z;
+	serializedConnector.allowed_max_z = connector.allowed_max_z;
+	serializedConnector.base_cost = connector.base_cost;
+	serializedConnector.policy_penalty = connector.policy_penalty;
+	serializedConnector.movement_restrictions = connector.movement_restrictions;
+	serializedConnector.source_role_flags = connector.source_role_flags;
+	serializedConnector.reusable = connector.reusable ? 1u : 0u;
+	serializedConnector.dynamically_available = connector.dynamically_available ? 1u : 0u;
+	serializedConnector.availability_version = connector.availability_version;
+	return serializedConnector;
+}
+
+/**
+*	@brief	Rebuild one runtime connector record from its serialized payload.
+*	@param	serializedConnector	Serialized connector payload to decode.
+*	@return	Runtime connector rebuilt from serialized fields.
+**/
+static nav2_connector_t Nav2_Serialize_BuildRuntimeConnector( const nav2_serialized_connector_t &serializedConnector ) {
+	// Start from deterministic defaults before mirroring each serialized scalar field.
+	nav2_connector_t connector = {};
+	connector.connector_id = serializedConnector.connector_id;
+	connector.connector_kind = serializedConnector.connector_kind;
+	connector.owner_entnum = serializedConnector.owner_entnum;
+	connector.inline_model_index = serializedConnector.inline_model_index;
+	connector.start = Nav2_Serialize_BuildRuntimeConnectorAnchor( serializedConnector.start );
+	connector.end = Nav2_Serialize_BuildRuntimeConnectorAnchor( serializedConnector.end );
+	connector.allowed_min_z = serializedConnector.allowed_min_z;
+	connector.allowed_max_z = serializedConnector.allowed_max_z;
+	connector.base_cost = serializedConnector.base_cost;
+	connector.policy_penalty = serializedConnector.policy_penalty;
+	connector.movement_restrictions = serializedConnector.movement_restrictions;
+	connector.source_role_flags = serializedConnector.source_role_flags;
+	connector.reusable = ( serializedConnector.reusable != 0 );
+	connector.dynamically_available = ( serializedConnector.dynamically_available != 0 );
+	connector.availability_version = serializedConnector.availability_version;
+	return connector;
+}
+
+/**
+*	@brief	Build one compact serialized region-layer node record from runtime metadata.
+*	@param	layer	Runtime region-layer node to mirror.
+*	@param	outgoingOffset	Offset into the flattened outgoing edge list.
+*	@param	outgoingCount	Number of outgoing edges to record.
+*	@param	incomingOffset	Offset into the flattened incoming edge list.
+*	@param	incomingCount	Number of incoming edges to record.
+*	@return	Compact serialized region-layer payload.
+**/
+static nav2_serialized_region_layer_t Nav2_Serialize_BuildSerializedRegionLayer( const nav2_region_layer_t &layer,
+	const uint32_t outgoingOffset, const uint32_t outgoingCount, const uint32_t incomingOffset, const uint32_t incomingCount ) {
+	// Mirror the runtime layer into a plain old data payload suitable for stable binary serialization.
+	nav2_serialized_region_layer_t serializedLayer = {};
+	serializedLayer.region_layer_id = layer.region_layer_id;
+	serializedLayer.kind = layer.kind;
+	serializedLayer.leaf_id = layer.leaf_id;
+	serializedLayer.cluster_id = layer.cluster_id;
+	serializedLayer.area_id = layer.area_id;
+	serializedLayer.connector_id = layer.connector_id;
+	serializedLayer.mover_entnum = layer.mover_entnum;
+	serializedLayer.inline_model_index = layer.inline_model_index;
+	serializedLayer.allowed_z_band = layer.allowed_z_band;
+	serializedLayer.topology = layer.topology;
+	serializedLayer.tile_ref = layer.tile_ref;
+	serializedLayer.flags = layer.flags;
+	serializedLayer.outgoing_edge_offset = outgoingOffset;
+	serializedLayer.outgoing_edge_count = outgoingCount;
+	serializedLayer.incoming_edge_offset = incomingOffset;
+	serializedLayer.incoming_edge_count = incomingCount;
+	return serializedLayer;
+}
+
+/**
+*	@brief	Rebuild one runtime region-layer node from its serialized payload.
+*	@param	serializedLayer	Serialized region-layer payload to decode.
+*	@return	Runtime region-layer node rebuilt from serialized fields.
+**/
+static nav2_region_layer_t Nav2_Serialize_BuildRuntimeRegionLayer( const nav2_serialized_region_layer_t &serializedLayer ) {
+	// Start from deterministic defaults before mirroring each serialized scalar field.
+	nav2_region_layer_t layer = {};
+	layer.region_layer_id = serializedLayer.region_layer_id;
+	layer.kind = serializedLayer.kind;
+	layer.leaf_id = serializedLayer.leaf_id;
+	layer.cluster_id = serializedLayer.cluster_id;
+	layer.area_id = serializedLayer.area_id;
+	layer.connector_id = serializedLayer.connector_id;
+	layer.mover_entnum = serializedLayer.mover_entnum;
+	layer.inline_model_index = serializedLayer.inline_model_index;
+	layer.allowed_z_band = serializedLayer.allowed_z_band;
+	layer.topology = serializedLayer.topology;
+	layer.tile_ref = serializedLayer.tile_ref;
+	layer.flags = serializedLayer.flags;
+	return layer;
+}
+
+/**
+*	@brief	Build one compact serialized region-layer edge record from runtime metadata.
+*	@param	edge	Runtime region-layer edge to mirror.
+*	@return	Compact serialized region-layer edge payload.
+**/
+static nav2_serialized_region_layer_edge_t Nav2_Serialize_BuildSerializedRegionLayerEdge( const nav2_region_layer_edge_t &edge ) {
+	// Mirror the runtime edge into a plain old data payload suitable for stable binary serialization.
+	nav2_serialized_region_layer_edge_t serializedEdge = {};
+	serializedEdge.edge_id = edge.edge_id;
+	serializedEdge.from_region_layer_id = edge.from_region_layer_id;
+	serializedEdge.to_region_layer_id = edge.to_region_layer_id;
+	serializedEdge.kind = edge.kind;
+	serializedEdge.flags = edge.flags;
+	serializedEdge.base_cost = edge.base_cost;
+	serializedEdge.topology_penalty = edge.topology_penalty;
+	serializedEdge.allowed_z_band = edge.allowed_z_band;
+	serializedEdge.connector_id = edge.connector_id;
+	serializedEdge.topology = edge.topology;
+	serializedEdge.mover_ref = edge.mover_ref;
+	return serializedEdge;
+}
+
+/**
+*	@brief	Rebuild one runtime region-layer edge from its serialized payload.
+*	@param	serializedEdge	Serialized region-layer edge payload to decode.
+*	@return	Runtime region-layer edge rebuilt from serialized fields.
+**/
+static nav2_region_layer_edge_t Nav2_Serialize_BuildRuntimeRegionLayerEdge( const nav2_serialized_region_layer_edge_t &serializedEdge ) {
+	// Start from deterministic defaults before mirroring each serialized scalar field.
+	nav2_region_layer_edge_t edge = {};
+	edge.edge_id = serializedEdge.edge_id;
+	edge.from_region_layer_id = serializedEdge.from_region_layer_id;
+	edge.to_region_layer_id = serializedEdge.to_region_layer_id;
+	edge.kind = serializedEdge.kind;
+	edge.flags = serializedEdge.flags;
+	edge.base_cost = serializedEdge.base_cost;
+	edge.topology_penalty = serializedEdge.topology_penalty;
+	edge.allowed_z_band = serializedEdge.allowed_z_band;
+	edge.connector_id = serializedEdge.connector_id;
+	edge.topology = serializedEdge.topology;
+	edge.mover_ref = serializedEdge.mover_ref;
+	return edge;
+}
+
+/**
+*	@brief	Build one compact serialized hierarchy node record from runtime metadata.
+*	@param	node	Runtime hierarchy node to mirror.
+*	@param	outgoingOffset	Offset into the flattened outgoing edge list.
+*	@param	outgoingCount	Number of outgoing edges to record.
+*	@param	incomingOffset	Offset into the flattened incoming edge list.
+*	@param	incomingCount	Number of incoming edges to record.
+*	@return	Compact serialized hierarchy node payload.
+**/
+static nav2_serialized_hierarchy_node_t Nav2_Serialize_BuildSerializedHierarchyNode( const nav2_hierarchy_node_t &node,
+	const uint32_t outgoingOffset, const uint32_t outgoingCount, const uint32_t incomingOffset, const uint32_t incomingCount ) {
+	// Mirror the runtime node into a plain old data payload suitable for stable binary serialization.
+	nav2_serialized_hierarchy_node_t serializedNode = {};
+	serializedNode.node_id = node.node_id;
+	serializedNode.kind = node.kind;
+	serializedNode.region_layer_id = node.region_layer_id;
+	serializedNode.region_layer_index = node.region_layer_index;
+	serializedNode.connector_id = node.connector_id;
+	serializedNode.mover_entnum = node.mover_entnum;
+	serializedNode.inline_model_index = node.inline_model_index;
+	serializedNode.topology = node.topology;
+	serializedNode.allowed_z_band = node.allowed_z_band;
+	serializedNode.flags = node.flags;
+	serializedNode.outgoing_edge_offset = outgoingOffset;
+	serializedNode.outgoing_edge_count = outgoingCount;
+	serializedNode.incoming_edge_offset = incomingOffset;
+	serializedNode.incoming_edge_count = incomingCount;
+	return serializedNode;
+}
+
+/**
+*	@brief	Rebuild one runtime hierarchy node from its serialized payload.
+*	@param	serializedNode	Serialized hierarchy node payload to decode.
+*	@return	Runtime hierarchy node rebuilt from serialized fields.
+**/
+static nav2_hierarchy_node_t Nav2_Serialize_BuildRuntimeHierarchyNode( const nav2_serialized_hierarchy_node_t &serializedNode ) {
+	// Start from deterministic defaults before mirroring each serialized scalar field.
+	nav2_hierarchy_node_t node = {};
+	node.node_id = serializedNode.node_id;
+	node.kind = serializedNode.kind;
+	node.region_layer_id = serializedNode.region_layer_id;
+	node.region_layer_index = serializedNode.region_layer_index;
+	node.connector_id = serializedNode.connector_id;
+	node.mover_entnum = serializedNode.mover_entnum;
+	node.inline_model_index = serializedNode.inline_model_index;
+	node.topology = serializedNode.topology;
+	node.allowed_z_band = serializedNode.allowed_z_band;
+	node.flags = serializedNode.flags;
+	return node;
+}
+
+/**
+*	@brief	Build one compact serialized hierarchy edge record from runtime metadata.
+*	@param	edge	Runtime hierarchy edge to mirror.
+*	@return	Compact serialized hierarchy edge payload.
+**/
+static nav2_serialized_hierarchy_edge_t Nav2_Serialize_BuildSerializedHierarchyEdge( const nav2_hierarchy_edge_t &edge ) {
+	// Mirror the runtime edge into a plain old data payload suitable for stable binary serialization.
+	nav2_serialized_hierarchy_edge_t serializedEdge = {};
+	serializedEdge.edge_id = edge.edge_id;
+	serializedEdge.from_node_id = edge.from_node_id;
+	serializedEdge.to_node_id = edge.to_node_id;
+	serializedEdge.kind = edge.kind;
+	serializedEdge.flags = edge.flags;
+	serializedEdge.base_cost = edge.base_cost;
+	serializedEdge.topology_penalty = edge.topology_penalty;
+	serializedEdge.allowed_z_band = edge.allowed_z_band;
+	serializedEdge.connector_id = edge.connector_id;
+	serializedEdge.region_layer_id = edge.region_layer_id;
+	serializedEdge.mover_ref = edge.mover_ref;
+	return serializedEdge;
+}
+
+/**
+*	@brief	Rebuild one runtime hierarchy edge from its serialized payload.
+*	@param	serializedEdge	Serialized hierarchy edge payload to decode.
+*	@return	Runtime hierarchy edge rebuilt from serialized fields.
+**/
+static nav2_hierarchy_edge_t Nav2_Serialize_BuildRuntimeHierarchyEdge( const nav2_serialized_hierarchy_edge_t &serializedEdge ) {
+	// Start from deterministic defaults before mirroring each serialized scalar field.
+	nav2_hierarchy_edge_t edge = {};
+	edge.edge_id = serializedEdge.edge_id;
+	edge.from_node_id = serializedEdge.from_node_id;
+	edge.to_node_id = serializedEdge.to_node_id;
+	edge.kind = serializedEdge.kind;
+	edge.flags = serializedEdge.flags;
+	edge.base_cost = serializedEdge.base_cost;
+	edge.topology_penalty = serializedEdge.topology_penalty;
+	edge.allowed_z_band = serializedEdge.allowed_z_band;
+	edge.connector_id = serializedEdge.connector_id;
+	edge.region_layer_id = serializedEdge.region_layer_id;
+	edge.mover_ref = serializedEdge.mover_ref;
+	return edge;
+}
+
+/**
 *	@brief	Append the span-grid section payload into the serialized blob.
 *	@param	spanGrid	Runtime span-grid to serialize.
 *	@param	blob	[in,out] Serialized blob receiving the section payload.
@@ -571,6 +1360,223 @@ static const bool Nav2_Serialize_AppendSpanGridSection( const nav2_span_grid_t &
 	}
 
 	// Publish the final section size after all payload bytes were appended.
+	out_desc->size = ( uint32_t )blob->bytes.size() - out_desc->offset;
+	return true;
+}
+
+/**
+*	@brief	Append the connector section payload into the serialized blob.
+*	@param	connectors	Runtime connector payload to serialize.
+*	@param	blob		[in,out] Serialized blob receiving the section payload.
+*	@param	out_desc	[out] Section descriptor receiving the final offset, size, and version.
+*	@return	True when the section payload was appended successfully.
+**/
+static const bool Nav2_Serialize_AppendConnectorSection( const nav2_connector_list_t &connectors, nav2_serialized_blob_t *blob,
+	nav2_serialized_section_desc_t *out_desc ) {
+	/**
+	*    Require output storage for both the blob and the resulting section descriptor before appending any bytes.
+	**/
+	if ( !blob || !out_desc ) {
+		return false;
+	}
+
+	/**
+	*    Start the section descriptor at the current end of the serialized blob so the payload stays offset-addressable.
+	**/
+	*out_desc = {};
+	out_desc->type = nav2_serialized_section_type_t::Connectors;
+	out_desc->offset = ( uint32_t )blob->bytes.size();
+	out_desc->version = NAV2_SERIALIZED_SECTION_VERSION_CONNECTORS;
+
+	/**
+	*    Write the compact connector metadata first so the reader knows how many connectors to decode.
+	**/
+	const nav2_serialized_connector_meta_t meta = { ( uint32_t )connectors.connectors.size() };
+	Nav2_Serialize_AppendBytes( blob, &meta, sizeof( meta ) );
+
+	/**
+	*    Serialize every connector in deterministic order so round-trip stability matches runtime layout.
+	**/
+	for ( const nav2_connector_t &connector : connectors.connectors ) {
+		const nav2_serialized_connector_t serializedConnector = Nav2_Serialize_BuildSerializedConnector( connector );
+		Nav2_Serialize_AppendBytes( blob, &serializedConnector, sizeof( serializedConnector ) );
+	}
+
+	/**
+	*    Publish the final section size after all payload bytes were appended.
+	**/
+	out_desc->size = ( uint32_t )blob->bytes.size() - out_desc->offset;
+	return true;
+}
+
+/**
+*	@brief	Append the region-layer section payload into the serialized blob.
+*	@param	regionLayers	Runtime region-layer graph to serialize.
+*	@param	blob		[in,out] Serialized blob receiving the section payload.
+*	@param	out_desc	[out] Section descriptor receiving the final offset, size, and version.
+*	@return	True when the section payload was appended successfully.
+**/
+static const bool Nav2_Serialize_AppendRegionLayerSection( const nav2_region_layer_graph_t &regionLayers, nav2_serialized_blob_t *blob,
+	nav2_serialized_section_desc_t *out_desc ) {
+	/**
+	*    Require output storage for both the blob and the resulting section descriptor before appending any bytes.
+	**/
+	if ( !blob || !out_desc ) {
+		return false;
+	}
+
+	/**
+	*    Start the section descriptor at the current end of the serialized blob so the payload stays offset-addressable.
+	**/
+	*out_desc = {};
+	out_desc->type = nav2_serialized_section_type_t::RegionLayers;
+	out_desc->offset = ( uint32_t )blob->bytes.size();
+	out_desc->version = NAV2_SERIALIZED_SECTION_VERSION_REGION_LAYERS;
+
+	/**
+	*    Flatten outgoing/incoming edge id lists so each node stores only ranges into the shared arrays.
+	**/
+	std::vector<int32_t> outgoingEdgeIds = {};
+	std::vector<int32_t> incomingEdgeIds = {};
+	std::vector<nav2_serialized_region_layer_t> serializedLayers = {};
+	serializedLayers.reserve( regionLayers.layers.size() );
+	for ( const nav2_region_layer_t &layer : regionLayers.layers ) {
+		const uint32_t outgoingOffset = ( uint32_t )outgoingEdgeIds.size();
+		const uint32_t incomingOffset = ( uint32_t )incomingEdgeIds.size();
+		const uint32_t outgoingCount = ( uint32_t )layer.outgoing_edge_ids.size();
+		const uint32_t incomingCount = ( uint32_t )layer.incoming_edge_ids.size();
+		outgoingEdgeIds.insert( outgoingEdgeIds.end(), layer.outgoing_edge_ids.begin(), layer.outgoing_edge_ids.end() );
+		incomingEdgeIds.insert( incomingEdgeIds.end(), layer.incoming_edge_ids.begin(), layer.incoming_edge_ids.end() );
+		serializedLayers.push_back( Nav2_Serialize_BuildSerializedRegionLayer( layer, outgoingOffset, outgoingCount, incomingOffset, incomingCount ) );
+	}
+
+	/**
+	*    Write the compact region-layer metadata so the reader knows how many nodes and edges to decode.
+	**/
+	const nav2_serialized_region_layer_meta_t meta = {
+		( uint32_t )regionLayers.layers.size(),
+		( uint32_t )regionLayers.edges.size()
+	};
+	Nav2_Serialize_AppendBytes( blob, &meta, sizeof( meta ) );
+
+	/**
+	*    Serialize the flattened edge id lists first so node ranges can be validated before decoding nodes.
+	**/
+	const uint32_t outgoingEdgeCount = ( uint32_t )outgoingEdgeIds.size();
+	const uint32_t incomingEdgeCount = ( uint32_t )incomingEdgeIds.size();
+	Nav2_Serialize_AppendBytes( blob, &outgoingEdgeCount, sizeof( outgoingEdgeCount ) );
+	if ( outgoingEdgeCount > 0 ) {
+		Nav2_Serialize_AppendBytes( blob, outgoingEdgeIds.data(), outgoingEdgeIds.size() * sizeof( int32_t ) );
+	}
+	Nav2_Serialize_AppendBytes( blob, &incomingEdgeCount, sizeof( incomingEdgeCount ) );
+	if ( incomingEdgeCount > 0 ) {
+		Nav2_Serialize_AppendBytes( blob, incomingEdgeIds.data(), incomingEdgeIds.size() * sizeof( int32_t ) );
+	}
+
+	/**
+	*    Serialize each region-layer node in deterministic order after the edge id arrays.
+	**/
+	for ( const nav2_serialized_region_layer_t &serializedLayer : serializedLayers ) {
+		Nav2_Serialize_AppendBytes( blob, &serializedLayer, sizeof( serializedLayer ) );
+	}
+
+	/**
+	*    Serialize each region-layer edge in deterministic order.
+	**/
+	for ( const nav2_region_layer_edge_t &edge : regionLayers.edges ) {
+		const nav2_serialized_region_layer_edge_t serializedEdge = Nav2_Serialize_BuildSerializedRegionLayerEdge( edge );
+		Nav2_Serialize_AppendBytes( blob, &serializedEdge, sizeof( serializedEdge ) );
+	}
+
+	/**
+	*    Publish the final section size after all payload bytes were appended.
+	**/
+	out_desc->size = ( uint32_t )blob->bytes.size() - out_desc->offset;
+	return true;
+}
+
+/**
+*	@brief	Append the hierarchy graph section payload into the serialized blob.
+*	@param	hierarchyGraph	Runtime hierarchy graph to serialize.
+*	@param	blob		[in,out] Serialized blob receiving the section payload.
+*	@param	out_desc	[out] Section descriptor receiving the final offset, size, and version.
+*	@return	True when the section payload was appended successfully.
+**/
+static const bool Nav2_Serialize_AppendHierarchySection( const nav2_hierarchy_graph_t &hierarchyGraph, nav2_serialized_blob_t *blob,
+	nav2_serialized_section_desc_t *out_desc ) {
+	/**
+	*    Require output storage for both the blob and the resulting section descriptor before appending any bytes.
+	**/
+	if ( !blob || !out_desc ) {
+		return false;
+	}
+
+	/**
+	*    Start the section descriptor at the current end of the serialized blob so the payload stays offset-addressable.
+	**/
+	*out_desc = {};
+	out_desc->type = nav2_serialized_section_type_t::HierarchyGraph;
+	out_desc->offset = ( uint32_t )blob->bytes.size();
+	out_desc->version = NAV2_SERIALIZED_SECTION_VERSION_HIERARCHY_GRAPH;
+
+	/**
+	*    Flatten outgoing/incoming edge id lists so each node stores only ranges into the shared arrays.
+	**/
+	std::vector<int32_t> outgoingEdgeIds = {};
+	std::vector<int32_t> incomingEdgeIds = {};
+	std::vector<nav2_serialized_hierarchy_node_t> serializedNodes = {};
+	serializedNodes.reserve( hierarchyGraph.nodes.size() );
+	for ( const nav2_hierarchy_node_t &node : hierarchyGraph.nodes ) {
+		const uint32_t outgoingOffset = ( uint32_t )outgoingEdgeIds.size();
+		const uint32_t incomingOffset = ( uint32_t )incomingEdgeIds.size();
+		const uint32_t outgoingCount = ( uint32_t )node.outgoing_edge_ids.size();
+		const uint32_t incomingCount = ( uint32_t )node.incoming_edge_ids.size();
+		outgoingEdgeIds.insert( outgoingEdgeIds.end(), node.outgoing_edge_ids.begin(), node.outgoing_edge_ids.end() );
+		incomingEdgeIds.insert( incomingEdgeIds.end(), node.incoming_edge_ids.begin(), node.incoming_edge_ids.end() );
+		serializedNodes.push_back( Nav2_Serialize_BuildSerializedHierarchyNode( node, outgoingOffset, outgoingCount, incomingOffset, incomingCount ) );
+	}
+
+	/**
+	*    Write the compact hierarchy metadata so the reader knows how many nodes and edges to decode.
+	**/
+	const nav2_serialized_hierarchy_meta_t meta = {
+		( uint32_t )hierarchyGraph.nodes.size(),
+		( uint32_t )hierarchyGraph.edges.size()
+	};
+	Nav2_Serialize_AppendBytes( blob, &meta, sizeof( meta ) );
+
+	/**
+	*    Serialize the flattened edge id lists first so node ranges can be validated before decoding nodes.
+	**/
+	const uint32_t outgoingEdgeCount = ( uint32_t )outgoingEdgeIds.size();
+	const uint32_t incomingEdgeCount = ( uint32_t )incomingEdgeIds.size();
+	Nav2_Serialize_AppendBytes( blob, &outgoingEdgeCount, sizeof( outgoingEdgeCount ) );
+	if ( outgoingEdgeCount > 0 ) {
+		Nav2_Serialize_AppendBytes( blob, outgoingEdgeIds.data(), outgoingEdgeIds.size() * sizeof( int32_t ) );
+	}
+	Nav2_Serialize_AppendBytes( blob, &incomingEdgeCount, sizeof( incomingEdgeCount ) );
+	if ( incomingEdgeCount > 0 ) {
+		Nav2_Serialize_AppendBytes( blob, incomingEdgeIds.data(), incomingEdgeIds.size() * sizeof( int32_t ) );
+	}
+
+	/**
+	*    Serialize each hierarchy node in deterministic order after the edge id arrays.
+	**/
+	for ( const nav2_serialized_hierarchy_node_t &serializedNode : serializedNodes ) {
+		Nav2_Serialize_AppendBytes( blob, &serializedNode, sizeof( serializedNode ) );
+	}
+
+	/**
+	*    Serialize each hierarchy edge in deterministic order.
+	**/
+	for ( const nav2_hierarchy_edge_t &edge : hierarchyGraph.edges ) {
+		const nav2_serialized_hierarchy_edge_t serializedEdge = Nav2_Serialize_BuildSerializedHierarchyEdge( edge );
+		Nav2_Serialize_AppendBytes( blob, &serializedEdge, sizeof( serializedEdge ) );
+	}
+
+	/**
+	*    Publish the final section size after all payload bytes were appended.
+	**/
 	out_desc->size = ( uint32_t )blob->bytes.size() - out_desc->offset;
 	return true;
 }
@@ -834,6 +1840,357 @@ static const bool Nav2_Serialize_ReadAdjacencySection( const nav2_serialized_blo
 	return true;
 }
 
+/**
+*	@brief	Decode the serialized connector section into runtime data structures.
+*	@param	blob	Serialized blob containing the section payload.
+*	@param	section	Section descriptor describing the connector payload.
+*	@param	outConnectors	[out] Runtime connector list receiving the decoded payload.
+*	@return	True when the connector payload decoded successfully.
+**/
+static const bool Nav2_Serialize_ReadConnectorSection( const nav2_serialized_blob_t &blob, const nav2_serialized_section_desc_t &section,
+	nav2_connector_list_t *outConnectors ) {
+	/**
+	*    Require output storage and a valid section range before decoding the connector payload.
+	**/
+	if ( !outConnectors || !Nav2_Serialize_IsSectionRangeValid( ( uint32_t )blob.bytes.size(), section ) ) {
+		return false;
+	}
+
+	/**
+	*    Reject unsupported section versions up front so later payload decoding stays simple and safe.
+	**/
+	if ( section.version != NAV2_SERIALIZED_SECTION_VERSION_CONNECTORS ) {
+		return false;
+	}
+
+	/**
+	*    Initialize a bounded reader for the section payload range.
+	**/
+	nav2_serialized_blob_reader_t reader = {};
+	if ( !Nav2_Serialize_InitReader( blob, &reader ) || !Nav2_Serialize_SeekReader( &reader, section.offset ) ) {
+		return false;
+	}
+	const uint32_t sectionEnd = section.offset + section.size;
+
+	/**
+	*    Decode the section metadata first so the reader knows exactly how many connectors to decode.
+	**/
+	nav2_serialized_connector_meta_t meta = {};
+	if ( !Nav2_Serialize_ReadValue( &reader, &meta ) ) {
+		return false;
+	}
+
+	/**
+	*    Decode the connector payloads in deterministic order.
+	**/
+	nav2_connector_list_t decodedConnectors = {};
+	decodedConnectors.connectors.reserve( meta.connector_count );
+	for ( uint32_t connectorIndex = 0; connectorIndex < meta.connector_count; connectorIndex++ ) {
+		nav2_serialized_connector_t serializedConnector = {};
+		if ( !Nav2_Serialize_ReadValue( &reader, &serializedConnector ) ) {
+			return false;
+		}
+		decodedConnectors.connectors.push_back( Nav2_Serialize_BuildRuntimeConnector( serializedConnector ) );
+	}
+
+	/**
+	*    Reject trailing garbage or truncated section payloads by requiring the read cursor to end exactly at the declared section boundary.
+	**/
+	if ( reader.failed || reader.offset != sectionEnd ) {
+		return false;
+	}
+
+	/**
+	*    Rebuild the connector id lookup after decoding all connectors so the list is fully usable.
+	**/
+	decodedConnectors.by_id.clear();
+	for ( size_t connectorIndex = 0; connectorIndex < decodedConnectors.connectors.size(); connectorIndex++ ) {
+		const nav2_connector_t &connector = decodedConnectors.connectors[ connectorIndex ];
+		if ( connector.connector_id >= 0 ) {
+			nav2_connector_ref_t ref = {};
+			ref.connector_id = connector.connector_id;
+			ref.connector_index = ( int32_t )connectorIndex;
+			decodedConnectors.by_id[ connector.connector_id ] = ref;
+		}
+	}
+
+	/**
+	*    Publish the decoded connector list only after the section has been validated successfully.
+	**/
+	*outConnectors = decodedConnectors;
+	return true;
+}
+
+/**
+*	@brief	Decode the serialized region-layer section into runtime data structures.
+*	@param	blob	Serialized blob containing the section payload.
+*	@param	section	Section descriptor describing the region-layer payload.
+*	@param	outRegionLayers	[out] Runtime region-layer graph receiving the decoded payload.
+*	@return	True when the region-layer payload decoded successfully.
+**/
+static const bool Nav2_Serialize_ReadRegionLayerSection( const nav2_serialized_blob_t &blob, const nav2_serialized_section_desc_t &section,
+	nav2_region_layer_graph_t *outRegionLayers ) {
+	/**
+	*    Require output storage and a valid section range before decoding the region-layer payload.
+	**/
+	if ( !outRegionLayers || !Nav2_Serialize_IsSectionRangeValid( ( uint32_t )blob.bytes.size(), section ) ) {
+		return false;
+	}
+
+	/**
+	*    Reject unsupported section versions up front so later payload decoding stays simple and safe.
+	**/
+	if ( section.version != NAV2_SERIALIZED_SECTION_VERSION_REGION_LAYERS ) {
+		return false;
+	}
+
+	/**
+	*    Initialize a bounded reader for the section payload range.
+	**/
+	nav2_serialized_blob_reader_t reader = {};
+	if ( !Nav2_Serialize_InitReader( blob, &reader ) || !Nav2_Serialize_SeekReader( &reader, section.offset ) ) {
+		return false;
+	}
+	const uint32_t sectionEnd = section.offset + section.size;
+
+	/**
+	*    Decode the section metadata first so the reader knows how many nodes and edges to decode.
+	**/
+	nav2_serialized_region_layer_meta_t meta = {};
+	if ( !Nav2_Serialize_ReadValue( &reader, &meta ) ) {
+		return false;
+	}
+
+	/**
+	*    Decode the flattened outgoing and incoming edge id arrays.
+	**/
+	uint32_t outgoingEdgeCount = 0;
+	if ( !Nav2_Serialize_ReadValue( &reader, &outgoingEdgeCount ) ) {
+		return false;
+	}
+	std::vector<int32_t> outgoingEdgeIds = {};
+	outgoingEdgeIds.reserve( outgoingEdgeCount );
+	for ( uint32_t edgeIndex = 0; edgeIndex < outgoingEdgeCount; edgeIndex++ ) {
+		int32_t edgeId = -1;
+		if ( !Nav2_Serialize_ReadValue( &reader, &edgeId ) ) {
+			return false;
+		}
+		outgoingEdgeIds.push_back( edgeId );
+	}
+
+	uint32_t incomingEdgeCount = 0;
+	if ( !Nav2_Serialize_ReadValue( &reader, &incomingEdgeCount ) ) {
+		return false;
+	}
+	std::vector<int32_t> incomingEdgeIds = {};
+	incomingEdgeIds.reserve( incomingEdgeCount );
+	for ( uint32_t edgeIndex = 0; edgeIndex < incomingEdgeCount; edgeIndex++ ) {
+		int32_t edgeId = -1;
+		if ( !Nav2_Serialize_ReadValue( &reader, &edgeId ) ) {
+			return false;
+		}
+		incomingEdgeIds.push_back( edgeId );
+	}
+
+	/**
+	*    Decode the region-layer nodes while validating adjacency ranges.
+	**/
+	nav2_region_layer_graph_t decodedGraph = {};
+	decodedGraph.layers.reserve( meta.layer_count );
+	for ( uint32_t layerIndex = 0; layerIndex < meta.layer_count; layerIndex++ ) {
+		nav2_serialized_region_layer_t serializedLayer = {};
+		if ( !Nav2_Serialize_ReadValue( &reader, &serializedLayer ) ) {
+			return false;
+		}
+		if ( serializedLayer.outgoing_edge_offset + serializedLayer.outgoing_edge_count > outgoingEdgeCount ) {
+			return false;
+		}
+		if ( serializedLayer.incoming_edge_offset + serializedLayer.incoming_edge_count > incomingEdgeCount ) {
+			return false;
+		}
+		nav2_region_layer_t layer = Nav2_Serialize_BuildRuntimeRegionLayer( serializedLayer );
+		layer.outgoing_edge_ids.assign( outgoingEdgeIds.begin() + serializedLayer.outgoing_edge_offset,
+			outgoingEdgeIds.begin() + serializedLayer.outgoing_edge_offset + serializedLayer.outgoing_edge_count );
+		layer.incoming_edge_ids.assign( incomingEdgeIds.begin() + serializedLayer.incoming_edge_offset,
+			incomingEdgeIds.begin() + serializedLayer.incoming_edge_offset + serializedLayer.incoming_edge_count );
+		decodedGraph.layers.push_back( layer );
+	}
+
+	/**
+	*    Decode the region-layer edges in deterministic order.
+	**/
+	decodedGraph.edges.reserve( meta.edge_count );
+	for ( uint32_t edgeIndex = 0; edgeIndex < meta.edge_count; edgeIndex++ ) {
+		nav2_serialized_region_layer_edge_t serializedEdge = {};
+		if ( !Nav2_Serialize_ReadValue( &reader, &serializedEdge ) ) {
+			return false;
+		}
+		decodedGraph.edges.push_back( Nav2_Serialize_BuildRuntimeRegionLayerEdge( serializedEdge ) );
+	}
+
+	/**
+	*    Reject trailing garbage or truncated section payloads by requiring the read cursor to end exactly at the declared section boundary.
+	**/
+	if ( reader.failed || reader.offset != sectionEnd ) {
+		return false;
+	}
+
+	/**
+	*    Rebuild the region-layer id lookup after decoding all nodes.
+	**/
+	decodedGraph.by_id.clear();
+	for ( size_t layerIndex = 0; layerIndex < decodedGraph.layers.size(); layerIndex++ ) {
+		const nav2_region_layer_t &layer = decodedGraph.layers[ layerIndex ];
+		if ( layer.region_layer_id >= 0 ) {
+			nav2_region_layer_ref_t ref = {};
+			ref.region_layer_id = layer.region_layer_id;
+			ref.region_layer_index = ( int32_t )layerIndex;
+			decodedGraph.by_id[ layer.region_layer_id ] = ref;
+		}
+	}
+
+	/**
+	*    Publish the decoded region-layer graph only after the section has been validated successfully.
+	**/
+	*outRegionLayers = decodedGraph;
+	return true;
+}
+
+/**
+*	@brief	Decode the serialized hierarchy section into runtime data structures.
+*	@param	blob	Serialized blob containing the section payload.
+*	@param	section	Section descriptor describing the hierarchy payload.
+*	@param	outHierarchyGraph	[out] Runtime hierarchy graph receiving the decoded payload.
+*	@return	True when the hierarchy payload decoded successfully.
+**/
+static const bool Nav2_Serialize_ReadHierarchySection( const nav2_serialized_blob_t &blob, const nav2_serialized_section_desc_t &section,
+	nav2_hierarchy_graph_t *outHierarchyGraph ) {
+	/**
+	*    Require output storage and a valid section range before decoding the hierarchy payload.
+	**/
+	if ( !outHierarchyGraph || !Nav2_Serialize_IsSectionRangeValid( ( uint32_t )blob.bytes.size(), section ) ) {
+		return false;
+	}
+
+	/**
+	*    Reject unsupported section versions up front so later payload decoding stays simple and safe.
+	**/
+	if ( section.version != NAV2_SERIALIZED_SECTION_VERSION_HIERARCHY_GRAPH ) {
+		return false;
+	}
+
+	/**
+	*    Initialize a bounded reader for the section payload range.
+	**/
+	nav2_serialized_blob_reader_t reader = {};
+	if ( !Nav2_Serialize_InitReader( blob, &reader ) || !Nav2_Serialize_SeekReader( &reader, section.offset ) ) {
+		return false;
+	}
+	const uint32_t sectionEnd = section.offset + section.size;
+
+	/**
+	*    Decode the section metadata first so the reader knows how many nodes and edges to decode.
+	**/
+	nav2_serialized_hierarchy_meta_t meta = {};
+	if ( !Nav2_Serialize_ReadValue( &reader, &meta ) ) {
+		return false;
+	}
+
+	/**
+	*    Decode the flattened outgoing and incoming edge id arrays.
+	**/
+	uint32_t outgoingEdgeCount = 0;
+	if ( !Nav2_Serialize_ReadValue( &reader, &outgoingEdgeCount ) ) {
+		return false;
+	}
+	std::vector<int32_t> outgoingEdgeIds = {};
+	outgoingEdgeIds.reserve( outgoingEdgeCount );
+	for ( uint32_t edgeIndex = 0; edgeIndex < outgoingEdgeCount; edgeIndex++ ) {
+		int32_t edgeId = -1;
+		if ( !Nav2_Serialize_ReadValue( &reader, &edgeId ) ) {
+			return false;
+		}
+		outgoingEdgeIds.push_back( edgeId );
+	}
+
+	uint32_t incomingEdgeCount = 0;
+	if ( !Nav2_Serialize_ReadValue( &reader, &incomingEdgeCount ) ) {
+		return false;
+	}
+	std::vector<int32_t> incomingEdgeIds = {};
+	incomingEdgeIds.reserve( incomingEdgeCount );
+	for ( uint32_t edgeIndex = 0; edgeIndex < incomingEdgeCount; edgeIndex++ ) {
+		int32_t edgeId = -1;
+		if ( !Nav2_Serialize_ReadValue( &reader, &edgeId ) ) {
+			return false;
+		}
+		incomingEdgeIds.push_back( edgeId );
+	}
+
+	/**
+	*    Decode the hierarchy nodes while validating adjacency ranges.
+	**/
+	nav2_hierarchy_graph_t decodedGraph = {};
+	decodedGraph.nodes.reserve( meta.node_count );
+	for ( uint32_t nodeIndex = 0; nodeIndex < meta.node_count; nodeIndex++ ) {
+		nav2_serialized_hierarchy_node_t serializedNode = {};
+		if ( !Nav2_Serialize_ReadValue( &reader, &serializedNode ) ) {
+			return false;
+		}
+		if ( serializedNode.outgoing_edge_offset + serializedNode.outgoing_edge_count > outgoingEdgeCount ) {
+			return false;
+		}
+		if ( serializedNode.incoming_edge_offset + serializedNode.incoming_edge_count > incomingEdgeCount ) {
+			return false;
+		}
+		nav2_hierarchy_node_t node = Nav2_Serialize_BuildRuntimeHierarchyNode( serializedNode );
+		node.outgoing_edge_ids.assign( outgoingEdgeIds.begin() + serializedNode.outgoing_edge_offset,
+			outgoingEdgeIds.begin() + serializedNode.outgoing_edge_offset + serializedNode.outgoing_edge_count );
+		node.incoming_edge_ids.assign( incomingEdgeIds.begin() + serializedNode.incoming_edge_offset,
+			incomingEdgeIds.begin() + serializedNode.incoming_edge_offset + serializedNode.incoming_edge_count );
+		decodedGraph.nodes.push_back( node );
+	}
+
+	/**
+	*    Decode the hierarchy edges in deterministic order.
+	**/
+	decodedGraph.edges.reserve( meta.edge_count );
+	for ( uint32_t edgeIndex = 0; edgeIndex < meta.edge_count; edgeIndex++ ) {
+		nav2_serialized_hierarchy_edge_t serializedEdge = {};
+		if ( !Nav2_Serialize_ReadValue( &reader, &serializedEdge ) ) {
+			return false;
+		}
+		decodedGraph.edges.push_back( Nav2_Serialize_BuildRuntimeHierarchyEdge( serializedEdge ) );
+	}
+
+	/**
+	*    Reject trailing garbage or truncated section payloads by requiring the read cursor to end exactly at the declared section boundary.
+	**/
+	if ( reader.failed || reader.offset != sectionEnd ) {
+		return false;
+	}
+
+	/**
+	*    Rebuild the hierarchy node id lookup after decoding all nodes.
+	**/
+	decodedGraph.by_id.clear();
+	for ( size_t nodeIndex = 0; nodeIndex < decodedGraph.nodes.size(); nodeIndex++ ) {
+		const nav2_hierarchy_node_t &node = decodedGraph.nodes[ nodeIndex ];
+		if ( node.node_id >= 0 ) {
+			nav2_hierarchy_node_ref_t ref = {};
+			ref.node_id = node.node_id;
+			ref.node_index = ( int32_t )nodeIndex;
+			decodedGraph.by_id[ node.node_id ] = ref;
+		}
+	}
+
+	/**
+	*    Publish the decoded hierarchy graph only after the section has been validated successfully.
+	**/
+	*outHierarchyGraph = decodedGraph;
+	return true;
+}
+
 
 /**
 *
@@ -938,11 +2295,16 @@ nav2_serialization_result_t SVG_Nav2_Serialize_BuildCacheBlob( const nav2_serial
 *	@param	policy	Serialization policy describing the payload.
 *	@param	spanGrid	Sparse span-grid payload to serialize.
 *	@param	adjacency	Local adjacency payload to serialize.
+*	@param	connectors	Optional connector payload to serialize when present.
+*	@param	regionLayers	Optional region-layer graph payload to serialize when present.
+*	@param	hierarchyGraph	Optional hierarchy graph payload to serialize when present.
 *	@param	outBlob	[out] Blob receiving the serialized bytes.
 *	@return	Structured serialization result including byte count and validation state.
 **/
 nav2_serialization_result_t SVG_Nav2_Serialize_BuildStaticNavBlob( const nav2_serialization_policy_t &policy,
-	const nav2_span_grid_t &spanGrid, const nav2_span_adjacency_t &adjacency, nav2_serialized_blob_t *outBlob ) {
+	const nav2_span_grid_t &spanGrid, const nav2_span_adjacency_t &adjacency,
+	const nav2_connector_list_t *connectors, const nav2_region_layer_graph_t *regionLayers,
+	const nav2_hierarchy_graph_t *hierarchyGraph, nav2_serialized_blob_t *outBlob ) {
 	// Reject requests that do not provide output storage for the serialized blob.
 	nav2_serialization_result_t result = {};
 	if ( !outBlob ) {
@@ -952,30 +2314,73 @@ nav2_serialization_result_t SVG_Nav2_Serialize_BuildStaticNavBlob( const nav2_se
 	// Reset the output blob so callers never observe stale bytes from a prior build attempt.
 	outBlob->bytes.clear();
 
-	// Reserve space for the header and both section descriptors up front so they can be patched after payload sizes are known.
+ /**
+	*    Count how many optional static-nav sections are present so the header and section table can be sized correctly.
+	**/
+	uint32_t sectionCount = 2;
+	if ( connectors && !connectors->connectors.empty() ) {
+		sectionCount++;
+	}
+	if ( regionLayers && !regionLayers->layers.empty() ) {
+		sectionCount++;
+	}
+	if ( hierarchyGraph && !hierarchyGraph->nodes.empty() ) {
+		sectionCount++;
+	}
+
+	/**
+	*    Reserve space for the header and section descriptors up front so they can be patched after payload sizes are known.
+	**/
 	nav2_serialized_header_t header = {};
 	SVG_Nav2_Serialize_InitHeader( &header, policy, NAV_SERIALIZED_FILE_MAGIC );
-	header.section_count = 2;
+	header.section_count = sectionCount;
 	const size_t headerOffset = outBlob->bytes.size();
 	Nav2_Serialize_AppendBytes( outBlob, &header, sizeof( header ) );
 	const size_t sectionTableOffset = outBlob->bytes.size();
-	nav2_serialized_section_desc_t placeholderSections[ 2 ] = {};
-	Nav2_Serialize_AppendBytes( outBlob, placeholderSections, sizeof( placeholderSections ) );
+	std::vector<nav2_serialized_section_desc_t> sections = {};
+	sections.resize( sectionCount );
+	Nav2_Serialize_AppendBytes( outBlob, sections.data(), sections.size() * sizeof( nav2_serialized_section_desc_t ) );
 
-	// Append the span-grid and adjacency payloads and capture their final section descriptors.
-	nav2_serialized_section_desc_t sections[ 2 ] = {};
-	if ( !Nav2_Serialize_AppendSpanGridSection( spanGrid, outBlob, &sections[ 0 ] ) ) {
+	/**
+	*    Append the mandatory span-grid and adjacency payloads first so section ordering stays deterministic.
+	**/
+	uint32_t sectionIndex = 0;
+	if ( !Nav2_Serialize_AppendSpanGridSection( spanGrid, outBlob, &sections[ sectionIndex++ ] ) ) {
 		outBlob->bytes.clear();
 		return result;
 	}
-	if ( !Nav2_Serialize_AppendAdjacencySection( adjacency, outBlob, &sections[ 1 ] ) ) {
+	if ( !Nav2_Serialize_AppendAdjacencySection( adjacency, outBlob, &sections[ sectionIndex++ ] ) ) {
 		outBlob->bytes.clear();
 		return result;
 	}
 
-	// Patch the finalized header and section descriptors into the reserved space at the front of the blob.
+	/**
+	*    Append optional connector, region-layer, and hierarchy payloads when provided.
+	**/
+	if ( connectors && !connectors->connectors.empty() ) {
+		if ( !Nav2_Serialize_AppendConnectorSection( *connectors, outBlob, &sections[ sectionIndex++ ] ) ) {
+			outBlob->bytes.clear();
+			return result;
+		}
+	}
+	if ( regionLayers && !regionLayers->layers.empty() ) {
+		if ( !Nav2_Serialize_AppendRegionLayerSection( *regionLayers, outBlob, &sections[ sectionIndex++ ] ) ) {
+			outBlob->bytes.clear();
+			return result;
+		}
+	}
+	if ( hierarchyGraph && !hierarchyGraph->nodes.empty() ) {
+		if ( !Nav2_Serialize_AppendHierarchySection( *hierarchyGraph, outBlob, &sections[ sectionIndex++ ] ) ) {
+			outBlob->bytes.clear();
+			return result;
+		}
+	}
+
+	/**
+	*    Patch the finalized header and section descriptors into the reserved space at the front of the blob.
+	**/
 	if ( !Nav2_Serialize_OverwriteBytes( outBlob, headerOffset, &header, sizeof( header ) )
-		|| !Nav2_Serialize_OverwriteBytes( outBlob, sectionTableOffset, sections, sizeof( sections ) ) ) {
+		|| !Nav2_Serialize_OverwriteBytes( outBlob, sectionTableOffset, sections.data(), sections.size() * sizeof( nav2_serialized_section_desc_t ) ) ) {
 		outBlob->bytes.clear();
 		return result;
 	}
@@ -1067,14 +2472,21 @@ nav2_serialization_result_t SVG_Nav2_Serialize_ReadCacheHeader( const char *cach
 *	@param	outHeader	[out] Decoded serialized header on success.
 *	@param	outSpanGrid	[out] Decoded span-grid payload on success.
 *	@param	outAdjacency	[out] Decoded adjacency payload on success.
+*	@param	outConnectors	[out] Decoded connector payload on success.
+*	@param	outRegionLayers	[out] Decoded region-layer graph on success.
+*	@param	outHierarchyGraph	[out] Decoded hierarchy graph on success.
 *	@return	Structured deserialization result including byte count and validation state.
 **/
 nav2_serialization_result_t SVG_Nav2_Serialize_ReadStaticNavBlob( const nav2_serialized_blob_t &blob,
 	const nav2_serialization_policy_t &policy, nav2_serialized_header_t *outHeader,
-	nav2_span_grid_t *outSpanGrid, nav2_span_adjacency_t *outAdjacency ) {
-	// Require output storage for every decoded payload before attempting any bounded reads.
+	nav2_span_grid_t *outSpanGrid, nav2_span_adjacency_t *outAdjacency,
+	nav2_connector_list_t *outConnectors, nav2_region_layer_graph_t *outRegionLayers,
+	nav2_hierarchy_graph_t *outHierarchyGraph ) {
+    /**
+	*    Require output storage for every decoded payload before attempting any bounded reads.
+	**/
 	nav2_serialization_result_t result = {};
-	if ( !outHeader || !outSpanGrid || !outAdjacency ) {
+	if ( !outHeader || !outSpanGrid || !outAdjacency || !outConnectors || !outRegionLayers || !outHierarchyGraph ) {
 		return result;
 	}
 
@@ -1094,20 +2506,33 @@ nav2_serialization_result_t SVG_Nav2_Serialize_ReadStaticNavBlob( const nav2_ser
 		return result;
 	}
 
-	// Decode the section table so the reader can locate span-grid and adjacency payloads by stable section id.
+ /**
+	*    Decode the section table so the reader can locate payloads by stable section id.
+	**/
 	std::vector<nav2_serialized_section_desc_t> sections = {};
 	if ( !Nav2_Serialize_ReadSectionTable( &reader, header, &sections ) ) {
 		return result;
 	}
 
-	// Resolve the mandatory span-grid and adjacency sections and reject payloads that omit either one.
+ /**
+	*    Resolve the mandatory span-grid and adjacency sections and reject payloads that omit either one.
+	**/
 	const nav2_serialized_section_desc_t *spanGridSection = Nav2_Serialize_FindSection( sections, nav2_serialized_section_type_t::SpanGrid );
 	const nav2_serialized_section_desc_t *adjacencySection = Nav2_Serialize_FindSection( sections, nav2_serialized_section_type_t::Adjacency );
 	if ( !spanGridSection || !adjacencySection ) {
 		return result;
 	}
 
-	// Decode the two mandatory static-nav sections with strict bounded validation.
+	/**
+	*    Resolve optional connector, region-layer, and hierarchy sections when present.
+	**/
+	const nav2_serialized_section_desc_t *connectorSection = Nav2_Serialize_FindSection( sections, nav2_serialized_section_type_t::Connectors );
+	const nav2_serialized_section_desc_t *regionLayerSection = Nav2_Serialize_FindSection( sections, nav2_serialized_section_type_t::RegionLayers );
+	const nav2_serialized_section_desc_t *hierarchySection = Nav2_Serialize_FindSection( sections, nav2_serialized_section_type_t::HierarchyGraph );
+
+ /**
+	*    Decode the mandatory static-nav sections with strict bounded validation.
+	**/
 	nav2_span_grid_t decodedSpanGrid = {};
 	nav2_span_adjacency_t decodedAdjacency = {};
 	if ( !Nav2_Serialize_ReadSpanGridSection( blob, *spanGridSection, &decodedSpanGrid )
@@ -1115,10 +2540,31 @@ nav2_serialization_result_t SVG_Nav2_Serialize_ReadStaticNavBlob( const nav2_ser
 		return result;
 	}
 
-	// Publish the decoded payloads only after every required section has been validated successfully.
+	/**
+	*    Decode optional connector, region-layer, and hierarchy payloads when present.
+	**/
+	nav2_connector_list_t decodedConnectors = {};
+	nav2_region_layer_graph_t decodedRegionLayers = {};
+	nav2_hierarchy_graph_t decodedHierarchyGraph = {};
+	if ( connectorSection && !Nav2_Serialize_ReadConnectorSection( blob, *connectorSection, &decodedConnectors ) ) {
+		return result;
+	}
+	if ( regionLayerSection && !Nav2_Serialize_ReadRegionLayerSection( blob, *regionLayerSection, &decodedRegionLayers ) ) {
+		return result;
+	}
+	if ( hierarchySection && !Nav2_Serialize_ReadHierarchySection( blob, *hierarchySection, &decodedHierarchyGraph ) ) {
+		return result;
+	}
+
+  /**
+	*    Publish the decoded payloads only after every required section has been validated successfully.
+	**/
 	*outHeader = header;
 	*outSpanGrid = decodedSpanGrid;
 	*outAdjacency = decodedAdjacency;
+	*outConnectors = decodedConnectors;
+	*outRegionLayers = decodedRegionLayers;
+	*outHierarchyGraph = decodedHierarchyGraph;
 	result.success = true;
 	result.byte_count = ( uint32_t )blob.bytes.size();
 	return result;
@@ -1131,15 +2577,23 @@ nav2_serialization_result_t SVG_Nav2_Serialize_ReadStaticNavBlob( const nav2_ser
 *	@param	outHeader	[out] Decoded serialized header on success.
 *	@param	outSpanGrid	[out] Decoded span-grid payload on success.
 *	@param	outAdjacency	[out] Decoded adjacency payload on success.
+*	@param	outConnectors	[out] Decoded connector payload on success.
+*	@param	outRegionLayers	[out] Decoded region-layer graph on success.
+*	@param	outHierarchyGraph	[out] Decoded hierarchy graph on success.
 *	@return	Structured load result including byte count and validation state.
 *	@note	Loaded FS buffers remain owned by the engine and are released internally via `gi.FS_FreeFile`.
 **/
 nav2_serialization_result_t SVG_Nav2_Serialize_ReadStaticNavCacheFile( const char *cachePath,
 	const nav2_serialization_policy_t &policy, nav2_serialized_header_t *outHeader,
-	nav2_span_grid_t *outSpanGrid, nav2_span_adjacency_t *outAdjacency ) {
-	// Require every output slot and a usable cache path before attempting filesystem IO.
+	nav2_span_grid_t *outSpanGrid, nav2_span_adjacency_t *outAdjacency,
+	nav2_connector_list_t *outConnectors, nav2_region_layer_graph_t *outRegionLayers,
+	nav2_hierarchy_graph_t *outHierarchyGraph ) {
+   /**
+	*    Require every output slot and a usable cache path before attempting filesystem IO.
+	**/
 	nav2_serialization_result_t result = {};
-	if ( !cachePath || cachePath[ 0 ] == '\0' || !outHeader || !outSpanGrid || !outAdjacency ) {
+	if ( !cachePath || cachePath[ 0 ] == '\0' || !outHeader || !outSpanGrid || !outAdjacency
+		|| !outConnectors || !outRegionLayers || !outHierarchyGraph ) {
 		return result;
 	}
 
@@ -1159,8 +2613,11 @@ nav2_serialization_result_t SVG_Nav2_Serialize_ReadStaticNavCacheFile( const cha
 	std::memcpy( blob.bytes.data(), fileBuffer, ( size_t )fileLength );
 	( gi.FS_FreeFile )( fileBuffer );
 
-	// Decode the copied blob through the bounded in-memory static-nav reader.
-	result = SVG_Nav2_Serialize_ReadStaticNavBlob( blob, policy, outHeader, outSpanGrid, outAdjacency );
+  /**
+	*    Decode the copied blob through the bounded in-memory static-nav reader.
+	**/
+	result = SVG_Nav2_Serialize_ReadStaticNavBlob( blob, policy, outHeader, outSpanGrid, outAdjacency,
+		outConnectors, outRegionLayers, outHierarchyGraph );
 	if ( result.success ) {
 		result.byte_count = ( uint32_t )fileLength;
 	}
@@ -1172,11 +2629,16 @@ nav2_serialization_result_t SVG_Nav2_Serialize_ReadStaticNavCacheFile( const cha
 *	@param	policy	Serialization policy describing the payload.
 *	@param	spanGrid	Source span-grid payload to round-trip.
 *	@param	adjacency	Source adjacency payload to round-trip.
+*	@param	connectors	Optional connector payload to round-trip.
+*	@param	regionLayers	Optional region-layer graph to round-trip.
+*	@param	hierarchyGraph	Optional hierarchy graph to round-trip.
 *	@param	outResult	[out] Structured round-trip validation result.
 *	@return	True when the round-trip completed and the decoded payload matched exactly.
 **/
 const bool SVG_Nav2_Serialize_ValidateStaticNavRoundTrip( const nav2_serialization_policy_t &policy,
-	const nav2_span_grid_t &spanGrid, const nav2_span_adjacency_t &adjacency, nav2_serialized_roundtrip_result_t *outResult ) {
+	const nav2_span_grid_t &spanGrid, const nav2_span_adjacency_t &adjacency,
+	const nav2_connector_list_t *connectors, const nav2_region_layer_graph_t *regionLayers,
+	const nav2_hierarchy_graph_t *hierarchyGraph, nav2_serialized_roundtrip_result_t *outResult ) {
 	/**
 	*    Require output storage before performing any serializer work so the caller always receives a deterministic result object.
 	**/
@@ -1185,46 +2647,81 @@ const bool SVG_Nav2_Serialize_ValidateStaticNavRoundTrip( const nav2_serializati
 	}
 
 	/**
+	*    Treat missing optional payloads as empty so span-grid-only callers can still validate cleanly.
+	**/
+	const nav2_connector_list_t emptyConnectors = {};
+	const nav2_region_layer_graph_t emptyRegionLayers = {};
+	const nav2_hierarchy_graph_t emptyHierarchyGraph = {};
+	if ( !connectors ) {
+		connectors = &emptyConnectors;
+	}
+	if ( !regionLayers ) {
+		regionLayers = &emptyRegionLayers;
+	}
+	if ( !hierarchyGraph ) {
+		hierarchyGraph = &emptyHierarchyGraph;
+	}
+
+	/**
+	*	Derive the expected static-nav section count up front so header validation can detect missing or extra optional payloads.
+	**/
+	uint32_t expectedSectionCount = 2;
+	if ( !connectors->connectors.empty() ) {
+		expectedSectionCount++;
+	}
+	if ( !regionLayers->layers.empty() ) {
+		expectedSectionCount++;
+	}
+	if ( !hierarchyGraph->nodes.empty() ) {
+		expectedSectionCount++;
+	}
+
+	/**
 	*    Reset the structured result up front so all counters and nested serialization summaries start from deterministic defaults.
 	**/
 	*outResult = {};
 
-	/**
+ /**
 	*    Build the in-memory static-nav blob first because every later comparison depends on the encoded payload.
 	**/
 	nav2_serialized_blob_t blob = {};
-  const auto buildStartTime = std::chrono::steady_clock::now();
-	outResult->build_result = SVG_Nav2_Serialize_BuildStaticNavBlob( policy, spanGrid, adjacency, &blob );
-   const auto buildEndTime = std::chrono::steady_clock::now();
+	const auto buildStartTime = std::chrono::steady_clock::now();
+	outResult->build_result = SVG_Nav2_Serialize_BuildStaticNavBlob( policy, spanGrid, adjacency,
+		connectors, regionLayers, hierarchyGraph, &blob );
+	const auto buildEndTime = std::chrono::steady_clock::now();
 	outResult->build_elapsed_ms = std::chrono::duration<double, std::milli>( buildEndTime - buildStartTime ).count();
 	if ( !outResult->build_result.success ) {
 		Nav2_Serialize_RecordRoundTripMismatch( outResult, nav2_serialized_roundtrip_mismatch_t::DeserializeFailure );
 		return false;
 	}
 
-	/**
+ /**
 	*    Decode the just-built blob through the same bounded reader path used by cache-file loads so the round-trip validation exercises the real deserializer logic.
 	**/
 	nav2_serialized_header_t decodedHeader = {};
 	nav2_span_grid_t decodedSpanGrid = {};
 	nav2_span_adjacency_t decodedAdjacency = {};
- const auto readStartTime = std::chrono::steady_clock::now();
-	outResult->read_result = SVG_Nav2_Serialize_ReadStaticNavBlob( blob, policy, &decodedHeader, &decodedSpanGrid, &decodedAdjacency );
-    const auto readEndTime = std::chrono::steady_clock::now();
+	nav2_connector_list_t decodedConnectors = {};
+	nav2_region_layer_graph_t decodedRegionLayers = {};
+	nav2_hierarchy_graph_t decodedHierarchyGraph = {};
+	const auto readStartTime = std::chrono::steady_clock::now();
+	outResult->read_result = SVG_Nav2_Serialize_ReadStaticNavBlob( blob, policy, &decodedHeader, &decodedSpanGrid, &decodedAdjacency,
+		&decodedConnectors, &decodedRegionLayers, &decodedHierarchyGraph );
+	const auto readEndTime = std::chrono::steady_clock::now();
 	outResult->read_elapsed_ms = std::chrono::duration<double, std::milli>( readEndTime - readStartTime ).count();
 	if ( !outResult->read_result.success ) {
 		Nav2_Serialize_RecordRoundTripMismatch( outResult, nav2_serialized_roundtrip_mismatch_t::DeserializeFailure );
 		return false;
 	}
 
-	/**
+ /**
 	*    Rebuild the expected header deterministically so the validation helper can confirm the encoded top-level metadata survived the round-trip unchanged.
 	**/
 	nav2_serialized_header_t expectedHeader = {};
 	SVG_Nav2_Serialize_InitHeader( &expectedHeader, policy, NAV_SERIALIZED_FILE_MAGIC );
-	expectedHeader.section_count = 2;
+ expectedHeader.section_count = expectedSectionCount;
 
-	/**
+ /**
 	*    Compare the decoded payloads field-by-field and accumulate stable mismatch counts for any serializer drift.
 	**/
 	bool matches = true;
@@ -1235,6 +2732,15 @@ const bool SVG_Nav2_Serialize_ValidateStaticNavRoundTrip( const nav2_serializati
 		matches = false;
 	}
 	if ( !Nav2_Serialize_CompareRoundTripAdjacency( adjacency, decodedAdjacency, outResult ) ) {
+		matches = false;
+	}
+	if ( !Nav2_Serialize_CompareRoundTripConnectors( *connectors, decodedConnectors, outResult ) ) {
+		matches = false;
+	}
+	if ( !Nav2_Serialize_CompareRoundTripRegionLayers( *regionLayers, decodedRegionLayers, outResult ) ) {
+		matches = false;
+	}
+	if ( !Nav2_Serialize_CompareRoundTripHierarchy( *hierarchyGraph, decodedHierarchyGraph, outResult ) ) {
 		matches = false;
 	}
 
@@ -1267,6 +2773,16 @@ const char *SVG_Nav2_Serialize_RoundTripMismatchName( const nav2_serialized_roun
 		return "SpanGridSpan";
 	case nav2_serialized_roundtrip_mismatch_t::AdjacencyEdge:
 		return "AdjacencyEdge";
+  case nav2_serialized_roundtrip_mismatch_t::Connector:
+		return "Connector";
+	case nav2_serialized_roundtrip_mismatch_t::RegionLayer:
+		return "RegionLayer";
+	case nav2_serialized_roundtrip_mismatch_t::RegionLayerEdge:
+		return "RegionLayerEdge";
+	case nav2_serialized_roundtrip_mismatch_t::HierarchyNode:
+		return "HierarchyNode";
+	case nav2_serialized_roundtrip_mismatch_t::HierarchyEdge:
+		return "HierarchyEdge";
 	case nav2_serialized_roundtrip_mismatch_t::DeserializeFailure:
 		return "DeserializeFailure";
 	case nav2_serialized_roundtrip_mismatch_t::Count:

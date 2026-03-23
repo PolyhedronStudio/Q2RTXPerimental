@@ -87,6 +87,14 @@ void SVG_Nav2_Scheduler_BeginFrame( const int64_t frameNumber );
 void SVG_Nav2_Scheduler_Service( void );
 
 /**
+*\t@brief\tExecute the currently granted slice for one scheduler-owned job.
+*\t@param\tjob\tScheduler-owned job receiving stage execution for its active slice.
+*\t@return\tTrue when the stage executed and updated job state.
+*\t@note\tThis is used by both main-thread fallback dispatch and worker completion handoff.
+**/
+const bool SVG_Nav2_Scheduler_ExecuteGrantedSlice( nav2_query_job_t *job );
+
+/**
 *	@brief	Submit a new nav2 query request into the scheduler queue.
 *	@param	request	Request descriptor to enqueue.
 *	@return	Assigned job identifier, or 0 on failure.

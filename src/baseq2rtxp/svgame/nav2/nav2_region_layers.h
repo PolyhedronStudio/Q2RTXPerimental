@@ -275,6 +275,13 @@ const bool SVG_Nav2_RegionLayerGraph_AppendLayer( nav2_region_layer_graph_t *gra
 const bool SVG_Nav2_RegionLayerGraph_AppendEdge( nav2_region_layer_graph_t *graph, const nav2_region_layer_edge_t &edge );
 
 /**
+* @brief Validate a region-layer graph for stable-id and adjacency consistency.
+* @param graph Graph to inspect.
+* @return True when the graph is internally consistent.
+**/
+const bool SVG_Nav2_ValidateRegionLayerGraph( const nav2_region_layer_graph_t &graph );
+
+/**
 * @brief Build a region-layer decomposition from a sparse span grid plus connector list.
 * @param grid Sparse span grid providing the precision substrate.
 * @param connectors Connector collection used to attach higher-level route commitments.

@@ -203,9 +203,10 @@ static void Nav2_Worker_ApplyCompletedPayload( nav2_worker_payload_t *payload ) 
     SVG_Nav2_Bench_AddDuration( &job->bench_query, nav2_bench_timing_bucket_t::WorkerExecutionSlice, payload->execution_ms );
 
     /**
-    *    Clear the granted slice once the placeholder worker execution has completed.
+    *    Execute the scheduler stage for the granted slice now that worker execution bookkeeping
+    *    has returned control to the main-thread completion path.
     **/
-    job->state.active_slice = nav2_budget_slice_t{};
+    SVG_Nav2_Scheduler_ExecuteGrantedSlice( job );
 
     /**
     *    Decrement the in-flight counter conservatively after the job has been updated.

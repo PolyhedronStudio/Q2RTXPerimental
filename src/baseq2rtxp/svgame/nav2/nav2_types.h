@@ -20,10 +20,23 @@
 *
 *
 **/
+//! Sentinel used when a leaf has not been assigned to any hierarchy region yet.
+static constexpr int32_t NAV_LEAF_INDEX_NONE = -1;
+//! Sentinel used when a cluster has not been assigned to any hierarchy region yet.
+static constexpr int32_t NAV_CLUSTER_ID_NONE = -1;
+//! Sentinel used when an area has not been assigned to any hierarchy region yet.
+static constexpr int32_t NAV_AREA_ID_NONE = -1;
+//! Sentinel used when a tile has not been assigned to any hierarchy region yet.
+static constexpr int32_t NAV_TILE_ID_NONE = -1;
 //! Sentinel used when a tile or leaf has not been assigned to any hierarchy region yet.
 static constexpr int32_t NAV_REGION_ID_NONE = -1;
 //! Sentinel used when a region does not yet reference a valid portal id.
 static constexpr int32_t NAV_PORTAL_ID_NONE = -1;
+//! Sentinel used when a cell does not reference a valid layer index.
+static constexpr int32_t NAV_CELL_INDEX_NONE = -1;
+//! Sentinel used when a layer does not reference a valid layer index.
+static constexpr int32_t NAV_LAYER_INDEX_NONE = -1;
+
 //! Deterministic coarse region budget used to split connected tile space into portal-bearing static regions.
 static constexpr int32_t NAV_HIERARCHY_MAX_TILES_PER_REGION = 16;
 //! Regions at or above this size are logged as coarse partition saturation points.
@@ -396,7 +409,7 @@ struct nav2_world_tile_key_hash_t {
 **/
 struct nav2_node_key_t {
 	//! Owning BSP leaf index for the node, or `-1` when unresolved.
-	int32_t leaf_index = -1;
+	int32_t leaf_index = NAV_LEAF_INDEX_NONE;
 	//! Owning tile index within the leaf, or `-1` when unresolved.
 	int32_t tile_index = -1;
 	//! Owning cell index within the tile, or `-1` when unresolved.

@@ -367,7 +367,7 @@ struct nav2_query_node_localization_t {
 **/
 struct nav2_query_topology_t {
 	//! BSP leaf id when known.
-	int32_t leaf_index = -1;
+	int32_t leaf_index = NAV_LEAF_INDEX_NONE;
 	//! BSP cluster id when known.
 	int32_t cluster_id = -1;
 	//! BSP area id when known.

@@ -230,6 +230,58 @@ const bool SVG_Nav2_RegionLayerGraph_AppendLayer( nav2_region_layer_graph_t *gra
 }
 
 /**
+* @brief Validate a region-layer graph for stable-id, bounds, and adjacency consistency.
+* @param graph Graph to inspect.
+* @return True when all nodes and edges are internally consistent.
+**/
+const bool SVG_Nav2_ValidateRegionLayerGraph( const nav2_region_layer_graph_t &graph ) {
+    // Every stored node must resolve through the stable lookup table.
+    for ( size_t i = 0; i < graph.layers.size(); ++i ) {
+        const nav2_region_layer_t &layer = graph.layers[ i ];
+        if ( layer.region_layer_id < 0 ) {
+            return false;
+        }
+        nav2_region_layer_ref_t ref = {};
+        if ( !SVG_Nav2_RegionLayerGraph_TryResolve( graph, layer.region_layer_id, &ref ) ) {
+            return false;
+        }
+        if ( ref.region_layer_index != ( int32_t )i ) {
+            return false;
+        }
+        if ( !layer.allowed_z_band.IsValid() ) {
+            return false;
+        }
+    }
+
+    // Every edge must point at valid node ids and appear in the owning adjacency lists.
+    for ( const nav2_region_layer_edge_t &edge : graph.edges ) {
+        if ( edge.edge_id < 0 || edge.from_region_layer_id < 0 || edge.to_region_layer_id < 0 ) {
+            return false;
+        }
+        nav2_region_layer_ref_t fromRef = {};
+        nav2_region_layer_ref_t toRef = {};
+        if ( !SVG_Nav2_RegionLayerGraph_TryResolve( graph, edge.from_region_layer_id, &fromRef ) ) {
+            return false;
+        }
+        if ( !SVG_Nav2_RegionLayerGraph_TryResolve( graph, edge.to_region_layer_id, &toRef ) ) {
+            return false;
+        }
+        const nav2_region_layer_t &fromLayer = graph.layers[ ( size_t )fromRef.region_layer_index ];
+        const nav2_region_layer_t &toLayer = graph.layers[ ( size_t )toRef.region_layer_index ];
+        const bool fromHasEdge = std::find( fromLayer.outgoing_edge_ids.begin(), fromLayer.outgoing_edge_ids.end(), edge.edge_id ) != fromLayer.outgoing_edge_ids.end();
+        const bool toHasEdge = std::find( toLayer.incoming_edge_ids.begin(), toLayer.incoming_edge_ids.end(), edge.edge_id ) != toLayer.incoming_edge_ids.end();
+        if ( !fromHasEdge || !toHasEdge ) {
+            return false;
+        }
+        if ( !edge.allowed_z_band.IsValid() ) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+/**
 * @brief Append one region-layer edge to the graph and wire it into the adjacency lists.
 * @param graph Graph to mutate.
 * @param edge Region-layer edge payload to append.
@@ -251,12 +303,16 @@ const bool SVG_Nav2_RegionLayerGraph_AppendEdge( nav2_region_layer_graph_t *grap
         return false;
     }
 
+    // Self-loops are allowed only when they represent a connector-owned commitment node.
+    if ( edge.from_region_layer_id == edge.to_region_layer_id && edge.connector_id < 0 ) {
+        return false;
+    }
+
     // Store the edge with a stable id and wire the adjacency lists.
     nav2_region_layer_edge_t stored = edge;
     if ( stored.edge_id < 0 ) {
         stored.edge_id = SVG_Nav2_AllocateRegionLayerEdgeId( *graph );
     }
-    const int32_t edgeIndex = ( int32_t )graph->edges.size();
     graph->edges.push_back( stored );
     graph->layers[ ( size_t )fromRef.region_layer_index ].outgoing_edge_ids.push_back( stored.edge_id );
     graph->layers[ ( size_t )toRef.region_layer_index ].incoming_edge_ids.push_back( stored.edge_id );
@@ -390,7 +446,7 @@ const bool SVG_Nav2_BuildRegionLayers( const nav2_span_grid_t &grid, const nav2_
         }
     }
 
-    return !out_graph->layers.empty();
+    return !out_graph->layers.empty() && SVG_Nav2_ValidateRegionLayerGraph( *out_graph );
 }
 
 /**

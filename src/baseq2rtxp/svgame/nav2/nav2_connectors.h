@@ -147,6 +147,37 @@ struct nav2_connector_list_t {
     std::unordered_map<int32_t, nav2_connector_ref_t> by_id = {};
 };
 
+/**
+* @brief Compact extraction summary used by Task 6.3 runtime validation and bounded diagnostics.
+* @note The summary keeps connector-type coverage explicit without requiring per-connector log spam.
+**/
+struct nav2_connector_summary_t {
+    //! Total connectors in the extracted list.
+    int32_t total_count = 0;
+    //! Portal/opening transition connectors.
+    int32_t portal_count = 0;
+    //! Stair-band transition connectors.
+    int32_t stair_count = 0;
+    //! Ladder endpoint connectors.
+    int32_t ladder_count = 0;
+    //! Door/timed transition connectors.
+    int32_t door_count = 0;
+    //! Mover boarding connectors.
+    int32_t mover_boarding_count = 0;
+    //! Mover ride connectors.
+    int32_t mover_ride_count = 0;
+    //! Mover exit connectors.
+    int32_t mover_exit_count = 0;
+    //! Inline-entity-derived connector count.
+    int32_t entity_connector_count = 0;
+    //! Span-derived connector count.
+    int32_t span_connector_count = 0;
+    //! Connectors currently unavailable due to area-portal or entity state checks.
+    int32_t unavailable_count = 0;
+    //! Connectors tagged as reusable topology anchors.
+    int32_t reusable_count = 0;
+};
+
 
 /**
 *
@@ -212,6 +243,14 @@ const bool SVG_Nav2_ExtractEntityConnectors( const std::vector<svg_base_edict_t 
 * @return True when at least one connector was produced.
 **/
 const bool SVG_Nav2_ExtractConnectors( const nav2_span_grid_t &grid, const std::vector<svg_base_edict_t *> &entities, nav2_connector_list_t *out_list );
+
+/**
+* @brief Build a bounded connector-type summary for diagnostics and runtime validation.
+* @param list Connector list to summarize.
+* @param out_summary [out] Compact summary counters.
+* @return True when the summary was produced.
+**/
+const bool SVG_Nav2_BuildConnectorSummary( const nav2_connector_list_t &list, nav2_connector_summary_t *out_summary );
 
 /**
 * @brief Emit a bounded debug summary for connector extraction results.

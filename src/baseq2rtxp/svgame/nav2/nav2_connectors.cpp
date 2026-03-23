@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <unordered_set>
 
 
 /**
@@ -51,6 +52,146 @@ static nav2_connector_anchor_t SVG_Nav2_MakeConnectorAnchor( const nav2_span_ref
     anchor.local_origin = localOrigin;
     anchor.valid = spanRef.IsValid();
     return anchor;
+}
+
+/**
+*\t@brief\tPopulate anchor topology metadata from one resolved span.
+*\t@param\tspan\tResolved span payload.
+*\t@param\tanchor\t[in,out] Anchor receiving topology fields.
+**/
+static void SVG_Nav2_Connector_ApplySpanTopology( const nav2_span_t &span, nav2_connector_anchor_t *anchor ) {
+    // Require output storage before mutating the anchor metadata.
+    if ( !anchor ) {
+        return;
+    }
+
+    // Copy stable BSP topology identity from the source span.
+    anchor->leaf_id = span.leaf_id;
+    anchor->cluster_id = span.cluster_id;
+    anchor->area_id = span.area_id;
+    anchor->valid = true;
+}
+
+/**
+*\t@brief\tBuild world-space anchor coordinates for one sparse span slot.
+*\t@param\tgrid\tSparse precision grid containing the source span.
+*\t@param\tcolumn\tOwning sparse column.
+*\t@param\tspan\tSpan payload to anchor.
+*\t@param\tcolumn_index\tStable column index used by pointer-free span references.
+*\t@param\tspan_index\tStable span index inside the owning column.
+*\t@return\tConnector anchor carrying span and BSP metadata.
+**/
+static nav2_connector_anchor_t SVG_Nav2_Connector_MakeSpanAnchor( const nav2_span_grid_t &grid, const nav2_span_column_t &column,
+    const nav2_span_t &span, const int32_t column_index, const int32_t span_index ) {
+    // Convert sparse XY coordinates into a deterministic world-space column center.
+    const double cellSizeXY = grid.cell_size_xy > 0.0 ? grid.cell_size_xy : 32.0;
+    const Vector3 worldOrigin = {
+        ( float )( ( ( double )column.tile_x + 0.5 ) * cellSizeXY ),
+        ( float )( ( ( double )column.tile_y + 0.5 ) * cellSizeXY ),
+        ( float )span.preferred_z
+    };
+
+    // Build a pointer-free span reference so connectors remain persistence-friendly.
+    nav2_span_ref_t spanRef = {};
+    spanRef.span_id = span.span_id;
+    spanRef.column_index = column_index;
+    spanRef.span_index = span_index;
+
+    // Start from world/local parity because span anchors are world-derived in this pass.
+    nav2_connector_anchor_t anchor = SVG_Nav2_MakeConnectorAnchor( spanRef, worldOrigin, worldOrigin );
+    SVG_Nav2_Connector_ApplySpanTopology( span, &anchor );
+    return anchor;
+}
+
+/**
+*\t@brief\tBuild a conservative area-portal availability state for one connector.
+*\t@param\tconnector\t[in,out] Connector receiving availability metadata.
+**/
+static void SVG_Nav2_Connector_UpdateAreaPortalAvailability( nav2_connector_t *connector ) {
+    // Require output storage before mutating availability flags.
+    if ( !connector ) {
+        return;
+    }
+
+    // Start from available and only downgrade when area-portal checks prove disconnection.
+    connector->dynamically_available = true;
+    connector->availability_version = 0;
+
+    // Require area connectivity imports and valid area ids before evaluating dynamic availability.
+    if ( !gi.AreasConnected || connector->start.area_id < 0 || connector->end.area_id < 0 ) {
+        return;
+    }
+
+    // Mark connectors unavailable when area connectivity is currently blocked.
+    if ( !gi.AreasConnected( connector->start.area_id, connector->end.area_id ) ) {
+        connector->dynamically_available = false;
+        connector->availability_version = 1;
+    }
+}
+
+/**
+*\t@brief\tClassify one span transition connector kind from span semantics and vertical delta.
+*\t@param\tspanA\tSource span.
+*\t@param\tspanB\tDestination span.
+*\t@return\tConnector kind bitmask for the span transition.
+**/
+static uint32_t SVG_Nav2_Connector_ClassifySpanTransitionKind( const nav2_span_t &spanA, const nav2_span_t &spanB ) {
+    // Start from a portal/opening transition because every span connector implies a coarse topology crossing.
+    uint32_t kindBits = NAV2_CONNECTOR_KIND_PORTAL;
+
+    // Prefer explicit ladder endpoint semantics when either span exposes ladder traversal features.
+    if ( ( spanA.topology_flags & NAV_TRAVERSAL_FEATURE_LADDER ) != 0 || ( spanB.topology_flags & NAV_TRAVERSAL_FEATURE_LADDER ) != 0
+        || ( spanA.surface_flags & NAV_TILE_SUMMARY_LADDER ) != 0 || ( spanB.surface_flags & NAV_TILE_SUMMARY_LADDER ) != 0 ) {
+        kindBits |= NAV2_CONNECTOR_KIND_LADDER_ENDPOINT;
+        return kindBits;
+    }
+
+    // Prefer explicit stair-band semantics when stair metadata or meaningful step deltas are present.
+    const double verticalDelta = std::fabs( spanB.preferred_z - spanA.preferred_z );
+    if ( ( spanA.topology_flags & NAV_TRAVERSAL_FEATURE_STAIR_PRESENCE ) != 0 || ( spanB.topology_flags & NAV_TRAVERSAL_FEATURE_STAIR_PRESENCE ) != 0
+        || ( spanA.surface_flags & NAV_TILE_SUMMARY_STAIR ) != 0 || ( spanB.surface_flags & NAV_TILE_SUMMARY_STAIR ) != 0
+        || verticalDelta > 8.0 ) {
+        kindBits |= NAV2_CONNECTOR_KIND_STAIR_BAND;
+    }
+
+    // Mark opening transitions when either side carries explicit walk-off/opening-like semantics.
+    if ( ( spanA.surface_flags & NAV_TILE_SUMMARY_WALK_OFF ) != 0 || ( spanB.surface_flags & NAV_TILE_SUMMARY_WALK_OFF ) != 0 ) {
+        kindBits |= NAV2_CONNECTOR_KIND_OPENING;
+    }
+
+    return kindBits;
+}
+
+/**
+*\t@brief\tBuild movement restriction bits for one span-derived connector.
+*\t@param\tspanA\tSource span.
+*\t@param\tspanB\tDestination span.
+*\t@return\tMovement restriction feature bits.
+**/
+static uint32_t SVG_Nav2_Connector_BuildSpanRestrictions( const nav2_span_t &spanA, const nav2_span_t &spanB ) {
+    // Start with no restrictions and widen from observed transition semantics.
+    uint32_t restrictions = NAV_EDGE_FEATURE_NONE;
+
+    // Preserve explicit walk-off caution and hard-wall semantics from both spans.
+    if ( ( spanA.surface_flags & NAV_TILE_SUMMARY_WALK_OFF ) != 0 || ( spanB.surface_flags & NAV_TILE_SUMMARY_WALK_OFF ) != 0 ) {
+        restrictions |= NAV_EDGE_FEATURE_OPTIONAL_WALK_OFF;
+    }
+    if ( ( spanA.surface_flags & NAV_TILE_SUMMARY_HARD_WALL ) != 0 || ( spanB.surface_flags & NAV_TILE_SUMMARY_HARD_WALL ) != 0 ) {
+        restrictions |= NAV_EDGE_FEATURE_HARD_WALL_BLOCKED;
+    }
+
+    // Preserve liquid transitions so connector-aware coarse routing can penalize hazardous transitions early.
+    if ( ( spanA.movement_flags & NAV_FLAG_WATER ) != 0 || ( spanB.movement_flags & NAV_FLAG_WATER ) != 0 ) {
+        restrictions |= NAV_EDGE_FEATURE_ENTERS_WATER;
+    }
+    if ( ( spanA.movement_flags & NAV_FLAG_LAVA ) != 0 || ( spanB.movement_flags & NAV_FLAG_LAVA ) != 0 ) {
+        restrictions |= NAV_EDGE_FEATURE_ENTERS_LAVA;
+    }
+    if ( ( spanA.movement_flags & NAV_FLAG_SLIME ) != 0 || ( spanB.movement_flags & NAV_FLAG_SLIME ) != 0 ) {
+        restrictions |= NAV_EDGE_FEATURE_ENTERS_SLIME;
+    }
+
+    return restrictions;
 }
 
 /**
@@ -134,6 +275,17 @@ static const bool SVG_Nav2_TryBuildEntityConnector( const svg_base_edict_t *ent,
     out_connector->start = SVG_Nav2_MakeConnectorAnchor( entitySpanRef, worldOrigin, localOrigin );
     out_connector->end = out_connector->start;
 
+    // Mirror coarse topology metadata so area-portal checks can determine dynamic connector availability.
+    out_connector->start.area_id = ent->areaNumber0;
+    out_connector->end.area_id = ent->areaNumber1 >= 0 ? ent->areaNumber1 : ent->areaNumber0;
+    out_connector->start.leaf_id = entityInfo.headnode_valid ? entityInfo.inline_model_index : -1;
+    out_connector->end.leaf_id = out_connector->start.leaf_id;
+    out_connector->start.cluster_id = -1;
+    out_connector->end.cluster_id = -1;
+
+    // Downgrade availability when area-portal connectivity currently blocks this connector.
+    SVG_Nav2_Connector_UpdateAreaPortalAvailability( out_connector );
+
     // Establish a conservative Z band around the mover so corridor extraction can use the connector as a route commitment.
     out_connector->allowed_min_z = worldOrigin.z - 32.0;
     out_connector->allowed_max_z = worldOrigin.z + 32.0;
@@ -157,10 +309,11 @@ static const bool SVG_Nav2_TryBuildSpanConnector( const nav2_span_t &spanA, cons
 
     // Clear output before populating the connector candidate.
     *out_connector = {};
-    out_connector->connector_kind = NAV2_CONNECTOR_KIND_PORTAL;
+    out_connector->connector_kind = SVG_Nav2_Connector_ClassifySpanTransitionKind( spanA, spanB );
     out_connector->allowed_min_z = std::min( spanA.floor_z, spanB.floor_z );
     out_connector->allowed_max_z = std::max( spanA.ceiling_z, spanB.ceiling_z );
     out_connector->base_cost = 1.0;
+    out_connector->movement_restrictions = SVG_Nav2_Connector_BuildSpanRestrictions( spanA, spanB );
     out_connector->reusable = true;
 
     // Derive a stable span reference pair from the source spans.
@@ -174,8 +327,16 @@ static const bool SVG_Nav2_TryBuildSpanConnector( const nav2_span_t &spanA, cons
     endRef.column_index = spanB.leaf_id;
     endRef.span_index = spanB.cluster_id;
 
-    // Build trivial anchors in the absence of world-space derivation.	out_connector->start = SVG_Nav2_MakeConnectorAnchor( startRef, Vector3{ 0.0, 0.0, spanA.preferred_z }, Vector3{ 0.0, 0.0, spanA.preferred_z } );
-    out_connector->end = SVG_Nav2_MakeConnectorAnchor( endRef, Vector3{ 0.0, 0.0, spanB.preferred_z }, Vector3{ 0.0, 0.0, spanB.preferred_z } );
+    // Build trivial anchors in the absence of world-space derivation.
+    const Vector3 spanAOrigin = { 0.f, 0.f, ( float )spanA.preferred_z };
+    const Vector3 spanBOrigin = { 0.f, 0.f, ( float )spanB.preferred_z };
+    out_connector->start = SVG_Nav2_MakeConnectorAnchor( startRef, spanAOrigin, spanAOrigin );
+    out_connector->end = SVG_Nav2_MakeConnectorAnchor( endRef, spanBOrigin, spanBOrigin );
+    SVG_Nav2_Connector_ApplySpanTopology( spanA, &out_connector->start );
+    SVG_Nav2_Connector_ApplySpanTopology( spanB, &out_connector->end );
+
+    // Span connectors default to available unless area-portal checks prove otherwise.
+    SVG_Nav2_Connector_UpdateAreaPortalAvailability( out_connector );
     return true;
 }
 
@@ -277,21 +438,102 @@ const bool SVG_Nav2_ExtractSpanConnectors( const nav2_span_grid_t &grid, nav2_co
         return false;
     }
 
+    // Track emitted span-pair keys so duplicate connectors are not emitted across repeated scans.
+    std::unordered_set<uint64_t> emittedPairs = {};
+
     // Scan adjacent spans inside each column so local vertical transitions become explicit connectors.
-    for ( const nav2_span_column_t &column : grid.columns ) {
+    for ( int32_t columnIndex = 0; columnIndex < ( int32_t )grid.columns.size(); columnIndex++ ) {
+        const nav2_span_column_t &column = grid.columns[ ( size_t )columnIndex ];
         for ( size_t i = 0; i + 1 < column.spans.size(); ++i ) {
             const nav2_span_t &spanA = column.spans[ i ];
             const nav2_span_t &spanB = column.spans[ i + 1 ];
+
+            // Skip unstable span ids because connector persistence depends on stable ids.
+            if ( spanA.span_id < 0 || spanB.span_id < 0 ) {
+                continue;
+            }
+
+            // Build a deterministic pair key and skip duplicates.
+            const int32_t minSpanId = std::min( spanA.span_id, spanB.span_id );
+            const int32_t maxSpanId = std::max( spanA.span_id, spanB.span_id );
+            const uint64_t pairKey = ( ( uint64_t )( uint32_t )minSpanId << 32 ) | ( uint64_t )( uint32_t )maxSpanId;
+            if ( emittedPairs.find( pairKey ) != emittedPairs.end() ) {
+                continue;
+            }
+
             nav2_connector_t connector = {};
             if ( SVG_Nav2_TryBuildSpanConnector( spanA, spanB, &connector ) ) {
-                connector.connector_kind |= ( spanA.topology_flags & spanB.topology_flags & NAV_TRAVERSAL_FEATURE_LADDER ) ? NAV2_CONNECTOR_KIND_LADDER_ENDPOINT : NAV2_CONNECTOR_KIND_STAIR_BAND;
-                connector.connector_kind |= ( spanA.surface_flags & NAV_TILE_SUMMARY_WALK_OFF ) ? NAV2_CONNECTOR_KIND_OPENING : NAV2_CONNECTOR_KIND_NONE;
+                // Re-anchor span connectors with resolved world-space positions and stable column/span indices.
+                connector.start = SVG_Nav2_Connector_MakeSpanAnchor( grid, column, spanA, columnIndex, ( int32_t )i );
+                connector.end = SVG_Nav2_Connector_MakeSpanAnchor( grid, column, spanB, columnIndex, ( int32_t )i + 1 );
+
+                // Mark this span-pair as emitted once the connector candidate is accepted.
+                emittedPairs.insert( pairKey );
                 SVG_Nav2_ConnectorList_Append( out_list, connector );
             }
         }
     }
 
     return !out_list->connectors.empty();
+}
+
+/**
+*\t@brief\tBuild a bounded connector-type summary for diagnostics and runtime validation.
+*\t@param\tlist\tConnector list to summarize.
+*\t@param\tout_summary\t[out] Compact summary counters.
+*\t@return\tTrue when the summary was produced.
+**/
+const bool SVG_Nav2_BuildConnectorSummary( const nav2_connector_list_t &list, nav2_connector_summary_t *out_summary ) {
+    // Require output storage before writing summary counters.
+    if ( !out_summary ) {
+        return false;
+    }
+
+    // Reset output storage so callers never observe stale counters.
+    *out_summary = {};
+
+    // Iterate every connector once and accumulate compact kind/availability counters.
+    for ( const nav2_connector_t &connector : list.connectors ) {
+        out_summary->total_count++;
+
+        // Track each connector kind explicitly so Task 6.3 coverage remains visible in bounded diagnostics.
+        if ( ( connector.connector_kind & NAV2_CONNECTOR_KIND_PORTAL ) != 0 || ( connector.connector_kind & NAV2_CONNECTOR_KIND_OPENING ) != 0 ) {
+            out_summary->portal_count++;
+        }
+        if ( ( connector.connector_kind & NAV2_CONNECTOR_KIND_STAIR_BAND ) != 0 ) {
+            out_summary->stair_count++;
+        }
+        if ( ( connector.connector_kind & NAV2_CONNECTOR_KIND_LADDER_ENDPOINT ) != 0 ) {
+            out_summary->ladder_count++;
+        }
+        if ( ( connector.connector_kind & NAV2_CONNECTOR_KIND_DOOR_TRANSITION ) != 0 ) {
+            out_summary->door_count++;
+        }
+        if ( ( connector.connector_kind & NAV2_CONNECTOR_KIND_MOVER_BOARDING ) != 0 ) {
+            out_summary->mover_boarding_count++;
+        }
+        if ( ( connector.connector_kind & NAV2_CONNECTOR_KIND_MOVER_RIDE ) != 0 ) {
+            out_summary->mover_ride_count++;
+        }
+        if ( ( connector.connector_kind & NAV2_CONNECTOR_KIND_MOVER_EXIT ) != 0 ) {
+            out_summary->mover_exit_count++;
+        }
+
+        // Track source-type and availability coverage.
+        if ( connector.owner_entnum >= 0 ) {
+            out_summary->entity_connector_count++;
+        } else {
+            out_summary->span_connector_count++;
+        }
+        if ( !connector.dynamically_available ) {
+            out_summary->unavailable_count++;
+        }
+        if ( connector.reusable ) {
+            out_summary->reusable_count++;
+        }
+    }
+
+    return true;
 }
 
 /**
@@ -373,23 +615,48 @@ void SVG_Nav2_DebugPrintConnectors( const nav2_connector_list_t &list, const int
         return;
     }
 
+    // Build one compact summary payload so high-level connector coverage stays visible.
+    nav2_connector_summary_t summary = {};
+    SVG_Nav2_BuildConnectorSummary( list, &summary );
+
     // Print a compact header so the caller can see aggregate counts at a glance.
-    gi.dprintf( "[NAV2][Connectors] count=%d report=%d\n", ( int32_t )list.connectors.size(), std::min( ( int32_t )list.connectors.size(), limit ) );
+    gi.dprintf( "[NAV2][Connectors] count=%d report=%d portal=%d stair=%d ladder=%d door=%d mover(board=%d ride=%d exit=%d) span=%d entity=%d unavailable=%d reusable=%d\n",
+        summary.total_count,
+        std::min( summary.total_count, limit ),
+        summary.portal_count,
+        summary.stair_count,
+        summary.ladder_count,
+        summary.door_count,
+        summary.mover_boarding_count,
+        summary.mover_ride_count,
+        summary.mover_exit_count,
+        summary.span_connector_count,
+        summary.entity_connector_count,
+        summary.unavailable_count,
+        summary.reusable_count );
     const int32_t reportCount = std::min( ( int32_t )list.connectors.size(), limit );
     for ( int32_t i = 0; i < reportCount; ++i ) {
         const nav2_connector_t &connector = list.connectors[ ( size_t )i ];
-        gi.dprintf( "[NAV2][Connectors] id=%d kind=0x%08x ent=%d model=%d spanA=%d spanB=%d z=(%.1f..%.1f) cost=%.1f penalty=%.1f avail=%d reusable=%d\n",
+        gi.dprintf( "[NAV2][Connectors] id=%d kind=0x%08x ent=%d model=%d spanA=%d spanB=%d topo=(leaf:%d/%d cluster:%d/%d area:%d/%d) z=(%.1f..%.1f) cost=%.1f penalty=%.1f restrict=0x%08x avail=%d ver=%u reusable=%d\n",
             connector.connector_id,
             connector.connector_kind,
             connector.owner_entnum,
             connector.inline_model_index,
             connector.start.span_ref.span_id,
             connector.end.span_ref.span_id,
+            connector.start.leaf_id,
+            connector.end.leaf_id,
+            connector.start.cluster_id,
+            connector.end.cluster_id,
+            connector.start.area_id,
+            connector.end.area_id,
             connector.allowed_min_z,
             connector.allowed_max_z,
             connector.base_cost,
             connector.policy_penalty,
+            connector.movement_restrictions,
             connector.dynamically_available ? 1 : 0,
+            connector.availability_version,
             connector.reusable ? 1 : 0 );
     }
 }

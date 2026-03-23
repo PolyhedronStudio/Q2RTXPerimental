@@ -7,6 +7,8 @@
 ********************************************************************/
 #include "svgame/nav2/nav2_fine_astar.h"
 
+#include "svgame/nav2/nav2_span_grid_build.h"
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -24,6 +26,300 @@ static int32_t SVG_Nav2_AllocateFineNodeId( const nav2_fine_astar_state_t &state
         nextId = std::max( nextId, node.node_id + 1 );
     }
     return nextId;
+}
+
+/**
+*	@brief	Resolve one fine-search node by stable id.
+*	@param	state	Solver state to inspect.
+*	@param	nodeId	Stable node id to resolve.
+*	@return	Pointer to the resolved node, or `nullptr` when missing.
+**/
+static nav2_fine_astar_node_t *SVG_Nav2_FindFineNodeById( nav2_fine_astar_state_t *state, const int32_t nodeId ) {
+    /**
+    *    Require solver storage before resolving a node id.
+    **/
+    if ( !state ) {
+        return nullptr;
+    }
+
+    /**
+    *    Resolve through the stable id-to-index map first for deterministic lookup.
+    **/
+    const auto it = state->node_id_to_index.find( nodeId );
+    if ( it == state->node_id_to_index.end() ) {
+        return nullptr;
+    }
+
+    /**
+    *    Reject stale indices so the lookup stays robust during resumable mutation.
+    **/
+    const int32_t nodeIndex = it->second;
+    if ( nodeIndex < 0 || nodeIndex >= ( int32_t )state->nodes.size() ) {
+        return nullptr;
+    }
+    return &state->nodes[ ( size_t )nodeIndex ];
+}
+
+/**
+*	@brief	Resolve one fine-search node by stable id (const overload).
+*	@param	state	Solver state to inspect.
+*	@param	nodeId	Stable node id to resolve.
+*	@return	Pointer to the resolved node, or `nullptr` when missing.
+**/
+static const nav2_fine_astar_node_t *SVG_Nav2_FindFineNodeById( const nav2_fine_astar_state_t &state, const int32_t nodeId ) {
+    /**
+    *    Resolve through the stable id-to-index map first for deterministic lookup.
+    **/
+    const auto it = state.node_id_to_index.find( nodeId );
+    if ( it == state.node_id_to_index.end() ) {
+        return nullptr;
+    }
+
+    /**
+    *    Reject stale indices so the lookup stays robust during resumable mutation.
+    **/
+    const int32_t nodeIndex = it->second;
+    if ( nodeIndex < 0 || nodeIndex >= ( int32_t )state.nodes.size() ) {
+        return nullptr;
+    }
+    return &state.nodes[ ( size_t )nodeIndex ];
+}
+
+/**
+*	@brief	Register one frontier node into the solver's stable lookup structures.
+*	@param	state	[in,out] Solver state receiving the node.
+*	@param	node	Node payload to append.
+*	@return	True when the node was appended.
+**/
+static const bool SVG_Nav2_AppendFineNode( nav2_fine_astar_state_t *state, const nav2_fine_astar_node_t &node ) {
+    /**
+    *    Require solver storage and a valid node id before appending.
+    **/
+    if ( !state || node.node_id < 0 ) {
+        return false;
+    }
+
+    /**
+    *    Avoid duplicate node ids because resumable solver state depends on stable id identity.
+    **/
+    if ( state->node_id_to_index.find( node.node_id ) != state->node_id_to_index.end() ) {
+        return false;
+    }
+
+    /**
+    *    Append the node and wire stable id lookup bookkeeping in one place.
+    **/
+    const int32_t nodeIndex = ( int32_t )state->nodes.size();
+    state->nodes.push_back( node );
+    state->node_id_to_index[ node.node_id ] = nodeIndex;
+    return true;
+}
+
+/**
+*	@brief	Resolve one span and span-reference pair from a stable span id.
+*	@param	grid	Span-grid snapshot to inspect.
+*	@param	spanId	Stable span id to resolve.
+*	@param	outRef	[out] Optional pointer-free span reference.
+*	@param	outSpan	[out] Optional resolved span pointer.
+*	@return	True when the span id was resolved.
+**/
+static const bool SVG_Nav2_ResolveSpanById( const nav2_span_grid_t &grid, const int32_t spanId,
+    nav2_span_ref_t *outRef, const nav2_span_t **outSpan ) {
+    /**
+    *    Require a valid span id and at least one output destination.
+    **/
+    if ( spanId < 0 || ( !outRef && !outSpan ) ) {
+        return false;
+    }
+
+    /**
+    *    Resolve the pointer-free span reference from reverse indices.
+    **/
+    const auto it = grid.reverse_indices.by_span_id.find( spanId );
+    if ( it == grid.reverse_indices.by_span_id.end() ) {
+        return false;
+    }
+    const nav2_span_ref_t ref = it->second;
+
+    /**
+    *    Resolve the concrete span slot from the pointer-free reference.
+    **/
+    const nav2_span_t *resolvedSpan = SVG_Nav2_SpanGrid_TryResolveSpan( grid, ref );
+    if ( !resolvedSpan ) {
+        return false;
+    }
+
+    /**
+    *    Publish resolved outputs.
+    **/
+    if ( outRef ) {
+        *outRef = ref;
+    }
+    if ( outSpan ) {
+        *outSpan = resolvedSpan;
+    }
+    return true;
+}
+
+/**
+*	@brief	Append one edge payload while preserving stable edge ids.
+*	@param	state	[in,out] Solver state receiving the edge.
+*	@param	edge	Edge payload to append.
+*	@return	True when the edge was appended.
+**/
+static const bool SVG_Nav2_AppendFineEdge( nav2_fine_astar_state_t *state, const nav2_fine_astar_edge_t &edge ) {
+    /**
+    *    Require solver storage and valid endpoint node ids before appending.
+    **/
+    if ( !state || edge.edge_id < 0 || edge.from_node_id < 0 || edge.to_node_id < 0 ) {
+        return false;
+    }
+
+    /**
+    *    Append edge payload in deterministic order.
+    **/
+    state->edges.push_back( edge );
+    return true;
+}
+
+/**
+*	@brief	Find the best frontier node id by current f-score ordering.
+*	@param	state	Solver state to inspect.
+*	@return	Stable node id selected for the next expansion, or `-1` when frontier is empty.
+**/
+static int32_t SVG_Nav2_FindBestFrontierNodeId( const nav2_fine_astar_state_t &state ) {
+    /**
+    *    Return early when no active frontier nodes remain.
+    **/
+    if ( state.frontier_node_ids.empty() ) {
+        return -1;
+    }
+
+    /**
+    *    Scan active frontier ids and select the lowest f-score node deterministically.
+    **/
+    double bestScore = std::numeric_limits<double>::infinity();
+    int32_t bestNodeId = -1;
+    for ( const int32_t nodeId : state.frontier_node_ids ) {
+        const nav2_fine_astar_node_t *node = SVG_Nav2_FindFineNodeById( state, nodeId );
+        if ( !node ) {
+            continue;
+        }
+        if ( node->f_score < bestScore ) {
+            bestScore = node->f_score;
+            bestNodeId = node->node_id;
+        }
+    }
+    return bestNodeId;
+}
+
+/**
+*	@brief	Remove one node id from the active frontier id list.
+*	@param	state	[in,out] Solver state whose frontier should be updated.
+*	@param	nodeId	Stable node id to remove.
+**/
+static void SVG_Nav2_RemoveFrontierNodeId( nav2_fine_astar_state_t *state, const int32_t nodeId ) {
+    /**
+    *    Require solver storage before mutating frontier node ids.
+    **/
+    if ( !state ) {
+        return;
+    }
+
+    /**
+    *    Erase the selected node id from the frontier list.
+    **/
+    state->frontier_node_ids.erase( std::remove( state->frontier_node_ids.begin(), state->frontier_node_ids.end(), nodeId ),
+        state->frontier_node_ids.end() );
+}
+
+/**
+*	@brief	Resolve one corridor segment for a span pair by scanning explicit segment topology and connector commitments.
+*	@param	corridor	Corridor constraints to inspect.
+*	@param	from_span	Source span.
+*	@param	to_span	Destination span.
+*	@return	Matching segment pointer, or `nullptr` when no explicit segment was a good candidate.
+**/
+static const nav2_corridor_segment_t *SVG_Nav2_FindBestCorridorSegmentForSpans( const nav2_corridor_t &corridor,
+    const nav2_span_t &from_span, const nav2_span_t &to_span ) {
+    /**
+    *    Return early when there are no explicit corridor segments to match.
+    **/
+    if ( corridor.segments.empty() ) {
+        return nullptr;
+    }
+
+    /**
+    *    Prefer explicit region and area matches first, then fall back to closest preferred Z.
+    **/
+    const nav2_corridor_segment_t *bestSegment = nullptr;
+    int32_t bestScore = std::numeric_limits<int32_t>::max();
+    for ( const nav2_corridor_segment_t &segment : corridor.segments ) {
+        int32_t score = 0;
+
+        // Reward region matches when both segment and destination span have region metadata.
+        if ( segment.topology.region_id != NAV_REGION_ID_NONE && to_span.region_layer_id != NAV_REGION_ID_NONE ) {
+            if ( segment.topology.region_id != to_span.region_layer_id ) {
+                score += 8;
+            }
+        }
+
+        // Reward area and cluster matches when available.
+        if ( segment.topology.area_id >= 0 && to_span.area_id >= 0 && segment.topology.area_id != to_span.area_id ) {
+            score += 4;
+        }
+        if ( segment.topology.cluster_id >= 0 && to_span.cluster_id >= 0 && segment.topology.cluster_id != to_span.cluster_id ) {
+            score += 2;
+        }
+
+        // Prefer segments whose preferred Z aligns with the current transition.
+        const double transitionZ = ( from_span.preferred_z + to_span.preferred_z ) * 0.5;
+        score += ( int32_t )std::min( 32.0, std::fabs( segment.allowed_z_band.preferred_z - transitionZ ) * 0.05 );
+
+        if ( !bestSegment || score < bestScore ) {
+            bestSegment = &segment;
+            bestScore = score;
+        }
+    }
+    return bestSegment;
+}
+
+/**
+*	@brief	Populate solver span-grid and adjacency snapshots from the active runtime mesh.
+*	@param	state	[in,out] Solver state receiving precision-layer snapshots.
+*	@return	True when both span-grid and adjacency snapshots were built.
+**/
+static const bool SVG_Nav2_InitializeFineSearchPrecisionSnapshots( nav2_fine_astar_state_t *state ) {
+    /**
+    *    Require solver storage before building precision snapshots.
+    **/
+    if ( !state ) {
+        return false;
+    }
+
+    /**
+    *    Build a fresh span-grid snapshot from the active nav2 runtime mesh publication.
+    **/
+    nav2_span_grid_build_stats_t spanBuildStats = {};
+    if ( !SVG_Nav2_BuildSpanGridFromMesh( SVG_Nav2_Runtime_GetMesh(), &state->span_grid, &spanBuildStats ) ) {
+        return false;
+    }
+
+    /**
+    *    Build local span adjacency from the fresh span-grid snapshot.
+    **/
+    if ( !SVG_Nav2_BuildSpanAdjacency( state->span_grid, &state->span_adjacency ) ) {
+        return false;
+    }
+
+    /**
+    *    Rebuild reverse indices so span-id lookup remains deterministic for corridor-constrained expansion.
+    **/
+    if ( !SVG_Nav2_SpanGrid_RebuildReverseIndices( &state->span_grid ) ) {
+        return false;
+    }
+
+    return true;
 }
 
 /**
@@ -166,15 +462,9 @@ static void SVG_Nav2_ReconstructPath( const nav2_fine_astar_state_t &state, cons
     out_path->node_ids.clear();
     out_path->edge_ids.clear();
 
-    int32_t currentNodeId = terminalNodeId;
+ int32_t currentNodeId = terminalNodeId;
     while ( currentNodeId >= 0 ) {
-        const nav2_fine_astar_node_t *currentNode = nullptr;
-        for ( const nav2_fine_astar_node_t &node : state.nodes ) {
-            if ( node.node_id == currentNodeId ) {
-                currentNode = &node;
-                break;
-            }
-        }
+        const nav2_fine_astar_node_t *currentNode = SVG_Nav2_FindFineNodeById( state, currentNodeId );
         if ( !currentNode ) {
             break;
         }
@@ -213,10 +503,7 @@ static const bool SVG_Nav2_ShouldExpandNode( nav2_fine_astar_state_t *state, con
         state->diagnostics.mover_prunes++;
         return false;
     }
-    if ( ( node.flags & NAV2_FINE_ASTAR_NODE_FLAG_PARTIAL ) != 0 ) {
-        state->diagnostics.topology_prunes++;
-        return false;
-    }
+    // Partial nodes are still eligible for expansion in Task 9.1, but they remain policy-penalized.
     return true;
 }
 
@@ -275,20 +562,56 @@ const bool SVG_Nav2_FineAStar_Init( nav2_fine_astar_state_t *state, const nav2_c
     state->query_state.has_provisional_result = ( corridor.flags & NAV_CORRIDOR_FLAG_PARTIAL_RESULT ) != 0;
     state->query_state.requires_revalidation = true;
 
+  // Build precision-layer snapshots used by corridor-constrained fine expansion.
+    if ( !SVG_Nav2_InitializeFineSearchPrecisionSnapshots( state ) ) {
+        state->status = nav2_fine_astar_status_t::Failed;
+        state->query_state.result_status = nav2_query_result_status_t::Failed;
+        return false;
+    }
+
+    // Resolve stable start and goal spans from the first and final corridor segments.
+    const nav2_corridor_segment_t &startSegment = corridor.segments.front();
+    const nav2_corridor_segment_t &goalSegment = corridor.segments.back();
+    state->start_span_id = startSegment.topology.cell_index;
+    state->goal_span_id = goalSegment.topology.cell_index;
+
+    // Abort initialization when start or goal span ids are unresolved.
+    if ( state->start_span_id < 0 || state->goal_span_id < 0 ) {
+        state->status = nav2_fine_astar_status_t::Failed;
+        state->query_state.result_status = nav2_query_result_status_t::Failed;
+        return false;
+    }
+
     // Seed the frontier with the corridor start and goal so later slices can refine the chosen route locally.
     const int32_t startNodeId = SVG_Nav2_AllocateFineNodeId( *state );
     const int32_t goalNodeId = startNodeId + 1;
-    nav2_fine_astar_node_t startNode = SVG_Nav2_MakeNodeFromSegment( corridor.segments.front(), startNodeId, nav2_fine_astar_node_kind_t::Start );
+    nav2_fine_astar_node_t startNode = SVG_Nav2_MakeNodeFromSegment( startSegment, startNodeId, nav2_fine_astar_node_kind_t::Start );
+    startNode.span_id = state->start_span_id;
     startNode.g_score = 0.0;
-    startNode.h_score = SVG_Nav2_Heuristic( startNode, SVG_Nav2_MakeNodeFromSegment( corridor.segments.back(), goalNodeId, nav2_fine_astar_node_kind_t::Goal ) );
-    startNode.f_score = startNode.h_score;
-    state->nodes.push_back( startNode );
 
-    nav2_fine_astar_node_t goalNode = SVG_Nav2_MakeNodeFromSegment( corridor.segments.back(), goalNodeId, nav2_fine_astar_node_kind_t::Goal );
-    goalNode.g_score = 0.0;
+    nav2_fine_astar_node_t goalNode = SVG_Nav2_MakeNodeFromSegment( goalSegment, goalNodeId, nav2_fine_astar_node_kind_t::Goal );
+    goalNode.span_id = state->goal_span_id;
+    goalNode.g_score = std::numeric_limits<double>::infinity();
     goalNode.h_score = 0.0;
-    goalNode.f_score = 0.0;
-    state->nodes.push_back( goalNode );
+    goalNode.f_score = std::numeric_limits<double>::infinity();
+
+    startNode.h_score = SVG_Nav2_Heuristic( startNode, goalNode );
+    startNode.f_score = startNode.h_score;
+
+    if ( !SVG_Nav2_AppendFineNode( state, startNode ) || !SVG_Nav2_AppendFineNode( state, goalNode ) ) {
+        state->status = nav2_fine_astar_status_t::Failed;
+        state->query_state.result_status = nav2_query_result_status_t::Failed;
+        return false;
+    }
+
+    // Keep explicit start and goal node snapshots for result/state diagnostics.
+    state->start_node = startNode;
+    state->goal_node = goalNode;
+
+    // Seed active frontier with the start node only.
+    state->frontier_node_ids.clear();
+    state->frontier_node_ids.push_back( startNode.node_id );
+    state->closed_node_ids.clear();
 
     // Mark the solver as owning a frontier slice so later service calls can resume deterministically.
     state->has_frontier_slice = true;
@@ -303,7 +626,7 @@ const bool SVG_Nav2_FineAStar_Init( nav2_fine_astar_state_t *state, const nav2_c
 *	@return	True when the solver made progress or completed.
 **/
 const bool SVG_Nav2_FineAStar_Step( nav2_fine_astar_state_t *state, const nav2_budget_slice_t &budgetSlice, nav2_fine_astar_result_t *out_result ) {
-    // Require a live solver with at least one frontier node.
+   // Require a live solver with at least one frontier node.
     if ( !state || state->status != nav2_fine_astar_status_t::Running || state->nodes.empty() ) {
         return false;
     }
@@ -338,9 +661,8 @@ const bool SVG_Nav2_FineAStar_Step( nav2_fine_astar_state_t *state, const nav2_b
         return true;
     }
 
-    // Pull the best frontier node and evaluate whether it is still worth expanding.
-    const int32_t bestIndex = SVG_Nav2_FindBestFrontierNodeIndex( *state );
-    if ( bestIndex < 0 ) {
+    // Abort when the frontier is empty because no more corridor-constrained expansions are possible.
+    if ( state->frontier_node_ids.empty() ) {
         state->status = nav2_fine_astar_status_t::Failed;
         state->query_state.result_status = nav2_query_result_status_t::Failed;
         if ( out_result ) {
@@ -351,19 +673,190 @@ const bool SVG_Nav2_FineAStar_Step( nav2_fine_astar_state_t *state, const nav2_b
         return true;
     }
 
-    const nav2_fine_astar_node_t currentNode = state->nodes[ ( size_t )bestIndex ];
-    if ( !SVG_Nav2_ShouldExpandNode( state, currentNode ) ) {
-        if ( out_result ) {
-            *out_result = {};
-            out_result->status = state->status;
-            out_result->diagnostics = state->diagnostics;
+    // Resolve bounded expansion budget for this slice.
+    const uint32_t maxSliceExpansions = std::max( 1u, budgetSlice.granted_expansions );
+    uint32_t expansionsThisSlice = 0;
+    bool advancedFrontier = false;
+    bool reachedGoal = false;
+
+    // Expand up to the granted number of nodes this slice.
+    while ( expansionsThisSlice < maxSliceExpansions && !state->frontier_node_ids.empty() ) {
+        const int32_t currentNodeId = SVG_Nav2_FindBestFrontierNodeId( *state );
+        if ( currentNodeId < 0 ) {
+            break;
         }
-        return true;
+
+        // Remove selected node from frontier and place it in the closed set.
+        SVG_Nav2_RemoveFrontierNodeId( state, currentNodeId );
+        if ( state->closed_node_ids.find( currentNodeId ) != state->closed_node_ids.end() ) {
+            state->diagnostics.duplicate_or_closed_prunes++;
+            continue;
+        }
+        state->closed_node_ids.insert( currentNodeId );
+
+        nav2_fine_astar_node_t *currentNodePtr = SVG_Nav2_FindFineNodeById( state, currentNodeId );
+        if ( !currentNodePtr ) {
+            continue;
+        }
+        const nav2_fine_astar_node_t currentNode = *currentNodePtr;
+
+        if ( !SVG_Nav2_ShouldExpandNode( state, currentNode ) ) {
+            continue;
+        }
+
+        // Complete immediately when the current node already matches the goal span.
+        if ( currentNode.span_id == state->goal_span_id || currentNode.kind == nav2_fine_astar_node_kind_t::Goal ) {
+            reachedGoal = true;
+            break;
+        }
+
+        // Resolve source span metadata for corridor-constrained adjacency checks.
+       nav2_span_ref_t fromSpanRef = {};
+        const nav2_span_t *fromSpan = nullptr;
+        if ( !SVG_Nav2_ResolveSpanById( state->span_grid, currentNode.span_id, &fromSpanRef, &fromSpan ) ) {
+            state->diagnostics.unresolved_span_prunes++;
+            continue;
+        }
+
+        // Expand corridor-constrained neighbors from adjacency edges.
+        for ( const nav2_span_edge_t &adjEdge : state->span_adjacency.edges ) {
+            if ( adjEdge.from_span_id != currentNode.span_id ) {
+                continue;
+            }
+
+            // Resolve destination span metadata.
+         nav2_span_ref_t toSpanRef = {};
+            const nav2_span_t *toSpan = nullptr;
+            if ( !SVG_Nav2_ResolveSpanById( state->span_grid, adjEdge.to_span_id, &toSpanRef, &toSpan ) ) {
+                state->diagnostics.unresolved_span_prunes++;
+                continue;
+            }
+
+            // Find the best explicit corridor segment for this transition and evaluate compatibility.
+            const nav2_corridor_segment_t *matchedSegment = SVG_Nav2_FindBestCorridorSegmentForSpans( state->corridor, *fromSpan, *toSpan );
+            nav2_corridor_mover_ref_t moverRef = currentNode.mover_entnum >= 0 || currentNode.inline_model_index >= 0
+                ? nav2_corridor_mover_ref_t{ currentNode.mover_entnum, currentNode.inline_model_index }
+                : nav2_corridor_mover_ref_t{};
+            nav2_corridor_refine_eval_t corridorEval = {};
+            const bool edgeAllowed = SVG_Nav2_EvaluateSpanEdgeForCorridor( state->corridor, *fromSpan, *toSpan, adjEdge,
+                moverRef.IsValid() ? &moverRef : nullptr, &corridorEval );
+
+            if ( !edgeAllowed ) {
+                state->diagnostics.corridor_reject_prunes++;
+                if ( ( corridorEval.flags & NAV_CORRIDOR_REFINE_EVAL_FLAG_Z_MISMATCH ) != 0 ) {
+                    state->diagnostics.z_prunes++;
+                }
+                if ( ( corridorEval.flags & NAV_CORRIDOR_REFINE_EVAL_FLAG_TOPOLOGY_MISMATCH ) != 0 ) {
+                    state->diagnostics.topology_prunes++;
+                }
+                if ( ( corridorEval.flags & NAV_CORRIDOR_REFINE_EVAL_FLAG_MOVER_MISMATCH ) != 0 ) {
+                    state->diagnostics.mover_prunes++;
+                }
+                if ( ( adjEdge.flags & NAV2_SPAN_EDGE_FLAG_HARD_INVALID ) != 0 ) {
+                    state->diagnostics.hard_invalid_prunes++;
+                }
+                continue;
+            }
+
+            if ( corridorEval.penalty > 0.0 ) {
+                state->diagnostics.corridor_soft_penalty_accepts++;
+            }
+
+            // Skip neighbors already closed.
+            const int32_t neighborNodeId = adjEdge.to_span_id;
+            if ( state->closed_node_ids.find( neighborNodeId ) != state->closed_node_ids.end() ) {
+                state->diagnostics.duplicate_or_closed_prunes++;
+                continue;
+            }
+
+            // Compute transition costs.
+            const double transitionCost = std::max( 0.0, adjEdge.cost ) + std::max( 0.0, adjEdge.soft_penalty_cost ) + std::max( 0.0, corridorEval.penalty );
+            const double tentativeG = currentNode.g_score + transitionCost;
+
+            // Resolve or create destination node.
+            nav2_fine_astar_node_t *neighborNode = SVG_Nav2_FindFineNodeById( state, neighborNodeId );
+            if ( !neighborNode ) {
+                nav2_fine_astar_node_t newNode = {};
+                newNode.node_id = neighborNodeId;
+                newNode.kind = ( neighborNodeId == state->goal_span_id ) ? nav2_fine_astar_node_kind_t::Goal : nav2_fine_astar_node_kind_t::Span;
+                newNode.span_id = toSpan->span_id;
+                newNode.column_index = toSpanRef.column_index;
+                newNode.span_index = toSpanRef.span_index;
+                newNode.connector_id = matchedSegment ? matchedSegment->topology.portal_id : NAV_PORTAL_ID_NONE;
+                newNode.mover_entnum = moverRef.owner_entnum;
+                newNode.inline_model_index = moverRef.model_index;
+                newNode.allowed_z_band = matchedSegment ? matchedSegment->allowed_z_band : state->corridor.global_z_band;
+                newNode.flags = NAV2_FINE_ASTAR_NODE_FLAG_HAS_SPAN | NAV2_FINE_ASTAR_NODE_FLAG_HAS_ALLOWED_Z_BAND;
+                newNode.topology.leaf_index = toSpan->leaf_id;
+                newNode.topology.cluster_id = toSpan->cluster_id;
+                newNode.topology.area_id = toSpan->area_id;
+                newNode.topology.region_id = toSpan->region_layer_id;
+                newNode.g_score = std::numeric_limits<double>::infinity();
+                newNode.h_score = 0.0;
+                newNode.f_score = std::numeric_limits<double>::infinity();
+
+                if ( !SVG_Nav2_AppendFineNode( state, newNode ) ) {
+                    state->diagnostics.duplicate_or_closed_prunes++;
+                    continue;
+                }
+                neighborNode = SVG_Nav2_FindFineNodeById( state, neighborNodeId );
+            }
+
+            if ( !neighborNode ) {
+                continue;
+            }
+
+            // Relax neighbor only when the new path is better.
+            if ( tentativeG >= neighborNode->g_score ) {
+                continue;
+            }
+
+            neighborNode->parent_node_id = currentNode.node_id;
+            neighborNode->g_score = tentativeG;
+            neighborNode->h_score = SVG_Nav2_Heuristic( *neighborNode, state->goal_node );
+            neighborNode->f_score = neighborNode->g_score + neighborNode->h_score;
+
+            // Emit a stable edge record for this successful relaxation.
+            nav2_fine_astar_edge_t relaxedEdge = SVG_Nav2_MakeEdgeFromSpanEdge( adjEdge, SVG_Nav2_AllocateFineEdgeId( *state ) );
+            relaxedEdge.from_node_id = currentNode.node_id;
+            relaxedEdge.to_node_id = neighborNode->node_id;
+            relaxedEdge.connector_id = matchedSegment ? matchedSegment->topology.portal_id : NAV_PORTAL_ID_NONE;
+            relaxedEdge.allowed_z_band = neighborNode->allowed_z_band;
+            relaxedEdge.topology_penalty += corridorEval.penalty;
+            if ( corridorEval.penalty > 0.0 ) {
+                relaxedEdge.flags |= NAV2_FINE_ASTAR_EDGE_FLAG_TOPOLOGY_PENALIZED;
+            }
+            if ( !SVG_Nav2_AppendFineEdge( state, relaxedEdge ) ) {
+                continue;
+            }
+            neighborNode->parent_edge_id = relaxedEdge.edge_id;
+
+            // Ensure relaxed node is present in frontier.
+            if ( std::find( state->frontier_node_ids.begin(), state->frontier_node_ids.end(), neighborNode->node_id ) == state->frontier_node_ids.end() ) {
+                state->frontier_node_ids.push_back( neighborNode->node_id );
+            }
+            advancedFrontier = true;
+
+            // Stop early when goal span has been relaxed in this slice.
+            if ( neighborNode->span_id == state->goal_span_id || neighborNode->node_id == state->goal_node.node_id ) {
+                reachedGoal = true;
+                break;
+            }
+        }
+
+        expansionsThisSlice++;
+        state->diagnostics.expansions++;
+
+        if ( reachedGoal ) {
+            break;
+        }
     }
 
-    // If the best node already corresponds to the goal, reconstruct and stop.
-    if ( currentNode.kind == nav2_fine_astar_node_kind_t::Goal ) {
-        SVG_Nav2_ReconstructPath( *state, currentNode.node_id, &state->path );
+    // If a goal relaxation occurred, reconstruct and publish success.
+    if ( reachedGoal ) {
+        const nav2_fine_astar_node_t *goalNode = SVG_Nav2_FindFineNodeById( *state, state->goal_span_id );
+        const int32_t terminalNodeId = goalNode ? goalNode->node_id : state->goal_node.node_id;
+        SVG_Nav2_ReconstructPath( *state, terminalNodeId, &state->path );
         state->status = nav2_fine_astar_status_t::Success;
         state->query_state.result_status = nav2_query_result_status_t::Success;
         state->query_state.has_provisional_result = true;
@@ -378,24 +871,16 @@ const bool SVG_Nav2_FineAStar_Step( nav2_fine_astar_state_t *state, const nav2_b
         return true;
     }
 
-    // Expand the current node to a synthetic next node so the solver remains resumable before the full span walker is wired in.
-    nav2_fine_astar_node_t nextNode = SVG_Nav2_MakeFallbackNode( state->corridor, SVG_Nav2_AllocateFineNodeId( *state ) );
-    nextNode.parent_node_id = currentNode.node_id;
-    nextNode.parent_edge_id = SVG_Nav2_AllocateFineEdgeId( *state );
-    nextNode.g_score = currentNode.g_score + 1.0;
-    nextNode.h_score = SVG_Nav2_Heuristic( nextNode, state->nodes.back() );
-    nextNode.f_score = nextNode.g_score + nextNode.h_score;
-    state->nodes.push_back( nextNode );
-    state->edges.push_back( nav2_fine_astar_edge_t{} );
-    state->edges.back().edge_id = nextNode.parent_edge_id;
-    state->edges.back().from_node_id = currentNode.node_id;
-    state->edges.back().to_node_id = nextNode.node_id;
-    state->edges.back().kind = nav2_fine_astar_edge_kind_t::FallbackLink;
-    state->edges.back().flags |= NAV2_FINE_ASTAR_EDGE_FLAG_PARTIAL;
-    state->diagnostics.expansions++;
-    state->status = nav2_fine_astar_status_t::Partial;
-    state->query_state.result_status = nav2_query_result_status_t::Partial;
-    state->query_state.has_provisional_result = true;
+    // When no frontier progress was made, fail when frontier is exhausted; otherwise remain partial.
+    if ( !advancedFrontier && state->frontier_node_ids.empty() ) {
+        state->status = nav2_fine_astar_status_t::Failed;
+        state->query_state.result_status = nav2_query_result_status_t::Failed;
+    } else {
+        state->status = nav2_fine_astar_status_t::Partial;
+        state->query_state.result_status = nav2_query_result_status_t::Partial;
+        state->query_state.has_provisional_result = true;
+    }
+
     if ( out_result ) {
         *out_result = {};
         out_result->status = state->status;
@@ -437,7 +922,7 @@ void SVG_Nav2_DebugPrintFineAStar( const nav2_fine_astar_state_t &state, const i
     }
 
     const int32_t reportNodeCount = std::min( ( int32_t )state.nodes.size(), limit );
-    gi.dprintf( "[NAV2][FineAStar] status=%d solver=%llu nodes=%d edges=%d report=%d exp=%u slices=%u pauses=%u resumes=%u z=%u topology=%u mover=%u hard=%u pathNodes=%d pathEdges=%d\n",
+  gi.dprintf( "[NAV2][FineAStar] status=%d solver=%llu nodes=%d edges=%d report=%d exp=%u slices=%u pauses=%u resumes=%u z=%u topology=%u mover=%u hard=%u corridorReject=%u corridorSoft=%u unresolved=%u frontierMiss=%u dupClosed=%u pathNodes=%d pathEdges=%d\n",
         ( int32_t )state.status,
         ( unsigned long long )state.solver_id,
         ( int32_t )state.nodes.size(),
@@ -451,6 +936,11 @@ void SVG_Nav2_DebugPrintFineAStar( const nav2_fine_astar_state_t &state, const i
         state.diagnostics.topology_prunes,
         state.diagnostics.mover_prunes,
         state.diagnostics.hard_invalid_prunes,
+      state.diagnostics.corridor_reject_prunes,
+        state.diagnostics.corridor_soft_penalty_accepts,
+        state.diagnostics.unresolved_span_prunes,
+        state.diagnostics.frontier_miss_prunes,
+        state.diagnostics.duplicate_or_closed_prunes,
         ( int32_t )state.path.node_ids.size(),
         ( int32_t )state.path.edge_ids.size() );
     for ( int32_t i = 0; i < reportNodeCount; ++i ) {

@@ -8,8 +8,11 @@
 #pragma once
 
 #include "svgame/nav2/nav2_corridor_build.h"
+#include "svgame/nav2/nav2_span_grid.h"
 #include "svgame/nav2/nav2_span_adjacency.h"
 
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 
@@ -213,6 +216,16 @@ struct nav2_fine_astar_diagnostics_t {
     uint32_t mover_prunes = 0;
     //! Number of nodes pruned by hard invalidity.
     uint32_t hard_invalid_prunes = 0;
+  //! Number of expansion attempts rejected by corridor semantic checks.
+    uint32_t corridor_reject_prunes = 0;
+    //! Number of expansion attempts accepted with a corridor-policy soft penalty.
+    uint32_t corridor_soft_penalty_accepts = 0;
+    //! Number of adjacency edges skipped because the source or destination span could not be resolved.
+    uint32_t unresolved_span_prunes = 0;
+    //! Number of adjacency edges skipped because the source span was not present in the active frontier.
+    uint32_t frontier_miss_prunes = 0;
+    //! Number of duplicate or closed nodes skipped while relaxing neighbors.
+    uint32_t duplicate_or_closed_prunes = 0;
 };
 
 /**
@@ -233,6 +246,20 @@ struct nav2_fine_astar_state_t {
     std::vector<nav2_fine_astar_node_t> nodes = {};
     //! Stored frontier edges.
     std::vector<nav2_fine_astar_edge_t> edges = {};
+    //! Active frontier node ids pending expansion.
+    std::vector<int32_t> frontier_node_ids = {};
+    //! Closed node ids already expanded.
+    std::unordered_set<int32_t> closed_node_ids = {};
+    //! Node id lookup table for stable node references.
+    std::unordered_map<int32_t, int32_t> node_id_to_index = {};
+    //! Stable start span id resolved from the first corridor segment.
+    int32_t start_span_id = -1;
+    //! Stable goal span id resolved from the final corridor segment.
+    int32_t goal_span_id = -1;
+    //! Cached span-grid snapshot used for corridor-constrained neighbor expansion.
+    nav2_span_grid_t span_grid = {};
+    //! Cached span adjacency snapshot used for corridor-constrained neighbor expansion.
+    nav2_span_adjacency_t span_adjacency = {};
     //! Reconstructed path when the solver succeeds.
     nav2_fine_astar_path_t path = {};
     //! Search diagnostics accumulated over time.

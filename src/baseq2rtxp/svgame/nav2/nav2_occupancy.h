@@ -31,7 +31,10 @@ enum class nav2_occupancy_decision_t : uint8_t {
     None = 0,
     Free,
     SoftPenalty,
+    RequiresInteraction,
+    TemporarilyUnavailable,
     HardBlock,
+    Blocked = HardBlock,
     Revalidate,
     Count
 };
@@ -52,7 +55,14 @@ enum nav2_occupancy_flag_t : uint32_t {
     NAV2_OCCUPANCY_FLAG_HARD_BLOCKED = ( 1u << 8 ),
     NAV2_OCCUPANCY_FLAG_REQUIRES_REVALIDATION = ( 1u << 9 ),
     NAV2_OCCUPANCY_FLAG_PORTAL_OVERLAY = ( 1u << 10 ),
-    NAV2_OCCUPANCY_FLAG_DYNAMIC = ( 1u << 11 )
+    NAV2_OCCUPANCY_FLAG_DYNAMIC = ( 1u << 11 ),
+    NAV2_OCCUPANCY_FLAG_REQUIRES_INTERACTION = ( 1u << 12 ),
+    NAV2_OCCUPANCY_FLAG_TEMPORARILY_UNAVAILABLE = ( 1u << 13 ),
+    NAV2_OCCUPANCY_FLAG_NPC_BLOCKER = ( 1u << 14 ),
+    NAV2_OCCUPANCY_FLAG_DOOR = ( 1u << 15 ),
+    NAV2_OCCUPANCY_FLAG_PLAT = ( 1u << 16 ),
+    NAV2_OCCUPANCY_FLAG_HAZARD = ( 1u << 17 ),
+    NAV2_OCCUPANCY_FLAG_MOVER_ANCHOR = ( 1u << 18 )
 };
 
 /**
@@ -64,6 +74,8 @@ enum class nav2_occupancy_kind_t : uint8_t {
     Edge,
     Portal,
     Mover,
+    Entity,
+    Hazard,
     Area,
     Leaf,
     Cluster,
@@ -94,8 +106,20 @@ struct nav2_occupancy_record_t {
     int32_t connector_id = -1;
     //! Stable mover entity number when known.
     int32_t mover_entnum = -1;
+    //! Stable mover-local anchor id when known.
+    int32_t mover_anchor_id = -1;
+    //! Stable mover-local region id when known.
+    int32_t mover_region_id = NAV_REGION_ID_NONE;
     //! Stable inline model index when known.
     int32_t inline_model_index = -1;
+    //! Stable entity type when known.
+    int32_t entity_type = 0;
+    //! Stable solid classification when known.
+    int32_t solid_type = 0;
+    //! Stable movetype classification when known.
+    int32_t move_type = MOVETYPE_NONE;
+    //! Stable role flags when known.
+    uint32_t role_flags = 0;
     //! Stable leaf id when known.
     int32_t leaf_id = -1;
     //! Stable cluster id when known.
@@ -148,6 +172,14 @@ struct nav2_occupancy_grid_t {
     std::unordered_map<int32_t, int32_t> by_connector_id = {};
     //! Lookup by mover entnum.
     std::unordered_map<int32_t, int32_t> by_mover_entnum = {};
+    //! Lookup by mover anchor id.
+    std::unordered_map<int32_t, int32_t> by_mover_anchor_id = {};
+    //! Reverse memberships by leaf id.
+    std::unordered_map<int32_t, std::vector<int32_t>> by_leaf_id = {};
+    //! Reverse memberships by cluster id.
+    std::unordered_map<int32_t, std::vector<int32_t>> by_cluster_id = {};
+    //! Reverse memberships by area id.
+    std::unordered_map<int32_t, std::vector<int32_t>> by_area_id = {};
 };
 
 /**
@@ -168,6 +200,10 @@ struct nav2_occupancy_summary_t {
     int32_t free_count = 0;
     //! Records soft-penalized.
     int32_t soft_penalty_count = 0;
+    //! Records that require interaction.
+    int32_t requires_interaction_count = 0;
+    //! Records that are temporarily unavailable.
+    int32_t temporarily_unavailable_count = 0;
     //! Records hard-blocked.
     int32_t hard_block_count = 0;
     //! Records requiring revalidation.
@@ -180,7 +216,19 @@ struct nav2_occupancy_summary_t {
     int32_t edge_count = 0;
     //! Mover records processed.
     int32_t mover_count = 0;
+    //! Entity records processed.
+    int32_t entity_count = 0;
+    //! Hazard records processed.
+    int32_t hazard_count = 0;
+    //! Records gathered through localized BoxEdicts sampling.
+    int32_t localized_entity_samples = 0;
+    //! Dynamic occupancy version published after rebuild.
+    uint32_t published_occupancy_version = 0;
 };
+
+
+struct nav2_inline_bsp_entity_list_t;
+struct nav2_snapshot_runtime_t;
 
 
 /**
@@ -237,6 +285,24 @@ const bool SVG_Nav2_OccupancyGrid_TryResolveSpan( const nav2_occupancy_grid_t &g
 const bool SVG_Nav2_OccupancyGrid_TryResolveEdge( const nav2_occupancy_grid_t &grid, const int32_t edge_id, nav2_occupancy_record_t *out_record );
 
 /**
+ * @brief Resolve a sparse occupancy record by connector id.
+ * @param grid Occupancy grid to inspect.
+ * @param connector_id Stable connector id to resolve.
+ * @param out_record [out] Resolved occupancy record.
+ * @return True when a matching record exists.
+ **/
+const bool SVG_Nav2_OccupancyGrid_TryResolveConnector( const nav2_occupancy_grid_t &grid, const int32_t connector_id, nav2_occupancy_record_t *out_record );
+
+/**
+ * @brief Resolve a sparse occupancy record by mover anchor id.
+ * @param grid Occupancy grid to inspect.
+ * @param mover_anchor_id Stable mover anchor id to resolve.
+ * @param out_record [out] Resolved occupancy record.
+ * @return True when a matching record exists.
+ **/
+const bool SVG_Nav2_OccupancyGrid_TryResolveMoverAnchor( const nav2_occupancy_grid_t &grid, const int32_t mover_anchor_id, nav2_occupancy_record_t *out_record );
+
+/**
 * @brief Evaluate a span against the sparse occupancy grid and dynamic overlay.
 * @param grid Occupancy grid to inspect.
 * @param overlay Overlay collection to inspect.
@@ -289,6 +355,20 @@ const bool SVG_Nav2_ImportSpanGridOccupancy( nav2_occupancy_grid_t *grid, const 
 * @return True when at least one record was imported.
 **/
 const bool SVG_Nav2_ImportCorridorOccupancy( nav2_occupancy_grid_t *grid, const nav2_corridor_t &corridor, const int64_t stamp_frame );
+
+/**
+ * @brief Rebuild sparse occupancy and overlay data from span-grid and inline-entity metadata.
+ * @param grid Occupancy grid to rebuild.
+ * @param overlay Dynamic overlay to rebuild.
+ * @param span_grid Span-grid source used for localized occupancy seeding.
+ * @param entities Optional inline BSP entity semantics to import.
+ * @param snapshot_runtime Optional snapshot runtime to bump occupancy publication version.
+ * @param stamp_frame Frame stamp to record on imported records.
+ * @param out_summary [out] Optional bounded summary for diagnostics.
+ * @return True when at least one occupancy or overlay record was imported.
+ **/
+const bool SVG_Nav2_RebuildDynamicOccupancy( nav2_occupancy_grid_t *grid, nav2_dynamic_overlay_t *overlay, const nav2_span_grid_t &span_grid,
+    const nav2_inline_bsp_entity_list_t *entities, nav2_snapshot_runtime_t *snapshot_runtime, const int64_t stamp_frame, nav2_occupancy_summary_t *out_summary = nullptr );
 
 /**
 * @brief Emit a bounded debug summary for occupancy and overlay data.

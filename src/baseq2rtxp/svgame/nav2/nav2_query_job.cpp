@@ -41,6 +41,13 @@ void SVG_Nav2_QueryJob_Init( nav2_query_job_t *job, const nav2_query_request_t &
     job->request = request;
     SVG_Nav2_QueryState_Reset( &job->state );
     job->state.bench_scenario = request.bench_scenario;
+
+    /**
+    *    Seed a deterministic initial stage and worker preference so staged pipeline execution can
+    *    begin from intake/classification without additional caller setup.
+    **/
+    job->state.stage = nav2_query_stage_t::TopologyClassification;
+    job->state.prefer_worker_dispatch = false;
 }
 
 /**

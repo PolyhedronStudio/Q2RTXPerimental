@@ -11,7 +11,10 @@
 #include <vector>
 
 #include "svgame/memory/svg_raiiobject.hpp"
+#include "svgame/nav2/nav2_connectors.h"
 #include "svgame/nav2/nav2_format.h"
+#include "svgame/nav2/nav2_hierarchy_graph.h"
+#include "svgame/nav2/nav2_region_layers.h"
 #include "svgame/nav2/nav2_span_adjacency.h"
 #include "svgame/nav2/nav2_span_grid.h"
 
@@ -71,6 +74,16 @@ enum class nav2_serialized_roundtrip_mismatch_t : uint8_t {
 	SpanGridSpan,
 	//! Adjacency edge structure or edge count changed across the round-trip.
 	AdjacencyEdge,
+   //! Connector metadata changed across the round-trip.
+	Connector,
+	//! Region-layer metadata changed across the round-trip.
+	RegionLayer,
+	//! Region-layer edge metadata changed across the round-trip.
+	RegionLayerEdge,
+	//! Hierarchy node metadata changed across the round-trip.
+	HierarchyNode,
+	//! Hierarchy edge metadata changed across the round-trip.
+	HierarchyEdge,
 	//! The deserialize step failed before payload comparison could complete.
 	DeserializeFailure,
 	Count
@@ -172,11 +185,16 @@ nav2_serialization_result_t SVG_Nav2_Serialize_ReadCacheHeader( const char *cach
 *	@param	policy	Serialization policy describing the payload.
 *	@param	spanGrid	Sparse span-grid payload to serialize.
 *	@param	adjacency	Local adjacency payload to serialize.
+*	@param	connectors	Optional connector payload to serialize when present.
+*	@param	regionLayers	Optional region-layer payload to serialize when present.
+*	@param	hierarchyGraph	Optional hierarchy graph payload to serialize when present.
 *	@param	outBlob	[out] Blob receiving the serialized bytes.
 *	@return	Structured serialization result including byte count and validation state.
 **/
 nav2_serialization_result_t SVG_Nav2_Serialize_BuildStaticNavBlob( const nav2_serialization_policy_t &policy,
-	const nav2_span_grid_t &spanGrid, const nav2_span_adjacency_t &adjacency, nav2_serialized_blob_t *outBlob );
+	const nav2_span_grid_t &spanGrid, const nav2_span_adjacency_t &adjacency,
+	const nav2_connector_list_t *connectors, const nav2_region_layer_graph_t *regionLayers,
+	const nav2_hierarchy_graph_t *hierarchyGraph, nav2_serialized_blob_t *outBlob );
 
 /**
 *	@brief	Decode span-grid and adjacency payloads from a standalone nav2 cache blob already loaded in memory.
@@ -185,11 +203,16 @@ nav2_serialization_result_t SVG_Nav2_Serialize_BuildStaticNavBlob( const nav2_se
 *	@param	outHeader	[out] Decoded serialized header on success.
 *	@param	outSpanGrid	[out] Decoded span-grid payload on success.
 *	@param	outAdjacency	[out] Decoded adjacency payload on success.
+*	@param	outConnectors	[out] Decoded connector payload on success.
+*	@param	outRegionLayers	[out] Decoded region-layer graph on success.
+*	@param	outHierarchyGraph	[out] Decoded hierarchy graph on success.
 *	@return	Structured deserialization result including byte count and validation state.
 **/
 nav2_serialization_result_t SVG_Nav2_Serialize_ReadStaticNavBlob( const nav2_serialized_blob_t &blob,
 	const nav2_serialization_policy_t &policy, nav2_serialized_header_t *outHeader,
-	nav2_span_grid_t *outSpanGrid, nav2_span_adjacency_t *outAdjacency );
+	nav2_span_grid_t *outSpanGrid, nav2_span_adjacency_t *outAdjacency,
+	nav2_connector_list_t *outConnectors, nav2_region_layer_graph_t *outRegionLayers,
+	nav2_hierarchy_graph_t *outHierarchyGraph );
 
 /**
 *	@brief	Load and decode a standalone nav2 cache file containing span-grid and adjacency payloads.
@@ -203,18 +226,25 @@ nav2_serialization_result_t SVG_Nav2_Serialize_ReadStaticNavBlob( const nav2_ser
 **/
 nav2_serialization_result_t SVG_Nav2_Serialize_ReadStaticNavCacheFile( const char *cachePath,
 	const nav2_serialization_policy_t &policy, nav2_serialized_header_t *outHeader,
-	nav2_span_grid_t *outSpanGrid, nav2_span_adjacency_t *outAdjacency );
+	nav2_span_grid_t *outSpanGrid, nav2_span_adjacency_t *outAdjacency,
+	nav2_connector_list_t *outConnectors, nav2_region_layer_graph_t *outRegionLayers,
+	nav2_hierarchy_graph_t *outHierarchyGraph );
 
 /**
 *	@brief	Validate that static-nav payloads survive an in-memory serialize/read round-trip unchanged.
 *	@param	policy	Serialization policy describing the payload.
 *	@param	spanGrid	Source span-grid payload to round-trip.
 *	@param	adjacency	Source adjacency payload to round-trip.
+*	@param	connectors	Optional connector payload to round-trip.
+*	@param	regionLayers	Optional region-layer graph to round-trip.
+*	@param	hierarchyGraph	Optional hierarchy graph to round-trip.
 *	@param	outResult	[out] Structured round-trip validation result.
 *	@return	True when the round-trip completed and the decoded payload matched exactly.
 **/
 const bool SVG_Nav2_Serialize_ValidateStaticNavRoundTrip( const nav2_serialization_policy_t &policy,
-	const nav2_span_grid_t &spanGrid, const nav2_span_adjacency_t &adjacency, nav2_serialized_roundtrip_result_t *outResult );
+	const nav2_span_grid_t &spanGrid, const nav2_span_adjacency_t &adjacency,
+	const nav2_connector_list_t *connectors, const nav2_region_layer_graph_t *regionLayers,
+	const nav2_hierarchy_graph_t *hierarchyGraph, nav2_serialized_roundtrip_result_t *outResult );
 
 /**
 *	@brief	Return a stable display name for a static-nav round-trip mismatch category.

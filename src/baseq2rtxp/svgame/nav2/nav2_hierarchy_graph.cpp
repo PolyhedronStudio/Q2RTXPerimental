@@ -258,6 +258,57 @@ const bool SVG_Nav2_HierarchyGraph_AppendNode( nav2_hierarchy_graph_t *graph, co
 }
 
 /**
+* @brief Validate that the hierarchy graph maintains stable ids and adjacency.
+* @param graph Graph to inspect.
+* @return True when the graph is internally consistent.
+**/
+const bool SVG_Nav2_ValidateHierarchyGraph( const nav2_hierarchy_graph_t &graph ) {
+    // Every node must resolve through the stable lookup table.
+    for ( size_t i = 0; i < graph.nodes.size(); ++i ) {
+        const nav2_hierarchy_node_t &node = graph.nodes[ i ];
+        if ( node.node_id < 0 ) {
+            return false;
+        }
+        nav2_hierarchy_node_ref_t ref = {};
+        if ( !SVG_Nav2_HierarchyGraph_TryResolve( graph, node.node_id, &ref ) ) {
+            return false;
+        }
+        if ( ref.node_index != ( int32_t )i ) {
+            return false;
+        }
+        if ( !node.allowed_z_band.IsValid() ) {
+            return false;
+        }
+    }
+
+    // Every edge must point to valid node ids and appear in adjacency lists.
+    for ( const nav2_hierarchy_edge_t &edge : graph.edges ) {
+        if ( edge.edge_id < 0 ) {
+            return false;
+        }
+        nav2_hierarchy_node_ref_t fromRef = {};
+        nav2_hierarchy_node_ref_t toRef = {};
+        if ( !SVG_Nav2_HierarchyGraph_TryResolve( graph, edge.from_node_id, &fromRef ) ) {
+            return false;
+        }
+        if ( !SVG_Nav2_HierarchyGraph_TryResolve( graph, edge.to_node_id, &toRef ) ) {
+            return false;
+        }
+        const nav2_hierarchy_node_t &fromNode = graph.nodes[ ( size_t )fromRef.node_index ];
+        const nav2_hierarchy_node_t &toNode = graph.nodes[ ( size_t )toRef.node_index ];
+        const bool fromHasEdge = std::find( fromNode.outgoing_edge_ids.begin(), fromNode.outgoing_edge_ids.end(), edge.edge_id ) != fromNode.outgoing_edge_ids.end();
+        const bool toHasEdge = std::find( toNode.incoming_edge_ids.begin(), toNode.incoming_edge_ids.end(), edge.edge_id ) != toNode.incoming_edge_ids.end();
+        if ( !fromHasEdge || !toHasEdge ) {
+            return false;
+        }
+        if ( !edge.allowed_z_band.IsValid() ) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
 * @brief Append one hierarchy edge to the graph and wire adjacency lists.
 * @param graph Graph to mutate.
 * @param edge Edge payload to append.
@@ -360,6 +411,9 @@ const bool SVG_Nav2_BuildHierarchyGraph( const nav2_region_layer_graph_t &region
         }
     }
 
+    if ( !SVG_Nav2_ValidateHierarchyGraph( *out_graph ) ) {
+        return false;
+    }
     return !out_graph->nodes.empty();
 }
 

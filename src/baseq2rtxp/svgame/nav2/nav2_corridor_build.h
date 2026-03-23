@@ -23,6 +23,15 @@
 const bool SVG_Nav2_BuildCorridorFromCoarseAStar( const nav2_coarse_astar_state_t &coarse_state, nav2_corridor_t *out_corridor );
 
 /**
+*	@brief	Emit a bounded debug summary for a corridor extracted from a coarse A* state.
+*	@param	coarse_state	Coarse A* state supplying the reconstructed path.
+*	@param	max_segments	Maximum number of explicit corridor segments to emit.
+*	@return	True when a corridor was extracted and reported.
+*	@note	This uses the nav2 corridor extraction output so diagnostics stay aligned with Task 8.2 commitments.
+**/
+const bool SVG_Nav2_DebugPrintCorridorFromCoarseAStar( const nav2_coarse_astar_state_t &coarse_state, const int32_t max_segments = 8 );
+
+/**
 *	@brief	Keep the nav2 corridor-extraction helper module represented in the build.
 **/
 void SVG_Nav2_CorridorBuild_ModuleAnchor( void );

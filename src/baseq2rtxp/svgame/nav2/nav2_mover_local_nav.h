@@ -12,6 +12,12 @@
 #include "svgame/nav2/nav2_entity_semantics.h"
 #include "svgame/nav2/nav2_query_iface.h"
 
+#include <vector>
+
+
+struct nav2_fine_astar_state_t;
+struct nav2_snapshot_handle_t;
+
 
 /**
 *
@@ -104,6 +110,58 @@ struct nav2_mover_relative_waypoint_t {
     Vector3 world_origin = {};
     //! True when the waypoint was captured from a transform-aware mover-local query.
     bool valid = false;
+  //! Snapshot mover version captured with this waypoint for staleness checks.
+    uint32_t snapshot_mover_version = 0;
+    //! Snapshot model version captured with this waypoint for staleness checks.
+    uint32_t snapshot_model_version = 0;
+};
+
+/**
+* @brief Stable mover-local refinement diagnostics for one bounded refinement invocation.
+* @note This keeps Task 9.2 validation and debug overlays compact and pointer-free.
+**/
+struct nav2_mover_local_refine_diagnostics_t {
+    //! Number of fine-path nodes inspected for mover-local refinement.
+    uint32_t inspected_nodes = 0;
+    //! Number of mover-anchor candidates discovered in the path.
+    uint32_t mover_anchor_candidates = 0;
+    //! Number of mover-anchor candidates accepted.
+    uint32_t mover_anchor_accepts = 0;
+    //! Number of mover-anchor candidates rejected by transform mismatch checks.
+    uint32_t transform_rejects = 0;
+    //! Number of mover-anchor candidates rejected by boarding/exit mapping checks.
+    uint32_t mapping_rejects = 0;
+    //! Number of mover-anchor candidates rejected by snapshot staleness checks.
+    uint32_t stale_rejects = 0;
+};
+
+/**
+* @brief Stable mapping validation result for mover boarding and exit anchor checks.
+**/
+struct nav2_mover_local_mapping_validation_t {
+    //! True when the provided boarding waypoint mapping remains valid.
+    bool boarding_valid = false;
+    //! True when the provided exit waypoint mapping remains valid.
+    bool exit_valid = false;
+    //! Boarding-world drift from transform-aware projection.
+    Vector3 boarding_drift = {};
+    //! Exit-world drift from transform-aware projection.
+    Vector3 exit_drift = {};
+};
+
+/**
+* @brief Stable mover-local refinement result for one fine-path refinement pass.
+* @note The result keeps waypoint continuity pointer-free for future save/load handoff logic.
+**/
+struct nav2_mover_local_refine_result_t {
+    //! True when the refinement pass succeeded.
+    bool success = false;
+    //! True when at least one mover-relative waypoint was produced.
+    bool has_waypoints = false;
+    //! Mover-relative waypoint captures in path order.
+    std::vector<nav2_mover_relative_waypoint_t> waypoints = {};
+    //! Bounded diagnostics from the refinement pass.
+    nav2_mover_local_refine_diagnostics_t diagnostics = {};
 };
 
 
@@ -160,6 +218,17 @@ const bool SVG_Nav2_MoverLocalToWorld( const nav2_mover_transform_t &transform, 
 const bool SVG_Nav2_CaptureMoverRelativeWaypoint( const nav2_mover_transform_t &transform, const Vector3 &world_origin, nav2_mover_relative_waypoint_t *out_waypoint );
 
 /**
+* @brief Capture a mover-relative waypoint with explicit snapshot version metadata.
+* @param transform Mover transform snapshot.
+* @param snapshot Snapshot handle used by the query stage.
+* @param world_origin World-space waypoint to capture.
+* @param out_waypoint [out] Waypoint snapshot receiving local/world coordinates and snapshot versions.
+* @return True when the waypoint was captured successfully.
+**/
+const bool SVG_Nav2_CaptureMoverRelativeWaypointWithSnapshot( const nav2_mover_transform_t &transform, const nav2_snapshot_handle_t &snapshot,
+    const Vector3 &world_origin, nav2_mover_relative_waypoint_t *out_waypoint );
+
+/**
 * @brief Resolve a mover-relative waypoint back into current world space.
 * @param	transform	Current mover transform snapshot.
 * @param	waypoint	Mover-relative waypoint to resolve.
@@ -190,6 +259,14 @@ const bool SVG_Nav2_ValidateMoverRelativeWaypointDrift( const nav2_mover_transfo
 const bool SVG_Nav2_ValidateMoverRelativeWaypoint( const nav2_mover_transform_t &transform, const nav2_mover_relative_waypoint_t &waypoint, const Vector3 &current_world_origin, Vector3 *out_world_drift = nullptr );
 
 /**
+* @brief Validate waypoint snapshot versions against current mover/model snapshot versions.
+* @param snapshot Current query snapshot handle.
+* @param waypoint Waypoint to validate.
+* @return True when mover/model snapshot versions remain compatible.
+**/
+const bool SVG_Nav2_ValidateMoverRelativeWaypointSnapshot( const nav2_snapshot_handle_t &snapshot, const nav2_mover_relative_waypoint_t &waypoint );
+
+/**
 * @brief Capture a mover-relative waypoint from a world-space result and apply a conservative drift tolerance.
 * @param	transform	Mover transform snapshot.
 * @param	world_origin	World-space waypoint to capture.
@@ -198,6 +275,37 @@ const bool SVG_Nav2_ValidateMoverRelativeWaypoint( const nav2_mover_transform_t 
 * @note	This is the preferred helper for fine-search and follow-state code because it validates the snapshot in one step.
 **/
 const bool SVG_Nav2_CaptureValidatedMoverRelativeWaypoint( const nav2_mover_transform_t &transform, const Vector3 &world_origin, nav2_mover_relative_waypoint_t *out_waypoint );
+
+/**
+* @brief Validate transform-aware mover boarding and exit mapping anchors.
+* @param transform Current mover transform snapshot.
+* @param boarding_waypoint Boarding waypoint to validate.
+* @param exit_waypoint Exit waypoint to validate.
+* @param out_validation [out] Mapping validation result.
+* @return True when both mapping checks pass.
+**/
+const bool SVG_Nav2_ValidateMoverBoardingExitMapping( const nav2_mover_transform_t &transform,
+    const nav2_mover_relative_waypoint_t &boarding_waypoint, const nav2_mover_relative_waypoint_t &exit_waypoint,
+    nav2_mover_local_mapping_validation_t *out_validation );
+
+/**
+* @brief Run bounded mover-local refinement over an existing fine-search path.
+* @param transform Current mover transform snapshot.
+* @param snapshot Current query snapshot handle.
+* @param fine_state Fine-search state supplying path and node metadata.
+* @param max_waypoints Maximum mover-relative waypoints to emit.
+* @param out_result [out] Mover-local refinement result.
+* @return True when the refinement pass ran successfully.
+**/
+const bool SVG_Nav2_RunMoverLocalRefinement( const nav2_mover_transform_t &transform, const nav2_snapshot_handle_t &snapshot,
+    const nav2_fine_astar_state_t &fine_state, const int32_t max_waypoints, nav2_mover_local_refine_result_t *out_result );
+
+/**
+* @brief Emit bounded debug output for mover-local refinement results.
+* @param result Mover-local refinement result to report.
+* @param max_print Maximum waypoint lines to emit.
+**/
+void SVG_Nav2_DebugPrintMoverLocalRefinement( const nav2_mover_local_refine_result_t &result, const int32_t max_print = 8 );
 
 /**
 * @brief Emit a bounded debug summary for mover-local nav data.
