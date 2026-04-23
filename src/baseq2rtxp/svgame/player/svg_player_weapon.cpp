@@ -227,10 +227,19 @@ void SVG_PlayerNoise_MakeNoise( svg_base_edict_t *who, const Vector3 &where, int
     }
 	#endif
 	if ( noise != nullptr ) {
-		SVG_Util_SetEntityOrigin( noise, where, true );//VectorCopy( where, noise->s.origin );
+		// Add a small offset for the Z axis so it won't trip out path finding.
+		Vector3 whereOffsetOrigin = where;
+		#if 0
+		// Find the normal to use for offsetting the origin by.
+		Vector3 offsetAngleNormal = QM_Vector3Normalize( where - who->currentOrigin );
+		// Add it.
+		whereOffsetOrigin += offsetAngleNormal * 0.3125;
+		#endif
+		// Set origin and absMaxs.
+		SVG_Util_SetEntityOrigin( noise, whereOffsetOrigin, true );//VectorCopy( where, noise->s.origin );
 		
-		VectorSubtract( where, noise->maxs, noise->absMin );
-		VectorAdd( where, noise->maxs, noise->absMax );
+		VectorSubtract( whereOffsetOrigin, noise->maxs, noise->absMin );
+		VectorAdd( whereOffsetOrigin, noise->maxs, noise->absMax );
 
 		noise->last_sound_time = level.time;
 		gi.linkentity( noise );

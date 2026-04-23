@@ -44,6 +44,28 @@ void SVG_Nav2_Budget_InitPolicy( nav2_budget_policy_t *policy ) {
     policy->total_frame_budget_ms = 4.0;
     policy->max_worker_slices_per_frame = 4;
     policy->max_main_thread_slices_per_frame = 4;
+    policy->overload_begin_fraction = 0.85;
+    policy->overload_critical_fraction = 0.95;
+    policy->overload_min_slice_ms = 0.10;
+    policy->overload_min_expansions = 16;
+    policy->starvation_frame_threshold = 6;
+    policy->unfair_delay_threshold_ms = 80.0;
+
+    /**
+    *    Seed per-priority scaling defaults so high-priority jobs retain larger slices under load
+    *    while low-priority jobs are naturally throttled.
+    **/
+    policy->priority_ms_scale[ ( size_t )nav2_query_priority_t::Low ] = 0.70;
+    policy->priority_ms_scale[ ( size_t )nav2_query_priority_t::Normal ] = 1.00;
+    policy->priority_ms_scale[ ( size_t )nav2_query_priority_t::High ] = 1.20;
+    policy->priority_ms_scale[ ( size_t )nav2_query_priority_t::Critical ] = 1.40;
+    policy->priority_ms_scale[ ( size_t )nav2_query_priority_t::Count ] = 1.00;
+
+    policy->priority_expansion_scale[ ( size_t )nav2_query_priority_t::Low ] = 0.70;
+    policy->priority_expansion_scale[ ( size_t )nav2_query_priority_t::Normal ] = 1.00;
+    policy->priority_expansion_scale[ ( size_t )nav2_query_priority_t::High ] = 1.20;
+    policy->priority_expansion_scale[ ( size_t )nav2_query_priority_t::Critical ] = 1.40;
+    policy->priority_expansion_scale[ ( size_t )nav2_query_priority_t::Count ] = 1.00;
 
     /**
     *    Seed every stage with a default bounded slice so future jobs have deterministic behavior
@@ -109,6 +131,12 @@ void SVG_Nav2_Budget_ResetFrame( nav2_budget_runtime_t *runtime, const int64_t f
         // Seed a conservative default policy for this runtime frame.
         SVG_Nav2_Budget_InitPolicy( &runtime->policy );
     }
+
+    /**
+    *    Re-evaluate overload flags at frame start from the reset accounting state.
+    **/
+    runtime->overload_active = false;
+    runtime->overload_critical = false;
 }
 
 /**
@@ -193,8 +221,44 @@ const bool SVG_Nav2_Budget_GrantSlice( nav2_budget_runtime_t *runtime, const nav
     *    Derive the granted slice from the stage policy and remaining frame budget.
     **/
     const nav2_stage_budget_t &stageBudget = runtime->policy.stage_budget[ stageIndex ];
+    const size_t priorityIndex = ( size_t )priority;
+    const double priorityMsScale = priorityIndex < ( size_t )nav2_query_priority_t::Count
+        ? runtime->policy.priority_ms_scale[ priorityIndex ]
+        : 1.0;
+    const double priorityExpansionScale = priorityIndex < ( size_t )nav2_query_priority_t::Count
+        ? runtime->policy.priority_expansion_scale[ priorityIndex ]
+        : 1.0;
     const double remainingFrameBudgetMs = std::max( 0.0, runtime->policy.total_frame_budget_ms - runtime->consumed_frame_budget_ms );
-    const double grantedMs = std::min( stageBudget.max_slice_ms, remainingFrameBudgetMs );
+    const double frameUsageFraction = runtime->policy.total_frame_budget_ms > 0.0
+        ? runtime->consumed_frame_budget_ms / runtime->policy.total_frame_budget_ms
+        : 1.0;
+    const bool overloadActive = frameUsageFraction >= runtime->policy.overload_begin_fraction;
+    const bool overloadCritical = frameUsageFraction >= runtime->policy.overload_critical_fraction;
+    runtime->overload_active = overloadActive;
+    runtime->overload_critical = overloadCritical;
+
+    /**
+    *    Apply priority scaling before overload throttling so high-priority jobs preserve larger slices.
+    **/
+    double requestedSliceMs = std::max( 0.0, stageBudget.max_slice_ms * std::max( 0.0, priorityMsScale ) );
+    uint32_t requestedExpansions = ( uint32_t )std::max( 0.0,
+        ( double )stageBudget.max_expansions * std::max( 0.0, priorityExpansionScale ) );
+
+    /**
+    *    Apply overload throttling in two tiers, with harsher cuts in critical overload windows.
+    **/
+    if ( overloadCritical ) {
+        requestedSliceMs *= 0.40;
+        requestedExpansions = ( uint32_t )std::max( 1.0, ( double )requestedExpansions * 0.40 );
+    } else if ( overloadActive ) {
+        requestedSliceMs *= 0.65;
+        requestedExpansions = ( uint32_t )std::max( 1.0, ( double )requestedExpansions * 0.65 );
+    }
+
+    requestedSliceMs = std::max( runtime->policy.overload_min_slice_ms, requestedSliceMs );
+    requestedExpansions = std::max( runtime->policy.overload_min_expansions, requestedExpansions );
+
+    const double grantedMs = std::min( requestedSliceMs, remainingFrameBudgetMs );
     if ( grantedMs <= 0.0 ) {
         return false;
     }
@@ -208,8 +272,8 @@ const bool SVG_Nav2_Budget_GrantSlice( nav2_budget_runtime_t *runtime, const nav
     outSlice->stage = stage;
     outSlice->priority = priority;
     outSlice->granted_ms = grantedMs;
-    outSlice->granted_expansions = stageBudget.max_expansions;
-    outSlice->was_throttled = grantedMs < stageBudget.max_slice_ms;
+  outSlice->granted_expansions = requestedExpansions;
+    outSlice->was_throttled = overloadActive || ( grantedMs < requestedSliceMs );
 
     /**
     *    Reserve the execution-domain slot immediately so later grant attempts observe the same

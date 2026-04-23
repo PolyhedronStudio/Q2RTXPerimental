@@ -53,7 +53,8 @@ void SVG_Nav2_Snapshot_ResetRuntime( nav2_snapshot_runtime_t *runtime ) {
         return;
     }
 
-    // Reset all published versions back to the initial zero state.
+    // Reset all published versions back to the initial zero state while preserving deterministic
+    // staleness-policy defaults.
     *runtime = nav2_snapshot_runtime_t{};
 }
 
@@ -149,6 +150,8 @@ nav2_snapshot_staleness_t SVG_Nav2_Snapshot_Compare( const nav2_snapshot_runtime
     **/
     nav2_snapshot_staleness_t result = {};
     result.is_current = true;
+    result.action = nav2_snapshot_stale_action_t::Accept;
+    result.restart_stage = nav2_query_stage_t::TopologyClassification;
 
     /**
     *    Without runtime publication state there is nothing meaningful to compare against, so leave
@@ -167,6 +170,31 @@ nav2_snapshot_staleness_t SVG_Nav2_Snapshot_Compare( const nav2_snapshot_runtime
     result.mover_changed = runtime->current.mover_version != consumed.mover_version;
     result.connector_changed = runtime->current.connector_version != consumed.connector_version;
     result.model_changed = runtime->current.model_version != consumed.model_version;
+    result.occupancy_version_delta = runtime->current.occupancy_version >= consumed.occupancy_version
+        ? ( runtime->current.occupancy_version - consumed.occupancy_version )
+        : 0;
+    result.mover_version_delta = runtime->current.mover_version >= consumed.mover_version
+        ? ( runtime->current.mover_version - consumed.mover_version )
+        : 0;
+    result.connector_version_delta = runtime->current.connector_version >= consumed.connector_version
+        ? ( runtime->current.connector_version - consumed.connector_version )
+        : 0;
+
+    if ( result.static_nav_changed ) {
+        result.change_mask |= NAV2_SNAPSHOT_CHANGE_FLAG_STATIC_NAV;
+    }
+    if ( result.occupancy_changed ) {
+        result.change_mask |= NAV2_SNAPSHOT_CHANGE_FLAG_OCCUPANCY;
+    }
+    if ( result.mover_changed ) {
+        result.change_mask |= NAV2_SNAPSHOT_CHANGE_FLAG_MOVER;
+    }
+    if ( result.connector_changed ) {
+        result.change_mask |= NAV2_SNAPSHOT_CHANGE_FLAG_CONNECTOR;
+    }
+    if ( result.model_changed ) {
+        result.change_mask |= NAV2_SNAPSHOT_CHANGE_FLAG_MODEL;
+    }
 
     /**
     *    If nothing changed, the query snapshot remains current and can be accepted directly.
@@ -187,6 +215,7 @@ nav2_snapshot_staleness_t SVG_Nav2_Snapshot_Compare( const nav2_snapshot_runtime
     **/
     if ( result.static_nav_changed || result.model_changed ) {
         result.requires_resubmit = true;
+        result.action = nav2_snapshot_stale_action_t::Resubmit;
         return result;
     }
 
@@ -197,6 +226,34 @@ nav2_snapshot_staleness_t SVG_Nav2_Snapshot_Compare( const nav2_snapshot_runtime
     if ( result.connector_changed || result.mover_changed ) {
         result.requires_revalidation = true;
         result.requires_restart = true;
+        result.action = nav2_snapshot_stale_action_t::RestartStage;
+        result.allows_partial_repair = true;
+
+        // Select the earliest restart stage among connector/mover restart requirements.
+        nav2_query_stage_t restartStage = nav2_query_stage_t::Completed;
+        if ( result.connector_changed ) {
+            restartStage = runtime->policy.connector_restart_stage;
+        }
+        if ( result.mover_changed ) {
+            if ( restartStage == nav2_query_stage_t::Completed
+                || ( int32_t )runtime->policy.mover_restart_stage < ( int32_t )restartStage ) {
+                restartStage = runtime->policy.mover_restart_stage;
+            }
+        }
+        if ( restartStage == nav2_query_stage_t::Completed ) {
+            restartStage = nav2_query_stage_t::CoarseSearch;
+        }
+        result.restart_stage = restartStage;
+
+        // Escalate to resubmit when mover/connector drift exceeds tolerances.
+        if ( ( result.connector_changed && result.connector_version_delta > runtime->policy.connector_restart_version_grace )
+            || ( result.mover_changed && result.mover_version_delta > runtime->policy.mover_restart_version_grace ) ) {
+            result.requires_restart = false;
+            result.requires_resubmit = true;
+            result.action = nav2_snapshot_stale_action_t::Resubmit;
+            result.allows_partial_repair = false;
+            return result;
+        }
     }
 
     /**
@@ -205,6 +262,18 @@ nav2_snapshot_staleness_t SVG_Nav2_Snapshot_Compare( const nav2_snapshot_runtime
     **/
     if ( result.occupancy_changed ) {
         result.requires_revalidation = true;
+
+        // Occupancy-only drift starts as revalidate-only and escalates to fine-stage restart when
+        // version delta exceeds the configured tolerance.
+        if ( result.action == nav2_snapshot_stale_action_t::Accept ) {
+            result.action = nav2_snapshot_stale_action_t::RevalidateOnly;
+        }
+        if ( result.occupancy_version_delta > runtime->policy.occupancy_revalidate_version_grace ) {
+            result.requires_restart = true;
+            result.action = nav2_snapshot_stale_action_t::RestartStage;
+            result.restart_stage = runtime->policy.occupancy_restart_stage;
+            result.allows_partial_repair = true;
+        }
     }
 
     return result;

@@ -20,6 +20,7 @@
 #include "svgame/nav2/nav2_span_grid_build.h"
 #include "svgame/nav2/nav2_types.h"
 #include "svgame/nav2/nav2_save_load.h"
+#include "svgame/nav2/nav2_runtime.h"
 
 // Monster types for AI debug introspection.
 //#include "svgame/entities/monster/svg_monster_testdummy_sfxfollow.h"
@@ -824,7 +825,38 @@ static void ServerCommand_NavCell_f( void ) {
 *   @brief  Generate navigation voxelmesh for the current level.
 **/
 void ServerCommand_NavGenVoxelMesh_f( void ) {
-	gi.cprintf( nullptr, PRINT_HIGH, "nav_gen: legacy voxelmesh generator removed\n" );
+ /**
+    *    Run nav2 runtime generation against the currently active server BSP and collect bounded diagnostics.
+    **/
+    nav2_span_grid_build_stats_t buildStats = {};
+    const bool generated = SVG_Nav2_Runtime_GenerateMesh( &buildStats );
+    if ( !generated ) {
+        // Emit a concise failure message while preserving bounded diagnostic counters for root-cause narrowing.
+        gi.cprintf( nullptr, PRINT_HIGH,
+            "nav_gen: nav2 generation failed (sampled=%d columns=%d spans=%d reject=(solid_point=%d floor_trace=%d floor_miss=%d slope=%d clearance=%d solid_box=%d))\n",
+            buildStats.sampled_columns,
+            buildStats.emitted_columns,
+            buildStats.emitted_spans,
+            buildStats.rejected_solid_point,
+            buildStats.rejected_floor_trace,
+            buildStats.rejected_floor_miss,
+            buildStats.rejected_slope,
+            buildStats.rejected_clearance,
+            buildStats.rejected_solid_box );
+        return;
+    }
+
+    /**
+    *    Emit one compact success line confirming nav2 generation against the active BSP.
+    **/
+    gi.cprintf( nullptr, PRINT_HIGH,
+        "nav_gen: nav2 mesh generated (sampled=%d columns=%d spans=%d hazards=(water=%d slime=%d lava=%d))\n",
+        buildStats.sampled_columns,
+        buildStats.emitted_columns,
+        buildStats.emitted_spans,
+        buildStats.spans_with_water,
+        buildStats.spans_with_slime,
+        buildStats.spans_with_lava );
 }
 
 /**
@@ -1313,6 +1345,8 @@ void SVG_ServerCommand(void) {
     cmd = gi.argv(1);
     if ( Q_stricmp( cmd, "test" ) == 0 )
         ServerCommand_Test_f();
+    else if ( Q_stricmp( cmd, "nav_generate" ) == 0 )
+        ServerCommand_NavGenVoxelMesh_f();
     else if ( Q_stricmp( cmd, "nav_gen_voxelmesh" ) == 0 )
         ServerCommand_NavGenVoxelMesh_f();
     else if ( Q_stricmp( cmd, "nav_save" ) == 0 )

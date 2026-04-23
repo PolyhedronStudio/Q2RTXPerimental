@@ -14,6 +14,9 @@
 #include "svgame/nav2/nav2_types.h"
 
 
+struct nav2_span_grid_build_stats_t;
+
+
 /**
 *
 *
@@ -50,6 +53,15 @@ const std::tuple<const bool, const std::string> SVG_Nav2_Runtime_LoadMesh( const
 *	@note	The implementation still delegates to the current runtime serializer while nav2 absorbs public lifecycle ownership.
 **/
 const bool SVG_Nav2_Runtime_SaveMesh( const char *levelName );
+
+/**
+*\t@brief\tGenerate a nav2 mesh for the currently loaded server BSP through the runtime seam.
+*\t@param\tout_span_build_stats\t[out] Optional bounded span-grid generation diagnostics.
+*\t@return\tTrue when generation completed and published a loaded nav2 runtime mesh.
+*\t@note\tThis generation path operates on the active collision BSP model and is intended to be invoked
+*\t\t\tfrom server console command surfaces for the currently loaded map.
+**/
+const bool SVG_Nav2_Runtime_GenerateMesh( nav2_span_grid_build_stats_t *out_span_build_stats = nullptr );
 
 /**
 *	@brief	Release the currently published navigation mesh through the nav2 ownership seam.

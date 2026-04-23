@@ -256,6 +256,10 @@ struct nav2_coarse_astar_state_t {
     nav2_coarse_astar_diagnostics_t diagnostics = {};
     //! Stable identifier for this solver instance.
     uint64_t solver_id = 0;
+    //! Next stable node id for O(1) frontier node id allocation during expansion.
+    int32_t next_node_id = 1;
+    //! Next stable edge id for O(1) frontier edge id allocation during expansion.
+    int32_t next_edge_id = 1;
     //! True when the solver currently owns a frontier slice.
     bool has_frontier_slice = false;
 };

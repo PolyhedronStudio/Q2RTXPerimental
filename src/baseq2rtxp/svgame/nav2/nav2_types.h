@@ -9,6 +9,7 @@
 
 #include "svgame/svg_local.h"
 
+#include <memory>
 #include <unordered_map>
 #include <vector>
 
@@ -250,17 +251,17 @@ enum nav2_ladder_endpoint_bits_t : uint8_t {
 **/
 struct nav2_agent_profile_t {
 	//! Local-space minimum collision bounds relative to the agent origin.
-	Vector3 mins = {};
+	Vector3 mins = PHYS_DEFAULT_BBOX_STANDUP_MINS;
 	//! Local-space maximum collision bounds relative to the agent origin.
-	Vector3 maxs = {};
+	Vector3 maxs = PHYS_DEFAULT_BBOX_STANDUP_MAXS;
 	//! Maximum step-up height the agent can traverse without jumping.
-	double max_step_height = 0.0;
+	double max_step_height = PHYS_STEP_MAX_SIZE;
 	//! Maximum downward drop height the agent is allowed to traverse.
-	double max_drop_height = 0.0;
+	double max_drop_height = NAV_DEFAULT_MAX_DROP_HEIGHT;
 	//! Additional cap used when rejecting overly large downward transitions.
-	double max_drop_height_cap = 0.0;
+	double max_drop_height_cap = NAV_DEFAULT_MAX_DROP_HEIGHT_CAP;
 	//! Minimum acceptable surface normal `z` component for walkable slope classification.
-	double max_slope_normal_z = 0.0;
+	double max_slope_normal_z = PHYS_MAX_SLOPE_NORMAL;
 };
 
 
@@ -473,6 +474,7 @@ struct nav2_node_ref_t {
 **/
 struct nav2_query_process_t;
 struct nav2_query_policy_t;
+struct nav2_span_grid_t;
 
 /**
 * 	@brief	Policy for path processing and follow behavior.
@@ -619,9 +621,9 @@ struct nav2_path_policy_t {
 	* 	Agent navigation constraints derived from nav CVars.
 	**/
 	//! Agent bounding box minimum extents in feet-origin space (matches `nav_agent_mins_* `).
-	Vector3 agent_mins = { -16.0f, -16.0f, -36.0f };
+	Vector3 agent_mins = PHYS_DEFAULT_BBOX_STANDUP_MINS;
 	//! Agent bounding box maximum extents in feet-origin space (matches `nav_agent_maxs_* `).
-	Vector3 agent_maxs = { 16.0f, 16.0f, 36.0f };
+	Vector3 agent_maxs = PHYS_DEFAULT_BBOX_STANDUP_MAXS;
 	//! Minimum walkable surface normal Z threshold (matches `nav_max_slope_normal_z`).
 	double max_slope_normal_z = PHYS_MAX_SLOPE_NORMAL;
 
@@ -862,6 +864,9 @@ struct nav2_mesh_t {
 	//! Inline-model runtime entries owned by this mesh.
 	std::vector<nav2_inline_model_runtime_t> inline_model_runtime;
 
+	//! Sparse span-grid generated from the BSP for this mesh.
+	std::shared_ptr<nav2_span_grid_t> span_grid = nullptr;
+
 	//! Mesh sizing metadata mirrored for query consumers.
 	int32_t tile_size = 0;        //!< Number of XY cells per tile edge.
 	double cell_size_xy = 0.0;    //!< World-space XY size of one nav cell.
@@ -883,6 +888,7 @@ struct nav2_mesh_t {
 		world_tile_id_of.clear();
 		occupancy.clear();
 		inline_model_runtime.clear();
+		span_grid.reset();
 		occupancy_frame = -1;
 		tile_size = 0;
 		cell_size_xy = 0.0;

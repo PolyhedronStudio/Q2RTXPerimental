@@ -41,6 +41,36 @@ enum class nav2_bench_timing_bucket_t : uint8_t {
 };
 
 /**
+*	@brief	Task 12.3 environment profile classes validated by the optimization benchmark layer.
+*	@note	These profiles map benchmark scenarios to the Wave 11 validation buckets so report output
+*			can stay stable even while scenario internals evolve.
+**/
+enum class nav2_bench_task123_profile_t : uint8_t {
+    Unknown = 0,
+    WideOpenFloorRegion,
+    FlatRooftop,
+    RooftopWithStairAccess,
+    LongHallway,
+    WideAlleyway,
+    LowBranchSameBandCorridor,
+    Count
+};
+
+/**
+*	@brief	Optimization-path signal bits used by Task 12.3 scenario evaluation.
+*	@note	Signals are diagnostic indicators only; correctness still depends on the explicit nav2
+*			topology/corridor pipeline.
+**/
+enum nav2_bench_task123_signal_bits_t : uint32_t {
+    NAV2_BENCH_TASK123_SIGNAL_NONE = 0,
+    NAV2_BENCH_TASK123_SIGNAL_DISTANCE_FIELD_UTILITY = ( 1u << 0 ),
+    NAV2_BENCH_TASK123_SIGNAL_MACRO_TRAVERSAL = ( 1u << 1 ),
+    NAV2_BENCH_TASK123_SIGNAL_VISIBILITY_HINT = ( 1u << 2 ),
+    NAV2_BENCH_TASK123_SIGNAL_SERIALIZED_REUSE = ( 1u << 3 ),
+    NAV2_BENCH_TASK123_SIGNAL_MANY_AGENT_PRESSURE = ( 1u << 4 )
+};
+
+/**
 *	@brief	Deterministic scenario identifiers tracked by the nav2 benchmark harness.
 *	@note	The values are intentionally stable so future compare-mode or serialization tests can
 *			refer to scenarios by enum value without relying on fragile strings.
@@ -171,6 +201,90 @@ struct nav2_bench_roundtrip_summary_t {
     uint32_t mismatch_count = 0;
     //! First mismatch category observed, or `None` when the round-trip succeeded.
     nav2_serialized_roundtrip_mismatch_t primary_mismatch = nav2_serialized_roundtrip_mismatch_t::None;
+};
+
+/**
+*	@brief	Task 12.3 per-scenario metric summary built from benchmark aggregates.
+*	@note	The fields focus on optimization-behavior validation (time, expansion pressure, stability,
+*			connector correctness, and scheduling pressure) without introducing new correctness shortcuts.
+**/
+struct nav2_bench_task123_metrics_t {
+    //! Average total query time for the scenario.
+    double avg_total_query_ms = 0.0;
+    //! Average coarse-search milliseconds for the scenario.
+    double avg_coarse_search_ms = 0.0;
+    //! Average fine-refinement milliseconds for the scenario.
+    double avg_fine_refinement_ms = 0.0;
+    //! Average worker queue wait milliseconds for many-agent pressure checks.
+    double avg_worker_queue_wait_ms = 0.0;
+    //! Average worker execution milliseconds for many-agent pressure checks.
+    double avg_worker_execution_ms = 0.0;
+    //! Average coarse expansion count derived from run aggregates.
+    double avg_coarse_expansions = 0.0;
+    //! Average fine expansion count derived from run aggregates.
+    double avg_fine_expansions = 0.0;
+    //! Route stability score in normalized [0..1] form where 1 indicates stable repeats.
+    double route_stability_score = 0.0;
+    //! Connector selection correctness score in normalized [0..1] form.
+    double connector_selection_score = 0.0;
+    //! Failure pressure score in normalized [0..1] form where 0 indicates no observed failures.
+    double failure_pressure_score = 0.0;
+    //! True when benchmark data indicates optimizations were exercised in this scenario.
+    bool optimization_used = false;
+    //! True when benchmark data indicates optimization behavior improved aggregate cost pressure.
+    bool optimization_helped = false;
+    //! True when benchmark data indicates optimization behavior regressed aggregate cost pressure.
+    bool optimization_regressed = false;
+    //! True when correctness signals remained healthy for this scenario.
+    bool correctness_preserved = true;
+    //! Signal bitfield describing which optimization categories were observed.
+    uint32_t signal_bits = NAV2_BENCH_TASK123_SIGNAL_NONE;
+};
+
+/**
+*	@brief	Task 12.3 per-scenario validation result.
+**/
+struct nav2_bench_task123_scenario_result_t {
+    //! Scenario identifier this result describes.
+    nav2_bench_scenario_t scenario = nav2_bench_scenario_t::SameFloorOpen;
+    //! Environment profile mapped from the scenario.
+    nav2_bench_task123_profile_t profile = nav2_bench_task123_profile_t::Unknown;
+    //! True when a valid benchmark record was available for this scenario.
+    bool has_record = false;
+    //! True when the scenario passed Task 12.3 validation checks.
+    bool passed = false;
+    //! Computed Task 12.3 scenario metrics.
+    nav2_bench_task123_metrics_t metrics = {};
+};
+
+/**
+*	@brief	Task 12.3 aggregate report across all relevant scenarios.
+**/
+struct nav2_bench_task123_report_t {
+    //! Number of scenarios evaluated into this report.
+    uint32_t scenario_count = 0;
+    //! Number of scenarios with at least one benchmark record.
+    uint32_t scenarios_with_records = 0;
+    //! Number of scenarios that passed Task 12.3 validation checks.
+    uint32_t scenario_pass_count = 0;
+    //! Number of scenarios that failed Task 12.3 validation checks.
+    uint32_t scenario_fail_count = 0;
+    //! Number of scenarios where optimization-use signals were observed.
+    uint32_t optimization_used_count = 0;
+    //! Number of scenarios where optimization behavior improved pressure metrics.
+    uint32_t optimization_helped_count = 0;
+    //! Number of scenarios where optimization behavior regressed pressure metrics.
+    uint32_t optimization_regressed_count = 0;
+    //! Number of scenarios where correctness checks stayed healthy.
+    uint32_t correctness_preserved_count = 0;
+    //! Number of scenarios flagged under many-agent pressure categories.
+    uint32_t many_agent_scenario_count = 0;
+    //! Number of scenarios exercising serialized/precomputed reuse categories.
+    uint32_t serialized_reuse_scenario_count = 0;
+    //! Overall report pass/fail flag.
+    bool passed = false;
+    //! Per-scenario outputs indexed by `nav2_bench_scenario_t` enum value.
+    nav2_bench_task123_scenario_result_t scenario_results[ ( size_t )nav2_bench_scenario_t::Count ] = {};
 };
 
 
@@ -328,3 +442,32 @@ const char *SVG_Nav2_Bench_RoundTripSummaryName( const nav2_bench_roundtrip_summ
 *	@note	This helper is intended for low-frequency developer diagnostics, not per-frame logging.
 **/
 void SVG_Nav2_Bench_DumpRecord( const nav2_bench_scenario_t scenario = nav2_bench_scenario_t::Count );
+
+/**
+*	@brief	Return the Task 12.3 environment profile mapping for one benchmark scenario.
+*	@param	scenario	Benchmark scenario to classify.
+*	@return	Mapped Task 12.3 environment profile.
+**/
+nav2_bench_task123_profile_t SVG_Nav2_Bench_Task123ProfileForScenario( const nav2_bench_scenario_t scenario );
+
+/**
+*	@brief	Evaluate one benchmark scenario into Task 12.3 validation metrics.
+*	@param	scenario	Scenario identifier to evaluate.
+*	@param	outResult	[out] Scenario validation output.
+*	@return	True when evaluation completed and output storage was populated.
+**/
+const bool SVG_Nav2_Bench_EvaluateTask123Scenario( const nav2_bench_scenario_t scenario, nav2_bench_task123_scenario_result_t *outResult );
+
+/**
+*	@brief	Build the full Task 12.3 validation report from current benchmark aggregates.
+*	@param	outReport	[out] Report output to populate.
+*	@return	True when report generation completed.
+**/
+const bool SVG_Nav2_Bench_BuildTask123Report( nav2_bench_task123_report_t *outReport );
+
+/**
+*	@brief	Return a stable display name for one Task 12.3 environment profile.
+*	@param	profile	Environment profile value.
+*	@return	Constant string display name.
+**/
+const char *SVG_Nav2_Bench_Task123ProfileName( const nav2_bench_task123_profile_t profile );

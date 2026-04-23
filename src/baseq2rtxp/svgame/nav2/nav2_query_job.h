@@ -7,6 +7,8 @@
 ********************************************************************/
 #pragma once
 
+#include <vector>
+
 #include "svgame/nav2/nav2_query_state.h"
 
 
@@ -33,6 +35,10 @@ struct nav2_query_request_t {
     Vector3 start_origin = {};
     //! Query goal position in feet-origin world space.
     Vector3 goal_origin = {};
+    //! Query agent mins in feet-origin space captured from the requesting mover at submission time.
+    Vector3 agent_mins = {};
+    //! Query agent maxs in feet-origin space captured from the requesting mover at submission time.
+    Vector3 agent_maxs = {};
     //! Scheduler priority class for the request.
     nav2_query_priority_t priority = nav2_query_priority_t::Normal;
     //! Optional urgency hint used by future fairness policy.
@@ -60,6 +66,10 @@ struct nav2_query_job_t {
     nav2_query_request_t request = {};
     //! Mutable resumable state owned by the scheduler.
     nav2_query_state_t state = {};
+    //! Committed world-space waypoints produced by the scheduler pipeline on successful completion.
+    std::vector<Vector3> committed_waypoints = {};
+    //! True when `committed_waypoints` contains a valid committed path payload.
+    bool has_committed_waypoints = false;
     //! Total time this job has spent waiting in the scheduler queue.
     double queue_wait_ms = 0.0;
     //! Total execution time accumulated across granted slices.
@@ -76,6 +86,20 @@ struct nav2_query_job_t {
     uint64_t last_dispatch_timestamp_ms = 0;
     //! True while one worker-owned slice is in flight for this job.
     bool worker_in_flight = false;
+  //! Monotonic frame index when the job was submitted to the scheduler queue.
+    int64_t submitted_frame_number = 0;
+    //! Monotonic frame index when the job most recently received a slice grant.
+    int64_t last_granted_frame_number = 0;
+    //! Number of fairness-based starvation boosts granted to this job.
+    uint32_t starvation_boost_count = 0;
+    //! Number of overload-throttled slices granted to this job.
+    uint32_t throttled_slice_count = 0;
+    //! Number of times overload policy requested provisional-fallback behavior for this job.
+    uint32_t overload_provisional_fallback_count = 0;
+    //! Number of stage transitions observed during this job lifecycle.
+    uint32_t stage_transition_count = 0;
+    //! Number of stage-boundary restarts observed during this job lifecycle.
+    uint32_t stage_restart_count = 0;
 };
 
 

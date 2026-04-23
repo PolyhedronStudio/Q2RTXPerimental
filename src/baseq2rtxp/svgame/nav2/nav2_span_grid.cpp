@@ -208,6 +208,40 @@ const bool SVG_Nav2_SpanGrid_SortCanonical( nav2_span_grid_t *grid ) {
 }
 
 /**
+* @brief Resolve one pointer-free span reference by stable span id.
+* @param grid Grid to inspect.
+* @param span_id Stable span id to resolve.
+* @param out_ref [out] Resolved pointer-free span reference.
+* @return True when the span id exists in the reverse index.
+**/
+const bool SVG_Nav2_SpanGrid_TryResolveSpanRef( const nav2_span_grid_t &grid, const int32_t span_id, nav2_span_ref_t *out_ref ) {
+	/**
+	*    Require a valid output slot and non-negative span id before lookup.
+	**/
+	if ( !out_ref || span_id < 0 ) {
+		return false;
+	}
+
+	/**
+	*    Resolve the pointer-free span reference from the stable span-id map.
+	**/
+	const auto it = grid.reverse_indices.by_span_id.find( span_id );
+	if ( it == grid.reverse_indices.by_span_id.end() ) {
+		return false;
+	}
+
+	/**
+	*    Publish the resolved reference only when it still points to a valid slot.
+	**/
+	if ( !it->second.IsValid() ) {
+		return false;
+	}
+
+	*out_ref = it->second;
+	return true;
+}
+
+/**
 * @brief Reset one reverse-index container so rebuild starts from a clean state.
 * @param indices [in,out] Reverse-index payload to clear.
 **/
@@ -255,16 +289,24 @@ static void SVG_Nav2_SpanGrid_AppendUniqueReverseRef( std::vector<std::vector<na
 		return;
 	}
 
-	// Ensure the destination key is present before duplicate checks.
+	// Ensure the destination key is present before appending this pointer-free span reference.
 	SVG_Nav2_SpanGrid_EnsureReverseKey( values, key );
 	std::vector<nav2_span_ref_t> &bucket = ( *values )[ ( size_t )key ];
 
-	// Suppress duplicates so reverse-index reads remain deterministic and compact.
-	for ( const nav2_span_ref_t &existing : bucket ) {
-		if ( existing.span_id == ref.span_id && existing.column_index == ref.column_index && existing.span_index == ref.span_index ) {
+	/**
+	*    Rebuild callers generate each concrete span reference exactly once per reverse-index key while
+	*    traversing sparse columns in deterministic order, so a full linear duplicate scan is unnecessary
+	*    and becomes the dominant self-time hotspot at larger bucket sizes.
+	**/
+	// Keep a tiny immediate-duplicate guard to preserve resilience if a caller accidentally submits the same ref twice in a row.
+	if ( !bucket.empty() ) {
+		const nav2_span_ref_t &last = bucket.back();
+		if ( last.span_id == ref.span_id && last.column_index == ref.column_index && last.span_index == ref.span_index ) {
 			return;
 		}
 	}
+
+	// Append the reference directly to avoid O(n^2) growth from repeated bucket-wide duplicate scans.
 	bucket.push_back( ref );
 }
 

@@ -49,6 +49,34 @@ struct nav2_save_load_result_t {
     uint32_t byte_count = 0;
 };
 
+/**
+*\t@brief\tVersioned marker stored before nav2 runtime payload bytes inside level save files.
+*\t@note\tThis marker lets load paths distinguish missing nav2 payloads from corrupted payloads safely.
+**/
+struct nav2_savegame_runtime_marker_t {
+    //! Fixed marker magic identifying the nav2 runtime payload marker.
+    uint32_t magic = 0;
+    //! Marker version for forward-compatible extension.
+    uint32_t version = 0;
+    //! Number of bytes that follow for the nav2 persistence blob.
+    uint32_t blob_byte_count = 0;
+    //! Number of serialized actor states in this payload.
+    uint32_t actor_state_count = 0;
+};
+
+/**
+*\t@brief\tVersioned runtime payload written into level save files for nav2 continuity.
+*\t@note\tThe payload remains pointer-free and stores only gameplay-relevant continuity state.
+**/
+struct nav2_savegame_runtime_payload_t {
+    //! Runtime payload marker describing the encoded bytes.
+    nav2_savegame_runtime_marker_t marker = {};
+    //! Persistence blob bytes written/read through gz save contexts.
+    nav2_serialized_blob_t blob = {};
+    //! Persisted actor continuity records.
+    std::vector<nav2_savegame_actor_state_t> actor_states = {};
+};
+
 
 /**
 *
@@ -96,6 +124,26 @@ nav2_save_load_result_t SVG_Nav2_SaveLoad_WritePersistenceBundle( game_write_con
 **/
 nav2_save_load_result_t SVG_Nav2_SaveLoad_ReadPersistenceBundle( game_read_context_t *ctx,
     const nav2_serialization_policy_t &policy, nav2_persistence_bundle_t *outBundle );
+
+/**
+*\t@brief\tWrite nav2 gameplay-relevant runtime payload into a level save context.
+*\t@param\tctx\tLevel-save write context receiving nav2 payload bytes.
+*\t@param\tbundle\tNav2 persistence bundle to serialize.
+*\t@param\tactorStates\tPersisted actor continuity state.
+*\t@return\tStructured save result for diagnostics.
+**/
+nav2_save_load_result_t SVG_Nav2_SaveLoad_WriteRuntimePayload( game_write_context_t *ctx,
+    const nav2_persistence_bundle_t &bundle, const std::vector<nav2_savegame_actor_state_t> &actorStates );
+
+/**
+*\t@brief\tRead nav2 gameplay-relevant runtime payload from a level save context.
+*\t@param\tctx\tLevel-save read context providing nav2 payload bytes.
+*\t@param\tpolicy\tExpected serialization policy used for blob validation.
+*\t@param\toutPayload\t[out] Decoded nav2 runtime payload.
+*\t@return\tStructured load result including compatibility validation.
+**/
+nav2_save_load_result_t SVG_Nav2_SaveLoad_ReadRuntimePayload( game_read_context_t *ctx,
+    const nav2_serialization_policy_t &policy, nav2_savegame_runtime_payload_t *outPayload );
 
 /**
 *	@brief	Reset nav2 runtime systems after a load transition according to the Task 2.3 persistence policy.

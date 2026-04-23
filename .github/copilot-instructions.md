@@ -7,6 +7,7 @@
 - When implementing new systems, prefer enforcing drop limits both in A* edge validation and in path-following safety checks.
 - When adjusting monster navigation/movement, always account for slopes and stairs (walkable surfaces, step-up/step-down) alongside cornering and center-origin hull issues.
 - For repository planning and implementation, treat `svgame/nav2/` as the sole active navigation system head; do not intertwine new masterplan work with `svgame/oldnav/` mechanics, types, or callable surfaces.
+- When following a `masterplan` markdown (`.md`) file, keep task and milestone status lists up-to-date in priority/dependency order: mark completed work as done, blocking issues as blocked/error, and explicitly mark intentional skips with rationale.
 
 ## Code Style
 - Follow consistent formatting rules across the project.

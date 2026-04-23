@@ -20,11 +20,24 @@
 //! Default path for the engine to find nav files at.
 static constexpr const char *NAV_PATH_DIR = "/maps/nav/";
 
+//! Chunk size for incremental path processing. This is the number of nodes that will be expanded per incremental step.
+static constexpr int32_t NAV_TILE_WORKER_STEP_CHUNK_SIZE = 1024;
+
+/**
+*
+*
+* 	Tile parameters:
+*
+*
+**/
 //! Small epsilon to ensure max bounds map to the correct tile.
 static constexpr const double NAV_TILE_EPSILON = 0.001f;
-
-//! Chunk size for incremental path processing. This is the number of nodes that will be expanded per incremental step.
-static constexpr int32_t NAV_TILE_WORKER_STEP_CHUNK_SIZE = 65536;
+//! Default tile size in world units, used when no metadata is available to the runtime.
+static constexpr const int32_t NAV_TILE_DEFAULT_SIZE = 128;
+//! Default XY cell size in world units, used when no metadata is available to the runtime.
+static constexpr const double NAV_TILE_DEFAULT_CELL_SIZE_XY = 4.;
+//! Default Z quantization for tile generation and runtime queries when no metadata is available.
+static constexpr const double NAV_TILE_DEFAULT_Z_QUANT = 16.;
 
 /**
 *

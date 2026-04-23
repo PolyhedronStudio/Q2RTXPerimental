@@ -107,6 +107,22 @@ struct nav2_budget_policy_t {
     uint32_t max_main_thread_slices_per_frame = 4;
     //! Default stage budgets indexed by `nav2_query_stage_t`.
     nav2_stage_budget_t stage_budget[ ( size_t )nav2_query_stage_t::Count ] = {};
+  //! Priority-weighted scale applied to granted slice milliseconds.
+    double priority_ms_scale[ ( size_t )nav2_query_priority_t::Count ] = {};
+    //! Priority-weighted scale applied to granted expansion budgets.
+    double priority_expansion_scale[ ( size_t )nav2_query_priority_t::Count ] = {};
+    //! Fraction of total frame budget at which overload throttling begins.
+    double overload_begin_fraction = 0.85;
+    //! Fraction of total frame budget at which overload emergency throttling begins.
+    double overload_critical_fraction = 0.95;
+    //! Minimum per-slice milliseconds allowed after overload throttling.
+    double overload_min_slice_ms = 0.10;
+    //! Minimum per-slice expansion budget allowed after overload throttling.
+    uint32_t overload_min_expansions = 16;
+    //! Maximum queue age in frames before starvation prevention should force a priority bump.
+    uint32_t starvation_frame_threshold = 6;
+    //! Maximum queue-wait milliseconds before unfair-delay diagnostics should trigger.
+    double unfair_delay_threshold_ms = 80.0;
 };
 
 /**
@@ -124,6 +140,10 @@ struct nav2_budget_runtime_t {
     uint32_t worker_slices_issued = 0;
     //! Number of main-thread slices already granted this frame.
     uint32_t main_thread_slices_issued = 0;
+  //! True when overload throttling has engaged for the current frame.
+    bool overload_active = false;
+    //! True when critical overload throttling has engaged for the current frame.
+    bool overload_critical = false;
 };
 
 

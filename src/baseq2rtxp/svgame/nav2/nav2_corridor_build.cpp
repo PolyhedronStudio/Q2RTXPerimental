@@ -594,6 +594,34 @@ const bool SVG_Nav2_BuildCorridorFromCoarseAStar( const nav2_coarse_astar_state_
 	}
 
 	/**
+	*	Bridge connector-less coarse routes by falling back to selected endpoint candidates when
+	*	path-node topology omitted fine-cell metadata.
+	**/
+	// Preserve start endpoint tile/cell hints from the selected start candidate when missing.
+	if ( out_corridor->start_topology.tile_id < 0 && coarse_state.start_candidate.tile_id >= 0 ) {
+		out_corridor->start_topology.tile_id = coarse_state.start_candidate.tile_id;
+		out_corridor->start_topology.tile_x = ( int32_t )coarse_state.start_candidate.tile_x;
+		out_corridor->start_topology.tile_y = ( int32_t )coarse_state.start_candidate.tile_y;
+		out_corridor->start_topology.cell_index = coarse_state.start_candidate.cell_index;
+		out_corridor->start_topology.layer_index = coarse_state.start_candidate.layer_index;
+		out_corridor->start_topology.leaf_index = coarse_state.start_candidate.leaf_index;
+		out_corridor->start_topology.cluster_id = coarse_state.start_candidate.cluster_id;
+		out_corridor->start_topology.area_id = coarse_state.start_candidate.area_id;
+	}
+
+	// Preserve goal endpoint tile/cell hints from the selected goal candidate when missing.
+	if ( out_corridor->goal_topology.tile_id < 0 && coarse_state.goal_candidate.tile_id >= 0 ) {
+		out_corridor->goal_topology.tile_id = coarse_state.goal_candidate.tile_id;
+		out_corridor->goal_topology.tile_x = ( int32_t )coarse_state.goal_candidate.tile_x;
+		out_corridor->goal_topology.tile_y = ( int32_t )coarse_state.goal_candidate.tile_y;
+		out_corridor->goal_topology.cell_index = coarse_state.goal_candidate.cell_index;
+		out_corridor->goal_topology.layer_index = coarse_state.goal_candidate.layer_index;
+		out_corridor->goal_topology.leaf_index = coarse_state.goal_candidate.leaf_index;
+		out_corridor->goal_topology.cluster_id = coarse_state.goal_candidate.cluster_id;
+		out_corridor->goal_topology.area_id = coarse_state.goal_candidate.area_id;
+	}
+
+	/**
 	*	Mirror coarse path edges into portal commitments and connector segments.
 	**/
 	// Iterate over coarse path edges in order.
@@ -683,6 +711,22 @@ const bool SVG_Nav2_BuildCorridorFromCoarseAStar( const nav2_coarse_astar_state_
 		tileRef.tile_y = ( int32_t )coarse_state.start_candidate.tile_y;
 		tileRef.tile_id = coarse_state.start_candidate.tile_id;
 		out_corridor->exact_tile_route.push_back( tileRef );
+
+		/**
+		*	When only one fallback tile seed exists, append the goal candidate tile too so fine-init
+		*	can resolve both endpoints in connector-less routes.
+		**/
+		// Append a deterministic goal-side tile fallback when it differs from the start seed.
+		if ( coarse_state.goal_candidate.tile_id >= 0
+			&& ( coarse_state.goal_candidate.tile_id != coarse_state.start_candidate.tile_id
+				|| coarse_state.goal_candidate.tile_x != coarse_state.start_candidate.tile_x
+				|| coarse_state.goal_candidate.tile_y != coarse_state.start_candidate.tile_y ) ) {
+			nav2_corridor_tile_ref_t goalTileRef = {};
+			goalTileRef.tile_x = ( int32_t )coarse_state.goal_candidate.tile_x;
+			goalTileRef.tile_y = ( int32_t )coarse_state.goal_candidate.tile_y;
+			goalTileRef.tile_id = coarse_state.goal_candidate.tile_id;
+			out_corridor->exact_tile_route.push_back( goalTileRef );
+		}
 	}
 	out_corridor->flags |= NAV_CORRIDOR_FLAG_HAS_EXACT_TILE_ROUTE;
 

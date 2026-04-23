@@ -52,6 +52,10 @@ static cvar_t *s_nav2_worker_async = nullptr;
 static std::mutex s_nav2_worker_completion_mutex;
 //! Completed worker payloads waiting for main-thread application.
 static std::vector<nav2_worker_payload_t *> s_nav2_worker_completed_payloads = {};
+//! Mutex protecting worker payload pool reuse.
+static std::mutex s_nav2_worker_pool_mutex;
+//! Reusable payload pool to reduce per-slice heap churn.
+static std::vector<nav2_worker_payload_t *> s_nav2_worker_payload_pool = {};
 
 
 /**
@@ -74,6 +78,83 @@ static uint64_t Nav2_Worker_GetNowMs( void ) {
         return gi.GetRealTime();
     }
     return 0;
+}
+
+/**
+*
+*
+*	Nav2 Worker Interface Payload Pool Helpers:
+*
+*
+**/
+/**
+*	@brief	Acquire one reusable worker payload.
+*	@return	Reusable payload pointer, or `nullptr` when allocation failed.
+**/
+static nav2_worker_payload_t *Nav2_Worker_AcquirePayload( void ) {
+    /**
+    *    First try to reuse a previously released payload so high-frequency slices avoid heap churn.
+    **/
+    {
+        std::lock_guard<std::mutex> lock( s_nav2_worker_pool_mutex );
+        if ( !s_nav2_worker_payload_pool.empty() ) {
+            nav2_worker_payload_t *pooledPayload = s_nav2_worker_payload_pool.back();
+            s_nav2_worker_payload_pool.pop_back();
+            if ( pooledPayload ) {
+                *pooledPayload = {};
+            }
+            return pooledPayload;
+        }
+    }
+
+    /**
+    *    Fall back to one heap allocation when no pooled payload is currently available.
+    **/
+    nav2_worker_payload_t *allocatedPayload = new nav2_worker_payload_t();
+    return allocatedPayload;
+}
+
+/**
+*	@brief	Return one payload to the reusable pool.
+*	@param	payload	Payload to release.
+**/
+static void Nav2_Worker_ReleasePayload( nav2_worker_payload_t *payload ) {
+    /**
+    *    Ignore null payloads so callers can always release conditionally.
+    **/
+    if ( !payload ) {
+        return;
+    }
+
+    /**
+    *    Reset payload contents before pooling to avoid stale state carry-over between slices.
+    **/
+    *payload = {};
+    {
+        std::lock_guard<std::mutex> lock( s_nav2_worker_pool_mutex );
+        s_nav2_worker_payload_pool.push_back( payload );
+    }
+}
+
+/**
+*	@brief	Destroy all pooled payloads during subsystem shutdown.
+**/
+static void Nav2_Worker_ClearPayloadPool( void ) {
+    /**
+    *    Move pooled payload pointers into a local list so heap frees happen outside the mutex.
+    **/
+    std::vector<nav2_worker_payload_t *> pooledPayloads = {};
+    {
+        std::lock_guard<std::mutex> lock( s_nav2_worker_pool_mutex );
+        pooledPayloads.swap( s_nav2_worker_payload_pool );
+    }
+
+    /**
+    *    Release pooled payload allocations.
+    **/
+    for ( nav2_worker_payload_t *payload : pooledPayloads ) {
+        delete payload;
+    }
 }
 
 /**
@@ -187,7 +268,7 @@ static void Nav2_Worker_ApplyCompletedPayload( nav2_worker_payload_t *payload ) 
     **/
     nav2_query_job_t *job = SVG_Nav2_Scheduler_FindJob( payload->job_id );
     if ( !job ) {
-        delete payload;
+        Nav2_Worker_ReleasePayload( payload );
         return;
     }
 
@@ -218,7 +299,7 @@ static void Nav2_Worker_ApplyCompletedPayload( nav2_worker_payload_t *payload ) 
     /**
     *    Release the transient payload after application.
     **/
-    delete payload;
+    Nav2_Worker_ReleasePayload( payload );
 }
 
 
@@ -282,6 +363,11 @@ void SVG_Nav2_Worker_Shutdown( void ) {
     s_nav2_worker_runtime.mode = nav2_worker_mode_t::Disabled;
     s_nav2_worker_runtime.in_flight_count = 0;
     s_nav2_worker_runtime.pending_completion_count = 0;
+
+    /**
+    *    Release pooled transient payload storage during shutdown to keep lifecycle ownership explicit.
+    **/
+    Nav2_Worker_ClearPayloadPool();
 }
 
 /**
@@ -339,7 +425,10 @@ const bool SVG_Nav2_Worker_DispatchJobSlice( nav2_query_job_t *job ) {
     *    Materialize a transient worker payload that carries only stable identifiers and copied slice
     *    data into the execution path.
     **/
-    nav2_worker_payload_t *payload = new nav2_worker_payload_t();
+    nav2_worker_payload_t *payload = Nav2_Worker_AcquirePayload();
+    if ( !payload ) {
+        return false;
+    }
     payload->job_id = job->job_id;
     payload->slice = job->state.active_slice;
     payload->queue_enter_timestamp_ms = job->queue_enter_timestamp_ms;
@@ -378,7 +467,7 @@ const bool SVG_Nav2_Worker_DispatchJobSlice( nav2_query_job_t *job ) {
     if ( s_nav2_worker_runtime.in_flight_count > 0 ) {
         s_nav2_worker_runtime.in_flight_count--;
     }
-    delete payload;
+    Nav2_Worker_ReleasePayload( payload );
     return false;
 }
 

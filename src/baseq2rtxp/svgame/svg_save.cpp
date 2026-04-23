@@ -25,6 +25,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 
 #include "svgame/nav2/nav2_save_load.h"
+#include "svgame/nav2/nav2_persistence.h"
 
 #include "svgame/entities/svg_player_edict.h"
 #include "svgame/entities/svg_worldspawn_edict.h"
@@ -537,6 +538,21 @@ void SVG_ReadLevel(const char *filename)
     //read_fields( &ctx, levelfields, &level );
 	ctx.read_fields( svg_level_locals_t::saveDescriptorFields, &level );
 
+    /**
+    *    Read and validate nav2 runtime payload from the level-save tail section.
+    *    If the payload is incompatible, rebuild runtime systems safely and continue level load.
+    **/
+    nav2_persistence_bundle_t nav2Bundle = {};
+    nav2_serialization_policy_t nav2Policy = {};
+    nav2Policy.category = nav2_serialized_category_t::SavegameRuntime;
+ nav2Policy.transport = nav2_serialized_transport_t::SavegameGZip;
+    const nav2_save_load_result_t nav2LoadResult = SVG_Nav2_SaveLoad_ReadPersistenceBundle( &ctx, nav2Policy, &nav2Bundle );
+    if ( nav2LoadResult.success ) {
+        SVG_Nav2_SaveLoad_RebuildRuntimeStateFromBundle( nav2Bundle );
+    } else {
+        SVG_Nav2_SaveLoad_RebuildRuntimeStateAfterLoad();
+    }
+
     gzclose(f);
 
     // Set client fields on player entities.
@@ -604,8 +620,8 @@ void SVG_ReadLevel(const char *filename)
 	// Rebuild portal states from entities' refcounts so the world collision reflects saved state.
 	RestoreAreaPortalStatesFromEntities();
 
-	// Initialize navigation system (registers cvars like `nav_debug_draw`).
-	SVG_Nav2_Runtime_Init();
+    // Initialize navigation runtime seam after load-level entity restore.
+    SVG_Nav2_Runtime_Init();
 	// Restore the navmesh for this map.
 	// <Q2RTXP>: WID: Navmesh saving/loading is currently disabled, since the navmesh data structures are still in flux and not fully integrated with the rest of the codebase yet.
 	//auto loadResult = SVG_Nav2_LoadMesh( level.mapname );

@@ -87,15 +87,15 @@ struct nav2_query_mesh_meta_t {
  //! Number of BSP leaves published by the active mesh when known.
 	int32_t leaf_count = 0;
 	//! Number of XY cells along one tile edge.
-	int32_t tile_size = 0;
+	int32_t tile_size = NAV_TILE_DEFAULT_SIZE;
 	//! World-space XY size of one nav cell.
-	double cell_size_xy = 0.0;
+	double cell_size_xy = NAV_TILE_DEFAULT_CELL_SIZE_XY;
 	//! World-space size multiplier used for quantized layer heights.
-	double z_quant = 0.0;
+	double z_quant = NAV_TILE_DEFAULT_Z_QUANT;
 	//! Agent bounding-box minimum extents mirrored from the active mesh when known.
-	Vector3 agent_mins = {};
+	Vector3 agent_mins = PHYS_DEFAULT_BBOX_STANDUP_MINS;
 	//! Agent bounding-box maximum extents mirrored from the active mesh when known.
-	Vector3 agent_maxs = {};
+	Vector3 agent_maxs = PHYS_DEFAULT_BBOX_STANDUP_MAXS;
 
 	/**
 	*	@brief	Return whether the mirrored tile sizing metadata is usable.
@@ -159,7 +159,7 @@ struct nav2_query_tile_location_t {
 **/
 struct nav2_query_inline_model_membership_t {
 	//! Owning entity number for the matched inline model when known.
-	int32_t owner_entnum = -1;
+	int32_t owner_entnum = ENTITYNUM_NONE;
 	//! Inline-model index for the matched runtime entry when known.
 	int32_t model_index = -1;
 
@@ -297,9 +297,9 @@ struct nav2_query_policy_t {
 	double max_drop_height = NAV_DEFAULT_MAX_DROP_HEIGHT;
 	//! Drop cap applied when rejecting large downward transitions.
 	double max_drop_height_cap = NAV_DEFAULT_MAX_DROP_HEIGHT_CAP;
-	//! Agent bounding box minimum extents in feet-origin space.
+	//! Agent bounding box minimum extents in local origin space.
 	Vector3 agent_mins = { -16.0f, -16.0f, -36.0f };
-	//! Agent bounding box maximum extents in feet-origin space.
+	//! Agent bounding box maximum extents in local origin space.
 	Vector3 agent_maxs = { 16.0f, 16.0f, 36.0f };
 	//! Minimum walkable surface normal Z threshold.
 	double max_slope_normal_z = PHYS_MAX_SLOPE_NORMAL;

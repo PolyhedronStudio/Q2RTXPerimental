@@ -10,6 +10,10 @@
 #include <vector>
 
 #include "svgame/nav2/nav2_query_job.h"
+#include "svgame/nav2/nav2_connectors.h"
+#include "svgame/nav2/nav2_hierarchy_graph.h"
+#include "svgame/nav2/nav2_region_layers.h"
+#include "svgame/nav2/nav2_span_grid.h"
 #include "svgame/memory/svg_raiiobject.hpp"
 
 
@@ -36,6 +40,32 @@ struct nav2_scheduler_runtime_t {
     nav2_budget_runtime_t budget_runtime = {};
     //! Active scheduler-owned query jobs.
     std::vector<nav2_query_job_t> jobs = {};
+  //! Number of starvation-prevention boosts issued by fairness selection.
+    uint64_t starvation_prevention_boost_count = 0;
+    //! Number of times fairness selection observed an unfair queue-delay condition.
+    uint64_t unfair_delay_event_count = 0;
+    //! Number of times overload policy throttled a granted slice.
+    uint64_t overload_throttle_count = 0;
+    //! Number of times overload policy requested low-fidelity/provisional fallback behavior.
+    uint64_t overload_provisional_fallback_count = 0;
+    //! Number of stage transitions executed by scheduler-controlled jobs.
+    uint64_t stage_transition_count = 0;
+    //! Number of stage-boundary restart requests observed by scheduler-controlled jobs.
+    uint64_t stage_restart_count = 0;
+    //! Snapshot version bound to cached hierarchy dependencies; 0 means cache is uninitialized.
+    uint32_t cached_hierarchy_static_nav_version = 0;
+    //! Cached span-grid snapshot reused by hierarchy dependency build while snapshot version is stable.
+    nav2_span_grid_t cached_hierarchy_span_grid = {};
+    //! Cached connector extraction reused by hierarchy dependency build while snapshot version is stable.
+    nav2_connector_list_t cached_hierarchy_connectors = {};
+    //! Cached region-layer graph reused by hierarchy dependency build while snapshot version is stable.
+    nav2_region_layer_graph_t cached_hierarchy_region_layers = {};
+    //! Cached hierarchy graph reused by coarse stage while snapshot version is stable.
+    nav2_hierarchy_graph_t cached_hierarchy_graph = {};
+    //! True when cached hierarchy dependencies are valid for the cached snapshot version.
+    bool has_cached_hierarchy_dependencies = false;
+    //! True when cached hierarchy dependencies were built from the connector-less fallback policy.
+    bool cached_hierarchy_is_no_connector_fallback = false;
 };
 
 //! RAII owner for the nav2 scheduler runtime foundation.
@@ -122,3 +152,11 @@ const bool SVG_Nav2_Scheduler_CancelJob( const uint64_t jobId );
 *	@return	Mutable pointer to the job, or `nullptr` when not found.
 **/
 nav2_query_job_t *SVG_Nav2_Scheduler_FindJob( const uint64_t jobId );
+
+/**
+*	@brief	Erase one terminal or otherwise unneeded job from the scheduler runtime.
+*	@param	jobId	Stable job identifier to erase.
+*	@return	True when a matching job was found and removed.
+*	@note	This also clears any scheduler-local staged runtime artifacts associated with the job id.
+**/
+const bool SVG_Nav2_Scheduler_RemoveJob( const uint64_t jobId );

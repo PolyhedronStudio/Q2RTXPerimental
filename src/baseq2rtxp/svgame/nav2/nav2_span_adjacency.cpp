@@ -36,8 +36,34 @@ static constexpr double NAV2_SPAN_ADJACENCY_DIAGONAL_CAUTION_COST_BIAS = 0.10;
 static constexpr double NAV2_SPAN_ADJACENCY_LEDGE_COST_BIAS = 0.30;
 //! Additional cost applied when a transition hugs a likely wall boundary.
 static constexpr double NAV2_SPAN_ADJACENCY_WALL_COST_BIAS = 0.20;
-//! Half-height used for conservative trace/contents validation hulls in adjacency checks.
-static constexpr float NAV2_SPAN_ADJACENCY_VALIDATE_HULL_HALF_Z = 28.0f;
+
+/**
+*	@brief	Resolve the runtime-origin lift needed to convert a feet-level span sample into the collision origin used by the default stand hull.
+*	@return	Positive Z lift for center-origin defaults, or 0 for feet-origin defaults.
+*	@note	Span preferred Z values are currently stored in feet/floor space. Adjacency legality probes that use full hull bounds must therefore
+*			lift those endpoints into origin space before tracing or querying contents, otherwise center-origin hulls are validated too low.
+**/
+static inline float SVG_Nav2_SpanAdjacency_GetFeetToOriginOffsetZ( void ) {
+	return PHYS_DEFAULT_BBOX_STANDUP_MINS.z < 0.0f ? -PHYS_DEFAULT_BBOX_STANDUP_MINS.z : 0.0f;
+}
+
+/**
+*	@brief	Build the conservative validation hull mins used by adjacency trace and contents probes.
+*	@param	halfExtentXY	Resolved XY half-extent for the local sparse-cell probe.
+*	@return	Validation hull minimum bounds in local origin space.
+**/
+static inline Vector3 SVG_Nav2_SpanAdjacency_GetValidationHullMins( const float halfExtentXY ) {
+	return { -halfExtentXY, -halfExtentXY, PHYS_DEFAULT_BBOX_STANDUP_MINS.z };
+}
+
+/**
+*	@brief	Build the conservative validation hull maxs used by adjacency trace and contents probes.
+*	@param	halfExtentXY	Resolved XY half-extent for the local sparse-cell probe.
+*	@return	Validation hull maximum bounds in local origin space.
+**/
+static inline Vector3 SVG_Nav2_SpanAdjacency_GetValidationHullMaxs( const float halfExtentXY ) {
+	return { halfExtentXY, halfExtentXY, PHYS_DEFAULT_BBOX_STANDUP_MAXS.z };
+}
 
 /**
 *	@brief	Trace/contents validation result for one directed adjacency transition.
@@ -272,9 +298,14 @@ static nav2_span_transition_validation_t SVG_Nav2_ValidateSpanTransition( const 
 	*    Run a conservative hull trace between span centers to reject transitions that are blocked by playersolid geometry.
 	**/
 	const float halfExtentXY = ( float )std::max( 8.0, grid.cell_size_xy * 0.25 );
-	const Vector3 hullMins = { -halfExtentXY, -halfExtentXY, 0.0f };
-	const Vector3 hullMaxs = { halfExtentXY, halfExtentXY, NAV2_SPAN_ADJACENCY_VALIDATE_HULL_HALF_Z * 2.0f };
-	const cm_trace_t transitionTrace = gi.trace( &fromPoint, &hullMins, &hullMaxs, &toPoint, nullptr, CM_CONTENTMASK_PLAYERSOLID );
+	const float feetToOriginOffsetZ = SVG_Nav2_SpanAdjacency_GetFeetToOriginOffsetZ();
+	const Vector3 hullMins = SVG_Nav2_SpanAdjacency_GetValidationHullMins( halfExtentXY );
+	const Vector3 hullMaxs = SVG_Nav2_SpanAdjacency_GetValidationHullMaxs( halfExtentXY );
+	Vector3 fromTraceOrigin = fromPoint;
+	fromTraceOrigin.z += feetToOriginOffsetZ;
+	Vector3 toTraceOrigin = toPoint;
+	toTraceOrigin.z += feetToOriginOffsetZ;
+	const cm_trace_t transitionTrace = gi.trace( &fromTraceOrigin, &hullMins, &hullMaxs, &toTraceOrigin, nullptr, CM_CONTENTMASK_PLAYERSOLID );
 	if ( transitionTrace.startsolid || transitionTrace.allsolid || transitionTrace.fraction < 1.0f ) {
 		validation.trace_invalid = true;
 	}
@@ -282,21 +313,13 @@ static nav2_span_transition_validation_t SVG_Nav2_ValidateSpanTransition( const 
 	/**
 	*    Sample destination standing contents so obviously solid end volumes are rejected even when the center-to-center trace succeeds.
 	**/
-	const Vector3 destinationCenter = {
+	const Vector3 destinationOrigin = {
 		toPoint.x,
 		toPoint.y,
-		( float )( ( to_span.floor_z + to_span.ceiling_z ) * 0.5 )
+		toPoint.z + feetToOriginOffsetZ
 	};
-	const Vector3 destinationMins = {
-		destinationCenter.x - halfExtentXY,
-		destinationCenter.y - halfExtentXY,
-		destinationCenter.z - NAV2_SPAN_ADJACENCY_VALIDATE_HULL_HALF_Z
-	};
-	const Vector3 destinationMaxs = {
-		destinationCenter.x + halfExtentXY,
-		destinationCenter.y + halfExtentXY,
-		destinationCenter.z + NAV2_SPAN_ADJACENCY_VALIDATE_HULL_HALF_Z
-	};
+	const Vector3 destinationMins = QM_Vector3Add( destinationOrigin, hullMins );
+	const Vector3 destinationMaxs = QM_Vector3Add( destinationOrigin, hullMaxs );
 	cm_contents_t destinationContents = CONTENTS_NONE;
 	mleaf_t *leafList[ 8 ] = {};
 	mnode_t *topNode = nullptr;

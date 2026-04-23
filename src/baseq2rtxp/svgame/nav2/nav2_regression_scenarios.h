@@ -29,3 +29,27 @@ const bool SVG_Nav2_Regression_RunStaticNavRoundTrip( const nav2_serialization_p
     nav2_bench_roundtrip_summary_t *outSummary = nullptr,
     nav2_serialized_roundtrip_result_t *outDetailedResult = nullptr,
     const char *scenarioLabel = nullptr );
+
+/**
+*	@brief	Evaluate one Task 12.3 optimization scenario from benchmark aggregates.
+*	@param	scenario	Scenario identifier to evaluate.
+*	@param	outResult	[out] Scenario validation output.
+*	@return	True when evaluation succeeded.
+*	@note	This wrapper keeps Wave 11 regression orchestration localized to regression helpers.
+**/
+const bool SVG_Nav2_Regression_EvaluateTask123Scenario( const nav2_bench_scenario_t scenario,
+    nav2_bench_task123_scenario_result_t *outResult );
+
+/**
+*	@brief	Build the full Task 12.3 optimization validation report from benchmark aggregates.
+*	@param	outReport	[out] Aggregate Task 12.3 report output.
+*	@return	True when report generation succeeded.
+**/
+const bool SVG_Nav2_Regression_BuildTask123Report( nav2_bench_task123_report_t *outReport );
+
+/**
+*	@brief	Emit a compact Task 12.3 regression report to developer console output.
+*	@param	report	Task 12.3 report payload to print.
+*	@param	detailLimit	Maximum number of per-scenario rows to print.
+**/
+void SVG_Nav2_Regression_DebugPrintTask123Report( const nav2_bench_task123_report_t &report, const int32_t detailLimit = 12 );

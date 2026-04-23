@@ -9,6 +9,7 @@
 
 #include "svgame/nav2/nav2_coarse_astar.h"
 #include "svgame/nav2/nav2_connectors.h"
+#include "svgame/nav2/nav2_bench.h"
 #include "svgame/nav2/nav2_corridor_build.h"
 #include "svgame/nav2/nav2_fine_astar.h"
 #include "svgame/nav2/nav2_goal_candidates.h"
@@ -21,6 +22,7 @@
 #include "svgame/nav2/nav2_worker_iface.h"
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
 #include <unordered_map>
 
@@ -90,6 +92,207 @@ struct nav2_scheduler_job_stage_runtime_t {
 //! Scheduler-local per-job stage runtime cache for Task 11.1 staged execution.
 static std::unordered_map<uint64_t, nav2_scheduler_job_stage_runtime_t> s_nav2_scheduler_job_stage_runtime = {};
 
+/**
+*	@brief	Return whether two requests are close enough to be treated as duplicates.
+*	@param	existing	Existing scheduler-owned request.
+*	@param	incoming	Incoming request being submitted.
+*	@return	True when incoming work can reuse existing in-flight or queued work.
+**/
+static const bool Nav2_Scheduler_IsDuplicateRequest( const nav2_query_request_t &existing, const nav2_query_request_t &incoming ) {
+    /**
+    *    Require stable same-agent identity before attempting geometric dedupe checks.
+    **/
+    if ( existing.agent_entnum <= 0 || incoming.agent_entnum <= 0 || existing.agent_entnum != incoming.agent_entnum ) {
+        return false;
+    }
+
+    /**
+    *    Respect explicit goal-owner identity when both requests provide one.
+    **/
+    if ( existing.goal_entnum > 0 && incoming.goal_entnum > 0 && existing.goal_entnum != incoming.goal_entnum ) {
+        return false;
+    }
+
+    /**
+    *    Use bounded spatial tolerances so tiny sound-origin jitter does not flood the queue.
+    **/
+    const double startDx = ( double )incoming.start_origin.x - ( double )existing.start_origin.x;
+    const double startDy = ( double )incoming.start_origin.y - ( double )existing.start_origin.y;
+    const double startDz = std::fabs( ( double )incoming.start_origin.z - ( double )existing.start_origin.z );
+    const double goalDx = ( double )incoming.goal_origin.x - ( double )existing.goal_origin.x;
+    const double goalDy = ( double )incoming.goal_origin.y - ( double )existing.goal_origin.y;
+    const double goalDz = std::fabs( ( double )incoming.goal_origin.z - ( double )existing.goal_origin.z );
+    const double startDist2D = std::sqrt( ( startDx * startDx ) + ( startDy * startDy ) );
+    const double goalDist2D = std::sqrt( ( goalDx * goalDx ) + ( goalDy * goalDy ) );
+
+    // Keep dedupe conservative to avoid suppressing legitimately new path queries.
+    constexpr double dedupeStartDist2D = 48.0;
+    constexpr double dedupeStartDistZ = 64.0;
+    constexpr double dedupeGoalDist2D = 80.0;
+    constexpr double dedupeGoalDistZ = 96.0;
+    if ( startDist2D > dedupeStartDist2D || startDz > dedupeStartDistZ ) {
+        return false;
+    }
+    if ( goalDist2D > dedupeGoalDist2D || goalDz > dedupeGoalDistZ ) {
+        return false;
+    }
+
+    return true;
+}
+
+/**
+*	@brief	Build a lightweight no-connector hierarchy fallback from selected endpoints.
+*	@param	stageRuntime	[in,out] Scheduler-local stage runtime storage.
+*	@return	True when the lightweight hierarchy fallback was produced.
+*	@note	This intentionally avoids expensive full region-layer decomposition on connector-less maps
+*			where we only need a bounded coarse bridge between selected start/goal endpoints.
+**/
+static const bool Nav2_Scheduler_BuildNoConnectorFallbackHierarchy( nav2_scheduler_job_stage_runtime_t *stageRuntime ) {
+    /**
+    *    Require stage runtime plus selected endpoint candidates before building fallback hierarchy.
+    **/
+    if ( !stageRuntime || !stageRuntime->has_selected_start_candidate || !stageRuntime->has_selected_goal_candidate ) {
+        return false;
+    }
+
+    /**
+    *    Reset hierarchy payloads so fallback publication is deterministic.
+    **/
+    stageRuntime->region_layers = {};
+    stageRuntime->hierarchy_graph = {};
+
+    /**
+    *    Build one hierarchy node for each selected endpoint.
+    **/
+    const nav2_goal_candidate_t &startCandidate = stageRuntime->selected_start_candidate;
+    const nav2_goal_candidate_t &goalCandidate = stageRuntime->selected_goal_candidate;
+
+    nav2_hierarchy_node_t startNode = {};
+    startNode.node_id = 1;
+    startNode.kind = nav2_hierarchy_node_kind_t::RegionLayer;
+    startNode.region_layer_id = startCandidate.layer_index;
+    startNode.connector_id = startCandidate.tile_id;
+    startNode.topology.leaf_index = startCandidate.leaf_index;
+    startNode.topology.cluster_id = startCandidate.cluster_id;
+    startNode.topology.area_id = startCandidate.area_id;
+    startNode.topology.region_id = startCandidate.layer_index;
+    startNode.topology.portal_id = startCandidate.tile_id;
+    startNode.topology.tile_id = startCandidate.tile_id;
+    startNode.topology.tile_x = ( int32_t )startCandidate.tile_x;
+    startNode.topology.tile_y = ( int32_t )startCandidate.tile_y;
+    startNode.topology.cell_index = startCandidate.cell_index;
+    startNode.topology.layer_index = startCandidate.layer_index;
+    startNode.allowed_z_band.min_z = startCandidate.center_origin.z - 32.0;
+    startNode.allowed_z_band.max_z = startCandidate.center_origin.z + 32.0;
+    startNode.allowed_z_band.preferred_z = startCandidate.center_origin.z;
+    startNode.flags = NAV2_HIERARCHY_NODE_FLAG_HAS_ALLOWED_Z_BAND;
+    if ( startCandidate.leaf_index >= 0 ) {
+        startNode.flags |= NAV2_HIERARCHY_NODE_FLAG_HAS_LEAF;
+    }
+    if ( startCandidate.cluster_id >= 0 ) {
+        startNode.flags |= NAV2_HIERARCHY_NODE_FLAG_HAS_CLUSTER;
+    }
+    if ( startCandidate.area_id >= 0 ) {
+        startNode.flags |= NAV2_HIERARCHY_NODE_FLAG_HAS_AREA;
+    }
+
+    nav2_hierarchy_node_t goalNode = {};
+    goalNode.node_id = 2;
+    goalNode.kind = nav2_hierarchy_node_kind_t::RegionLayer;
+    goalNode.region_layer_id = goalCandidate.layer_index;
+    goalNode.connector_id = goalCandidate.tile_id;
+    goalNode.topology.leaf_index = goalCandidate.leaf_index;
+    goalNode.topology.cluster_id = goalCandidate.cluster_id;
+    goalNode.topology.area_id = goalCandidate.area_id;
+    goalNode.topology.region_id = goalCandidate.layer_index;
+    goalNode.topology.portal_id = goalCandidate.tile_id;
+    goalNode.topology.tile_id = goalCandidate.tile_id;
+    goalNode.topology.tile_x = ( int32_t )goalCandidate.tile_x;
+    goalNode.topology.tile_y = ( int32_t )goalCandidate.tile_y;
+    goalNode.topology.cell_index = goalCandidate.cell_index;
+    goalNode.topology.layer_index = goalCandidate.layer_index;
+    goalNode.allowed_z_band.min_z = goalCandidate.center_origin.z - 32.0;
+    goalNode.allowed_z_band.max_z = goalCandidate.center_origin.z + 32.0;
+    goalNode.allowed_z_band.preferred_z = goalCandidate.center_origin.z;
+    goalNode.flags = NAV2_HIERARCHY_NODE_FLAG_HAS_ALLOWED_Z_BAND;
+    if ( goalCandidate.leaf_index >= 0 ) {
+        goalNode.flags |= NAV2_HIERARCHY_NODE_FLAG_HAS_LEAF;
+    }
+    if ( goalCandidate.cluster_id >= 0 ) {
+        goalNode.flags |= NAV2_HIERARCHY_NODE_FLAG_HAS_CLUSTER;
+    }
+    if ( goalCandidate.area_id >= 0 ) {
+        goalNode.flags |= NAV2_HIERARCHY_NODE_FLAG_HAS_AREA;
+    }
+
+    if ( !SVG_Nav2_HierarchyGraph_AppendNode( &stageRuntime->hierarchy_graph, startNode )
+        || !SVG_Nav2_HierarchyGraph_AppendNode( &stageRuntime->hierarchy_graph, goalNode ) ) {
+        return false;
+    }
+
+    /**
+    *    Bridge endpoints with a direct bidirectional region link so coarse search can progress
+    *    without full decomposition overhead.
+    **/
+    const double dx = ( double )goalCandidate.center_origin.x - ( double )startCandidate.center_origin.x;
+    const double dy = ( double )goalCandidate.center_origin.y - ( double )startCandidate.center_origin.y;
+    const double dz = std::fabs( ( double )goalCandidate.center_origin.z - ( double )startCandidate.center_origin.z );
+    const double directCost = std::sqrt( ( dx * dx ) + ( dy * dy ) ) + ( dz * 0.5 );
+
+    nav2_hierarchy_edge_t forwardEdge = {};
+    forwardEdge.edge_id = 1;
+    forwardEdge.from_node_id = startNode.node_id;
+    forwardEdge.to_node_id = goalNode.node_id;
+    forwardEdge.kind = nav2_hierarchy_edge_kind_t::RegionLink;
+    forwardEdge.flags = NAV2_HIERARCHY_EDGE_FLAG_PASSABLE | NAV2_HIERARCHY_EDGE_FLAG_TOPOLOGY_MATCHED;
+    forwardEdge.base_cost = std::max( 1.0, directCost );
+    forwardEdge.allowed_z_band.min_z = std::min( startNode.allowed_z_band.min_z, goalNode.allowed_z_band.min_z );
+    forwardEdge.allowed_z_band.max_z = std::max( startNode.allowed_z_band.max_z, goalNode.allowed_z_band.max_z );
+    forwardEdge.allowed_z_band.preferred_z = goalNode.allowed_z_band.preferred_z;
+
+    nav2_hierarchy_edge_t reverseEdge = forwardEdge;
+    reverseEdge.edge_id = 2;
+    reverseEdge.from_node_id = goalNode.node_id;
+    reverseEdge.to_node_id = startNode.node_id;
+    reverseEdge.allowed_z_band.preferred_z = startNode.allowed_z_band.preferred_z;
+
+    if ( !SVG_Nav2_HierarchyGraph_AppendEdge( &stageRuntime->hierarchy_graph, forwardEdge )
+        || !SVG_Nav2_HierarchyGraph_AppendEdge( &stageRuntime->hierarchy_graph, reverseEdge ) ) {
+        return false;
+    }
+
+    return true;
+}
+
+
+/**
+*	@brief	Emit a bounded diagnostic for one scheduler-owned nav2 job.
+*	@param	job	Job being reported.
+*	@param	eventLabel	Short label describing the scheduler checkpoint.
+**/
+static void Nav2_Scheduler_DebugLogJobEvent( const nav2_query_job_t *job, const char *eventLabel ) {
+    /**
+    *    Require a valid job pointer and label before printing anything.
+    **/
+    if ( !job || !eventLabel ) {
+        return;
+    }
+
+    /**
+    *    Emit a compact checkpoint snapshot so live logs can prove whether the staged path reached
+    *    PostProcess, Revalidation, and Commit with committed waypoints intact.
+    **/
+    gi.dprintf( "[NAV2][Scheduler][%s] job=%llu stage=%d result=%d committed=%d waypoints=%zu pending=%d slice_ms=%.2f\n",
+        eventLabel,
+        ( unsigned long long )job->job_id,
+        ( int32_t )job->state.stage,
+        ( int32_t )job->state.result_status,
+        job->has_committed_waypoints ? 1 : 0,
+        job->committed_waypoints.size(),
+        job->worker_in_flight ? 1 : 0,
+        job->state.active_slice.granted_ms );
+}
+
 
 /**
 *
@@ -113,6 +316,144 @@ static int32_t Nav2_Scheduler_PriorityWeight( const nav2_query_priority_t priori
     default: break;
     }
     return 0;
+}
+
+/**
+*	@brief	Request a stage-boundary restart for one active scheduler job.
+*	@param	job	[in,out] Scheduler-owned query job.
+*	@param	restartStage	Stage to restart from.
+**/
+static void Nav2_Scheduler_RequestStageRestart( nav2_query_job_t *job, const nav2_query_stage_t restartStage ) {
+    /**
+    *    Require a live job before applying restart metadata.
+    **/
+    if ( !job ) {
+        return;
+    }
+
+    /**
+    *    Increment restart diagnostics and move stage to requested restart boundary.
+    **/
+    job->restart_count++;
+    job->stage_restart_count++;
+    job->state.requires_revalidation = true;
+    job->state.has_provisional_result = true;
+    job->state.result_status = nav2_query_result_status_t::Partial;
+    SVG_Nav2_QueryState_SetStage( &job->state, restartStage );
+}
+
+/**
+*	@brief	Return whether a stage is expensive enough to degrade under overload.
+*	@param	stage	Query stage to inspect.
+*	@return	True when overload policy may reduce this stage to provisional behavior.
+**/
+static const bool Nav2_Scheduler_IsOverloadDegradableStage( const nav2_query_stage_t stage ) {
+    /**
+    *    Limit overload degradation to expensive refinement/postprocess stages where provisional output
+    *    is acceptable for low-priority jobs.
+    **/
+    switch ( stage ) {
+        case nav2_query_stage_t::FineRefinement:
+        case nav2_query_stage_t::MoverLocalRefinement:
+        case nav2_query_stage_t::PostProcess:
+            return true;
+        case nav2_query_stage_t::Intake:
+        case nav2_query_stage_t::SnapshotBind:
+        case nav2_query_stage_t::TrivialDirectCheck:
+        case nav2_query_stage_t::TopologyClassification:
+        case nav2_query_stage_t::MoverClassification:
+        case nav2_query_stage_t::CandidateGeneration:
+        case nav2_query_stage_t::CandidateRanking:
+        case nav2_query_stage_t::CoarseSearch:
+        case nav2_query_stage_t::CorridorExtraction:
+        case nav2_query_stage_t::Revalidation:
+        case nav2_query_stage_t::Commit:
+        case nav2_query_stage_t::Completed:
+        case nav2_query_stage_t::Count:
+        default:
+            break;
+    }
+    return false;
+}
+
+/**
+*	@brief	Apply overload policy for one job after a slice was granted.
+*	@param	runtime	[in,out] Scheduler runtime owning global overload counters.
+*	@param	job	[in,out] Job receiving overload bookkeeping updates.
+*	@param	slice	Granted slice.
+**/
+static void Nav2_Scheduler_ApplyOverloadPolicy( nav2_scheduler_runtime_t *runtime, nav2_query_job_t *job, const nav2_budget_slice_t &slice ) {
+    /**
+    *    Require runtime and job references before mutating overload bookkeeping fields.
+    **/
+    if ( !runtime || !job ) {
+        return;
+    }
+
+    /**
+    *    Count throttled slices for diagnostics and per-job tracking.
+    **/
+    if ( slice.was_throttled ) {
+        runtime->overload_throttle_count++;
+        job->throttled_slice_count++;
+    }
+
+    /**
+    *    Request provisional fallback when critical overload affects low-priority expensive stages.
+    **/
+    if ( runtime->budget_runtime.overload_critical
+        && ( job->request.priority == nav2_query_priority_t::Low || job->request.priority == nav2_query_priority_t::Normal )
+        && Nav2_Scheduler_IsOverloadDegradableStage( job->state.stage ) ) {
+        job->state.has_provisional_result = true;
+        job->overload_provisional_fallback_count++;
+        runtime->overload_provisional_fallback_count++;
+    }
+}
+
+/**
+*	@brief	Return the current scheduler frame number when runtime is initialized.
+*	@return	Current scheduler frame number, or 0 when runtime is unavailable.
+**/
+static int64_t Nav2_Scheduler_CurrentFrameNumber( void ) {
+    /**
+    *    Return a deterministic fallback frame number when scheduler runtime is unavailable.
+    **/
+    if ( !s_nav2_scheduler_runtime ) {
+        return 0;
+    }
+    return s_nav2_scheduler_runtime->budget_runtime.frame_number;
+}
+
+/**
+*	@brief	Return the queue age in frames for one job.
+*	@param	job	Scheduler-owned job to inspect.
+*	@param	currentFrame	Current scheduler frame index.
+*	@return	Queue age in frames.
+**/
+static uint32_t Nav2_Scheduler_JobQueueAgeFrames( const nav2_query_job_t &job, const int64_t currentFrame ) {
+    /**
+    *    Guard against pre-initialized frame indices and clamp to zero when unknown.
+    **/
+    if ( job.submitted_frame_number <= 0 || currentFrame <= job.submitted_frame_number ) {
+        return 0;
+    }
+    return ( uint32_t )( currentFrame - job.submitted_frame_number );
+}
+
+/**
+*	@brief	Return queue wait time in milliseconds for one job.
+*	@param	job	Scheduler-owned job to inspect.
+*	@param	nowMs	Current realtime milliseconds.
+*	@return	Queue wait milliseconds.
+**/
+static double Nav2_Scheduler_JobQueueWaitMs( const nav2_query_job_t &job, const uint64_t nowMs ) {
+    /**
+    *    Without a queue-enter timestamp the wait duration cannot be computed.
+    **/
+    if ( job.queue_enter_timestamp_ms == 0 || nowMs <= job.queue_enter_timestamp_ms ) {
+        return 0.0;
+    }
+    return ( double )( nowMs - job.queue_enter_timestamp_ms );
 }
 
 /**
@@ -253,11 +594,51 @@ static void Nav2_Scheduler_SetTerminalStatus( nav2_query_job_t *job, const nav2_
     }
 
     /**
+    *    When a job is finalized as non-success, clear any staged committed-waypoint payload so
+    *    request consumers do not ingest stale path points from a previous lifecycle.
+    **/
+    if ( status != nav2_query_result_status_t::Success ) {
+        job->committed_waypoints.clear();
+        job->has_committed_waypoints = false;
+    }
+
+    /**
     *    Assign terminal status and move stage to completed while clearing any active slice.
     **/
     job->state.result_status = status;
     Nav2_Scheduler_SetJobStage( &job->state, nav2_query_stage_t::Completed );
     job->state.active_slice = nav2_budget_slice_t{};
+}
+
+/**
+*	@brief	Fail one scheduler-owned job while emitting a bounded stage-local reason.
+*	@param	job	[in,out] Scheduler-owned query job.
+*	@param	reason	Short deterministic reason label for the failure site.
+*	@return	Always false so callers can return this helper directly from failure branches.
+**/
+static const bool Nav2_Scheduler_FailJobWithReason( nav2_query_job_t *job, const char *reason ) {
+    /**
+    *    Require a live job before mutating terminal state; still return false for call-site flow.
+    **/
+    if ( !job ) {
+        return false;
+    }
+
+    /**
+    *    Emit a compact failure checkpoint so runtime logs reveal exactly which stage gate rejected
+    *    the job before postprocess/commit.
+    **/
+    gi.dprintf( "[NAV2][Scheduler][Fail] job=%llu stage=%d result=%d reason=%s\n",
+        ( unsigned long long )job->job_id,
+        ( int32_t )job->state.stage,
+        ( int32_t )job->state.result_status,
+        reason ? reason : "(null)" );
+
+    /**
+    *    Publish deterministic terminal failed status after logging the local reason.
+    **/
+    Nav2_Scheduler_SetTerminalStatus( job, nav2_query_result_status_t::Failed );
+    return false;
 }
 
 /**
@@ -275,13 +656,40 @@ static const bool Nav2_Scheduler_BuildAndSelectCandidates( nav2_query_job_t *job
     }
 
     /**
+    *    Keep queue-enter timestamps hot while a job remains dispatchable so fairness diagnostics can
+    *    evaluate queue-age and delay behavior accurately.
+    **/
+    if ( job->queue_enter_timestamp_ms == 0 ) {
+        job->queue_enter_timestamp_ms = gi.GetRealTime ? gi.GetRealTime() : 0;
+    }
+
+    /**
     *    Resolve active nav2 mesh and canonical agent bounds used by candidate generation.
     **/
     const nav2_query_mesh_t *queryMesh = SVG_Nav2_GetQueryMesh();
     if ( !queryMesh || !queryMesh->main_mesh ) {
         return false;
     }
-    const nav2_query_agent_profile_t agentProfile = SVG_Nav2_BuildAgentProfileFromCvars();
+
+    /**
+    *   Prefer the per-request agent hull captured at submission time so scheduler-side
+    *   candidate generation stays consistent with the requesting mover's navigation bounds.
+    *
+    *   Falling back to the cvar-derived profile remains important for older or generic
+    *   callers that may not have populated request-local bounds yet, but sound-follow and
+    *   other reusable NPC movers should not lose valid candidate generation because the
+    *   async scheduler silently swapped back to default profile dimensions.
+    **/
+    Vector3 candidateAgentMins = job->request.agent_mins;
+    Vector3 candidateAgentMaxs = job->request.agent_maxs;
+    const bool hasRequestAgentBounds = ( candidateAgentMaxs.x > candidateAgentMins.x )
+        && ( candidateAgentMaxs.y > candidateAgentMins.y )
+        && ( candidateAgentMaxs.z > candidateAgentMins.z );
+    if ( !hasRequestAgentBounds ) {
+        const nav2_query_agent_profile_t agentProfile = SVG_Nav2_BuildAgentProfileFromCvars();
+        candidateAgentMins = agentProfile.mins;
+        candidateAgentMaxs = agentProfile.maxs;
+    }
 
     /**
     *    Build candidate sets for both start and goal endpoints using the same BSP-aware stage helper.
@@ -289,14 +697,14 @@ static const bool Nav2_Scheduler_BuildAndSelectCandidates( nav2_query_job_t *job
     const bool haveStartCandidates = SVG_Nav2_BuildGoalCandidates( queryMesh->main_mesh,
         job->request.start_origin,
         job->request.start_origin,
-        agentProfile.mins,
-        agentProfile.maxs,
+        candidateAgentMins,
+        candidateAgentMaxs,
         &stageRuntime->start_candidates );
     const bool haveGoalCandidates = SVG_Nav2_BuildGoalCandidates( queryMesh->main_mesh,
         job->request.start_origin,
         job->request.goal_origin,
-        agentProfile.mins,
-        agentProfile.maxs,
+        candidateAgentMins,
+        candidateAgentMaxs,
         &stageRuntime->goal_candidates );
     if ( !haveStartCandidates || !haveGoalCandidates ) {
         return false;
@@ -337,10 +745,72 @@ static const bool Nav2_Scheduler_BuildHierarchyDependencies( nav2_scheduler_job_
     }
 
     /**
+    *    Reuse snapshot-scoped hierarchy dependencies when the scheduler runtime already published
+    *    a cache for the current static-nav version.
+    **/
+    nav2_scheduler_runtime_t *runtime = s_nav2_scheduler_runtime.get();
+    uint32_t currentStaticNavVersion = 0;
+    if ( runtime ) {
+        currentStaticNavVersion = runtime->snapshot_runtime.current.static_nav_version;
+
+        // Invalidate cache when the static-nav publication version changed.
+        if ( runtime->has_cached_hierarchy_dependencies
+            && runtime->cached_hierarchy_static_nav_version != currentStaticNavVersion ) {
+            runtime->cached_hierarchy_span_grid = {};
+            runtime->cached_hierarchy_connectors = {};
+            runtime->cached_hierarchy_region_layers = {};
+            runtime->cached_hierarchy_graph = {};
+            runtime->cached_hierarchy_static_nav_version = 0;
+            runtime->has_cached_hierarchy_dependencies = false;
+            runtime->cached_hierarchy_is_no_connector_fallback = false;
+        }
+
+        /**
+        *    Enforce connector-less fallback as the default policy. If an older cache for this
+        *    snapshot was built through full decomposition without connectors, invalidate it once
+        *    so the lightweight policy becomes canonical for connector-less maps.
+        **/
+        if ( runtime->has_cached_hierarchy_dependencies
+            && !runtime->cached_hierarchy_is_no_connector_fallback
+            && runtime->cached_hierarchy_connectors.connectors.empty() ) {
+            runtime->cached_hierarchy_span_grid = {};
+            runtime->cached_hierarchy_connectors = {};
+            runtime->cached_hierarchy_region_layers = {};
+            runtime->cached_hierarchy_graph = {};
+            runtime->cached_hierarchy_static_nav_version = 0;
+            runtime->has_cached_hierarchy_dependencies = false;
+            runtime->cached_hierarchy_is_no_connector_fallback = false;
+        }
+
+        // Reuse cached dependencies when they are valid for the current snapshot version.
+        if ( runtime->has_cached_hierarchy_dependencies ) {
+            stageRuntime->span_grid = runtime->cached_hierarchy_span_grid;
+            stageRuntime->connectors = runtime->cached_hierarchy_connectors;
+            stageRuntime->region_layers = runtime->cached_hierarchy_region_layers;
+            stageRuntime->hierarchy_graph = runtime->cached_hierarchy_graph;
+            gi.dprintf( "[NAV2][Scheduler][HierarchyDeps] cache=hit static=%u cols=%zu connectors=%zu layers=%zu nodes=%zu\n",
+                runtime->cached_hierarchy_static_nav_version,
+                stageRuntime->span_grid.columns.size(),
+                stageRuntime->connectors.connectors.size(),
+                stageRuntime->region_layers.layers.size(),
+                stageRuntime->hierarchy_graph.nodes.size() );
+            return true;
+        }
+    }
+
+    /**
     *    Build span-grid snapshot used by connector and region-layer extraction.
     **/
     nav2_span_grid_build_stats_t spanBuildStats = {};
     if ( !SVG_Nav2_BuildSpanGridFromMesh( SVG_Nav2_Runtime_GetMesh(), &stageRuntime->span_grid, &spanBuildStats ) ) {
+        /**
+        *    Emit bounded diagnostics so logs reveal whether hierarchy build failed before any
+        *    connector/layer/graph work started.
+        **/
+        gi.dprintf( "[NAV2][Scheduler][HierarchyDeps] fail=BuildSpanGridFromMesh sampled=%d cols=%d spans=%d\n",
+            spanBuildStats.sampled_columns,
+            spanBuildStats.emitted_columns,
+            spanBuildStats.emitted_spans );
         return false;
     }
 
@@ -348,19 +818,99 @@ static const bool Nav2_Scheduler_BuildHierarchyDependencies( nav2_scheduler_job_
     *    Extract connectors from span-grid data; use empty entity set for deterministic scheduler baseline.
     **/
     const std::vector<svg_base_edict_t *> noEntities = {};
-    if ( !SVG_Nav2_ExtractConnectors( stageRuntime->span_grid, noEntities, &stageRuntime->connectors ) ) {
-        return false;
+    const bool hasAnyConnectors = SVG_Nav2_ExtractConnectors( stageRuntime->span_grid, noEntities, &stageRuntime->connectors );
+
+    /**
+    *    Empty connector sets are valid on flat/simple maps where span extraction does not emit
+    *    vertical or entity-derived transitions. Keep building region/hierarchy data from spans.
+    **/
+    if ( !hasAnyConnectors ) {
+        gi.dprintf( "[NAV2][Scheduler][HierarchyDeps] warn=NoConnectors cols=%zu spans=%d\n",
+            stageRuntime->span_grid.columns.size(),
+            spanBuildStats.emitted_spans );
+
+        /**
+        *    Fast-path connector-less maps with a lightweight endpoint-only hierarchy fallback to
+        *    avoid long decomposition stalls on dense single-layer span grids.
+        **/
+        if ( Nav2_Scheduler_BuildNoConnectorFallbackHierarchy( stageRuntime ) ) {
+            gi.dprintf( "[NAV2][Scheduler][HierarchyDeps] ok=NoConnectorFallback nodes=%zu edges=%zu\n",
+                stageRuntime->hierarchy_graph.nodes.size(),
+                stageRuntime->hierarchy_graph.edges.size() );
+
+            /**
+            *    Publish connector-less fallback as the canonical cached hierarchy policy for this
+            *    snapshot so later jobs avoid full decomposition on no-connector maps.
+            **/
+            if ( runtime ) {
+                runtime->cached_hierarchy_span_grid = stageRuntime->span_grid;
+                runtime->cached_hierarchy_connectors = stageRuntime->connectors;
+                runtime->cached_hierarchy_region_layers = stageRuntime->region_layers;
+                runtime->cached_hierarchy_graph = stageRuntime->hierarchy_graph;
+                runtime->cached_hierarchy_static_nav_version = currentStaticNavVersion;
+                runtime->has_cached_hierarchy_dependencies = true;
+                runtime->cached_hierarchy_is_no_connector_fallback = true;
+            }
+            return true;
+        }
     }
 
     /**
     *    Build region-layer and hierarchy graph assets required by coarse-stage solver state.
     **/
-    if ( !SVG_Nav2_BuildRegionLayers( stageRuntime->span_grid, stageRuntime->connectors, &stageRuntime->region_layers, nullptr ) ) {
+    nav2_region_layer_summary_t regionSummary = {};
+    if ( !SVG_Nav2_BuildRegionLayers( stageRuntime->span_grid, stageRuntime->connectors, &stageRuntime->region_layers, &regionSummary ) ) {
+        /**
+        *    Emit bounded diagnostics to show layer-build state when hierarchy dependency
+        *    construction fails after connector extraction.
+        **/
+        gi.dprintf( "[NAV2][Scheduler][HierarchyDeps] fail=BuildRegionLayers cols=%zu spans=%d connectors=%zu\n",
+            stageRuntime->span_grid.columns.size(),
+            spanBuildStats.emitted_spans,
+            stageRuntime->connectors.connectors.size() );
         return false;
     }
-    if ( !SVG_Nav2_BuildHierarchyGraph( stageRuntime->region_layers, &stageRuntime->hierarchy_graph, nullptr ) ) {
+
+    nav2_hierarchy_summary_t hierarchySummary = {};
+    if ( !SVG_Nav2_BuildHierarchyGraph( stageRuntime->region_layers, &stageRuntime->hierarchy_graph, &hierarchySummary ) ) {
+        /**
+        *    Emit bounded diagnostics to show hierarchy-graph state when coarse-search dependency
+        *    build fails after region-layer decomposition.
+        **/
+        gi.dprintf( "[NAV2][Scheduler][HierarchyDeps] fail=BuildHierarchyGraph layers=%d edges=%d connectors=%zu\n",
+            regionSummary.layer_count,
+            regionSummary.edge_count,
+            stageRuntime->connectors.connectors.size() );
         return false;
     }
+
+    /**
+    *    Emit one compact success checkpoint with counts so runtime logs can prove dependency
+    *    construction reached a usable hierarchy graph.
+    **/
+    gi.dprintf( "[NAV2][Scheduler][HierarchyDeps] ok cols=%zu spans=%d connectors=%zu layers=%d layer_edges=%d nodes=%d node_edges=%d\n",
+        stageRuntime->span_grid.columns.size(),
+        spanBuildStats.emitted_spans,
+        stageRuntime->connectors.connectors.size(),
+        regionSummary.layer_count,
+        regionSummary.edge_count,
+        hierarchySummary.node_count,
+        hierarchySummary.edge_count );
+
+    /**
+    *    Publish snapshot-scoped hierarchy dependencies so later jobs can skip expensive rebuilds
+    *    until static-nav publication changes.
+    **/
+    if ( runtime ) {
+        runtime->cached_hierarchy_span_grid = stageRuntime->span_grid;
+        runtime->cached_hierarchy_connectors = stageRuntime->connectors;
+        runtime->cached_hierarchy_region_layers = stageRuntime->region_layers;
+        runtime->cached_hierarchy_graph = stageRuntime->hierarchy_graph;
+        runtime->cached_hierarchy_static_nav_version = currentStaticNavVersion;
+        runtime->has_cached_hierarchy_dependencies = true;
+        runtime->cached_hierarchy_is_no_connector_fallback = false;
+    }
+
     return true;
 }
 
@@ -386,6 +936,13 @@ static const bool Nav2_Scheduler_ExecuteStage( nav2_query_job_t *job, nav2_sched
         return true;
     }
     if ( job->state.restart_requested ) {
+       /**
+        *    Record restart churn before clearing the restart request flag.
+        **/
+        if ( s_nav2_scheduler_runtime ) {
+            s_nav2_scheduler_runtime->stage_restart_count++;
+        }
+        job->stage_restart_count++;
         job->state.restart_requested = false;
         Nav2_Scheduler_SetJobStage( &job->state, nav2_query_stage_t::TopologyClassification );
     }
@@ -398,8 +955,7 @@ static const bool Nav2_Scheduler_ExecuteStage( nav2_query_job_t *job, nav2_sched
         case nav2_query_stage_t::CandidateGeneration:
         case nav2_query_stage_t::CandidateRanking: {
             if ( !Nav2_Scheduler_BuildAndSelectCandidates( job, stageRuntime ) ) {
-                Nav2_Scheduler_SetTerminalStatus( job, nav2_query_result_status_t::Failed );
-                return false;
+                return Nav2_Scheduler_FailJobWithReason( job, "BuildAndSelectCandidates" );
             }
             Nav2_Scheduler_SetJobStage( &job->state, nav2_query_stage_t::CoarseSearch );
             return true;
@@ -408,23 +964,20 @@ static const bool Nav2_Scheduler_ExecuteStage( nav2_query_job_t *job, nav2_sched
         case nav2_query_stage_t::CoarseSearch: {
             if ( !stageRuntime->coarse_state.hierarchy_graph_bound ) {
                 if ( !Nav2_Scheduler_BuildHierarchyDependencies( stageRuntime ) ) {
-                    Nav2_Scheduler_SetTerminalStatus( job, nav2_query_result_status_t::Failed );
-                    return false;
+                    return Nav2_Scheduler_FailJobWithReason( job, "BuildHierarchyDependencies" );
                 }
                 if ( !SVG_Nav2_CoarseAStar_Init( &stageRuntime->coarse_state,
                     stageRuntime->hierarchy_graph,
                     stageRuntime->selected_start_candidate,
                     stageRuntime->selected_goal_candidate,
                     job->job_id ) ) {
-                    Nav2_Scheduler_SetTerminalStatus( job, nav2_query_result_status_t::Failed );
-                    return false;
+                    return Nav2_Scheduler_FailJobWithReason( job, "CoarseAStar_Init" );
                 }
                 stageRuntime->coarse_state.query_state.snapshot = job->state.snapshot;
             }
 
             if ( !SVG_Nav2_CoarseAStar_Step( &stageRuntime->coarse_state, job->state.active_slice, &stageRuntime->coarse_result ) ) {
-                Nav2_Scheduler_SetTerminalStatus( job, nav2_query_result_status_t::Failed );
-                return false;
+                return Nav2_Scheduler_FailJobWithReason( job, "CoarseAStar_Step" );
             }
             job->state.progress.coarse_expansions = stageRuntime->coarse_state.query_state.progress.coarse_expansions;
 
@@ -438,14 +991,12 @@ static const bool Nav2_Scheduler_ExecuteStage( nav2_query_job_t *job, nav2_sched
                 return true;
             }
 
-            Nav2_Scheduler_SetTerminalStatus( job, nav2_query_result_status_t::Failed );
-            return false;
+            return Nav2_Scheduler_FailJobWithReason( job, "CoarseAStar_Status" );
         }
 
         case nav2_query_stage_t::CorridorExtraction: {
             if ( !SVG_Nav2_BuildCorridorFromCoarseAStar( stageRuntime->coarse_state, &stageRuntime->corridor ) ) {
-                Nav2_Scheduler_SetTerminalStatus( job, nav2_query_result_status_t::Failed );
-                return false;
+                return Nav2_Scheduler_FailJobWithReason( job, "BuildCorridorFromCoarseAStar" );
             }
             job->state.has_provisional_result = true;
             Nav2_Scheduler_SetJobStage( &job->state, nav2_query_stage_t::FineRefinement );
@@ -455,17 +1006,25 @@ static const bool Nav2_Scheduler_ExecuteStage( nav2_query_job_t *job, nav2_sched
         case nav2_query_stage_t::FineRefinement: {
             if ( stageRuntime->fine_state.status == nav2_fine_astar_status_t::None ) {
                 if ( !SVG_Nav2_FineAStar_Init( &stageRuntime->fine_state, stageRuntime->corridor, job->job_id ) ) {
-                    Nav2_Scheduler_SetTerminalStatus( job, nav2_query_result_status_t::Failed );
-                    return false;
+                    return Nav2_Scheduler_FailJobWithReason( job, "FineAStar_Init" );
                 }
                 stageRuntime->fine_state.query_state.snapshot = job->state.snapshot;
             }
 
             if ( !SVG_Nav2_FineAStar_Step( &stageRuntime->fine_state, job->state.active_slice, &stageRuntime->fine_result ) ) {
-                Nav2_Scheduler_SetTerminalStatus( job, nav2_query_result_status_t::Failed );
-                return false;
+                return Nav2_Scheduler_FailJobWithReason( job, "FineAStar_Step" );
             }
             job->state.progress.fine_expansions = stageRuntime->fine_state.query_state.progress.fine_expansions;
+
+            /**
+            *    Emit one bounded per-job fine fallback diagnostic so runtime logs can confirm the
+            *    loop-break fallback path is activating and quantify residual technical debt.
+            **/
+            gi.dprintf( "[NAV2][Scheduler][FineFallback] job=%llu activations=%u status=%d path_nodes=%zu\n",
+                ( unsigned long long )job->job_id,
+                stageRuntime->fine_state.diagnostics.fallback_path_activations,
+                ( int32_t )stageRuntime->fine_result.status,
+                stageRuntime->fine_state.path.node_ids.size() );
 
             if ( stageRuntime->fine_result.status == nav2_fine_astar_status_t::Success ) {
                 Nav2_Scheduler_SetJobStage( &job->state, nav2_query_stage_t::MoverLocalRefinement );
@@ -477,8 +1036,7 @@ static const bool Nav2_Scheduler_ExecuteStage( nav2_query_job_t *job, nav2_sched
                 return true;
             }
 
-            Nav2_Scheduler_SetTerminalStatus( job, nav2_query_result_status_t::Failed );
-            return false;
+            return Nav2_Scheduler_FailJobWithReason( job, "FineAStar_Status" );
         }
 
         case nav2_query_stage_t::MoverLocalRefinement: {
@@ -491,8 +1049,7 @@ static const bool Nav2_Scheduler_ExecuteStage( nav2_query_job_t *job, nav2_sched
                 stageRuntime->fine_state,
                 64,
                 &stageRuntime->mover_refine_result ) ) {
-                Nav2_Scheduler_SetTerminalStatus( job, nav2_query_result_status_t::Failed );
-                return false;
+                return Nav2_Scheduler_FailJobWithReason( job, "RunMoverLocalRefinement" );
             }
             job->state.progress.mover_expansions = stageRuntime->mover_refine_result.diagnostics.inspected_nodes;
             Nav2_Scheduler_SetJobStage( &job->state, nav2_query_stage_t::PostProcess );
@@ -502,34 +1059,79 @@ static const bool Nav2_Scheduler_ExecuteStage( nav2_query_job_t *job, nav2_sched
         case nav2_query_stage_t::PostProcess: {
             nav2_postprocess_policy_t postPolicy = {};
             if ( !SVG_Nav2_Postprocess_FinePath( SVG_Nav2_GetQueryMesh(), stageRuntime->fine_state, postPolicy, &stageRuntime->postprocess_result ) ) {
-                Nav2_Scheduler_SetTerminalStatus( job, nav2_query_result_status_t::Failed );
-                return false;
+                return Nav2_Scheduler_FailJobWithReason( job, "Postprocess_FinePath" );
             }
+
+            /**
+            *    Publish the postprocessed multi-waypoint payload onto the scheduler job so the
+            *    async request seam can commit the real path once this lifecycle reaches Commit.
+            **/
+            job->committed_waypoints = stageRuntime->postprocess_result.waypoints;
+            job->has_committed_waypoints = stageRuntime->postprocess_result.success
+                && !job->committed_waypoints.empty();
+
+            /**
+            *    Log the waypoint publication checkpoint so live diagnostics can confirm whether the
+            *    scheduler actually materialized a real path payload before commit.
+            **/
+            Nav2_Scheduler_DebugLogJobEvent( job, "PostProcess" );
+
+            /**
+            *    Require a real waypoint payload before advancing to revalidation/commit so the
+            *    request seam never reports success with a missing path.
+            **/
+            if ( !job->has_committed_waypoints ) {
+                return Nav2_Scheduler_FailJobWithReason( job, "Postprocess_EmptyWaypoints" );
+            }
+
             Nav2_Scheduler_SetJobStage( &job->state, nav2_query_stage_t::Revalidation );
             return true;
         }
 
         case nav2_query_stage_t::Revalidation: {
             if ( !s_nav2_scheduler_runtime ) {
-                Nav2_Scheduler_SetTerminalStatus( job, nav2_query_result_status_t::Failed );
-                return false;
+                return Nav2_Scheduler_FailJobWithReason( job, "Revalidation_MissingRuntime" );
             }
 
             const nav2_snapshot_staleness_t staleness = SVG_Nav2_Snapshot_Compare(
                 &s_nav2_scheduler_runtime->snapshot_runtime,
                 job->state.snapshot );
-            if ( staleness.requires_resubmit ) {
-                Nav2_Scheduler_SetTerminalStatus( job, nav2_query_result_status_t::Stale );
-                return false;
+
+            /**
+            *    Route snapshot decisions through explicit action semantics so scheduler behavior
+            *    remains deterministic and debuggable across accept/revalidate/restart/resubmit paths.
+            **/
+            switch ( staleness.action ) {
+                case nav2_snapshot_stale_action_t::Accept:
+                    job->state.requires_revalidation = false;
+                    Nav2_Scheduler_SetJobStage( &job->state, nav2_query_stage_t::Commit );
+                    return true;
+                case nav2_snapshot_stale_action_t::RevalidateOnly:
+                    job->state.requires_revalidation = staleness.requires_revalidation;
+                    Nav2_Scheduler_SetJobStage( &job->state, nav2_query_stage_t::Commit );
+                    return true;
+                case nav2_snapshot_stale_action_t::RestartStage:
+                    Nav2_Scheduler_RequestStageRestart( job, staleness.restart_stage );
+                    return true;
+                case nav2_snapshot_stale_action_t::Resubmit:
+                    Nav2_Scheduler_SetTerminalStatus( job, nav2_query_result_status_t::Stale );
+                    return false;
+                default:
+                    break;
             }
 
-            job->state.requires_revalidation = staleness.requires_revalidation;
-            Nav2_Scheduler_SetJobStage( &job->state, nav2_query_stage_t::Commit );
-            return true;
+            return Nav2_Scheduler_FailJobWithReason( job, "Revalidation_UnknownAction" );
         }
 
         case nav2_query_stage_t::Commit: {
             job->state.has_provisional_result = true;
+            job->state.requires_revalidation = false;
+
+            /**
+            *    Record the terminal success checkpoint right before the result flips to Success so
+            *    callers can see the final stage and waypoint count in the live logs.
+            **/
+            Nav2_Scheduler_DebugLogJobEvent( job, "Commit" );
             Nav2_Scheduler_SetTerminalStatus( job, nav2_query_result_status_t::Success );
             return true;
         }
@@ -550,8 +1152,7 @@ static const bool Nav2_Scheduler_ExecuteStage( nav2_query_job_t *job, nav2_sched
             break;
     }
 
-    Nav2_Scheduler_SetTerminalStatus( job, nav2_query_result_status_t::Failed );
-    return false;
+    return Nav2_Scheduler_FailJobWithReason( job, "ExecuteStage_UnexpectedStage" );
 }
 
 /**
@@ -581,9 +1182,19 @@ const bool SVG_Nav2_Scheduler_ExecuteGrantedSlice( nav2_query_job_t *job ) {
     *    Execute the current stage and then clear the active slice bookkeeping.
     **/
     nav2_scheduler_job_stage_runtime_t &stageRuntime = Nav2_Scheduler_StageRuntimeForJob( job->job_id );
+    const nav2_query_stage_t stageBeforeExecute = job->state.stage;
     const bool executed = Nav2_Scheduler_ExecuteStage( job, &stageRuntime );
     job->state.progress.slices_consumed++;
     job->state.active_slice = nav2_budget_slice_t{};
+
+    /**
+    *    Record stage-transition and restart-churn diagnostics after each executed slice.
+    **/
+    if ( s_nav2_scheduler_runtime && stageBeforeExecute != job->state.stage ) {
+        s_nav2_scheduler_runtime->stage_transition_count++;
+        job->stage_transition_count++;
+    }
+   // Restart churn is recorded when restart requests are consumed in stage execution.
 
     /**
     *    Release scheduler-local stage artifacts once the job reaches terminal state.
@@ -631,31 +1242,84 @@ static const bool Nav2_Scheduler_IsSliceEligible( const nav2_query_job_t &job ) 
 *	@return	Index of the best eligible job, or -1 when no job can receive work.
 *	@note	The current tie-break is deterministic: higher priority first, then older lower job id.
 **/
-static int32_t Nav2_Scheduler_SelectNextJobIndex( const nav2_scheduler_runtime_t &runtime ) {
+static int32_t Nav2_Scheduler_SelectNextJobIndex( nav2_scheduler_runtime_t &runtime ) {
     int32_t bestIndex = -1;
-    int32_t bestPriorityWeight = std::numeric_limits<int32_t>::min();
-    uint64_t bestJobId = std::numeric_limits<uint64_t>::max();
+    double bestScore = -std::numeric_limits<double>::infinity();
+    const int64_t currentFrame = Nav2_Scheduler_CurrentFrameNumber();
+    const uint64_t nowMs = gi.GetRealTime ? gi.GetRealTime() : 0;
+    const uint32_t starvationThresholdFrames = runtime.budget_runtime.policy.starvation_frame_threshold;
+    const double unfairDelayThresholdMs = runtime.budget_runtime.policy.unfair_delay_threshold_ms;
+    const size_t jobCount = runtime.jobs.size();
+    int32_t bestJobId = std::numeric_limits<int32_t>::max();
 
     /**
-    *    Scan the active job list and select the highest-priority eligible job using a stable tie-break.
+    *    Scan active jobs and score them by priority plus queue age so old low-priority requests
+    *    eventually receive slices and do not starve behind younger high-priority work.
     **/
-    for ( size_t i = 0; i < runtime.jobs.size(); i++ ) {
-        const nav2_query_job_t &job = runtime.jobs[ i ];
+    for ( size_t i = 0; i < jobCount; i++ ) {
+        nav2_query_job_t &job = runtime.jobs[ i ];
         if ( !Nav2_Scheduler_IsSliceEligible( job ) ) {
             continue;
         }
 
+        /**
+        *    Ensure queue-enter timestamp is initialized so queue wait diagnostics are meaningful.
+        **/
+        if ( job.queue_enter_timestamp_ms == 0 ) {
+            job.queue_enter_timestamp_ms = nowMs;
+        }
+
+        /**
+        *    Build fairness score from stable priority weight plus age-derived starvation boost.
+        **/
         const int32_t priorityWeight = Nav2_Scheduler_PriorityWeight( job.request.priority );
-        if ( priorityWeight > bestPriorityWeight ) {
-            bestPriorityWeight = priorityWeight;
-            bestJobId = job.job_id;
+        const uint32_t queueAgeFrames = Nav2_Scheduler_JobQueueAgeFrames( job, currentFrame );
+        const double queueAgeMs = Nav2_Scheduler_JobQueueWaitMs( job, nowMs );
+        double score = ( double )priorityWeight * 1000.0;
+        score += ( double )std::min<uint32_t>( queueAgeFrames, 120 ) * 15.0;
+        score += std::min( queueAgeMs, 500.0 ) * 0.05;
+
+        /**
+        *    Apply a hard starvation bump when queue age exceeds the configured threshold.
+        **/
+        if ( starvationThresholdFrames > 0 && queueAgeFrames >= starvationThresholdFrames ) {
+            score += 5000.0;
+        }
+
+        /**
+        *    Emit unfair-delay diagnostics when queue wait exceeds configured thresholds.
+        **/
+        if ( unfairDelayThresholdMs > 0.0 && queueAgeMs >= unfairDelayThresholdMs ) {
+            runtime.unfair_delay_event_count++;
+            SVG_Nav2_Bench_RecordFailure( &job.bench_query, nav2_bench_failure_t::UnfairQueryDelay );
+        }
+
+        /**
+        *    Select highest score and preserve deterministic tie-break by lower stable job id.
+        **/
+        if ( bestIndex < 0 || score > bestScore ) {
+            bestScore = score;
             bestIndex = ( int32_t )i;
+            bestJobId = job.job_id;
             continue;
         }
 
-        if ( priorityWeight == bestPriorityWeight && job.job_id < bestJobId ) {
-            bestJobId = job.job_id;
+        if ( score == bestScore && job.job_id < bestJobId ) {
             bestIndex = ( int32_t )i;
+            bestJobId = job.job_id;
+        }
+    }
+
+    /**
+    *    Record starvation-prevention diagnostics when selected job exceeded starvation threshold.
+    **/
+    if ( bestIndex >= 0 && starvationThresholdFrames > 0 ) {
+        nav2_query_job_t &selectedJob = runtime.jobs[ ( size_t )bestIndex ];
+        const uint32_t selectedAgeFrames = Nav2_Scheduler_JobQueueAgeFrames( selectedJob, currentFrame );
+        if ( selectedAgeFrames >= starvationThresholdFrames ) {
+            selectedJob.starvation_boost_count++;
+            runtime.starvation_prevention_boost_count++;
+            SVG_Nav2_Bench_RecordFailure( &selectedJob.bench_query, nav2_bench_failure_t::SchedulerStarvation );
         }
     }
 
@@ -749,6 +1413,15 @@ void SVG_Nav2_Scheduler_BeginFrame( const int64_t frameNumber ) {
     *    Reset the frame-level budget accounting while preserving the current policy defaults.
     **/
     SVG_Nav2_Budget_ResetFrame( &s_nav2_scheduler_runtime->budget_runtime, frameNumber, &s_nav2_scheduler_runtime->budget_runtime.policy );
+
+    /**
+    *    Lazily stamp submitted frame indices for jobs that predate fairness-aware metadata fields.
+    **/
+    for ( nav2_query_job_t &job : s_nav2_scheduler_runtime->jobs ) {
+        if ( job.submitted_frame_number == 0 ) {
+            job.submitted_frame_number = frameNumber;
+        }
+    }
    /**
     *    Keep the worker interface aligned with scheduler frame boundaries so cvar-driven mode changes
     *    are observed deterministically.
@@ -848,6 +1521,60 @@ uint64_t SVG_Nav2_Scheduler_SubmitRequest( const nav2_query_request_t &request )
     if ( materializedRequest.request_id == 0 ) {
         materializedRequest.request_id = s_nav2_scheduler_runtime->next_request_id++;
     }
+
+    /**
+    *    Apply per-agent dedupe and backpressure before allocating a new job id.
+    **/
+    uint32_t activeJobsForAgent = 0;
+    nav2_query_job_t *dedupeJob = nullptr;
+    nav2_query_job_t *latestActiveJob = nullptr;
+    for ( nav2_query_job_t &existingJob : s_nav2_scheduler_runtime->jobs ) {
+        // Skip terminal jobs because only active lifecycle work participates in dedupe/backpressure.
+        if ( SVG_Nav2_QueryJob_IsTerminal( &existingJob ) || existingJob.state.cancel_requested ) {
+            continue;
+        }
+
+        // Track active requests owned by the same agent for bounded submission pressure.
+        if ( existingJob.request.agent_entnum > 0 && existingJob.request.agent_entnum == materializedRequest.agent_entnum ) {
+            activeJobsForAgent++;
+            if ( !latestActiveJob || existingJob.job_id > latestActiveJob->job_id ) {
+                latestActiveJob = &existingJob;
+            }
+
+            // Resolve the first eligible duplicate so caller can reuse existing in-flight work.
+            if ( !dedupeJob && Nav2_Scheduler_IsDuplicateRequest( existingJob.request, materializedRequest ) ) {
+                dedupeJob = &existingJob;
+            }
+        }
+    }
+
+    /**
+    *    Reuse existing active work when the incoming request is effectively identical.
+    **/
+    if ( dedupeJob ) {
+        gi.dprintf( "[NAV2][Scheduler][Submit] dedupe reuse job=%llu agent=%d req=%llu\n",
+            ( unsigned long long )dedupeJob->job_id,
+            materializedRequest.agent_entnum,
+            ( unsigned long long )materializedRequest.request_id );
+        return dedupeJob->job_id;
+    }
+
+    /**
+    *    Cap per-agent queued/in-flight work to prevent bursty sound events from flooding scheduler scans.
+    **/
+    constexpr uint32_t maxActiveJobsPerAgent = 2;
+    if ( materializedRequest.agent_entnum > 0 && activeJobsForAgent >= maxActiveJobsPerAgent ) {
+        if ( latestActiveJob ) {
+            gi.dprintf( "[NAV2][Scheduler][Submit] backpressure reuse job=%llu agent=%d active=%u req=%llu\n",
+                ( unsigned long long )latestActiveJob->job_id,
+                materializedRequest.agent_entnum,
+                activeJobsForAgent,
+                ( unsigned long long )materializedRequest.request_id );
+            return latestActiveJob->job_id;
+        }
+        return 0;
+    }
+
     const uint64_t jobId = s_nav2_scheduler_runtime->next_job_id++;
 
     /**
@@ -855,6 +1582,7 @@ uint64_t SVG_Nav2_Scheduler_SubmitRequest( const nav2_query_request_t &request )
     **/
     s_nav2_scheduler_runtime->jobs.emplace_back();
     SVG_Nav2_QueryJob_Init( &s_nav2_scheduler_runtime->jobs.back(), materializedRequest, jobId );
+    s_nav2_scheduler_runtime->jobs.back().submitted_frame_number = Nav2_Scheduler_CurrentFrameNumber();
 
     /**
     *    Prime scheduler-local stage runtime cache for the new job id.
@@ -908,6 +1636,12 @@ const bool SVG_Nav2_Scheduler_IssueSlice( const bool workerSlice ) {
     }
 
     /**
+    *    Apply overload policy to update fairness/throttle diagnostics and optional provisional fallback
+    *    behavior before this slice is executed.
+    **/
+    Nav2_Scheduler_ApplyOverloadPolicy( s_nav2_scheduler_runtime.get(), &job, grantedSlice );
+
+    /**
     *    Record the granted slice on the job and bump generic progress counters so the scheduler
     *    foundation already exposes deterministic slice accounting.
     **/
@@ -915,6 +1649,7 @@ const bool SVG_Nav2_Scheduler_IssueSlice( const bool workerSlice ) {
     job.state.prefer_worker_dispatch = stagePrefersWorker;
     job.state.progress.slices_consumed++;
     job.execution_time_ms += grantedSlice.granted_ms;
+    job.last_granted_frame_number = s_nav2_scheduler_runtime->budget_runtime.frame_number;
 
     /**
     *    Commit the granted slice directly into frame consumption for the foundation layer. Future
@@ -971,4 +1706,44 @@ nav2_query_job_t *SVG_Nav2_Scheduler_FindJob( const uint64_t jobId ) {
         }
     }
     return nullptr;
+}
+
+/**
+*	@brief	Erase one terminal or otherwise unneeded job from the scheduler runtime.
+*	@param	jobId	Stable job identifier to erase.
+*	@return	True when a matching job was found and removed.
+*	@note	This keeps the scheduler's active-job scan bounded after request consumers have already
+*			consumed terminal status, preventing long-lived completed failures from accumulating and
+*			degrading frame time over repeated async rebuild attempts.
+**/
+const bool SVG_Nav2_Scheduler_RemoveJob( const uint64_t jobId ) {
+    /**
+    *	Require the scheduler runtime before attempting any removal work.
+    **/
+    if ( !s_nav2_scheduler_runtime ) {
+        return false;
+    }
+
+    /**
+    *	Find the concrete scheduler-owned job slot so we can erase it deterministically.
+    **/
+    auto &jobs = s_nav2_scheduler_runtime->jobs;
+    const auto eraseIt = std::find_if( jobs.begin(), jobs.end(), [jobId]( const nav2_query_job_t &job ) {
+        return job.job_id == jobId;
+    } );
+    if ( eraseIt == jobs.end() ) {
+        return false;
+    }
+
+    /**
+    *	Drop any staged per-job runtime payload first so no orphaned solver artifacts survive the erase.
+    **/
+    Nav2_Scheduler_ClearStageRuntimeForJob( jobId );
+
+    /**
+    *	Erase the completed/cancelled job from the active scheduler vector so future fairness scans and
+    *	lookup work do not keep paying for stale terminal jobs.
+    **/
+    jobs.erase( eraseIt );
+    return true;
 }

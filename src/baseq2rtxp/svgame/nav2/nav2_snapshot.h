@@ -7,6 +7,7 @@
 ********************************************************************/
 #pragma once
 
+#include "svgame/nav2/nav2_budget.h"
 #include "svgame/svg_local.h"
 
 
@@ -43,6 +44,43 @@ struct nav2_snapshot_handle_t {
 struct nav2_snapshot_runtime_t {
     //! Latest published worker-safe snapshot handle.
     nav2_snapshot_handle_t current = {};
+    //! Snapshot comparison policy used to classify stale results.
+    struct nav2_snapshot_policy_t {
+        //! Maximum tolerated occupancy-version drift before escalation from revalidate-only to stage restart.
+        uint32_t occupancy_revalidate_version_grace = 1;
+        //! Maximum tolerated mover-version drift before escalation from stage restart to full resubmit.
+        uint32_t mover_restart_version_grace = 2;
+        //! Maximum tolerated connector-version drift before escalation from stage restart to full resubmit.
+        uint32_t connector_restart_version_grace = 2;
+        //! Stage to restart from when occupancy-only drift exceeds grace.
+        nav2_query_stage_t occupancy_restart_stage = nav2_query_stage_t::FineRefinement;
+        //! Stage to restart from when mover drift exceeds revalidate-only tolerance.
+        nav2_query_stage_t mover_restart_stage = nav2_query_stage_t::MoverLocalRefinement;
+        //! Stage to restart from when connector drift exceeds revalidate-only tolerance.
+        nav2_query_stage_t connector_restart_stage = nav2_query_stage_t::CoarseSearch;
+    } policy = {};
+};
+
+/**
+*\t@brief\tStable change-domain bit flags emitted by snapshot comparison.
+**/
+enum nav2_snapshot_change_flag_t : uint32_t {
+    NAV2_SNAPSHOT_CHANGE_FLAG_NONE = 0,
+    NAV2_SNAPSHOT_CHANGE_FLAG_STATIC_NAV = ( 1u << 0 ),
+    NAV2_SNAPSHOT_CHANGE_FLAG_OCCUPANCY = ( 1u << 1 ),
+    NAV2_SNAPSHOT_CHANGE_FLAG_MOVER = ( 1u << 2 ),
+    NAV2_SNAPSHOT_CHANGE_FLAG_CONNECTOR = ( 1u << 3 ),
+    NAV2_SNAPSHOT_CHANGE_FLAG_MODEL = ( 1u << 4 )
+};
+
+/**
+*\t@brief\tScheduler action selected by snapshot staleness comparison.
+**/
+enum class nav2_snapshot_stale_action_t : uint8_t {
+    Accept = 0,
+    RevalidateOnly,
+    RestartStage,
+    Resubmit
 };
 
 /**
@@ -64,6 +102,20 @@ struct nav2_snapshot_staleness_t {
     bool mover_changed = false;
     bool connector_changed = false;
     bool model_changed = false;
+    //! Stable change-domain bitmask for diagnostics and scheduler policy branching.
+    uint32_t change_mask = NAV2_SNAPSHOT_CHANGE_FLAG_NONE;
+    //! Chosen scheduler action for this stale snapshot.
+    nav2_snapshot_stale_action_t action = nav2_snapshot_stale_action_t::Accept;
+    //! Stage-boundary restart target when `action == RestartStage`.
+    nav2_query_stage_t restart_stage = nav2_query_stage_t::TopologyClassification;
+    //! True when scheduler may continue via partial repair/restart instead of full resubmit.
+    bool allows_partial_repair = false;
+    //! Version delta between current and consumed occupancy versions.
+    uint32_t occupancy_version_delta = 0;
+    //! Version delta between current and consumed mover versions.
+    uint32_t mover_version_delta = 0;
+    //! Version delta between current and consumed connector versions.
+    uint32_t connector_version_delta = 0;
 };
 
 

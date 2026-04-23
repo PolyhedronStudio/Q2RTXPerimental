@@ -32,7 +32,6 @@
 // Removed oldnav headers to keep the testdummy on nav2 query interfaces.
 // Keeping the following includes for nav2 functionality.
 #include "svgame/nav2/nav2_default_consts.h"
-#include "svgame/nav2/nav2_types.h"
 #include "svgame/nav2/nav2_query_iface.h"
 #include "svgame/nav2/nav2_corridor.h"
 #include "svgame/nav2/nav2_debug_draw.h"
@@ -81,10 +80,159 @@ static QMTime s_dummy_nav_debug_next_log_time = 0_ms;
 static bool Dummy_TryBuildDebugCorridor( svg_monster_testdummy_sfxfollow_t *self, const Vector3 &startOrigin, const Vector3 &goalOrigin );
 
 /**
+*\t@brief\tForward declaration for nav2 mesh-availability validation through the public query seam.
+*\t@param\tmesh\t\tActive nav2 query mesh wrapper.
+*\t@param\toutMeta\t[out] Optional nav2 mesh metadata snapshot.
+*\t@return\tTrue when the query mesh is published, loaded, and exposes usable sizing metadata.
+**/
+static bool Dummy_HasUsableNavMesh( const nav2_query_mesh_t *mesh, nav2_query_mesh_meta_t *outMeta = nullptr );
+
+/**
 *	@brief	Forward declaration for the local rate-limited nav debug logger gate.
 *	@return	True when the caller may emit another debug log this frame window.
 **/
 static bool Dummy_ShouldEmitNavDebugLog( void );
+
+/**
+*\t@brief\tReturn whether this sound-follow process currently has a pending nav2 request marker.
+*\t@param\tprocess\tPath process state to inspect.
+*\t@return\tTrue when a pending-handle or rebuild-in-progress marker is active.
+**/
+static bool Dummy_IsRequestPending( const nav2_query_process_t *process );
+
+/**
+*\t@brief\tQuery a movement direction from locally cached path points without using wrapper APIs.
+*\t@param\tprocess\tPath process state containing cached points.
+*\t@param\tcurrent_origin\tCurrent feet-origin position.
+*\t@param\tpolicy\tPath-follow policy containing waypoint radius.
+*\t@param\tout_state\t[out] Follow-state result when a direction is available.
+*\t@return\tTrue when a usable direction was produced from the cached path.
+**/
+static bool Dummy_QueryFollowStateFromProcess( nav2_query_process_t *process, const Vector3 &current_origin,
+	const nav2_query_policy_t &policy, nav2_query_process_t::follow_state_t *out_state );
+
+/**
+*\t@brief\tValidate that a nav2 query mesh is genuinely usable for path and corridor requests.
+*\t@param\tmesh\t\tActive nav2 query mesh wrapper.
+*\t@param\toutMeta\t[out] Optional nav2 mesh metadata snapshot.
+*\t@return\tTrue when mesh publication, load state, and tile sizing are all valid.
+*\t@note\tThe nav2 runtime now publishes an owned mesh object early, so callers must validate
+*\t\t\tloaded/sizing state and not only pointer existence.
+**/
+static bool Dummy_HasUsableNavMesh( const nav2_query_mesh_t *mesh, nav2_query_mesh_meta_t *outMeta ) {
+	/**
+	*\tSanity checks: require a published mesh wrapper and mesh payload.
+	**/
+	if ( !mesh || !mesh->main_mesh ) {
+		return false;
+	}
+
+	/**
+	*\tRequire runtime-loaded mesh state before any navigation query work.
+	**/
+	if ( !mesh->main_mesh->loaded ) {
+		return false;
+	}
+
+	/**
+	*\tRequire tile/cell sizing metadata from the nav2 query seam before routing requests.
+	**/
+	const nav2_query_mesh_meta_t meta = SVG_Nav2_QueryGetMeshMeta( mesh );
+	if ( !meta.HasTileSizing() ) {
+		return false;
+	}
+
+	/**
+	*\tPublish metadata snapshot when requested by the caller.
+	**/
+	if ( outMeta ) {
+		*outMeta = meta;
+	}
+	return true;
+}
+
+/**
+*\t@brief\tReturn whether this sound-follow process currently has a pending nav2 request marker.
+*\t@param\tprocess\tPath process state to inspect.
+*\t@return\tTrue when a pending-handle or rebuild-in-progress marker is active.
+**/
+static bool Dummy_IsRequestPending( const nav2_query_process_t *process ) {
+	/**
+	*\tRequire process storage before reading pending markers.
+	**/
+	if ( !process ) {
+		return false;
+	}
+
+	/**
+	*\tTreat either marker as pending so behavior remains similar to previous queue semantics.
+	**/
+	return process->rebuild_in_progress || process->pending_request_handle > 0;
+}
+
+/**
+*\t@brief\tQuery a movement direction from locally cached path points without using wrapper APIs.
+*\t@param\tprocess\tPath process state containing cached points.
+*\t@param\tcurrent_origin\tCurrent feet-origin position.
+*\t@param\tpolicy\tPath-follow policy containing waypoint radius.
+*\t@param\tout_state\t[out] Follow-state result when a direction is available.
+*\t@return\tTrue when a usable direction was produced from the cached path.
+**/
+static bool Dummy_QueryFollowStateFromProcess( nav2_query_process_t *process, const Vector3 &current_origin,
+	const nav2_query_policy_t &policy, nav2_query_process_t::follow_state_t *out_state ) {
+	/**
+	*\tRequire process storage, output storage, and cached points before querying direction.
+	**/
+	if ( !process || !out_state || process->path.num_points <= 0 || !process->path.points ) {
+		return false;
+	}
+	*out_state = {};
+
+	/**
+	*\tAdvance consumed waypoints while we are already inside the configured waypoint radius.
+	**/
+	const double waypointRadius = std::max( 0.001, policy.waypoint_radius );
+	int32_t idx = std::max( 0, process->path_index );
+	while ( idx < process->path.num_points ) {
+		const Vector3 waypoint = process->path.points[ idx ];
+		const Vector3 toWaypoint = QM_Vector3Subtract( waypoint, current_origin );
+		const double dist2D = std::sqrt( ( toWaypoint.x * toWaypoint.x ) + ( toWaypoint.y * toWaypoint.y ) );
+		if ( dist2D > waypointRadius ) {
+			break;
+		}
+		idx++;
+	}
+	if ( idx >= process->path.num_points ) {
+		process->path_index = process->path.num_points;
+		return false;
+	}
+
+	/**
+	*\tCompute and publish follow-state metadata for the active waypoint.
+	**/
+	const Vector3 activeWaypoint = process->path.points[ idx ];
+	const Vector3 toWaypoint = QM_Vector3Subtract( activeWaypoint, current_origin );
+	const double len2 = ( toWaypoint.x * toWaypoint.x ) + ( toWaypoint.y * toWaypoint.y ) + ( toWaypoint.z * toWaypoint.z );
+	if ( len2 <= ( 0.001 * 0.001 ) ) {
+		process->path_index = idx;
+		return false;
+	}
+
+	out_state->has_direction = true;
+	out_state->move_direction3d = QM_Vector3Normalize( toWaypoint );
+	out_state->active_waypoint_origin = activeWaypoint;
+	out_state->active_waypoint_dist2d = std::sqrt( ( toWaypoint.x * toWaypoint.x ) + ( toWaypoint.y * toWaypoint.y ) );
+	out_state->active_waypoint_delta_z = std::fabs( toWaypoint.z );
+	out_state->waypoint_needs_precise_centering = out_state->active_waypoint_delta_z > NAV_DEFAULT_STEP_MIN_SIZE;
+	out_state->stepped_vertical_corridor_ahead = false;
+	out_state->approaching_final_goal = ( idx >= ( process->path.num_points - 1 ) );
+
+	/**
+	*\tCommit advanced waypoint index so next think continues along the path.
+	**/
+	process->path_index = idx;
+	return true;
+}
 
 /**
 *	@brief	Build and optionally debug-print a staged nav2 corridor for the current sound-follow request.
@@ -103,7 +251,7 @@ static bool Dummy_TryBuildDebugCorridor( svg_monster_testdummy_sfxfollow_t *self
 		return false;
 	}
 	const nav2_query_mesh_t *mesh = SVG_Nav2_GetQueryMesh();
-	if ( !mesh ) {
+	if ( !Dummy_HasUsableNavMesh( mesh ) ) {
 		return false;
 	}
 
@@ -129,7 +277,7 @@ static bool Dummy_TryBuildDebugCorridor( svg_monster_testdummy_sfxfollow_t *self
 	*	Keep corridor diagnostics rate-limited and opt-in so Task 3.2 does not reintroduce log spam.
 	**/
 	if ( DUMMY_NAV_DEBUG != 0 && Dummy_ShouldEmitNavDebugLog() ) {
-        SVG_Nav2_DebugDrawCorridor( corridor, nav2_debug_corridor_verbosity_t::IncludeSegments, 3 );
+		SVG_Nav2_DebugDrawCorridor( corridor, nav2_debug_corridor_verbosity_t::IncludeSegments, 3 );
 	}
 	return true;
 }
@@ -178,7 +326,7 @@ static bool Dummy_ShouldResetSoundInvestigationGoal( const svg_monster_testdummy
 	/**
 	*   Reuse the caller's rebuild thresholds so sound-follow goal refreshes stay aligned with the nav API.
 	**/
- const nav2_query_policy_t &policy = self->pathNavigationState.policy;
+	const nav2_query_policy_t &policy = self->pathNavigationState.policy;
 	const double rebuildGoal2D = std::max( policy.rebuild_goal_dist_2d, 32.0 );
 	const double rebuildGoal3D = ( policy.rebuild_goal_dist_3d > 0.0 )
 		? std::max( policy.rebuild_goal_dist_3d, rebuildGoal2D )
@@ -223,8 +371,8 @@ static bool Dummy_TryProjectGoalToWalkableZ( svg_monster_testdummy_sfxfollow_t *
 		return false;
 	}
 
-  const nav2_query_mesh_t *mesh = SVG_Nav2_GetQueryMesh();
-	if ( !mesh ) {
+	const nav2_query_mesh_t *mesh = SVG_Nav2_GetQueryMesh();
+	if ( !Dummy_HasUsableNavMesh( mesh ) ) {
 		return false;
 	}
 
@@ -241,15 +389,15 @@ static bool Dummy_TryProjectGoalToWalkableZ( svg_monster_testdummy_sfxfollow_t *
 	/**
  *   Resolve the best ranked BSP-aware candidate endpoint so this NPC can stop relying on a single blended-Z projection.
 	**/
-   nav2_goal_candidate_t selected_candidate = {};
+	nav2_goal_candidate_t selected_candidate = {};
 	nav2_goal_candidate_list_t candidate_list = {};
- const bool resolvedCandidate = SVG_Nav2_ResolveBestGoalOrigin( mesh, self->currentOrigin, goalOrigin, agent_mins, agent_maxs,
+	const bool resolvedCandidate = SVG_Nav2_ResolveBestGoalOrigin( mesh, self->currentOrigin, goalOrigin, agent_mins, agent_maxs,
 		outGoalOrigin, &selected_candidate, &candidate_list );
 
 	/**
 	*   Keep debug logging rate-limited and concise so candidate-selection diagnostics do not reintroduce log spam.
 	**/
-   if ( resolvedCandidate && DUMMY_NAV_DEBUG != 0 && Dummy_ShouldEmitNavDebugLog() ) {
+	if ( resolvedCandidate && DUMMY_NAV_DEBUG != 0 && Dummy_ShouldEmitNavDebugLog() ) {
 		gi.dprintf( "[NAV2][GoalSelection] raw=(%.1f %.1f %.1f) resolved=(%.1f %.1f %.1f) type=%d candidates=%d rejections=%d\n",
 			goalOrigin.x, goalOrigin.y, goalOrigin.z,
 			outGoalOrigin->x, outGoalOrigin->y, outGoalOrigin->z,
@@ -262,10 +410,10 @@ static bool Dummy_TryProjectGoalToWalkableZ( svg_monster_testdummy_sfxfollow_t *
 	*	Build the staged corridor seam for diagnostics and future refinement integration without changing current behavior.
 	**/
 	if ( resolvedCandidate ) {
-		(void)Dummy_TryBuildDebugCorridor( self, self->currentOrigin, *outGoalOrigin );
+		( void )Dummy_TryBuildDebugCorridor( self, self->currentOrigin, *outGoalOrigin );
 	}
- 
- 	return resolvedCandidate;
+
+	return resolvedCandidate;
 }
 
 /**
@@ -286,9 +434,9 @@ static inline const char *Dummy_DebugAIStateName( const svg_monster_testdummy_sf
 	switch ( state ) {
 	case svg_monster_testdummy_sfxfollow_t::AIThinkState::Idle:
 		return "Idle";
-    case svg_monster_testdummy_sfxfollow_t::AIThinkState::IdleLookout:
+	case svg_monster_testdummy_sfxfollow_t::AIThinkState::IdleLookout:
 		return "IdleLookout";
-   case svg_monster_testdummy_sfxfollow_t::AIThinkState::PursueSoundInvestigation:
+	case svg_monster_testdummy_sfxfollow_t::AIThinkState::PursueSoundInvestigation:
 		return "PursueSoundInvestigation";
 	default:
 		return "Unknown";
@@ -320,7 +468,7 @@ static inline void Dummy_DebugLogStateGateInputs( svg_monster_testdummy_sfxfollo
 	const double activatorDist2D = hasActivator
 		? std::sqrt( QM_Vector2DistanceSqr( self->activator->currentOrigin, self->currentOrigin ) )
 		: -1.0;
- const bool requestPending = SVG_Nav2_IsRequestPending( &self->pathNavigationState.process );
+	const bool requestPending = Dummy_IsRequestPending( &self->pathNavigationState.process );
 
  /**
 	*   Emit a compact, single-line state snapshot for this think tick.
@@ -406,7 +554,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_sfxfollow_t, onThink )( svg_
 	case svg_monster_testdummy_sfxfollow_t::AIThinkState::IdleLookout:
 		svg_monster_testdummy_sfxfollow_t::onThink_IdleLookout( self );
 		break;
-   case svg_monster_testdummy_sfxfollow_t::AIThinkState::PursueSoundInvestigation:
+	case svg_monster_testdummy_sfxfollow_t::AIThinkState::PursueSoundInvestigation:
 		svg_monster_testdummy_sfxfollow_t::onThink_PursueSoundInvestigation( self );
 		break;
 	default:
@@ -497,7 +645,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_monster_testdummy_sfxfollow_t, onSpawn )( svg_
 	/**
 	*	Callback Hooks:
 	**/
-    self->SetDieCallback( &svg_monster_testdummy_sfxfollow_t::onDie );
+	self->SetDieCallback( &svg_monster_testdummy_sfxfollow_t::onDie );
 	self->SetPainCallback( &svg_monster_testdummy_sfxfollow_t::onPain );
 	self->SetPostSpawnCallback( &svg_monster_testdummy_sfxfollow_t::onPostSpawn );
 	self->SetTouchCallback( &svg_monster_testdummy_sfxfollow_t::onTouch );
@@ -544,7 +692,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_monster_testdummy_sfxfollow_t, onSpawn )( svg_
 
 	// Apply the monster move properties so we can use the monster move code for all of our movement and collision handling
 	// including during pathfinding pursuit.
-  self->monsterMoveState.monster = self;
+	self->monsterMoveState.monster = self;
 	self->monsterMoveState.frameTime = gi.frame_time_s;
 	self->monsterMoveState.mins = self->mins;
 	self->monsterMoveState.maxs = self->maxs;
@@ -566,9 +714,9 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_monster_testdummy_sfxfollow_t, onSpawn )( svg_
 	//	We do this after initializing all properties to ensure that our thinker has a consistent starting state when it first runs.
 	**/
 	// Set use callback so we can be activated by the player.
-    self->SetUseCallback( &svg_monster_testdummy_sfxfollow_t::onUse );
+	self->SetUseCallback( &svg_monster_testdummy_sfxfollow_t::onUse );
 	// Always run our central state dispatcher thinker.
-    self->SetThinkCallback( &svg_monster_testdummy_sfxfollow_t::onThink );
+	self->SetThinkCallback( &svg_monster_testdummy_sfxfollow_t::onThink );
 	self->nextthink = level.time + FRAME_TIME_MS;
 
 	// Clear any pending async navigation state so we start clean when spawned/activated.
@@ -886,6 +1034,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_sfxfollow_t, onThink_IdleLoo
 		self->aiLastSoundHeard = audibleEntity->last_sound_time;
 	  // Compute freshness for whether this sound is still worth investigating.
 		const QMTime soundAge = level.time - audibleEntity->last_sound_time;
+		SVG_Util_SetEntityOrigin( audibleEntity, audibleEntity->currentOrigin + Vector3{ 0.f, 0.f, 1.f }, true );
 	 // Investigate any fresh audible sound regardless of range; nav/path policy owns the route response.
 		if ( soundAge <= DUMMY_SOUND_INVESTIGATE_MAX_AGE ) {
 			// Cache the chosen investigation origin and timestamp.
@@ -902,7 +1051,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_sfxfollow_t, onThink_IdleLoo
 	*    Begin pursuing immediately when we acquired a sound this frame.
 	**/
 	// Start the first async pursuit frame right away instead of waiting an extra think.
- if ( self->thinkAIState == svg_monster_testdummy_sfxfollow_t::AIThinkState::PursueSoundInvestigation && self->stateSoundCan.hasOrigin ) {
+	if ( self->thinkAIState == svg_monster_testdummy_sfxfollow_t::AIThinkState::PursueSoundInvestigation && self->stateSoundCan.hasOrigin ) {
 		self->DetermineGoalZBlendPolicyState( self->stateSoundCan.origin );
 		self->goalentity = nullptr;
 		self->MoveAStarToOrigin( self->stateSoundCan.origin, true );
@@ -1006,7 +1155,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_sfxfollow_t, onThink_PursueS
 		self->stateSoundCan.hasOrigin = false;
 		self->goalentity = nullptr;
 		self->ResetNavigationPath();
-        Dummy_SetState( self, svg_monster_testdummy_sfxfollow_t::AIThinkState::Idle );
+		Dummy_SetState( self, svg_monster_testdummy_sfxfollow_t::AIThinkState::Idle );
 		self->nextthink = level.time + FRAME_TIME_MS;
 		return;
 	}
@@ -1019,7 +1168,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_sfxfollow_t, onThink_PursueS
 		self->stateSoundCan.hasOrigin = false;
 		self->goalentity = nullptr;
 		self->ResetNavigationPath();
-     Dummy_SetState( self, svg_monster_testdummy_sfxfollow_t::AIThinkState::IdleLookout );
+		Dummy_SetState( self, svg_monster_testdummy_sfxfollow_t::AIThinkState::IdleLookout );
 		self->nextthink = level.time + FRAME_TIME_MS;
 		return;
 	}
@@ -1081,7 +1230,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_sfxfollow_t, onThink_PursueS
 	const double soundDist3DSqr = QM_Vector3DistanceSqr( self->stateSoundCan.origin, self->currentOrigin );
 	if ( soundDist3DSqr <= ( DUMMY_SOUND_INVESTIGATE_REACHED_DIST * DUMMY_SOUND_INVESTIGATE_REACHED_DIST ) ) {
 		self->stateSoundCan.hasOrigin = false;
-     Dummy_SetState( self, svg_monster_testdummy_sfxfollow_t::AIThinkState::IdleLookout );
+		Dummy_SetState( self, svg_monster_testdummy_sfxfollow_t::AIThinkState::IdleLookout );
 	}
 
 	/**
@@ -1155,7 +1304,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_sfxfollow_t, onThink_Dead )(
 	//SVG_Util_SetEntityAngles( self, self->currentAngles, true );
 
 	// Stay dead.
-   self->SetThinkCallback( &svg_monster_testdummy_sfxfollow_t::onThink_Dead );
+	self->SetThinkCallback( &svg_monster_testdummy_sfxfollow_t::onThink_Dead );
 	self->nextthink = level.time + FRAME_TIME_MS;
 }
 
@@ -1187,34 +1336,34 @@ const bool svg_monster_testdummy_sfxfollow_t::GenericThinkBegin() {
 	/**
 	*	Setup A* Navigation Policy: stairs, drops, and obstruction jumping.
 	**/
-   pathNavigationState.policy.waypoint_radius = NAV_DEFAULT_WAYPOINT_RADIUS;
+	pathNavigationState.policy.waypoint_radius = NAV_DEFAULT_WAYPOINT_RADIUS;
 	pathNavigationState.policy.min_step_height = NAV_DEFAULT_STEP_MIN_SIZE;
 
- pathNavigationState.policy.max_step_height = NAV_DEFAULT_STEP_MAX_SIZE;
+	pathNavigationState.policy.max_step_height = NAV_DEFAULT_STEP_MAX_SIZE;
 	pathNavigationState.policy.max_drop_height = NAV_DEFAULT_MAX_DROP_HEIGHT;
 	pathNavigationState.policy.enable_max_drop_height_cap = true;
-   pathNavigationState.policy.max_drop_height_cap = SVG_Nav2_Policy_GetMaxDropHeightCap();
+	pathNavigationState.policy.max_drop_height_cap = SVG_Nav2_Policy_GetMaxDropHeightCap();
 	pathNavigationState.policy.enable_goal_z_layer_blend = true;
 	pathNavigationState.policy.enable_cluster_route_filter = true;
- pathNavigationState.policy.blend_start_dist = NAV_DEFAULT_BLEND_DIST_START;
+	pathNavigationState.policy.blend_start_dist = NAV_DEFAULT_BLEND_DIST_START;
 	pathNavigationState.policy.blend_full_dist = NAV_DEFAULT_BLEND_DIST_FULL;
 	// No blending seems to work!
 	//pathNavigationState.policy.enable_goal_z_layer_blend = false;
 	//pathNavigationState.policy.blend_start_dist = PHYS_STEP_MAX_SIZE;
 	//pathNavigationState.policy.blend_full_dist = 128.0;
 	pathNavigationState.policy.allow_small_obstruction_jump = true;
- pathNavigationState.policy.max_obstruction_jump_height = NAV_DEFAULT_MAX_OBSTRUCTION_JUMP_SIZE;
+	pathNavigationState.policy.max_obstruction_jump_height = NAV_DEFAULT_MAX_OBSTRUCTION_JUMP_SIZE;
 
-	/**
-	*   Keep the monster move policy pointer synchronized with the active path-follow policy.
-	*	Step-slide movement consumes `monsterMoveState.navPolicy`, so bind it every think before
-	*   movement begins to keep stairs, drops, and jump allowances aligned with navigation.
-	**/
-   monsterMoveState.navPolicy = nullptr;
+	   /**
+	   *   Keep the monster move policy pointer synchronized with the active path-follow policy.
+	   *	Step-slide movement consumes `monsterMoveState.navPolicy`, so bind it every think before
+	   *   movement begins to keep stairs, drops, and jump allowances aligned with navigation.
+	   **/
+	monsterMoveState.navPolicy = nullptr;
 
-	/**
-	*    Recategorize position and check grounding.
-	**/
+	 /**
+	 *    Recategorize position and check grounding.
+	 **/
 	RecategorizeGroundAndLiquidState();
 
 	/**
@@ -1222,7 +1371,7 @@ const bool svg_monster_testdummy_sfxfollow_t::GenericThinkBegin() {
 	**/
 	if ( health <= 0 || ( lifeStatus & LIFESTATUS_ALIVE ) != LIFESTATUS_ALIVE ) {
 		// Transition and remain in the dead thinker and do nothing if we are dead.
-     SetThinkCallback( &svg_monster_testdummy_sfxfollow_t::onThink_Dead );
+		SetThinkCallback( &svg_monster_testdummy_sfxfollow_t::onThink_Dead );
 		nextthink = level.time + FRAME_TIME_MS;
 		// Return false to indicate the caller should skip its specific think logic since we are now dead and should only be running the dead thinker.
 		return false;
@@ -1466,7 +1615,8 @@ const bool svg_monster_testdummy_sfxfollow_t::GuardForNullNavMesh() {
 	/**
 	*   Fast path: navmesh exists, caller may continue normal request flow.
 	**/
-   if ( SVG_Nav2_GetQueryMesh() ) {
+	const nav2_query_mesh_t *mesh = SVG_Nav2_GetQueryMesh();
+	if ( Dummy_HasUsableNavMesh( mesh ) ) {
 		return false;
 	}
 
@@ -1475,14 +1625,14 @@ const bool svg_monster_testdummy_sfxfollow_t::GuardForNullNavMesh() {
 	**/
 	const bool hadPendingState = ( pathNavigationState.process.pending_request_handle > 0 )
 		|| pathNavigationState.process.rebuild_in_progress
-        || SVG_Nav2_IsRequestPending( &pathNavigationState.process );
+		|| Dummy_IsRequestPending( &pathNavigationState.process );
 
 	/**
 	*   Cancel tracked handle first so queue state transitions to terminal.
 	**/
 	if ( pathNavigationState.process.pending_request_handle > 0 ) {
-		// Wrap the raw pending handle through the nav2-owned query-handle helper before canceling it.
-		SVG_Nav2_CancelRequest( SVG_Nav2_QueryMakeHandle( pathNavigationState.process.pending_request_handle ) );
+		// Cancel pending async work through the exposed nav2 query seam before clearing local markers.
+		SVG_Nav2_CancelRequest( nav2_query_handle_t{ pathNavigationState.process.pending_request_handle } );
 	}
 	/**
 	*   Clear local markers so callers stop reporting pending async work.
@@ -1535,7 +1685,7 @@ const bool svg_monster_testdummy_sfxfollow_t::MoveAStarToOrigin( const Vector3 &
 	DUMMY_NAV_DEBUG_PRINT( "[NAV DEBUG] %s: goal=(%.1f %.1f %.1f) force=%d pathOk=%d pending=%d\n",
 		__func__, resolvedGoalOrigin.x, resolvedGoalOrigin.y, resolvedGoalOrigin.z, ( int32_t )force,
 		( int32_t )( pathNavigationState.process.path.num_points > 0 ),
-      ( int32_t )SVG_Nav2_IsRequestPending( &pathNavigationState.process ) );
+		( int32_t )Dummy_IsRequestPending( &pathNavigationState.process ) );
 
 	/**
 	*    Sanity / arrival check: stop moving if we are effectively at the goal already to prevent jitter.
@@ -1544,7 +1694,7 @@ const bool svg_monster_testdummy_sfxfollow_t::MoveAStarToOrigin( const Vector3 &
 	 // Only consider horizontal distance for arrival.
 	toGoalDist.z = 0.0f;
 	// Use squared length for arrival check to save a square root.
-	constexpr float arrivalThreshold = 0.03125f;
+	constexpr float arrivalThreshold = 4.0f;
 	if ( QM_Vector3LengthSqr( toGoalDist ) < ( arrivalThreshold * arrivalThreshold ) ) {
 		// Zero horizontal velocity to prevent micro-jitter.
 		velocity.x = velocity.y = 0.0f;
@@ -1598,24 +1748,24 @@ const bool svg_monster_testdummy_sfxfollow_t::MoveAStarToOrigin( const Vector3 &
 	*        entity should prefer consuming an existing path or waiting on a pending request
 	*        instead of re-queueing equivalent direct paths every think.
 	**/
-   const bool requestPending = SVG_Nav2_IsRequestPending( &pathNavigationState.process );
+	const bool requestPending = Dummy_IsRequestPending( &pathNavigationState.process );
 	const bool hasPathPoints = ( pathNavigationState.process.path.num_points > 0 && pathNavigationState.process.path.points );
 	const bool pathExpired = hasPathPoints && pathNavigationState.process.path_index >= pathNavigationState.process.path.num_points;
 	const bool pathOk = hasPathPoints && !pathExpired;
 
 	/**
-    *	Queue async work only when the consumer truly needs a fresh request.
+	*	Queue async work only when the consumer truly needs a fresh request.
 	*		- Forced requests always replace/refresh the current search.
 	*		- Non-forced requests are issued only when no usable path exists and no request is already pending.
 	*	This keeps flat-ground direct-shortcut paths from being rebuilt every frame while the mover is already following them.
 	**/
-   const bool queueModeEnabled = SVG_Nav2_Policy_IsAsyncQueueEnabled();
-   const bool asyncNavEnabled = SVG_Nav2_IsAsyncNavEnabled();
+	const bool queueModeEnabled = SVG_Nav2_Policy_IsAsyncQueueEnabled();
+	const bool asyncNavEnabled = queueModeEnabled;
 
 	bool queueAttempted = false;
 	bool queueResult = false;
 
-    // Preserve explicit force requests so the first sound reaction and any blocked retrigger can bypass throttles immediately.
+	// Preserve explicit force requests so the first sound reaction and any blocked retrigger can bypass throttles immediately.
 	const bool effectiveForce = force;
 
 	/**
@@ -1628,9 +1778,19 @@ const bool svg_monster_testdummy_sfxfollow_t::MoveAStarToOrigin( const Vector3 &
 
 	// Only queue when the consumer has no usable path yet, or when the caller explicitly forces a refresh.
 	const bool shouldQueueRequest = effectiveForce || ( !pathOk && !requestPending );
-	if ( shouldQueueRequest ) {
+	/**
+	*   Service pending-request lifecycle every think while waiting for path points.
+	*       When a request is already pending and this frame is not forcing a replacement,
+	*       call the queue seam in non-force mode so `SVG_Nav2_RequestPathAsync()` can poll
+	*       terminal scheduler state and commit path points into `process.path`.
+	*       Without this polling step, `requestPending=1` can persist indefinitely while
+	*       `pathOk=0`, leaving the monster in rotate-only waiting behavior.
+	**/
+	const bool shouldServicePendingRequest = ( requestPending && !pathOk && !effectiveForce );
+	if ( shouldQueueRequest || shouldServicePendingRequest ) {
 		queueAttempted = true;
-		const bool queued = TryRebuildNavigationInQueue( currentOrigin, resolvedGoalOrigin, pathNavigationState.policy, agent_mins, agent_maxs, effectiveForce );
+		const bool queued = TryRebuildNavigationInQueue( currentOrigin, resolvedGoalOrigin, pathNavigationState.policy, agent_mins, agent_maxs,
+			shouldQueueRequest ? effectiveForce : false );
 		queueResult = queued;
 	}
 
@@ -1654,15 +1814,17 @@ const bool svg_monster_testdummy_sfxfollow_t::MoveAStarToOrigin( const Vector3 &
 		/**
 		*	Calculate rebuild heuristics only when logging is active to save frames.
 		**/
-       const bool canRebuild = pathNavigationState.process.CanRebuild( pathNavigationState.policy );
+		const bool canRebuild = ( !Dummy_IsRequestPending( &pathNavigationState.process )
+			&& level.time >= pathNavigationState.process.next_rebuild_time
+			&& level.time >= pathNavigationState.process.backoff_until );
 		const bool waitingOnPendingRequest = requestPending && !pathOk;
 
-       gi.dprintf( "[NAV STATUS] ent=%d attempt=%d result=%d canRebuild=%d hasPath=%d pending=%d waiting=%d async=%d queueMode=%d\n",
+		gi.dprintf( "[NAV STATUS] ent=%d attempt=%d result=%d canRebuild=%d hasPath=%d pending=%d waiting=%d async=%d queueMode=%d\n",
 			s.number,
 			queueAttempted ? 1 : 0,
 			queueResult ? 1 : 0,
 			canRebuild ? 1 : 0,
-            pathOk ? 1 : 0,
+			pathOk ? 1 : 0,
 			requestPending ? 1 : 0,
 			waitingOnPendingRequest ? 1 : 0,
 			asyncNavEnabled ? 1 : 0,
@@ -1675,8 +1837,8 @@ const bool svg_monster_testdummy_sfxfollow_t::MoveAStarToOrigin( const Vector3 &
 	Vector3 move_dir = { 0.0f, 0.0f, 0.0f };
 
 	// If we have a valid path, query and follow the shared navigation follow-state.
-    nav2_query_process_t::follow_state_t followState = {};
-	if ( pathOk && pathNavigationState.process.QueryFollowState( currentOrigin, pathNavigationState.policy, &followState ) ) {
+	nav2_query_process_t::follow_state_t followState = {};
+	if ( pathOk && Dummy_QueryFollowStateFromProcess( &pathNavigationState.process, currentOrigin, pathNavigationState.policy, &followState ) ) {
 	 /**
 		*    Record the last successfully followed goal for future rebuild heuristics.
 		**/
@@ -1827,7 +1989,7 @@ const bool svg_monster_testdummy_sfxfollow_t::MoveAStarToOrigin( const Vector3 &
 	monsterMoveState.state.velocity.x = 0.0f;
 	monsterMoveState.state.velocity.y = 0.0f;
 
-	// While waiting on async pathing, keep facing the intended horizontal goal direction.
+	// While waiting on staged nav pathing, keep facing the intended horizontal goal direction.
 	Vector3 faceGoal = QM_Vector3Subtract( resolvedGoalOrigin, currentOrigin );
 	faceGoal.z = 0.0f;
 	const float faceLen2 = ( faceGoal.x * faceGoal.x ) + ( faceGoal.y * faceGoal.y );
@@ -1849,7 +2011,7 @@ const bool svg_monster_testdummy_sfxfollow_t::MoveAStarToOrigin( const Vector3 &
 		Vector3 faceDir = move_dir;
 		faceDir.z = 0.0f;
 		ideal_yaw = QM_Vector3ToYaw( faceDir );
-       yaw_speed = SVG_Nav2_IsRequestPending( &pathNavigationState.process ) ? 10.0f : 15.0f;
+		yaw_speed = Dummy_IsRequestPending( &pathNavigationState.process ) ? 10.0f : 15.0f;
 		SVG_MMove_FaceIdealYaw( this, ideal_yaw, yaw_speed );
 	}
 
@@ -1878,15 +2040,15 @@ const bool svg_monster_testdummy_sfxfollow_t::TryRebuildNavigationInQueue( const
 	*        rebuild throttling, refresh suppression, and progress preservation. The monster only
 	*        resolves its goal and forwards a request when higher-level behavior decides one is needed.
 	**/
-    // Guard: only enqueue when the async queue mode is explicitly enabled.
-    if ( !SVG_Nav2_Policy_IsAsyncQueueEnabled() ) {
+	// Guard: only enqueue when the async queue mode is explicitly enabled.
+	if ( !SVG_Nav2_Policy_IsAsyncQueueEnabled() ) {
 		if ( DUMMY_NAV_DEBUG ) {
 			gi.dprintf( "[DEBUG] TryQueueNavRebuild: async queue mode disabled, cannot enqueue. ent=%d\n", s.number );
 		}
 		return false;
 	}
 
-   if ( !SVG_Nav2_IsAsyncNavEnabled() ) {
+	if ( !SVG_Nav2_IsAsyncNavEnabled() ) {
 		if ( DUMMY_NAV_DEBUG ) {
 			gi.dprintf( "[DEBUG] TryQueueNavRebuild: async nav globally disabled, ent=%d\n", s.number );
 		}
@@ -1894,7 +2056,7 @@ const bool svg_monster_testdummy_sfxfollow_t::TryRebuildNavigationInQueue( const
 	}
 
 	/**
-    *    Resolve the requested sound goal against the navmesh before queueing async work.
+	*    Resolve the requested sound goal against the navmesh before queueing async work.
 	*        This keeps the consumer aligned with nav-folder feet-origin projection helpers.
 	**/
 	Vector3 adjusted_goal = goal_origin;
@@ -1904,10 +2066,27 @@ const bool svg_monster_testdummy_sfxfollow_t::TryRebuildNavigationInQueue( const
 	*    Replace any outstanding request only when the caller explicitly forces a fresh search.
 	*		Non-forced dedupe/refresh behavior should remain inside the nav-folder request API.
 	**/
-   if ( SVG_Nav2_IsRequestPending( &pathNavigationState.process ) ) {
-        // Keep the existing in-flight request alive unless the caller requested an explicit replacement.
+	if ( Dummy_IsRequestPending( &pathNavigationState.process ) ) {
+		// Keep the existing in-flight request alive unless the caller requested an explicit replacement.
 		if ( !force ) {
-			return true;
+			/**
+			*   Service the pending request lifecycle through the nav2 async seam so terminal scheduler
+			*   completion can commit real multi-waypoint path points and clear pending markers.
+			**/
+			( void )SVG_Nav2_RequestPathAsync( &pathNavigationState.process,
+				start_origin,
+				adjusted_goal,
+				policy,
+				agent_mins,
+				agent_maxs,
+				false,
+				0.0 );
+
+			/**
+			*   Report success while either a request remains pending or a committed path is now available.
+			**/
+			const bool hasCommittedPath = pathNavigationState.process.path.num_points > 0 && pathNavigationState.process.path.points;
+			return Dummy_IsRequestPending( &pathNavigationState.process ) || hasCommittedPath;
 		}
 
 		// Forced replacement: cancel the old request first so a fresh queued entry can be created immediately.
@@ -1915,32 +2094,56 @@ const bool svg_monster_testdummy_sfxfollow_t::TryRebuildNavigationInQueue( const
 	}
 
 	/**
+	*    Respect local rebuild/backoff timing gates when the caller did not force a refresh.
+	**/
+	if ( !force ) {
+		if ( level.time < pathNavigationState.process.next_rebuild_time || level.time < pathNavigationState.process.backoff_until ) {
+			return true;
+		}
+	}
+
+	/**
  *    Enqueue the rebuild request and record the handle for diagnostics.
 	*        We pass through the nav-folder policy/bounds unchanged and let the request API
 	*        decide whether the new request should be queued or internally collapsed.
 	**/
-  // Keep enough tolerance to preserve in-flight worker progress across ordinary locomotion drift.
+	// Keep enough tolerance to preserve in-flight worker progress across ordinary locomotion drift.
 	constexpr double startIgnoreThresholdForQueue = 24.0;
-    const nav2_query_handle_t handle = SVG_Nav2_RequestPathAsync( &pathNavigationState.process, start_origin, adjusted_goal, policy, agent_mins, agent_maxs, force, startIgnoreThresholdForQueue );
-	if ( !handle.IsValid() ) {
-		if ( DUMMY_NAV_DEBUG ) {
-          gi.dprintf( "[DEBUG] TryQueueNavRebuild: enqueue failed (handle=%d) ent=%d\n", handle.value, s.number );
-		}
+	/**
+	*    Submit the async path request through the exposed nav2 query seam.
+	*    This lets `MoveAStarToOrigin` receive path points and transition from
+	*    rotate-only waiting to translating movement along the generated path.
+	**/
+	const nav2_query_handle_t requestHandle = SVG_Nav2_RequestPathAsync( &pathNavigationState.process,
+		start_origin,
+		adjusted_goal,
+		policy,
+		agent_mins,
+		agent_maxs,
+		force,
+		startIgnoreThresholdForQueue );
+
+	/**
+	*    When submission fails, keep deterministic cooldown behavior and report failure.
+	**/
+	if ( !requestHandle.IsValid() ) {
+		pathNavigationState.process.rebuild_in_progress = false;
+		pathNavigationState.process.pending_request_handle = 0;
+		pathNavigationState.process.next_rebuild_time = level.time + 100_ms;
+		DUMMY_NAV_DEBUG_PRINT( "[DEBUG] TryQueueNavRebuild: async submission failed ent=%d force=%d\n", s.number, force );
 		return false;
 	}
 
-	// Record that a rebuild is in progress for diagnostics and possible cancellation.
-	// Note: the request queue will have already set the process markers during
-	// PrepareAStarForEntry when the entry transitions to Running. Setting them
-	// here ensures the entity has the handle immediately for early cancellation
-	// if the caller chooses to abort before the queue tick processes it.
-	pathNavigationState.process.rebuild_in_progress = true;
-    pathNavigationState.process.pending_request_handle = handle.value;
-	DUMMY_NAV_DEBUG_PRINT( "[DEBUG] TryQueueNavRebuild: queued rebuild handle=%d ent=%d force=%d\n", handle.value, s.number, force );
+	/**
+	*    Mirror pending markers for immediate caller-side diagnostics and dedupe behavior.
+	**/
+	pathNavigationState.process.pending_request_handle = requestHandle.value;
+	pathNavigationState.process.rebuild_in_progress = Dummy_IsRequestPending( &pathNavigationState.process );
+	DUMMY_NAV_DEBUG_PRINT( "[DEBUG] TryQueueNavRebuild: submitted handle=%d ent=%d force=%d\n", requestHandle.value, s.number, force );
 	// Also print the converted nav-center origins so we can correlate node resolution.
-  const nav2_query_mesh_t *mesh = SVG_Nav2_GetQueryMesh();
+	const nav2_query_mesh_t *mesh = SVG_Nav2_GetQueryMesh();
 	if ( mesh ) {
-       const Vector3 start_center = SVG_Nav2_ConvertFeetToCenter( mesh, start_origin, &agent_mins, &agent_maxs );
+		const Vector3 start_center = SVG_Nav2_ConvertFeetToCenter( mesh, start_origin, &agent_mins, &agent_maxs );
 		const Vector3 goal_center = SVG_Nav2_ConvertFeetToCenter( mesh, adjusted_goal, &agent_mins, &agent_maxs );
 		DUMMY_NAV_DEBUG_PRINT( "[DEBUG] TryQueueNavRebuild: start=(%.1f %.1f %.1f) start_center=(%.1f %.1f %.1f) goal=(%.1f %.1f %.1f) goal_center=(%.1f %.1f %.1f)\n",
 			start_origin.x, start_origin.y, start_origin.z,
@@ -1964,7 +2167,8 @@ void svg_monster_testdummy_sfxfollow_t::ResetNavigationPath() {
 	*	Cancel any pending async request so we do not reuse stale results.
 	**/
 	if ( pathNavigationState.process.pending_request_handle > 0 ) {
-		SVG_Nav2_CancelRequest( SVG_Nav2_QueryMakeHandle( pathNavigationState.process.pending_request_handle ) );
+		// Cancel pending async work through the exposed nav2 query seam before clearing local markers.
+		SVG_Nav2_CancelRequest( nav2_query_handle_t{ pathNavigationState.process.pending_request_handle } );
 	}
 
 	/**
@@ -1972,7 +2176,29 @@ void svg_monster_testdummy_sfxfollow_t::ResetNavigationPath() {
 	*		This clears cached path buffers, traversal bookkeeping, async generations,
 	*        center offsets, and failure/backoff history in one consistent place.
 	**/
-	pathNavigationState.process.Reset();
+	/**
+	*    Release cached path points and reset local process state without depending on wrapper member APIs.
+	**/
+	if ( pathNavigationState.process.path.points != nullptr && gi.TagFree ) {
+		gi.TagFree( pathNavigationState.process.path.points );
+	}
+	pathNavigationState.process.path = {};
+	pathNavigationState.process.path_index = 0;
+	pathNavigationState.process.path_goal_position = {};
+	pathNavigationState.process.path_start_position = {};
+	pathNavigationState.process.next_rebuild_time = 0_ms;
+	pathNavigationState.process.backoff_until = 0_ms;
+	pathNavigationState.process.consecutive_failures = 0;
+	pathNavigationState.process.last_failure_time = 0_ms;
+	pathNavigationState.process.last_failure_pos = {};
+	pathNavigationState.process.last_failure_yaw = 0.0f;
+	pathNavigationState.process.rebuild_in_progress = false;
+	pathNavigationState.process.pending_request_handle = 0;
+	pathNavigationState.process.request_generation = 0;
+	pathNavigationState.process.last_prep_time = 0_ms;
+	pathNavigationState.process.last_prep_start = {};
+	pathNavigationState.process.last_prep_goal = {};
+	pathNavigationState.process.path_center_offset_z = 0.0f;
 
 	   // Clear the last goal snapshot so heuristics treat the next goal as new and avoid suppressing rebuilds.
 	pathNavigationState.lastGoal.origin = {};

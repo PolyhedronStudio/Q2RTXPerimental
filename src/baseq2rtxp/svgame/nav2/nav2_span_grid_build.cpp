@@ -38,6 +38,35 @@ static constexpr double NAV2_SPAN_GRID_TRACE_EPSILON = 1.0;
 //! Latest bounded diagnostics snapshot from the most recent span-grid build pass.
 static nav2_span_grid_build_stats_t nav2_span_grid_last_build_stats = {};
 
+/**
+*	@brief	Resolve the runtime-origin lift needed to convert a feet/floor contact point into the actor origin used by collision bounds.
+*	@param	agentMins	Agent local-space minimum bounds.
+*	@return	Positive Z lift for center-origin hulls, or 0 for feet-origin hulls.
+*	@note	Nav2 generation samples support floors in feet-contact space. Any later full-hull validation that operates in origin space
+*			must lift that point by `-mins.z` whenever the hull extends below its origin.
+**/
+static inline float SVG_Nav2_SpanGrid_GetFeetToOriginOffsetZ( const Vector3 &agentMins ) {
+	return agentMins.z < 0.0f ? -agentMins.z : 0.0f;
+}
+
+/**
+*	@brief	Resolve the minimum standing clearance required for the active agent hull.
+*	@param	agentMins	Agent local-space minimum bounds.
+*	@param	agentMaxs	Agent local-space maximum bounds.
+*	@return	Required walkable vertical clearance in world units.
+*	@note	Older placeholder logic used a fixed 56-unit clearance that only matched a feet-origin style hull. Center-origin default
+*			profiles such as `PHYS_DEFAULT_BBOX_STANDUP_MINS/MAXS` are taller, so the conservative clearance gate must honor the real
+*			full hull height rather than silently deferring the rejection to the later solid-box test.
+**/
+static inline double SVG_Nav2_SpanGrid_GetRequiredStandingClearance( const Vector3 &agentMins, const Vector3 &agentMaxs ) {
+	const double standingHeight = ( double )agentMaxs.z - ( double )agentMins.z;
+	if ( standingHeight <= 0.0 ) {
+		return NAV2_SPAN_GRID_MIN_CLEARANCE;
+	}
+
+	return std::max( NAV2_SPAN_GRID_MIN_CLEARANCE, standingHeight );
+}
+
 
 /**
 *	@brief	Resolve conservative rasterization parameters from the active mesh.
@@ -108,6 +137,58 @@ static const bool SVG_Nav2_ResolveSpanGridWorldBounds( const nav2_mesh_t *mesh, 
 }
 
 /**
+*	@brief	Resolve the inclusive-first sampled cell index whose center still lies inside one world-space bound.
+*	@param	worldMin	World-space lower bound for one axis.
+*	@param	cellSize	Resolved XY cell size.
+*	@return	First sampled cell index whose center is not below the requested bound.
+*	@note	Span sampling operates on cell centers at `(cell + 0.5) * cellSize`. Using raw `floor(min / cellSize)` expands the raster domain
+*			by up to half a cell outside the BSP bounds, which is exactly how the first observed sample landed outside `world_bounds`.
+**/
+static inline int32_t SVG_Nav2_SpanGrid_GetMinCenteredCellIndex( const double worldMin, const double cellSize ) {
+	if ( cellSize <= 0.0 ) {
+		return 0;
+	}
+
+	return ( int32_t )std::ceil( ( worldMin / cellSize ) - 0.5 );
+}
+
+/**
+*	@brief	Resolve the exclusive-end sampled cell index whose last center still lies inside one world-space bound.
+*	@param	worldMax	World-space upper bound for one axis.
+*	@param	cellSize	Resolved XY cell size.
+*	@return	Exclusive end cell index suitable for `< maxCell` raster loops.
+*	@note	This pairs with `SVG_Nav2_SpanGrid_GetMinCenteredCellIndex` so every emitted sample center satisfies
+*			`worldMin <= center <= worldMax` on that axis.
+**/
+static inline int32_t SVG_Nav2_SpanGrid_GetMaxCenteredCellIndexExclusive( const double worldMax, const double cellSize ) {
+	if ( cellSize <= 0.0 ) {
+		return 0;
+	}
+
+	return ( int32_t )std::floor( ( worldMax / cellSize ) - 0.5 ) + 1;
+}
+
+/**
+*	@brief	Resolve mathematical floor-division for possibly negative integer coordinates.
+*	@param	value	Integer value to divide.
+*	@param	divisor	Positive divisor.
+*	@return	Floor-divided quotient, or 0 when divisor is invalid.
+**/
+static inline int32_t SVG_Nav2_SpanGrid_FloorDiv( const int32_t value, const int32_t divisor ) {
+	/**
+	*    Guard against invalid divisors so callers can keep deterministic fallback behavior.
+	**/
+	if ( divisor <= 0 ) {
+		return 0;
+	}
+
+	/**
+	*    Use floating-point floor to preserve expected tile ownership for negative cell coordinates.
+	**/
+	return ( int32_t )std::floor( ( double )value / ( double )divisor );
+}
+
+/**
 *	@brief	Quantize a world-space point into the owning tile coordinate for the resolved grid parameters.
 *	@param	grid		Resolved span-grid sizing metadata.
 *	@param	point	World-space point to localize.
@@ -162,7 +243,7 @@ static int32_t SVG_Nav2_SpanGrid_TryResolveTileId( const nav2_mesh_t *mesh, cons
 *	@param	column_center	World-space column center.
 *	@return	Reference to the appended sparse column.
 **/
-static nav2_span_column_t &SVG_Nav2_SpanGrid_AppendColumn( const nav2_mesh_t *mesh, nav2_span_grid_t *grid, const Vector3 &column_center ) {
+static nav2_span_column_t &SVG_Nav2_SpanGrid_AppendColumn( const nav2_mesh_t *mesh, nav2_span_grid_t *grid, const int32_t cell_x, const int32_t cell_y ) {
 	/**
 	*    Append an empty sparse column first so the function can return a stable reference.
 	**/
@@ -170,11 +251,18 @@ static nav2_span_column_t &SVG_Nav2_SpanGrid_AppendColumn( const nav2_mesh_t *me
 	nav2_span_column_t &column = grid->columns.back();
 
 	/**
-	*    Quantize the world-space point to the owning tile coordinates and resolve the canonical tile id when available.
+	*    Persist sparse-column XY as world-cell coordinates so query-side tile-cell reconstruction can map
+	*    each sampled column back to the correct tile-local cell slot.
 	**/
-	const nav2_world_tile_key_t tileKey = SVG_Nav2_SpanGrid_TileKeyForPoint( *grid, column_center );
-	column.tile_x = tileKey.tile_x;
-	column.tile_y = tileKey.tile_y;
+	column.tile_x = cell_x;
+	column.tile_y = cell_y;
+
+	/**
+	*    Resolve canonical world-tile ownership from world-cell coordinates and configured tile size.
+	**/
+	nav2_world_tile_key_t tileKey = {};
+	tileKey.tile_x = SVG_Nav2_SpanGrid_FloorDiv( cell_x, grid->tile_size );
+	tileKey.tile_y = SVG_Nav2_SpanGrid_FloorDiv( cell_y, grid->tile_size );
 	column.tile_id = SVG_Nav2_SpanGrid_TryResolveTileId( mesh, tileKey );
 	return column;
 }
@@ -270,12 +358,14 @@ static const bool SVG_Nav2_SpanGrid_TryBuildSpanAtPoint( const nav2_mesh_t *mesh
 	/**
 	*    Start from the mesh-authored agent hull when available and otherwise use conservative humanoid defaults.
 	**/
-	Vector3 agentMins = { -16.0f, -16.0f, 0.0f };
-	Vector3 agentMaxs = { 16.0f, 16.0f, 56.0f };
+	Vector3 agentMins = PHYS_DEFAULT_BBOX_STANDUP_MINS;
+	Vector3 agentMaxs = PHYS_DEFAULT_BBOX_STANDUP_MAXS;
 	if ( mesh && mesh->agent_profile.maxs.x > mesh->agent_profile.mins.x ) {
 		agentMins = mesh->agent_profile.mins;
 		agentMaxs = mesh->agent_profile.maxs;
 	}
+	const float feetToOriginOffsetZ = SVG_Nav2_SpanGrid_GetFeetToOriginOffsetZ( agentMins );
+	const double requiredStandingClearance = SVG_Nav2_SpanGrid_GetRequiredStandingClearance( agentMins, agentMaxs );
 
 	/**
 	*    Reject samples whose probe center already sits inside a solid leaf because they cannot produce a valid standing span.
@@ -295,7 +385,9 @@ static const bool SVG_Nav2_SpanGrid_TryBuildSpanAtPoint( const nav2_mesh_t *mesh
 	floorProbeStart.z += ( float )( NAV2_SPAN_GRID_CLEARANCE_PROBE * 0.5 );
 	Vector3 floorProbeEnd = column_center;
 	floorProbeEnd.z -= ( float )NAV2_SPAN_GRID_FLOOR_PROBE;
-	const cm_trace_t floorTrace = gi.trace( &floorProbeStart, &agentMins, &agentMaxs, &floorProbeEnd, nullptr, CM_CONTENTMASK_PLAYERSOLID );
+	const Vector3 traceMins = { agentMins.x, agentMins.y, 0.0f };
+	const Vector3 traceMaxs = { agentMaxs.x, agentMaxs.y, 0.0f };
+	const cm_trace_t floorTrace = gi.trace( &floorProbeStart, &traceMins, &traceMaxs, &floorProbeEnd, nullptr, CM_CONTENTMASK_PLAYERSOLID );
 	if ( floorTrace.startsolid || floorTrace.allsolid || floorTrace.fraction >= 1.0 ) {
        if ( build_stats ) {
 			if ( floorTrace.startsolid || floorTrace.allsolid ) {
@@ -325,10 +417,10 @@ static const bool SVG_Nav2_SpanGrid_TryBuildSpanAtPoint( const nav2_mesh_t *mesh
 	clearanceProbeStart.z += ( float )NAV2_SPAN_GRID_TRACE_EPSILON;
 	Vector3 clearanceProbeEnd = clearanceProbeStart;
 	clearanceProbeEnd.z += ( float )NAV2_SPAN_GRID_CLEARANCE_PROBE;
-	const cm_trace_t clearanceTrace = gi.trace( &clearanceProbeStart, &agentMins, &agentMaxs, &clearanceProbeEnd, nullptr, CM_CONTENTMASK_PLAYERSOLID );
+	const cm_trace_t clearanceTrace = gi.trace( &clearanceProbeStart, &traceMins, &traceMaxs, &clearanceProbeEnd, nullptr, CM_CONTENTMASK_PLAYERSOLID );
 	const double floorZ = floorTrace.endpos.z;
 	const double ceilingZ = clearanceTrace.endpos.z;
-	if ( ( ceilingZ - floorZ ) < NAV2_SPAN_GRID_MIN_CLEARANCE ) {
+	if ( ( ceilingZ - floorZ ) < requiredStandingClearance ) {
        if ( build_stats ) {
 			build_stats->rejected_clearance++;
 		}
@@ -336,28 +428,97 @@ static const bool SVG_Nav2_SpanGrid_TryBuildSpanAtPoint( const nav2_mesh_t *mesh
 	}
 
 	/**
-	*    Validate the sampled standing volume with a centered box-contents query so liquid and solid flags are mirrored into the span metadata.
+	*    Validate the sampled standing volume using a real brush-level occupancy test first, then gather
+	*    non-solid environment flags separately.
+	*
+	*    Runtime debugging confirmed that `CM_BoxContents` still reported `CONTENTS_SOLID` even after the
+	*    validation hull was inset one unit above the support plane. That behavior is expected from the
+	*    current collision-model implementation: `CM_BoxContents` recursively accumulates the OR of every
+	*    touched BSP leaf's `leaf->contents`, which means merely spanning a neighboring solid leaf can mark
+	*    the entire sample as solid even when the hull does not actually penetrate any brush volume.
+	*
+	*    For binary occupancy validation we therefore rely on an in-place zero-length `gi.trace`, which
+	*    executes the same brush-level hull test used by gameplay movement. We keep the separate box-contents
+	*    query only for broad environment classification (water/slime/lava), and explicitly ignore its solid
+	*    bit because solid rejection is already handled by the trace result.
 	**/
 	cm_contents_t boxContents = CONTENTS_NONE;
 	std::array<mleaf_t *, 16> leafList = {};
 	mnode_t *topNode = nullptr;
-	const Vector3 standingCenter = {
-		floorTrace.endpos.x,
-		floorTrace.endpos.y,
-		( float )( floorZ + ( ( ceilingZ - floorZ ) * 0.5 ) )
-	};
 	Vector3 sampleMins = QM_Vector3Zero();
 	Vector3 sampleMaxs = QM_Vector3Zero();
-	SVG_Nav2_SpanGrid_BuildSampleBounds( standingCenter, grid.cell_size_xy * 0.35, ( ceilingZ - floorZ ) * 0.5, &sampleMins, &sampleMaxs );
-    const vec3_t sampleMinsVec = { sampleMins.x, sampleMins.y, sampleMins.z };
-	const vec3_t sampleMaxsVec = { sampleMaxs.x, sampleMaxs.y, sampleMaxs.z };
-	(void)gi.CM_BoxContents( sampleMinsVec, sampleMaxsVec, &boxContents, leafList.data(), ( int32_t )leafList.size(), &topNode );
-	if ( ( boxContents & CONTENTS_SOLID ) != 0 ) {
-       if ( build_stats ) {
+	Vector3 validationMins = agentMins;
+	Vector3 validationMaxs = agentMaxs;
+	const Vector3 standingOrigin = floorTrace.endpos;
+	Vector3 standingOriginForBox = standingOrigin;
+
+	/**
+	*    Recenter floor-contact origins for box-contents validation using the hull's authored Z origin.
+	*
+	*    `standingOrigin` is expressed in floor-contact space (feet on floor). `CM_BoxContents`, however,
+	*    expects true world-space mins/maxs for the actor hull at its runtime origin.
+	*
+	*    For any hull with negative mins.z (classic center-origin or asymmetric center-ish setups),
+	*    the runtime origin must be lifted by `-mins.z` so that:
+	*      worldMins.z == floorZ
+	*      worldMaxs.z == floorZ + (maxs.z - mins.z)
+	*
+	*    This formulation is intentionally robust for asymmetric profiles (e.g. mins.z != -maxs.z).
+	*    A half-height shift can over-lift such hulls and produce false `CONTENTS_SOLID` rejections,
+	*    which in turn collapses span emission (`rejected_solid_box`) even when floor/clearance probes
+	*    are otherwise valid.
+	*
+	*    Feet-origin hulls (mins.z >= 0) are left unchanged because their origin is already floor-relative.
+	**/
+	standingOriginForBox.z += feetToOriginOffsetZ;
+
+	sampleMins = QM_Vector3Add( standingOriginForBox, agentMins );
+	sampleMaxs = QM_Vector3Add( standingOriginForBox, agentMaxs );
+
+	/**
+	*    Inset the vertical validation bounds slightly away from exact support and ceiling planes before
+	*    querying `CM_BoxContents`.
+	*
+	*    The floor and clearance traces above already validated that the sampled column has real support and
+	*    enough standing height for the full authored hull. The remaining `CM_BoxContents` pass is meant to
+	*    detect true volume penetration and liquid membership. When the validation AABB is left exactly flush
+	*    with the floor plane (`sampleMins.z == floorZ`), the collision system can conservatively report
+	*    `CONTENTS_SOLID` for simple touching contact, which falsely rejects otherwise walkable columns.
+	*
+	*    A symmetric Z inset preserves the authored XY footprint and keeps the validation hull strictly inside
+	*    the already-approved standing slab, avoiding boundary-contact false positives at both the floor and
+	*    the ceiling without weakening the real clearance requirement.
+	**/
+	const float verticalValidationInset = ( float )NAV2_SPAN_GRID_TRACE_EPSILON;
+	const float sampleHeight = sampleMaxs.z - sampleMins.z;
+	if ( verticalValidationInset > 0.0f && sampleHeight > ( verticalValidationInset * 2.0f ) ) {
+		sampleMins.z += verticalValidationInset;
+		sampleMaxs.z -= verticalValidationInset;
+		validationMins.z += verticalValidationInset;
+		validationMaxs.z -= verticalValidationInset;
+	}
+
+	/**
+	*    Run an in-place hull trace to validate true brush penetration at the sampled standing origin.
+	*
+	*    Using identical start/end points forces the trace code down its position-test path, which answers the
+	*    question nav generation actually cares about here: "would this hull start embedded in solid at this
+	*    standing origin?" That is stricter than point contents, but much less falsely conservative than the
+	*    leaf-OR semantics of `CM_BoxContents` for solid classification.
+	**/
+	const cm_trace_t occupancyTrace = gi.trace( &standingOriginForBox, &validationMins, &validationMaxs,
+		&standingOriginForBox, nullptr, CM_CONTENTMASK_PLAYERSOLID );
+	if ( occupancyTrace.startsolid || occupancyTrace.allsolid ) {
+		if ( build_stats ) {
 			build_stats->rejected_solid_box++;
 		}
 		return false;
 	}
+
+    const vec3_t sampleMinsVec = { sampleMins.x, sampleMins.y, sampleMins.z };
+	const vec3_t sampleMaxsVec = { sampleMaxs.x, sampleMaxs.y, sampleMaxs.z };
+	(void)gi.CM_BoxContents( sampleMinsVec, sampleMaxsVec, &boxContents, leafList.data(), ( int32_t )leafList.size(), &topNode );
+	boxContents = ( cm_contents_t )( boxContents & ( CONTENTS_WATER | CONTENTS_SLIME | CONTENTS_LAVA ) );
 
 	/**
 	*    Publish the rasterized span metadata in pointer-free form so later serialization can consume it directly.
@@ -390,7 +551,13 @@ static const bool SVG_Nav2_SpanGrid_TryBuildSpanAtPoint( const nav2_mesh_t *mesh
 			build_stats->spans_with_slime++;
 		}
 	}
-	SVG_Nav2_SpanGrid_ResolvePointTopology( standingCenter, out_span );
+	/**
+	*    Resolve BSP topology from the runtime origin used by the collision hull rather than the exact floor-contact point.
+	*
+	*    This keeps center-origin agents off floor planes and other tile/cell boundaries during topology lookup, which reduces
+	*    ambiguous leaf/cluster/area classification for otherwise valid standing samples.
+	**/
+	SVG_Nav2_SpanGrid_ResolvePointTopology( standingOriginForBox, out_span );
 	return SVG_Nav2_SpanIsValid( *out_span );
 }
 
@@ -445,10 +612,13 @@ const bool SVG_Nav2_BuildSpanGridFromMesh( const nav2_mesh_t *mesh, nav2_span_gr
 	if ( cellSizeXY <= 0.0 ) {
 		return false;
 	}
-	const int32_t minCellX = ( int32_t )std::floor( rasterBounds.mins.x / cellSizeXY );
-	const int32_t maxCellX = ( int32_t )std::ceil( rasterBounds.maxs.x / cellSizeXY );
-	const int32_t minCellY = ( int32_t )std::floor( rasterBounds.mins.y / cellSizeXY );
-	const int32_t maxCellY = ( int32_t )std::ceil( rasterBounds.maxs.y / cellSizeXY );
+	const int32_t minCellX = SVG_Nav2_SpanGrid_GetMinCenteredCellIndex( rasterBounds.mins.x, cellSizeXY );
+	const int32_t maxCellX = SVG_Nav2_SpanGrid_GetMaxCenteredCellIndexExclusive( rasterBounds.maxs.x, cellSizeXY );
+	const int32_t minCellY = SVG_Nav2_SpanGrid_GetMinCenteredCellIndex( rasterBounds.mins.y, cellSizeXY );
+	const int32_t maxCellY = SVG_Nav2_SpanGrid_GetMaxCenteredCellIndexExclusive( rasterBounds.maxs.y, cellSizeXY );
+	if ( maxCellX <= minCellX || maxCellY <= minCellY ) {
+		return false;
+	}
 
 	/**
 	*    Rasterize each XY column conservatively and append sparse columns only when the sampled point produced a traversable span.
@@ -484,7 +654,7 @@ const bool SVG_Nav2_BuildSpanGridFromMesh( const nav2_mesh_t *mesh, nav2_span_gr
 			/**
 			*    Append the owning sparse column only after a valid traversable span was produced.
 			**/
-			nav2_span_column_t &column = SVG_Nav2_SpanGrid_AppendColumn( mesh, out_grid, columnCenter );
+			nav2_span_column_t &column = SVG_Nav2_SpanGrid_AppendColumn( mesh, out_grid, cellX, cellY );
 			column.spans.push_back( span );
            buildStats.emitted_columns++;
 			buildStats.emitted_spans++;

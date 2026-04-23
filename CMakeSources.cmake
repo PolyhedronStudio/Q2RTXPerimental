@@ -378,8 +378,8 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/misc/svg_misc_teleporter_dest.cpp
 
     #baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_sfxfollow.cpp
-    baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_debug_stub.cpp
-	#baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_sfxfollow.cpp
+    #baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_debug_stub.cpp
+	baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_sfxfollow.cpp
 	
 	baseq2rtxp/svgame/entities/path/svg_path_corner.cpp
 
@@ -459,15 +459,18 @@ SET(SRC_BASEQ2RTXP_SVGAME
     baseq2rtxp/svgame/nav2/nav2_corridor.cpp
     baseq2rtxp/svgame/nav2/nav2_corridor_build.cpp
     baseq2rtxp/svgame/nav2/nav2_debug_draw.cpp
+    baseq2rtxp/svgame/nav2/nav2_distance_fields.cpp
     baseq2rtxp/svgame/nav2/nav2_dynamic_overlay.cpp
     baseq2rtxp/svgame/nav2/nav2_entity_semantics.cpp
     baseq2rtxp/svgame/nav2/nav2_fine_astar.cpp
     baseq2rtxp/svgame/nav2/nav2_goal_candidates.cpp
     baseq2rtxp/svgame/nav2/nav2_hierarchy_graph.cpp
     baseq2rtxp/svgame/nav2/nav2_memory.cpp
+    baseq2rtxp/svgame/nav2/nav2_macro_traversal.cpp
     baseq2rtxp/svgame/nav2/nav2_mover_local_nav.cpp
     baseq2rtxp/svgame/nav2/nav2_occupancy.cpp
- baseq2rtxp/svgame/nav2/nav2_persistence.cpp
+    baseq2rtxp/svgame/nav2/nav2_persistence.cpp
+	baseq2rtxp/svgame/nav2/nav2_precompute.cpp
 	baseq2rtxp/svgame/nav2/nav2_postprocess.cpp
     baseq2rtxp/svgame/nav2/nav2_query_job.cpp
     baseq2rtxp/svgame/nav2/nav2_query_state.cpp
@@ -520,12 +523,15 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
     baseq2rtxp/svgame/nav2/nav2_fine_astar.h
     baseq2rtxp/svgame/nav2/nav2_occupancy.h
     baseq2rtxp/svgame/nav2/nav2_persistence.h
+	baseq2rtxp/svgame/nav2/nav2_precompute.h
     baseq2rtxp/svgame/nav2/nav2_save_load.h
     baseq2rtxp/svgame/nav2/nav2_debug_draw.h
+   baseq2rtxp/svgame/nav2/nav2_distance_fields.h
     baseq2rtxp/svgame/nav2/nav2_dynamic_overlay.h
     baseq2rtxp/svgame/nav2/nav2_entity_semantics.h
     baseq2rtxp/svgame/nav2/nav2_goal_candidates.h
     baseq2rtxp/svgame/nav2/nav2_memory.h
+   baseq2rtxp/svgame/nav2/nav2_macro_traversal.h
     baseq2rtxp/svgame/nav2/nav2_mover_local_nav.h
     baseq2rtxp/svgame/nav2/nav2_fine_astar.h
     baseq2rtxp/svgame/nav2/nav2_runtime.h

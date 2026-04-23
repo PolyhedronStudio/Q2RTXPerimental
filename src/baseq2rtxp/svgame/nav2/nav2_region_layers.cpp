@@ -25,12 +25,20 @@
 * @return Stable id chosen for the next appended layer.
 **/
 static int32_t SVG_Nav2_AllocateRegionLayerId( const nav2_region_layer_graph_t &graph ) {
-    // Start after the current highest layer id so ids remain monotonic and stable.
-    int32_t nextId = 1;
-    for ( const nav2_region_layer_t &layer : graph.layers ) {
-        nextId = std::max( nextId, layer.region_layer_id + 1 );
+    /**
+    *    Region layers are appended in deterministic order during one build pass, so assigning the
+    *    next id from the tail element keeps ids stable while avoiding O(N^2) rescans.
+    **/
+    if ( graph.layers.empty() ) {
+        return 1;
     }
-    return nextId;
+
+    // Continue from the current tail id when it is monotonic, otherwise fall back to size-based id.
+    const int32_t tailId = graph.layers.back().region_layer_id;
+    if ( tailId >= 1 ) {
+        return tailId + 1;
+    }
+    return ( int32_t )graph.layers.size() + 1;
 }
 
 /**
@@ -39,12 +47,20 @@ static int32_t SVG_Nav2_AllocateRegionLayerId( const nav2_region_layer_graph_t &
 * @return Stable id chosen for the next appended edge.
 **/
 static int32_t SVG_Nav2_AllocateRegionLayerEdgeId( const nav2_region_layer_graph_t &graph ) {
-    // Start after the current highest edge id so ids remain monotonic and stable.
-    int32_t nextId = 1;
-    for ( const nav2_region_layer_edge_t &edge : graph.edges ) {
-        nextId = std::max( nextId, edge.edge_id + 1 );
+    /**
+    *    Edges are appended monotonically during graph construction, so deriving ids from the tail
+    *    edge avoids quadratic edge-id scans that can stall large maps.
+    **/
+    if ( graph.edges.empty() ) {
+        return 1;
     }
-    return nextId;
+
+    // Continue from the current tail id when it is monotonic, otherwise fall back to size-based id.
+    const int32_t tailId = graph.edges.back().edge_id;
+    if ( tailId >= 1 ) {
+        return tailId + 1;
+    }
+    return ( int32_t )graph.edges.size() + 1;
 }
 
 /**
@@ -123,6 +139,65 @@ static nav2_region_layer_t SVG_Nav2_MakeRegionLayerFromSpan( const nav2_span_t &
         layer.flags |= NAV2_REGION_LAYER_FLAG_HAS_STAIR;
     }
     return layer;
+}
+
+/**
+* @brief Return whether two region-layer nodes are close enough to consider adjacency.
+* @param fromLayer Source region-layer node.
+* @param toLayer Destination region-layer node.
+* @return True when layers are topology- or tile-local neighbors.
+* @note This prevents quadratic all-to-all edge explosion on large sparse grids.
+**/
+static const bool SVG_Nav2_AreLayersSpatiallyAdjacent( const nav2_region_layer_t &fromLayer, const nav2_region_layer_t &toLayer ) {
+    /**
+    *    First apply a hard locality gate when both layers have canonical tile ownership so broad
+    *    area/cluster ids do not accidentally create near-complete graphs.
+    **/
+    if ( fromLayer.tile_ref.tile_id >= 0 && toLayer.tile_ref.tile_id >= 0 ) {
+        const int32_t dx = std::abs( fromLayer.tile_ref.tile_x - toLayer.tile_ref.tile_x );
+        const int32_t dy = std::abs( fromLayer.tile_ref.tile_y - toLayer.tile_ref.tile_y );
+        if ( dx > 2 || dy > 2 ) {
+            return false;
+        }
+    }
+
+    /**
+    *    Prefer explicit topology matches first so we keep robust local connectivity even when
+    *    tile metadata is unavailable for connector-derived layers.
+    **/
+    if ( ( fromLayer.leaf_id >= 0 && fromLayer.leaf_id == toLayer.leaf_id )
+        || ( fromLayer.cluster_id >= 0 && fromLayer.cluster_id == toLayer.cluster_id )
+        || ( fromLayer.area_id >= 0 && fromLayer.area_id == toLayer.area_id ) ) {
+        return true;
+    }
+
+    /**
+    *    If both nodes carry canonical tile coordinates, require local neighborhood proximity to
+    *    avoid constructing a global complete graph.
+    **/
+    if ( fromLayer.tile_ref.tile_id >= 0 && toLayer.tile_ref.tile_id >= 0 ) {
+        const int32_t dx = std::abs( fromLayer.tile_ref.tile_x - toLayer.tile_ref.tile_x );
+        const int32_t dy = std::abs( fromLayer.tile_ref.tile_y - toLayer.tile_ref.tile_y );
+        if ( dx <= 1 && dy <= 1 ) {
+            return true;
+        }
+    }
+
+    /**
+    *    Keep connector-derived commitment nodes lightly connected by allowing short-range tile
+    *    proximity when either side is a portal/mover-specialized layer.
+    **/
+    const bool hasSpecializedCommitment = ( fromLayer.kind == nav2_region_layer_kind_t::PortalEndpoint )
+        || ( toLayer.kind == nav2_region_layer_kind_t::PortalEndpoint )
+        || ( fromLayer.kind == nav2_region_layer_kind_t::MoverBand )
+        || ( toLayer.kind == nav2_region_layer_kind_t::MoverBand );
+    if ( hasSpecializedCommitment && fromLayer.tile_ref.tile_id >= 0 && toLayer.tile_ref.tile_id >= 0 ) {
+        const int32_t dx = std::abs( fromLayer.tile_ref.tile_x - toLayer.tile_ref.tile_x );
+        const int32_t dy = std::abs( fromLayer.tile_ref.tile_y - toLayer.tile_ref.tile_y );
+        return dx <= 2 && dy <= 2;
+    }
+
+    return false;
 }
 
 /**
@@ -379,11 +454,28 @@ const bool SVG_Nav2_BuildRegionLayers( const nav2_span_grid_t &grid, const nav2_
         }
     }
 
-    // Derive simple adjacency between compatible layers to keep coarse A* usable before the full hierarchy exists.
+    // Derive bounded local adjacency between compatible layers to keep coarse A* usable without
+    // constructing an O(N^2) complete graph on large sparse maps.
+    constexpr int32_t maxNeighborEdgesPerLayer = 24;
     for ( size_t i = 0; i < out_graph->layers.size(); ++i ) {
         const nav2_region_layer_t &fromLayer = out_graph->layers[ i ];
+        int32_t neighborEdgeCount = 0;
+
+        // Limit per-layer fan-out to keep build cost bounded and deterministic on dense maps.
         for ( size_t j = i + 1; j < out_graph->layers.size(); ++j ) {
             const nav2_region_layer_t &toLayer = out_graph->layers[ j ];
+
+            // Stop adding more neighbors once this layer reached the bounded fan-out budget.
+            if ( neighborEdgeCount >= maxNeighborEdgesPerLayer ) {
+                break;
+            }
+
+            // Skip non-local pairs so we do not generate global all-to-all edges.
+            if ( !SVG_Nav2_AreLayersSpatiallyAdjacent( fromLayer, toLayer ) ) {
+                continue;
+            }
+
+            // Skip pairs with invalid Z-band commitments before creating transition edges.
             if ( fromLayer.allowed_z_band.IsValid() && toLayer.allowed_z_band.IsValid() && std::fabs( fromLayer.allowed_z_band.preferred_z - toLayer.allowed_z_band.preferred_z ) > 256.0 ) {
                 continue;
             }
@@ -418,7 +510,16 @@ const bool SVG_Nav2_BuildRegionLayers( const nav2_span_grid_t &grid, const nav2_
                 edge.kind = nav2_region_layer_edge_kind_t::SameBand;
                 edge.flags |= NAV2_REGION_LAYER_EDGE_FLAG_PASSABLE | NAV2_REGION_LAYER_EDGE_FLAG_TOPOLOGY_MATCHED;
             }
-            SVG_Nav2_RegionLayerGraph_AppendEdge( out_graph, edge );
+
+            // Append forward and reverse edges so coarse routing remains bidirectional.
+            if ( SVG_Nav2_RegionLayerGraph_AppendEdge( out_graph, edge ) ) {
+                neighborEdgeCount++;
+            }
+
+            nav2_region_layer_edge_t reverseEdge = edge;
+            reverseEdge.from_region_layer_id = edge.to_region_layer_id;
+            reverseEdge.to_region_layer_id = edge.from_region_layer_id;
+            (void)SVG_Nav2_RegionLayerGraph_AppendEdge( out_graph, reverseEdge );
         }
     }
 

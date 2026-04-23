@@ -48,6 +48,18 @@ void SVG_Nav2_QueryJob_Init( nav2_query_job_t *job, const nav2_query_request_t &
     **/
     job->state.stage = nav2_query_stage_t::TopologyClassification;
     job->state.prefer_worker_dispatch = false;
+
+    /**
+    *    Reset fairness and overload accounting fields so each job lifecycle starts with deterministic
+    *    queue-age and churn counters.
+    **/
+    job->submitted_frame_number = 0;
+    job->last_granted_frame_number = 0;
+    job->starvation_boost_count = 0;
+    job->throttled_slice_count = 0;
+    job->overload_provisional_fallback_count = 0;
+    job->stage_transition_count = 0;
+    job->stage_restart_count = 0;
 }
 
 /**

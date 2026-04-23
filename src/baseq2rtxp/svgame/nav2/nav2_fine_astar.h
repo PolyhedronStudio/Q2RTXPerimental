@@ -226,6 +226,8 @@ struct nav2_fine_astar_diagnostics_t {
     uint32_t frontier_miss_prunes = 0;
     //! Number of duplicate or closed nodes skipped while relaxing neighbors.
     uint32_t duplicate_or_closed_prunes = 0;
+    //! Number of times fine-search promoted a minimal endpoint fallback path.
+    uint32_t fallback_path_activations = 0;
 };
 
 /**

@@ -6,6 +6,7 @@
 *
 ********************************************************************/
 #include "svgame/nav2/nav2_hierarchy_graph.h"
+#include "svgame/nav2/nav2_precompute.h"
 
 #include <algorithm>
 #include <cmath>
@@ -414,6 +415,32 @@ const bool SVG_Nav2_BuildHierarchyGraph( const nav2_region_layer_graph_t &region
     if ( !SVG_Nav2_ValidateHierarchyGraph( *out_graph ) ) {
         return false;
     }
+
+    /**
+    *   Task 13.1 seam: build and publish coarse lower-bound precompute cache from the freshly
+    *   validated hierarchy graph so coarse A* heuristics can consume immutable cache state.
+    **/
+    nav2_precompute_policy_t precomputePolicy = {};
+    precomputePolicy.max_landmarks = 8;
+    precomputePolicy.max_portal_pairs = 4096;
+    precomputePolicy.max_cluster_pairs = 2048;
+    precomputePolicy.enable_portal_pair_bounds = true;
+    precomputePolicy.enable_cluster_pair_bounds = true;
+    precomputePolicy.enable_region_layer_edge_costs = true;
+    precomputePolicy.enable_connector_crossing_costs = true;
+    precomputePolicy.mark_serialization_ready = true;
+
+    nav2_precompute_cache_t precomputeCache = {};
+    nav2_precompute_summary_t precomputeSummary = {};
+    const uint32_t precomputeStaticNavVersion = 1u;
+    const bool builtPrecompute = SVG_Nav2_Precompute_BuildFromHierarchy( *out_graph, precomputePolicy,
+        precomputeStaticNavVersion, &precomputeCache, &precomputeSummary );
+    if ( builtPrecompute ) {
+        (void)SVG_Nav2_Precompute_PublishCache( precomputeCache );
+    } else {
+        SVG_Nav2_Precompute_ClearPublishedCache();
+    }
+
     return !out_graph->nodes.empty();
 }
 

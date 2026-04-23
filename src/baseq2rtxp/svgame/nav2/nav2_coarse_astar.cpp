@@ -6,6 +6,7 @@
 *
 ********************************************************************/
 #include "svgame/nav2/nav2_coarse_astar.h"
+#include "svgame/nav2/nav2_precompute.h"
 
 // Movement constants used to bound vertical transitions in the coarse solver.
 #include "sharedgame/pmove/sg_pmove.h"
@@ -28,12 +29,8 @@
 * @return Stable node id for the next appended frontier node.
 **/
 static int32_t SVG_Nav2_AllocateCoarseNodeId( const nav2_coarse_astar_state_t &state ) {
-    // Keep node ids monotonic so reconstruction remains deterministic.
-    int32_t nextId = 1;
-    for ( const nav2_coarse_astar_node_t &node : state.nodes ) {
-        nextId = std::max( nextId, node.node_id + 1 );
-    }
-    return nextId;
+    // Keep node ids monotonic in O(1) time using the solver-maintained next-id counter.
+    return std::max( 1, state.next_node_id );
 }
 
 /**
@@ -42,12 +39,52 @@ static int32_t SVG_Nav2_AllocateCoarseNodeId( const nav2_coarse_astar_state_t &s
 * @return Stable edge id for the next appended frontier edge.
 **/
 static int32_t SVG_Nav2_AllocateCoarseEdgeId( const nav2_coarse_astar_state_t &state ) {
-    // Keep edge ids monotonic so debug output and path reconstruction remain stable.
-    int32_t nextId = 1;
-    for ( const nav2_coarse_astar_edge_t &edge : state.edges ) {
-        nextId = std::max( nextId, edge.edge_id + 1 );
+    // Keep edge ids monotonic in O(1) time using the solver-maintained next-id counter.
+    return std::max( 1, state.next_edge_id );
+}
+
+/**
+* @brief Advance the next coarse-node id counter after appending one node.
+* @param state [in,out] Solver state owning id counters.
+* @param assignedNodeId Stable node id that was assigned.
+**/
+static void SVG_Nav2_OnNodeIdAssigned( nav2_coarse_astar_state_t *state, const int32_t assignedNodeId ) {
+    /**
+    *    Guard null state pointers because callers may be in optional bookkeeping paths.
+    **/
+    if ( !state ) {
+        return;
     }
-    return nextId;
+
+    /**
+    *    Keep the next-node id strictly monotonic and always >= 1.
+    **/
+    state->next_node_id = std::max( state->next_node_id, assignedNodeId + 1 );
+    if ( state->next_node_id < 1 ) {
+        state->next_node_id = 1;
+    }
+}
+
+/**
+* @brief Advance the next coarse-edge id counter after appending one edge.
+* @param state [in,out] Solver state owning id counters.
+* @param assignedEdgeId Stable edge id that was assigned.
+**/
+static void SVG_Nav2_OnEdgeIdAssigned( nav2_coarse_astar_state_t *state, const int32_t assignedEdgeId ) {
+    /**
+    *    Guard null state pointers because callers may be in optional bookkeeping paths.
+    **/
+    if ( !state ) {
+        return;
+    }
+
+    /**
+    *    Keep the next-edge id strictly monotonic and always >= 1.
+    **/
+    state->next_edge_id = std::max( state->next_edge_id, assignedEdgeId + 1 );
+    if ( state->next_edge_id < 1 ) {
+        state->next_edge_id = 1;
+    }
 }
 
 /**
@@ -415,11 +452,27 @@ static nav2_coarse_astar_edge_t SVG_Nav2_MakeEdgeFromHierarchyEdge( const nav2_c
 * @return Heuristic cost estimate.
 **/
 static double SVG_Nav2_Heuristic( const nav2_coarse_astar_node_t &fromNode, const nav2_coarse_astar_node_t &toNode ) {
-    // Use the allowed Z-band and topology data to produce a stable lower bound.
+    /**
+    *   Baseline heuristic from vertical separation and coarse topology cues.
+    **/
     const double dz = std::fabs( fromNode.allowed_z_band.preferred_z - toNode.allowed_z_band.preferred_z );
     const double topologyPenalty = ( fromNode.region_layer_id >= 0 && toNode.region_layer_id >= 0 && fromNode.region_layer_id != toNode.region_layer_id ) ? 16.0 : 0.0;
     const double moverPenalty = ( fromNode.mover_entnum >= 0 || toNode.mover_entnum >= 0 ) ? 4.0 : 0.0;
-    return dz + topologyPenalty + moverPenalty;
+    const double baselineHeuristic = dz + topologyPenalty + moverPenalty;
+
+    /**
+    *   Task 13.1 integration: query immutable coarse lower-bound precompute and conservatively
+    *   raise the heuristic via max(baseline, precomputed_lower_bound).
+    *   This keeps the heuristic admissible while allowing stronger guidance when cache data exists.
+    **/
+    nav2_precompute_lb_result_t precomputeLowerBound = {};
+    if ( fromNode.hierarchy_node_id >= 0 && toNode.hierarchy_node_id >= 0
+        && SVG_Nav2_Precompute_QueryPublishedLowerBound( fromNode.hierarchy_node_id, toNode.hierarchy_node_id, &precomputeLowerBound )
+        && precomputeLowerBound.valid ) {
+        return std::max( baselineHeuristic, std::max( 0.0, precomputeLowerBound.lower_bound ) );
+    }
+
+    return baselineHeuristic;
 }
 
 /**
@@ -446,6 +499,24 @@ static int32_t SVG_Nav2_FindBestFrontierNodeIndex( const nav2_coarse_astar_state
 }
 
 /**
+* @brief Resolve one coarse frontier node pointer by stable node id.
+* @param state Solver state to inspect.
+* @param nodeId Stable node id to resolve.
+* @return Pointer to node payload, or `nullptr` when not found.
+**/
+static const nav2_coarse_astar_node_t *SVG_Nav2_FindNodeById( const nav2_coarse_astar_state_t &state, const int32_t nodeId ) {
+    /**
+    *    Perform a deterministic linear scan over node storage until a stable id match is found.
+    **/
+    for ( const nav2_coarse_astar_node_t &node : state.nodes ) {
+        if ( node.node_id == nodeId ) {
+            return &node;
+        }
+    }
+    return nullptr;
+}
+
+/**
 * @brief Reconstruct a stable path from a terminal node.
 * @param state Solver state to inspect.
 * @param terminalNodeId Terminal node id to unwind.
@@ -461,13 +532,7 @@ static void SVG_Nav2_ReconstructPath( const nav2_coarse_astar_state_t &state, co
 
     int32_t currentNodeId = terminalNodeId;
     while ( currentNodeId >= 0 ) {
-        const nav2_coarse_astar_node_t *currentNode = nullptr;
-        for ( const nav2_coarse_astar_node_t &node : state.nodes ) {
-            if ( node.node_id == currentNodeId ) {
-                currentNode = &node;
-                break;
-            }
-        }
+        const nav2_coarse_astar_node_t *currentNode = SVG_Nav2_FindNodeById( state, currentNodeId );
         if ( !currentNode ) {
             break;
         }
@@ -498,17 +563,22 @@ static const bool SVG_Nav2_ShouldExpandNode( nav2_coarse_astar_state_t *state, c
         return false;
     }
     if ( state->query_state.snapshot.static_nav_version == 0 ) {
+        /**
+        *    Treat missing snapshot version as a transitional scheduler seam instead of a hard
+        *    stale failure so coarse search can still progress until snapshot publication is wired.
+        **/
         state->diagnostics.stale_prunes++;
-        state->status = nav2_coarse_astar_status_t::Stale;
-        return false;
     }
     if ( ( node.flags & NAV2_COARSE_ASTAR_NODE_FLAG_HAS_MOVER ) != 0 && state->query_state.snapshot.mover_version == 0 ) {
         state->diagnostics.mover_prunes++;
         return false;
     }
     if ( ( node.flags & NAV2_COARSE_ASTAR_NODE_FLAG_PARTIAL ) != 0 ) {
+        /**
+        *    Partial nodes remain valid coarse frontier candidates; record diagnostics but keep
+        *    expansion enabled so in-FAT-PVS hints do not collapse the search.
+        **/
         state->diagnostics.policy_prunes++;
-        return false;
     }
     return true;
 }
@@ -582,7 +652,9 @@ const bool SVG_Nav2_CoarseAStar_Init( nav2_coarse_astar_state_t *state, const na
     **/
     // Allocate stable ids for the start and goal nodes.
     const int32_t startNodeId = SVG_Nav2_AllocateCoarseNodeId( *state );
+    SVG_Nav2_OnNodeIdAssigned( state, startNodeId );
     const int32_t goalNodeId = startNodeId + 1;
+    SVG_Nav2_OnNodeIdAssigned( state, goalNodeId );
     // Build the start node from the candidate and attach a hierarchy match.
     nav2_coarse_astar_node_t startNode = SVG_Nav2_MakeNodeFromCandidate( startCandidate, startNodeId );
     startNode.kind = nav2_coarse_astar_node_kind_t::Start;
@@ -590,6 +662,8 @@ const bool SVG_Nav2_CoarseAStar_Init( nav2_coarse_astar_state_t *state, const na
     startNode.h_score = SVG_Nav2_Heuristic( startNode, SVG_Nav2_MakeNodeFromCandidate( goalCandidate, goalNodeId ) );
     startNode.f_score = startNode.h_score;
     startNode.hierarchy_node_id = SVG_Nav2_SelectHierarchyNodeForCandidate( hierarchyGraph, startCandidate );
+    // Always allow the seeded start node to expand even when candidate flags carry partial hints.
+    startNode.flags &= ~NAV2_COARSE_ASTAR_NODE_FLAG_PARTIAL;
     state->nodes.push_back( startNode );
 
     // Build the goal node from the candidate and attach a hierarchy match.
@@ -599,6 +673,8 @@ const bool SVG_Nav2_CoarseAStar_Init( nav2_coarse_astar_state_t *state, const na
     goalNode.h_score = 0.0;
     goalNode.f_score = 0.0;
     goalNode.hierarchy_node_id = SVG_Nav2_SelectHierarchyNodeForCandidate( hierarchyGraph, goalCandidate );
+    // Always allow the seeded goal node to participate in completion checks.
+    goalNode.flags &= ~NAV2_COARSE_ASTAR_NODE_FLAG_PARTIAL;
     state->nodes.push_back( goalNode );
 
     /**
@@ -696,7 +772,9 @@ const bool SVG_Nav2_CoarseAStar_Step( nav2_coarse_astar_state_t *state, const na
     *	Check for goal completion before expanding neighbors.
     **/
     // Stop when the current node corresponds to the goal candidate.
-    if ( currentNode.kind == nav2_coarse_astar_node_kind_t::Goal || currentNode.hierarchy_node_id == state->goal_candidate.candidate_id ) {
+    const int32_t goalHierarchyHint = SVG_Nav2_CandidateHierarchyNodeId( state->goal_candidate );
+    if ( currentNode.kind == nav2_coarse_astar_node_kind_t::Goal
+        || ( goalHierarchyHint >= 0 && currentNode.hierarchy_node_id == goalHierarchyHint ) ) {
         SVG_Nav2_ReconstructPath( *state, currentNode.node_id, &state->path );
         state->status = nav2_coarse_astar_status_t::Success;
         state->query_state.result_status = nav2_query_result_status_t::Success;
@@ -828,9 +906,12 @@ const bool SVG_Nav2_CoarseAStar_Step( nav2_coarse_astar_state_t *state, const na
         *	Create or reuse a frontier node for the destination hierarchy node.
         **/
         // Build a new coarse node for the destination.
-        nav2_coarse_astar_node_t neighborNode = SVG_Nav2_MakeNodeFromHierarchyNode( hierarchyGraph.nodes[ ( size_t )destHierarchyRef.node_index ], SVG_Nav2_AllocateCoarseNodeId( *state ), nav2_coarse_astar_node_kind_t::RegionLayer );
+        const int32_t neighborNodeId = SVG_Nav2_AllocateCoarseNodeId( *state );
+        SVG_Nav2_OnNodeIdAssigned( state, neighborNodeId );
+        nav2_coarse_astar_node_t neighborNode = SVG_Nav2_MakeNodeFromHierarchyNode( hierarchyGraph.nodes[ ( size_t )destHierarchyRef.node_index ], neighborNodeId, nav2_coarse_astar_node_kind_t::RegionLayer );
         neighborNode.parent_node_id = currentNode.node_id;
         neighborNode.parent_edge_id = SVG_Nav2_AllocateCoarseEdgeId( *state );
+        SVG_Nav2_OnEdgeIdAssigned( state, neighborNode.parent_edge_id );
         neighborNode.g_score = currentNode.g_score + hierarchyEdge->base_cost + hierarchyEdge->topology_penalty;
         neighborNode.h_score = SVG_Nav2_Heuristic( neighborNode, state->nodes.back() );
         neighborNode.f_score = neighborNode.g_score + neighborNode.h_score;

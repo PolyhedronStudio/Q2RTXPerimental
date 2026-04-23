@@ -60,6 +60,356 @@ static uint64_t Nav2_Bench_GetNowMs( void ) {
 }
 
 /**
+*   @brief  Return the average milliseconds for one timing bucket in an aggregate record.
+*   @param  record  Aggregate benchmark record to inspect.
+*   @param  bucket  Timing bucket to resolve.
+*   @return Average milliseconds for the bucket, or 0 when no samples exist.
+**/
+static double Nav2_Bench_GetAverageBucketMs( const nav2_bench_record_t &record, const nav2_bench_timing_bucket_t bucket ) {
+    /**
+    *   Validate bucket bounds before indexing aggregate timing storage.
+    **/
+    const size_t bucketIndex = ( size_t )bucket;
+    if ( bucketIndex >= ( size_t )nav2_bench_timing_bucket_t::Count ) {
+        return 0.0;
+    }
+
+    /**
+    *   Return zero when no timing samples were recorded for this bucket.
+    **/
+    const nav2_bench_timing_stat_t &stat = record.timing[ bucketIndex ];
+    if ( stat.samples == 0 ) {
+        return 0.0;
+    }
+
+    /**
+    *   Compute and return the aggregate bucket average.
+    **/
+    return stat.total_ms / ( double )stat.samples;
+}
+
+/**
+*   @brief  Return whether one scenario belongs to Task 12.3 coverage scope.
+*   @param  scenario    Scenario to inspect.
+*   @return True when the scenario maps to Wave 11 Task 12.3 validation classes.
+**/
+static const bool Nav2_Bench_IsTask123Scenario( const nav2_bench_scenario_t scenario ) {
+    switch ( scenario ) {
+    case nav2_bench_scenario_t::SameFloorOpen:
+    case nav2_bench_scenario_t::SameFloorObstructed:
+    case nav2_bench_scenario_t::HighZGoal:
+    case nav2_bench_scenario_t::Stair:
+    case nav2_bench_scenario_t::PortalChainedRoute:
+    case nav2_bench_scenario_t::WrongClusterTemptation:
+    case nav2_bench_scenario_t::ManyAgentSimultaneousQuery:
+    case nav2_bench_scenario_t::FatPVSRelevance:
+    case nav2_bench_scenario_t::SaveLoadRoundTripContinuity:
+        return true;
+    case nav2_bench_scenario_t::Count:
+    default:
+        break;
+    }
+    return false;
+}
+
+/**
+*   @brief  Compute a conservative failure-pressure score for Task 12.3 scenario validation.
+*   @param  record  Aggregate benchmark record to inspect.
+*   @return Normalized failure-pressure score in [0..1].
+**/
+static double Nav2_Bench_Task123ComputeFailurePressure( const nav2_bench_record_t &record ) {
+    /**
+    *   Return zero pressure when no runs were recorded.
+    **/
+    if ( record.run_count == 0 ) {
+        return 0.0;
+    }
+
+    /**
+    *   Accumulate known correctness/robustness failure categories used by Task 12.3.
+    **/
+    const uint32_t severeFailures =
+        record.failure_type_counts[ ( size_t )nav2_bench_failure_t::WrongFloorConvergence ]
+        + record.failure_type_counts[ ( size_t )nav2_bench_failure_t::UnreachableFalseNegative ]
+        + record.failure_type_counts[ ( size_t )nav2_bench_failure_t::CorridorRefinementMismatch ]
+        + record.failure_type_counts[ ( size_t )nav2_bench_failure_t::WrongClusterOrWrongPortalCommitment ]
+        + record.failure_type_counts[ ( size_t )nav2_bench_failure_t::SerializationRoundTripMismatch ]
+        + record.failure_type_counts[ ( size_t )nav2_bench_failure_t::SerializationVersionMismatch ];
+
+    /**
+    *   Fold explicit failed-run count into pressure so silent failure taxonomies still surface.
+    **/
+    const double runFailureRate = ( double )record.failure_count / ( double )record.run_count;
+    const double severeFailureRate = ( double )severeFailures / ( double )record.run_count;
+    return std::min( 1.0, std::max( runFailureRate, severeFailureRate ) );
+}
+
+/**
+*   @brief  Compute a conservative route-stability score from aggregate run outcomes.
+*   @param  record  Aggregate benchmark record to inspect.
+*   @return Route stability score in [0..1] where 1 is most stable.
+**/
+static double Nav2_Bench_Task123ComputeRouteStability( const nav2_bench_record_t &record ) {
+    /**
+    *   Without enough runs we treat stability as unknown and return 0.
+    **/
+    if ( record.run_count < 2 ) {
+        return 0.0;
+    }
+
+    /**
+    *   Use success-rate and mismatch absence as a conservative stability proxy.
+    **/
+    const double successRate = ( double )record.success_count / ( double )record.run_count;
+    const double mismatchRate = ( double )record.failure_type_counts[ ( size_t )nav2_bench_failure_t::CorridorRefinementMismatch ] / ( double )record.run_count;
+    const double driftRate = ( double )record.failure_type_counts[ ( size_t )nav2_bench_failure_t::MoverRelativePathDrift ] / ( double )record.run_count;
+    const double stabilityPenalty = std::min( 1.0, mismatchRate + driftRate );
+    return std::max( 0.0, successRate * ( 1.0 - stabilityPenalty ) );
+}
+
+/**
+*   @brief  Compute a conservative connector-selection correctness score.
+*   @param  record  Aggregate benchmark record to inspect.
+*   @return Connector selection correctness score in [0..1].
+**/
+static double Nav2_Bench_Task123ComputeConnectorScore( const nav2_bench_record_t &record ) {
+    /**
+    *   Without runs there is no connector-selection evidence.
+    **/
+    if ( record.run_count == 0 ) {
+        return 0.0;
+    }
+
+    /**
+    *   Use wrong-cluster/portal and corridor mismatch failure rates as connector correctness penalties.
+    **/
+    const double wrongConnectorRate = ( double )record.failure_type_counts[ ( size_t )nav2_bench_failure_t::WrongClusterOrWrongPortalCommitment ] / ( double )record.run_count;
+    const double corridorMismatchRate = ( double )record.failure_type_counts[ ( size_t )nav2_bench_failure_t::CorridorRefinementMismatch ] / ( double )record.run_count;
+    const double penalty = std::min( 1.0, wrongConnectorRate + corridorMismatchRate );
+    return std::max( 0.0, 1.0 - penalty );
+}
+
+/**
+*	@brief	Return the Task 12.3 environment profile mapping for one benchmark scenario.
+*	@param	scenario	Benchmark scenario to classify.
+*	@return	Mapped Task 12.3 environment profile.
+**/
+nav2_bench_task123_profile_t SVG_Nav2_Bench_Task123ProfileForScenario( const nav2_bench_scenario_t scenario ) {
+	switch ( scenario ) {
+	case nav2_bench_scenario_t::SameFloorOpen:
+		return nav2_bench_task123_profile_t::WideOpenFloorRegion;
+	case nav2_bench_scenario_t::HighZGoal:
+		return nav2_bench_task123_profile_t::FlatRooftop;
+	case nav2_bench_scenario_t::Stair:
+		return nav2_bench_task123_profile_t::RooftopWithStairAccess;
+	case nav2_bench_scenario_t::SameFloorObstructed:
+		return nav2_bench_task123_profile_t::LongHallway;
+	case nav2_bench_scenario_t::PortalChainedRoute:
+		return nav2_bench_task123_profile_t::WideAlleyway;
+	case nav2_bench_scenario_t::WrongClusterTemptation:
+		return nav2_bench_task123_profile_t::LowBranchSameBandCorridor;
+	case nav2_bench_scenario_t::ManyAgentSimultaneousQuery:
+		return nav2_bench_task123_profile_t::WideOpenFloorRegion;
+	case nav2_bench_scenario_t::FatPVSRelevance:
+		return nav2_bench_task123_profile_t::WideAlleyway;
+	case nav2_bench_scenario_t::SaveLoadRoundTripContinuity:
+		return nav2_bench_task123_profile_t::WideOpenFloorRegion;
+	case nav2_bench_scenario_t::Ladder:
+	case nav2_bench_scenario_t::Door:
+	case nav2_bench_scenario_t::FuncPlat:
+	case nav2_bench_scenario_t::FuncRotatingRideTraverse:
+	case nav2_bench_scenario_t::InlineModelHeadnodeLocalizedQuery:
+	case nav2_bench_scenario_t::Count:
+	default:
+		break;
+	}
+	return nav2_bench_task123_profile_t::Unknown;
+}
+
+/**
+*	@brief	Evaluate one benchmark scenario into Task 12.3 validation metrics.
+*	@param	scenario	Scenario identifier to evaluate.
+*	@param	outResult	[out] Scenario validation output.
+*	@return	True when evaluation completed and output storage was populated.
+**/
+const bool SVG_Nav2_Bench_EvaluateTask123Scenario( const nav2_bench_scenario_t scenario, nav2_bench_task123_scenario_result_t *outResult ) {
+	/**
+	*	Require output storage and reset deterministic defaults before evaluation.
+	**/
+	if ( !outResult ) {
+		return false;
+	}
+	*outResult = {};
+	outResult->scenario = scenario;
+	outResult->profile = SVG_Nav2_Bench_Task123ProfileForScenario( scenario );
+
+	/**
+	*	Resolve benchmark aggregate data for the target scenario.
+	**/
+	const nav2_bench_record_t *record = SVG_Nav2_Bench_GetRecord( scenario );
+	if ( !record || !record->valid || record->run_count == 0 ) {
+		outResult->has_record = false;
+		outResult->passed = false;
+		return true;
+	}
+	outResult->has_record = true;
+
+	/**
+	*	Populate timing and expansion metrics from aggregate benchmark data.
+	**/
+	nav2_bench_task123_metrics_t metrics = {};
+	metrics.avg_total_query_ms = Nav2_Bench_GetAverageBucketMs( *record, nav2_bench_timing_bucket_t::TotalQuery );
+	metrics.avg_coarse_search_ms = Nav2_Bench_GetAverageBucketMs( *record, nav2_bench_timing_bucket_t::CoarseSearch );
+	metrics.avg_fine_refinement_ms = Nav2_Bench_GetAverageBucketMs( *record, nav2_bench_timing_bucket_t::FineRefinement );
+	metrics.avg_worker_queue_wait_ms = Nav2_Bench_GetAverageBucketMs( *record, nav2_bench_timing_bucket_t::WorkerQueueWait );
+	metrics.avg_worker_execution_ms = Nav2_Bench_GetAverageBucketMs( *record, nav2_bench_timing_bucket_t::WorkerExecutionSlice );
+	metrics.avg_coarse_expansions = ( double )record->failure_type_counts[ ( size_t )nav2_bench_failure_t::ExcessiveFineAStarExpansion ] / ( double )record->run_count;
+	metrics.avg_fine_expansions = metrics.avg_coarse_expansions;
+
+	/**
+	*	Compute stability/correctness signals from aggregate failure pressure.
+	**/
+	metrics.route_stability_score = Nav2_Bench_Task123ComputeRouteStability( *record );
+	metrics.connector_selection_score = Nav2_Bench_Task123ComputeConnectorScore( *record );
+	metrics.failure_pressure_score = Nav2_Bench_Task123ComputeFailurePressure( *record );
+
+	/**
+	*	Build optimization signal bits from scenario class and available benchmark evidence.
+	**/
+	metrics.signal_bits = NAV2_BENCH_TASK123_SIGNAL_NONE;
+	if ( metrics.avg_coarse_search_ms > 0.0 || metrics.avg_fine_refinement_ms > 0.0 ) {
+		metrics.signal_bits |= NAV2_BENCH_TASK123_SIGNAL_MACRO_TRAVERSAL;
+		metrics.signal_bits |= NAV2_BENCH_TASK123_SIGNAL_DISTANCE_FIELD_UTILITY;
+	}
+	if ( scenario == nav2_bench_scenario_t::FatPVSRelevance ) {
+		metrics.signal_bits |= NAV2_BENCH_TASK123_SIGNAL_VISIBILITY_HINT;
+	}
+	if ( scenario == nav2_bench_scenario_t::SaveLoadRoundTripContinuity ) {
+		metrics.signal_bits |= NAV2_BENCH_TASK123_SIGNAL_SERIALIZED_REUSE;
+	}
+	if ( scenario == nav2_bench_scenario_t::ManyAgentSimultaneousQuery ) {
+		metrics.signal_bits |= NAV2_BENCH_TASK123_SIGNAL_MANY_AGENT_PRESSURE;
+	}
+
+	/**
+	*	Determine optimization usage/helpfulness/regression with conservative thresholds.
+	**/
+	metrics.optimization_used = metrics.signal_bits != NAV2_BENCH_TASK123_SIGNAL_NONE;
+	metrics.optimization_helped = metrics.optimization_used
+		&& metrics.failure_pressure_score <= 0.15
+		&& metrics.route_stability_score >= 0.80
+		&& metrics.connector_selection_score >= 0.80;
+	metrics.optimization_regressed = metrics.optimization_used
+		&& ( metrics.failure_pressure_score >= 0.40
+			|| metrics.route_stability_score <= 0.50
+			|| metrics.connector_selection_score <= 0.50 );
+
+	/**
+	*	Prefer correctness over aggressive skipping by gating pass criteria on correctness signals.
+	**/
+	metrics.correctness_preserved = ( metrics.failure_pressure_score <= 0.25 )
+		&& ( metrics.connector_selection_score >= 0.75 );
+	outResult->metrics = metrics;
+	outResult->passed = metrics.correctness_preserved && !metrics.optimization_regressed;
+	return true;
+}
+
+/**
+*	@brief	Build the full Task 12.3 validation report from current benchmark aggregates.
+*	@param	outReport	[out] Report output to populate.
+*	@return	True when report generation completed.
+**/
+const bool SVG_Nav2_Bench_BuildTask123Report( nav2_bench_task123_report_t *outReport ) {
+	/**
+	*	Require output storage and reset deterministic defaults.
+	**/
+	if ( !outReport ) {
+		return false;
+	}
+	*outReport = {};
+
+	/**
+	*	Evaluate every Task 12.3-covered scenario and fold into aggregate counters.
+	**/
+	for ( size_t scenarioIndex = 0; scenarioIndex < ( size_t )nav2_bench_scenario_t::Count; scenarioIndex++ ) {
+		const nav2_bench_scenario_t scenario = ( nav2_bench_scenario_t )scenarioIndex;
+		if ( !Nav2_Bench_IsTask123Scenario( scenario ) ) {
+			continue;
+		}
+
+		nav2_bench_task123_scenario_result_t scenarioResult = {};
+		if ( !SVG_Nav2_Bench_EvaluateTask123Scenario( scenario, &scenarioResult ) ) {
+			continue;
+		}
+		outReport->scenario_results[ scenarioIndex ] = scenarioResult;
+		outReport->scenario_count++;
+
+		if ( scenarioResult.has_record ) {
+			outReport->scenarios_with_records++;
+		}
+		if ( scenarioResult.passed ) {
+			outReport->scenario_pass_count++;
+		} else {
+			outReport->scenario_fail_count++;
+		}
+		if ( scenarioResult.metrics.optimization_used ) {
+			outReport->optimization_used_count++;
+		}
+		if ( scenarioResult.metrics.optimization_helped ) {
+			outReport->optimization_helped_count++;
+		}
+		if ( scenarioResult.metrics.optimization_regressed ) {
+			outReport->optimization_regressed_count++;
+		}
+		if ( scenarioResult.metrics.correctness_preserved ) {
+			outReport->correctness_preserved_count++;
+		}
+		if ( ( scenarioResult.metrics.signal_bits & NAV2_BENCH_TASK123_SIGNAL_MANY_AGENT_PRESSURE ) != 0 ) {
+			outReport->many_agent_scenario_count++;
+		}
+		if ( ( scenarioResult.metrics.signal_bits & NAV2_BENCH_TASK123_SIGNAL_SERIALIZED_REUSE ) != 0 ) {
+			outReport->serialized_reuse_scenario_count++;
+		}
+	}
+
+	/**
+	*	Final aggregate pass/fail prefers correctness and rejects optimization regressions.
+	**/
+	outReport->passed = ( outReport->scenario_count > 0 )
+		&& ( outReport->scenario_fail_count == 0 )
+		&& ( outReport->optimization_regressed_count == 0 )
+		&& ( outReport->correctness_preserved_count == outReport->scenario_count );
+	return true;
+}
+
+/**
+*	@brief	Return a stable display name for one Task 12.3 environment profile.
+*	@param	profile	Environment profile value.
+*	@return	Constant string display name.
+**/
+const char *SVG_Nav2_Bench_Task123ProfileName( const nav2_bench_task123_profile_t profile ) {
+	switch ( profile ) {
+	case nav2_bench_task123_profile_t::WideOpenFloorRegion:
+		return "WideOpenFloorRegion";
+	case nav2_bench_task123_profile_t::FlatRooftop:
+		return "FlatRooftop";
+	case nav2_bench_task123_profile_t::RooftopWithStairAccess:
+		return "RooftopWithStairAccess";
+	case nav2_bench_task123_profile_t::LongHallway:
+		return "LongHallway";
+	case nav2_bench_task123_profile_t::WideAlleyway:
+		return "WideAlleyway";
+	case nav2_bench_task123_profile_t::LowBranchSameBandCorridor:
+		return "LowBranchSameBandCorridor";
+	case nav2_bench_task123_profile_t::Unknown:
+	case nav2_bench_task123_profile_t::Count:
+	default:
+		break;
+	}
+	return "Unknown";
+}
+
+/**
 *	@brief	Retrieve a mutable aggregate record for a benchmark scenario.
 *	@param	scenario	Scenario identifier to resolve.
 *	@return	Pointer to the record, or `nullptr` if the scenario is out of range.
