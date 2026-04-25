@@ -14,6 +14,8 @@
 #include "clgame/clg_local_entities.h"
 #include "clgame/clg_predict.h"
 
+#include "clgame/ui/clg_ui_main.h"
+
 #include "sharedgame/sg_entities.h"
 #include "sharedgame/pmove/sg_pmove.h"
 
@@ -37,6 +39,12 @@
 void CLG_ClientBegin( void ) {
 	// Debug notify.
 	clgi.Print( PRINT_NOTICE, "[CLGame]: CLG_ClientBegin\n" );
+
+	/**
+	*	Setup MicroUI.
+	**/
+	// Allocate a UI context.
+	CLG_UI_AllocateContext();
 
 	/**
 	*	Initialize the 'Initial' Predicted State:
@@ -101,6 +109,9 @@ void PF_ClientConnected( void ) {
 *			the loading plague and starting to clear its state. (So it is still accessible.)
 **/
 void PF_ClientDisconnected( void ) {
+	// Free the UI context.
+	CLG_UI_FreeContext();
+
 	// Clear chat HUD when disconnected.
 	CLG_HUD_ClearChat_f();
 
@@ -168,6 +179,9 @@ void PF_ClientLocalFrame( void ) {
 *	@brief	Called at the rate equal to that of the refresh frames.
 **/
 void PF_ClientRefreshFrame( void ) {
+	// Give the UI a chance to update itself.
+	CLG_UI_RefreshFrame();
+
 	// Give local entities a chance at being added to the current render frame.
 	for ( int32_t i = 0; i < clg_num_local_entities; i++ ) {
 		// Get local entity pointer.
