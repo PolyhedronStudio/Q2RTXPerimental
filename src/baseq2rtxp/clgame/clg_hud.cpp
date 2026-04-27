@@ -334,13 +334,13 @@ const int32_t HUD_DrawAltString( const int32_t x, const int32_t y, const int32_t
 *   @brief
 **/
 void HUD_DrawCenterString( const int32_t x, const int32_t y, const char *str ) {
-    SCR_DrawStringMulti( x, y, UI_CENTER, MAX_STRING_CHARS, str, precache.screen.font_pic );
+    SCR_DrawStringMultiEx( x, y, UI_CENTER, MAX_STRING_CHARS, str, precache.screen.font_pic );
 }
 /**
 *   @brief
 **/
 void HUD_DrawAltCenterString( const int32_t x, const int32_t y, const char *str ) {
-    SCR_DrawStringMulti( x, y, UI_CENTER | UI_XORCOLOR, MAX_STRING_CHARS, str, precache.screen.font_pic );
+    SCR_DrawStringMultiEx( x, y, UI_CENTER | UI_XORCOLOR, MAX_STRING_CHARS, str, precache.screen.font_pic );
 }
 
 

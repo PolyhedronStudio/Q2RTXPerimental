@@ -41,12 +41,6 @@ void CLG_ClientBegin( void ) {
 	clgi.Print( PRINT_NOTICE, "[CLGame]: CLG_ClientBegin\n" );
 
 	/**
-	*	Setup MicroUI.
-	**/
-	// Allocate a UI context.
-	CLG_UI_AllocateContext();
-
-	/**
 	*	Initialize the 'Initial' Predicted State:
 	**/
 	// Set the initial client predicted state values.
@@ -101,6 +95,12 @@ void CLG_ClientBegin( void ) {
 *	@brief	Called when the client state has moved into being properly connected to server.
 **/
 void PF_ClientConnected( void ) {
+	/**
+	*	Setup MicroUI.
+	**/
+	// Allocate a UI context.
+	CLG_UI_AllocateContext();
+
 	// Debug notify.
 	clgi.Print( PRINT_NOTICE, "[CLGame]: PF_ClientConnected\n" );
 }
@@ -180,7 +180,7 @@ void PF_ClientLocalFrame( void ) {
 **/
 void PF_ClientRefreshFrame( void ) {
 	// Give the UI a chance to update itself.
-	CLG_UI_RefreshFrame();
+	//CLG_UI_ProcessFrame();
 
 	// Give local entities a chance at being added to the current render frame.
 	for ( int32_t i = 0; i < clg_num_local_entities; i++ ) {

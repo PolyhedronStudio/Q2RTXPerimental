@@ -7,7 +7,8 @@
 ********************************************************************/
 // Local ClientGame
 #include "clgame/clg_local.h"
-
+#include "clgame/clg_precache.h"
+#include "clgame/clg_screen.h"
 // UI
 extern "C" {
 	#include "clgame/ui/microui-2.02/src/microui.h"
@@ -41,7 +42,7 @@ static void write_log( const char *text ) {
 
 static void __test_window( mu_Context *ctx ) {
   /* do window */
-	if ( mu_begin_window( ctx, "Demo Window", mu_rect( 40, 40, 300, 450 ) ) ) {
+	if ( mu_begin_window( ctx, "Demo Window", mu_rect( 40, 40, 520, 450 ) ) ) {
 		mu_Container *win = mu_get_current_container( ctx );
 		win->rect.w = mu_max( win->rect.w, 240 );
 		win->rect.h = mu_max( win->rect.h, 300 );
@@ -50,7 +51,7 @@ static void __test_window( mu_Context *ctx ) {
 		if ( mu_header( ctx, "Window Info" ) ) {
 			mu_Container *win = mu_get_current_container( ctx );
 			char buf[ 64 ];
-			int widths[ ] = { 54, -1 };
+			int widths[ ] = { 108, -1 };
 			mu_layout_row( ctx, 2, widths, 0 );
 			mu_label( ctx, "Position:" );
 			sprintf( buf, "%d, %d", win->rect.x, win->rect.y ); mu_label( ctx, buf );
@@ -60,7 +61,7 @@ static void __test_window( mu_Context *ctx ) {
 
 		/* labels + buttons */
 		if ( mu_header_ex( ctx, "Test Buttons", MU_OPT_EXPANDED ) ) {
-			int widths[ ] = { 86, -110, -1 };
+			int widths[ ] = { 188, -110, -1 };
 			mu_layout_row( ctx, 3, widths, 0 );
 			mu_label( ctx, "Test buttons 1:" );
 			if ( mu_button( ctx, "Button 1" ) ) { write_log( "Pressed button 1" ); }
@@ -95,7 +96,7 @@ static void __test_window( mu_Context *ctx ) {
 			}
 			if ( mu_begin_treenode( ctx, "Test 2" ) ) {
 				{
-					int widths[ ] = { 86, -110, -1 };
+					int widths[ ] = { 144, -110, -1 };
 					mu_layout_row( ctx, 2, widths, 0 );
 					if ( mu_button( ctx, "Button 3" ) ) { write_log( "Pressed button 3" ); }
 					if ( mu_button( ctx, "Button 4" ) ) { write_log( "Pressed button 4" ); }
@@ -104,7 +105,7 @@ static void __test_window( mu_Context *ctx ) {
 					mu_end_treenode( ctx );
 				}
 				{
-					int widths[ ] = { 86, -110, -1 };
+					int widths[ ] = { 144, -110, -1 };
 					mu_layout_row( ctx, 2, widths, 0 );
 					if ( mu_button( ctx, "Button 7" ) ) { write_log( "Pressed button 7" ); }
 					if ( mu_button( ctx, "Button 8" ) ) { write_log( "Pressed button 8" ); }
@@ -159,7 +160,7 @@ static void __test_window( mu_Context *ctx ) {
 
 
 static void __log_window( mu_Context *ctx ) {
-	if ( mu_begin_window( ctx, "Log Window", mu_rect( 350, 40, 300, 200 ) ) ) {
+	if ( mu_begin_window( ctx, "Log Window", mu_rect( 570, 40, 450, 200 ) ) ) {
 	  /* output text panel */
 		int widths[ ] = { -1 };
 		mu_layout_row( ctx, 1, widths, -25 );
@@ -225,7 +226,7 @@ static void __style_window( mu_Context *ctx ) {
 	  { NULL }
 	};
 
-	if ( mu_begin_window( ctx, "Style Editor", mu_rect( 350, 250, 300, 240 ) ) ) {
+	if ( mu_begin_window( ctx, "Style Editor", mu_rect( 550, 450, 300, 240 ) ) ) {
 		int sw = mu_get_current_container( ctx )->body.w * 0.14;
 		int widths[] = { 88, sw, sw, sw, sw, -1 };
 		mu_layout_row( ctx, 6, widths, 0 );
@@ -261,7 +262,42 @@ static void __process_frame( mu_Context *ctx ) {
 *
 *
 **/
-static mu_Context *s_ui_ctx = NULL;
+static mu_Context *s_ui_ctx = nullptr;
+
+/**
+*	@brief	Calculate the width of the given text using the specified font. This is used by the UI context to layout text elements correctly.
++	param font	The font to use for measuring the text. In this example, we ignore the font parameter and assume a fixed width for simplicity.
++	@param text	The text to measure the width of.
++	@param len	The length of the text. If -1, the function will calculate the length using strlen.
++	@return
+**/
+static int UI_GetTextWidth( mu_Font font, const char *text, int len ) {
+	if ( len == -1 ) { 
+		len = strlen( text );
+	}
+	int x = 0;
+	while ( len-- && *text ) {
+		//byte c = *text++;
+		//draw_char( x, y, flags, c, font );
+		//if ( c != '\0' ) {
+			x += CHAR_WIDTH;
+		//}
+		//} else {
+		//	x += CHAR_WIDTH / 2;
+		//}
+	}
+
+	return x;
+	//return len * CHAR_WIDTH;//r_get_text_width( text, len );
+}
+/**
+ * @brief 
+ * @param font 
+ * @return 
+ */
+static int UI_GetTextHeight( mu_Font font ) {
+	return CHAR_HEIGHT;
+}
 
 /**
 *	@brief	Allocate the client's UI context, called when the client begins and after loading plague has ended.
@@ -269,6 +305,13 @@ static mu_Context *s_ui_ctx = NULL;
 void CLG_UI_AllocateContext() {
 	// Allocate a UI context.
 	s_ui_ctx = ( mu_Context*)clgi.TagMallocz( sizeof( mu_Context ), TAG_CLGAME );
+
+	// Init the UI context.
+	mu_init( s_ui_ctx );
+
+	// Setup the UI context's text measurement callbacks, these are used by the UI context to layout text elements correctly.
+	s_ui_ctx->text_width = UI_GetTextWidth;
+	s_ui_ctx->text_height = UI_GetTextHeight;
 }
 /**
 *	Free the client's UI context, called when the client disconnects and before clearing its state.
@@ -277,11 +320,138 @@ void CLG_UI_FreeContext() {
 	// Free the UI context.
 	clgi.TagFree( s_ui_ctx );
 }
+
 /**
 *	@brief	Called each frame to update the client's UI state,
 *			it runs at the same framerate as the client does so it remains responsive.
 **/
-void CLG_UI_RefreshFrame() {
+void CLG_UI_ProcessFrame() {
+	// If there is no UI context, return early.
+	if ( !s_ui_ctx ) {
+		return;
+	}
 	// Process the UI context for this frame.
 	__process_frame( s_ui_ctx );
 }
+
+/**
+*	@brief	Iterate the mu drawing commands and render them using the client's rendering functions.
+**/
+void CLG_UI_DrawRenderCommands() {
+	// The active drawing command, used for iterating the command list.
+	mu_Command *muCmd = nullptr;
+	// Iterate on to the next rendering command generated by the UI context, until there are no more commands to process.
+	while ( mu_next_command( s_ui_ctx, &muCmd ) ) {
+		// Process the command based on its type.
+		switch ( muCmd->type ) {
+			// Simple draw text command, render the text at the specified position with requested color.
+			case MU_COMMAND_TEXT: {
+				// Set the color for drawing the text.
+				clgi.R_SetColor(
+					MakeColor(
+						muCmd->text.color.r,
+						muCmd->text.color.g,
+						muCmd->text.color.b,
+						muCmd->text.color.a
+					) 
+				);
+				// Draw the text using the client's rendering function.
+				static constexpr int32_t yOffset = 2; // The extra pixel offset to apply to the y position when drawing text, to accommodate for the extra size added to the text's height in the font texture.
+				SCR_DrawStringMultiEx(
+					muCmd->text.pos.x,
+					muCmd->text.pos.y + yOffset, // Offset it 1 pixel unit, to accommodate for its (CHAR_HEIGHT + 2) extra size offset.
+					0, // Flags, not used.
+					MAX_STRING_CHARS, // Max text length, should be enough for any reasonable text command.
+					( const char * )&muCmd->text.str,
+					precache.screen.font_pic
+				);
+				// Clear the color after drawing the text, to avoid affecting subsequent draw calls that don't specify a color.
+				clgi.R_ClearColor( );
+				break;
+			}
+			case MU_COMMAND_RECT: {
+				// Clear the color before drawing the rectangle, to avoid affecting subsequent draw calls that don't specify a color.
+				clgi.R_ClearColor( );
+				//r_draw_rect( cmd->rect.rect, cmd->rect.color );
+				clgi.R_DrawFill32( muCmd->rect.rect.x, muCmd->rect.rect.y, muCmd->rect.rect.w, muCmd->rect.rect.h,
+					MakeColor(
+						muCmd->rect.color.r,
+						muCmd->rect.color.g,
+						muCmd->rect.color.b,
+						muCmd->rect.color.a
+					)
+				);
+				// Clear the color before drawing the rectangle, to avoid affecting subsequent draw calls that don't specify a color.
+				clgi.R_ClearColor();
+				break;
+			}
+			case MU_COMMAND_ICON: {
+				//r_draw_icon( cmd->icon.id, cmd->icon.rect, cmd->icon.color );
+				break;
+			}
+			case MU_COMMAND_CLIP: {
+
+				// When the clip rect is the default max size, we can just disable clipping instead of setting a huge clip rect.
+				if ( muCmd->clip.rect.x == 0 && muCmd->clip.rect.y == 0
+					&& muCmd->clip.rect.w == 0x1000000 && muCmd->clip.rect.h == 0x1000000 )
+				{
+					clgi.R_SetClipRect( nullptr );
+					break;
+				}
+				// Convert it to the client's expected input for VKPT setting its active clip rect.
+				const clipRect_t clipRect = {
+					muCmd->clip.rect.x,
+					muCmd->clip.rect.x + muCmd->clip.rect.w,
+					muCmd->clip.rect.y,
+					muCmd->clip.rect.y + muCmd->clip.rect.h
+				};
+				// Apply.
+				clgi.R_SetClipRect( &clipRect );
+				break;
+			}
+			// In any other unknown command, we just reset the clip rect and clear the color to avoid affecting other rendering code outside of the UI that might rely on those states.
+			default: {
+				clgi.R_SetClipRect( nullptr );
+				clgi.R_ClearColor();
+				break;
+			}
+		}
+	}
+	// After processing all the commands for this frame, reset the clip rect to NULL to avoid affecting other rendering code outside of the UI.
+	clgi.R_SetClipRect( nullptr );
+}
+#if 0
+/**
+*	@brief	Called when the client receives a UI input event, it updates the UI context's input state accordingly.
+**/
+const bool CLG_UI_HandleInputEvent( const clgame_input_event_t *event ) {
+	// Handle the input event for the UI context.
+	switch ( event->type ) {
+	case CLGAME_INPUT_EVENT_MOUSEMOVE:
+		s_ui_ctx->mouse_pos.x = event->data.mousemove.x;
+		s_ui_ctx->mouse_pos.y = event->data.mousemove.y;
+		return true;
+	case CLGAME_INPUT_EVENT_MOUSEBUTTON:
+		if ( event->data.mousebutton.down ) {
+			s_ui_ctx->mouse_down |= 1 << event->data.mousebutton.button;
+			s_ui_ctx->mouse_pressed |= 1 << event->data.mousebutton.button;
+		} else {
+			s_ui_ctx->mouse_down &= ~( 1 << event->data.mousebutton.button );
+		}
+		return true;
+	case CLGAME_INPUT_EVENT_KEY:
+		if ( event->data.key.down ) {
+			s_ui_ctx->key_down |= 1 << event->data.key.key;
+			s_ui_ctx->key_pressed |= 1 << event->data.key.key;
+		} else {
+			s_ui_ctx->key_down &= ~( 1 << event->data.key.key );
+		}
+		return true;
+	case CLGAME_INPUT_EVENT_TEXT:
+		strncpy( s_ui_ctx->input_text, event->data.text.text, sizeof( s_ui_ctx->input_text ) - 1 );
+		return true;
+	default:
+		return false;
+	}
+}
+#endif

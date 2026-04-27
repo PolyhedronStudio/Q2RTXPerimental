@@ -68,7 +68,11 @@ const int32_t SCR_DrawString( const int32_t x, const int32_t y, const int32_t fl
 /**
 *   @brief  Draws a multiline supporting string at location x/y.
 **/
-void SCR_DrawStringMulti( const int32_t x, const int32_t y, const int32_t flags, const size_t maxlen, const char *s, const qhandle_t font );
+void SCR_DrawStringMultiEx( const int32_t x, const int32_t y, const int32_t flags, const size_t maxlen, const char *s, const qhandle_t font );
+/**
+*   @brief  Draws a multiline supporting string at location x/y.
+**/
+void SCR_DrawStringMulti( const int32_t x, const int32_t y, const int32_t flags, const size_t maxlen, const char *str );
 /**
 *   @brief Fades alpha in and out, keeping the alpha visible for 'visTime' amount.
 *   @return 'Alpha' value of the current moment in time. from(startTime) to( startTime + visTime ).

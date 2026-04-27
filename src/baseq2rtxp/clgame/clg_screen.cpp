@@ -12,6 +12,8 @@
 #include "clgame/clg_screen.h"
 #include "clgame/clg_view.h"
 
+#include "clgame/ui/clg_ui_main.h"
+
 
 /**
 *
@@ -121,11 +123,10 @@ const int32_t SCR_DrawStringEx( const int32_t x, const int32_t y, const int32_t 
 const int32_t SCR_DrawString( const int32_t x, const int32_t y, const int32_t flags, const char *str ) {
     return SCR_DrawStringEx( x, y, flags, MAX_STRING_CHARS, str, precache.screen.font_pic );
 }
-
 /**
 *   @brief  Draws a multiline supporting string at location x/y.
 **/
-void SCR_DrawStringMulti( const int32_t x, const int32_t y, const int32_t flags, const size_t maxlen, const char *s, const qhandle_t font ) {
+void SCR_DrawStringMultiEx( const int32_t x, const int32_t y, const int32_t flags, const size_t maxlen, const char *s, const qhandle_t font ) {
     const char *p; // WID: C++20: Had no const.
     size_t  len;
 
@@ -147,6 +148,13 @@ void SCR_DrawStringMulti( const int32_t x, const int32_t y, const int32_t flags,
         s = p + 1;
     }
 }
+/**
+*   @brief  Draws a multiline supporting string at location x/y.
+**/
+void SCR_DrawStringMulti( const int32_t x, const int32_t y, const int32_t flags, const size_t maxlen, const char *str ) {
+	return SCR_DrawStringMultiEx( x, y, flags, MAX_STRING_CHARS, str, precache.screen.font_pic );
+}
+
 /**
 *   @brief Fades alpha in and out, keeping the alpha visible for 'visTime' amount.
 *   @return 'Alpha' value of the current moment in time. from(startTime) to( startTime + visTime ).
@@ -349,7 +357,7 @@ static void SCR_DrawCenterString( void ) {
     // Scale.
     clgi.R_SetScale( clgi.screen->hud_scale );
 
-    SCR_DrawStringMulti( clgi.screen->hudScaledWidth / 2, y, UI_CENTER,
+    SCR_DrawStringMultiEx( clgi.screen->hudScaledWidth / 2, y, UI_CENTER,
         MAX_STRING_CHARS, scr_centerstring, precache.screen.font_pic );
 
     clgi.R_SetAlpha( scr_alpha->value );
@@ -1291,6 +1299,11 @@ static void SCR_Draw2D( refcfg_t *refcfg ) {
     // Reset scale and alpha scale to 1.0
     clgi.R_SetScale( 1.0f );
     clgi.R_SetAlphaScale( 1.0f );
+
+	// Render the "MicroUI".
+		// Give the UI a chance to update itself.
+	CLG_UI_ProcessFrame();
+	CLG_UI_DrawRenderCommands();
 }
 
 

@@ -51,24 +51,38 @@ static mu_Rect unclipped_rect = { 0, 0, 0x1000000, 0x1000000 };
 
 static mu_Style default_style = {
   /* font | size | padding | spacing | indent */
-  NULL, { 68, 10 }, 5, 4, 24,
+  NULL, { 34, 4 }, 10, 4, 12/*24*/,
   /* title_height | scrollbar_size | thumb_size */
-  24, 12, 8,
+  CHAR_HEIGHT + 4, 12, 8,
   {
-    { 230, 230, 230, 255 }, /* MU_COLOR_TEXT */
-    { 25,  25,  25,  255 }, /* MU_COLOR_BORDER */
-    { 50,  50,  50,  255 }, /* MU_COLOR_WINDOWBG */
-    { 25,  25,  25,  255 }, /* MU_COLOR_TITLEBG */
-    { 240, 240, 240, 255 }, /* MU_COLOR_TITLETEXT */
-    { 0,   0,   0,   0   }, /* MU_COLOR_PANELBG */
-    { 75,  75,  75,  255 }, /* MU_COLOR_BUTTON */
-    { 95,  95,  95,  255 }, /* MU_COLOR_BUTTONHOVER */
-    { 115, 115, 115, 255 }, /* MU_COLOR_BUTTONFOCUS */
-    { 30,  30,  30,  255 }, /* MU_COLOR_BASE */
-    { 35,  35,  35,  255 }, /* MU_COLOR_BASEHOVER */
-    { 40,  40,  40,  255 }, /* MU_COLOR_BASEFOCUS */
-    { 43,  43,  43,  255 }, /* MU_COLOR_SCROLLBASE */
-    { 30,  30,  30,  255 }  /* MU_COLOR_SCROLLTHUMB */
+    //{ 230, 230, 230, 255 }, /* MU_COLOR_TEXT */
+    //{ 25,  25,  25,  255 }, /* MU_COLOR_BORDER */
+    //{ 50,  50,  50,  255 }, /* MU_COLOR_WINDOWBG */
+    //{ 25,  25,  25,  255 }, /* MU_COLOR_TITLEBG */
+    //{ 240, 240, 240, 255 }, /* MU_COLOR_TITLETEXT */
+    //{ 0,   0,   0,   0   }, /* MU_COLOR_PANELBG */
+    //{ 75,  75,  75,  255 }, /* MU_COLOR_BUTTON */
+    //{ 95,  95,  95,  255 }, /* MU_COLOR_BUTTONHOVER */
+    //{ 115, 115, 115, 255 }, /* MU_COLOR_BUTTONFOCUS */
+    //{ 30,  30,  30,  255 }, /* MU_COLOR_BASE */
+    //{ 35,  35,  35,  255 }, /* MU_COLOR_BASEHOVER */
+    //{ 40,  40,  40,  255 }, /* MU_COLOR_BASEFOCUS */
+    //{ 43,  43,  43,  255 }, /* MU_COLOR_SCROLLBASE */
+    //{ 30,  30,  30,  255 }  /* MU_COLOR_SCROLLTHUMB */
+	{ 230, 230, 230, 255 }, /* MU_COLOR_TEXT */
+	{ 255, 170, 120, 235 }, /* MU_COLOR_BORDER */
+	{ 255, 105, 50,  146 }, /* MU_COLOR_WINDOWBG */
+	{ 255, 105, 40,  212 }, /* MU_COLOR_TITLEBG */
+	{ 240, 240, 240, 255 }, /* MU_COLOR_TITLETEXT */
+	{ 136, 125, 110, 255 }, /* MU_COLOR_PANELBG */
+	{ 165, 120, 76,  255 }, /* MU_COLOR_BUTTON */
+	{ 198, 166, 96,  255 }, /* MU_COLOR_BUTTONHOVER */
+	{ 128, 146, 116, 255 }, /* MU_COLOR_BUTTONFOCUS */
+	{ 168, 138, 104, 255 }, /* MU_COLOR_BASE */
+	{ 168, 126, 90,  255 }, /* MU_COLOR_BASEHOVER */
+	{ 165, 118, 76,  255 }, /* MU_COLOR_BASEFOCUS */
+	{ 170, 110, 58,  255 }, /* MU_COLOR_SCROLLBASE */
+	{ 255,  130,  84,  255 }  /* MU_COLOR_SCROLLTHUMB */
   }
 };
 
@@ -114,9 +128,15 @@ static int rect_overlaps_vec2(mu_Rect r, mu_Vec2 p) {
   return p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h;
 }
 
-
+/**
+*	@brief Draw a frame with the given color id. This is used for drawing all colored
+*	@param ctx The UI context
+*	@param rect The rectangle to draw the frame in
+*	@param colorid The color id to use for the frame. This corresponds to an index in the style's color array.
+**/
 static void draw_frame(mu_Context *ctx, mu_Rect rect, int colorid) {
-  mu_draw_rect(ctx, rect, ctx->style->colors[colorid]);
+
+	mu_draw_rect(ctx, rect, ctx->style->colors[colorid]);
   if (colorid == MU_COLOR_SCROLLBASE  ||
       colorid == MU_COLOR_SCROLLTHUMB ||
       colorid == MU_COLOR_TITLEBG) { return; }
