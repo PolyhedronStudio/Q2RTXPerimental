@@ -84,7 +84,8 @@ enum nav2_coarse_astar_node_flag_t : uint32_t {
     NAV2_COARSE_ASTAR_NODE_FLAG_HAS_MOVER = ( 1u << 4 ),
     NAV2_COARSE_ASTAR_NODE_FLAG_HAS_ALLOWED_Z_BAND = ( 1u << 5 ),
     NAV2_COARSE_ASTAR_NODE_FLAG_PARTIAL = ( 1u << 6 ),
-    NAV2_COARSE_ASTAR_NODE_FLAG_PREFERRED = ( 1u << 7 )
+    NAV2_COARSE_ASTAR_NODE_FLAG_PREFERRED = ( 1u << 7 ),
+    NAV2_COARSE_ASTAR_NODE_FLAG_EXPANDED = ( 1u << 8 )
 };
 
 /**
@@ -146,6 +147,10 @@ struct nav2_coarse_astar_node_t {
     int32_t region_layer_id = NAV_REGION_ID_NONE;
     //! Stable connector id when known.
     int32_t connector_id = -1;
+    //! Aggregated connector endpoint semantics mirrored from hierarchy publication when known.
+    uint32_t endpoint_semantics = NAV2_CONNECTOR_ENDPOINT_NONE;
+    //! Aggregated connector transition semantics mirrored from hierarchy publication when known.
+    uint32_t transition_semantics = NAV2_CONNECTOR_TRANSITION_NONE;
     //! Stable mover entity number when known.
     int32_t mover_entnum = -1;
     //! Stable inline model index when known.
@@ -192,6 +197,8 @@ struct nav2_coarse_astar_edge_t {
     nav2_corridor_z_band_t allowed_z_band = {};
     //! Stable connector id when known.
     int32_t connector_id = -1;
+    //! Connector transition semantics mirrored from hierarchy publication when known.
+    uint32_t transition_semantics = NAV2_CONNECTOR_TRANSITION_NONE;
     //! Stable region-layer id when known.
     int32_t region_layer_id = NAV_REGION_ID_NONE;
     //! Stable mover reference when known.

@@ -145,6 +145,55 @@ static void SVG_Nav2_InitializeCorridorRefinePolicy( nav2_corridor_refine_policy
 }
 
 /**
+*	@brief	Resolve one corridor anchor into world space from persisted topology metadata.
+*	@param	topology	Persisted tile/cell membership describing the anchor location.
+*	@param	preferredZ	World-space Z height that should remain attached to the anchor.
+*	@return	World-space anchor suitable for fine-path waypoint extraction.
+*	@note	Corridor topology stores tile-grid identifiers, not direct world XY positions. Converting those
+*			identifiers back into world-space cell or tile centers keeps connector-less fallback corridors from
+*			publishing tiny grid-index coordinates that steer movers toward origin-like directions.
+**/
+static Vector3 SVG_Nav2_MakeWorldAnchorFromTopology( const nav2_corridor_topology_ref_t &topology, const double preferredZ ) {
+	/**
+	*	Start from a conservative fallback anchor that preserves the committed preferred Z.
+	**/
+	Vector3 anchor = { ( double )topology.tile_x, ( double )topology.tile_y, preferredZ };
+
+	/**
+	*	Prefer active nav2 mesh sizing so tile/cell identifiers become real world-space centers.
+	**/
+	const nav2_query_mesh_t *mesh = SVG_Nav2_GetQueryMesh();
+	const nav2_query_mesh_meta_t meshMeta = SVG_Nav2_QueryGetMeshMeta( mesh );
+	if ( !meshMeta.HasTileSizing() || meshMeta.tile_size <= 0 ) {
+		return anchor;
+	}
+
+	const double tileWorldSize = meshMeta.GetTileWorldSize();
+	if ( tileWorldSize <= 0.0 ) {
+		return anchor;
+	}
+
+	/**
+	*	When a tile-local cell index is known, publish the center of that concrete cell so waypoint
+	*	anchors stay as precise as the currently staged corridor metadata allows.
+	**/
+	if ( topology.cell_index >= 0 ) {
+		const int32_t localCellX = topology.cell_index % meshMeta.tile_size;
+		const int32_t localCellY = topology.cell_index / meshMeta.tile_size;
+		anchor.x = ( ( double )topology.tile_x * tileWorldSize ) + ( ( ( double )localCellX + 0.5 ) * meshMeta.cell_size_xy );
+		anchor.y = ( ( double )topology.tile_y * tileWorldSize ) + ( ( ( double )localCellY + 0.5 ) * meshMeta.cell_size_xy );
+		return anchor;
+	}
+
+	/**
+	*	Fallback to the world-space tile center when only tile membership is available.
+	**/
+	anchor.x = ( ( double )topology.tile_x * tileWorldSize ) + ( tileWorldSize * 0.5 );
+	anchor.y = ( ( double )topology.tile_y * tileWorldSize ) + ( tileWorldSize * 0.5 );
+	return anchor;
+}
+
+/**
 *	@brief	Append one membership id into a corridor refinement list if it is not already present.
 *	@param	value	Candidate membership id to append.
 *	@param	values	[in,out] Membership list that receives the value.
@@ -313,7 +362,13 @@ static nav2_corridor_segment_t SVG_Nav2_MakeCorridorSegmentFromNode( const nav2_
 	**/
 	// Apply ladder and mover flags that describe traversal intent.
 	if ( ( node.flags & NAV2_COARSE_ASTAR_NODE_FLAG_HAS_LADDER ) != 0 ) {
-		segment.flags |= NAV_CORRIDOR_SEGMENT_FLAG_HAS_LADDER_ENDPOINT;
+		segment.flags |= NAV_CORRIDOR_SEGMENT_FLAG_HAS_LADDER_ENDPOINT | NAV_CORRIDOR_SEGMENT_FLAG_HAS_TRAVERSAL_FEATURES;
+		segment.traversal_feature_bits |= NAV_TRAVERSAL_FEATURE_LADDER;
+	}
+	if ( ( node.flags & NAV2_COARSE_ASTAR_NODE_FLAG_HAS_STAIR ) != 0 ) {
+		segment.flags |= NAV_CORRIDOR_SEGMENT_FLAG_HAS_TRAVERSAL_FEATURES | NAV_CORRIDOR_SEGMENT_FLAG_HAS_EDGE_FEATURES;
+		segment.traversal_feature_bits |= NAV_TRAVERSAL_FEATURE_STAIR_PRESENCE;
+		segment.edge_feature_bits |= NAV_EDGE_FEATURE_STAIR_STEP_UP | NAV_EDGE_FEATURE_STAIR_STEP_DOWN;
 	}
 	if ( ( node.flags & NAV2_COARSE_ASTAR_NODE_FLAG_HAS_MOVER ) != 0 ) {
 		segment.flags |= NAV_CORRIDOR_SEGMENT_FLAG_HAS_MOVER_REF;
@@ -342,16 +397,34 @@ static nav2_corridor_segment_t SVG_Nav2_MakeCorridorSegmentFromNode( const nav2_
 	/**
 	*	Populate the anchor points and metadata published to refinement and debug consumers.
 	**/
-	// Build a simple anchor in tile coordinates when available.
-	segment.start_anchor = node.topology.tile_x >= 0 || node.topology.tile_y >= 0
-		? Vector3{ ( double )node.topology.tile_x, ( double )node.topology.tile_y, node.allowed_z_band.preferred_z }
-		: Vector3{ 0.0, 0.0, node.allowed_z_band.preferred_z };
+	// Convert persisted tile/cell metadata back into world-space anchor positions.
+	segment.start_anchor = SVG_Nav2_MakeWorldAnchorFromTopology( node.topology, node.allowed_z_band.preferred_z );
 	segment.end_anchor = segment.start_anchor;
 	segment.allowed_z_band = node.allowed_z_band;
 	segment.topology = SVG_Nav2_MakeCorridorTopologyFromNode( node );
-	segment.traversal_feature_bits = 0;
-	segment.edge_feature_bits = NAV_EDGE_FEATURE_NONE;
-	segment.ladder_endpoint_flags = ( node.kind == nav2_coarse_astar_node_kind_t::Ladder ? NAV_LADDER_ENDPOINT_STARTPOINT : NAV_LADDER_ENDPOINT_NONE );
+	if ( ( node.endpoint_semantics & NAV2_CONNECTOR_ENDPOINT_PORTAL_BARRIER ) != 0 ) {
+		segment.flags |= NAV_CORRIDOR_SEGMENT_FLAG_HAS_PORTAL_ID;
+	}
+	if ( ( node.transition_semantics & NAV2_CONNECTOR_TRANSITION_LADDER ) != 0 ) {
+		segment.flags |= NAV_CORRIDOR_SEGMENT_FLAG_HAS_LADDER_ENDPOINT | NAV_CORRIDOR_SEGMENT_FLAG_HAS_TRAVERSAL_FEATURES;
+		segment.traversal_feature_bits |= NAV_TRAVERSAL_FEATURE_LADDER;
+	}
+	if ( ( node.transition_semantics & NAV2_CONNECTOR_TRANSITION_STAIR ) != 0 ) {
+		segment.flags |= NAV_CORRIDOR_SEGMENT_FLAG_HAS_TRAVERSAL_FEATURES | NAV_CORRIDOR_SEGMENT_FLAG_HAS_EDGE_FEATURES;
+		segment.traversal_feature_bits |= NAV_TRAVERSAL_FEATURE_STAIR_PRESENCE;
+		segment.edge_feature_bits |= NAV_EDGE_FEATURE_STAIR_STEP_UP | NAV_EDGE_FEATURE_STAIR_STEP_DOWN;
+	}
+	if ( ( node.transition_semantics & NAV2_CONNECTOR_TRANSITION_OPENING ) != 0 ) {
+		segment.flags |= NAV_CORRIDOR_SEGMENT_FLAG_HAS_EDGE_FEATURES;
+		segment.edge_feature_bits |= NAV_EDGE_FEATURE_OPTIONAL_WALK_OFF;
+	}
+	segment.ladder_endpoint_flags = NAV_LADDER_ENDPOINT_NONE;
+	if ( ( node.endpoint_semantics & NAV2_CONNECTOR_ENDPOINT_LADDER_BOTTOM ) != 0 ) {
+		segment.ladder_endpoint_flags |= NAV_LADDER_ENDPOINT_STARTPOINT;
+	}
+	if ( ( node.endpoint_semantics & NAV2_CONNECTOR_ENDPOINT_LADDER_TOP ) != 0 ) {
+		segment.ladder_endpoint_flags |= NAV_LADDER_ENDPOINT_ENDPOINT;
+	}
 	segment.mover_ref = SVG_Nav2_MakeCorridorMoverFromNode( node );
 
 	/**
@@ -392,23 +465,44 @@ static nav2_corridor_segment_t SVG_Nav2_MakeCorridorSegmentFromEdge( const nav2_
 	segment.flags = SVG_Nav2_CoarseEdgeToCorridorSegmentFlags( edge );
 	segment.allowed_z_band = edge.allowed_z_band;
 	segment.mover_ref = edge.mover_ref;
-	segment.traversal_feature_bits = 0;
+	segment.traversal_feature_bits = NAV_TRAVERSAL_FEATURE_NONE;
 	segment.edge_feature_bits = NAV_EDGE_FEATURE_NONE;
 	segment.policy_penalty = edge.topology_penalty;
+	if ( ( edge.transition_semantics & NAV2_CONNECTOR_TRANSITION_LADDER ) != 0 ) {
+		segment.flags |= NAV_CORRIDOR_SEGMENT_FLAG_HAS_LADDER_ENDPOINT | NAV_CORRIDOR_SEGMENT_FLAG_HAS_TRAVERSAL_FEATURES;
+		segment.traversal_feature_bits |= NAV_TRAVERSAL_FEATURE_LADDER;
+	}
+	if ( ( edge.transition_semantics & NAV2_CONNECTOR_TRANSITION_STAIR ) != 0 ) {
+		segment.flags |= NAV_CORRIDOR_SEGMENT_FLAG_HAS_TRAVERSAL_FEATURES | NAV_CORRIDOR_SEGMENT_FLAG_HAS_EDGE_FEATURES;
+		segment.traversal_feature_bits |= NAV_TRAVERSAL_FEATURE_STAIR_PRESENCE;
+		segment.edge_feature_bits |= NAV_EDGE_FEATURE_STAIR_STEP_UP | NAV_EDGE_FEATURE_STAIR_STEP_DOWN;
+	}
+	if ( ( edge.transition_semantics & NAV2_CONNECTOR_TRANSITION_PORTAL ) != 0 ) {
+		segment.flags |= NAV_CORRIDOR_SEGMENT_FLAG_HAS_PORTAL_ID;
+	}
+	if ( ( edge.transition_semantics & NAV2_CONNECTOR_TRANSITION_OPENING ) != 0 ) {
+		segment.flags |= NAV_CORRIDOR_SEGMENT_FLAG_HAS_EDGE_FEATURES;
+		segment.edge_feature_bits |= NAV_EDGE_FEATURE_OPTIONAL_WALK_OFF;
+	}
 
 	/**
 	*	Mirror topology and anchors from the edge endpoints so refinement can reconstruct transition intent.
 	**/
 	// Use the destination node topology as the corridor topology reference.
 	segment.topology = SVG_Nav2_MakeCorridorTopologyFromNode( to_node );
+	if ( segment.mover_ref.IsValid() ) {
+		segment.flags |= NAV_CORRIDOR_SEGMENT_FLAG_HAS_MOVER_REF;
+	}
 
-	// Build anchors from the endpoint tile coordinates when known.
-	segment.start_anchor = from_node.topology.tile_x >= 0 || from_node.topology.tile_y >= 0
-		? Vector3{ ( double )from_node.topology.tile_x, ( double )from_node.topology.tile_y, edge.allowed_z_band.preferred_z }
-		: Vector3{ 0.0, 0.0, edge.allowed_z_band.preferred_z };
-	segment.end_anchor = to_node.topology.tile_x >= 0 || to_node.topology.tile_y >= 0
-		? Vector3{ ( double )to_node.topology.tile_x, ( double )to_node.topology.tile_y, edge.allowed_z_band.preferred_z }
-		: Vector3{ 0.0, 0.0, edge.allowed_z_band.preferred_z };
+	// Convert persisted topology memberships back into world-space connector anchors.
+	segment.start_anchor = SVG_Nav2_MakeWorldAnchorFromTopology( from_node.topology, edge.allowed_z_band.preferred_z );
+	segment.end_anchor = SVG_Nav2_MakeWorldAnchorFromTopology( to_node.topology, edge.allowed_z_band.preferred_z );
+	if ( ( from_node.endpoint_semantics & NAV2_CONNECTOR_ENDPOINT_LADDER_BOTTOM ) != 0 ) {
+		segment.ladder_endpoint_flags |= NAV_LADDER_ENDPOINT_STARTPOINT;
+	}
+	if ( ( to_node.endpoint_semantics & NAV2_CONNECTOR_ENDPOINT_LADDER_TOP ) != 0 ) {
+		segment.ladder_endpoint_flags |= NAV_LADDER_ENDPOINT_ENDPOINT;
+	}
 	return segment;
 }
 
@@ -542,7 +636,20 @@ const bool SVG_Nav2_BuildCorridorFromCoarseAStar( const nav2_coarse_astar_state_
 		// Build the explicit corridor segment for this node.
 		const bool isStart = i == 0;
 		const bool isGoal = i + 1 == coarse_state.path.node_ids.size();
-		const nav2_corridor_segment_t segment = SVG_Nav2_MakeCorridorSegmentFromNode( coarse_state, *node, isStart, isGoal );
+		nav2_corridor_segment_t segment = SVG_Nav2_MakeCorridorSegmentFromNode( coarse_state, *node, isStart, isGoal );
+
+		/**
+		*	Preserve the exact selected candidate endpoints on start/goal node segments so connector-less
+		*	fallback corridors still publish real world-space anchors instead of coarse tile-center approximations.
+		**/
+		if ( isStart ) {
+			segment.start_anchor = coarse_state.start_candidate.center_origin;
+			segment.end_anchor = coarse_state.start_candidate.center_origin;
+		}
+		if ( isGoal ) {
+			segment.start_anchor = coarse_state.goal_candidate.center_origin;
+			segment.end_anchor = coarse_state.goal_candidate.center_origin;
+		}
 		out_corridor->segments.push_back( segment );
 		out_corridor->policy_penalty_total += segment.policy_penalty;
 

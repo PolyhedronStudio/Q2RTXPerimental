@@ -133,6 +133,10 @@ struct nav2_hierarchy_node_t {
     int32_t region_layer_index = -1;
     //! Stable connector id when this node mirrors a connector endpoint.
     int32_t connector_id = -1;
+    //! Aggregated connector endpoint semantics when this node is connector-aware.
+    uint32_t endpoint_semantics = NAV2_CONNECTOR_ENDPOINT_NONE;
+    //! Aggregated connector transition semantics when this node is connector-aware.
+    uint32_t transition_semantics = NAV2_CONNECTOR_TRANSITION_NONE;
     //! Stable mover entity number when known.
     int32_t mover_entnum = -1;
     //! Stable inline model index when known.
@@ -171,6 +175,8 @@ struct nav2_hierarchy_edge_t {
     nav2_corridor_z_band_t allowed_z_band = {};
     //! Connector id attached to the edge when known.
     int32_t connector_id = -1;
+    //! Connector transition semantics inherited from extraction or topology classification.
+    uint32_t transition_semantics = NAV2_CONNECTOR_TRANSITION_NONE;
     //! Region-layer id attached to the edge when known.
     int32_t region_layer_id = NAV_REGION_ID_NONE;
     //! Mover reference attached to the edge when known.
@@ -256,13 +262,16 @@ const bool SVG_Nav2_HierarchyGraph_AppendEdge( nav2_hierarchy_graph_t *graph, co
 const bool SVG_Nav2_ValidateHierarchyGraph( const nav2_hierarchy_graph_t &graph );
 
 /**
-* @brief Build a coarse hierarchy graph from region layers.
-* @param regionLayers Region-layer graph providing vertical and topological commitments.
+ * @brief Build a coarse hierarchy graph from topology publication, connectors, and region layers.
+ * @param topologyArtifact Topology publication validating the current static-nav classification state.
+ * @param connectors Connector collection providing explicit endpoint and transition semantics.
+ * @param regionLayers Region-layer graph providing vertical and topological commitments.
 * @param out_graph [out] Hierarchy graph receiving the coarse graph.
 * @param out_summary [out] Optional summary.
 * @return True when at least one hierarchy node was produced.
 **/
-const bool SVG_Nav2_BuildHierarchyGraph( const nav2_region_layer_graph_t &regionLayers, nav2_hierarchy_graph_t *out_graph, nav2_hierarchy_summary_t *out_summary = nullptr );
+const bool SVG_Nav2_BuildHierarchyGraph( const nav2_topology_artifact_t &topologyArtifact, const nav2_connector_list_t &connectors,
+    const nav2_region_layer_graph_t &regionLayers, nav2_hierarchy_graph_t *out_graph, nav2_hierarchy_summary_t *out_summary = nullptr );
 
 /**
 * @brief Emit a bounded debug summary for a hierarchy graph.

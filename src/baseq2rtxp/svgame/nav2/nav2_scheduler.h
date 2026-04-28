@@ -14,6 +14,7 @@
 #include "svgame/nav2/nav2_hierarchy_graph.h"
 #include "svgame/nav2/nav2_region_layers.h"
 #include "svgame/nav2/nav2_span_grid.h"
+#include "svgame/nav2/nav2_topology.h"
 #include "svgame/memory/svg_raiiobject.hpp"
 
 
@@ -54,6 +55,12 @@ struct nav2_scheduler_runtime_t {
     uint64_t stage_restart_count = 0;
     //! Snapshot version bound to cached hierarchy dependencies; 0 means cache is uninitialized.
     uint32_t cached_hierarchy_static_nav_version = 0;
+    //! Cached topology artifact reused by later scheduler stages while snapshot version is stable.
+    nav2_topology_artifact_t cached_topology_artifact = {};
+    //! Cached topology summary reused for bounded diagnostics while snapshot version is stable.
+    nav2_topology_summary_t cached_topology_summary = {};
+    //! True when cached topology publication is valid for the cached snapshot version.
+    bool has_cached_topology_artifact = false;
     //! Cached span-grid snapshot reused by hierarchy dependency build while snapshot version is stable.
     nav2_span_grid_t cached_hierarchy_span_grid = {};
     //! Cached connector extraction reused by hierarchy dependency build while snapshot version is stable.

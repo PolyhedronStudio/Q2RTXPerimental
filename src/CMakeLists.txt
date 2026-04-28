@@ -358,6 +358,7 @@ IF( CONFIG_BUILD_GAME_BASEQ2_TARGETS )
 	target_include_directories(baseq2_svgame PRIVATE ../inc)
 	target_include_directories(baseq2_clgame PRIVATE ../inc)
     target_link_libraries(baseq2_svgame zlibstatic)
+    target_link_libraries(baseq2_clgame microui)
 
 	# Specify both LIBRARY and RUNTIME because one works only on Windows,
 	# and another works only on Linux.

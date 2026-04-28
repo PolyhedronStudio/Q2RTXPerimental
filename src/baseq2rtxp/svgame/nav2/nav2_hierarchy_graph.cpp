@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <unordered_map>
 
 
 /**
@@ -54,6 +55,24 @@ static int32_t SVG_Nav2_AllocateHierarchyEdgeId( const nav2_hierarchy_graph_t &g
 **/
 static nav2_hierarchy_node_kind_t SVG_Nav2_ClassifyHierarchyNodeKind( const nav2_region_layer_t &layer ) {
     // Route portal, mover, ladder, and stair states explicitly so coarse A* commits vertical intent early.
+    if ( ( layer.endpoint_semantics & ( NAV2_CONNECTOR_ENDPOINT_LADDER_BOTTOM | NAV2_CONNECTOR_ENDPOINT_LADDER_TOP ) ) != 0 ) {
+        return nav2_hierarchy_node_kind_t::LadderEndpoint;
+    }
+    if ( ( layer.endpoint_semantics & NAV2_CONNECTOR_ENDPOINT_MOVER_BOARDING ) != 0 ) {
+        return nav2_hierarchy_node_kind_t::MoverBoarding;
+    }
+    if ( ( layer.endpoint_semantics & NAV2_CONNECTOR_ENDPOINT_MOVER_EXIT ) != 0 ) {
+        return nav2_hierarchy_node_kind_t::MoverExit;
+    }
+    if ( ( layer.endpoint_semantics & NAV2_CONNECTOR_ENDPOINT_MOVER_RIDE ) != 0 ) {
+        return nav2_hierarchy_node_kind_t::MoverRide;
+    }
+    if ( ( layer.endpoint_semantics & ( NAV2_CONNECTOR_ENDPOINT_STAIR_ENTRY | NAV2_CONNECTOR_ENDPOINT_STAIR_EXIT ) ) != 0 ) {
+        return nav2_hierarchy_node_kind_t::StairBand;
+    }
+    if ( ( layer.endpoint_semantics & NAV2_CONNECTOR_ENDPOINT_PORTAL_BARRIER ) != 0 ) {
+        return nav2_hierarchy_node_kind_t::PortalEndpoint;
+    }
     if ( ( layer.flags & NAV2_REGION_LAYER_FLAG_HAS_MOVER ) != 0 || layer.kind == nav2_region_layer_kind_t::MoverBand ) {
         return nav2_hierarchy_node_kind_t::MoverRide;
     }
@@ -93,6 +112,8 @@ static nav2_hierarchy_node_t SVG_Nav2_MakeHierarchyNodeFromLayer( const nav2_reg
     node.region_layer_id = layer.region_layer_id;
     node.region_layer_index = regionLayerIndex;
     node.connector_id = layer.connector_id;
+    node.endpoint_semantics = layer.endpoint_semantics;
+    node.transition_semantics = layer.transition_semantics;
     node.mover_entnum = layer.mover_entnum;
     node.inline_model_index = layer.inline_model_index;
     node.topology = layer.topology;
@@ -108,6 +129,9 @@ static nav2_hierarchy_node_t SVG_Nav2_MakeHierarchyNodeFromLayer( const nav2_reg
         node.flags |= NAV2_HIERARCHY_NODE_FLAG_HAS_AREA;
     }
     if ( layer.connector_id >= 0 ) {
+        node.flags |= NAV2_HIERARCHY_NODE_FLAG_HAS_PORTAL;
+    }
+    if ( ( layer.endpoint_semantics & NAV2_CONNECTOR_ENDPOINT_PORTAL_BARRIER ) != 0 ) {
         node.flags |= NAV2_HIERARCHY_NODE_FLAG_HAS_PORTAL;
     }
     if ( layer.mover_entnum >= 0 ) {
@@ -143,6 +167,7 @@ static nav2_hierarchy_edge_t SVG_Nav2_MakeHierarchyEdgeFromRegionEdge( const nav
     edge.from_node_id = fromNode.node_id;
     edge.to_node_id = toNode.node_id;
     edge.connector_id = regionLayerEdge.connector_id;
+    edge.transition_semantics = regionLayerEdge.transition_semantics;
     // Preserve the source region-layer identity through the hierarchy edge without depending on a non-existent field.
     edge.region_layer_id = fromNode.region_layer_id >= 0 ? fromNode.region_layer_id : toNode.region_layer_id;
     edge.mover_ref = regionLayerEdge.mover_ref;
@@ -151,7 +176,35 @@ static nav2_hierarchy_edge_t SVG_Nav2_MakeHierarchyEdgeFromRegionEdge( const nav
     edge.topology_penalty = regionLayerEdge.topology_penalty;
 
     // Convert region-layer semantics into hierarchy edge semantics.
-    switch ( regionLayerEdge.kind ) {
+    if ( ( regionLayerEdge.transition_semantics & NAV2_CONNECTOR_TRANSITION_LADDER ) != 0 ) {
+        edge.kind = nav2_hierarchy_edge_kind_t::LadderLink;
+        edge.flags |= NAV2_HIERARCHY_EDGE_FLAG_REQUIRES_LADDER;
+    }
+    else if ( ( regionLayerEdge.transition_semantics & NAV2_CONNECTOR_TRANSITION_STAIR ) != 0 ) {
+        edge.kind = nav2_hierarchy_edge_kind_t::StairLink;
+        edge.flags |= NAV2_HIERARCHY_EDGE_FLAG_REQUIRES_STAIR;
+    }
+    else if ( ( regionLayerEdge.transition_semantics & NAV2_CONNECTOR_TRANSITION_MOVER ) != 0 ) {
+        edge.flags |= NAV2_HIERARCHY_EDGE_FLAG_REQUIRES_MOVER;
+        if ( fromNode.kind == nav2_hierarchy_node_kind_t::MoverBoarding || toNode.kind == nav2_hierarchy_node_kind_t::MoverBoarding ) {
+            edge.kind = nav2_hierarchy_edge_kind_t::MoverBoarding;
+            edge.flags |= NAV2_HIERARCHY_EDGE_FLAG_ALLOWS_BOARDING;
+        }
+        else if ( fromNode.kind == nav2_hierarchy_node_kind_t::MoverExit || toNode.kind == nav2_hierarchy_node_kind_t::MoverExit ) {
+            edge.kind = nav2_hierarchy_edge_kind_t::MoverExit;
+            edge.flags |= NAV2_HIERARCHY_EDGE_FLAG_ALLOWS_EXIT;
+        }
+        else {
+            edge.kind = nav2_hierarchy_edge_kind_t::MoverRide;
+            edge.flags |= NAV2_HIERARCHY_EDGE_FLAG_ALLOWS_RIDE;
+        }
+    }
+    else if ( ( regionLayerEdge.transition_semantics & NAV2_CONNECTOR_TRANSITION_PORTAL ) != 0 ) {
+        edge.kind = nav2_hierarchy_edge_kind_t::PortalLink;
+        edge.flags |= NAV2_HIERARCHY_EDGE_FLAG_REQUIRES_PORTAL;
+    }
+    else {
+        switch ( regionLayerEdge.kind ) {
         case nav2_region_layer_edge_kind_t::PortalTransition:
             edge.kind = nav2_hierarchy_edge_kind_t::PortalLink;
             edge.flags |= NAV2_HIERARCHY_EDGE_FLAG_REQUIRES_PORTAL;
@@ -184,6 +237,7 @@ static nav2_hierarchy_edge_t SVG_Nav2_MakeHierarchyEdgeFromRegionEdge( const nav
             edge.kind = nav2_hierarchy_edge_kind_t::FallbackLink;
             edge.flags |= NAV2_HIERARCHY_EDGE_FLAG_PARTIAL;
             break;
+        }
     }
 
     // Carry mover and vertical commitment details forward so later corridor extraction does not need to rediscover them.
@@ -191,6 +245,130 @@ static nav2_hierarchy_edge_t SVG_Nav2_MakeHierarchyEdgeFromRegionEdge( const nav
         edge.flags |= NAV2_HIERARCHY_EDGE_FLAG_PASSABLE;
     }
     return edge;
+}
+
+/**
+ * @brief Resolve connector payload by stable id when hierarchy translation needs direct semantic lookup.
+ * @param connectors Connector collection to inspect.
+ * @param connector_id Stable connector id to resolve.
+ * @return Pointer to resolved connector payload, or nullptr when not found.
+ **/
+static const nav2_connector_t *SVG_Nav2_FindConnectorById( const nav2_connector_list_t &connectors, const int32_t connector_id ) {
+    if ( connector_id < 0 ) {
+        return nullptr;
+    }
+
+    const auto it = connectors.by_id.find( connector_id );
+    if ( it == connectors.by_id.end() || !it->second.IsValid() ) {
+        return nullptr;
+    }
+
+    const int32_t connectorIndex = it->second.connector_index;
+    if ( connectorIndex < 0 || connectorIndex >= ( int32_t )connectors.connectors.size() ) {
+        return nullptr;
+    }
+
+    return &connectors.connectors[ ( size_t )connectorIndex ];
+}
+
+/**
+ * @brief Overlay connector-owned endpoint semantics onto hierarchy nodes after region-layer translation.
+ * @param connectors Connector collection providing source endpoint semantics.
+ * @param graph [in,out] Hierarchy graph receiving connector-owned semantic overlays.
+ **/
+static void SVG_Nav2_OverlayConnectorSemanticsOnHierarchyNodes( const nav2_connector_list_t &connectors, nav2_hierarchy_graph_t *graph ) {
+    if ( !graph ) {
+        return;
+    }
+
+    for ( nav2_hierarchy_node_t &node : graph->nodes ) {
+        const nav2_connector_t *connector = SVG_Nav2_FindConnectorById( connectors, node.connector_id );
+        if ( !connector ) {
+            continue;
+        }
+
+        node.transition_semantics |= connector->transition_semantics;
+        node.endpoint_semantics |= connector->start.endpoint_semantics | connector->end.endpoint_semantics;
+
+        if ( ( node.endpoint_semantics & NAV2_CONNECTOR_ENDPOINT_PORTAL_BARRIER ) != 0 ) {
+            node.flags |= NAV2_HIERARCHY_NODE_FLAG_HAS_PORTAL;
+        }
+        if ( ( node.endpoint_semantics & ( NAV2_CONNECTOR_ENDPOINT_LADDER_BOTTOM | NAV2_CONNECTOR_ENDPOINT_LADDER_TOP ) ) != 0 ) {
+            node.flags |= NAV2_HIERARCHY_NODE_FLAG_HAS_LADDER;
+            node.kind = nav2_hierarchy_node_kind_t::LadderEndpoint;
+        }
+        if ( ( node.endpoint_semantics & ( NAV2_CONNECTOR_ENDPOINT_STAIR_ENTRY | NAV2_CONNECTOR_ENDPOINT_STAIR_EXIT ) ) != 0 ) {
+            node.flags |= NAV2_HIERARCHY_NODE_FLAG_HAS_STAIR;
+            if ( node.kind == nav2_hierarchy_node_kind_t::RegionLayer || node.kind == nav2_hierarchy_node_kind_t::PortalEndpoint ) {
+                node.kind = nav2_hierarchy_node_kind_t::StairBand;
+            }
+        }
+        if ( ( node.endpoint_semantics & NAV2_CONNECTOR_ENDPOINT_MOVER_BOARDING ) != 0 ) {
+            node.flags |= NAV2_HIERARCHY_NODE_FLAG_HAS_MOVER;
+            node.kind = nav2_hierarchy_node_kind_t::MoverBoarding;
+        }
+        else if ( ( node.endpoint_semantics & NAV2_CONNECTOR_ENDPOINT_MOVER_EXIT ) != 0 ) {
+            node.flags |= NAV2_HIERARCHY_NODE_FLAG_HAS_MOVER;
+            node.kind = nav2_hierarchy_node_kind_t::MoverExit;
+        }
+        else if ( ( node.endpoint_semantics & NAV2_CONNECTOR_ENDPOINT_MOVER_RIDE ) != 0 ) {
+            node.flags |= NAV2_HIERARCHY_NODE_FLAG_HAS_MOVER;
+            node.kind = nav2_hierarchy_node_kind_t::MoverRide;
+        }
+    }
+}
+
+/**
+ * @brief Overlay connector-owned transition semantics onto hierarchy edges after region-layer translation.
+ * @param connectors Connector collection providing source transition semantics.
+ * @param graph [in,out] Hierarchy graph receiving connector-aware edge semantics.
+ **/
+static void SVG_Nav2_OverlayConnectorSemanticsOnHierarchyEdges( const nav2_connector_list_t &connectors, nav2_hierarchy_graph_t *graph ) {
+    if ( !graph ) {
+        return;
+    }
+
+    for ( nav2_hierarchy_edge_t &edge : graph->edges ) {
+        const nav2_connector_t *connector = SVG_Nav2_FindConnectorById( connectors, edge.connector_id );
+        if ( connector ) {
+            edge.transition_semantics |= connector->transition_semantics;
+        }
+
+        if ( ( edge.transition_semantics & NAV2_CONNECTOR_TRANSITION_LADDER ) != 0 ) {
+            edge.kind = nav2_hierarchy_edge_kind_t::LadderLink;
+            edge.flags |= NAV2_HIERARCHY_EDGE_FLAG_REQUIRES_LADDER;
+        }
+        else if ( ( edge.transition_semantics & NAV2_CONNECTOR_TRANSITION_STAIR ) != 0 ) {
+            edge.kind = nav2_hierarchy_edge_kind_t::StairLink;
+            edge.flags |= NAV2_HIERARCHY_EDGE_FLAG_REQUIRES_STAIR;
+        }
+        else if ( ( edge.transition_semantics & NAV2_CONNECTOR_TRANSITION_MOVER ) != 0 ) {
+            edge.flags |= NAV2_HIERARCHY_EDGE_FLAG_REQUIRES_MOVER;
+            nav2_hierarchy_node_ref_t fromRef = {};
+            nav2_hierarchy_node_ref_t toRef = {};
+            if ( SVG_Nav2_HierarchyGraph_TryResolve( *graph, edge.from_node_id, &fromRef )
+                && SVG_Nav2_HierarchyGraph_TryResolve( *graph, edge.to_node_id, &toRef ) ) {
+                const nav2_hierarchy_node_t &fromNode = graph->nodes[ ( size_t )fromRef.node_index ];
+                const nav2_hierarchy_node_t &toNode = graph->nodes[ ( size_t )toRef.node_index ];
+                if ( fromNode.kind == nav2_hierarchy_node_kind_t::MoverBoarding || toNode.kind == nav2_hierarchy_node_kind_t::MoverBoarding ) {
+                    edge.kind = nav2_hierarchy_edge_kind_t::MoverBoarding;
+                    edge.flags |= NAV2_HIERARCHY_EDGE_FLAG_ALLOWS_BOARDING;
+                }
+                else if ( fromNode.kind == nav2_hierarchy_node_kind_t::MoverExit || toNode.kind == nav2_hierarchy_node_kind_t::MoverExit ) {
+                    edge.kind = nav2_hierarchy_edge_kind_t::MoverExit;
+                    edge.flags |= NAV2_HIERARCHY_EDGE_FLAG_ALLOWS_EXIT;
+                }
+                else {
+                    edge.kind = nav2_hierarchy_edge_kind_t::MoverRide;
+                    edge.flags |= NAV2_HIERARCHY_EDGE_FLAG_ALLOWS_RIDE;
+                }
+            }
+        }
+        else if ( ( edge.transition_semantics & NAV2_CONNECTOR_TRANSITION_PORTAL ) != 0 ) {
+            edge.kind = nav2_hierarchy_edge_kind_t::PortalLink;
+            edge.flags |= NAV2_HIERARCHY_EDGE_FLAG_REQUIRES_PORTAL;
+        }
+    }
 }
 
 
@@ -349,10 +527,16 @@ const bool SVG_Nav2_HierarchyGraph_AppendEdge( nav2_hierarchy_graph_t *graph, co
 * @param out_summary [out] Optional summary.
 * @return True when at least one hierarchy node was produced.
 **/
-const bool SVG_Nav2_BuildHierarchyGraph( const nav2_region_layer_graph_t &regionLayers, nav2_hierarchy_graph_t *out_graph, nav2_hierarchy_summary_t *out_summary ) {
+const bool SVG_Nav2_BuildHierarchyGraph( const nav2_topology_artifact_t &topologyArtifact, const nav2_connector_list_t &connectors,
+    const nav2_region_layer_graph_t &regionLayers, nav2_hierarchy_graph_t *out_graph, nav2_hierarchy_summary_t *out_summary ) {
     // Reset the output graph first so the build is deterministic.
     SVG_Nav2_HierarchyGraph_Clear( out_graph );
     if ( !out_graph ) {
+        return false;
+    }
+
+    // Require topology ownership before building hierarchy state on top of region and connector publications.
+    if ( !SVG_Nav2_Topology_ValidateArtifact( topologyArtifact ) ) {
         return false;
     }
 
@@ -387,6 +571,11 @@ const bool SVG_Nav2_BuildHierarchyGraph( const nav2_region_layer_graph_t &region
         nav2_hierarchy_edge_t edge = SVG_Nav2_MakeHierarchyEdgeFromRegionEdge( fromNode, toNode, regionEdge, SVG_Nav2_AllocateHierarchyEdgeId( *out_graph ) );
         SVG_Nav2_HierarchyGraph_AppendEdge( out_graph, edge );
     }
+
+    // Reapply connector-owned semantics directly from the extracted connector publication so hierarchy
+    // behavior does not depend on region-layer compression preserving every endpoint distinction.
+    SVG_Nav2_OverlayConnectorSemanticsOnHierarchyNodes( connectors, out_graph );
+    SVG_Nav2_OverlayConnectorSemanticsOnHierarchyEdges( connectors, out_graph );
 
     // Summarize the build for debug and validation callers.
     if ( out_summary ) {

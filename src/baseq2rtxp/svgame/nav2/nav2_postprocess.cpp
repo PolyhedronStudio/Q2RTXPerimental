@@ -118,6 +118,36 @@ static const bool SVG_Nav2_Postprocess_ResolveNodeWaypoint( const nav2_fine_asta
 }
 
 /**
+ * @brief	Return whether a waypoint list contains a meaningful routed path rather than a trivial anchor snapshot.
+ * @param	waypoints	Waypoint list to inspect.
+ * @return	True when at least two distinct waypoint positions exist.
+ **/
+static const bool SVG_Nav2_Postprocess_HasMeaningfulWaypointPath( const std::vector<Vector3> &waypoints ) {
+    /**
+     *    Require at least two waypoints before a routed path can exist.
+     **/
+    if ( waypoints.size() < 2 ) {
+        return false;
+    }
+
+    /**
+     *    Accept the path once any later waypoint differs meaningfully from the first anchor.
+     **/
+    const Vector3 &first = waypoints.front();
+    for ( size_t i = 1; i < waypoints.size(); ++i ) {
+        const Vector3 &candidate = waypoints[ i ];
+        const double dx = ( double )candidate.x - ( double )first.x;
+        const double dy = ( double )candidate.y - ( double )first.y;
+        const double dz = ( double )candidate.z - ( double )first.z;
+        if ( ( dx * dx ) + ( dy * dy ) + ( dz * dz ) > 1.0 ) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
 * @brief	Return whether one point is in hazardous contents.
 * @param	point	World-space point to test.
 * @return	True when the point is in lava or slime contents.
@@ -310,7 +340,7 @@ const bool SVG_Nav2_Postprocess_Path( const nav2_query_mesh_t *mesh, const nav2_
     if ( !policy.enable_los_shortcuts || clippedInput.size() <= 2 ) {
         out_result->waypoints = clippedInput;
         out_result->diagnostics.output_waypoints = ( uint32_t )out_result->waypoints.size();
-        out_result->success = true;
+        out_result->success = SVG_Nav2_Postprocess_HasMeaningfulWaypointPath( out_result->waypoints );
         return true;
     }
 
@@ -369,7 +399,7 @@ const bool SVG_Nav2_Postprocess_Path( const nav2_query_mesh_t *mesh, const nav2_
     *    Publish final diagnostics and success state.
     **/
     out_result->diagnostics.output_waypoints = ( uint32_t )out_result->waypoints.size();
-    out_result->success = !out_result->waypoints.empty();
+    out_result->success = SVG_Nav2_Postprocess_HasMeaningfulWaypointPath( out_result->waypoints );
     return out_result->success;
 }
 

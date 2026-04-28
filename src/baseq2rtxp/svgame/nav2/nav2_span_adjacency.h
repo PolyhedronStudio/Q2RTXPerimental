@@ -165,12 +165,69 @@ struct nav2_span_adjacency_summary_t {
 };
 
 /**
+ *	@brief	Agent-aware policy used while deriving local span adjacency legality.
+ *	@note	This mirrors the same movement-facing constraints that live monster steering cares about,
+ *		so span adjacency can validate transitions against the requesting mover's real hull and
+ *		step/drop limits instead of assuming one hard-coded default stand box.
+ **/
+struct nav2_span_adjacency_policy_t {
+    //! Agent bounding-box minimum extents in local origin space.
+    Vector3 agent_mins = PHYS_DEFAULT_BBOX_STANDUP_MINS;
+    //! Agent bounding-box maximum extents in local origin space.
+    Vector3 agent_maxs = PHYS_DEFAULT_BBOX_STANDUP_MAXS;
+    //! Collision mask used by transition legality probes.
+    cm_contents_t collision_mask = CM_CONTENTMASK_MONSTERSOLID;
+    //! Minimum walkable slope normal used by the requesting movement policy.
+    double min_step_normal = PHYS_MAX_SLOPE_NORMAL;
+    //! Minimum vertical delta considered a meaningful stair step.
+    double min_step_height = PHYS_STEP_MIN_SIZE;
+    //! Maximum vertical delta that remains a direct step rather than a larger traversal.
+    double max_step_height = PHYS_STEP_MAX_SIZE;
+    //! Maximum downward drop height allowed for controlled walk-off edges.
+    double max_drop_height = NAV_DEFAULT_MAX_DROP_HEIGHT;
+    //! Optional additional downward cap used when rejecting large drops.
+    double max_drop_height_cap = NAV_DEFAULT_MAX_DROP_HEIGHT_CAP;
+    //! True when the drop cap should clamp the effective controlled-drop distance.
+    bool enable_max_drop_height_cap = true;
+
+    /**
+     *	@brief	Return whether the authored hull bounds describe a usable collision volume.
+     *	@return	True when every max extent exceeds the corresponding min extent.
+     **/
+    const bool HasAgentBounds() const {
+        return agent_maxs.x > agent_mins.x
+            && agent_maxs.y > agent_mins.y
+            && agent_maxs.z > agent_mins.z;
+    }
+
+    /**
+     *	@brief	Resolve the effective controlled-drop limit after optional cap application.
+     *	@return	Conservative maximum downward traversal depth.
+     **/
+    const double EffectiveMaxDropHeight() const {
+        if ( enable_max_drop_height_cap && max_drop_height_cap > 0.0 ) {
+            return std::min( max_drop_height, max_drop_height_cap );
+        }
+        return max_drop_height;
+    }
+};
+
+/**
 *	@brief	Build local span adjacency from a sparse span grid.
 *	@param	grid	Sparse span grid to analyze.
 *	@param	out_adjacency	[out] Adjacency output.
 *	@return	True when adjacency was built successfully.
 **/
 const bool SVG_Nav2_BuildSpanAdjacency( const nav2_span_grid_t &grid, nav2_span_adjacency_t *out_adjacency );
+
+/**
+ *	@brief	Build local span adjacency from a sparse span grid using an explicit movement policy.
+ *	@param	grid	Sparse span grid to analyze.
+ *	@param	policy	Agent-aware hull and traversal thresholds used for legality classification.
+ *	@param	out_adjacency	[out] Adjacency output.
+ *	@return	True when adjacency was built successfully.
+ **/
+const bool SVG_Nav2_BuildSpanAdjacency( const nav2_span_grid_t &grid, const nav2_span_adjacency_policy_t &policy, nav2_span_adjacency_t *out_adjacency );
 
 /**
 *	@brief	Build a bounded summary for one adjacency result.

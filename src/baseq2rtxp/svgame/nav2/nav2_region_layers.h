@@ -10,6 +10,7 @@
 #include "svgame/nav2/nav2_connectors.h"
 #include "svgame/nav2/nav2_corridor.h"
 #include "svgame/nav2/nav2_span_grid.h"
+#include "svgame/nav2/nav2_topology.h"
 
 #include <unordered_map>
 #include <vector>
@@ -161,6 +162,10 @@ struct nav2_region_layer_t {
     int32_t mover_entnum = -1;
     //! Stable inline-model index when this node is mover-aware.
     int32_t inline_model_index = -1;
+    //! Aggregated connector endpoint semantics when this node is connector-derived.
+    uint32_t endpoint_semantics = NAV2_CONNECTOR_ENDPOINT_NONE;
+    //! Aggregated connector transition semantics when this node is connector-derived.
+    uint32_t transition_semantics = NAV2_CONNECTOR_TRANSITION_NONE;
     //! Committed vertical band for this node.
     nav2_corridor_z_band_t allowed_z_band = {};
     //! Stable topology reference for the node.
@@ -197,6 +202,8 @@ struct nav2_region_layer_edge_t {
     nav2_corridor_z_band_t allowed_z_band = {};
     //! Connector reference used by the transition when known.
     int32_t connector_id = -1;
+    //! Transition semantics inherited from the connector or topology classification when known.
+    uint32_t transition_semantics = NAV2_CONNECTOR_TRANSITION_NONE;
     //! Topology reference inherited from the source.
     nav2_corridor_topology_ref_t topology = {};
     //! Mover reference inherited from the source.
@@ -280,6 +287,19 @@ const bool SVG_Nav2_RegionLayerGraph_AppendEdge( nav2_region_layer_graph_t *grap
 * @return True when the graph is internally consistent.
 **/
 const bool SVG_Nav2_ValidateRegionLayerGraph( const nav2_region_layer_graph_t &graph );
+
+/**
+ * @brief Build a region-layer decomposition from a topology-owned publication plus connector list.
+ * @param topologyArtifact Topology publication owning the current classification stage output.
+ * @param grid Sparse span grid providing the precision substrate.
+ * @param connectors Connector collection used to attach higher-level route commitments.
+ * @param out_graph [out] Region-layer graph receiving the decomposition.
+ * @param out_summary [out] Optional build summary.
+ * @return True when at least one region-layer node was produced.
+ **/
+const bool SVG_Nav2_BuildRegionLayersFromTopology( const nav2_topology_artifact_t &topologyArtifact,
+    const nav2_span_grid_t &grid, const nav2_connector_list_t &connectors,
+    nav2_region_layer_graph_t *out_graph, nav2_region_layer_summary_t *out_summary = nullptr );
 
 /**
 * @brief Build a region-layer decomposition from a sparse span grid plus connector list.

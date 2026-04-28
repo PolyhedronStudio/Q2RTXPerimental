@@ -214,6 +214,8 @@ static nav2_region_layer_t SVG_Nav2_MakeConnectorRegionLayer( const nav2_connect
     layer.connector_id = connector.connector_id;
     layer.mover_entnum = connector.owner_entnum;
     layer.inline_model_index = connector.inline_model_index;
+    layer.endpoint_semantics = connector.start.endpoint_semantics | connector.end.endpoint_semantics;
+    layer.transition_semantics = connector.transition_semantics;
     layer.allowed_z_band.min_z = connector.allowed_min_z;
     layer.allowed_z_band.max_z = connector.allowed_max_z;
     layer.allowed_z_band.preferred_z = ( connector.allowed_min_z + connector.allowed_max_z ) * 0.5;
@@ -403,9 +405,47 @@ const bool SVG_Nav2_RegionLayerGraph_AppendEdge( nav2_region_layer_graph_t *grap
 * @return True when at least one region-layer node was produced.
 **/
 const bool SVG_Nav2_BuildRegionLayers( const nav2_span_grid_t &grid, const nav2_connector_list_t &connectors, nav2_region_layer_graph_t *out_graph, nav2_region_layer_summary_t *out_summary ) {
+    /**
+    *	Route the legacy compatibility signature through the topology-first entry point using a
+    *	lightweight synthetic topology artifact derived from the currently supplied grid.
+    **/
+    nav2_topology_artifact_t topologyArtifact = {};
+    topologyArtifact.status = nav2_topology_status_t::Ready;
+    topologyArtifact.static_nav_version = 1;
+    topologyArtifact.world_tile_count = ( int32_t )grid.columns.size();
+    topologyArtifact.span_column_count = ( int32_t )grid.columns.size();
+    topologyArtifact.has_tile_sizing = grid.tile_size > 0 && grid.cell_size_xy > 0.0;
+    topologyArtifact.ready = topologyArtifact.has_tile_sizing;
+    for ( const nav2_span_column_t &column : grid.columns ) {
+        topologyArtifact.span_count += ( int32_t )column.spans.size();
+    }
+    return SVG_Nav2_BuildRegionLayersFromTopology( topologyArtifact, grid, connectors, out_graph, out_summary );
+}
+
+/**
+ * @brief Build a region-layer decomposition from a topology-owned publication plus connector list.
+ * @param topologyArtifact Topology publication owning the current classification stage output.
+ * @param grid Sparse span grid providing the precision substrate.
+ * @param connectors Connector collection used to attach higher-level route commitments.
+ * @param out_graph [out] Region-layer graph receiving the decomposition.
+ * @param out_summary [out] Optional build summary.
+ * @return True when at least one region-layer node was produced.
+ **/
+const bool SVG_Nav2_BuildRegionLayersFromTopology( const nav2_topology_artifact_t &topologyArtifact,
+    const nav2_span_grid_t &grid, const nav2_connector_list_t &connectors, nav2_region_layer_graph_t *out_graph,
+    nav2_region_layer_summary_t *out_summary )
+{
     // Reset the output graph so a rebuild always starts from a clean slate.
     SVG_Nav2_RegionLayerGraph_Clear( out_graph );
     if ( !out_graph ) {
+        return false;
+    }
+
+    /**
+    *	Require a valid topology publication before region-layer decomposition begins so this stage
+    *	can be explicitly topology-owned even while compatibility callers still route through the old signature.
+    **/
+    if ( !SVG_Nav2_Topology_ValidateArtifact( topologyArtifact ) ) {
         return false;
     }
 
@@ -425,6 +465,7 @@ const bool SVG_Nav2_BuildRegionLayers( const nav2_span_grid_t &grid, const nav2_
             edge.allowed_z_band.max_z = connector.allowed_max_z;
             edge.allowed_z_band.preferred_z = ( connector.allowed_min_z + connector.allowed_max_z ) * 0.5;
             edge.connector_id = connector.connector_id;
+            edge.transition_semantics = connector.transition_semantics;
             edge.mover_ref.owner_entnum = connector.owner_entnum;
             edge.mover_ref.model_index = connector.inline_model_index;
             SVG_Nav2_RegionLayerGraph_AppendEdge( out_graph, edge );
@@ -488,6 +529,7 @@ const bool SVG_Nav2_BuildRegionLayers( const nav2_span_grid_t &grid, const nav2_
             edge.allowed_z_band.min_z = std::min( fromLayer.allowed_z_band.min_z, toLayer.allowed_z_band.min_z );
             edge.allowed_z_band.max_z = std::max( fromLayer.allowed_z_band.max_z, toLayer.allowed_z_band.max_z );
             edge.allowed_z_band.preferred_z = ( fromLayer.allowed_z_band.preferred_z + toLayer.allowed_z_band.preferred_z ) * 0.5;
+            edge.transition_semantics = fromLayer.transition_semantics | toLayer.transition_semantics;
             if ( fromLayer.kind == nav2_region_layer_kind_t::LadderBand || toLayer.kind == nav2_region_layer_kind_t::LadderBand ) {
                 edge.kind = nav2_region_layer_edge_kind_t::LadderTransition;
                 edge.flags |= NAV2_REGION_LAYER_EDGE_FLAG_REQUIRES_LADDER;

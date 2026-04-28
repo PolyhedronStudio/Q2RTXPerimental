@@ -8,6 +8,7 @@
 #pragma once
 
 #include "svgame/nav2/nav2_query_iface.h"
+#include "svgame/nav2/nav2_span_adjacency.h"
 
 
 
@@ -24,6 +25,13 @@
 *	@return	Legacy policy snapshot consumed by the staged implementation.
 **/
 nav2_path_policy_t SVG_Nav2_QueryBuildLegacyPolicy( const nav2_query_policy_t &policy );
+
+/**
+ *	@brief	Build an agent-adjacency policy snapshot from a nav2-owned request policy wrapper.
+ *	@param	policy	Nav2-owned path-follow policy wrapper.
+ *	@return	Adjacency policy snapshot used by span adjacency and fine refinement.
+ **/
+nav2_span_adjacency_policy_t SVG_Nav2_QueryBuildAdjacencyPolicy( const nav2_query_policy_t &policy );
 
 /**
 *	@brief	Build a staged legacy path-process snapshot from a nav2-owned process wrapper.

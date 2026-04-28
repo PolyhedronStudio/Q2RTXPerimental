@@ -39,6 +39,8 @@ struct nav2_query_request_t {
     Vector3 agent_mins = {};
     //! Query agent maxs in feet-origin space captured from the requesting mover at submission time.
     Vector3 agent_maxs = {};
+    //! Request-local movement policy snapshot captured at submission time.
+    nav2_query_policy_t policy = {};
     //! Scheduler priority class for the request.
     nav2_query_priority_t priority = nav2_query_priority_t::Normal;
     //! Optional urgency hint used by future fairness policy.

@@ -33,11 +33,11 @@ static constexpr int32_t NAV_TILE_WORKER_STEP_CHUNK_SIZE = 1024;
 //! Small epsilon to ensure max bounds map to the correct tile.
 static constexpr const double NAV_TILE_EPSILON = 0.001f;
 //! Default tile size in world units, used when no metadata is available to the runtime.
-static constexpr const int32_t NAV_TILE_DEFAULT_SIZE = 128;
+static constexpr const int32_t NAV_TILE_DEFAULT_SIZE = 16;
 //! Default XY cell size in world units, used when no metadata is available to the runtime.
-static constexpr const double NAV_TILE_DEFAULT_CELL_SIZE_XY = 4.;
+static constexpr const double NAV_TILE_DEFAULT_CELL_SIZE_XY = 8.;
 //! Default Z quantization for tile generation and runtime queries when no metadata is available.
-static constexpr const double NAV_TILE_DEFAULT_Z_QUANT = 16.;
+static constexpr const double NAV_TILE_DEFAULT_Z_QUANT = 8.;
 
 /**
 *
@@ -49,7 +49,7 @@ static constexpr const double NAV_TILE_DEFAULT_Z_QUANT = 16.;
 //! Default Radius around waypoints to consider 'reached':
 //! We take the (half-width / waypoint-resolution) of a typical NPC entity (16 units) as a reasonable default for the waypoint radius, which provides a good balance between precision and leniency in path following. 
 //! This allows the agent to consider a waypoint reached when it is close enough, without requiring an exact position match, which can help smooth out movement and reduce jitter.
-static constexpr const double NAV_DEFAULT_WAYPOINT_RADIUS = 16.;// PM_MAX_STEP_SIZE( 16 ) / ;
+static constexpr const double NAV_DEFAULT_WAYPOINT_RADIUS = 4.;// PM_MAX_STEP_SIZE( 16 ) / ;
 
 //! 2D distance change in goal position that triggers a path rebuild.
 static constexpr const double NAV_DEFAULT_GOAL_REBUILD_2D_DISTANCE = 16.;

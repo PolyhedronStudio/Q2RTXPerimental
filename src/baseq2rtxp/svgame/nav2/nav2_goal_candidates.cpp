@@ -9,6 +9,7 @@
 
 #include "svgame/nav2/nav2_query_iface.h"
 #include "svgame/nav2/nav2_query_iface_internal.h"
+#include "svgame/nav2/nav2_topology.h"
 
 
 /**
@@ -106,6 +107,64 @@ static const bool SVG_Nav2_TryResolveGoalLeafMeta( const Vector3 &point, int32_t
         *outArea = leaf->area;
     }
     return true;
+}
+
+/**
+*	@brief	Build lightweight topology-owned semantics for one localized query layer.
+*	@param	layer		Localized query layer view.
+*	@param	pointContents	Point contents sampled at the projected candidate center.
+*	@return	Topology-owned semantic bundle derived from the currently published query-layer metadata.
+*	@note	This is an incremental consumption seam: candidate generation starts reading topology-owned
+*			semantic fields without yet depending on a fully materialized per-location topology table.
+**/
+static nav2_topology_semantics_t SVG_Nav2_MakeTopologySemanticsFromGoalLayer( const nav2_query_layer_view_t &layer,
+    const cm_contents_t pointContents )
+{
+    nav2_topology_semantics_t semantics = {};
+    semantics.traversal_feature_bits = layer.traversal_feature_bits;
+    semantics.ladder_endpoint_flags = layer.ladder_endpoint_flags;
+
+    /**
+    *	Normalize topology-owned feature bits from layer traversal semantics.
+    **/
+    semantics.feature_bits |= NAV2_TOPOLOGY_FEATURE_FLOOR;
+    if ( ( layer.traversal_feature_bits & NAV_TRAVERSAL_FEATURE_STAIR_PRESENCE ) != 0 ) {
+        semantics.feature_bits |= NAV2_TOPOLOGY_FEATURE_STAIR;
+        semantics.tile_summary_bits |= NAV_TILE_SUMMARY_STAIR;
+    }
+    if ( ( layer.traversal_feature_bits & NAV_TRAVERSAL_FEATURE_LADDER ) != 0 || layer.ladder_endpoint_flags != NAV_LADDER_ENDPOINT_NONE ) {
+        semantics.feature_bits |= NAV2_TOPOLOGY_FEATURE_LADDER;
+        semantics.tile_summary_bits |= NAV_TILE_SUMMARY_LADDER;
+    }
+    if ( ( layer.ladder_endpoint_flags & NAV_LADDER_ENDPOINT_STARTPOINT ) != 0 ) {
+        semantics.feature_bits |= NAV2_TOPOLOGY_FEATURE_LADDER_STARTPOINT;
+    }
+    if ( ( layer.ladder_endpoint_flags & NAV_LADDER_ENDPOINT_ENDPOINT ) != 0 ) {
+        semantics.feature_bits |= NAV2_TOPOLOGY_FEATURE_LADDER_ENDPOINT;
+    }
+
+    /**
+    *	Preserve liquid semantics in topology-owned summary bits for future policy consumers.
+    **/
+    if ( ( layer.traversal_feature_bits & NAV_TRAVERSAL_FEATURE_WATER ) != 0 ) {
+        semantics.tile_summary_bits |= NAV_TILE_SUMMARY_WATER;
+    }
+    if ( ( layer.traversal_feature_bits & NAV_TRAVERSAL_FEATURE_LAVA ) != 0 ) {
+        semantics.tile_summary_bits |= NAV_TILE_SUMMARY_LAVA;
+    }
+    if ( ( layer.traversal_feature_bits & NAV_TRAVERSAL_FEATURE_SLIME ) != 0 ) {
+        semantics.tile_summary_bits |= NAV_TILE_SUMMARY_SLIME;
+    }
+
+    /**
+    *	Keep solid-origin rejection visible through topology semantics for future diagnostics.
+    **/
+    if ( ( pointContents & CONTENTS_SOLID ) != 0 ) {
+        semantics.portal_barrier = true;
+        semantics.feature_bits |= NAV2_TOPOLOGY_FEATURE_PORTAL_BARRIER;
+    }
+
+    return semantics;
 }
 
 /**
@@ -390,10 +449,11 @@ static const bool SVG_Nav2_TryAppendGoalCandidate( const nav2_mesh_t *mesh, cons
     *    Promote existing layer traversal metadata into lightweight semantic ranking flags.
     **/
    const nav2_query_layer_view_t &layer = cell.layers[ layerIndex ];
-    if ( ( layer.traversal_feature_bits & NAV_TRAVERSAL_FEATURE_STAIR_PRESENCE ) != 0 ) {
+    const nav2_topology_semantics_t topologySemantics = SVG_Nav2_MakeTopologySemanticsFromGoalLayer( layer, pointContents );
+    if ( ( topologySemantics.feature_bits & NAV2_TOPOLOGY_FEATURE_STAIR ) != 0 ) {
         candidate.flags |= NAV_GOAL_CANDIDATE_FLAG_HAS_STAIR_BITS;
     }
-    if ( ( layer.traversal_feature_bits & NAV_TRAVERSAL_FEATURE_LADDER ) != 0 || layer.ladder_endpoint_flags != NAV_LADDER_ENDPOINT_NONE ) {
+    if ( ( topologySemantics.feature_bits & NAV2_TOPOLOGY_FEATURE_LADDER ) != 0 ) {
         candidate.flags |= NAV_GOAL_CANDIDATE_FLAG_HAS_LADDER_BITS;
     }
 
@@ -502,24 +562,27 @@ const bool SVG_Nav2_BuildGoalCandidates( const nav2_mesh_t *mesh, const Vector3 
     /**
     *    Sample the immediate 3x3 XY neighborhood so nearby support positions can compete with the raw projected goal.
     **/
-    for ( int32_t sampleDy = -1; sampleDy <= 1; sampleDy++ ) {
-        for ( int32_t sampleDx = -1; sampleDx <= 1; sampleDx++ ) {
-            /**
-            *    Skip the origin sample because the same-cell projection candidate already covers it.
-            **/
-            if ( sampleDx == 0 && sampleDy == 0 ) {
-                continue;
-            }
+    // Use bounded concentric sampling to improve robustness for boundary and non-LOS endpoints.
+    constexpr int32_t maxSampleRadiusCells = 2;
+    for ( int32_t sampleRadius = 1; sampleRadius <= maxSampleRadiusCells; sampleRadius++ ) {
+        for ( int32_t sampleDy = -sampleRadius; sampleDy <= sampleRadius; sampleDy++ ) {
+            for ( int32_t sampleDx = -sampleRadius; sampleDx <= sampleRadius; sampleDx++ ) {
+                /**
+                *    Skip inner cells that were already covered by a prior radius ring.
+                **/
+                if ( std::max( std::abs( sampleDx ), std::abs( sampleDy ) ) != sampleRadius ) {
+                    continue;
+                }
 
-            /**
-            *    Offset the raw goal by one cell in XY to probe nearby walkable support positions.
-            **/
-            Vector3 sampledGoalOrigin = goal_origin;
-            sampledGoalOrigin.x += ( float )( sampleDx * meshMeta.cell_size_xy );
-            sampledGoalOrigin.y += ( float )( sampleDy * meshMeta.cell_size_xy );
-            const int32_t sampleRadius = std::max( std::abs( sampleDx ), std::abs( sampleDy ) );
-         SVG_Nav2_TryAppendGoalCandidate( mesh, start_origin, goal_origin, sampledGoalOrigin, agent_mins, agent_maxs,
-                nav2_goal_candidate_type_t::NearbySupport, sampleDx, sampleDy, sampleRadius, out_candidates );
+                /**
+                *    Offset the raw goal by sampled cells in XY to probe nearby walkable support positions.
+                **/
+                Vector3 sampledGoalOrigin = goal_origin;
+                sampledGoalOrigin.x += ( float )( sampleDx * meshMeta.cell_size_xy );
+                sampledGoalOrigin.y += ( float )( sampleDy * meshMeta.cell_size_xy );
+                SVG_Nav2_TryAppendGoalCandidate( mesh, start_origin, goal_origin, sampledGoalOrigin, agent_mins, agent_maxs,
+                    nav2_goal_candidate_type_t::NearbySupport, sampleDx, sampleDy, sampleRadius, out_candidates );
+            }
         }
     }
 

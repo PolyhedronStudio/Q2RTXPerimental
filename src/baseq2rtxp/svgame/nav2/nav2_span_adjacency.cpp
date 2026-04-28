@@ -43,8 +43,8 @@ static constexpr double NAV2_SPAN_ADJACENCY_WALL_COST_BIAS = 0.20;
 *	@note	Span preferred Z values are currently stored in feet/floor space. Adjacency legality probes that use full hull bounds must therefore
 *			lift those endpoints into origin space before tracing or querying contents, otherwise center-origin hulls are validated too low.
 **/
-static inline float SVG_Nav2_SpanAdjacency_GetFeetToOriginOffsetZ( void ) {
-	return PHYS_DEFAULT_BBOX_STANDUP_MINS.z < 0.0f ? -PHYS_DEFAULT_BBOX_STANDUP_MINS.z : 0.0f;
+static inline float SVG_Nav2_SpanAdjacency_GetFeetToOriginOffsetZ( const nav2_span_adjacency_policy_t &policy ) {
+	return policy.agent_mins.z < 0.0f ? -policy.agent_mins.z : 0.0f;
 }
 
 /**
@@ -52,8 +52,12 @@ static inline float SVG_Nav2_SpanAdjacency_GetFeetToOriginOffsetZ( void ) {
 *	@param	halfExtentXY	Resolved XY half-extent for the local sparse-cell probe.
 *	@return	Validation hull minimum bounds in local origin space.
 **/
-static inline Vector3 SVG_Nav2_SpanAdjacency_GetValidationHullMins( const float halfExtentXY ) {
-	return { -halfExtentXY, -halfExtentXY, PHYS_DEFAULT_BBOX_STANDUP_MINS.z };
+static inline Vector3 SVG_Nav2_SpanAdjacency_GetValidationHullMins( const nav2_span_adjacency_policy_t &policy, const float halfExtentXY ) {
+	return {
+		std::min( -halfExtentXY, policy.agent_mins.x ),
+		std::min( -halfExtentXY, policy.agent_mins.y ),
+		policy.agent_mins.z
+	};
 }
 
 /**
@@ -61,8 +65,63 @@ static inline Vector3 SVG_Nav2_SpanAdjacency_GetValidationHullMins( const float 
 *	@param	halfExtentXY	Resolved XY half-extent for the local sparse-cell probe.
 *	@return	Validation hull maximum bounds in local origin space.
 **/
-static inline Vector3 SVG_Nav2_SpanAdjacency_GetValidationHullMaxs( const float halfExtentXY ) {
-	return { halfExtentXY, halfExtentXY, PHYS_DEFAULT_BBOX_STANDUP_MAXS.z };
+static inline Vector3 SVG_Nav2_SpanAdjacency_GetValidationHullMaxs( const nav2_span_adjacency_policy_t &policy, const float halfExtentXY ) {
+	return {
+		std::max( halfExtentXY, policy.agent_maxs.x ),
+		std::max( halfExtentXY, policy.agent_maxs.y ),
+		policy.agent_maxs.z
+	};
+}
+
+/**
+ *	@brief	Resolve one deterministic adjacency policy for callers that do not provide explicit mover data.
+ *	@return	Conservative monster-like adjacency policy.
+ **/
+static nav2_span_adjacency_policy_t SVG_Nav2_SpanAdjacency_DefaultPolicy( void ) {
+	nav2_span_adjacency_policy_t policy = {};
+	policy.agent_mins = PHYS_DEFAULT_BBOX_STANDUP_MINS;
+	policy.agent_maxs = PHYS_DEFAULT_BBOX_STANDUP_MAXS;
+	policy.collision_mask = CM_CONTENTMASK_MONSTERSOLID;
+	policy.min_step_normal = PHYS_MAX_SLOPE_NORMAL;
+	policy.min_step_height = PHYS_STEP_MIN_SIZE;
+	policy.max_step_height = PHYS_STEP_MAX_SIZE;
+	policy.max_drop_height = NAV_DEFAULT_MAX_DROP_HEIGHT;
+	policy.max_drop_height_cap = NAV_DEFAULT_MAX_DROP_HEIGHT_CAP;
+	policy.enable_max_drop_height_cap = true;
+	return policy;
+}
+
+/**
+ *	@brief	Resolve a validated adjacency policy, falling back to deterministic defaults when inputs are incomplete.
+ *	@param	policy	Caller-supplied policy.
+ *	@return	Validated adjacency policy suitable for legality checks.
+ **/
+static nav2_span_adjacency_policy_t SVG_Nav2_SpanAdjacency_ResolvePolicy( const nav2_span_adjacency_policy_t &policy ) {
+	nav2_span_adjacency_policy_t resolved = policy;
+	const nav2_span_adjacency_policy_t defaults = SVG_Nav2_SpanAdjacency_DefaultPolicy();
+	if ( !resolved.HasAgentBounds() ) {
+		resolved.agent_mins = defaults.agent_mins;
+		resolved.agent_maxs = defaults.agent_maxs;
+	}
+	if ( resolved.collision_mask == CONTENTS_NONE ) {
+		resolved.collision_mask = defaults.collision_mask;
+	}
+	if ( resolved.min_step_normal <= 0.0 ) {
+		resolved.min_step_normal = defaults.min_step_normal;
+	}
+	if ( resolved.min_step_height < 0.0 ) {
+		resolved.min_step_height = defaults.min_step_height;
+	}
+	if ( resolved.max_step_height <= 0.0 ) {
+		resolved.max_step_height = defaults.max_step_height;
+	}
+	if ( resolved.max_drop_height <= 0.0 ) {
+		resolved.max_drop_height = defaults.max_drop_height;
+	}
+	if ( resolved.max_drop_height_cap <= 0.0 ) {
+		resolved.max_drop_height_cap = defaults.max_drop_height_cap;
+	}
+	return resolved;
 }
 
 /**
@@ -194,7 +253,7 @@ static const bool SVG_Nav2_SpanAdjacency_CrossesPartitionBoundary( const nav2_sp
 *	@note	This first pass uses only current sparse span metadata and preferred-height relationships. It intentionally errs on the side of caution until richer per-cell edge metadata exists.
 **/
 static nav2_span_edge_boundary_semantics_t SVG_Nav2_SpanAdjacency_BuildBoundarySemantics( const nav2_span_t &from_span, const nav2_span_t &to_span,
-	const int32_t delta_x, const int32_t delta_y ) {
+	const nav2_span_adjacency_policy_t &policy, const int32_t delta_x, const int32_t delta_y ) {
 	/**
 	*    Start from an empty conservative result and widen it as the relationship demands.
 	**/
@@ -211,10 +270,10 @@ static nav2_span_edge_boundary_semantics_t SVG_Nav2_SpanAdjacency_BuildBoundaryS
 		semantics.is_ledge_adjacent = true;
 		semantics.apply_soft_penalty = true;
 		semantics.soft_penalty_cost += NAV2_SPAN_ADJACENCY_LEDGE_COST_BIAS;
-		if ( verticalDelta > PHYS_STEP_MAX_SIZE ) {
+		if ( verticalDelta > policy.max_step_height ) {
 			semantics.hard_invalid = true;
 		}
-		if ( verticalDelta < 0.0 && absoluteVerticalDelta > NAV_DEFAULT_MAX_DROP_HEIGHT ) {
+		if ( verticalDelta < 0.0 && absoluteVerticalDelta > policy.EffectiveMaxDropHeight() ) {
 			semantics.hard_invalid = true;
 		}
 	}
@@ -222,7 +281,7 @@ static nav2_span_edge_boundary_semantics_t SVG_Nav2_SpanAdjacency_BuildBoundaryS
 	/**
 	*    Treat very tall enclosing spans relative to the current support height as likely wall-adjacent transitions because they suggest a strong vertical barrier near the evaluated edge.
 	**/
-	if ( to_span.floor_z > ( from_span.preferred_z + PHYS_STEP_MAX_SIZE ) ) {
+	if ( to_span.floor_z > ( from_span.preferred_z + policy.max_step_height ) ) {
 		semantics.is_wall_adjacent = true;
 		semantics.apply_soft_penalty = true;
 		semantics.soft_penalty_cost += NAV2_SPAN_ADJACENCY_WALL_COST_BIAS;
@@ -267,7 +326,8 @@ static nav2_span_edge_boundary_semantics_t SVG_Nav2_SpanAdjacency_BuildBoundaryS
 *	@return	Validation result carrying trace/contents invalidation flags.
 **/
 static nav2_span_transition_validation_t SVG_Nav2_ValidateSpanTransition( const nav2_span_t &from_span, const nav2_span_t &to_span,
-	const nav2_span_column_t &from_column, const nav2_span_column_t &to_column, const nav2_span_grid_t &grid ) {
+	const nav2_span_column_t &from_column, const nav2_span_column_t &to_column, const nav2_span_grid_t &grid,
+	const nav2_span_adjacency_policy_t &policy ) {
 	/**
 	*    Start from a pass-through result and only mark explicit invalidation signals when probes fail.
 	**/
@@ -298,14 +358,14 @@ static nav2_span_transition_validation_t SVG_Nav2_ValidateSpanTransition( const 
 	*    Run a conservative hull trace between span centers to reject transitions that are blocked by playersolid geometry.
 	**/
 	const float halfExtentXY = ( float )std::max( 8.0, grid.cell_size_xy * 0.25 );
-	const float feetToOriginOffsetZ = SVG_Nav2_SpanAdjacency_GetFeetToOriginOffsetZ();
-	const Vector3 hullMins = SVG_Nav2_SpanAdjacency_GetValidationHullMins( halfExtentXY );
-	const Vector3 hullMaxs = SVG_Nav2_SpanAdjacency_GetValidationHullMaxs( halfExtentXY );
+	const float feetToOriginOffsetZ = SVG_Nav2_SpanAdjacency_GetFeetToOriginOffsetZ( policy );
+	const Vector3 hullMins = SVG_Nav2_SpanAdjacency_GetValidationHullMins( policy, halfExtentXY );
+	const Vector3 hullMaxs = SVG_Nav2_SpanAdjacency_GetValidationHullMaxs( policy, halfExtentXY );
 	Vector3 fromTraceOrigin = fromPoint;
 	fromTraceOrigin.z += feetToOriginOffsetZ;
 	Vector3 toTraceOrigin = toPoint;
 	toTraceOrigin.z += feetToOriginOffsetZ;
-	const cm_trace_t transitionTrace = gi.trace( &fromTraceOrigin, &hullMins, &hullMaxs, &toTraceOrigin, nullptr, CM_CONTENTMASK_PLAYERSOLID );
+	const cm_trace_t transitionTrace = gi.trace( &fromTraceOrigin, &hullMins, &hullMaxs, &toTraceOrigin, nullptr, policy.collision_mask );
 	if ( transitionTrace.startsolid || transitionTrace.allsolid || transitionTrace.fraction < 1.0f ) {
 		validation.trace_invalid = true;
 	}
@@ -347,7 +407,8 @@ static nav2_span_transition_validation_t SVG_Nav2_ValidateSpanTransition( const 
 **/
 static void SVG_Nav2_SpanAdjacency_AppendEdge( const int32_t from_column_index, const int32_t from_span_index, const nav2_span_t &from_span,
 	const int32_t to_column_index, const int32_t to_span_index, const nav2_span_t &to_span, const nav2_span_column_t &from_column,
-	const nav2_span_column_t &to_column, const nav2_span_grid_t &grid, const int32_t delta_x, const int32_t delta_y,
+	const nav2_span_column_t &to_column, const nav2_span_grid_t &grid, const nav2_span_adjacency_policy_t &policy,
+	const int32_t delta_x, const int32_t delta_y,
 	nav2_span_adjacency_t *out_adjacency ) {
 	/**
 	*    Require output storage before mutating the adjacency buffer.
@@ -361,8 +422,8 @@ static void SVG_Nav2_SpanAdjacency_AppendEdge( const int32_t from_column_index, 
 	**/
 	const double verticalDelta = to_span.preferred_z - from_span.preferred_z;
 	const double absoluteVerticalDelta = std::fabs( verticalDelta );
-	const nav2_span_edge_boundary_semantics_t boundarySemantics = SVG_Nav2_SpanAdjacency_BuildBoundarySemantics( from_span, to_span, delta_x, delta_y );
-	const nav2_span_transition_validation_t transitionValidation = SVG_Nav2_ValidateSpanTransition( from_span, to_span, from_column, to_column, grid );
+	const nav2_span_edge_boundary_semantics_t boundarySemantics = SVG_Nav2_SpanAdjacency_BuildBoundarySemantics( from_span, to_span, policy, delta_x, delta_y );
+	const nav2_span_transition_validation_t transitionValidation = SVG_Nav2_ValidateSpanTransition( from_span, to_span, from_column, to_column, grid, policy );
 
 	/**
 	*    Start from a deterministic empty edge and then widen it with the discovered movement semantics.
@@ -457,25 +518,25 @@ static void SVG_Nav2_SpanAdjacency_AppendEdge( const int32_t from_column_index, 
 	/**
 	*    Map conservative vertical deltas onto horizontal pass, stair-step, or controlled-drop semantics.
 	**/
-	if ( absoluteVerticalDelta < PHYS_STEP_MIN_SIZE ) {
+	if ( absoluteVerticalDelta < policy.min_step_height ) {
 		/**
 		*    Keep the default horizontal pass semantics when the spans are effectively on the same band.
 		**/
-	} else if ( verticalDelta > 0.0 && absoluteVerticalDelta <= PHYS_STEP_MAX_SIZE ) {
+	} else if ( verticalDelta > 0.0 && absoluteVerticalDelta <= policy.max_step_height ) {
 		/**
 		*    Treat modest upward vertical deltas as stair-step-up traversal.
 		**/
 		edge.movement = nav2_span_edge_movement_t::StepUp;
 		edge.flags |= NAV2_SPAN_EDGE_FLAG_STEP_UP;
 		edge.feature_bits |= NAV_EDGE_FEATURE_STAIR_STEP_UP;
-	} else if ( verticalDelta < 0.0 && absoluteVerticalDelta <= PHYS_STEP_MAX_SIZE ) {
+	} else if ( verticalDelta < 0.0 && absoluteVerticalDelta <= policy.max_step_height ) {
 		/**
 		*    Treat modest downward vertical deltas as stair-step-down traversal.
 		**/
 		edge.movement = nav2_span_edge_movement_t::StepDown;
 		edge.flags |= NAV2_SPAN_EDGE_FLAG_STEP_DOWN;
 		edge.feature_bits |= NAV_EDGE_FEATURE_STAIR_STEP_DOWN;
-	} else if ( verticalDelta < 0.0 && absoluteVerticalDelta <= NAV_DEFAULT_MAX_DROP_HEIGHT ) {
+	} else if ( verticalDelta < 0.0 && absoluteVerticalDelta <= policy.EffectiveMaxDropHeight() ) {
 		/**
 		*    Allow larger downward transitions only as explicit controlled-drop / walk-off edges.
 		**/
@@ -547,7 +608,7 @@ static void SVG_Nav2_SpanAdjacency_AppendEdge( const int32_t from_column_index, 
 *	@return	True when adjacency was built successfully.
 *	@note	This Milestone 4 pass is intentionally conservative: it derives deterministic 8-neighbor local connectivity from span height overlap, legality tiers, and ledge/wall boundary semantics without consulting oldnav or live-world mutation paths.
 **/
-const bool SVG_Nav2_BuildSpanAdjacency( const nav2_span_grid_t &grid, nav2_span_adjacency_t *out_adjacency ) {
+const bool SVG_Nav2_BuildSpanAdjacency( const nav2_span_grid_t &grid, const nav2_span_adjacency_policy_t &policy, nav2_span_adjacency_t *out_adjacency ) {
 	/**
 	*    Sanity check: require output storage before mutating the adjacency result.
 	**/
@@ -559,6 +620,7 @@ const bool SVG_Nav2_BuildSpanAdjacency( const nav2_span_grid_t &grid, nav2_span_
 	*    Reset adjacency so future work can append validated edges without stale state.
 	**/
 	*out_adjacency = {};
+	const nav2_span_adjacency_policy_t resolvedPolicy = SVG_Nav2_SpanAdjacency_ResolvePolicy( policy );
 	if ( !SVG_Nav2_SpanGridHasColumns( grid ) ) {
 		return true;
 	}
@@ -624,7 +686,7 @@ const bool SVG_Nav2_BuildSpanAdjacency( const nav2_span_grid_t &grid, nav2_span_
 						if ( !SVG_Nav2_SpanAdjacency_HasVerticalOverlap( fromSpan, toSpan ) ) {
 							// Permit deliberate drop-style links when the destination is safely below but not when it is above with no overlap.
 							const double downwardDelta = fromSpan.preferred_z - toSpan.preferred_z;
-							if ( downwardDelta <= PHYS_STEP_MAX_SIZE || downwardDelta > NAV_DEFAULT_MAX_DROP_HEIGHT ) {
+							if ( downwardDelta <= resolvedPolicy.max_step_height || downwardDelta > resolvedPolicy.EffectiveMaxDropHeight() ) {
 								continue;
 							}
 						}
@@ -632,8 +694,8 @@ const bool SVG_Nav2_BuildSpanAdjacency( const nav2_span_grid_t &grid, nav2_span_
 						/**
 						*    Append the deterministic adjacency edge after conservative local movement semantics are derived.
 						**/
-                        SVG_Nav2_SpanAdjacency_AppendEdge( fromColumnIndex, fromSpanIndex, fromSpan, toColumnIndex, toSpanIndex, toSpan,
-							fromColumn, toColumn, grid, deltaX, deltaY, out_adjacency );
+						SVG_Nav2_SpanAdjacency_AppendEdge( fromColumnIndex, fromSpanIndex, fromSpan, toColumnIndex, toSpanIndex, toSpan,
+							fromColumn, toColumn, grid, resolvedPolicy, deltaX, deltaY, out_adjacency );
 					}
 				}
 			}
@@ -644,6 +706,10 @@ const bool SVG_Nav2_BuildSpanAdjacency( const nav2_span_grid_t &grid, nav2_span_
 	*    The adjacency pass completed successfully, even if the conservative rules produced zero edges for the current span grid.
 	**/
 	return true;
+}
+
+const bool SVG_Nav2_BuildSpanAdjacency( const nav2_span_grid_t &grid, nav2_span_adjacency_t *out_adjacency ) {
+	return SVG_Nav2_BuildSpanAdjacency( grid, SVG_Nav2_SpanAdjacency_DefaultPolicy(), out_adjacency );
 }
 
 /**

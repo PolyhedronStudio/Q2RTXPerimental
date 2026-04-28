@@ -138,6 +138,12 @@ struct nav2_fine_astar_node_t {
     int32_t span_index = -1;
     //! Stable connector id when known.
     int32_t connector_id = -1;
+    //! Corridor traversal feature bits mirrored from the best matched segment when known.
+    uint32_t traversal_feature_bits = NAV_TRAVERSAL_FEATURE_NONE;
+    //! Corridor edge feature bits mirrored from the best matched segment when known.
+    uint32_t edge_feature_bits = NAV_EDGE_FEATURE_NONE;
+    //! Corridor ladder endpoint flags mirrored from the best matched segment when known.
+    uint8_t ladder_endpoint_flags = NAV_LADDER_ENDPOINT_NONE;
     //! Stable mover entity number when known.
     int32_t mover_entnum = -1;
     //! Stable inline model index when known.
@@ -182,6 +188,10 @@ struct nav2_fine_astar_edge_t {
     nav2_corridor_z_band_t allowed_z_band = {};
     //! Stable connector id when known.
     int32_t connector_id = -1;
+    //! Corridor traversal feature bits mirrored from the best matched segment when known.
+    uint32_t traversal_feature_bits = NAV_TRAVERSAL_FEATURE_NONE;
+    //! Corridor edge feature bits mirrored from the best matched segment when known.
+    uint32_t edge_feature_bits = NAV_EDGE_FEATURE_NONE;
     //! Stable mover reference when known.
     nav2_corridor_mover_ref_t mover_ref = {};
 };
@@ -262,6 +272,8 @@ struct nav2_fine_astar_state_t {
     nav2_span_grid_t span_grid = {};
     //! Cached span adjacency snapshot used for corridor-constrained neighbor expansion.
     nav2_span_adjacency_t span_adjacency = {};
+    //! Request-local adjacency policy used when rebuilding precision-layer adjacency.
+    nav2_span_adjacency_policy_t adjacency_policy = {};
     //! Reconstructed path when the solver succeeds.
     nav2_fine_astar_path_t path = {};
     //! Search diagnostics accumulated over time.
@@ -307,7 +319,8 @@ void SVG_Nav2_FineAStar_Reset( nav2_fine_astar_state_t *state );
 * @param solverId Stable solver identifier.
 * @return True when initialization succeeded.
 **/
-const bool SVG_Nav2_FineAStar_Init( nav2_fine_astar_state_t *state, const nav2_corridor_t &corridor, const uint64_t solverId );
+const bool SVG_Nav2_FineAStar_Init( nav2_fine_astar_state_t *state, const nav2_corridor_t &corridor, const uint64_t solverId,
+    const nav2_span_adjacency_policy_t *adjacencyPolicy = nullptr );
 
 /**
 * @brief Advance a fine A* solver by one budgeted slice.

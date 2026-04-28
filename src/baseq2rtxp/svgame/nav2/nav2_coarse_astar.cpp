@@ -144,6 +144,51 @@ const bool SVG_Nav2_CoarseAStar_ValidateState( const nav2_coarse_astar_state_t *
 }
 
 /**
+ * @brief Return whether one hierarchy edge is allowed to exceed generic step-height gating because
+ *	it represents an explicit semantic vertical traversal.
+ * @param hierarchyEdge Hierarchy edge being evaluated for coarse expansion.
+ * @return True when ladder, stair, or mover semantics should bypass the generic step-height prune.
+ * @note Coarse hierarchy routing operates over semantic commitments rather than raw monster physics
+ *	step clips. Legitimate ladder climbs, stair bands, and mover transitions can span larger vertical
+ *	deltas than a single `PM_STEP_MAX_SIZE` rise, so the coarse solver must not reject them with the
+ *	same gate used for plain same-band walk links.
+ **/
+static const bool SVG_Nav2_IsSemanticVerticalHierarchyEdge( const nav2_hierarchy_edge_t &hierarchyEdge ) {
+    /**
+    *    Prefer explicit hierarchy flags first so semantic links remain stable even if edge kinds evolve.
+    **/
+    if ( ( hierarchyEdge.flags & ( NAV2_HIERARCHY_EDGE_FLAG_REQUIRES_LADDER
+        | NAV2_HIERARCHY_EDGE_FLAG_REQUIRES_STAIR
+        | NAV2_HIERARCHY_EDGE_FLAG_REQUIRES_MOVER ) ) != 0 ) {
+        return true;
+    }
+
+    /**
+    *    Mirror transition-semantic and edge-kind fallbacks so partially translated hierarchy data still
+    *    preserves its vertical traversal intent.
+    **/
+    if ( ( hierarchyEdge.transition_semantics & ( NAV2_CONNECTOR_TRANSITION_LADDER
+        | NAV2_CONNECTOR_TRANSITION_STAIR
+        | NAV2_CONNECTOR_TRANSITION_MOVER
+        | NAV2_CONNECTOR_TRANSITION_VERTICAL ) ) != 0 ) {
+        return true;
+    }
+
+    switch ( hierarchyEdge.kind ) {
+        case nav2_hierarchy_edge_kind_t::LadderLink:
+        case nav2_hierarchy_edge_kind_t::StairLink:
+        case nav2_hierarchy_edge_kind_t::MoverBoarding:
+        case nav2_hierarchy_edge_kind_t::MoverRide:
+        case nav2_hierarchy_edge_kind_t::MoverExit:
+            return true;
+        default:
+            break;
+    }
+
+    return false;
+}
+
+/**
 * @brief Return the hierarchy node id for one candidate when available.
 * @param candidate Candidate to inspect.
 * @return Hierarchy-node id, or `-1` when no stable id is available.
@@ -317,6 +362,11 @@ static nav2_coarse_astar_node_t SVG_Nav2_MakeNodeFromCandidate( const nav2_goal_
     node.topology.area_id = candidate.area_id;
     node.topology.region_id = candidate.layer_index;
     node.topology.portal_id = candidate.tile_id;
+    node.topology.tile_id = candidate.tile_id;
+    node.topology.tile_x = candidate.tile_x;
+    node.topology.tile_y = candidate.tile_y;
+    node.topology.cell_index = candidate.cell_index;
+    node.topology.layer_index = candidate.layer_index;
     if ( candidate.flags & NAV_GOAL_CANDIDATE_FLAG_SAME_LEAF_AS_START ) {
         node.flags |= NAV2_COARSE_ASTAR_NODE_FLAG_PREFERRED;
     }
@@ -353,6 +403,8 @@ static nav2_coarse_astar_node_t SVG_Nav2_MakeNodeFromHierarchyNode( const nav2_h
     node.hierarchy_node_id = hierarchyNode.node_id;
     node.region_layer_id = hierarchyNode.region_layer_id;
     node.connector_id = hierarchyNode.connector_id;
+    node.endpoint_semantics = hierarchyNode.endpoint_semantics;
+    node.transition_semantics = hierarchyNode.transition_semantics;
     node.mover_entnum = hierarchyNode.mover_entnum;
     node.inline_model_index = hierarchyNode.inline_model_index;
     node.allowed_z_band = hierarchyNode.allowed_z_band;
@@ -397,6 +449,7 @@ static nav2_coarse_astar_edge_t SVG_Nav2_MakeEdgeFromHierarchyEdge( const nav2_c
     edge.from_node_id = fromNode.node_id;
     edge.to_node_id = toNode.node_id;
     edge.connector_id = hierarchyEdge.connector_id;
+    edge.transition_semantics = hierarchyEdge.transition_semantics;
     edge.region_layer_id = hierarchyEdge.region_layer_id;
     edge.mover_ref = hierarchyEdge.mover_ref;
     edge.allowed_z_band = hierarchyEdge.allowed_z_band;
@@ -446,6 +499,81 @@ static nav2_coarse_astar_edge_t SVG_Nav2_MakeEdgeFromHierarchyEdge( const nav2_c
 }
 
 /**
+ * @brief Return the current live goal frontier node rather than the seeded placeholder node.
+ * @param state Solver state to inspect.
+ * @return Pointer to the best live goal node, or nullptr when none is available.
+ **/
+static const nav2_coarse_astar_node_t *SVG_Nav2_GetGoalHeuristicNode( const nav2_coarse_astar_state_t &state ) {
+    const int32_t goalHierarchyNodeId = SVG_Nav2_SelectHierarchyNodeForCandidate( *state.hierarchy_graph, state.goal_candidate );
+    if ( goalHierarchyNodeId >= 0 ) {
+        for ( const nav2_coarse_astar_node_t &node : state.nodes ) {
+            if ( node.hierarchy_node_id == goalHierarchyNodeId ) {
+                return &node;
+            }
+        }
+    }
+
+    for ( const nav2_coarse_astar_node_t &node : state.nodes ) {
+        if ( node.kind == nav2_coarse_astar_node_kind_t::Goal ) {
+            return &node;
+        }
+    }
+
+    return state.nodes.empty() ? nullptr : &state.nodes.back();
+}
+
+/**
+ * @brief Compute an incremental policy cost for one hierarchy edge.
+ * @param currentNode Current frontier node being expanded.
+ * @param hierarchyEdge Hierarchy edge under consideration.
+ * @param destinationNode Destination hierarchy node.
+ * @return Additional policy-weighted edge cost.
+ **/
+static double SVG_Nav2_ComputeHierarchyEdgePolicyCost( const nav2_coarse_astar_node_t &currentNode,
+    const nav2_hierarchy_edge_t &hierarchyEdge, const nav2_hierarchy_node_t &destinationNode )
+{
+    double policyCost = hierarchyEdge.topology_penalty;
+
+    // Prefer ladders for meaningful vertical travel, but keep short stairs viable.
+    const double zDelta = std::fabs( currentNode.allowed_z_band.preferred_z - destinationNode.allowed_z_band.preferred_z );
+    if ( ( hierarchyEdge.flags & NAV2_HIERARCHY_EDGE_FLAG_REQUIRES_LADDER ) != 0 ) {
+        policyCost += ( zDelta >= 48.0 ) ? -2.0 : 0.5;
+    }
+    if ( ( hierarchyEdge.flags & NAV2_HIERARCHY_EDGE_FLAG_REQUIRES_STAIR ) != 0 ) {
+        policyCost += ( zDelta >= 48.0 ) ? 2.5 : 0.75;
+    }
+
+    // Portal and opening style transitions are usable but slightly more expensive than plain region links.
+    if ( ( hierarchyEdge.flags & NAV2_HIERARCHY_EDGE_FLAG_REQUIRES_PORTAL ) != 0 ) {
+        policyCost += 1.25;
+    }
+    if ( ( hierarchyEdge.transition_semantics & NAV2_CONNECTOR_TRANSITION_OPENING ) != 0 ) {
+        policyCost += 0.5;
+    }
+
+    // Keep mover transitions available but clearly more expensive than static-world routes.
+    if ( ( hierarchyEdge.flags & NAV2_HIERARCHY_EDGE_FLAG_REQUIRES_MOVER ) != 0 ) {
+        policyCost += 3.0;
+        if ( ( hierarchyEdge.flags & NAV2_HIERARCHY_EDGE_FLAG_ALLOWS_BOARDING ) != 0 ) {
+            policyCost += 1.0;
+        }
+        if ( ( hierarchyEdge.flags & NAV2_HIERARCHY_EDGE_FLAG_ALLOWS_EXIT ) != 0 ) {
+            policyCost += 0.5;
+        }
+    }
+
+    // Preserve penalties for partial or topology-penalized links.
+    if ( ( hierarchyEdge.flags & NAV2_HIERARCHY_EDGE_FLAG_PARTIAL ) != 0 ) {
+        policyCost += 4.0;
+    }
+    if ( ( hierarchyEdge.flags & NAV2_HIERARCHY_EDGE_FLAG_TOPOLOGY_PENALIZED ) != 0 ) {
+        policyCost += 1.5;
+    }
+
+    return std::max( -2.0, policyCost );
+}
+
+/**
 * @brief Compute a cheap heuristic between two coarse nodes.
 * @param fromNode Source node.
 * @param toNode Destination node.
@@ -490,8 +618,14 @@ static int32_t SVG_Nav2_FindBestFrontierNodeIndex( const nav2_coarse_astar_state
     int32_t bestIndex = -1;
     for ( size_t i = 0; i < state.nodes.size(); ++i ) {
         const nav2_coarse_astar_node_t &node = state.nodes[ i ];
-        if ( node.f_score < bestScore ) {
-            bestScore = node.f_score;
+        // Skip nodes that are already closed/expanded in prior slices.
+        if ( ( node.flags & NAV2_COARSE_ASTAR_NODE_FLAG_EXPANDED ) != 0 ) {
+            continue;
+        }
+        const double nodePriorityBias = ( node.flags & NAV2_COARSE_ASTAR_NODE_FLAG_PREFERRED ) != 0 ? -0.5 : 0.0;
+        const double candidateScore = node.f_score + nodePriorityBias;
+        if ( candidateScore < bestScore ) {
+            bestScore = candidateScore;
             bestIndex = ( int32_t )i;
         }
     }
@@ -677,6 +811,22 @@ const bool SVG_Nav2_CoarseAStar_Init( nav2_coarse_astar_state_t *state, const na
     goalNode.flags &= ~NAV2_COARSE_ASTAR_NODE_FLAG_PARTIAL;
     state->nodes.push_back( goalNode );
 
+    // Seed one live hierarchy-backed goal node when the selected goal candidate resolved to a concrete hierarchy node.
+    if ( goalNode.hierarchy_node_id >= 0 ) {
+        nav2_hierarchy_node_ref_t goalHierarchyRef = {};
+        if ( SVG_Nav2_HierarchyGraph_TryResolve( hierarchyGraph, goalNode.hierarchy_node_id, &goalHierarchyRef ) ) {
+            const nav2_hierarchy_node_t &goalHierarchyNode = hierarchyGraph.nodes[ ( size_t )goalHierarchyRef.node_index ];
+            nav2_coarse_astar_node_t liveGoalNode = SVG_Nav2_MakeNodeFromHierarchyNode( goalHierarchyNode,
+                SVG_Nav2_AllocateCoarseNodeId( *state ), nav2_coarse_astar_node_kind_t::Goal );
+            SVG_Nav2_OnNodeIdAssigned( state, liveGoalNode.node_id );
+            liveGoalNode.g_score = 0.0;
+            liveGoalNode.h_score = 0.0;
+            liveGoalNode.f_score = 0.0;
+            liveGoalNode.flags &= ~NAV2_COARSE_ASTAR_NODE_FLAG_PARTIAL;
+            state->nodes.push_back( liveGoalNode );
+        }
+    }
+
     /**
     *	Mark the solver as owning a frontier slice so later slices can resume deterministically.
     **/
@@ -767,6 +917,12 @@ const bool SVG_Nav2_CoarseAStar_Step( nav2_coarse_astar_state_t *state, const na
         }
         return true;
     }
+
+    /**
+    *	Mark the selected node as expanded before neighbor traversal so future slices
+    *	skip it and continue across newly discovered frontier nodes.
+    **/
+    state->nodes[ ( size_t )bestIndex ].flags |= NAV2_COARSE_ASTAR_NODE_FLAG_EXPANDED;
 
     /**
     *	Check for goal completion before expanding neighbors.
@@ -881,13 +1037,16 @@ const bool SVG_Nav2_CoarseAStar_Step( nav2_coarse_astar_state_t *state, const na
         }
 
         /**
-        *	Apply a conservative drop-limit check using step constants.
+        *	Apply a conservative generic step-height gate only to plain same-band world links.
+        *	Semantic vertical links such as ladders, stair bands, and mover transitions are represented
+        *	explicitly in the hierarchy and must remain eligible even when their Z delta exceeds one
+        *	monster step height.
         **/
         // Compute vertical delta between the current node and the edge target.
         const double targetZ = hierarchyEdge->allowed_z_band.preferred_z;
         const double zDelta = std::fabs( currentNode.allowed_z_band.preferred_z - targetZ );
-        // Skip edges that exceed step limits to avoid unsafe drops.
-        if ( zDelta > PM_STEP_MAX_SIZE ) {
+        // Skip only non-semantic region links that exceed the generic step gate.
+        if ( zDelta > PM_STEP_MAX_SIZE && !SVG_Nav2_IsSemanticVerticalHierarchyEdge( *hierarchyEdge ) ) {
             state->diagnostics.policy_prunes++;
             continue;
         }
@@ -912,8 +1071,11 @@ const bool SVG_Nav2_CoarseAStar_Step( nav2_coarse_astar_state_t *state, const na
         neighborNode.parent_node_id = currentNode.node_id;
         neighborNode.parent_edge_id = SVG_Nav2_AllocateCoarseEdgeId( *state );
         SVG_Nav2_OnEdgeIdAssigned( state, neighborNode.parent_edge_id );
-        neighborNode.g_score = currentNode.g_score + hierarchyEdge->base_cost + hierarchyEdge->topology_penalty;
-        neighborNode.h_score = SVG_Nav2_Heuristic( neighborNode, state->nodes.back() );
+        const nav2_hierarchy_node_t &destinationHierarchyNode = hierarchyGraph.nodes[ ( size_t )destHierarchyRef.node_index ];
+        const double policyCost = SVG_Nav2_ComputeHierarchyEdgePolicyCost( currentNode, *hierarchyEdge, destinationHierarchyNode );
+        neighborNode.g_score = currentNode.g_score + hierarchyEdge->base_cost + policyCost;
+        const nav2_coarse_astar_node_t *goalHeuristicNode = SVG_Nav2_GetGoalHeuristicNode( *state );
+        neighborNode.h_score = goalHeuristicNode ? SVG_Nav2_Heuristic( neighborNode, *goalHeuristicNode ) : 0.0;
         neighborNode.f_score = neighborNode.g_score + neighborNode.h_score;
 
         // Push the neighbor node into the frontier.

@@ -31,11 +31,11 @@
 
 // Removed oldnav headers to keep the testdummy on nav2 query interfaces.
 // Keeping the following includes for nav2 functionality.
-#include "svgame/nav2/nav2_default_consts.h"
-#include "svgame/nav2/nav2_query_iface.h"
 #include "svgame/nav2/nav2_corridor.h"
 #include "svgame/nav2/nav2_debug_draw.h"
+#include "svgame/nav2/nav2_default_consts.h"
 #include "svgame/nav2/nav2_policy.h"
+#include "svgame/nav2/nav2_query_iface.h"
 
 // TestDummy Monster
 #include "svgame/entities/monster/svg_monster_testdummy_sfxfollow.h"
@@ -61,7 +61,6 @@ extern cvar_t *s_nav_nav_async_log_stats;
 #define MONSTER_TESTDUMMY_DEBUG_BYPASS_ROUTE_FILTER 1
 #endif
 
-#define DEBUG_PRINTS 1
 #ifdef DEBUG_PRINTS
 static constexpr int32_t DUMMY_NAV_DEBUG = 1;
 #else
@@ -189,13 +188,26 @@ static bool Dummy_QueryFollowStateFromProcess( nav2_query_process_t *process, co
 	*out_state = {};
 
 	/**
+	*\tCapture the starting index before any radius-based waypoint consumption so debug logs
+	*\tcan report how far this query advanced along the cached path.
+	**/
+	const int32_t startingPathIndex = std::max( 0, process->path_index );
+
+	/**
+	*\tConvert the feet-origin mover position into the nav-center space used by the committed waypoint buffer.
+	*\tThe staged nav2 process stores path points in center space, so comparing them directly against feet
+	*\torigins can falsely consume or invalidate the active node and drop the monster into rotate-only fallback.
+	**/
+	const Vector3 queryOrigin = current_origin + Vector3{ 0.0f, 0.0f, process->path_center_offset_z };
+
+	/**
 	*\tAdvance consumed waypoints while we are already inside the configured waypoint radius.
 	**/
 	const double waypointRadius = std::max( 0.001, policy.waypoint_radius );
-	int32_t idx = std::max( 0, process->path_index );
+	int32_t idx = startingPathIndex;
 	while ( idx < process->path.num_points ) {
 		const Vector3 waypoint = process->path.points[ idx ];
-		const Vector3 toWaypoint = QM_Vector3Subtract( waypoint, current_origin );
+		const Vector3 toWaypoint = QM_Vector3Subtract( waypoint, queryOrigin );
 		const double dist2D = std::sqrt( ( toWaypoint.x * toWaypoint.x ) + ( toWaypoint.y * toWaypoint.y ) );
 		if ( dist2D > waypointRadius ) {
 			break;
@@ -203,17 +215,44 @@ static bool Dummy_QueryFollowStateFromProcess( nav2_query_process_t *process, co
 		idx++;
 	}
 	if ( idx >= process->path.num_points ) {
-		process->path_index = process->path.num_points;
-		return false;
+		/**
+		*	If we consumed every waypoint but the stored goal is still meaningfully far away, keep the final
+		*	anchor active instead of declaring the path exhausted. This prevents very short 2-point snapshots
+		*	from collapsing into a no-motion state before the mover has actually arrived.
+		**/
+		const Vector3 toGoal = QM_Vector3Subtract( process->path_goal_position, current_origin );
+		const double goalDist2D = std::sqrt( ( toGoal.x * toGoal.x ) + ( toGoal.y * toGoal.y ) );
+		if ( goalDist2D > waypointRadius ) {
+			idx = std::max( 0, process->path.num_points - 1 );
+		} else {
+			process->path_index = process->path.num_points;
+			return false;
+		}
 	}
 
 	/**
 	*\tCompute and publish follow-state metadata for the active waypoint.
 	**/
-	const Vector3 activeWaypoint = process->path.points[ idx ];
+	const Vector3 activeWaypointCenter = process->path.points[ idx ];
+	Vector3 activeWaypoint = activeWaypointCenter;
+	activeWaypoint.z -= process->path_center_offset_z;
 	const Vector3 toWaypoint = QM_Vector3Subtract( activeWaypoint, current_origin );
 	const double len2 = ( toWaypoint.x * toWaypoint.x ) + ( toWaypoint.y * toWaypoint.y ) + ( toWaypoint.z * toWaypoint.z );
 	if ( len2 <= ( 0.001 * 0.001 ) ) {
+		// Log near-zero waypoint separation so we can confirm whether the committed path collapsed onto the current origin.
+		if ( DUMMY_NAV_DEBUG != 0 && Dummy_ShouldEmitNavDebugLog() ) {
+			gi.dprintf( "[NAV DEBUG][FollowState] near-zero waypoint start_idx=%d active_idx=%d num_points=%d waypoint_radius=%.1f active=(%.1f %.1f %.1f) current=(%.1f %.1f %.1f)\n",
+				startingPathIndex,
+				idx,
+				process->path.num_points,
+				waypointRadius,
+				activeWaypoint.x,
+				activeWaypoint.y,
+				activeWaypoint.z,
+				current_origin.x,
+				current_origin.y,
+				current_origin.z );
+		}
 		process->path_index = idx;
 		return false;
 	}
@@ -302,6 +341,8 @@ static bool Dummy_ShouldEmitNavDebugLog( void ) {
 static constexpr QMTime DUMMY_SOUND_INVESTIGATE_MAX_AGE = 24_sec;
 //! Arrival radius used for ending sound investigation behavior.
 static constexpr double DUMMY_SOUND_INVESTIGATE_REACHED_DIST = 4.0;
+//! Minimum interval between forced sound-goal rebuilds while pursuit is already active.
+static constexpr QMTime DUMMY_SOUND_REBUILD_MIN_INTERVAL = 250_ms;
 //! Idle yaw scan step in degrees per think.
 static constexpr double DUMMY_IDLE_SCAN_STEP_DEG = 45.0;
 //! Interval for flipping idle scan yaw direction.
@@ -1034,7 +1075,6 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_sfxfollow_t, onThink_IdleLoo
 		self->aiLastSoundHeard = audibleEntity->last_sound_time;
 	  // Compute freshness for whether this sound is still worth investigating.
 		const QMTime soundAge = level.time - audibleEntity->last_sound_time;
-		SVG_Util_SetEntityOrigin( audibleEntity, audibleEntity->currentOrigin + Vector3{ 0.f, 0.f, 1.f }, true );
 	 // Investigate any fresh audible sound regardless of range; nav/path policy owns the route response.
 		if ( soundAge <= DUMMY_SOUND_INVESTIGATE_MAX_AGE ) {
 			// Cache the chosen investigation origin and timestamp.
@@ -1207,8 +1247,17 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_sfxfollow_t, onThink_PursueS
 			*    Only hard-reset async nav when the new sound actually moved enough to replace the current search.
 			**/
 			if ( shouldResetGoal ) {
-				self->ResetNavigationPath();
-				forceRebuild = true;
+				/**
+				*	Avoid tearing down every in-flight request during rapid-fire sound updates.
+				*	Instead, request a forced rebuild only after the short debounce window expires,
+				*	or immediately when no request is currently pending.
+				**/
+				const bool requestPending = Dummy_IsRequestPending( &self->pathNavigationState.process );
+				const bool rebuildDebounceElapsed = !requestPending
+					|| ( level.time - self->pathNavigationState.process.last_prep_time ) >= DUMMY_SOUND_REBUILD_MIN_INTERVAL;
+				if ( rebuildDebounceElapsed ) {
+					forceRebuild = true;
+				}
 			}
 		}
 	}
@@ -1670,6 +1719,12 @@ const bool svg_monster_testdummy_sfxfollow_t::MoveAStarToOrigin( const Vector3 &
 	Q_assert( agent_maxs.x > agent_mins.x && agent_maxs.y > agent_mins.y && agent_maxs.z > agent_mins.z );
 
 	/**
+	*    Publish the current feet-to-center conversion used by the active agent hull before querying follow state.
+	*    This keeps committed nav-center points and feet-origin steering in the same frame-of-reference.
+	**/
+	pathNavigationState.process.path_center_offset_z = ( agent_mins.z < 0.0f ) ? -agent_mins.z : 0.0f;
+
+	/**
 	*    Resolve one consistent walkable-goal snapshot for this frame.
 	*        Steering, queueing, and final-approach slowdown should all reference the same projected
 	*        walkable goal so cross-level routes do not oscillate between raw sound origins and a snapped nav target.
@@ -1698,6 +1753,13 @@ const bool svg_monster_testdummy_sfxfollow_t::MoveAStarToOrigin( const Vector3 &
 	if ( QM_Vector3LengthSqr( toGoalDist ) < ( arrivalThreshold * arrivalThreshold ) ) {
 		// Zero horizontal velocity to prevent micro-jitter.
 		velocity.x = velocity.y = 0.0f;
+		/**
+		*    Keep monster-move authoritative velocity in sync with entity velocity on this early return.
+		*        `GenericThinkFinish()` consumes `monsterMoveState.state.velocity`, so leaving it unchanged
+		*        can preserve stale drift even when navigation reports no usable path.
+		**/
+		monsterMoveState.state.velocity.x = 0.0f;
+		monsterMoveState.state.velocity.y = 0.0f;
 		return false;
 	}
 
@@ -1712,6 +1774,11 @@ const bool svg_monster_testdummy_sfxfollow_t::MoveAStarToOrigin( const Vector3 &
 		const float len2 = ( toGoal.x * toGoal.x ) + ( toGoal.y * toGoal.y );
 		if ( len2 <= ( 0.001f * 0.001f ) ) {
 			velocity.x = velocity.y = 0.0f;
+			/**
+			*    Mirror zeroed fallback velocity into the mover state to avoid carrying previous frame motion.
+			**/
+			monsterMoveState.state.velocity.x = 0.0f;
+			monsterMoveState.state.velocity.y = 0.0f;
 			return false;
 		}
 

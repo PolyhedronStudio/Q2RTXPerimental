@@ -226,7 +226,7 @@ static void __style_window( mu_Context *ctx ) {
 	  { NULL }
 	};
 
-	if ( mu_begin_window( ctx, "Style Editor", mu_rect( 550, 450, 300, 240 ) ) ) {
+	if ( mu_begin_window( ctx, "Style Editor", mu_rect( 650, 320, 420, 320 ) ) ) {
 		int sw = mu_get_current_container( ctx )->body.w * 0.14;
 		int widths[] = { 88, sw, sw, sw, sw, -1 };
 		mu_layout_row( ctx, 6, widths, 0 );

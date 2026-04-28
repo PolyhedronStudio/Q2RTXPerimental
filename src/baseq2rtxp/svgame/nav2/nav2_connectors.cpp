@@ -7,6 +7,8 @@
 ********************************************************************/
 #include "svgame/nav2/nav2_connectors.h"
 
+#include "svgame/nav2/nav2_span_adjacency.h"
+
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
@@ -70,6 +72,96 @@ static void SVG_Nav2_Connector_ApplySpanTopology( const nav2_span_t &span, nav2_
     anchor->cluster_id = span.cluster_id;
     anchor->area_id = span.area_id;
     anchor->valid = true;
+}
+
+/**
+*	@brief	Return explicit transition semantics implied by connector kind bits.
+*	@param	connectorKind	Connector kind bitmask to translate.
+*	@return	Stable transition semantic bitmask for downstream hierarchy and corridor code.
+**/
+static uint32_t SVG_Nav2_Connector_BuildTransitionSemanticsFromKind( const uint32_t connectorKind ) {
+    // Start empty and accumulate only the semantics proven by connector extraction.
+    uint32_t semantics = NAV2_CONNECTOR_TRANSITION_NONE;
+
+    // Preserve explicit topology crossing semantics first.
+    if ( ( connectorKind & NAV2_CONNECTOR_KIND_PORTAL ) != 0 || ( connectorKind & NAV2_CONNECTOR_KIND_DOOR_TRANSITION ) != 0 ) {
+        semantics |= NAV2_CONNECTOR_TRANSITION_PORTAL;
+    }
+    if ( ( connectorKind & NAV2_CONNECTOR_KIND_OPENING ) != 0 ) {
+        semantics |= NAV2_CONNECTOR_TRANSITION_OPENING;
+    }
+
+    // Preserve explicit vertical-routing commitments.
+    if ( ( connectorKind & NAV2_CONNECTOR_KIND_LADDER_ENDPOINT ) != 0 ) {
+        semantics |= NAV2_CONNECTOR_TRANSITION_VERTICAL | NAV2_CONNECTOR_TRANSITION_LADDER;
+    }
+    if ( ( connectorKind & NAV2_CONNECTOR_KIND_STAIR_BAND ) != 0 ) {
+        semantics |= NAV2_CONNECTOR_TRANSITION_VERTICAL | NAV2_CONNECTOR_TRANSITION_STAIR;
+    }
+
+    // Preserve mover traversal semantics independently so later policy can distinguish lifts from generic portals.
+    if ( ( connectorKind & ( NAV2_CONNECTOR_KIND_MOVER_BOARDING | NAV2_CONNECTOR_KIND_MOVER_RIDE | NAV2_CONNECTOR_KIND_MOVER_EXIT ) ) != 0 ) {
+        semantics |= NAV2_CONNECTOR_TRANSITION_MOVER;
+    }
+
+    return semantics;
+}
+
+/**
+*	@brief	Apply explicit endpoint semantics to one connector anchor pair.
+*	@param	connector	[in,out] Connector receiving semantic endpoint metadata.
+*	@note	This keeps ladder top/bottom and mover boarding/exit roles explicit even when the
+*			anchors share the same entity origin, so downstream policy can stay pointer-free.
+**/
+static void SVG_Nav2_Connector_AssignEndpointSemantics( nav2_connector_t *connector ) {
+    // Require output storage before assigning endpoint roles.
+    if ( !connector ) {
+        return;
+    }
+
+    // Reset endpoint semantics before rebuilding them from current connector state.
+    connector->start.endpoint_semantics = NAV2_CONNECTOR_ENDPOINT_NONE;
+    connector->end.endpoint_semantics = NAV2_CONNECTOR_ENDPOINT_NONE;
+
+    // Door and portal-style barriers mark both anchors as barrier endpoints.
+    if ( ( connector->connector_kind & NAV2_CONNECTOR_KIND_PORTAL ) != 0 || ( connector->connector_kind & NAV2_CONNECTOR_KIND_DOOR_TRANSITION ) != 0 ) {
+        connector->start.endpoint_semantics |= NAV2_CONNECTOR_ENDPOINT_PORTAL_BARRIER;
+        connector->end.endpoint_semantics |= NAV2_CONNECTOR_ENDPOINT_PORTAL_BARRIER;
+    }
+
+    // Ladder transitions require an explicit bottom and top endpoint based on preferred anchor height.
+    if ( ( connector->connector_kind & NAV2_CONNECTOR_KIND_LADDER_ENDPOINT ) != 0 ) {
+        if ( connector->start.world_origin.z <= connector->end.world_origin.z ) {
+            connector->start.endpoint_semantics |= NAV2_CONNECTOR_ENDPOINT_LADDER_BOTTOM;
+            connector->end.endpoint_semantics |= NAV2_CONNECTOR_ENDPOINT_LADDER_TOP;
+        } else {
+            connector->start.endpoint_semantics |= NAV2_CONNECTOR_ENDPOINT_LADDER_TOP;
+            connector->end.endpoint_semantics |= NAV2_CONNECTOR_ENDPOINT_LADDER_BOTTOM;
+        }
+    }
+
+    // Stair transitions also preserve low-to-high entry and exit intent for later routing policy.
+    if ( ( connector->connector_kind & NAV2_CONNECTOR_KIND_STAIR_BAND ) != 0 ) {
+        if ( connector->start.world_origin.z <= connector->end.world_origin.z ) {
+            connector->start.endpoint_semantics |= NAV2_CONNECTOR_ENDPOINT_STAIR_ENTRY;
+            connector->end.endpoint_semantics |= NAV2_CONNECTOR_ENDPOINT_STAIR_EXIT;
+        } else {
+            connector->start.endpoint_semantics |= NAV2_CONNECTOR_ENDPOINT_STAIR_EXIT;
+            connector->end.endpoint_semantics |= NAV2_CONNECTOR_ENDPOINT_STAIR_ENTRY;
+        }
+    }
+
+    // Mover traversal semantics preserve the staged boarding, ride, and exit phases explicitly.
+    if ( ( connector->connector_kind & NAV2_CONNECTOR_KIND_MOVER_BOARDING ) != 0 ) {
+        connector->start.endpoint_semantics |= NAV2_CONNECTOR_ENDPOINT_MOVER_BOARDING;
+    }
+    if ( ( connector->connector_kind & NAV2_CONNECTOR_KIND_MOVER_RIDE ) != 0 ) {
+        connector->start.endpoint_semantics |= NAV2_CONNECTOR_ENDPOINT_MOVER_RIDE;
+        connector->end.endpoint_semantics |= NAV2_CONNECTOR_ENDPOINT_MOVER_RIDE;
+    }
+    if ( ( connector->connector_kind & NAV2_CONNECTOR_KIND_MOVER_EXIT ) != 0 ) {
+        connector->end.endpoint_semantics |= NAV2_CONNECTOR_ENDPOINT_MOVER_EXIT;
+    }
 }
 
 /**
@@ -220,6 +312,7 @@ static const bool SVG_Nav2_TryBuildEntityConnector( const svg_base_edict_t *ent,
     out_connector->owner_entnum = entityInfo.owner_entnum;
     out_connector->inline_model_index = entityInfo.inline_model_index;
     out_connector->source_role_flags = entityInfo.role_flags;
+    out_connector->transition_semantics = NAV2_CONNECTOR_TRANSITION_NONE;
     out_connector->dynamically_available = true;
     out_connector->reusable = entityInfo.headnode_valid;
 
@@ -291,6 +384,8 @@ static const bool SVG_Nav2_TryBuildEntityConnector( const svg_base_edict_t *ent,
     out_connector->allowed_max_z = worldOrigin.z + 32.0;
     out_connector->base_cost = ( out_connector->connector_kind & NAV2_CONNECTOR_KIND_MOVER_RIDE ) ? 10.0 : 1.0;
     out_connector->policy_penalty = ( out_connector->connector_kind & NAV2_CONNECTOR_KIND_DOOR_TRANSITION ) ? 2.0 : 0.0;
+    out_connector->transition_semantics = SVG_Nav2_Connector_BuildTransitionSemanticsFromKind( out_connector->connector_kind );
+    SVG_Nav2_Connector_AssignEndpointSemantics( out_connector );
     return true;
 }
 
@@ -314,6 +409,7 @@ static const bool SVG_Nav2_TryBuildSpanConnector( const nav2_span_t &spanA, cons
     out_connector->allowed_max_z = std::max( spanA.ceiling_z, spanB.ceiling_z );
     out_connector->base_cost = 1.0;
     out_connector->movement_restrictions = SVG_Nav2_Connector_BuildSpanRestrictions( spanA, spanB );
+    out_connector->transition_semantics = SVG_Nav2_Connector_BuildTransitionSemanticsFromKind( out_connector->connector_kind );
     out_connector->reusable = true;
 
     // Derive a stable span reference pair from the source spans.
@@ -334,8 +430,99 @@ static const bool SVG_Nav2_TryBuildSpanConnector( const nav2_span_t &spanA, cons
     out_connector->end = SVG_Nav2_MakeConnectorAnchor( endRef, spanBOrigin, spanBOrigin );
     SVG_Nav2_Connector_ApplySpanTopology( spanA, &out_connector->start );
     SVG_Nav2_Connector_ApplySpanTopology( spanB, &out_connector->end );
+    SVG_Nav2_Connector_AssignEndpointSemantics( out_connector );
 
     // Span connectors default to available unless area-portal checks prove otherwise.
+    SVG_Nav2_Connector_UpdateAreaPortalAvailability( out_connector );
+    return true;
+}
+
+/**
+ *	@brief	Build one span-derived connector from a validated local adjacency edge.
+ *	@param	grid		Sparse span grid owning the source and destination span slots.
+ *	@param	edge		Adjacency edge being promoted into a connector candidate.
+ *	@param	out_connector	[out] Connector receiving the translated adjacency semantics.
+ *	@return	True when the adjacency edge produced a reusable connector candidate.
+ **/
+static const bool SVG_Nav2_TryBuildSpanConnectorFromAdjacencyEdge( const nav2_span_grid_t &grid, const nav2_span_edge_t &edge,
+    nav2_connector_t *out_connector ) {
+    /**
+    *	Require output storage and skip edges that the adjacency builder already classified as hard-invalid.
+    **/
+    if ( !out_connector || edge.legality == nav2_span_edge_legality_t::HardInvalid ) {
+        return false;
+    }
+
+    /**
+    *	Resolve stable source and destination sparse-column/span slots from the pointer-free adjacency metadata.
+    **/
+    if ( edge.from_column_index < 0 || edge.to_column_index < 0
+        || edge.from_column_index >= ( int32_t )grid.columns.size()
+        || edge.to_column_index >= ( int32_t )grid.columns.size() ) {
+        return false;
+    }
+
+    const nav2_span_column_t &fromColumn = grid.columns[ ( size_t )edge.from_column_index ];
+    const nav2_span_column_t &toColumn = grid.columns[ ( size_t )edge.to_column_index ];
+    if ( edge.from_span_index < 0 || edge.to_span_index < 0
+        || edge.from_span_index >= ( int32_t )fromColumn.spans.size()
+        || edge.to_span_index >= ( int32_t )toColumn.spans.size() ) {
+        return false;
+    }
+
+    const nav2_span_t &fromSpan = fromColumn.spans[ ( size_t )edge.from_span_index ];
+    const nav2_span_t &toSpan = toColumn.spans[ ( size_t )edge.to_span_index ];
+    if ( fromSpan.span_id < 0 || toSpan.span_id < 0 ) {
+        return false;
+    }
+
+    /**
+    *	Start from the existing span-pair connector translation so stair/ladder/portal semantics remain centralized.
+    **/
+    if ( !SVG_Nav2_TryBuildSpanConnector( fromSpan, toSpan, out_connector ) ) {
+        return false;
+    }
+
+    /**
+    *	Re-anchor the connector to the actual source and destination sparse-column world positions so corridor and
+    *	hierarchy stages can preserve the directional spatial relationship instead of collapsing both endpoints to one column.
+    **/
+    out_connector->start = SVG_Nav2_Connector_MakeSpanAnchor( grid, fromColumn, fromSpan, edge.from_column_index, edge.from_span_index );
+    out_connector->end = SVG_Nav2_Connector_MakeSpanAnchor( grid, toColumn, toSpan, edge.to_column_index, edge.to_span_index );
+
+    /**
+    *	Mirror adjacency-derived legality and movement restrictions onto the connector so later hierarchy and corridor policy
+    *	can distinguish soft walk-off/liquid caution edges from ordinary horizontal passages.
+    **/
+    out_connector->base_cost = std::max( out_connector->base_cost, edge.cost );
+    out_connector->policy_penalty += std::max( 0.0, edge.soft_penalty_cost );
+    if ( ( edge.flags & NAV2_SPAN_EDGE_FLAG_STEP_UP ) != 0 ) {
+        out_connector->movement_restrictions |= NAV_EDGE_FEATURE_STAIR_STEP_UP;
+    }
+    if ( ( edge.flags & NAV2_SPAN_EDGE_FLAG_STEP_DOWN ) != 0 ) {
+        out_connector->movement_restrictions |= NAV_EDGE_FEATURE_STAIR_STEP_DOWN;
+    }
+    if ( ( edge.flags & NAV2_SPAN_EDGE_FLAG_ENTERS_WATER ) != 0 ) {
+        out_connector->movement_restrictions |= NAV_EDGE_FEATURE_ENTERS_WATER;
+    }
+    if ( ( edge.flags & NAV2_SPAN_EDGE_FLAG_ENTERS_LAVA ) != 0 ) {
+        out_connector->movement_restrictions |= NAV_EDGE_FEATURE_ENTERS_LAVA;
+    }
+    if ( ( edge.flags & NAV2_SPAN_EDGE_FLAG_ENTERS_SLIME ) != 0 ) {
+        out_connector->movement_restrictions |= NAV_EDGE_FEATURE_ENTERS_SLIME;
+    }
+    if ( ( edge.flags & NAV2_SPAN_EDGE_FLAG_OPTIONAL_WALK_OFF ) != 0 ) {
+        out_connector->movement_restrictions |= NAV_EDGE_FEATURE_OPTIONAL_WALK_OFF;
+    }
+    if ( ( edge.flags & NAV2_SPAN_EDGE_FLAG_FORBIDDEN_WALK_OFF ) != 0 ) {
+        out_connector->movement_restrictions |= NAV_EDGE_FEATURE_FORBIDDEN_WALK_OFF;
+    }
+
+    /**
+    *	Recompute endpoint semantics after re-anchoring so vertical directionality stays tied to the final world-space anchors.
+    **/
+    out_connector->transition_semantics = SVG_Nav2_Connector_BuildTransitionSemanticsFromKind( out_connector->connector_kind );
+    SVG_Nav2_Connector_AssignEndpointSemantics( out_connector );
     SVG_Nav2_Connector_UpdateAreaPortalAvailability( out_connector );
     return true;
 }
@@ -441,7 +628,7 @@ const bool SVG_Nav2_ExtractSpanConnectors( const nav2_span_grid_t &grid, nav2_co
     // Track emitted span-pair keys so duplicate connectors are not emitted across repeated scans.
     std::unordered_set<uint64_t> emittedPairs = {};
 
-    // Scan adjacent spans inside each column so local vertical transitions become explicit connectors.
+    // Scan adjacent spans inside each column so local vertical transitions remain explicit once the span builder grows multi-band columns.
     for ( int32_t columnIndex = 0; columnIndex < ( int32_t )grid.columns.size(); columnIndex++ ) {
         const nav2_span_column_t &column = grid.columns[ ( size_t )columnIndex ];
         for ( size_t i = 0; i + 1 < column.spans.size(); ++i ) {
@@ -468,6 +655,34 @@ const bool SVG_Nav2_ExtractSpanConnectors( const nav2_span_grid_t &grid, nav2_co
                 connector.end = SVG_Nav2_Connector_MakeSpanAnchor( grid, column, spanB, columnIndex, ( int32_t )i + 1 );
 
                 // Mark this span-pair as emitted once the connector candidate is accepted.
+                emittedPairs.insert( pairKey );
+                SVG_Nav2_ConnectorList_Append( out_list, connector );
+            }
+        }
+    }
+
+    /**
+    *	Build local span adjacency and translate passable/soft-penalized inter-column transitions into connector candidates.
+    *	This is the primary path for current generated meshes, which typically emit one span per sparse column.
+    **/
+    nav2_span_adjacency_t adjacency = {};
+    if ( SVG_Nav2_BuildSpanAdjacency( grid, &adjacency ) ) {
+        for ( const nav2_span_edge_t &edge : adjacency.edges ) {
+            // Skip edges that do not carry stable span ids or were already rejected by the adjacency legality pass.
+            if ( edge.from_span_id < 0 || edge.to_span_id < 0 || edge.legality == nav2_span_edge_legality_t::HardInvalid ) {
+                continue;
+            }
+
+            // Deduplicate the undirected span pair so bidirectional adjacency edges do not emit duplicate connectors.
+            const int32_t minSpanId = std::min( edge.from_span_id, edge.to_span_id );
+            const int32_t maxSpanId = std::max( edge.from_span_id, edge.to_span_id );
+            const uint64_t pairKey = ( ( uint64_t )( uint32_t )minSpanId << 32 ) | ( uint64_t )( uint32_t )maxSpanId;
+            if ( emittedPairs.find( pairKey ) != emittedPairs.end() ) {
+                continue;
+            }
+
+            nav2_connector_t connector = {};
+            if ( SVG_Nav2_TryBuildSpanConnectorFromAdjacencyEdge( grid, edge, &connector ) ) {
                 emittedPairs.insert( pairKey );
                 SVG_Nav2_ConnectorList_Append( out_list, connector );
             }

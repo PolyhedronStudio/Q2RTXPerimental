@@ -6,6 +6,7 @@
 *
 ********************************************************************/
 #include "svgame/nav2/nav2_scheduler.h"
+#include "svgame/nav2/nav2_query_iface_internal.h"
 
 #include "svgame/nav2/nav2_coarse_astar.h"
 #include "svgame/nav2/nav2_connectors.h"
@@ -19,6 +20,7 @@
 #include "svgame/nav2/nav2_region_layers.h"
 #include "svgame/nav2/nav2_snapshot.h"
 #include "svgame/nav2/nav2_span_grid_build.h"
+#include "svgame/nav2/nav2_topology.h"
 #include "svgame/nav2/nav2_worker_iface.h"
 
 #include <algorithm>
@@ -36,6 +38,25 @@
 **/
 //! RAII owner for the scheduler foundation runtime.
 static nav2_scheduler_runtime_owner_t s_nav2_scheduler_runtime = {};
+
+/**
+*\t@brief\tReturn whether verbose scheduler diagnostics are enabled.
+*\t@return\tTrue when async-nav stats logging cvar is enabled.
+**/
+static const bool Nav2_Scheduler_IsVerboseStatsEnabled( void ) {
+    static cvar_t *s_nav2_scheduler_log_stats = nullptr;
+    if ( !s_nav2_scheduler_log_stats ) {
+        s_nav2_scheduler_log_stats = gi.cvar( "nav_nav_async_log_stats", "0", 0 );
+    }
+    return s_nav2_scheduler_log_stats && s_nav2_scheduler_log_stats->integer != 0;
+}
+
+/**
+*	@brief	Emit a bounded diagnostic for one scheduler-owned nav2 job.
+*	@param	job	Job being reported.
+*	@param	eventLabel	Short label describing the scheduler checkpoint.
+**/
+static void Nav2_Scheduler_DebugLogJobEvent( const nav2_query_job_t *job, const char *eventLabel );
 
 
 /**
@@ -63,6 +84,12 @@ struct nav2_scheduler_job_stage_runtime_t {
     bool has_selected_start_candidate = false;
     //! True when the goal candidate has been selected.
     bool has_selected_goal_candidate = false;
+    //! Snapshot-scoped topology artifact bound for this job when available.
+    nav2_topology_artifact_t topology_artifact = {};
+    //! Bounded topology summary bound for this job when available.
+    nav2_topology_summary_t topology_summary = {};
+    //! True when the job has a valid topology artifact bound.
+    bool has_topology_artifact = false;
     //! Span-grid snapshot used to build region and hierarchy stages.
     nav2_span_grid_t span_grid = {};
     //! Extracted connectors used for hierarchy and corridor stages.
@@ -87,10 +114,138 @@ struct nav2_scheduler_job_stage_runtime_t {
     nav2_mover_local_refine_result_t mover_refine_result = {};
     //! Latest postprocess output for this query.
     nav2_postprocess_result_t postprocess_result = {};
+    //! Agent-aware adjacency policy mirrored from the active request when available.
+    nav2_span_adjacency_policy_t span_adjacency_policy = {};
+    //! Request-local query policy mirrored from the active request when available.
+    nav2_query_policy_t query_policy = {};
 };
 
 //! Scheduler-local per-job stage runtime cache for Task 11.1 staged execution.
 static std::unordered_map<uint64_t, nav2_scheduler_job_stage_runtime_t> s_nav2_scheduler_job_stage_runtime = {};
+
+/**
+*	@brief	Invalidate cached topology and hierarchy publications when static-nav state changes.
+*	@param	runtime	[in,out] Scheduler runtime owning the cached artifacts.
+**/
+static void Nav2_Scheduler_ClearCachedTopologyAndHierarchy( nav2_scheduler_runtime_t *runtime ) {
+    /**
+    *	Require runtime storage before clearing cached publications.
+    **/
+    if ( !runtime ) {
+        return;
+    }
+
+    /**
+    *	Clear cached topology publication first so later hierarchy stages cannot accidentally mix
+    *	new hierarchy dependencies with stale topology ownership.
+    **/
+    runtime->cached_topology_artifact = {};
+    runtime->cached_topology_summary = {};
+    runtime->has_cached_topology_artifact = false;
+
+    /**
+    *	Clear hierarchy dependency caches that are version-coupled to the same static-nav publication.
+    **/
+    runtime->cached_hierarchy_span_grid = {};
+    runtime->cached_hierarchy_connectors = {};
+    runtime->cached_hierarchy_region_layers = {};
+    runtime->cached_hierarchy_graph = {};
+    runtime->cached_hierarchy_static_nav_version = 0;
+    runtime->has_cached_hierarchy_dependencies = false;
+    runtime->cached_hierarchy_is_no_connector_fallback = false;
+}
+
+/**
+*	@brief	Bind the current cached or freshly built topology publication into one job-stage runtime.
+*	@param	stageRuntime	[in,out] Job-local stage runtime receiving the bound topology publication.
+*	@return	True when a valid topology artifact was bound.
+**/
+static const bool Nav2_Scheduler_BindTopologyArtifact( nav2_scheduler_job_stage_runtime_t *stageRuntime ) {
+    /**
+    *	Require job-local stage runtime and scheduler runtime storage before topology publication.
+    **/
+    if ( !stageRuntime || !s_nav2_scheduler_runtime ) {
+        return false;
+    }
+
+    nav2_scheduler_runtime_t *runtime = s_nav2_scheduler_runtime.get();
+    const uint32_t currentStaticNavVersion = runtime->snapshot_runtime.current.static_nav_version;
+
+    /**
+    *	Invalidate cached publications when topology version no longer matches the active snapshot.
+    **/
+    if ( runtime->has_cached_topology_artifact
+        && runtime->cached_topology_artifact.static_nav_version != currentStaticNavVersion )
+    {
+        Nav2_Scheduler_ClearCachedTopologyAndHierarchy( runtime );
+    }
+
+    /**
+    *	Reuse cached topology publication when still valid for the active static-nav snapshot.
+    **/
+    if ( runtime->has_cached_topology_artifact && SVG_Nav2_Topology_ValidateArtifact( runtime->cached_topology_artifact ) ) {
+        stageRuntime->topology_artifact = runtime->cached_topology_artifact;
+        stageRuntime->topology_summary = runtime->cached_topology_summary;
+        stageRuntime->has_topology_artifact = true;
+        return true;
+    }
+
+    /**
+    *	Build and cache a fresh topology publication from the currently published runtime state.
+    **/
+    nav2_topology_artifact_t builtArtifact = {};
+    nav2_topology_summary_t builtSummary = {};
+    if ( !SVG_Nav2_Topology_BuildArtifact( &builtArtifact, &builtSummary ) || !SVG_Nav2_Topology_ValidateArtifact( builtArtifact ) ) {
+        stageRuntime->topology_artifact = {};
+        stageRuntime->topology_summary = {};
+        stageRuntime->has_topology_artifact = false;
+        return false;
+    }
+
+    runtime->cached_topology_artifact = builtArtifact;
+    runtime->cached_topology_summary = builtSummary;
+    runtime->has_cached_topology_artifact = true;
+    stageRuntime->topology_artifact = builtArtifact;
+    stageRuntime->topology_summary = builtSummary;
+    stageRuntime->has_topology_artifact = true;
+    return true;
+}
+
+/**
+*	@brief	Execute the topology-classification stage for one scheduler-owned job.
+*	@param	job		[in,out] Scheduler-owned job receiving stage-local state updates.
+*	@param	stageRuntime	[in,out] Job-local stage runtime receiving the bound topology publication.
+*	@return	True when topology classification completed successfully.
+*	@note	This stage currently binds the scheduler-owned topology artifact publication and records
+*			bounded milestone diagnostics without yet classifying per-query endpoint-local location tables.
+**/
+static const bool Nav2_Scheduler_ExecuteTopologyClassificationStage( nav2_query_job_t *job,
+    nav2_scheduler_job_stage_runtime_t *stageRuntime )
+{
+    /**
+    *	Require both scheduler job and job-local stage runtime before topology classification begins.
+    **/
+    if ( !job || !stageRuntime ) {
+        return false;
+    }
+
+    /**
+    *	Bind the current topology publication as the owned output of this stage.
+    **/
+    if ( !Nav2_Scheduler_BindTopologyArtifact( stageRuntime ) || !stageRuntime->has_topology_artifact ) {
+        return false;
+    }
+
+    /**
+    *	Record bounded progress from the topology publication so later diagnostics can distinguish
+    *	topology-stage completion from downstream candidate generation.
+    **/
+    job->state.progress.candidate_count = 0;
+    job->state.result_status = nav2_query_result_status_t::Partial;
+    job->state.has_provisional_result = true;
+    Nav2_Scheduler_DebugLogJobEvent( job, "TopologyClassification" );
+    return true;
+}
 
 /**
 *	@brief	Return whether two requests are close enough to be treated as duplicates.
@@ -282,6 +437,13 @@ static void Nav2_Scheduler_DebugLogJobEvent( const nav2_query_job_t *job, const 
     *    Emit a compact checkpoint snapshot so live logs can prove whether the staged path reached
     *    PostProcess, Revalidation, and Commit with committed waypoints intact.
     **/
+    /**
+    *    Keep stage checkpoint spam opt-in through existing async-nav debug statistics cvar.
+    **/
+    if ( !Nav2_Scheduler_IsVerboseStatsEnabled() ) {
+        return;
+    }
+
     gi.dprintf( "[NAV2][Scheduler][%s] job=%llu stage=%d result=%d committed=%d waypoints=%zu pending=%d slice_ms=%.2f\n",
         eventLabel,
         ( unsigned long long )job->job_id,
@@ -628,11 +790,13 @@ static const bool Nav2_Scheduler_FailJobWithReason( nav2_query_job_t *job, const
     *    Emit a compact failure checkpoint so runtime logs reveal exactly which stage gate rejected
     *    the job before postprocess/commit.
     **/
-    gi.dprintf( "[NAV2][Scheduler][Fail] job=%llu stage=%d result=%d reason=%s\n",
-        ( unsigned long long )job->job_id,
-        ( int32_t )job->state.stage,
-        ( int32_t )job->state.result_status,
-        reason ? reason : "(null)" );
+    if ( Nav2_Scheduler_IsVerboseStatsEnabled() ) {
+        gi.dprintf( "[NAV2][Scheduler][Fail] job=%llu stage=%d result=%d reason=%s\n",
+            ( unsigned long long )job->job_id,
+            ( int32_t )job->state.stage,
+            ( int32_t )job->state.result_status,
+            reason ? reason : "(null)" );
+    }
 
     /**
     *    Publish deterministic terminal failed status after logging the local reason.
@@ -692,6 +856,22 @@ static const bool Nav2_Scheduler_BuildAndSelectCandidates( nav2_query_job_t *job
     }
 
     /**
+     *    Mirror the same request-local mover constraints into stage-local adjacency policy so any
+     *    later span-adjacency legality work can stay aligned with the requesting monster hull.
+     **/
+    stageRuntime->query_policy = job->request.policy;
+    if ( stageRuntime->query_policy.agent_maxs.x <= stageRuntime->query_policy.agent_mins.x
+        || stageRuntime->query_policy.agent_maxs.y <= stageRuntime->query_policy.agent_mins.y
+        || stageRuntime->query_policy.agent_maxs.z <= stageRuntime->query_policy.agent_mins.z ) {
+        const nav2_query_agent_profile_t agentProfile = SVG_Nav2_BuildAgentProfileFromCvars();
+        stageRuntime->query_policy.agent_mins = agentProfile.mins;
+        stageRuntime->query_policy.agent_maxs = agentProfile.maxs;
+    }
+    stageRuntime->span_adjacency_policy = SVG_Nav2_QueryBuildAdjacencyPolicy( stageRuntime->query_policy );
+    stageRuntime->span_adjacency_policy.agent_mins = candidateAgentMins;
+    stageRuntime->span_adjacency_policy.agent_maxs = candidateAgentMaxs;
+
+    /**
     *    Build candidate sets for both start and goal endpoints using the same BSP-aware stage helper.
     **/
     const bool haveStartCandidates = SVG_Nav2_BuildGoalCandidates( queryMesh->main_mesh,
@@ -745,6 +925,14 @@ static const bool Nav2_Scheduler_BuildHierarchyDependencies( nav2_scheduler_job_
     }
 
     /**
+    *    Bind validated topology publication before hierarchy dependencies are built so region and
+    *    hierarchy stages share one scheduler-owned topology source of truth.
+    **/
+    if ( !Nav2_Scheduler_BindTopologyArtifact( stageRuntime ) || !stageRuntime->has_topology_artifact ) {
+        return false;
+    }
+
+    /**
     *    Reuse snapshot-scoped hierarchy dependencies when the scheduler runtime already published
     *    a cache for the current static-nav version.
     **/
@@ -756,13 +944,7 @@ static const bool Nav2_Scheduler_BuildHierarchyDependencies( nav2_scheduler_job_
         // Invalidate cache when the static-nav publication version changed.
         if ( runtime->has_cached_hierarchy_dependencies
             && runtime->cached_hierarchy_static_nav_version != currentStaticNavVersion ) {
-            runtime->cached_hierarchy_span_grid = {};
-            runtime->cached_hierarchy_connectors = {};
-            runtime->cached_hierarchy_region_layers = {};
-            runtime->cached_hierarchy_graph = {};
-            runtime->cached_hierarchy_static_nav_version = 0;
-            runtime->has_cached_hierarchy_dependencies = false;
-            runtime->cached_hierarchy_is_no_connector_fallback = false;
+            Nav2_Scheduler_ClearCachedTopologyAndHierarchy( runtime );
         }
 
         /**
@@ -773,13 +955,7 @@ static const bool Nav2_Scheduler_BuildHierarchyDependencies( nav2_scheduler_job_
         if ( runtime->has_cached_hierarchy_dependencies
             && !runtime->cached_hierarchy_is_no_connector_fallback
             && runtime->cached_hierarchy_connectors.connectors.empty() ) {
-            runtime->cached_hierarchy_span_grid = {};
-            runtime->cached_hierarchy_connectors = {};
-            runtime->cached_hierarchy_region_layers = {};
-            runtime->cached_hierarchy_graph = {};
-            runtime->cached_hierarchy_static_nav_version = 0;
-            runtime->has_cached_hierarchy_dependencies = false;
-            runtime->cached_hierarchy_is_no_connector_fallback = false;
+            Nav2_Scheduler_ClearCachedTopologyAndHierarchy( runtime );
         }
 
         // Reuse cached dependencies when they are valid for the current snapshot version.
@@ -859,7 +1035,8 @@ static const bool Nav2_Scheduler_BuildHierarchyDependencies( nav2_scheduler_job_
     *    Build region-layer and hierarchy graph assets required by coarse-stage solver state.
     **/
     nav2_region_layer_summary_t regionSummary = {};
-    if ( !SVG_Nav2_BuildRegionLayers( stageRuntime->span_grid, stageRuntime->connectors, &stageRuntime->region_layers, &regionSummary ) ) {
+    if ( !SVG_Nav2_BuildRegionLayersFromTopology( stageRuntime->topology_artifact, stageRuntime->span_grid, stageRuntime->connectors,
+        &stageRuntime->region_layers, &regionSummary ) ) {
         /**
         *    Emit bounded diagnostics to show layer-build state when hierarchy dependency
         *    construction fails after connector extraction.
@@ -872,7 +1049,8 @@ static const bool Nav2_Scheduler_BuildHierarchyDependencies( nav2_scheduler_job_
     }
 
     nav2_hierarchy_summary_t hierarchySummary = {};
-    if ( !SVG_Nav2_BuildHierarchyGraph( stageRuntime->region_layers, &stageRuntime->hierarchy_graph, &hierarchySummary ) ) {
+    if ( !SVG_Nav2_BuildHierarchyGraph( stageRuntime->topology_artifact, stageRuntime->connectors,
+        stageRuntime->region_layers, &stageRuntime->hierarchy_graph, &hierarchySummary ) ) {
         /**
         *    Emit bounded diagnostics to show hierarchy-graph state when coarse-search dependency
         *    build fails after region-layer decomposition.
@@ -952,6 +1130,14 @@ static const bool Nav2_Scheduler_ExecuteStage( nav2_query_job_t *job, nav2_sched
     **/
     switch ( job->state.stage ) {
         case nav2_query_stage_t::TopologyClassification:
+        {
+            if ( !Nav2_Scheduler_ExecuteTopologyClassificationStage( job, stageRuntime ) ) {
+                return Nav2_Scheduler_FailJobWithReason( job, "TopologyClassification" );
+            }
+            Nav2_Scheduler_SetJobStage( &job->state, nav2_query_stage_t::CandidateGeneration );
+            return true;
+        }
+
         case nav2_query_stage_t::CandidateGeneration:
         case nav2_query_stage_t::CandidateRanking: {
             if ( !Nav2_Scheduler_BuildAndSelectCandidates( job, stageRuntime ) ) {
@@ -1005,7 +1191,8 @@ static const bool Nav2_Scheduler_ExecuteStage( nav2_query_job_t *job, nav2_sched
 
         case nav2_query_stage_t::FineRefinement: {
             if ( stageRuntime->fine_state.status == nav2_fine_astar_status_t::None ) {
-                if ( !SVG_Nav2_FineAStar_Init( &stageRuntime->fine_state, stageRuntime->corridor, job->job_id ) ) {
+                if ( !SVG_Nav2_FineAStar_Init( &stageRuntime->fine_state, stageRuntime->corridor, job->job_id,
+                    &stageRuntime->span_adjacency_policy ) ) {
                     return Nav2_Scheduler_FailJobWithReason( job, "FineAStar_Init" );
                 }
                 stageRuntime->fine_state.query_state.snapshot = job->state.snapshot;
@@ -1020,11 +1207,13 @@ static const bool Nav2_Scheduler_ExecuteStage( nav2_query_job_t *job, nav2_sched
             *    Emit one bounded per-job fine fallback diagnostic so runtime logs can confirm the
             *    loop-break fallback path is activating and quantify residual technical debt.
             **/
-            gi.dprintf( "[NAV2][Scheduler][FineFallback] job=%llu activations=%u status=%d path_nodes=%zu\n",
-                ( unsigned long long )job->job_id,
-                stageRuntime->fine_state.diagnostics.fallback_path_activations,
-                ( int32_t )stageRuntime->fine_result.status,
-                stageRuntime->fine_state.path.node_ids.size() );
+            if ( Nav2_Scheduler_IsVerboseStatsEnabled() ) {
+                gi.dprintf( "[NAV2][Scheduler][FineFallback] job=%llu activations=%u status=%d path_nodes=%zu\n",
+                    ( unsigned long long )job->job_id,
+                    stageRuntime->fine_state.diagnostics.fallback_path_activations,
+                    ( int32_t )stageRuntime->fine_result.status,
+                    stageRuntime->fine_state.path.node_ids.size() );
+            }
 
             if ( stageRuntime->fine_result.status == nav2_fine_astar_status_t::Success ) {
                 Nav2_Scheduler_SetJobStage( &job->state, nav2_query_stage_t::MoverLocalRefinement );
@@ -1068,7 +1257,7 @@ static const bool Nav2_Scheduler_ExecuteStage( nav2_query_job_t *job, nav2_sched
             **/
             job->committed_waypoints = stageRuntime->postprocess_result.waypoints;
             job->has_committed_waypoints = stageRuntime->postprocess_result.success
-                && !job->committed_waypoints.empty();
+                && job->committed_waypoints.size() >= 2;
 
             /**
             *    Log the waypoint publication checkpoint so live diagnostics can confirm whether the

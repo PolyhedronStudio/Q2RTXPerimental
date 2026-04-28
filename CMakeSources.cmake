@@ -28,6 +28,9 @@ SET(SRC_BASEQ2_CLGAME
 	# SharedGame API Bindings
 	baseq2/sharedgame/game_bindings/sg_binding_clgame.cpp
 
+    # MicroUI
+	extern/microui-2.02/src/microui.c
+
 	# ClientGame
 	baseq2/clgame/clg_client.cpp
 	baseq2/clgame/clg_eax.cpp
@@ -63,8 +66,14 @@ SET(SRC_BASEQ2_CLGAME
 	baseq2/clgame/temp_entities/clg_te_lasers.cpp
 	baseq2/clgame/temp_entities/clg_te_railtrails.cpp
 	baseq2/clgame/temp_entities/clg_te_sustain.cpp
+
+    baseq2/clgame/ui/clg_ui_main.cpp
 )
 SET(HEADERS_BASEQ2_CLGAME
+    # MicroUI
+	extern/microui-2.02/src/microui.h
+
+	# ClientGame
 	baseq2/clgame/clg_client.h
 	baseq2/clgame/clg_eax.h
 	baseq2/clgame/clg_effects.h
@@ -82,6 +91,8 @@ SET(HEADERS_BASEQ2_CLGAME
 
 	baseq2/clgame/local_entities/clg_local_env_sound.h
 	baseq2/clgame/local_entities/clg_local_entity_classes.h
+
+    baseq2/clgame/ui/clg_ui_main.h
 )
 # BaseQ2 ServerGame
 SET(SRC_BASEQ2_SVGAME
@@ -216,6 +227,9 @@ SET(SRC_BASEQ2RTXP_CLGAME
 	# SharedGame API Bindings
 	baseq2rtxp/sharedgame/game_bindings/sg_binding_clgame.cpp
 
+    # MicroUI
+	baseq2rtxp/clgame/ui/microui-2.02/src/microui.c
+
 	# ClientGame
 	baseq2rtxp/clgame/clg_client.cpp
 	baseq2rtxp/clgame/clg_eax.cpp
@@ -269,8 +283,14 @@ SET(SRC_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/temp_entities/clg_te_lasers.cpp
 	baseq2rtxp/clgame/temp_entities/clg_te_railtrails.cpp
 	baseq2rtxp/clgame/temp_entities/clg_te_sustain.cpp
+
+    baseq2rtxp/clgame/ui/clg_ui_main.cpp
 )
 SET(HEADERS_BASEQ2RTXP_CLGAME
+    # MicroUI
+	baseq2rtxp/clgame/ui/microui-2.02/src/microui.h
+
+    # ClientGame
 	baseq2rtxp/clgame/clg_client.h
 	baseq2rtxp/clgame/clg_eax.h
 	baseq2rtxp/clgame/clg_effects.h
@@ -307,6 +327,8 @@ SET(HEADERS_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/local_entities/clg_local_entity_classes.h
 
 	baseq2rtxp/clgame/hud/clg_hud_usetargethint.h
+
+    baseq2rtxp/clgame/ui/clg_ui_main.h
 )
 # BaseQ2RTXP ServerGame
 SET(SRC_BASEQ2RTXP_SVGAME

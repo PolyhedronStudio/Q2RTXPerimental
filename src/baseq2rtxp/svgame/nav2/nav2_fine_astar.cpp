@@ -232,24 +232,11 @@ static const bool SVG_Nav2_ResolveFineInitEndpointSpanId( const nav2_span_grid_t
     }
 
     /**
-    *    First resolve direct stable span-id hints when corridor topology already carries them.
+    *    First resolve by explicit sparse-column topology coordinates when available.
+    *    Note that corridor `cell_index` is a tile-local hint, not a stable global span id, so it must
+    *    not be dereferenced through the reverse span-id index directly.
     **/
     const nav2_corridor_topology_ref_t endpointTopology = isGoalEndpoint ? corridor.goal_topology : corridor.start_topology;
-    const std::array<int32_t, 2> directSpanIds = {
-        segment.topology.cell_index,
-        endpointTopology.cell_index
-    };
-    for ( const int32_t directSpanId : directSpanIds ) {
-        nav2_span_ref_t spanRef = {};
-        if ( directSpanId >= 0 && SVG_Nav2_SpanGrid_TryResolveSpanRef( grid, directSpanId, &spanRef ) ) {
-            *outSpanId = spanRef.span_id;
-            return true;
-        }
-    }
-
-    /**
-    *    Next resolve by explicit sparse-column topology coordinates when available.
-    **/
     const std::array<nav2_corridor_topology_ref_t, 2> topologyHints = {
         segment.topology,
         endpointTopology
@@ -501,7 +488,20 @@ static const bool SVG_Nav2_InitializeFineSearchPrecisionSnapshots( nav2_fine_ast
     /**
     *    Build local span adjacency from the fresh span-grid snapshot.
     **/
-    if ( !SVG_Nav2_BuildSpanAdjacency( state->span_grid, &state->span_adjacency ) ) {
+    if ( !state->adjacency_policy.HasAgentBounds() ) {
+        const nav2_query_mesh_t *queryMesh = SVG_Nav2_GetQueryMesh();
+        const nav2_query_mesh_meta_t meshMeta = SVG_Nav2_QueryGetMeshMeta( queryMesh );
+        state->adjacency_policy.agent_mins = meshMeta.HasAgentBounds() ? meshMeta.agent_mins : PHYS_DEFAULT_BBOX_STANDUP_MINS;
+        state->adjacency_policy.agent_maxs = meshMeta.HasAgentBounds() ? meshMeta.agent_maxs : PHYS_DEFAULT_BBOX_STANDUP_MAXS;
+        state->adjacency_policy.collision_mask = CM_CONTENTMASK_MONSTERSOLID;
+        state->adjacency_policy.min_step_normal = PHYS_MAX_SLOPE_NORMAL;
+        state->adjacency_policy.min_step_height = PHYS_STEP_MIN_SIZE;
+        state->adjacency_policy.max_step_height = PHYS_STEP_MAX_SIZE;
+        state->adjacency_policy.max_drop_height = NAV_DEFAULT_MAX_DROP_HEIGHT;
+        state->adjacency_policy.max_drop_height_cap = NAV_DEFAULT_MAX_DROP_HEIGHT_CAP;
+        state->adjacency_policy.enable_max_drop_height_cap = true;
+    }
+    if ( !SVG_Nav2_BuildSpanAdjacency( state->span_grid, state->adjacency_policy, &state->span_adjacency ) ) {
         return false;
     }
 
@@ -545,6 +545,9 @@ static nav2_fine_astar_node_t SVG_Nav2_MakeNodeFromSegment( const nav2_corridor_
     node.column_index = segment.topology.tile_x;
     node.span_index = segment.topology.layer_index;
     node.connector_id = segment.topology.portal_id;
+    node.traversal_feature_bits = segment.traversal_feature_bits;
+    node.edge_feature_bits = segment.edge_feature_bits;
+    node.ladder_endpoint_flags = segment.ladder_endpoint_flags;
     node.mover_entnum = segment.mover_ref.owner_entnum;
     node.inline_model_index = segment.mover_ref.model_index;
     node.flags |= NAV2_FINE_ASTAR_NODE_FLAG_HAS_ALLOWED_Z_BAND;
@@ -558,6 +561,11 @@ static nav2_fine_astar_node_t SVG_Nav2_MakeNodeFromSegment( const nav2_corridor_
     }
     if ( ( segment.flags & NAV_CORRIDOR_SEGMENT_FLAG_HAS_LADDER_ENDPOINT ) != 0 ) {
         node.flags |= NAV2_FINE_ASTAR_NODE_FLAG_PREFERRED;
+    }
+    if ( segment.type == nav2_corridor_segment_type_t::MoverBoarding
+        || segment.type == nav2_corridor_segment_type_t::MoverRide
+        || segment.type == nav2_corridor_segment_type_t::MoverExit ) {
+        node.flags |= NAV2_FINE_ASTAR_NODE_FLAG_HAS_MOVER;
     }
     if ( ( segment.flags & NAV_CORRIDOR_SEGMENT_FLAG_POLICY_WOULD_REJECT ) != 0 ) {
         node.flags |= NAV2_FINE_ASTAR_NODE_FLAG_PARTIAL;
@@ -605,6 +613,62 @@ static nav2_fine_astar_edge_t SVG_Nav2_MakeEdgeFromSpanEdge( const nav2_span_edg
 }
 
 /**
+ * @brief Return a semantic node kind derived from one matched corridor segment.
+ * @param segment Matched corridor segment to inspect.
+ * @return Fine-search node kind that preserves mover/connector intent when possible.
+ **/
+static nav2_fine_astar_node_kind_t SVG_Nav2_ClassifyFineNodeKindFromSegment( const nav2_corridor_segment_t *segment ) {
+    if ( !segment ) {
+        return nav2_fine_astar_node_kind_t::Span;
+    }
+
+    if ( segment->type == nav2_corridor_segment_type_t::MoverBoarding
+        || segment->type == nav2_corridor_segment_type_t::MoverRide
+        || segment->type == nav2_corridor_segment_type_t::MoverExit ) {
+        return nav2_fine_astar_node_kind_t::MoverAnchor;
+    }
+
+    if ( segment->type == nav2_corridor_segment_type_t::PortalTransition
+        || segment->type == nav2_corridor_segment_type_t::LadderTransition ) {
+        return nav2_fine_astar_node_kind_t::Connector;
+    }
+
+    return nav2_fine_astar_node_kind_t::Span;
+}
+
+/**
+ * @brief Compute an incremental policy cost from one matched corridor segment.
+ * @param currentNode Current fine frontier node.
+ * @param matchedSegment Corridor segment best matching the refined transition.
+ * @return Additional soft policy cost to add to the relaxed edge.
+ **/
+static double SVG_Nav2_ComputeFinePolicyCostFromSegment( const nav2_fine_astar_node_t &currentNode,
+    const nav2_corridor_segment_t *matchedSegment )
+{
+    if ( !matchedSegment ) {
+        return 0.0;
+    }
+
+    double policyCost = matchedSegment->policy_penalty;
+    if ( ( matchedSegment->traversal_feature_bits & NAV_TRAVERSAL_FEATURE_LADDER ) != 0 ) {
+        policyCost += ( currentNode.ladder_endpoint_flags & NAV_LADDER_ENDPOINT_STARTPOINT ) != 0 ? -1.0 : -0.5;
+    }
+    if ( ( matchedSegment->traversal_feature_bits & NAV_TRAVERSAL_FEATURE_STAIR_PRESENCE ) != 0 ) {
+        policyCost += 0.5;
+    }
+    if ( ( matchedSegment->flags & NAV_CORRIDOR_SEGMENT_FLAG_HAS_PORTAL_ID ) != 0 ) {
+        policyCost += 0.75;
+    }
+    if ( ( matchedSegment->flags & NAV_CORRIDOR_SEGMENT_FLAG_HAS_MOVER_REF ) != 0 ) {
+        policyCost += 2.0;
+    }
+    if ( ( matchedSegment->flags & NAV_CORRIDOR_SEGMENT_FLAG_POLICY_SOFT_PENALIZED ) != 0 ) {
+        policyCost += 1.0;
+    }
+    return policyCost;
+}
+
+/**
 *	@brief	Compute a cheap heuristic between two corridor-local nodes.
 *	@param	fromNode	Source node.
 *	@param	toNode	Destination node.
@@ -615,7 +679,9 @@ static double SVG_Nav2_Heuristic( const nav2_fine_astar_node_t &fromNode, const 
     const double dz = std::fabs( fromNode.allowed_z_band.preferred_z - toNode.allowed_z_band.preferred_z );
     const double topologyPenalty = ( fromNode.topology.region_id >= 0 && toNode.topology.region_id >= 0 && fromNode.topology.region_id != toNode.topology.region_id ) ? 8.0 : 0.0;
     const double moverPenalty = ( fromNode.mover_entnum >= 0 || toNode.mover_entnum >= 0 ) ? 4.0 : 0.0;
-    return dz + topologyPenalty + moverPenalty;
+    const double ladderBias = ( ( fromNode.traversal_feature_bits | toNode.traversal_feature_bits ) & NAV_TRAVERSAL_FEATURE_LADDER ) != 0 ? -1.0 : 0.0;
+    const double stairBias = ( ( fromNode.traversal_feature_bits | toNode.traversal_feature_bits ) & NAV_TRAVERSAL_FEATURE_STAIR_PRESENCE ) != 0 ? 0.5 : 0.0;
+    return dz + topologyPenalty + moverPenalty + stairBias + ladderBias;
 }
 
 /**
@@ -741,7 +807,8 @@ void SVG_Nav2_FineAStar_Reset( nav2_fine_astar_state_t *state ) {
 *	@param	solverId	Stable solver identifier.
 *	@return	True when initialization succeeded.
 **/
-const bool SVG_Nav2_FineAStar_Init( nav2_fine_astar_state_t *state, const nav2_corridor_t &corridor, const uint64_t solverId ) {
+const bool SVG_Nav2_FineAStar_Init( nav2_fine_astar_state_t *state, const nav2_corridor_t &corridor, const uint64_t solverId,
+    const nav2_span_adjacency_policy_t *adjacencyPolicy ) {
     // Validate output storage before building frontier state.
     if ( !state || corridor.segments.empty() ) {
         return false;
@@ -752,6 +819,9 @@ const bool SVG_Nav2_FineAStar_Init( nav2_fine_astar_state_t *state, const nav2_c
     state->solver_id = solverId;
     state->status = nav2_fine_astar_status_t::Running;
     state->corridor = corridor;
+    if ( adjacencyPolicy ) {
+        state->adjacency_policy = *adjacencyPolicy;
+    }
     state->query_state.stage = nav2_query_stage_t::FineRefinement;
     state->query_state.result_status = nav2_query_result_status_t::Pending;
     state->query_state.has_provisional_result = ( corridor.flags & NAV_CORRIDOR_FLAG_PARTIAL_RESULT ) != 0;
@@ -953,7 +1023,8 @@ const bool SVG_Nav2_FineAStar_Step( nav2_fine_astar_state_t *state, const nav2_b
                 continue;
             }
 
-            if ( corridorEval.penalty > 0.0 ) {
+            const double segmentPolicyCost = SVG_Nav2_ComputeFinePolicyCostFromSegment( currentNode, matchedSegment );
+            if ( corridorEval.penalty > 0.0 || segmentPolicyCost > 0.0 ) {
                 state->diagnostics.corridor_soft_penalty_accepts++;
             }
 
@@ -965,27 +1036,44 @@ const bool SVG_Nav2_FineAStar_Step( nav2_fine_astar_state_t *state, const nav2_b
             }
 
             // Compute transition costs.
-            const double transitionCost = std::max( 0.0, adjEdge.cost ) + std::max( 0.0, adjEdge.soft_penalty_cost ) + std::max( 0.0, corridorEval.penalty );
+            const double transitionCost = std::max( 0.0, adjEdge.cost ) + std::max( 0.0, adjEdge.soft_penalty_cost )
+                + std::max( 0.0, corridorEval.penalty ) + std::max( 0.0, segmentPolicyCost );
             const double tentativeG = currentNode.g_score + transitionCost;
+
+            const nav2_corridor_mover_ref_t resolvedMoverRef = ( matchedSegment && matchedSegment->mover_ref.IsValid() )
+                ? matchedSegment->mover_ref
+                : moverRef;
 
             // Resolve or create destination node.
             nav2_fine_astar_node_t *neighborNode = SVG_Nav2_FindFineNodeById( state, neighborNodeId );
             if ( !neighborNode ) {
                 nav2_fine_astar_node_t newNode = {};
                 newNode.node_id = neighborNodeId;
-                newNode.kind = ( neighborNodeId == state->goal_span_id ) ? nav2_fine_astar_node_kind_t::Goal : nav2_fine_astar_node_kind_t::Span;
+                newNode.kind = ( neighborNodeId == state->goal_span_id ) ? nav2_fine_astar_node_kind_t::Goal : SVG_Nav2_ClassifyFineNodeKindFromSegment( matchedSegment );
                 newNode.span_id = toSpan->span_id;
                 newNode.column_index = toSpanRef.column_index;
                 newNode.span_index = toSpanRef.span_index;
                 newNode.connector_id = matchedSegment ? matchedSegment->topology.portal_id : NAV_PORTAL_ID_NONE;
-                newNode.mover_entnum = moverRef.owner_entnum;
-                newNode.inline_model_index = moverRef.model_index;
+                newNode.traversal_feature_bits = matchedSegment ? matchedSegment->traversal_feature_bits : NAV_TRAVERSAL_FEATURE_NONE;
+                newNode.edge_feature_bits = matchedSegment ? matchedSegment->edge_feature_bits : NAV_EDGE_FEATURE_NONE;
+                newNode.ladder_endpoint_flags = matchedSegment ? matchedSegment->ladder_endpoint_flags : NAV_LADDER_ENDPOINT_NONE;
+                newNode.mover_entnum = resolvedMoverRef.owner_entnum;
+                newNode.inline_model_index = resolvedMoverRef.model_index;
                 newNode.allowed_z_band = matchedSegment ? matchedSegment->allowed_z_band : state->corridor.global_z_band;
                 newNode.flags = NAV2_FINE_ASTAR_NODE_FLAG_HAS_SPAN | NAV2_FINE_ASTAR_NODE_FLAG_HAS_ALLOWED_Z_BAND;
                 newNode.topology.leaf_index = toSpan->leaf_id;
                 newNode.topology.cluster_id = toSpan->cluster_id;
                 newNode.topology.area_id = toSpan->area_id;
                 newNode.topology.region_id = toSpan->region_layer_id;
+                if ( matchedSegment && ( matchedSegment->flags & NAV_CORRIDOR_SEGMENT_FLAG_HAS_PORTAL_ID ) != 0 ) {
+                    newNode.flags |= NAV2_FINE_ASTAR_NODE_FLAG_HAS_CONNECTOR;
+                }
+                if ( matchedSegment && ( matchedSegment->flags & NAV_CORRIDOR_SEGMENT_FLAG_HAS_MOVER_REF ) != 0 ) {
+                    newNode.flags |= NAV2_FINE_ASTAR_NODE_FLAG_HAS_MOVER;
+                }
+                if ( matchedSegment && ( matchedSegment->flags & NAV_CORRIDOR_SEGMENT_FLAG_HAS_LADDER_ENDPOINT ) != 0 ) {
+                    newNode.flags |= NAV2_FINE_ASTAR_NODE_FLAG_PREFERRED;
+                }
                 newNode.g_score = std::numeric_limits<double>::infinity();
                 newNode.h_score = 0.0;
                 newNode.f_score = std::numeric_limits<double>::infinity();
@@ -1006,6 +1094,27 @@ const bool SVG_Nav2_FineAStar_Step( nav2_fine_astar_state_t *state, const nav2_b
                 continue;
             }
 
+            if ( matchedSegment ) {
+                neighborNode->kind = ( neighborNode->node_id == state->goal_span_id ) ? nav2_fine_astar_node_kind_t::Goal : SVG_Nav2_ClassifyFineNodeKindFromSegment( matchedSegment );
+                neighborNode->connector_id = matchedSegment->topology.portal_id;
+                neighborNode->traversal_feature_bits = matchedSegment->traversal_feature_bits;
+                neighborNode->edge_feature_bits = matchedSegment->edge_feature_bits;
+                neighborNode->ladder_endpoint_flags = matchedSegment->ladder_endpoint_flags;
+                neighborNode->allowed_z_band = matchedSegment->allowed_z_band;
+                neighborNode->mover_entnum = resolvedMoverRef.owner_entnum;
+                neighborNode->inline_model_index = resolvedMoverRef.model_index;
+                neighborNode->flags |= NAV2_FINE_ASTAR_NODE_FLAG_HAS_ALLOWED_Z_BAND;
+                if ( ( matchedSegment->flags & NAV_CORRIDOR_SEGMENT_FLAG_HAS_PORTAL_ID ) != 0 ) {
+                    neighborNode->flags |= NAV2_FINE_ASTAR_NODE_FLAG_HAS_CONNECTOR;
+                }
+                if ( ( matchedSegment->flags & NAV_CORRIDOR_SEGMENT_FLAG_HAS_MOVER_REF ) != 0 ) {
+                    neighborNode->flags |= NAV2_FINE_ASTAR_NODE_FLAG_HAS_MOVER;
+                }
+                if ( ( matchedSegment->flags & NAV_CORRIDOR_SEGMENT_FLAG_HAS_LADDER_ENDPOINT ) != 0 ) {
+                    neighborNode->flags |= NAV2_FINE_ASTAR_NODE_FLAG_PREFERRED;
+                }
+            }
+
             neighborNode->parent_node_id = currentNode.node_id;
             neighborNode->g_score = tentativeG;
             neighborNode->h_score = SVG_Nav2_Heuristic( *neighborNode, state->goal_node );
@@ -1016,9 +1125,11 @@ const bool SVG_Nav2_FineAStar_Step( nav2_fine_astar_state_t *state, const nav2_b
             relaxedEdge.from_node_id = currentNode.node_id;
             relaxedEdge.to_node_id = neighborNode->node_id;
             relaxedEdge.connector_id = matchedSegment ? matchedSegment->topology.portal_id : NAV_PORTAL_ID_NONE;
+            relaxedEdge.traversal_feature_bits = matchedSegment ? matchedSegment->traversal_feature_bits : NAV_TRAVERSAL_FEATURE_NONE;
+            relaxedEdge.edge_feature_bits = matchedSegment ? matchedSegment->edge_feature_bits : NAV_EDGE_FEATURE_NONE;
             relaxedEdge.allowed_z_band = neighborNode->allowed_z_band;
-            relaxedEdge.topology_penalty += corridorEval.penalty;
-            if ( corridorEval.penalty > 0.0 ) {
+            relaxedEdge.topology_penalty += corridorEval.penalty + segmentPolicyCost;
+            if ( corridorEval.penalty > 0.0 || segmentPolicyCost > 0.0 ) {
                 relaxedEdge.flags |= NAV2_FINE_ASTAR_EDGE_FLAG_TOPOLOGY_PENALIZED;
             }
             if ( !SVG_Nav2_AppendFineEdge( state, relaxedEdge ) ) {
@@ -1049,8 +1160,17 @@ const bool SVG_Nav2_FineAStar_Step( nav2_fine_astar_state_t *state, const nav2_b
 
     // If a goal relaxation occurred, reconstruct and publish success.
     if ( reachedGoal ) {
-        const nav2_fine_astar_node_t *goalNode = SVG_Nav2_FindFineNodeById( *state, state->goal_span_id );
-        const int32_t terminalNodeId = goalNode ? goalNode->node_id : state->goal_node.node_id;
+        /**
+        *    Resolve the terminal node from stable node ids, not span ids.
+        *    `goal_span_id` identifies precision-layer spans and may not equal the solver's node id,
+        *    which can collapse reconstruction to a single detached goal node and produce empty-waypoint
+        *    postprocess failures. Prefer the explicit goal node id, then fallback to the span-mapped node.
+        **/
+        const nav2_fine_astar_node_t *goalNodeByStableId = SVG_Nav2_FindFineNodeById( *state, state->goal_node.node_id );
+        const nav2_fine_astar_node_t *goalNodeBySpanId = SVG_Nav2_FindFineNodeById( *state, state->goal_span_id );
+        const int32_t terminalNodeId = goalNodeByStableId
+            ? goalNodeByStableId->node_id
+            : ( goalNodeBySpanId ? goalNodeBySpanId->node_id : state->goal_node.node_id );
         SVG_Nav2_ReconstructPath( *state, terminalNodeId, &state->path );
         state->status = nav2_fine_astar_status_t::Success;
         state->query_state.result_status = nav2_query_result_status_t::Success;
@@ -1066,8 +1186,10 @@ const bool SVG_Nav2_FineAStar_Step( nav2_fine_astar_state_t *state, const nav2_b
         return true;
     }
 
-    // When no frontier progress was made and expansion exhausted the frontier, fall back to a
-    // minimal endpoint path so corridor-derived routes can still progress through postprocess.
+    // When no frontier progress was made and expansion exhausted the frontier, record the bounded
+    // fallback diagnostic but fail the refinement instead of promoting an endpoint-only placeholder
+    // path to success. This keeps downstream postprocess/commit stages from publishing degenerate
+    // start/goal anchors as if a real routed chain had been refined.
     if ( !advancedFrontier && state->frontier_node_ids.empty() ) {
         /**
         *    Build a deterministic fallback path from start to goal when fine adjacency cannot
@@ -1085,17 +1207,17 @@ const bool SVG_Nav2_FineAStar_Step( nav2_fine_astar_state_t *state, const nav2_b
         state->diagnostics.fallback_path_activations++;
 
         /**
-        *    Promote this fallback as a provisional success so scheduler stages can postprocess and
-        *    revalidate instead of repeatedly failing and resubmitting stage-9 jobs.
-        **/
-        state->status = nav2_fine_astar_status_t::Success;
-        state->query_state.result_status = nav2_query_result_status_t::Success;
-        state->query_state.has_provisional_result = true;
+         *    Preserve the fallback path snapshot only for diagnostics. The solver result remains a
+         *    failure so later stages cannot confuse this unresolved endpoint bridge for a healthy path.
+         **/
+        state->status = nav2_fine_astar_status_t::Failed;
+        state->query_state.result_status = nav2_query_result_status_t::Failed;
+        state->query_state.has_provisional_result = false;
         state->query_state.requires_revalidation = true;
         if ( out_result ) {
             *out_result = {};
             out_result->status = state->status;
-            out_result->has_path = !state->path.node_ids.empty();
+            out_result->has_path = false;
             out_result->path = state->path;
             out_result->diagnostics = state->diagnostics;
         }

@@ -7,15 +7,95 @@
 ********************************************************************/
 #include "svgame/nav2/nav2_query_iface.h"
 #include "svgame/nav2/nav2_query_iface_internal.h"
+#include "svgame/nav2/nav2_policy.h"
 #include "svgame/nav2/nav2_scheduler.h"
 #include "svgame/nav2/nav2_span_grid.h"
 
+#include <array>
 #include <algorithm>
 #include <cmath>
 #include <cstring>
 
+/**
+*\t@brief\tReturn whether verbose async-nav diagnostics are enabled.
+*\t@return\tTrue when async-nav stats logging cvar is enabled.
+**/
+static const bool Nav2_QueryIface_IsVerboseStatsEnabled( void ) {
+    static cvar_t *s_nav2_query_iface_log_stats = nullptr;
+    if ( !s_nav2_query_iface_log_stats ) {
+        s_nav2_query_iface_log_stats = gi.cvar( "nav_nav_async_log_stats", "0", 0 );
+    }
+    return s_nav2_query_iface_log_stats && s_nav2_query_iface_log_stats->integer != 0;
+}
+
 //! Active query mesh wrapper published through the compatibility seam.
 static nav2_query_mesh_t g_nav_query_mesh = {};
+
+/**
+*\t@brief\tBuild a staged legacy path-follow policy snapshot from a nav2-owned policy wrapper.
+*\t@param\tpolicy\tNav2-owned path-follow policy wrapper.
+*\t@return\tLegacy policy snapshot consumed by the staged implementation.
+**/
+nav2_path_policy_t SVG_Nav2_QueryBuildLegacyPolicy( const nav2_query_policy_t &policy ) {
+    nav2_path_policy_t legacyPolicy = {};
+    legacyPolicy.rebuild_interval = policy.rebuild_interval;
+    legacyPolicy.fail_backoff_base = policy.fail_backoff_base;
+    legacyPolicy.fail_backoff_max_pow = policy.fail_backoff_max_pow;
+    legacyPolicy.ignore_visibility = policy.ignore_visibility;
+    legacyPolicy.ignore_infront = policy.ignore_infront;
+    legacyPolicy.waypoint_radius = policy.waypoint_radius;
+    legacyPolicy.rebuild_goal_dist_2d = policy.rebuild_goal_dist_2d;
+    legacyPolicy.rebuild_goal_dist_3d = policy.rebuild_goal_dist_3d;
+    legacyPolicy.enable_goal_z_layer_blend = policy.enable_goal_z_layer_blend;
+    legacyPolicy.blend_start_dist = policy.blend_start_dist;
+    legacyPolicy.blend_full_dist = policy.blend_full_dist;
+    legacyPolicy.enable_cluster_route_filter = policy.enable_cluster_route_filter;
+    legacyPolicy.forbid_water = policy.forbid_water;
+    legacyPolicy.forbid_lava = policy.forbid_lava;
+    legacyPolicy.forbid_slime = policy.forbid_slime;
+    legacyPolicy.allow_optional_walk_off = policy.allow_optional_walk_off;
+    legacyPolicy.allow_forbidden_walk_off = policy.allow_forbidden_walk_off;
+    legacyPolicy.enable_pass_through_pruning = policy.enable_pass_through_pruning;
+    legacyPolicy.prefer_ladders = policy.prefer_ladders;
+    legacyPolicy.ladder_preference_bias = policy.ladder_preference_bias;
+    legacyPolicy.ladder_preferred_height_slack = policy.ladder_preferred_height_slack;
+    legacyPolicy.use_dynamic_occupancy = policy.use_dynamic_occupancy;
+    legacyPolicy.hard_block_dynamic_occupancy = policy.hard_block_dynamic_occupancy;
+    legacyPolicy.dynamic_occupancy_soft_cost_scale = policy.dynamic_occupancy_soft_cost_scale;
+    legacyPolicy.min_step_normal = policy.min_step_normal;
+    legacyPolicy.min_step_height = policy.min_step_height;
+    legacyPolicy.max_step_height = policy.max_step_height;
+    legacyPolicy.allow_small_obstruction_jump = policy.allow_small_obstruction_jump;
+    legacyPolicy.max_obstruction_jump_height = policy.max_obstruction_jump_height;
+    legacyPolicy.enable_max_drop_height_cap = policy.enable_max_drop_height_cap;
+    legacyPolicy.max_drop_height = policy.max_drop_height;
+    legacyPolicy.max_drop_height_cap = policy.max_drop_height_cap;
+    legacyPolicy.agent_mins = policy.agent_mins;
+    legacyPolicy.agent_maxs = policy.agent_maxs;
+    legacyPolicy.max_slope_normal_z = policy.max_slope_normal_z;
+    legacyPolicy.layer_select_prefer_top = policy.layer_select_prefer_top;
+    legacyPolicy.layer_select_prefer_z_threshold = policy.layer_select_prefer_z_threshold;
+    return legacyPolicy;
+}
+
+/**
+*\t@brief\tBuild an agent-adjacency policy snapshot from a nav2-owned request policy wrapper.
+*\t@param\tpolicy\tNav2-owned path-follow policy wrapper.
+*\t@return\tAdjacency policy snapshot used by span adjacency and fine refinement.
+**/
+nav2_span_adjacency_policy_t SVG_Nav2_QueryBuildAdjacencyPolicy( const nav2_query_policy_t &policy ) {
+    nav2_span_adjacency_policy_t adjacencyPolicy = {};
+    adjacencyPolicy.agent_mins = policy.agent_mins;
+    adjacencyPolicy.agent_maxs = policy.agent_maxs;
+    adjacencyPolicy.collision_mask = CM_CONTENTMASK_MONSTERSOLID;
+    adjacencyPolicy.min_step_normal = policy.min_step_normal;
+    adjacencyPolicy.min_step_height = policy.min_step_height;
+    adjacencyPolicy.max_step_height = policy.max_step_height;
+    adjacencyPolicy.max_drop_height = policy.max_drop_height;
+    adjacencyPolicy.max_drop_height_cap = policy.max_drop_height_cap;
+    adjacencyPolicy.enable_max_drop_height_cap = policy.enable_max_drop_height_cap;
+    return adjacencyPolicy;
+}
 
 /**
 *\t@brief\tResolve one canonical world-tile record from world-tile coordinates.
@@ -76,9 +156,16 @@ static int32_t SVG_Nav2_QueryFloorDiv( const int32_t value, const int32_t diviso
     }
 
     /**
-    *    Use floating-point floor so negative cell coordinates land in the expected world tile.
+    *    Use integer floor-division semantics directly to avoid the floating-point conversion and libm
+    *    call overhead that showed up prominently in profiling.
     **/
-    return ( int32_t )std::floor( ( double )value / ( double )divisor );
+    const int32_t quotient = value / divisor;
+    const int32_t remainder = value % divisor;
+    if ( remainder != 0 && ( remainder < 0 ) != ( divisor < 0 ) ) {
+        return quotient - 1;
+    }
+
+    return quotient;
 }
 
 /**
@@ -143,6 +230,31 @@ static const bool SVG_Nav2_QueryTryResolveTileLocalCell( const nav2_mesh_t *main
     *outCellX = cellX;
     *outCellY = cellY;
     *outCellIndex = ( cellY * mainMesh->tile_size ) + cellX;
+    return true;
+}
+
+/**
+*\t@brief\tResolve tile-local metadata for one canonical tile without performing the full tile-location helper path.
+*\t@param\tmainMesh\tActive nav2 mesh.
+*\t@param\ttileKey\tResolved world tile key.
+*\t@param\tcenterOrigin\tNav-center point being localized.
+*\t@param\toutCellIndex\t[out] Flattened tile-local cell index.
+*\t@return\tTrue when the point lands inside the tile's real cell footprint.
+*\t@note\tThis is a narrow helper for callers that already resolved the tile id and do not need the redundant
+*\t\t\toutLocation wrapper work performed by the public localization seam.
+**/
+static const bool SVG_Nav2_QueryTryResolveTileLocalCellIndexOnly( const nav2_mesh_t *mainMesh,
+    const nav2_tile_cluster_key_t &tileKey, const Vector3 &centerOrigin, int32_t *outCellIndex ) {
+    if ( !mainMesh || !outCellIndex ) {
+        return false;
+    }
+
+    int32_t cellX = 0;
+    int32_t cellY = 0;
+    if ( !SVG_Nav2_QueryTryResolveTileLocalCell( mainMesh, tileKey, centerOrigin, &cellX, &cellY, outCellIndex ) ) {
+        return false;
+    }
+
     return true;
 }
 
@@ -290,6 +402,7 @@ std::vector<nav2_query_cell_view_t> SVG_Nav2_QueryGetTileCells( const nav2_query
     if ( !worldTile || mainMesh->tile_size <= 0 ) {
         return result;
     }
+    (void)worldTile;
 
     /**
     *    Publish one cell slot per real tile-local XY cell so callers can address the resolved cell index
@@ -307,16 +420,18 @@ std::vector<nav2_query_cell_view_t> SVG_Nav2_QueryGetTileCells( const nav2_query
         return result;
     }
 
-    const int32_t tileCellBaseX = tile.tile_x * mainMesh->tile_size;
-    const int32_t tileCellBaseY = tile.tile_y * mainMesh->tile_size;
+    const int32_t tileSize = mainMesh->tile_size;
+    const int32_t tileCellBaseX = tile.tile_x * tileSize;
+    const int32_t tileCellBaseY = tile.tile_y * tileSize;
+    const int32_t tileCellLimitX = tileCellBaseX + tileSize;
+    const int32_t tileCellLimitY = tileCellBaseY + tileSize;
     for ( const nav2_span_column_t &column : spanGrid->columns ) {
         /**
-        *    Columns are keyed in world-cell coordinates, so convert them back into their owning world tile
-        *    and skip any column outside the requested tile.
+        *    Columns are keyed in world-cell coordinates, so use tile-local bounds to reject columns outside
+        *    the requested world tile without re-running floor division for every candidate column.
         **/
-        const int32_t columnTileX = SVG_Nav2_QueryFloorDiv( column.tile_x, mainMesh->tile_size );
-        const int32_t columnTileY = SVG_Nav2_QueryFloorDiv( column.tile_y, mainMesh->tile_size );
-        if ( columnTileX != tile.tile_x || columnTileY != tile.tile_y ) {
+        if ( column.tile_x < tileCellBaseX || column.tile_x >= tileCellLimitX
+            || column.tile_y < tileCellBaseY || column.tile_y >= tileCellLimitY ) {
             continue;
         }
 
@@ -325,11 +440,11 @@ std::vector<nav2_query_cell_view_t> SVG_Nav2_QueryGetTileCells( const nav2_query
         **/
         const int32_t localCellX = column.tile_x - tileCellBaseX;
         const int32_t localCellY = column.tile_y - tileCellBaseY;
-        if ( localCellX < 0 || localCellY < 0 || localCellX >= mainMesh->tile_size || localCellY >= mainMesh->tile_size ) {
+        if ( localCellX < 0 || localCellY < 0 || localCellX >= tileSize || localCellY >= tileSize ) {
             continue;
         }
 
-        nav2_query_cell_view_t &cell = result[ ( size_t )( localCellY * mainMesh->tile_size + localCellX ) ];
+        nav2_query_cell_view_t &cell = result[ ( size_t )( localCellY * tileSize + localCellX ) ];
         cell.layers.clear();
         for ( const nav2_span_t &span : column.spans ) {
             if ( !SVG_Nav2_SpanIsValid( span ) ) {
@@ -417,10 +532,12 @@ const bool SVG_Nav2_QueryTryResolveTileLocation( const nav2_query_mesh_t *mesh, 
     outLocation->tile_key = SVG_Nav2_QueryGetTileKeyForPosition( mesh, centerOrigin );
 
     /**
-    *    Resolve the canonical world-tile id first so later duplicate suppression keys the candidate on the
-    *    runtime mesh's real tile identity instead of a synthetic coordinate hash.
+    *    Resolve the canonical world-tile once so the localization path does not pay for a second tile-key
+    *    lookup just to recover the tile id.
     **/
-    if ( !SVG_Nav2_QueryTryResolveTileIdByCoords( mesh, outLocation->tile_key.tile_x, outLocation->tile_key.tile_y, &outLocation->tile_id ) ) {
+    const nav2_tile_t *worldTile = SVG_Nav2_QueryTryGetCanonicalWorldTile( mainMesh, outLocation->tile_key.tile_x,
+        outLocation->tile_key.tile_y, &outLocation->tile_id );
+    if ( !worldTile ) {
         return false;
     }
 
@@ -428,12 +545,37 @@ const bool SVG_Nav2_QueryTryResolveTileLocation( const nav2_query_mesh_t *mesh, 
     *    Resolve the real tile-local cell index from the nav-center point so neighboring samples inside the
     *    same world tile stop collapsing onto cell zero.
     **/
-    int32_t localCellX = 0;
-    int32_t localCellY = 0;
-    if ( !SVG_Nav2_QueryTryResolveTileLocalCell( mainMesh, outLocation->tile_key, centerOrigin,
-        &localCellX, &localCellY, &outLocation->cell_index ) ) {
+    if ( mainMesh->tile_size <= 0 || mainMesh->cell_size_xy <= 0.0 ) {
         return false;
     }
+
+    const double tileWorldSize = ( double )mainMesh->tile_size * mainMesh->cell_size_xy;
+    const double tileMinX = ( double )outLocation->tile_key.tile_x * tileWorldSize;
+    const double tileMinY = ( double )outLocation->tile_key.tile_y * tileWorldSize;
+    const double cellXExact = ( ( double )centerOrigin.x - tileMinX ) / mainMesh->cell_size_xy;
+    const double cellYExact = ( ( double )centerOrigin.y - tileMinY ) / mainMesh->cell_size_xy;
+    int32_t cellX = ( int32_t )std::floor( cellXExact );
+    int32_t cellY = ( int32_t )std::floor( cellYExact );
+
+    constexpr double boundaryEpsilonCells = 0.001;
+    if ( cellX < 0 && cellXExact > -boundaryEpsilonCells ) {
+        cellX = 0;
+    }
+    if ( cellY < 0 && cellYExact > -boundaryEpsilonCells ) {
+        cellY = 0;
+    }
+    if ( cellX >= mainMesh->tile_size && cellXExact < ( double )mainMesh->tile_size + boundaryEpsilonCells ) {
+        cellX = mainMesh->tile_size - 1;
+    }
+    if ( cellY >= mainMesh->tile_size && cellYExact < ( double )mainMesh->tile_size + boundaryEpsilonCells ) {
+        cellY = mainMesh->tile_size - 1;
+    }
+
+    if ( cellX < 0 || cellY < 0 || cellX >= mainMesh->tile_size || cellY >= mainMesh->tile_size ) {
+        return false;
+    }
+
+    outLocation->cell_index = ( cellY * mainMesh->tile_size ) + cellX;
 
     return true;
 }
@@ -752,14 +894,99 @@ const bool SVG_Nav2_QueryBuildCoarseCorridor( const nav2_query_mesh_t *mesh, con
 *	@return True when projection succeeded.
 **/
 const bool SVG_Nav2_TryProjectFeetOriginToWalkableZ( const nav2_mesh_t *mesh, const Vector3 &goalOrigin, const Vector3 &agentMins, const Vector3 &agentMaxs, Vector3 *outGoalOrigin ) {
-    // Keep the feet-origin unchanged here so later conversion and localization stay consistent.
+    /**
+    *   Keep this projection deterministic and boundary-safe by validating that the projected center
+    *   resolves to a canonical tile/cell/layer through the public query seam. If direct localization
+    *   fails (e.g. edge-on-cell/tile boundary), probe a small bounded XY neighborhood before rejecting.
+    **/
     if ( !mesh || !outGoalOrigin ) {
         return false;
     }
-    *outGoalOrigin = goalOrigin;
-    (void)agentMins;
-    (void)agentMaxs;
-    return true;
+
+    const nav2_query_mesh_t queryMesh = SVG_Nav2_QueryMakeMesh( mesh );
+
+    /**
+    *   Local bounded probe helper that validates tile/cell localization and layer selection.
+    **/
+    auto tryResolveProjectedFeet = [&]( const Vector3 &candidateFeet, Vector3 *resolvedFeetOut ) -> bool {
+        if ( !resolvedFeetOut ) {
+            return false;
+        }
+
+        const Vector3 centerCandidate = SVG_Nav2_QueryConvertFeetToCenter( &queryMesh, candidateFeet, &agentMins, &agentMaxs );
+        nav2_query_tile_location_t tileLocation = {};
+        if ( !SVG_Nav2_QueryTryResolveTileLocation( &queryMesh, centerCandidate, &tileLocation ) ) {
+            return false;
+        }
+
+        const nav2_query_tile_view_t tileView = SVG_Nav2_QueryGetTileViewByCoords( &queryMesh,
+            tileLocation.tile_key.tile_x,
+            tileLocation.tile_key.tile_y );
+        const std::vector<nav2_query_cell_view_t> tileCells = SVG_Nav2_QueryGetTileCells( &queryMesh, tileView );
+        if ( tileLocation.cell_index < 0 || tileLocation.cell_index >= ( int32_t )tileCells.size() ) {
+            return false;
+        }
+
+        const nav2_query_cell_view_t &cell = tileCells[ ( size_t )tileLocation.cell_index ];
+        int32_t selectedLayerIndex = -1;
+        if ( !SVG_Nav2_QuerySelectLayerIndex( &queryMesh, cell, centerCandidate.z, &selectedLayerIndex ) ) {
+            return false;
+        }
+        if ( selectedLayerIndex < 0 || selectedLayerIndex >= ( int32_t )cell.layers.size() ) {
+            return false;
+        }
+
+        /**
+        *   Convert selected layer height back to feet-origin while preserving sampled XY.
+        **/
+        const nav2_query_layer_view_t &layer = cell.layers[ ( size_t )selectedLayerIndex ];
+        const double zQuant = ( mesh->z_quant > 0.0 ) ? mesh->z_quant : 1.0;
+        const double centerZ = ( double )layer.z_quantized * zQuant;
+        const float feetToCenterOffsetZ = SVG_Nav2_QueryGetFeetToOriginOffsetZ( mesh, &agentMins );
+        *resolvedFeetOut = candidateFeet;
+        resolvedFeetOut->z = ( float )( centerZ - feetToCenterOffsetZ );
+        return true;
+    };
+
+    /**
+    *   First try direct projection at requested feet-origin.
+    **/
+    if ( tryResolveProjectedFeet( goalOrigin, outGoalOrigin ) ) {
+        return true;
+    }
+
+    /**
+    *   Boundary-origin fallback: probe a tiny XY neighborhood (half-cell and full-cell offsets)
+    *   so edge-on-floor-shot goals can snap to a valid adjacent cell deterministically.
+    **/
+    const double cellSize = mesh->cell_size_xy;
+    if ( cellSize <= 0.0 ) {
+        return false;
+    }
+
+    const double halfStep = std::max( 1.0, cellSize * 0.5 );
+    const double fullStep = std::max( 1.0, cellSize );
+    const std::array<double, 3> offsets = { 0.0, halfStep, fullStep };
+    for ( const double dxMag : offsets ) {
+        for ( const double dyMag : offsets ) {
+            for ( const int32_t sx : { -1, 1 } ) {
+                for ( const int32_t sy : { -1, 1 } ) {
+                    if ( dxMag == 0.0 && dyMag == 0.0 ) {
+                        continue;
+                    }
+
+                    Vector3 sample = goalOrigin;
+                    sample.x = ( float )( sample.x + ( dxMag * ( double )sx ) );
+                    sample.y = ( float )( sample.y + ( dyMag * ( double )sy ) );
+                    if ( tryResolveProjectedFeet( sample, outGoalOrigin ) ) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+
+    return false;
 }
 
 /**
@@ -829,11 +1056,13 @@ const bool SVG_Nav2_IsRequestPending( const nav2_query_process_t *process ) {
 **/
 const bool SVG_Nav2_IsAsyncNavEnabled( void ) {
     /**
-    *   Resolve and cache the async-mode cvar through the engine import for low-overhead checks.
+    *   Resolve and cache the async queue-mode cvar through the engine import for low-overhead checks.
+    *   This keeps the async seam aligned with the monster-side queue gate so both halves consult the
+    *   same runtime toggle before a request is submitted or serviced.
     **/
     static cvar_t *s_nav2_async_enabled = nullptr;
     if ( !s_nav2_async_enabled ) {
-        s_nav2_async_enabled = gi.cvar( "nav_nav_async", "1", 0 );
+        s_nav2_async_enabled = gi.cvar( "nav_nav_async_queue_mode", "1", 0 );
     }
     return s_nav2_async_enabled && s_nav2_async_enabled->integer != 0;
 }
@@ -854,6 +1083,36 @@ const bool SVG_Nav2_IsAsyncNavEnabled( void ) {
 nav2_query_handle_t SVG_Nav2_RequestPathAsync( nav2_query_process_t *process,
     const Vector3 &startOrigin, const Vector3 &goalOrigin, const nav2_query_policy_t &policy,
     const Vector3 &agentMins, const Vector3 &agentMaxs, const bool force, const double startIgnoreThreshold ) {
+    /**
+    *   @brief  Resolve a bounded exponential backoff window for one terminal failure count.
+    *   @param  failureCount          Current consecutive failure count.
+    *   @param  failBackoffBase       Base backoff duration from policy.
+    *   @param  failBackoffMaxPow     Maximum exponent clamp for doubling backoff.
+    *   @return Bounded backoff duration that can be applied to rebuild cooldown gates.
+    *   @note   This helper keeps queue churn bounded after repeated terminal failures while preserving
+    *           deterministic timing behavior for successful requests.
+    **/
+    auto resolveFailureBackoffWindow = []( const int32_t failureCount, const QMTime failBackoffBase, const int32_t failBackoffMaxPow ) -> QMTime {
+        /**
+        *   Use a conservative fallback base when policy does not provide a positive backoff window.
+        **/
+        QMTime backoffWindow = ( failBackoffBase > 0_ms ) ? failBackoffBase : 100_ms;
+
+        /**
+        *   Convert failure count into a bounded exponent so repeated failures do not grow unbounded.
+        **/
+        const int32_t boundedMaxPow = std::max( 0, failBackoffMaxPow );
+        const int32_t boundedPow = std::min( std::max( 0, failureCount - 1 ), boundedMaxPow );
+
+        /**
+        *   Apply exponential growth by doubling the base per bounded exponent step.
+        **/
+        for ( int32_t powStep = 0; powStep < boundedPow; powStep++ ) {
+            backoffWindow += backoffWindow;
+        }
+        return backoffWindow;
+    };
+
     /**
     *   Require process storage before writing request state.
     **/
@@ -889,11 +1148,13 @@ nav2_query_handle_t SVG_Nav2_RequestPathAsync( nav2_query_process_t *process,
             && pendingJob->has_committed_waypoints
             && !pendingJob->committed_waypoints.empty() ) {
             // Emit a compact checkpoint before moving the committed scheduler payload into the live process path.
-            gi.dprintf( "[NAV2][QueryCommit] handle=%d job=%llu waypoints=%zu path_pts=%d\n",
-                process->pending_request_handle,
-                ( unsigned long long )pendingJob->job_id,
-                pendingJob->committed_waypoints.size(),
-                process->path.num_points );
+            if ( Nav2_QueryIface_IsVerboseStatsEnabled() ) {
+                gi.dprintf( "[NAV2][QueryCommit] handle=%d job=%llu waypoints=%zu path_pts=%d\n",
+                    process->pending_request_handle,
+                    ( unsigned long long )pendingJob->job_id,
+                    pendingJob->committed_waypoints.size(),
+                    process->path.num_points );
+            }
 
             // Release previous point storage before writing the committed path snapshot.
             if ( process->path.points != nullptr && gi.TagFree ) {
@@ -932,13 +1193,15 @@ nav2_query_handle_t SVG_Nav2_RequestPathAsync( nav2_query_process_t *process,
             }
         } else {
             // Log terminal failures once per handle so we can distinguish scheduler failure from path commit loss.
-            gi.dprintf( "[NAV2][QueryCommitFail] handle=%d job=%llu terminal=%d committed=%d waypoints=%zu path_pts=%d\n",
-                process->pending_request_handle,
-                ( unsigned long long )pendingJob->job_id,
-                ( int32_t )pendingJob->state.result_status,
-                pendingJob->has_committed_waypoints ? 1 : 0,
-                pendingJob->committed_waypoints.size(),
-                process->path.num_points );
+            if ( Nav2_QueryIface_IsVerboseStatsEnabled() ) {
+                gi.dprintf( "[NAV2][QueryCommitFail] handle=%d job=%llu terminal=%d committed=%d waypoints=%zu path_pts=%d\n",
+                    process->pending_request_handle,
+                    ( unsigned long long )pendingJob->job_id,
+                    ( int32_t )pendingJob->state.result_status,
+                    pendingJob->has_committed_waypoints ? 1 : 0,
+                    pendingJob->committed_waypoints.size(),
+                    process->path.num_points );
+            }
 
             /**
             *   Terminal non-success: record deterministic failure/backoff markers.
@@ -946,10 +1209,11 @@ nav2_query_handle_t SVG_Nav2_RequestPathAsync( nav2_query_process_t *process,
             process->consecutive_failures++;
             process->last_failure_time = level.time;
             process->last_failure_pos = goalOrigin;
-            process->next_rebuild_time = level.time + 100_ms;
-            if ( policy.fail_backoff_base > 0_ms ) {
-                process->backoff_until = level.time + policy.fail_backoff_base;
-            }
+            const QMTime failureBackoffWindow = resolveFailureBackoffWindow( process->consecutive_failures,
+                policy.fail_backoff_base,
+                policy.fail_backoff_max_pow );
+            process->next_rebuild_time = level.time + failureBackoffWindow;
+            process->backoff_until = level.time + failureBackoffWindow;
         }
 
         /**
@@ -996,6 +1260,7 @@ nav2_query_handle_t SVG_Nav2_RequestPathAsync( nav2_query_process_t *process,
     **/
     request.agent_mins = agentMins;
     request.agent_maxs = agentMaxs;
+    request.policy = policy;
     request.priority = nav2_query_priority_t::Normal;
     request.enable_compare_mode = false;
     request.debug_force_sync = force;
@@ -1003,7 +1268,14 @@ nav2_query_handle_t SVG_Nav2_RequestPathAsync( nav2_query_process_t *process,
     if ( jobId == 0 || jobId > ( uint64_t )std::numeric_limits<int32_t>::max() ) {
         process->rebuild_in_progress = false;
         process->pending_request_handle = 0;
-        process->next_rebuild_time = level.time + 100_ms;
+        process->consecutive_failures++;
+        process->last_failure_time = level.time;
+        process->last_failure_pos = goalOrigin;
+        const QMTime submissionBackoffWindow = resolveFailureBackoffWindow( process->consecutive_failures,
+            policy.fail_backoff_base,
+            policy.fail_backoff_max_pow );
+        process->next_rebuild_time = level.time + submissionBackoffWindow;
+        process->backoff_until = level.time + submissionBackoffWindow;
         return nav2_query_handle_t{};
     }
 

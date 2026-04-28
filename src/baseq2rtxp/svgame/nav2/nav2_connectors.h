@@ -50,6 +50,36 @@ enum nav2_connector_kind_t : uint32_t {
     NAV2_CONNECTOR_KIND_OPENING = ( 1u << 7 )
 };
 
+/**
+ * @brief Explicit endpoint semantics attached to connector anchors.
+ * @note These flags let topology, hierarchy, and corridor code distinguish ladder bottoms from tops,
+ *  mover boarding anchors from exit anchors, and generic portal barriers from free-form openings.
+ **/
+enum nav2_connector_endpoint_semantic_bits_t : uint32_t {
+    NAV2_CONNECTOR_ENDPOINT_NONE = 0,
+    NAV2_CONNECTOR_ENDPOINT_LADDER_BOTTOM = ( 1u << 0 ),
+    NAV2_CONNECTOR_ENDPOINT_LADDER_TOP = ( 1u << 1 ),
+    NAV2_CONNECTOR_ENDPOINT_STAIR_ENTRY = ( 1u << 2 ),
+    NAV2_CONNECTOR_ENDPOINT_STAIR_EXIT = ( 1u << 3 ),
+    NAV2_CONNECTOR_ENDPOINT_PORTAL_BARRIER = ( 1u << 4 ),
+    NAV2_CONNECTOR_ENDPOINT_MOVER_BOARDING = ( 1u << 5 ),
+    NAV2_CONNECTOR_ENDPOINT_MOVER_RIDE = ( 1u << 6 ),
+    NAV2_CONNECTOR_ENDPOINT_MOVER_EXIT = ( 1u << 7 )
+};
+
+/**
+ * @brief Explicit transition semantics attached to one connector record.
+ **/
+enum nav2_connector_transition_semantic_bits_t : uint32_t {
+    NAV2_CONNECTOR_TRANSITION_NONE = 0,
+    NAV2_CONNECTOR_TRANSITION_VERTICAL = ( 1u << 0 ),
+    NAV2_CONNECTOR_TRANSITION_LADDER = ( 1u << 1 ),
+    NAV2_CONNECTOR_TRANSITION_STAIR = ( 1u << 2 ),
+    NAV2_CONNECTOR_TRANSITION_PORTAL = ( 1u << 3 ),
+    NAV2_CONNECTOR_TRANSITION_OPENING = ( 1u << 4 ),
+    NAV2_CONNECTOR_TRANSITION_MOVER = ( 1u << 5 )
+};
+
 
 /**
 *
@@ -76,6 +106,8 @@ struct nav2_connector_anchor_t {
     Vector3 world_origin = {};
     //! Mover-local anchor position when the connector is tied to a traversal-capable brush entity.
     Vector3 local_origin = {};
+    //! Explicit endpoint semantics for this anchor.
+    uint32_t endpoint_semantics = NAV2_CONNECTOR_ENDPOINT_NONE;
     //! True when the anchor has a usable point and topology metadata.
     bool valid = false;
 };
@@ -110,6 +142,8 @@ struct nav2_connector_t {
     uint32_t movement_restrictions = 0;
     //! Source role flags copied from inline BSP entity classification.
     uint32_t source_role_flags = NAV2_INLINE_BSP_ROLE_NONE;
+    //! Explicit transition semantics derived during connector extraction.
+    uint32_t transition_semantics = NAV2_CONNECTOR_TRANSITION_NONE;
     //! True when the connector can be reused as a stable topology element.
     bool reusable = false;
     //! True when this connector is currently available for routing.
