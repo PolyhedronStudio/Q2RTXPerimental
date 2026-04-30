@@ -26,6 +26,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifdef WIN32
 // Only include what we 'need'.
 #define WIN32_LEAN_AND_MEAN
+#define VC_EXTRALEAN
+#define NOMINMAX
 #include <windows.h>
     // Make sure to undef.
     #ifdef NEAR
