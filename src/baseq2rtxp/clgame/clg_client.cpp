@@ -14,7 +14,7 @@
 #include "clgame/clg_local_entities.h"
 #include "clgame/clg_predict.h"
 
-#include "clgame/ui/clg_ui_main.h"
+#include "clgame/game_ui/clg_ui_main.h"
 
 #include "sharedgame/sg_entities.h"
 #include "sharedgame/pmove/sg_pmove.h"

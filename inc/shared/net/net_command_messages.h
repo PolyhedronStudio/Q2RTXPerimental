@@ -9,21 +9,28 @@
 
 // Server to Client
 typedef enum {
+	// For unknown/unhandled messages, a client can skip them safely by using the 
+	// byte count of the message to skip the rest of the message.
     svc_bad,
 
-    // these are private to the client and server
+    /**
+	*	These are private to the client and server:
+	**/
     svc_nop,
     svc_disconnect,
     svc_reconnect,
     svc_sound,                  // <see code>
     svc_print,                  // [byte] id [string] null terminated string
     svc_stufftext,              // [string] stuffed into client's console buffer should be \n terminated
-    svc_serverdata,             // [long] protocol ...
+    
+	svc_serverdata,             // [long] protocol ...
     svc_configstring,           // [short] [string]
     svc_spawnbaseline,
+
     svc_centerprint,            // [string] to put in center of the screen
     svc_download,               // [short] size [size bytes]
     svc_playerinfo,             // variable
+
     svc_packetentities,         // [...]
     svc_deltapacketentities,    // [...]
     svc_frame,
@@ -39,8 +46,17 @@ typedef enum {
     svc_configstringstream,
     svc_baselinestream,
 
-    // These are also known to the game dlls, however, also needed by the engine.
+    /**
+	*	These are also known to the game dlls, however, also needed by the engine.
+	**/
     svc_muzzleflash,
+
+
+	svc_game_ui_open,			// The server game can use this to open the client's UI, it'll stay open unless 
+								// the server game explicitly closes it. Using either, svc_game_ui_close, 
+								// client disconnects from the server, or the menu is closed by the client, it'll be closed.
+	svc_game_ui_close,			// The server game can use this to close the client's UI, it'll stay closed unless 
+								// the server game explicitly opens it, or the client disconnects from the server.
 
     //svc_muzzleflash2, WID: Removed, monster muzzleflashes based on hard coded static array.
     svc_temp_entity,

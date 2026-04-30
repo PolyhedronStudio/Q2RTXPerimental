@@ -72,31 +72,46 @@ static cvar_t *in_enable;
 static cvar_t *in_grab;
 
 static bool IN_GetCurrentGrab( void ) {
-    if ( cls.active != ACT_ACTIVATED )
-        return false;  // main window doesn't have focus
-
-    if ( r_config.flags & QVF_FULLSCREEN )
-        return true;   // full screen
-
-    if ( cls.key_dest & ( KEY_MENU | KEY_CONSOLE ) )
-        return false;  // menu or console is up
-
-    if ( sv_paused->integer )
-        return false;   // game paused
-
-    if ( cls.state != ca_active && cls.state != ca_cinematic )
-        return false;  // not connected
+	// Minimized:
+	if ( cls.active != ACT_ACTIVATED ) {
+		return false;  // main window doesn't have focus
+	}
+	// Fullscreen mode:
+	if ( r_config.flags & QVF_FULLSCREEN ) {
+		return true;   // full screen
+	}
+	// Menu or console is up:
+	if ( cls.key_dest & ( KEY_MENU | KEY_CONSOLE ) ) {
+		return false;  // menu or console is up
+	}
+	// In-Game UI is up:
+	if ( cls.key_dest & KEY_GAME_UI ) {
+		return false;
+	}
+	// Game is paused:
+	if ( sv_paused->integer ) {
+		return false;
+	}
+	// Not connected:
+	if ( cls.state != ca_active && cls.state != ca_cinematic ) {
+		return false;
+	}
 
     if ( in_grab->integer >= 2 ) {
-        if ( cls.demo.playback && !Key_IsDown( K_SHIFT ) )
-            return false;  // playing a demo (and not using freelook)
-
-        if ( cl.frame.ps.pmove.pm_type == PM_FREEZE )
-            return false;  // spectator mode
+		// Playing Demo(No Freelook):
+		if ( cls.demo.playback && !Key_IsDown( K_SHIFT ) ) {
+			return false;
+		}
+		// Spectator Mode: 
+		if ( cl.frame.ps.pmove.pm_type == PM_FREEZE ) {
+			return false;
+		}
     }
 
-    if ( in_grab->integer >= 1 )
-        return true;   // regular playing mode
+	// Regular playing mode.
+	if ( in_grab->integer >= 1 ) {
+		return true;
+	}
 
     return false;
 }
@@ -381,7 +396,7 @@ const client_mouse_motion_t CL_ProcessMouseMove( void ) {
     if ( !vid.get_mouse_motion ) {
         return motion;
     }
-    if ( cls.key_dest & ( KEY_MENU | KEY_CONSOLE ) ) {
+    if ( cls.key_dest & ( KEY_GAME_UI | KEY_MENU | KEY_CONSOLE ) ) {
         return motion;
     }
     if ( !vid.get_mouse_motion( &motion.deltaX, &motion.deltaY ) ) {

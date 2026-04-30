@@ -67,7 +67,7 @@ SET(SRC_BASEQ2_CLGAME
 	baseq2/clgame/temp_entities/clg_te_railtrails.cpp
 	baseq2/clgame/temp_entities/clg_te_sustain.cpp
 
-    baseq2/clgame/ui/clg_ui_main.cpp
+    baseq2/clgame/game_ui/clg_ui_main.cpp
 )
 SET(HEADERS_BASEQ2_CLGAME
     # MicroUI
@@ -92,7 +92,7 @@ SET(HEADERS_BASEQ2_CLGAME
 	baseq2/clgame/local_entities/clg_local_env_sound.h
 	baseq2/clgame/local_entities/clg_local_entity_classes.h
 
-    baseq2/clgame/ui/clg_ui_main.h
+    baseq2/clgame/game_ui/clg_ui_main.h
 )
 # BaseQ2 ServerGame
 SET(SRC_BASEQ2_SVGAME
@@ -220,6 +220,8 @@ SET(HEADERS_BASEQ2RTXP_SHAREDGAME
 	baseq2rtxp/sharedgame/sg_time.h
 	baseq2rtxp/sharedgame/sg_usetarget_hints.h
 
+    baseq2rtxp/sharedgame/sg_game_ui.h
+
     baseq2rtxp/sharedgame/math/sg_math_velocity.h
 )
 #	BaseQ2RTXP ClientGame
@@ -228,7 +230,7 @@ SET(SRC_BASEQ2RTXP_CLGAME
 	baseq2rtxp/sharedgame/game_bindings/sg_binding_clgame.cpp
 
     # MicroUI
-	baseq2rtxp/clgame/ui/microui-2.02/src/microui.c
+	baseq2rtxp/clgame/game_ui/microui-2.02/src/microui.c
 
 	# ClientGame
 	baseq2rtxp/clgame/clg_client.cpp
@@ -284,11 +286,11 @@ SET(SRC_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/temp_entities/clg_te_railtrails.cpp
 	baseq2rtxp/clgame/temp_entities/clg_te_sustain.cpp
 
-    baseq2rtxp/clgame/ui/clg_ui_main.cpp
+    baseq2rtxp/clgame/game_ui/clg_ui_main.cpp
 )
 SET(HEADERS_BASEQ2RTXP_CLGAME
     # MicroUI
-	baseq2rtxp/clgame/ui/microui-2.02/src/microui.h
+	baseq2rtxp/clgame/game_ui/microui-2.02/src/microui.h
 
     # ClientGame
 	baseq2rtxp/clgame/clg_client.h
@@ -328,7 +330,7 @@ SET(HEADERS_BASEQ2RTXP_CLGAME
 
 	baseq2rtxp/clgame/hud/clg_hud_usetargethint.h
 
-    baseq2rtxp/clgame/ui/clg_ui_main.h
+    baseq2rtxp/clgame/game_ui/clg_ui_main.h
 )
 # BaseQ2RTXP ServerGame
 SET(SRC_BASEQ2RTXP_SVGAME
@@ -401,7 +403,7 @@ SET(SRC_BASEQ2RTXP_SVGAME
 
     #baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_sfxfollow.cpp
     #baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_debug_stub.cpp
-	baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_sfxfollow.cpp
+	#baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_sfxfollow.cpp
 	
 	baseq2rtxp/svgame/entities/path/svg_path_corner.cpp
 
@@ -427,7 +429,7 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/svg_item_edict.cpp
 	baseq2rtxp/svgame/entities/svg_player_edict.cpp
 	baseq2rtxp/svgame/entities/svg_pushmove_edict.cpp
-    baseq2rtxp/svgame/entities/svg_npc_sound_helper.cpp
+    #baseq2rtxp/svgame/entities/svg_npc_sound_helper.cpp
 	baseq2rtxp/svgame/entities/svg_worldspawn_edict.cpp
 	baseq2rtxp/svgame/entities/svg_entities_pushermove.cpp
 
@@ -474,41 +476,41 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/weapons/svg_weapon_fists.cpp
 	baseq2rtxp/svgame/weapons/svg_weapon_pistol.cpp
 	
-    baseq2rtxp/svgame/nav2/nav2_bench.cpp
-    baseq2rtxp/svgame/nav2/nav2_budget.cpp
-    baseq2rtxp/svgame/nav2/nav2_coarse_astar.cpp
-    baseq2rtxp/svgame/nav2/nav2_connectors.cpp
-    baseq2rtxp/svgame/nav2/nav2_corridor.cpp
-    baseq2rtxp/svgame/nav2/nav2_corridor_build.cpp
-    baseq2rtxp/svgame/nav2/nav2_debug_draw.cpp
-    baseq2rtxp/svgame/nav2/nav2_distance_fields.cpp
-    baseq2rtxp/svgame/nav2/nav2_dynamic_overlay.cpp
-    baseq2rtxp/svgame/nav2/nav2_entity_semantics.cpp
-    baseq2rtxp/svgame/nav2/nav2_fine_astar.cpp
-    baseq2rtxp/svgame/nav2/nav2_goal_candidates.cpp
-    baseq2rtxp/svgame/nav2/nav2_hierarchy_graph.cpp
-    baseq2rtxp/svgame/nav2/nav2_memory.cpp
-    baseq2rtxp/svgame/nav2/nav2_macro_traversal.cpp
-    baseq2rtxp/svgame/nav2/nav2_mover_local_nav.cpp
-    baseq2rtxp/svgame/nav2/nav2_occupancy.cpp
-    baseq2rtxp/svgame/nav2/nav2_persistence.cpp
-	baseq2rtxp/svgame/nav2/nav2_precompute.cpp
-	baseq2rtxp/svgame/nav2/nav2_postprocess.cpp
-    baseq2rtxp/svgame/nav2/nav2_query_job.cpp
-    baseq2rtxp/svgame/nav2/nav2_query_state.cpp
-    baseq2rtxp/svgame/nav2/nav2_region_layers.cpp
-    baseq2rtxp/svgame/nav2/nav2_runtime.cpp
-    baseq2rtxp/svgame/nav2/nav2_query_iface.cpp
-    baseq2rtxp/svgame/nav2/nav2_save_load.cpp
-    baseq2rtxp/svgame/nav2/nav2_scheduler.cpp
-    baseq2rtxp/svgame/nav2/nav2_serialize.cpp
-    baseq2rtxp/svgame/nav2/nav2_span_adjacency.cpp
-    baseq2rtxp/svgame/nav2/nav2_span_grid.cpp
-    baseq2rtxp/svgame/nav2/nav2_span_grid_build.cpp
-    baseq2rtxp/svgame/nav2/nav2_snapshot.cpp
-    baseq2rtxp/svgame/nav2/nav2_topology.cpp
-    baseq2rtxp/svgame/nav2/nav2_types.cpp
-    baseq2rtxp/svgame/nav2/nav2_worker_iface.cpp
+#    baseq2rtxp/svgame/nav2/nav2_bench.cpp
+#    baseq2rtxp/svgame/nav2/nav2_budget.cpp
+#    baseq2rtxp/svgame/nav2/nav2_coarse_astar.cpp
+#    baseq2rtxp/svgame/nav2/nav2_connectors.cpp
+#    baseq2rtxp/svgame/nav2/nav2_corridor.cpp
+#    baseq2rtxp/svgame/nav2/nav2_corridor_build.cpp
+#    baseq2rtxp/svgame/nav2/nav2_debug_draw.cpp
+#    baseq2rtxp/svgame/nav2/nav2_distance_fields.cpp
+#    baseq2rtxp/svgame/nav2/nav2_dynamic_overlay.cpp
+#    baseq2rtxp/svgame/nav2/nav2_entity_semantics.cpp
+#    baseq2rtxp/svgame/nav2/nav2_fine_astar.cpp
+#    baseq2rtxp/svgame/nav2/nav2_goal_candidates.cpp
+#    baseq2rtxp/svgame/nav2/nav2_hierarchy_graph.cpp
+#    baseq2rtxp/svgame/nav2/nav2_memory.cpp
+#    baseq2rtxp/svgame/nav2/nav2_macro_traversal.cpp
+#    baseq2rtxp/svgame/nav2/nav2_mover_local_nav.cpp
+#    baseq2rtxp/svgame/nav2/nav2_occupancy.cpp
+#    baseq2rtxp/svgame/nav2/nav2_persistence.cpp
+#	baseq2rtxp/svgame/nav2/nav2_precompute.cpp
+#	baseq2rtxp/svgame/nav2/nav2_postprocess.cpp
+#    baseq2rtxp/svgame/nav2/nav2_query_job.cpp
+#    baseq2rtxp/svgame/nav2/nav2_query_state.cpp
+#    baseq2rtxp/svgame/nav2/nav2_region_layers.cpp
+#    baseq2rtxp/svgame/nav2/nav2_runtime.cpp
+#    baseq2rtxp/svgame/nav2/nav2_query_iface.cpp
+#    baseq2rtxp/svgame/nav2/nav2_save_load.cpp
+#    baseq2rtxp/svgame/nav2/nav2_scheduler.cpp
+#    baseq2rtxp/svgame/nav2/nav2_serialize.cpp
+#    baseq2rtxp/svgame/nav2/nav2_span_adjacency.cpp
+#    baseq2rtxp/svgame/nav2/nav2_span_grid.cpp
+#    baseq2rtxp/svgame/nav2/nav2_span_grid_build.cpp
+#    baseq2rtxp/svgame/nav2/nav2_snapshot.cpp
+#    baseq2rtxp/svgame/nav2/nav2_topology.cpp
+#    baseq2rtxp/svgame/nav2/nav2_types.cpp
+#    baseq2rtxp/svgame/nav2/nav2_worker_iface.cpp
 )
 SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_chase.h
@@ -534,41 +536,41 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_usetargets.h
 	baseq2rtxp/svgame/svg_weapons.h
 
-    baseq2rtxp/svgame/nav2/nav2_bench.h
-    baseq2rtxp/svgame/nav2/nav2_budget.h
-    baseq2rtxp/svgame/nav2/nav2_corridor.h
-    baseq2rtxp/svgame/nav2/nav2_connectors.h
-    baseq2rtxp/svgame/nav2/nav2_region_layers.h
-    baseq2rtxp/svgame/nav2/nav2_hierarchy_graph.h
-    baseq2rtxp/svgame/nav2/nav2_coarse_astar.h
-    baseq2rtxp/svgame/nav2/nav2_corridor_build.h
-    baseq2rtxp/svgame/nav2/nav2_fine_astar.h
-    baseq2rtxp/svgame/nav2/nav2_occupancy.h
-    baseq2rtxp/svgame/nav2/nav2_persistence.h
-	baseq2rtxp/svgame/nav2/nav2_precompute.h
-    baseq2rtxp/svgame/nav2/nav2_save_load.h
-    baseq2rtxp/svgame/nav2/nav2_debug_draw.h
-   baseq2rtxp/svgame/nav2/nav2_distance_fields.h
-    baseq2rtxp/svgame/nav2/nav2_dynamic_overlay.h
-    baseq2rtxp/svgame/nav2/nav2_entity_semantics.h
-    baseq2rtxp/svgame/nav2/nav2_goal_candidates.h
-    baseq2rtxp/svgame/nav2/nav2_memory.h
-   baseq2rtxp/svgame/nav2/nav2_macro_traversal.h
-    baseq2rtxp/svgame/nav2/nav2_mover_local_nav.h
-    baseq2rtxp/svgame/nav2/nav2_fine_astar.h
-    baseq2rtxp/svgame/nav2/nav2_runtime.h
-    baseq2rtxp/svgame/nav2/nav2_format.h
-	baseq2rtxp/svgame/nav2/nav2_postprocess.h
-    baseq2rtxp/svgame/nav2/nav2_query_job.h
-    baseq2rtxp/svgame/nav2/nav2_query_iface_internal.h
-    baseq2rtxp/svgame/nav2/nav2_query_state.h
-    baseq2rtxp/svgame/nav2/nav2_save_load.h
-    baseq2rtxp/svgame/nav2/nav2_scheduler.h
-    baseq2rtxp/svgame/nav2/nav2_serialize.h
-    baseq2rtxp/svgame/nav2/nav2_snapshot.h
-    baseq2rtxp/svgame/nav2/nav2_worker_iface.h
-    baseq2rtxp/svgame/nav2/nav2_topology.h
-    baseq2rtxp/svgame/nav2/nav2_query_iface.h
+#    baseq2rtxp/svgame/nav2/nav2_bench.h
+#    baseq2rtxp/svgame/nav2/nav2_budget.h
+#    baseq2rtxp/svgame/nav2/nav2_corridor.h
+#    baseq2rtxp/svgame/nav2/nav2_connectors.h
+#    baseq2rtxp/svgame/nav2/nav2_region_layers.h
+#    baseq2rtxp/svgame/nav2/nav2_hierarchy_graph.h
+#    baseq2rtxp/svgame/nav2/nav2_coarse_astar.h
+#    baseq2rtxp/svgame/nav2/nav2_corridor_build.h
+#    baseq2rtxp/svgame/nav2/nav2_fine_astar.h
+#    baseq2rtxp/svgame/nav2/nav2_occupancy.h
+#    baseq2rtxp/svgame/nav2/nav2_persistence.h
+#	baseq2rtxp/svgame/nav2/nav2_precompute.h
+#    baseq2rtxp/svgame/nav2/nav2_save_load.h
+#    baseq2rtxp/svgame/nav2/nav2_debug_draw.h
+#   baseq2rtxp/svgame/nav2/nav2_distance_fields.h
+#    baseq2rtxp/svgame/nav2/nav2_dynamic_overlay.h
+#    baseq2rtxp/svgame/nav2/nav2_entity_semantics.h
+#    baseq2rtxp/svgame/nav2/nav2_goal_candidates.h
+#    baseq2rtxp/svgame/nav2/nav2_memory.h
+#   baseq2rtxp/svgame/nav2/nav2_macro_traversal.h
+#    baseq2rtxp/svgame/nav2/nav2_mover_local_nav.h
+#    baseq2rtxp/svgame/nav2/nav2_fine_astar.h
+#    baseq2rtxp/svgame/nav2/nav2_runtime.h
+#    baseq2rtxp/svgame/nav2/nav2_format.h
+#	baseq2rtxp/svgame/nav2/nav2_postprocess.h
+#    baseq2rtxp/svgame/nav2/nav2_query_job.h
+#    baseq2rtxp/svgame/nav2/nav2_query_iface_internal.h
+#    baseq2rtxp/svgame/nav2/nav2_query_state.h
+#    baseq2rtxp/svgame/nav2/nav2_save_load.h
+#    baseq2rtxp/svgame/nav2/nav2_scheduler.h
+#    baseq2rtxp/svgame/nav2/nav2_serialize.h
+#    baseq2rtxp/svgame/nav2/nav2_snapshot.h
+#    baseq2rtxp/svgame/nav2/nav2_worker_iface.h
+#    baseq2rtxp/svgame/nav2/nav2_topology.h
+#    baseq2rtxp/svgame/nav2/nav2_query_iface.h
 
     baseq2rtxp/svgame/lua/svg_lua_callfunction.hpp
 	baseq2rtxp/svgame/lua/svg_lua_signals.hpp
@@ -632,7 +634,7 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 
 	baseq2rtxp/svgame/entities/svg_base_edict.h
 	baseq2rtxp/svgame/entities/svg_item_edict.h
-    baseq2rtxp/svgame/entities/svg_npc_sound_helper.h
+    #baseq2rtxp/svgame/entities/svg_npc_sound_helper.h 
 	baseq2rtxp/svgame/entities/svg_player_edict.h
 	baseq2rtxp/svgame/entities/svg_worldspawn_edict.h
 	baseq2rtxp/svgame/entities/svg_entities_pushermove.h

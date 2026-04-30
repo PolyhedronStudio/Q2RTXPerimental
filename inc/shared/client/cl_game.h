@@ -987,6 +987,15 @@ typedef struct {
 	const char *( *GetGameModeName )( const int32_t gameModeID );
 
 
+	/**
+	* 
+	*	Game UI:
+	* 
+	**/
+	//! Called when the client receives a key event, gives the client game a chance to handle it 
+	//! when the client's current key event destination is set to keyEventDest_t::GAME_UI.
+	void ( *GameUI_KeyEvent )( const int32_t key, const bool down );
+	void ( *GameUI_CharEvent )( const char c );
 
 	/**
 	*

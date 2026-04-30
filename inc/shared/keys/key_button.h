@@ -31,7 +31,8 @@ typedef enum keydest_e {
     KEY_GAME = 0,
     KEY_CONSOLE = ( 1 << 0 ),
     KEY_MESSAGE = ( 1 << 1 ),
-    KEY_MENU = ( 1 << 2 )
+    KEY_MENU = ( 1 << 2 ),
+	KEY_GAME_UI = ( 1 << 3 )
 } keydest_t;
 QENUM_BIT_FLAGS( keydest_t );
 
@@ -49,11 +50,16 @@ typedef enum keybutton_state_s {
 QENUM_BIT_FLAGS( keybutton_state_t );
 
 /**
-*
+*	@brief	Tracks the state of a button that can be pressed by multiple keys, such as +forward being pressed by both the W key and a gamepad button. 
+*			The button is only released when both keys have been released.
 **/
 typedef struct keybutton_s {
-    int32_t     down[ 2 ];      //! Key numbers that are holding it down.
-    uint64_t    downtime;           //! Msec timestamp of when key was first pressed.
-    double      msec;               //! Msec down this frame.
-    keybutton_state_t state;    //! Actual state of the key at the downtime+msec moment in time.
+	//! Key numbers that are holding it down.
+    int32_t     down[ 2 ];
+	//! Msec timestamp of when key was first pressed.
+    uint64_t    downtime;
+	//! Msec down this frame.
+    double      msec;
+	//! Actual state of the key at the downtime+msec moment in time.
+    keybutton_state_t state;
 } keybutton_t;

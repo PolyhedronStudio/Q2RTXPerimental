@@ -19,6 +19,25 @@
 #include "sharedgame/sg_tempentity_events.h"
 
 
+
+/**
+*
+*
+*	GameUI Menus:
+*
+*
+**/
+/**
+*	@brief	Will open the specified menu, based on the menuID received from the server. 
+*			This is for the server to be able to open a menu on the client, such as the 
+*			team selection menu at the beginning of a (death-)match.
+**/
+static void CLG_ParseGameUI_OpenMenu( void ) {
+	// Parse the menuID.
+	const int32_t menuID = clgi.MSG_ReadUint8();
+
+	// Pass it on to the actual menu system code for further processing.
+}
 /***
 *
 *

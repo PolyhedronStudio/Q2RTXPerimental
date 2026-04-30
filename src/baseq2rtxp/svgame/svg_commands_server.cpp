@@ -33,6 +33,7 @@ void ServerCommand_Test_f(void)
     gi.cprintf(NULL, PRINT_HIGH, "ServerCommand_Test_f()\n");
 }
 
+#if 0
 /**
 *	@brief	Rebuild and validate nav2 dynamic edge overlay modulation from active runtime data.
 *	@note	Usage: sv nav_dynamic_overlay_validate [max_print]
@@ -554,7 +555,6 @@ static void ServerCommand_NavSpanGridValidate_f( void ) {
         gi.cprintf( nullptr, PRINT_HIGH, "nav_span_grid_validate: drew %d column(s) (bounded)\n", drawColumns );
     }
 }
-
 /**
 *   @brief  Debug: print the navmesh tile/cell under an entity's origin.
 *   @note   Usage: sv nav_cell [entnum]
@@ -1084,7 +1084,7 @@ static void ServerCommand_NavBenchRoundTrip_f( void ) {
         ServerCommand_NavQueryStats_f();
     }
 }
-
+#endif
 /*
 ==============================================================================
 
@@ -1345,6 +1345,7 @@ void SVG_ServerCommand(void) {
     cmd = gi.argv(1);
     if ( Q_stricmp( cmd, "test" ) == 0 )
         ServerCommand_Test_f();
+	#if 0
     else if ( Q_stricmp( cmd, "nav_generate" ) == 0 )
         ServerCommand_NavGenVoxelMesh_f();
     else if ( Q_stricmp( cmd, "nav_gen_voxelmesh" ) == 0 )
@@ -1363,14 +1364,15 @@ void SVG_ServerCommand(void) {
         ServerCommand_NavSpanAdjacencyValidate_f();
     else if ( Q_stricmp( cmd, "nav_connectors_validate" ) == 0 )
         ServerCommand_NavConnectorsValidate_f();
- else if ( Q_stricmp( cmd, "nav_occupancy_validate" ) == 0 )
-        ServerCommand_NavOccupancyValidate_f();
-  else if ( Q_stricmp( cmd, "nav_dynamic_overlay_validate" ) == 0 )
-        ServerCommand_NavDynamicOverlayValidate_f();
-  else if ( Q_stricmp( cmd, "nav_query_debug_validate" ) == 0 )
-        ServerCommand_NavQueryDebugValidate_f();
-  else if ( Q_stricmp( cmd, "nav_corridor_validate" ) == 0 )
-        ServerCommand_NavCorridorValidate_f();
+	else if ( Q_stricmp( cmd, "nav_occupancy_validate" ) == 0 )
+		ServerCommand_NavOccupancyValidate_f();
+	else if ( Q_stricmp( cmd, "nav_dynamic_overlay_validate" ) == 0 )
+		ServerCommand_NavDynamicOverlayValidate_f();
+	else if ( Q_stricmp( cmd, "nav_query_debug_validate" ) == 0 )
+		ServerCommand_NavQueryDebugValidate_f();
+	else if ( Q_stricmp( cmd, "nav_corridor_validate" ) == 0 )
+		ServerCommand_NavCorridorValidate_f();
+	#endif
 	//else if ( Q_stricmp( cmd, "nav_query_stats" ) == 0 )
  //       ServerCommand_NavQueryStats_f();
  //   else if ( Q_stricmp( cmd, "nav_bench_path" ) == 0 )

@@ -1,7 +1,7 @@
 /********************************************************************
 *
 *
-*	ClientGame: MicroUI Core Implementation:
+*	ClientGame: Core GameUI Implementation:
 *
 *
 ********************************************************************/
@@ -11,7 +11,7 @@
 *
 *
 *
-*	UI Core Functions:
+*	Game UI - UI Core:
 *
 *
 *
@@ -32,7 +32,36 @@ void CLG_UI_FreeContext();
 **/
 void CLG_UI_ProcessFrame();
 
+
+
+/**
+*
+*
+*
+*	Game UI - Drawing:
+*
+*
+*
+**/
 /**
 *	@brief	Iterate the mu drawing commands and render them using the client's rendering functions.
 **/
 void CLG_UI_DrawRenderCommands();
+
+
+
+/**
+*
+* 
+*
+*	Game UI - User Input:
+*
+* 
+*
+**/
+//! Called when the client receives a key event, gives the client game a chance to handle it 
+//! when the client's current key event destination is set to keyEventDest_t::GAME_UI.
+void CLG_UI_KeyEvent( const int32_t key, const bool down );
+//! Called when the client receives a character event, gives the client game a chance to handle it 
+//! when the client's current key event destination is set to keyEventDest_t::GAME_UI.
+void CLG_UI_CharEvent( const char c );

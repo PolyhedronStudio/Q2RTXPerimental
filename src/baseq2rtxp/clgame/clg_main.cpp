@@ -22,6 +22,7 @@
 #include "clgame/clg_screen.h"
 #include "clgame/clg_view.h"
 
+#include "clgame/game_ui/clg_ui_main.h"
 
 #include "sharedgame/sg_gamemode.h"
 #include "sharedgame/sg_entity_types.h"
@@ -365,6 +366,21 @@ const char *PF_GetGameModeName( int32_t gameModeID ) {
 }
 
 
+/**
+*
+*
+*	Game UI - User Input:
+*
+*
+**/
+//! Called when the client receives a key event, gives the client game a chance to handle it 
+//! when the client's current key event destination is set to keyEventDest_t::GAME_UI.
+void PF_GameUI_KeyEvent( const int32_t key, const bool down ) {
+	CLG_UI_KeyEvent( key, down );
+}
+void PF_GameUI_CharEvent( const char c ) {
+	CLG_UI_CharEvent( c );
+}
 
 /**
 *
@@ -698,6 +714,18 @@ extern "C" { // WID: C++20: extern "C".
 		globals.Frame_TransitionToNext = PF_Frame_TransitionToNext;
 
 		globals.GetGameModeName = PF_GetGameModeName;
+
+		/**
+		*
+		*
+		*	Game UI - User Input:
+		*
+		*
+		**/
+		//! Called when the client receives a key event, gives the client game a chance to handle it 
+		//! when the client's current key event destination is set to keyEventDest_t::GAME_UI.
+		globals.GameUI_KeyEvent = PF_GameUI_KeyEvent;
+		globals.GameUI_CharEvent = PF_GameUI_CharEvent;
 
 		globals.UsePrediction = PF_UsePrediction;
 		globals.CheckPredictionError = PF_CheckPredictionError;

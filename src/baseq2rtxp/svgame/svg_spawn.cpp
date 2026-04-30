@@ -704,7 +704,9 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
 	**/
 	// Initialize navigation system after entities have post-spawned.
 	// This ensures all inline models (brush entities) have their proper modelindex set.
+	#if 0
 	SVG_Nav2_Runtime_Init();
+	#endif
 	// <Q2RTXP>: WID: Navmesh saving/loading is currently disabled, since the navmesh data structures are still in flux and not fully integrated with the rest of the codebase yet.
 	//// Restore the navmesh for this map.
 	//auto loadResult = SVG_Nav_LoadMesh( level.mapname );

@@ -1,7 +1,7 @@
 /********************************************************************
 *
 *
-*	ClientGame: MicroUI Core Implementation:
+*	ClientGame: Core GameUI Implementation:
 *
 *
 ********************************************************************/
@@ -11,11 +11,11 @@
 #include "clgame/clg_screen.h"
 // UI
 extern "C" {
-	#include "clgame/ui/microui-2.02/src/microui.h"
+	#include "clgame/game_ui/microui-2.02/src/microui.h"
 }
 
 // Local UI
-#include "clgame/ui/clg_ui_main.h"
+#include "clgame/game_ui/clg_ui_main.h"
 
 
 
@@ -257,7 +257,7 @@ static void __process_frame( mu_Context *ctx ) {
 *
 *
 *
-*	UI Core:
+*	GameUI Core:
 *
 *
 *
@@ -334,6 +334,17 @@ void CLG_UI_ProcessFrame() {
 	__process_frame( s_ui_ctx );
 }
 
+
+
+/**
+*
+*
+*
+*	Game UI - Drawing:
+*
+*
+*
+**/
 /**
 *	@brief	Iterate the mu drawing commands and render them using the client's rendering functions.
 **/
@@ -420,6 +431,44 @@ void CLG_UI_DrawRenderCommands() {
 	// After processing all the commands for this frame, reset the clip rect to NULL to avoid affecting other rendering code outside of the UI.
 	clgi.R_SetClipRect( nullptr );
 }
+
+
+
+/**
+* 
+*
+*	Game UI - User Input:
+*
+* 
+**/
+//static constexpr char button_map[ 256 ] = {
+//  [ SDL_BUTTON_LEFT & 0xff] = MU_MOUSE_LEFT,
+//  [ SDL_BUTTON_RIGHT & 0xff ] = MU_MOUSE_RIGHT,
+//  [ SDL_BUTTON_MIDDLE & 0xff ] = MU_MOUSE_MIDDLE,
+//};
+//
+//static constexpr char key_map[ 256 ] = {
+//  [ SDLK_LSHIFT & 0xff]		= MU_KEY_SHIFT,
+//  [ SDLK_RSHIFT & 0xff ]	= MU_KEY_SHIFT,
+//  [ SDLK_LCTRL & 0xff ]		= MU_KEY_CTRL,
+//  [ SDLK_RCTRL & 0xff ]		= MU_KEY_CTRL,
+//  [ SDLK_LALT & 0xff ]		= MU_KEY_ALT,
+//  [ SDLK_RALT & 0xff ]		= MU_KEY_ALT,
+//  [ SDLK_RETURN & 0xff ]	= MU_KEY_RETURN,
+//  [ SDLK_BACKSPACE & 0xff ]	= MU_KEY_BACKSPACE,
+//};
+
+//! Called when the client receives a key event, gives the client game a chance to handle it 
+//! when the client's current key event destination is set to keyEventDest_t::GAME_UI.
+void CLG_UI_KeyEvent( const int32_t key, const bool down ) {
+
+}
+//! Called when the client receives a character event, gives the client game a chance to handle it 
+//! when the client's current key event destination is set to keyEventDest_t::GAME_UI.
+void CLG_UI_CharEvent( const char c ) {
+
+}
+
 #if 0
 /**
 *	@brief	Called when the client receives a UI input event, it updates the UI context's input state accordingly.

@@ -179,20 +179,19 @@ keydest_t Key_GetDest(void)
 Key_SetDest
 ===================
 */
-void Key_SetDest(keydest_t dest)
-{
-    int diff;
+void Key_SetDest( keydest_t dest ) {
+	int diff;
 
 // if not connected, console or menu should be up
-    if (cls.state < ca_active && !(dest & (KEY_MENU | KEY_CONSOLE))) {
-        dest = static_cast<keydest_t>( dest | KEY_CONSOLE ); // WID: C++20: Used to be dest 'dest |= KEY_CONSOLE'.
-    }
+	if ( cls.state < ca_active && !( dest & ( KEY_MENU | KEY_CONSOLE ) ) ) {
+		dest = static_cast< keydest_t >( dest | KEY_CONSOLE ); // WID: C++20: Used to be dest 'dest |= KEY_CONSOLE'.
+	}
 
-    diff = cls.key_dest ^ dest;
-    cls.key_dest = dest;
+	diff = cls.key_dest ^ dest;
+	cls.key_dest = dest;
 
 // activate or deactivate mouse
-    if (diff & (KEY_CONSOLE | KEY_MENU)) {
+	if ( diff & ( KEY_CONSOLE | KEY_MENU | KEY_GAME_UI ) ) {
         IN_Activate();
         CL_CheckForPause();
     }
@@ -684,12 +683,14 @@ void Key_Event(unsigned key, bool down, unsigned time)
             return;
         }
 
-        if (cls.key_dest & KEY_CONSOLE) {
-            if (cls.state < ca_active && !(cls.key_dest & KEY_MENU)) {
-                UI_OpenMenu(UIMENU_MAIN);
-            } else {
-                Con_Close(true);
-            }
+		if ( cls.key_dest & KEY_CONSOLE ) {
+			if ( cls.state < ca_active && !( cls.key_dest & KEY_MENU ) ) {
+				UI_OpenMenu( UIMENU_MAIN );
+			} else {
+				Con_Close( true );
+			}
+		} else if ( cls.key_dest & KEY_GAME_UI){
+			clge->GameUI_KeyEvent( key, down );
         } else if (cls.key_dest & KEY_MENU) {
             UI_KeyEvent(key, down);
         } else if (cls.key_dest & KEY_MESSAGE) {
@@ -729,6 +730,7 @@ void Key_Event(unsigned key, bool down, unsigned time)
     if ((cls.key_dest == KEY_GAME) ||
         ((cls.key_dest & KEY_CONSOLE) && !Q_IsBitSet(consolekeys, key)) ||
         ((cls.key_dest & KEY_MENU) && (key >= K_F1 && key <= K_F12)) ||
+		( ( cls.key_dest & KEY_GAME_UI ) && ( key >= K_F1 && key <= K_F12 ) ) ||
         (!down && Q_IsBitSet(buttondown, key))) {
 //
 // Key up events only generate commands if the game key binding is a button
@@ -779,8 +781,12 @@ void Key_Event(unsigned key, bool down, unsigned time)
         return;
 
     if (!down) {
-        if (cls.key_dest & KEY_MENU)
-            UI_KeyEvent(key, down);
+		if ( cls.key_dest & KEY_MENU ) {
+			UI_KeyEvent( key, down );
+		}
+		if ( cls.key_dest & KEY_GAME_UI ) {
+			clge->GameUI_KeyEvent( key, down );
+		}
         return;     // other subsystems only care about key down events
     }
 
@@ -855,8 +861,10 @@ void Key_Event(unsigned key, bool down, unsigned time)
 
     if (cls.key_dest & KEY_CONSOLE) {
         Char_Console(key);
-    } else if (cls.key_dest & KEY_MENU) {
-        UI_CharEvent(key);
+	} else if ( cls.key_dest & KEY_MENU ) {
+		UI_CharEvent( key );
+	} else if ( cls.key_dest & KEY_GAME_UI ) {
+		clge->GameUI_CharEvent( key );
     } else if (cls.key_dest & KEY_MESSAGE) {
         Char_Message(key);
     }

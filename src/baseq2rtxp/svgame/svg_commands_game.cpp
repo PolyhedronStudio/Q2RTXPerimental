@@ -740,6 +740,9 @@ void SVG_Command_Score_f( svg_base_edict_t *ent ) {
     SVG_HUD_DeathmatchScoreboardMessage( ent, ent->enemy, true );
 }
 
+/**
+*	@brief	Display the player list with connect time, ping, score, and name.
+**/
 void SVG_Command_PlayerList_f(svg_base_edict_t *ent)
 {
     int i;
@@ -772,6 +775,59 @@ void SVG_Command_PlayerList_f(svg_base_edict_t *ent)
     gi.cprintf(ent, PRINT_HIGH, "%s", text);
 }
 
+/**
+*	@brief	Opens up the MicroUI GameUI menu that matches the given menu name.
+*	@note	If the menu name is not recognized, prints an error message to the client if possible,
+*			otherwise prints it to all connected clients.
+**/
+static void SVG_GameUI_OpenMenu( svg_base_edict_t *ent, const char *menuName ) {
+	if ( Q_stricmp( menuName, "team" ) == 0 ) {
+		gi.WriteUint8( svc_game_ui_open );
+		gi.WriteInt16( g_edict_pool.NumberForEdict( ent ) );//gi.WriteInt16( ent - g_edicts );
+		//gi.WriteUint8( MZ_LOGOUT );
+		//gi.multicast( &ent->s.origin, MULTICAST_PVS, false );
+		gi.unicast( ent, true );
+	} else {
+		if ( ent ) {
+			gi.cprintf( ent, PRINT_HIGH, "Unknown menu name: %s\n", menuName );
+		} else {
+			gi.cprintf( NULL, PRINT_HIGH, "Unknown menu name: %s\n", menuName );
+		}
+	}
+}
+void SVG_Command_MGUI_f( svg_base_edict_t *ent ) {
+	#if 0
+	// Only allow in multiplayer.
+	if ( !game.mode->IsMultiplayer() ) {
+		return;
+	}
+	#endif
+
+	// Require a menu name argument.
+	if ( gi.argc() < 2 ) {
+		gi.cprintf( ent, PRINT_HIGH, "Usage: mgui <menu name>\n" );
+		return;
+	}
+
+	// Get the cmd menu name argument.
+	const char *menuName = gi.argv( 1 );
+
+	// Compare it against the menus we want to support.
+	//if ( Q_stricmp( menuName, "main" ) == 0 ) {
+	//	SVG_HUD_OpenMenu( ent, "main" );
+	//} else if ( Q_stricmp( menuName, "team" ) == 0 ) {
+	if ( Q_stricmp( menuName, "team" ) == 0 ) {
+		SVG_GameUI_OpenMenu( ent, "team" );
+	//} else if ( Q_stricmp( menuName, "class" ) == 0 ) {
+	//	SVG_HUD_OpenMenu( ent, "class" );
+	//} else if ( Q_stricmp( menuName, "loadout" ) == 0 ) {
+	//	SVG_HUD_OpenMenu( ent, "loadout" );
+	} else {
+		gi.cprintf( ent, PRINT_HIGH, "Unknown menu name: %s\n", menuName );
+	}
+
+	//SVG_HUD_OpenMenu( ent, "main" );
+}
 
 /*
 =================
@@ -786,6 +842,9 @@ void SVG_Client_Command( svg_base_edict_t *ent ) {
 
     cmd = gi.argv( 0 );
 
+	//
+	//	Core:
+	//
     if ( Q_stricmp( cmd, "players" ) == 0 ) {
         SVG_Command_Players_f( ent );
         return;
@@ -802,6 +861,19 @@ void SVG_Client_Command( svg_base_edict_t *ent ) {
         SVG_Command_Score_f( ent );
         return;
     }
+
+	//
+	//	GameUI:
+	//
+	if ( Q_stricmp( cmd, "mgui" ) == 0 ) {
+		SVG_Command_MGUI_f( ent );
+		return;
+	}
+
+	//
+	// Don't allow any other commands while in intermission.
+	//
+	//
     if ( level.intermissionFrameNumber ) {
         return;
     }
