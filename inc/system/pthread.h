@@ -23,6 +23,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #else
 
 	#define WIN32_LEAN_AND_MEAN
+	#define VC_EXTRALEAN
 	#define NOMINMAX
 	#include <windows.h>
 	#include <errno.h>

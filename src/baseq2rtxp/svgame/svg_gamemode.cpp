@@ -10,7 +10,7 @@
 #include "svgame/player/svg_player_client.h"
 #include "svgame/player/svg_player_hud.h"
 
-#include "svgame/svg_lua.h"
+#include "svgame/svg_lua_api.h"
 
 #include "sharedgame/sg_gamemode.h"
 #include "svgame/svg_gamemode.h"

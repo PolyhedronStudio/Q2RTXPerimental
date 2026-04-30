@@ -20,7 +20,7 @@
 #include "svgame/player/svg_player_client.h"
 #include "svgame/player/svg_player_hud.h"
 
-#include "svgame/svg_lua.h"
+#include "svgame/svg_lua_api.h"
 
 #include "sharedgame/sg_means_of_death.h"
 
@@ -35,10 +35,9 @@
 /**
 *	@brief
 **/
-void SVG_Lua_DumpStack( lua_State *L );
 void SVG_Command_Lua_DumpStack( void ) {
     // Dump stack.
-    SVG_Lua_DumpStack( SVG_Lua_GetSolStateView() );
+    SVG_Lua_DumpStack( SVG_Lua_GetState() );
 }
 
 void SVG_Command_Lua_ReloadMapScript( ) {

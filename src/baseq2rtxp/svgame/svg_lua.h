@@ -7,12 +7,18 @@
 ********************************************************************/
 #pragma once
 
-
+#include "svgame/svg_lua_api.h"
 
 // Include lua headers.
 #include <lua.hpp>
 #include <lualib.h>
 #include <lauxlib.h>
+
+// Include custom in-game assert functionality macros.
+#include "svgame/lua/svg_lua_sol_assert.hpp"
+// Include SOL itself.
+#undef clamp
+#include <sol/sol.hpp>
 
 #if _DEBUG
 	//! Enable LUA debug output:
@@ -42,15 +48,6 @@
 #define SOL_ALL_SAFETIES_ON 1
 // Enable Interop.
 //#define SOL_ENABLE_INTEROP 1
-
-// Include custom in-game assert functionality macros.
-#include "svgame/lua/svg_lua_sol_assert.hpp"
-// Include SOL itself.
-//// Custom in-engine-asserts:
-//#define SOL_ASSERT 
-//#define SOL_ASSERT_MSG  
-#undef clamp
-#include <sol/sol.hpp>
 
 
 
@@ -133,18 +130,13 @@ static inline const bool LUA_HasFunction( sol::state_view &stateView, const std:
 void SVG_Lua_DumpStack( lua_State *L );
 
 /**
-*	@brief
-**/
-void SVG_Lua_Initialize();
-/**
-*	@brief
-**/
-void SVG_Lua_Shutdown();
-
-/**
 *	@brief	Returns a pointer to the Lua State(Thread) that handles the map logic.
 **/
 sol::state &SVG_Lua_GetSolState();
+/**
+*	@brief	Returns the raw Lua C API state pointer.
+**/
+lua_State *SVG_Lua_GetState();
 /**
 *	@brief	
 **/

@@ -506,6 +506,12 @@ sol::state &SVG_Lua_GetSolState() {
 	return luaMapInstance.solState;
 }
 /**
+*	@brief	Returns the raw Lua C API state pointer.
+**/
+lua_State *SVG_Lua_GetState() {
+	return luaMapInstance.lState;
+}
+/**
 *	@brief	
 **/
 sol::state_view &SVG_Lua_GetSolStateView() {

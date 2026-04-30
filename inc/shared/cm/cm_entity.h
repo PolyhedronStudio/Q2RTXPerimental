@@ -7,6 +7,10 @@
 ********************************************************************/
 #pragma once
 
+#ifdef __cplusplus
+    #include <list>
+#endif
+
 
 //! key / value pair sizes
 #define     MAX_KEY         32

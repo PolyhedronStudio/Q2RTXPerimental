@@ -34,34 +34,13 @@
     #include <cstdio>
     #include <cstdlib>
     #include <cstring>
-	#include <ctgmath>
     #include <ctime>
 
-    // C++ STL Headers:
+    // Keep this header minimal and universally safe across all C++ translation units.
+    // Heavy STL containers/utilities should be included by local subsystem headers/TUs.
     #include <version>
-
-	// Note: we include <algorithm> in the C++ case for utilities like std::min/std::max, but we still have some C code in the vkpt generation that uses the macros, so we keep the C-style includes as well.
-    #include <algorithm> // std::min, std::max etc, buuut still got vkpt code in C so.
-    //#include <array>
-    //#include <bit>
+    #include <algorithm>
     #include <chrono>
-	#include <deque>
-    //#include <array>
-	#include <limits>
-    #include <list>
-    //#include <functional>
-    #include <map>
-	#include <new>
-    #include <numbers>
-    #include <numeric>
-    #include <random>
-	#include <set>
-	#include <string_view>
-	#include <unordered_map>
-	#include <unordered_set>
-	#include <utility>
-    #include <variant>
-    #include <vector>
-	#include <type_traits>
+    #include <limits>
 
 #endif//__cplusplus

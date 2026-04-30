@@ -46,7 +46,7 @@ void SVG_Nav_DebugDraw( void ) {
 
 #include "svgame/player/svg_player_trail.h"
 
-#include "svgame/svg_lua.h"
+#include "svgame/svg_lua_api.h"
 
 #include "svgame/entities/svg_entities_pushermove.h"
 

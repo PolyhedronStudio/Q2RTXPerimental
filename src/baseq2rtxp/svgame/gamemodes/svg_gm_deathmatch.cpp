@@ -7,7 +7,7 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "svgame/svg_entity_events.h"
-#include "svgame/svg_lua.h"
+#include "svgame/svg_lua_api.h"
 #include "svgame/svg_utils.h"
 
 #include "svgame/player/svg_player_client.h"

@@ -29,7 +29,7 @@
 
 #include "svgame/entities/svg_player_edict.h"
 
-#include "svgame/svg_lua.h"
+#include "svgame/svg_lua_api.h"
 
 
 /**

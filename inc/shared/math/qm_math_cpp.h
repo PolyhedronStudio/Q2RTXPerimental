@@ -38,6 +38,11 @@
 #pragma once
 
 #ifdef __cplusplus
+    #include <numbers>
+    #include <type_traits>
+#endif
+
+#ifdef __cplusplus
     #define QM_API [[nodiscard]] inline const // Functions may be inlined, no external out-of-line definition
     #define QM_API_DISCARD inline const // Functions may be inlined, no external out-of-line definition
 

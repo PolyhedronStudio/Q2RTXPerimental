@@ -8,6 +8,11 @@
 ********************************************************************/
 #pragma once
 
+#include <iterator>
+#include <random>
+#include <type_traits>
+#include <vector>
+
 
 
 /****
