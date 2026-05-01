@@ -381,6 +381,13 @@ static void PF_Cvar_Reset( cvar_t *cvar ) {
 	Cvar_Reset( cvar );
 }
 
+/**
+*\t@brief\tWrap the client console closer with the shared qboolean signature expected by the game import table.
+**/
+static void PF_Con_Close( const qboolean force ) {
+	Con_Close( force != qfalse );
+}
+
 
 /**
 *
@@ -1034,6 +1041,7 @@ void CL_GM_LoadProgs( void ) {
 	imports.CVar_Default_g = Cvar_Default_g;
 
 	imports.Con_ClearNotificationTexts_f = Con_ClearNotificationTexts_f;
+	imports.Con_Close = PF_Con_Close;
 
 	imports.CM_NodeForNumber = PF_CM_NodeForNumber;
 	imports.CM_NumberForNode = PF_CM_NumberForNode;

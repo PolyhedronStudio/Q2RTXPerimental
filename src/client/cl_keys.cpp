@@ -190,6 +190,11 @@ void Key_SetDest( keydest_t dest ) {
 	diff = cls.key_dest ^ dest;
 	cls.key_dest = dest;
 
+    // Keep SDL text input aligned with GameUI focus so microui receives composed text only when needed.
+    if ( vid.set_text_input ) {
+        vid.set_text_input( ( dest & KEY_GAME_UI ) != 0 );
+    }
+
 // activate or deactivate mouse
 	if ( diff & ( KEY_CONSOLE | KEY_MENU | KEY_GAME_UI ) ) {
         IN_Activate();
@@ -619,6 +624,46 @@ Called by the system between frames for both key up and key down events
 Should NOT be called during an interrupt!
 ===================
 */
+/**
+*	@brief	Taken from microui.h for mouse button and key modifier definitions.
+**/
+enum {
+	MU_MOUSE_LEFT = ( 1 << 0 ),
+	MU_MOUSE_RIGHT = ( 1 << 1 ),
+	MU_MOUSE_MIDDLE = ( 1 << 2 )
+};
+/**
+*	@brief	Taken from microui.h for mouse button and key modifier definitions.
+**/
+enum {
+	MU_KEY_SHIFT = ( 1 << 0 ),
+	MU_KEY_CTRL = ( 1 << 1 ),
+	MU_KEY_ALT = ( 1 << 2 ),
+	MU_KEY_BACKSPACE = ( 1 << 3 ),
+	MU_KEY_RETURN = ( 1 << 4 )
+};
+
+static int32_t Key_GameUIToMicrouiKey( const int32_t key ) {
+    switch ( key ) {
+    case K_LSHIFT:
+    case K_RSHIFT:
+        return MU_KEY_SHIFT;
+    case K_LCTRL:
+    case K_RCTRL:
+        return MU_KEY_CTRL;
+    case K_LALT:
+    case K_RALT:
+        return MU_KEY_ALT;
+    case K_ENTER:
+    case K_KP_ENTER:
+        return MU_KEY_RETURN;
+    case K_BACKSPACE:
+        return MU_KEY_BACKSPACE;
+    default:
+        return 0;
+    }
+}
+
 void Key_Event(unsigned key, bool down, unsigned time)
 {
     char    *kb;
@@ -689,8 +734,10 @@ void Key_Event(unsigned key, bool down, unsigned time)
 			} else {
 				Con_Close( true );
 			}
-		} else if ( cls.key_dest & KEY_GAME_UI){
-			clge->GameUI_KeyEvent( key, down );
+        } else if ( cls.key_dest & KEY_GAME_UI ) {
+            if ( clge ) {
+                clge->GameUI_CloseMenu();
+            }
         } else if (cls.key_dest & KEY_MENU) {
             UI_KeyEvent(key, down);
         } else if (cls.key_dest & KEY_MESSAGE) {
@@ -780,12 +827,24 @@ void Key_Event(unsigned key, bool down, unsigned time)
     if (cls.key_dest == KEY_GAME)
         return;
 
+    // GameUI key handling is separate from character/text input; continue into printable routing only for actual text keys.
+    const bool gameui_active = ( cls.key_dest & KEY_GAME_UI ) != 0;
+    if ( gameui_active ) {
+        // Keep mouse focus stable on the GameUI by preventing this path from reopening other menus.
+        if ( cls.key_dest & KEY_MENU ) {
+            cls.key_dest = static_cast<keydest_t>( cls.key_dest & ~KEY_MENU );
+        }
+    }
+
+    // Map engine keys to microui's compact key mask so the GameUI can handle text widgets and shortcuts.
+    const int32_t gameui_key = Key_GameUIToMicrouiKey( key );
+
     if (!down) {
 		if ( cls.key_dest & KEY_MENU ) {
 			UI_KeyEvent( key, down );
 		}
-		if ( cls.key_dest & KEY_GAME_UI ) {
-			clge->GameUI_KeyEvent( key, down );
+		else if ( cls.key_dest & KEY_GAME_UI ) {
+			clge->GameUI_KeyEvent( gameui_key, false );
 		}
         return;     // other subsystems only care about key down events
     }
@@ -794,8 +853,16 @@ void Key_Event(unsigned key, bool down, unsigned time)
         Key_Console(key);
     } else if (cls.key_dest & KEY_MENU) {
         UI_KeyEvent(key, down);
-    } else if (cls.key_dest & KEY_MESSAGE) {
-        Key_Message(key);
+	} else if ( cls.key_dest & KEY_MESSAGE ) {
+		Key_Message( key );
+    } else if ( gameui_active ) {
+		clge->GameUI_KeyEvent( gameui_key, true );
+	}
+
+    // GameUI text fields already receive printable characters through text-input callbacks,
+    // so only suppress the printable-key fallback path and keep non-printable keys like Enter.
+    if ( gameui_active && key >= 32 && key <= 126 ) {
+        return;
     }
 
     if (Key_IsDown(K_CTRL) || Key_IsDown(K_ALT)) {
@@ -850,8 +917,8 @@ void Key_Event(unsigned key, bool down, unsigned time)
         break;
     }
 
-    // if key is printable, generate char events
-    if (key < 32 || key >= 127) {
+    // Only synthesize 7-bit ASCII here; UTF-8 and composed text arrive through SDL_TEXTINPUT.
+    if ( key < 32 || key > 126 ) {
         return;
     }
 
@@ -863,8 +930,10 @@ void Key_Event(unsigned key, bool down, unsigned time)
         Char_Console(key);
 	} else if ( cls.key_dest & KEY_MENU ) {
 		UI_CharEvent( key );
-	} else if ( cls.key_dest & KEY_GAME_UI ) {
-		clge->GameUI_CharEvent( key );
+    } else if ( gameui_active ) {
+        // Pass a nul-terminated UTF-8 byte so GameUI receives a valid text string.
+        const char str[ 2 ] = { static_cast<char>( key ), '\0' };
+		clge->GameUI_TextInputEvent( str );
     } else if (cls.key_dest & KEY_MESSAGE) {
         Char_Message(key);
     }

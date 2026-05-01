@@ -24,6 +24,9 @@ typedef bool (*keywaitcb_t)(void *arg, int key);
 
 void    Key_Init(void);
 
+void	Key_GameUI_KeyEventWrapper( const int32_t key, const bool isDown );
+void	Key_GameUI_MouseButtonEventWrapper( const int32_t x, const int32_t y, const int32_t button, const bool isDown );
+
 void    Key_Event(unsigned key, bool down, unsigned time);
 void    Key_Event2(unsigned key, bool down, unsigned time);
 void    Key_CharEvent(int key);

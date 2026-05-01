@@ -13,9 +13,12 @@
 #include "clgame/clg_screen.h"
 #include "clgame/clg_temp_entities.h"
 
+#include "clgame/game_ui/clg_ui_main.h"
+
 #include "sharedgame/sg_cmd_messages.h"
 #include "sharedgame/sg_entity_flags.h"
 #include "sharedgame/sg_entity_events.h"
+#include "sharedgame/sg_game_ui.h"
 #include "sharedgame/sg_tempentity_events.h"
 
 
@@ -34,10 +37,29 @@
 **/
 static void CLG_ParseGameUI_OpenMenu( void ) {
 	// Parse the menuID.
+	const game_ui_menu_id menuID = ( game_ui_menu_id )clgi.MSG_ReadUint8();
+
+	// Ensure the ID is an actual valid and existing one.
+	if ( menuID <= game_ui_menu_id::NONE || menuID >= game_ui_menu_id::MAX_ID ) {
+		clgi.Print( PRINT_DEVELOPER, "CLG_ParseGameUI_OpenMenu: Invalid menu ID %d received from server.\n", menuID );
+		return;
+	}
+	
+	// Pass it on to the actual menu system code for further processing.
+	CLG_UI_OpenMenu( menuID );
+}
+/**
+*	@brief	Will open the specified menu, based on the menuID received from the server.
+*			This is for the server to be able to open a menu on the client, such as the
+*			team selection menu at the beginning of a (death-)match.
+**/
+static void CLG_ParseGameUI_CloseMenu( void ) {
+	// Parse the menuID.
 	const int32_t menuID = clgi.MSG_ReadUint8();
 
 	// Pass it on to the actual menu system code for further processing.
 }
+
 /***
 *
 *
@@ -426,6 +448,12 @@ const qboolean PF_ParseServerMessage( const int32_t serverMessage ) {
 		CLG_ParseInventory();
 		return true;
 	break;
+	case svc_game_ui_open:
+		CLG_ParseGameUI_OpenMenu();
+		return true;
+	case svc_game_ui_close:
+		CLG_ParseGameUI_CloseMenu();
+		return true;
 	case svc_layout:
 		CLG_ParseLayout();
 		return true;

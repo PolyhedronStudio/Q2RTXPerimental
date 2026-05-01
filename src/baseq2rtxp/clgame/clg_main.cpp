@@ -373,14 +373,30 @@ const char *PF_GetGameModeName( int32_t gameModeID ) {
 *
 *
 **/
+//! Called when the client receives a mouse move event, gives the client game a chance to handle it 
+//! when the client's current input(key) event destination is set to keyEventDest_t::GAME_UI.
+void PF_GameUI_MouseMoveEvent( const int32_t x, const int32_t y ) {
+	CLG_UI_MouseMoveEvent( x, y );
+}
+//! Called when the client receives a mouse button event, gives the client game a chance to handle it 
+//! when the client's current input(key) event destination is set to keyEventDest_t::GAME_UI.
+void PF_GameUI_MouseButtonEvent( const int32_t button, const bool isDown, const int32_t x, const int32_t y ) {
+	CLG_UI_MouseButtonEvent( button, isDown, x, y );
+}
+//! Called when the client receives a mouse scroll event, gives the client game a chance to handle it 
+//! when the client's current input(key) event destination is set to keyEventDest_t::GAME_UI.
+void PF_GameUI_MouseScrollEvent( const int32_t scrollX, const int32_t scrollY ) {
+	CLG_UI_MouseScrollEvent( scrollY * -20 );
+}
 //! Called when the client receives a key event, gives the client game a chance to handle it 
 //! when the client's current key event destination is set to keyEventDest_t::GAME_UI.
-void PF_GameUI_KeyEvent( const int32_t key, const bool down ) {
-	CLG_UI_KeyEvent( key, down );
+void PF_GameUI_KeyEvent( const int32_t key, const bool isDown ) {
+	CLG_UI_KeyEvent( key, isDown );
 }
-void PF_GameUI_CharEvent( const char c ) {
-	CLG_UI_CharEvent( c );
+void PF_GameUI_TextInputEvent( const char *str ) {
+	CLG_UI_TextInputEvent( str );
 }
+
 
 /**
 *
@@ -724,8 +740,27 @@ extern "C" { // WID: C++20: extern "C".
 		**/
 		//! Called when the client receives a key event, gives the client game a chance to handle it 
 		//! when the client's current key event destination is set to keyEventDest_t::GAME_UI.
+			//! Called when the client receives a mouse move event, gives the client game a chance to handle it 
+	//! when the client's current input(key) event destination is set to keyEventDest_t::GAME_UI.
+		globals.GameUI_MouseMoveEvent = PF_GameUI_MouseMoveEvent;
+		//! Called when the client receives a mouse button event, gives the client game a chance to handle it 
+		//! when the client's current input(key) event destination is set to keyEventDest_t::GAME_UI.
+		globals.GameUI_MouseButtonEvent = PF_GameUI_MouseButtonEvent;
+		//! Called when the client receives a mouse scroll event, gives the client game a chance to handle it 
+		//! when the client's current input(key) event destination is set to keyEventDest_t::GAME_UI.
+		globals.GameUI_MouseScrollEvent = PF_GameUI_MouseScrollEvent;
+		globals.GameUI_CloseMenu = CLG_UI_CloseMenu;
+
 		globals.GameUI_KeyEvent = PF_GameUI_KeyEvent;
-		globals.GameUI_CharEvent = PF_GameUI_CharEvent;
+		globals.GameUI_TextInputEvent = PF_GameUI_TextInputEvent;
+
+
+		//! Called when the client receives a key event, gives the client game a chance to handle it 
+		//! when the client's current key event destination is set to keyEventDest_t::GAME_UI.
+		void ( *GameUI_KeyEvent )( const int32_t key, const bool isDdown );
+		//! Called when the client receives a character event, gives the client game a chance to handle it 
+		//! when the client's current key event destination is set to keyEventDest_t::GAME_UI.
+		void ( *GameUI_TextInputEvent )( const char *str );
 
 		globals.UsePrediction = PF_UsePrediction;
 		globals.CheckPredictionError = PF_CheckPredictionError;

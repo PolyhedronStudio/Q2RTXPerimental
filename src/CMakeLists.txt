@@ -15,6 +15,7 @@ set( PRJ_CXX_DEFAULT_STANDARD_VERSION 20 )
 set( PRJ_CXX_DEFAULT_STANDARD_REQUIRED ON )
 set( PRJ_CXX_EXTENSIONS OFF )
 set( PRJ_CXX_DEFAULT_SCAN_FOR_MODULES OFF )
+option(CONFIG_ENABLE_UNITY_BUILDS "Enable unity builds for large targets" ON)
 
 
 #set( CMAKE_CXX_STANDARD 20 )
@@ -123,7 +124,6 @@ IF( CONFIG_BUILD_CLIENT_TARGET )
 			${SRC_SERVER} ${HEADERS_SERVER}
 		)
 	ENDIF()
-
 	# Target specific CXX PROPERTIES:
 	set_property( TARGET client APPEND PROPERTY CMAKE_CXX_STANDARD ${PRJ_CPP_STANDARD_VERSION} )
 	set_property( TARGET client APPEND PROPERTY CMAKE_CXX_STANDARD_REQUIRED ${PRJ_CXX_DEFAULT_STANDARD_REQUIRED} )
@@ -210,6 +210,11 @@ IF( CONFIG_BUILD_CLIENT_TARGET )
 	  )
 	endif()
 
+	# Unity Build Settings.
+	if( CONFIG_ENABLE_UNITY_BUILDS )
+		set_target_properties(client PROPERTIES UNITY_BUILD OFF)
+	endif()
+
 	# Set the actual final binary output properties of the client.
 	set_target_properties(client
         PROPERTIES
@@ -250,7 +255,6 @@ IF( CONFIG_BUILD_SERVER_TARGET )
 			client/cl_null.cpp
 		)
 	ENDIF()#IF(WIN32)
-
 	# Target specific CXX PROPERTIES:
 	set_property( TARGET server APPEND PROPERTY CMAKE_CXX_STANDARD ${PRJ_CPP_STANDARD_VERSION} )
 	set_property( TARGET server APPEND PROPERTY CMAKE_CXX_STANDARD_REQUIRED ${PRJ_CXX_DEFAULT_STANDARD_REQUIRED} )
@@ -298,6 +302,11 @@ IF( CONFIG_BUILD_SERVER_TARGET )
 	  )
 	endif()
 
+	# Unity Build Settings.
+	if( CONFIG_ENABLE_UNITY_BUILDS )
+		set_target_properties(server PROPERTIES UNITY_BUILD OFF)
+	endif()
+
 	set_target_properties(server
 		PROPERTIES
 		OUTPUT_NAME "Q2RTXPerimental_ded"
@@ -328,6 +337,10 @@ IF( CONFIG_BUILD_GAME_BASEQ2_TARGETS )
 		${SRC_BASEQ2_SHAREDGAME} ${HEADERS_BASEQ2_SHAREDGAME} 
 		${SRC_SHARED} ${HEADERS_SHARED}
 	)
+	if(CONFIG_ENABLE_UNITY_BUILDS)
+		set_target_properties(baseq2_svgame PROPERTIES UNITY_BUILD ON)
+		set_target_properties(baseq2_clgame PROPERTIES UNITY_BUILD ON)
+	endif()
 
 	IF( CMAKE_C_COMPILER_ID STREQUAL "GNU" )
 		# Workaround for GCC 10 linking shared libgcc by default
@@ -466,6 +479,10 @@ IF( CONFIG_BUILD_GAME_BASEQ2RTXP_TARGETS )
 	set_property( TARGET baseq2rtxp_clgame APPEND PROPERTY CMAKE_CXX_STANDARD_REQUIRED ${PRJ_CXX_DEFAULT_STANDARD_REQUIRED} )
 	set_property( TARGET baseq2rtxp_clgame APPEND PROPERTY CXX_EXTENSIONS ${PRJ_CXX_EXTENSIONS} )
 	set_property( TARGET baseq2rtxp_clgame APPEND PROPERTY CMAKE_CXX_SCAN_FOR_MODULES ${PRJ_CXX_DEFAULT_SCAN_FOR_MODULES} )
+	if(CONFIG_ENABLE_UNITY_BUILDS)
+		set_target_properties(baseq2rtxp_svgame PROPERTIES UNITY_BUILD ON)
+		set_target_properties(baseq2rtxp_clgame PROPERTIES UNITY_BUILD ON)
+	endif()
 
 	IF( CMAKE_C_COMPILER_ID STREQUAL "GNU" )
 		# Workaround for GCC 10 linking shared libgcc by default
@@ -517,6 +534,14 @@ IF( CONFIG_BUILD_GAME_BASEQ2RTXP_TARGETS )
 	  target_precompile_headers(baseq2rtxp_svgame PRIVATE
 		<shared/shared.h>
 	  )
+	endif()
+
+	# Unity Build Settings.
+	if( CONFIG_ENABLE_UNITY_BUILDS )
+		set_target_properties(baseq2rtxp_clgame PROPERTIES UNITY_BUILD ON)
+		set_target_properties(baseq2rtxp_clgame PROPERTIES UNITY_BUILD_BATCH_SIZE 12)
+		set_target_properties(baseq2rtxp_svgame PROPERTIES UNITY_BUILD ON)
+		set_target_properties(baseq2rtxp_svgame PROPERTIES UNITY_BUILD_BATCH_SIZE 12)
 	endif()
 
 	# Specify both LIBRARY and RUNTIME because one works only on Windows,

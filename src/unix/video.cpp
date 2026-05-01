@@ -30,6 +30,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "client/input.h"
 #include "client/keys.h"
 #include "client/ui.h"
+#include "client/cl_client.h"
 #include "client/video.h"
 #include "refresh/refresh.h"
 #include "system/system.h"
@@ -234,6 +235,15 @@ static void update_gamma(const byte *table)
     }
 }
 
+static void set_text_input(bool enabled)
+{
+    if (enabled) {
+        SDL_StartTextInput();
+    } else {
+        SDL_StopTextInput();
+    }
+}
+
 static int my_event_filter(void *userdata, SDL_Event *event)
 {
     // SDL uses relative time, we need absolute
@@ -407,6 +417,9 @@ static bool init(graphics_api_t api)
         SDL_FreeSurface(icon);
     }
 
+    // Enable text input by default for the UI path; destination changes will turn it off when not needed.
+    SDL_StartTextInput();
+
 #if REF_GL
 	if (api == GAPI_OPENGL)
 	{
@@ -569,9 +582,39 @@ static void key_event(SDL_KeyboardEvent *event)
     Key_Event2(key, event->state, event->timestamp);
 }
 
+static void gameui_mouse_coords(int *x, int *y)
+{
+    if (sdl.win_width && sdl.win_height) {
+        *x = (*x * sdl.width) / sdl.win_width;
+        *y = (*y * sdl.height) / sdl.win_height;
+    }
+}
+
+static void text_input_event(SDL_TextInputEvent *event)
+{
+    if (!clge || !clge->GameUI_TextInputEvent) {
+        return;
+    }
+
+    // Forward UTF-8 text input directly to the GameUI.
+    clge->GameUI_TextInputEvent(event->text);
+}
+
 static void mouse_button_event(SDL_MouseButtonEvent *event)
 {
     unsigned key;
+    int x = event->x;
+    int y = event->y;
+
+    if (Key_GetDest() & KEY_GAME_UI) {
+        // Forward mouse clicks directly into the GameUI so microui can receive hit tests and button presses.
+        gameui_mouse_coords(&x, &y);
+        if (clge && clge->GameUI_MouseButtonEvent) {
+            // Preserve the client-game callback contract: button/isDown come first, then coordinates.
+            clge->GameUI_MouseButtonEvent(event->button, event->state == SDL_PRESSED, x, y);
+        }
+        return;
+    }
 
     switch (event->button) {
     case SDL_BUTTON_LEFT:
@@ -599,6 +642,14 @@ static void mouse_button_event(SDL_MouseButtonEvent *event)
 
 static void mouse_wheel_event(SDL_MouseWheelEvent *event)
 {
+    if (Key_GetDest() & KEY_GAME_UI) {
+        // Forward wheel movement straight to GameUI so microui scrollable widgets can react.
+        if (clge && clge->GameUI_MouseScrollEvent) {
+            clge->GameUI_MouseScrollEvent(0, event->y);
+        }
+        return;
+    }
+
     if (event->x > 0) {
         Key_Event(K_MWHEELRIGHT, true, event->timestamp);
         Key_Event(K_MWHEELRIGHT, false, event->timestamp);
@@ -632,10 +683,24 @@ static void pump_events(void)
         case SDL_KEYUP:
             key_event(&event.key);
             break;
+        case SDL_TEXTINPUT:
+            if (Key_GetDest() & KEY_GAME_UI) {
+                text_input_event(&event.text);
+            }
+            break;
         case SDL_MOUSEMOTION:
-            if (sdl.win_width && sdl.win_height)
+            if (Key_GetDest() & KEY_GAME_UI) {
+                int x = event.motion.x;
+                int y = event.motion.y;
+                // Forward mouse motion to GameUI at drawable resolution so microui sees the same coordinates as its render path.
+                gameui_mouse_coords(&x, &y);
+                if (clge && clge->GameUI_MouseMoveEvent) {
+                    clge->GameUI_MouseMoveEvent(x, y);
+                }
+            } else if (sdl.win_width && sdl.win_height) {
                 UI_MouseEvent(event.motion.x * sdl.width / sdl.win_width,
                               event.motion.y * sdl.height / sdl.win_height);
+            }
             break;
         case SDL_MOUSEBUTTONDOWN:
         case SDL_MOUSEBUTTONUP:
@@ -717,6 +782,7 @@ QEXTERN_C_OPEN
         .get_dpi_scale = get_dpi_scale,
         .set_mode = set_mode,
         .update_gamma = update_gamma,
+        .set_text_input = set_text_input,
 
         .get_proc_addr = get_proc_addr,
         .swap_buffers = swap_buffers,

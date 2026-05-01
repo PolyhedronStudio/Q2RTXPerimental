@@ -38,6 +38,7 @@ typedef struct {
     int (*get_dpi_scale)(void);
     void (*set_mode)(void);
     void (*update_gamma)(const byte *table);
+    void (*set_text_input)(bool enabled);
 
     void *(*get_proc_addr)(const char *sym);
     void (*swap_buffers)(void);

@@ -17,7 +17,7 @@ extern "C" {
 // Local UI
 #include "clgame/game_ui/clg_ui_main.h"
 
-
+#include "sharedgame/sg_game_ui.h"
 
 /**
 *
@@ -111,7 +111,6 @@ static void __test_window( mu_Context *ctx ) {
 					if ( mu_button( ctx, "Button 8" ) ) { write_log( "Pressed button 8" ); }
 					if ( mu_button( ctx, "Button 9" ) ) { write_log( "Pressed button 9" ); }
 					if ( mu_button( ctx, "Button 10" ) ) { write_log( "Pressed button 10" ); }
-					mu_end_treenode( ctx );
 				}
 			}
 			if ( mu_begin_treenode( ctx, "Test 3" ) ) {
@@ -178,14 +177,14 @@ static void __log_window( mu_Context *ctx ) {
 		static char buf[ 128 ];
 		int submitted = 0;
 		{
-			int widths[ ] = { -70, -1 };
+			int widths[ ] = { -90, -1 };
 			mu_layout_row( ctx, 2, widths, 0 );
+			// Treat Enter on the textbox as a submit action so the log update still happens.
+			if ( mu_textbox( ctx, buf, sizeof( buf ) ) & MU_RES_SUBMIT ) {
+				submitted = 1;
+			}
+			if ( mu_button( ctx, "Submit" ) ) { submitted = 1; }
 		}
-		if ( mu_textbox( ctx, buf, sizeof( buf ) ) & MU_RES_SUBMIT ) {
-			mu_set_focus( ctx, ctx->last_id );
-			submitted = 1;
-		}
-		if ( mu_button( ctx, "Submit" ) ) { submitted = 1; }
 		if ( submitted ) {
 			write_log( buf );
 			buf[ 0 ] = '\0';
@@ -262,6 +261,11 @@ static void __process_frame( mu_Context *ctx ) {
 *
 *
 **/
+// Global GameUI context, this is allocated when the client game initializes and freed when it shuts down, it's used to manage the state of the GameUI and handle user input events.
+static struct {
+	game_ui_menu_id activeMenuID;
+} s_gameui_ctx;
+// MicroUI context, this is allocated when the client game initializes and freed when it shuts down, it's used to manage the state of the UI and handle user input events.
 static mu_Context *s_ui_ctx = nullptr;
 
 /**
@@ -331,7 +335,102 @@ void CLG_UI_ProcessFrame() {
 		return;
 	}
 	// Process the UI context for this frame.
-	__process_frame( s_ui_ctx );
+	if ( s_gameui_ctx.activeMenuID == game_ui_menu_id::TEAM ) {
+		__process_frame( s_ui_ctx );
+	}
+}
+
+/**
+*	@brief	Close the active GameUI menu and restore gameplay input focus.
+**/
+void CLG_UI_CloseMenu() {
+	// Clear active menu so GameUI stops processing.
+	s_gameui_ctx.activeMenuID = game_ui_menu_id::NONE;
+	// Reset MicroUI state so stale captured widget/focus state does not persist across menu re-opens.
+	if ( s_ui_ctx ) {
+		mu_init( s_ui_ctx );
+		s_ui_ctx->text_width = UI_GetTextWidth;
+		s_ui_ctx->text_height = UI_GetTextHeight;
+	}
+
+	// Return input focus to gameplay.
+	clgi.SetKeyEventDestination( KEY_GAME );
+}
+
+/**
+*	@brief	Will open the specified menu, based on the menuID received from the server.
+**/
+void CLG_UI_OpenMenu( const game_ui_menu_id menuID ) {
+	// Reject invalid menu IDs so we do not switch focus to a nonexistent GameUI screen.
+	if ( menuID <= game_ui_menu_id::NONE || menuID >= game_ui_menu_id::MAX_ID ) {
+		return;
+	}
+
+	// Close the console first so GameUI input can become the active destination without console interference.
+	if ( clgi.Con_Close ) {
+		clgi.Con_Close( true );
+	}
+
+	// Switch input focus to GameUI now that a valid menu exists.
+	clgi.SetKeyEventDestination( KEY_GAME_UI );
+
+	// Remember the active menu so the frame/update path renders the correct GameUI window.
+	s_gameui_ctx.activeMenuID = menuID;
+}
+
+
+
+
+/**
+*
+*
+*
+*	Game UI - User Input:
+*
+*	Fired by user input events when the engine's event destination is set to keyEventDest_t::GAME_UI.
+*	It gives the client game a chance to handle user input events that are meant for the UI, such as when
+*	user is navigating the in-game menu, etc.
+*
+*
+*
+**/
+//! Called when the client receives a mouse move event, gives the client game a chance to handle it 
+//! when the client's current input(key) event destination is set to keyEventDest_t::GAME_UI.
+void CLG_UI_MouseMoveEvent( const int32_t x, const int32_t y ) {
+	// Pass the mouse move event to the UI context.
+	mu_input_mousemove( s_ui_ctx, x, y );
+}
+//! Called when the client receives a mouse button event, gives the client game a chance to handle it 
+//! when the client's current input(key) event destination is set to keyEventDest_t::GAME_UI.
+void CLG_UI_MouseButtonEvent( const int32_t button, const bool isDown, const int32_t x, const int32_t y ) {
+	// Pass the mouse button event to the UI context.
+	if ( isDown == true ) {
+		mu_input_mousedown( s_ui_ctx, x, y, button );
+	} else {
+		mu_input_mouseup( s_ui_ctx, x, y, button );
+	}
+}
+//! Called when the client receives a mouse scroll event, gives the client game a chance to handle it 
+//! when the client's current input(key) event destination is set to keyEventDest_t::GAME_UI.
+void CLG_UI_MouseScrollEvent( /*const int32_t scrollX*/ const int32_t scrollY ) {
+	mu_input_scroll( s_ui_ctx, 0 /* scrollX */, scrollY);
+}
+
+//! Called when the client receives a key event, gives the client game a chance to handle it 
+//! when the client's current key event destination is set to keyEventDest_t::GAME_UI.
+void CLG_UI_KeyEvent( const int32_t key, const bool isDown ) {
+	if ( key && isDown ) {
+		mu_input_keydown( s_ui_ctx, key );
+	} else if ( key && !isDown ) {
+		mu_input_keyup( s_ui_ctx, key );
+	}
+}
+
+//! Called when the client receives a character event, gives the client game a chance to handle it 
+//! when the client's current key event destination is set to keyEventDest_t::GAME_UI.
+void CLG_UI_TextInputEvent( const char *str ) {
+	// Pass the input text to the UI context.
+	mu_input_text( s_ui_ctx, str );
 }
 
 
@@ -432,42 +531,6 @@ void CLG_UI_DrawRenderCommands() {
 	clgi.R_SetClipRect( nullptr );
 }
 
-
-
-/**
-* 
-*
-*	Game UI - User Input:
-*
-* 
-**/
-//static constexpr char button_map[ 256 ] = {
-//  [ SDL_BUTTON_LEFT & 0xff] = MU_MOUSE_LEFT,
-//  [ SDL_BUTTON_RIGHT & 0xff ] = MU_MOUSE_RIGHT,
-//  [ SDL_BUTTON_MIDDLE & 0xff ] = MU_MOUSE_MIDDLE,
-//};
-//
-//static constexpr char key_map[ 256 ] = {
-//  [ SDLK_LSHIFT & 0xff]		= MU_KEY_SHIFT,
-//  [ SDLK_RSHIFT & 0xff ]	= MU_KEY_SHIFT,
-//  [ SDLK_LCTRL & 0xff ]		= MU_KEY_CTRL,
-//  [ SDLK_RCTRL & 0xff ]		= MU_KEY_CTRL,
-//  [ SDLK_LALT & 0xff ]		= MU_KEY_ALT,
-//  [ SDLK_RALT & 0xff ]		= MU_KEY_ALT,
-//  [ SDLK_RETURN & 0xff ]	= MU_KEY_RETURN,
-//  [ SDLK_BACKSPACE & 0xff ]	= MU_KEY_BACKSPACE,
-//};
-
-//! Called when the client receives a key event, gives the client game a chance to handle it 
-//! when the client's current key event destination is set to keyEventDest_t::GAME_UI.
-void CLG_UI_KeyEvent( const int32_t key, const bool down ) {
-
-}
-//! Called when the client receives a character event, gives the client game a chance to handle it 
-//! when the client's current key event destination is set to keyEventDest_t::GAME_UI.
-void CLG_UI_CharEvent( const char c ) {
-
-}
 
 #if 0
 /**

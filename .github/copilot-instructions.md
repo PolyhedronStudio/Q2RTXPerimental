@@ -61,6 +61,20 @@ Example:
 int32_t descriptiveVariableName;
 ```
 
+## Commit message tagging
+
+When generating commit messages or summaries for commits, follow this ordering and tagging convention so generated comments are consistent and easily parsable:
+
+- [General]: Each distinct change that is all-round and does not fit in any of the categories below. These changes come first in order, with a ``[General]: `` tag for each distinct change.
+- [Client]: Each distinct change related to files in the ``/client/`` folder. These changes come second in order, with a ``[Client]: `` tag for each distinct change.
+- [Server]: Each distinct change related to files in the ``/server/`` folder. These changes come third in order, with a ``[Server]: `` tag for each distinct change.
+- [Common]: Each distinct change related to files in the ``/common/`` folder. These changes come fourth in order, with a ``[Common]: `` tag for each distinct change.
+- [SVGame]: Each distinct change related to files in the ``/baseq2rtxp/svgame/`` folder. These changes come fifth in order, with a ``[SVGame]: `` tag for each distinct change.
+- [CLGame]: Each distinct change related to files in the ``/baseq2rtxp/clgame/`` folder. These changes come sixth in order, with a ``[CLGame]: `` tag for each distinct change.
+- [SharedGame]: Each distinct change related to files in the ``/baseq2rtxp/sharedgame/`` folder. These changes come seventh in order, with a ``[SharedGame]: `` tag for each distinct change.
+
+Use one line per distinct change and prefix it with the appropriate tag. Combine multiple changes under the same tag as separate lines.
+
 ## Navigation Ownership
 
 - `src/baseq2rtxp/svgame/nav2/` is the primary navigation system and must continue absorbing ownership of navigation behavior, types, defaults, and entrypoints.

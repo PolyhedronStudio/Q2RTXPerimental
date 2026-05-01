@@ -252,6 +252,7 @@ typedef struct {
 	* 
 	**/
 	void ( *Con_ClearNotificationTexts_f )( void );
+	void ( *Con_Close )( const qboolean force );
 
 
 	
@@ -992,10 +993,26 @@ typedef struct {
 	*	Game UI:
 	* 
 	**/
+	//! Called when the client receives a mouse move event, gives the client game a chance to handle it 
+	//! when the client's current input(key) event destination is set to keyEventDest_t::GAME_UI.
+	void ( *GameUI_MouseMoveEvent )( const int32_t x, const int32_t y );
+	//! Called when the client receives a mouse button event, gives the client game a chance to handle it 
+	//! when the client's current input(key) event destination is set to keyEventDest_t::GAME_UI.
+	void ( *GameUI_MouseButtonEvent )( const int32_t button, const bool isDown, const int32_t x, const int32_t y );
+	//! Called when the client receives a mouse scroll event, gives the client game a chance to handle it 
+	//! when the client's current input(key) event destination is set to keyEventDest_t::GAME_UI.
+	void ( *GameUI_MouseScrollEvent )( const int32_t scrollX, const int32_t scrollY );
+
 	//! Called when the client receives a key event, gives the client game a chance to handle it 
 	//! when the client's current key event destination is set to keyEventDest_t::GAME_UI.
-	void ( *GameUI_KeyEvent )( const int32_t key, const bool down );
-	void ( *GameUI_CharEvent )( const char c );
+	void ( *GameUI_KeyEvent )( const int32_t key, const bool isDdown );
+	//! Called when the client receives a character event, gives the client game a chance to handle it 
+	//! when the client's current key event destination is set to keyEventDest_t::GAME_UI.
+	void ( *GameUI_TextInputEvent )( const char *str );
+
+	//! Called when the client needs to close the active GameUI menu and restore normal input.
+	void ( *GameUI_CloseMenu )( void );
+
 
 	/**
 	*

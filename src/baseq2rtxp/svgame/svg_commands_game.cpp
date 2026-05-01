@@ -23,8 +23,9 @@
 #include "svgame/svg_lua_api.h"
 
 #include "sharedgame/sg_means_of_death.h"
-
 #include "sharedgame/sg_gamemode.h"
+#include "sharedgame/sg_game_ui.h"
+
 #include "svgame/svg_gamemode.h"
 #include "svgame/gamemodes/svg_gm_basemode.h"
 
@@ -779,20 +780,17 @@ void SVG_Command_PlayerList_f(svg_base_edict_t *ent)
 *	@note	If the menu name is not recognized, prints an error message to the client if possible,
 *			otherwise prints it to all connected clients.
 **/
-static void SVG_GameUI_OpenMenu( svg_base_edict_t *ent, const char *menuName ) {
-	if ( Q_stricmp( menuName, "team" ) == 0 ) {
-		gi.WriteUint8( svc_game_ui_open );
-		gi.WriteInt16( g_edict_pool.NumberForEdict( ent ) );//gi.WriteInt16( ent - g_edicts );
-		//gi.WriteUint8( MZ_LOGOUT );
-		//gi.multicast( &ent->s.origin, MULTICAST_PVS, false );
-		gi.unicast( ent, true );
-	} else {
-		if ( ent ) {
-			gi.cprintf( ent, PRINT_HIGH, "Unknown menu name: %s\n", menuName );
-		} else {
-			gi.cprintf( NULL, PRINT_HIGH, "Unknown menu name: %s\n", menuName );
-		}
+static void SVG_GameUI_OpenMenu( svg_base_edict_t *ent, const game_ui_menu_id &menuID ) {
+	// Ensure the ID is an actual valid and existing one.
+	if ( menuID <= game_ui_menu_id::NONE || menuID >= game_ui_menu_id::MAX_ID ) {
+		//gi.dprintf( "SVG_GameUI_OpenMenu: Invalid menu ID %d attempt on server.\n", menuID );
+		gi.cprintf( ent, PRINT_HIGH, "SVG_GameUI_OpenMenu: Invalid menu ID %d attempt on server.\n", menuID );
+		return;
 	}
+	// Open menu by sending svc_game_ui_open with the appropriate menu ID, send this as part of a Reliable packet.
+	gi.WriteUint8( svc_game_ui_open );
+	gi.WriteUint8( (uint8_t)game_ui_menu_id::TEAM );
+	gi.unicast( ent, true );
 }
 void SVG_Command_MGUI_f( svg_base_edict_t *ent ) {
 	#if 0
@@ -816,7 +814,7 @@ void SVG_Command_MGUI_f( svg_base_edict_t *ent ) {
 	//	SVG_HUD_OpenMenu( ent, "main" );
 	//} else if ( Q_stricmp( menuName, "team" ) == 0 ) {
 	if ( Q_stricmp( menuName, "team" ) == 0 ) {
-		SVG_GameUI_OpenMenu( ent, "team" );
+		SVG_GameUI_OpenMenu( ent, game_ui_menu_id::TEAM );
 	//} else if ( Q_stricmp( menuName, "class" ) == 0 ) {
 	//	SVG_HUD_OpenMenu( ent, "class" );
 	//} else if ( Q_stricmp( menuName, "loadout" ) == 0 ) {
