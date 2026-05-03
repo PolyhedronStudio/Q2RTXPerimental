@@ -11,7 +11,7 @@
 *			and to open specific menus when requested. Only a single menu can be active at the same time,
 *			though it can consist out of multiple Game UI windows of course.
 **/
-enum class game_ui_menu_id {
+enum class sg_game_ui_menu_id {
 	//! Default menu ID for when no menu is active. If you ever get this value, something is badly wrong.
 	NONE = 0,
 

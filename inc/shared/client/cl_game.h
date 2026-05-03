@@ -585,8 +585,21 @@ typedef struct {
 	void ( *R_DrawFill8f )( float x, float y, float w, float h, int32_t c );
 	//!
 	void ( *R_DrawFill32f )( float x, float y, float w, float h, uint32_t color );
+	//!
+	void ( *R_DrawDebugBox )( const vec3_t mins, const vec3_t maxs, uint32_t color );
+	//!
+	void ( *R_DrawDebugLine )( const vec3_t start, const vec3_t end, uint32_t color );
+	//!
+	void ( *R_DrawDebugArrow )( const vec3_t start, const vec3_t end, float head_length, uint32_t color );
+	//!
+	void ( *R_DrawDebugSphere )( const vec3_t center, float radius, uint32_t color );
+	//!
+	void ( *R_DrawDebugCapsule )( const vec3_t start, const vec3_t end, float radius, uint32_t color );
+	//!
+	void ( *R_DrawDebugCylinder )( const vec3_t start, const vec3_t end, float radius, uint32_t color );
 
 	//!
+	qhandle_t( *R_RegisterRawImage )( const char *name, int width, int height, byte *pic, imagetype_t type, imageflags_t flags );
 	void ( *R_UpdateRawPic )( const int32_t pic_w, const int32_t pic_h, uint32_t *pic );
 	//!
 	void ( *R_DiscardRawPic )( void );

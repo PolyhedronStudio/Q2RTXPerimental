@@ -4,43 +4,101 @@
 ** This library is free software; you can redistribute it and/or modify it
 ** under the terms of the MIT license. See `microui.c` for details.
 */
+/********************************************************************
+*
+*
+*	MicroUI: Immediate Mode Graphical User Interface.
+*		- https://github.com/rxi/microui
+*
+*	"Forked", and customized to our needs, by WID in 2026 for 
+*	use in the Q2RTXP client game module, as the core of our 
+*	in-game UI system, which we call "GameUI".
+*
+********************************************************************/
 
 #ifndef MICROUI_H
 #define MICROUI_H
 
-#define MU_VERSION "2.02"
+//#define MU_VERSION "2.02"
+#define MU_VERSION "GameUI 1.0"
 
+//! The maximum number of characters in a text command, including the null terminator.
 #define MU_COMMANDLIST_SIZE     (256 * 1024)
+//! The maximum number of containers that can be active at the same time. This includes all parent and child containers.
 #define MU_ROOTLIST_SIZE        32
+//! The maximum number of items that can be in a container's layout stack. This is used for nested layouts within a container.
 #define MU_CONTAINERSTACK_SIZE  32
+//! The maximum number of items that can be clipped on a container's layout stack. This is used for nested layouts within a container.#define MU_CONTAINERSTACK_SIZE  32
 #define MU_CLIPSTACK_SIZE       32
+//! The maximum number of IDs that can be in the ID stack. This is used for generating unique IDs for UI elements.
 #define MU_IDSTACK_SIZE         32
+//! The maximum number of layouts that can be in the layout stack. This is used for nested layouts within a container.
 #define MU_LAYOUTSTACK_SIZE     16
+//! The maximum number of items that can be in a container's layout stack. This is used for nested layouts within a container.
 #define MU_CONTAINERPOOL_SIZE   48
+//! The maximum number of items that can be in a container's layout stack. This is used for nested layouts within a container.
 #define MU_TREENODEPOOL_SIZE    48
+//! The maximum width of a container's layout stack. This is used for nested layouts within a container.
 #define MU_MAX_WIDTHS           16
+//! The type of real numbers used for sliders and other UI elements that require floating point values. This can be changed to double if higher precision is needed, but it will increase the size of the UI context and commands.
 #define MU_REAL                 float
+//! The format string used for printing real numbers in text commands. This should be consistent with the type defined in MU_REAL, and it should be chosen to balance precision and readability.
 #define MU_REAL_FMT             "%.3g"
+//! The format string used for printing slider values in text commands. This should be consistent with the type defined in MU_REAL, and it should be chosen to balance precision and readability. It is recommended to use a fixed number of decimal places for sliders, to avoid showing too many digits when the value is close to zero.
 #define MU_SLIDER_FMT           "%.2f"
+//! Maximum length of a formatted string in a text command, including the null terminator. This should be chosen to balance the need for long strings and the size of the UI context and commands. It is recommended to keep this value relatively small, as it will affect the performance of the UI system when processing text commands.
 #define MU_MAX_FMT              127
 
+
+
+/**
+*	Macro to define a stack structure for a given type and size. This is used for the ID stack, layout stack, 
+*	and container stack in the UI context. 
+*
+*	The stack structure contains an index to keep track of the current position in the stack, and an array of 
+*	items of the specified type and size. The macro allows us to easily define multiple stacks with different 
+*	types and sizes without having to write separate struct definitions for each one.
+**/
+//! For example, mu_stack(int, 16) will define a stack structure that can hold up to 16 integers, and it will have an index to keep track of how many integers are currently in the stack.
 #define mu_stack(T, n)          struct { int idx; T items[n]; }
+//! Minimum macro, returns the smaller of a and b. This is used for clamping values and other operations where we need to ensure a value does not exceed a certain limit.
 #define mu_min(a, b)            ((a) < (b) ? (a) : (b))
+//! Maximum macro, returns the larger of a and b. This is used for clamping values and other operations where we need to ensure a value does not go below a certain limit.
 #define mu_max(a, b)            ((a) > (b) ? (a) : (b))
+//! Clamp macro, returns x clamped between a and b. This is used for ensuring values stay within a certain range, such as when scrolling or resizing UI elements.
 #define mu_clamp(x, a, b)       mu_min(b, mu_max(a, x))
 
+/**
+*	@brief	The clip mode for a clipping command. This is used to specify whether the clipping region should be applied to the current container only, or to all child containers as well. The MU_CLIP_PART mode will apply the clipping region to the current container only, while the MU_CLIP_ALL mode will apply it to all child containers as well. 
+*			This allows for more flexible and efficient clipping of UI elements, as we can choose to clip only the necessary parts of the UI instead of applying a global clipping region that may affect performance.
+**/
 enum {
-  MU_CLIP_PART = 1,
-  MU_CLIP_ALL
+	//! Clip mode for a clipping command, specifies whether the clipping region should be applied to the current container only, or to all child containers as well.
+	MU_CLIP_PART = 1,
+	//! Clip mode for a clipping command, specifies whether the clipping region should be applied to the current container only, or to all child containers as well.
+	MU_CLIP_ALL
 };
 
+/**
+*	@details	The UI builds a packed command list (mu_Command entries). 
+*				Each command starts with a mu_BaseCommand (type + size). 
+*				These enum values identify the concrete command payload that 
+*				follows and are used by the renderer/command-stepper to 
+*				decode and execute UI drawing and control flow.
+**/
 enum {
-  MU_COMMAND_JUMP = 1,
-  MU_COMMAND_CLIP,
-  MU_COMMAND_RECT,
-  MU_COMMAND_TEXT,
-  MU_COMMAND_ICON,
-  MU_COMMAND_MAX
+	//! Jump/branch command used to alter the current command pointer. Emitted for root/container head/tail linking so the command iterator can skip or chain containers.
+	MU_COMMAND_JUMP = 1,
+	//! Clipping command that sets the current clip rectangle for subsequent draw commands.
+	MU_COMMAND_CLIP,
+	//! Draw-rect command for filled rectangles. Contains rect + color.
+	MU_COMMAND_RECT,
+	//! Draw-text command. Contains font, position, color and a null-terminated string immediately after the command header.
+	MU_COMMAND_TEXT,
+	//! Draw-icon command. Contains an icon id, destination rect and color.
+	MU_COMMAND_ICON,
+	//! Sentinel value (one past the last valid command type). Useful for bounds checks and arrays sized by command type.
+	MU_COMMAND_MAX
 };
 
 enum {

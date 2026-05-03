@@ -66,8 +66,6 @@ SET(SRC_BASEQ2_CLGAME
 	baseq2/clgame/temp_entities/clg_te_lasers.cpp
 	baseq2/clgame/temp_entities/clg_te_railtrails.cpp
 	baseq2/clgame/temp_entities/clg_te_sustain.cpp
-
-    baseq2/clgame/game_ui/clg_ui_main.cpp
 )
 SET(HEADERS_BASEQ2_CLGAME
     # MicroUI
@@ -231,6 +229,7 @@ SET(SRC_BASEQ2RTXP_CLGAME
 
     # MicroUI
 	baseq2rtxp/clgame/game_ui/microui-2.02/src/microui.c
+    baseq2rtxp/clgame/game_ui/clg_ui_atlas.c
 
 	# ClientGame
 	baseq2rtxp/clgame/clg_client.cpp
@@ -266,6 +265,11 @@ SET(SRC_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/effects/clg_fx_particles.cpp
 	baseq2rtxp/clgame/effects/clg_fx_new.cpp
 	
+    baseq2rtxp/clgame/game_ui/clg_ui_main.cpp
+    baseq2rtxp/clgame/game_ui/menus/clg_ui_menu_armory.cpp
+    baseq2rtxp/clgame/game_ui/menus/clg_ui_menu_team.cpp
+    baseq2rtxp/clgame/game_ui/menus/clg_ui_menu_test.cpp
+
 	baseq2rtxp/clgame/hud/clg_hud_usetargethint.cpp
 
 	baseq2rtxp/clgame/local_entities/clg_local_env_sound.cpp	
@@ -285,8 +289,6 @@ SET(SRC_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/temp_entities/clg_te_lasers.cpp
 	baseq2rtxp/clgame/temp_entities/clg_te_railtrails.cpp
 	baseq2rtxp/clgame/temp_entities/clg_te_sustain.cpp
-
-    baseq2rtxp/clgame/game_ui/clg_ui_main.cpp
 )
 SET(HEADERS_BASEQ2RTXP_CLGAME
     # MicroUI
@@ -325,12 +327,15 @@ SET(HEADERS_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/effects/clg_fx_new.h
 	baseq2rtxp/clgame/effects/clg_fx_particles.h
 
+    baseq2rtxp/clgame/game_ui/clg_ui_main.h
+    #baseq2rtxp/clgame/game_ui/menus/clg_ui_menu_armory.h
+    #baseq2rtxp/clgame/game_ui/menus/clg_ui_menu_team.h
+    #baseq2rtxp/clgame/game_ui/menus/clg_ui_menu_test.h
+	
+    baseq2rtxp/clgame/hud/clg_hud_usetargethint.h
+
 	baseq2rtxp/clgame/local_entities/clg_local_env_sound.h
 	baseq2rtxp/clgame/local_entities/clg_local_entity_classes.h
-
-	baseq2rtxp/clgame/hud/clg_hud_usetargethint.h
-
-    baseq2rtxp/clgame/game_ui/clg_ui_main.h
 )
 # BaseQ2RTXP ServerGame
 SET(SRC_BASEQ2RTXP_SVGAME
@@ -454,13 +459,13 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/lua/usertypes/svg_lua_usertype_edict_t.cpp
 	baseq2rtxp/svgame/lua/usertypes/svg_lua_usertype_edict_t.hpp
 
+	baseq2rtxp/svgame/monsters/svg_mmove.cpp
+	baseq2rtxp/svgame/monsters/svg_mmove_slidemove.cpp
+
 	baseq2rtxp/svgame/save/svg_save_field_descriptor.cpp
 	baseq2rtxp/svgame/save/svg_save_funcptr_instance.cpp
 	baseq2rtxp/svgame/save/svg_save_read_context.cpp
 	baseq2rtxp/svgame/save/svg_save_write_context.cpp
-
-	baseq2rtxp/svgame/monsters/svg_mmove.cpp
-	baseq2rtxp/svgame/monsters/svg_mmove_slidemove.cpp
 
 	baseq2rtxp/svgame/player/svg_player_animation.cpp
 	baseq2rtxp/svgame/player/svg_player_client.cpp
@@ -644,6 +649,9 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/gamemodes/svg_gm_deathmatch.h
 	baseq2rtxp/svgame/gamemodes/svg_gm_singleplayer.h
 
+   	baseq2rtxp/svgame/monsters/svg_mmove.h
+	baseq2rtxp/svgame/monsters/svg_mmove_slidemove.h
+
 	baseq2rtxp/svgame/player/svg_player_client.h
 	baseq2rtxp/svgame/player/svg_player_hud.h
 	baseq2rtxp/svgame/player/svg_player_move.h
@@ -658,9 +666,6 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/save/svg_save_funcptr_instance.h
 	baseq2rtxp/svgame/save/svg_save_read_context.h
 	baseq2rtxp/svgame/save/svg_save_write_context.h
-
-	baseq2rtxp/svgame/monsters/svg_mmove.h
-	baseq2rtxp/svgame/monsters/svg_mmove_slidemove.h
 )
 
 
@@ -973,6 +978,7 @@ SET(SRC_VKPT
 	refresh/vkpt/draw.c
 	refresh/vkpt/fog.c
 	refresh/vkpt/cameras.c
+	refresh/vkpt/debug/debug_draw.c
 	refresh/vkpt/freecam.c
 	refresh/vkpt/fsr.c
 	refresh/vkpt/main.c
@@ -1007,6 +1013,7 @@ SET(HEADERS_VKPT
 	refresh/vkpt/physical_sky.h
 	refresh/vkpt/precomputed_sky.h
 	refresh/vkpt/conversion.h
+	refresh/vkpt/debug/debug_draw.h
 )
 set(SRC_SHADERS
 	refresh/vkpt/shader/animate_materials.comp
@@ -1035,6 +1042,8 @@ set(SRC_SHADERS
 	refresh/vkpt/shader/sky_buffer_resolve.comp
 	refresh/vkpt/shader/stretch_pic.frag
 	refresh/vkpt/shader/stretch_pic.vert
+	refresh/vkpt/debug/debug_draw.frag
+	refresh/vkpt/debug/debug_draw.vert
 	refresh/vkpt/shader/final_blit_lanczos.frag
 	refresh/vkpt/shader/final_blit.vert
 	refresh/vkpt/shader/fsr_easu_fp16.comp

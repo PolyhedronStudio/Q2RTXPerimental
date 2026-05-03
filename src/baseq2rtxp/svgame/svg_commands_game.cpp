@@ -780,16 +780,16 @@ void SVG_Command_PlayerList_f(svg_base_edict_t *ent)
 *	@note	If the menu name is not recognized, prints an error message to the client if possible,
 *			otherwise prints it to all connected clients.
 **/
-static void SVG_GameUI_OpenMenu( svg_base_edict_t *ent, const game_ui_menu_id &menuID ) {
+static void SVG_GameUI_OpenMenu( svg_base_edict_t *ent, const sg_game_ui_menu_id &menuID ) {
 	// Ensure the ID is an actual valid and existing one.
-	if ( menuID <= game_ui_menu_id::NONE || menuID >= game_ui_menu_id::MAX_ID ) {
+	if ( menuID <= sg_game_ui_menu_id::NONE || menuID >= sg_game_ui_menu_id::MAX_ID ) {
 		//gi.dprintf( "SVG_GameUI_OpenMenu: Invalid menu ID %d attempt on server.\n", menuID );
 		gi.cprintf( ent, PRINT_HIGH, "SVG_GameUI_OpenMenu: Invalid menu ID %d attempt on server.\n", menuID );
 		return;
 	}
 	// Open menu by sending svc_game_ui_open with the appropriate menu ID, send this as part of a Reliable packet.
 	gi.WriteUint8( svc_game_ui_open );
-	gi.WriteUint8( (uint8_t)game_ui_menu_id::TEAM );
+	gi.WriteUint8( (uint8_t)sg_game_ui_menu_id::TEAM );
 	gi.unicast( ent, true );
 }
 void SVG_Command_MGUI_f( svg_base_edict_t *ent ) {
@@ -814,7 +814,7 @@ void SVG_Command_MGUI_f( svg_base_edict_t *ent ) {
 	//	SVG_HUD_OpenMenu( ent, "main" );
 	//} else if ( Q_stricmp( menuName, "team" ) == 0 ) {
 	if ( Q_stricmp( menuName, "team" ) == 0 ) {
-		SVG_GameUI_OpenMenu( ent, game_ui_menu_id::TEAM );
+		SVG_GameUI_OpenMenu( ent, sg_game_ui_menu_id::TEAM );
 	//} else if ( Q_stricmp( menuName, "class" ) == 0 ) {
 	//	SVG_HUD_OpenMenu( ent, "class" );
 	//} else if ( Q_stricmp( menuName, "loadout" ) == 0 ) {

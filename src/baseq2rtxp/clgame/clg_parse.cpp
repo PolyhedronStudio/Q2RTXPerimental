@@ -37,10 +37,10 @@
 **/
 static void CLG_ParseGameUI_OpenMenu( void ) {
 	// Parse the menuID.
-	const game_ui_menu_id menuID = ( game_ui_menu_id )clgi.MSG_ReadUint8();
+	const sg_game_ui_menu_id menuID = ( sg_game_ui_menu_id )clgi.MSG_ReadUint8();
 
 	// Ensure the ID is an actual valid and existing one.
-	if ( menuID <= game_ui_menu_id::NONE || menuID >= game_ui_menu_id::MAX_ID ) {
+	if ( menuID <= sg_game_ui_menu_id::NONE || menuID >= sg_game_ui_menu_id::MAX_ID ) {
 		clgi.Print( PRINT_DEVELOPER, "CLG_ParseGameUI_OpenMenu: Invalid menu ID %d received from server.\n", menuID );
 		return;
 	}

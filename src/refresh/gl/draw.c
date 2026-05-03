@@ -228,6 +228,11 @@ void R_DrawStretchRaw_GL(int x, int y, int w, int h)
     _GL_StretchPic(x, y, w, h, 0, 0, 1, 1, U32_WHITE, TEXNUM_RAW, 0);
 }
 
+qhandle_t R_RegisterRawPic_GL( int pic_w, int pic_h, const uint32_t *pic ) {
+	GL_ForceTexture( 0, TEXNUM_RAW );
+	qglTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA, pic_w, pic_h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pic );
+}
+
 void R_UpdateRawPic_GL(int pic_w, int pic_h, const uint32_t *pic)
 {
     GL_ForceTexture(0, TEXNUM_RAW);

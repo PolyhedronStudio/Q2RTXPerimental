@@ -601,6 +601,9 @@ void PF_R_DrawFill8( const int32_t x, const int32_t y, const int32_t w, const in
 void PF_R_DrawFill32( const int32_t x, const int32_t y, const int32_t w, const int32_t h, const uint32_t color ) {
 	R_DrawFill32( x, y, w, h, color );
 }
+qhandle_t PF_R_RegisterRawImage( const char *name, int width, int height, byte *pic, imagetype_t type, imageflags_t flags ) {
+	return R_RegisterRawImage( name, width, height, pic, type, flags );
+}
 void PF_R_UpdateRawPic( const int32_t pic_w, const int32_t pic_h, uint32_t *pic ) {
 	R_UpdateRawPic( pic_w, pic_h, pic );
 }
@@ -611,6 +614,24 @@ void PF_R_DrawFill8f( float x, float y, float w, float h, int32_t c ) {
 //!
 void PF_R_DrawFill32f( float x, float y, float w, float h, uint32_t color ) {
 	R_DrawFill32f( x, y, w, h, color );
+}
+void PF_R_DrawDebugBox( const vec3_t mins, const vec3_t maxs, uint32_t color ) {
+	R_DrawDebugBox( mins, maxs, color );
+}
+void PF_R_DrawDebugLine( const vec3_t start, const vec3_t end, uint32_t color ) {
+	R_DrawDebugLine( start, end, color );
+}
+void PF_R_DrawDebugArrow( const vec3_t start, const vec3_t end, float head_length, uint32_t color ) {
+	R_DrawDebugArrow( start, end, head_length, color );
+}
+void PF_R_DrawDebugSphere( const vec3_t center, float radius, uint32_t color ) {
+	R_DrawDebugSphere( center, radius, color );
+}
+void PF_R_DrawDebugCapsule( const vec3_t start, const vec3_t end, float radius, uint32_t color ) {
+	R_DrawDebugCapsule( start, end, radius, color );
+}
+void PF_R_DrawDebugCylinder( const vec3_t start, const vec3_t end, float radius, uint32_t color ) {
+	R_DrawDebugCylinder( start, end, radius, color );
 }
 //!
 void PF_R_DiscardRawPic( void ) {
@@ -1143,6 +1164,13 @@ void CL_GM_LoadProgs( void ) {
 	imports.R_DrawFill32 = PF_R_DrawFill32;
 	imports.R_DrawFill8f = PF_R_DrawFill8f;
 	imports.R_DrawFill32f = PF_R_DrawFill32f;
+	imports.R_DrawDebugBox = PF_R_DrawDebugBox;
+	imports.R_DrawDebugLine = PF_R_DrawDebugLine;
+	imports.R_DrawDebugArrow = PF_R_DrawDebugArrow;
+	imports.R_DrawDebugSphere = PF_R_DrawDebugSphere;
+	imports.R_DrawDebugCapsule = PF_R_DrawDebugCapsule;
+	imports.R_DrawDebugCylinder = PF_R_DrawDebugCylinder;
+	imports.R_RegisterRawImage = PF_R_RegisterRawImage;
 	imports.R_UpdateRawPic = PF_R_UpdateRawPic;
 	imports.R_DiscardRawPic = PF_R_DiscardRawPic;
 	imports.R_AddDecal = PF_R_AddDecal;

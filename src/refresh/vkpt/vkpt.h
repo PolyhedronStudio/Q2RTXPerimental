@@ -77,6 +77,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 	SHADER_MODULE_DO(QVK_MOD_STRETCH_PIC_FRAG)                       \
 	SHADER_MODULE_DO(QVK_MOD_FINAL_BLIT_VERT)                        \
 	SHADER_MODULE_DO(QVK_MOD_FINAL_BLIT_LANCZOS_FRAG)                \
+	SHADER_MODULE_DO(QVK_MOD_DEBUG_DRAW_VERT)                        \
+	SHADER_MODULE_DO(QVK_MOD_DEBUG_DRAW_FRAG)                        \
 	SHADER_MODULE_DO(QVK_MOD_INSTANCE_GEOMETRY_COMP)                 \
 	SHADER_MODULE_DO(QVK_MOD_ANIMATE_MATERIALS_COMP)                 \
 	SHADER_MODULE_DO(QVK_MOD_ASVGF_GRADIENT_IMG_COMP)                \
@@ -621,6 +623,13 @@ VkResult vkpt_final_blit_simple(VkCommandBuffer cmd_buf, VkImage image, VkExtent
 VkResult vkpt_final_blit_filtered(VkCommandBuffer cmd_buf);
 VkResult vkpt_draw_clear_stretch_pics(void);
 
+VkResult vkpt_debug_draw_initialize(void);
+VkResult vkpt_debug_draw_destroy(void);
+VkResult vkpt_debug_draw_create_pipelines(void);
+VkResult vkpt_debug_draw_destroy_pipelines(void);
+VkResult vkpt_debug_draw_record(VkCommandBuffer cmd_buf);
+bool vkpt_debug_draw_enabled(void);
+
 VkResult vkpt_uniform_buffer_create(void);
 VkResult vkpt_uniform_buffer_destroy(void);
 VkResult vkpt_uniform_buffer_upload_to_staging(void);
@@ -862,6 +871,12 @@ void R_DrawFill8_RTX(int x, int y, int w, int h, int c);
 void R_DrawFill32_RTX(int x, int y, int w, int h, uint32_t color);
 void R_DrawFill8f_RTX( float x, float y, float w, float h, int32_t c );
 void R_DrawFill32f_RTX( float x, float y, float w, float h, uint32_t color );
+void R_DrawDebugBox_RTX( const vec3_t mins, const vec3_t maxs, uint32_t color );
+void R_DrawDebugLine_RTX( const vec3_t start, const vec3_t end, uint32_t color );
+void R_DrawDebugArrow_RTX( const vec3_t start, const vec3_t end, float head_length, uint32_t color );
+void R_DrawDebugSphere_RTX( const vec3_t center, float radius, uint32_t color );
+void R_DrawDebugCapsule_RTX( const vec3_t start, const vec3_t end, float radius, uint32_t color );
+void R_DrawDebugCylinder_RTX( const vec3_t start, const vec3_t end, float radius, uint32_t color );
 void R_DrawChar_RTX(int x, int y, int flags, int c, qhandle_t font);
 int R_DrawString_RTX(int x, int y, int flags, size_t maxlen, const char *s, qhandle_t font);
 bool R_InterceptKey_RTX(unsigned key, bool down);

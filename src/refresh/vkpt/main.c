@@ -77,6 +77,7 @@ cvar_t* cvar_pt_freecam = NULL;
 cvar_t *cvar_pt_nearest = NULL;
 cvar_t *cvar_pt_bilerp_chars = NULL;
 cvar_t *cvar_pt_bilerp_pics = NULL;
+cvar_t *cvar_pt_draw_debug_3d_geometry = NULL;
 cvar_t *cvar_drs_enable = NULL;
 cvar_t *cvar_drs_target = NULL;
 cvar_t *cvar_drs_minscale = NULL;
@@ -162,10 +163,13 @@ VkptInit_t vkpt_initialization[] = {
 	{ "shadowmap|", vkpt_shadow_map_create_pipelines,  vkpt_shadow_map_destroy_pipelines,    VKPT_INIT_RELOAD_SHADER ,     0 },
 	{ "images",   vkpt_create_images,                  vkpt_destroy_images,                  VKPT_INIT_SWAPCHAIN_RECREATE, 0 },
 	{ "draw",     vkpt_draw_initialize,                vkpt_draw_destroy,                    VKPT_INIT_DEFAULT,            0 },
+	{ "debug3d",  vkpt_debug_draw_initialize,          vkpt_debug_draw_destroy,              VKPT_INIT_DEFAULT,            0 },
 	{ "pt",       vkpt_pt_init,                        vkpt_pt_destroy,                      VKPT_INIT_DEFAULT,            0 },
 	{ "pt|",      vkpt_pt_create_pipelines,            vkpt_pt_destroy_pipelines,            VKPT_INIT_RELOAD_SHADER,      0 },
 	{ "draw|",    vkpt_draw_create_pipelines,          vkpt_draw_destroy_pipelines,          VKPT_INIT_SWAPCHAIN_RECREATE
 																						   | VKPT_INIT_RELOAD_SHADER,      0 },
+	{ "debug3d|", vkpt_debug_draw_create_pipelines,    vkpt_debug_draw_destroy_pipelines,    VKPT_INIT_SWAPCHAIN_RECREATE
+																					   | VKPT_INIT_RELOAD_SHADER,      0 },
 	{ "vbo|",     vkpt_vertex_buffer_create_pipelines, vkpt_vertex_buffer_destroy_pipelines, VKPT_INIT_RELOAD_SHADER,      0 },
 	{ "asvgf",    vkpt_asvgf_initialize,               vkpt_asvgf_destroy,                   VKPT_INIT_DEFAULT,            0 },
 	{ "asvgf|",   vkpt_asvgf_create_pipelines,         vkpt_asvgf_destroy_pipelines,         VKPT_INIT_RELOAD_SHADER,      0 },
@@ -3576,6 +3580,9 @@ R_EndFrame_RTX(void)
 
 	if (frame_ready)
 	{
+		/**
+		* 	Render the final image to the swapchain first.
+		**/
 		if (vkpt_fsr_is_enabled() && !qvk.frame_menu_mode)
 		{
 			vkpt_fsr_final_blit(cmd_buf);
@@ -3598,6 +3605,15 @@ R_EndFrame_RTX(void)
 		}
 
 		frame_ready = false;
+	}
+
+	/**
+	* 	Only record the optional 3D debug overlay when the dedicated cvar enables
+	* 	it, so the common path remains free of CPU work and GPU commands.
+	**/
+	if (vkpt_debug_draw_enabled())
+	{
+		vkpt_debug_draw_record(cmd_buf);
 	}
 
 	vkpt_draw_submit_stretch_pics(cmd_buf);
@@ -3813,6 +3829,16 @@ R_Init_RTX(bool total)
 	cvar_pt_bilerp_chars = Cvar_Get("pt_bilerp_chars", "0", CVAR_ARCHIVE);
 	cvar_pt_bilerp_pics = Cvar_Get("pt_bilerp_pics", "0", CVAR_ARCHIVE);
 	cvar_pt_bilerp_chars->changed = cvar_pt_bilerp_pics->changed = pt_nearest_changed;
+
+	#if _DEBUG 
+	// Debug 3D overlay rendering for vkpt. Keep this disabled by default so the
+	// renderer does not spend any CPU or GPU work on debug geometry unless asked.
+	cvar_pt_draw_debug_3d_geometry = Cvar_Get( "pt_draw_debug_3d_geometry", "1", CVAR_ARCHIVE );
+	#else
+	// Debug 3D overlay rendering for vkpt. Keep this disabled by default so the
+	// renderer does not spend any CPU or GPU work on debug geometry unless asked.
+	cvar_pt_draw_debug_3d_geometry = Cvar_Get( "pt_draw_debug_3d_geometry", "0", CVAR_ARCHIVE );
+	#endif
 
 #ifdef VKPT_DEVICE_GROUPS
 	cvar_sli = Cvar_Get("sli", "1", CVAR_REFRESH | CVAR_ARCHIVE);
@@ -4579,6 +4605,12 @@ void R_RegisterFunctionsRTX()
 	R_DrawFill32 = R_DrawFill32_RTX;
 	R_DrawFill8f = R_DrawFill8f_RTX;
 	R_DrawFill32f = R_DrawFill32f_RTX;
+	R_DrawDebugBox = R_DrawDebugBox_RTX;
+	R_DrawDebugLine = R_DrawDebugLine_RTX;
+	R_DrawDebugArrow = R_DrawDebugArrow_RTX;
+	R_DrawDebugSphere = R_DrawDebugSphere_RTX;
+	R_DrawDebugCapsule = R_DrawDebugCapsule_RTX;
+	R_DrawDebugCylinder = R_DrawDebugCylinder_RTX;
 	R_BeginFrame = R_BeginFrame_RTX;
 	R_EndFrame = R_EndFrame_RTX;
 	R_ModeChanged = R_ModeChanged_RTX;

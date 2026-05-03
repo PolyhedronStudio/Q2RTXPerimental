@@ -1766,7 +1766,10 @@ void IMG_FreeUnused(void)
     int i, count = 0;
 
     for (i = 1, image = r_images + 1; i < r_numImages; i++, image++) {
-        if (image->registration_sequence == registration_sequence) {
+		if ( !image ) {
+			continue;
+		}
+		if (image->registration_sequence == registration_sequence) {
             continue;        // used this sequence
         }
         if (!image->registration_sequence)

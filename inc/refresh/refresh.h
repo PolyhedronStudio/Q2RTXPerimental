@@ -91,6 +91,12 @@ extern void    (*R_DrawFill32)(int x, int y, int w, int h, uint32_t color);
 // <Q2RTXP> For crosshair. WID: TODO: The other Draw calls floatify.
 extern void    ( *R_DrawFill8f )( float x, float y, float w, float  h, int32_t c );
 extern void    ( *R_DrawFill32f )( float x, float y, float w, float h, uint32_t color );
+extern void    ( *R_DrawDebugBox )( const vec3_t mins, const vec3_t maxs, uint32_t color );
+extern void    ( *R_DrawDebugLine )( const vec3_t start, const vec3_t end, uint32_t color );
+extern void    ( *R_DrawDebugArrow )( const vec3_t start, const vec3_t end, float head_length, uint32_t color );
+extern void    ( *R_DrawDebugSphere )( const vec3_t center, float radius, uint32_t color );
+extern void    ( *R_DrawDebugCapsule )( const vec3_t start, const vec3_t end, float radius, uint32_t color );
+extern void    ( *R_DrawDebugCylinder )( const vec3_t start, const vec3_t end, float radius, uint32_t color );
 // </Q2RTXP>
 extern void    (*R_UpdateRawPic)(int pic_w, int pic_h, const uint32_t *pic);
 extern void    (*R_DiscardRawPic)(void);

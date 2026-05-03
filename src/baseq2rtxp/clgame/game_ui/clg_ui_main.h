@@ -40,8 +40,8 @@ void CLG_UI_CloseMenu();
 /**
 *	@brief	Will open the specified menu, based on the menuID received from the server.
 **/
-enum class game_ui_menu_id;
-void CLG_UI_OpenMenu( const game_ui_menu_id menuID );
+enum class sg_game_ui_menu_id;
+void CLG_UI_OpenMenu( const sg_game_ui_menu_id menuID );
 
 
 

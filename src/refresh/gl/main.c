@@ -1021,6 +1021,12 @@ void R_ModeChanged_GL(int width, int height, int flags)
 
 void R_AddDecal_GL(decal_t *d) {}
 bool R_InterceptKey_GL(unsigned key, bool down) { return false; }
+void R_DrawDebugBox_GL( const vec3_t mins, const vec3_t maxs, uint32_t color ) {}
+void R_DrawDebugLine_GL( const vec3_t start, const vec3_t end, uint32_t color ) {}
+void R_DrawDebugArrow_GL( const vec3_t start, const vec3_t end, float head_length, uint32_t color ) {}
+void R_DrawDebugSphere_GL( const vec3_t center, float radius, uint32_t color ) {}
+void R_DrawDebugCapsule_GL( const vec3_t start, const vec3_t end, float radius, uint32_t color ) {}
+void R_DrawDebugCylinder_GL( const vec3_t start, const vec3_t end, float radius, uint32_t color ) {}
 
 void R_RegisterFunctionsGL()
 {
@@ -1052,6 +1058,12 @@ void R_RegisterFunctionsGL()
 	R_DrawFill32 = R_DrawFill32_GL;
     R_DrawFill8f = R_DrawFill8f_GL;
     R_DrawFill32f = R_DrawFill32f_GL;
+    R_DrawDebugBox = R_DrawDebugBox_GL;
+	R_DrawDebugLine = R_DrawDebugLine_GL;
+	R_DrawDebugArrow = R_DrawDebugArrow_GL;
+	R_DrawDebugSphere = R_DrawDebugSphere_GL;
+	R_DrawDebugCapsule = R_DrawDebugCapsule_GL;
+	R_DrawDebugCylinder = R_DrawDebugCylinder_GL;
 	R_BeginFrame = R_BeginFrame_GL;
 	R_EndFrame = R_EndFrame_GL;
 	R_ModeChanged = R_ModeChanged_GL;

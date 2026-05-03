@@ -20,6 +20,67 @@
 #include "sharedgame/sg_entity_types.h"
 #include "sharedgame/sg_entities.h"
 
+/**
+*	@brief	Submit a world-space debug AABB for a packet entity when enabled by cvar.
+*	@param	packetEntity	Entity carrying decoded mins/maxs and current state.
+*	@note	This is intentionally lightweight and only runs when
+*			`cl_debug_draw_entity_bounds` is enabled.
+**/
+static void CLG_DebugDrawPacketEntityBounds( const centity_t *packetEntity ) {
+    /**
+    *	Guard against disabled cvar and invalid entity pointer.
+    **/
+    if ( !cl_debug_draw_entity_bounds || !cl_debug_draw_entity_bounds->integer ) {
+        return;
+    }
+    if ( !packetEntity ) {
+        return;
+    }
+
+    /**
+    *	Skip non-solid entities because they do not have gameplay collision bounds.
+    **/
+    if ( packetEntity->current.solid == SOLID_NOT ) {
+        return;
+    }
+
+    /**
+    *	Skip brushmodel solids for now, because their bounds are represented via BSP hulls
+    *	and not by packed per-entity mins/maxs in this path.
+    **/
+    if ( packetEntity->current.solid == BOUNDS_BRUSHMODEL ) {
+        return;
+    }
+
+    /**
+    *	Build world-space AABB from decoded model-space mins/maxs and the lerped origin.
+    **/
+    vec3_t world_mins = {};
+    vec3_t world_maxs = {};
+    const Vector3 origin = packetEntity->lerpOrigin;
+    world_mins[ 0 ] = origin.x + packetEntity->mins.x;
+    world_mins[ 1 ] = origin.y + packetEntity->mins.y;
+    world_mins[ 2 ] = origin.z + packetEntity->mins.z;
+    world_maxs[ 0 ] = origin.x + packetEntity->maxs.x;
+    world_maxs[ 1 ] = origin.y + packetEntity->maxs.y;
+    world_maxs[ 2 ] = origin.z + packetEntity->maxs.z;
+
+    /**
+    *	Queue the bounds via renderer-facing debug API.
+    **/
+    clgi.R_DrawDebugBox( world_mins, world_maxs, U32_RED );
+
+	/**
+	*	Queue the bounds sphere.
+	**/
+	//clgi.R_DrawDebugSphere( &origin.x, QM_Vector3Length( packetEntity->size ), U32_RED );
+
+	/**
+	*	Queue the bounds cylinder.
+	**/
+	//clgi.R_DrawDebugCylinder( &origin.z, &packetEntity->size.z, packetEntity->size.x, U32_RED );
+}
+
 
 // WID: TODO: Move to client where it determines old/new states?
 #if 1 
@@ -264,7 +325,10 @@ void CLG_AddPacketEntities( void ) {
         *   Act according to the entity Type:
         **/
         if ( AddPacketEntity( packetEntity, nextState, base_entity_flags, autorotate ) ) {
+            CLG_DebugDrawPacketEntityBounds( packetEntity );
             continue;
         }
+
+        CLG_DebugDrawPacketEntityBounds( packetEntity );
     }
 }

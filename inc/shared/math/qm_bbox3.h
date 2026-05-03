@@ -142,8 +142,11 @@ QM_API bool QM_BBox3Intersects( const BBox3 &boxA, const BBox3 &boxB ) {
 }
 
 /**
- * @return A `box_t` that is the intersection of the passed bounds.
- */
+*	@return	A `box_t` that is the intersection of the passed bounds.
+*	@note	If the boxes do not intersect, a zero sized box is returned.
+*			Otherwise the box returned is the overlapping area of the two boxes, 
+*			which can be used for calculating collision response, or other things.
+**/
 QM_API BBox3 QM_BBox3Intersection( const BBox3 &a, const BBox3 &b ) {
     if ( !QM_BBox3Intersects( a, b ) ) {
         return QM_BBox3Zero();
