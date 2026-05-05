@@ -20,6 +20,9 @@
 #include "sharedgame/sg_entity_types.h"
 #include "sharedgame/sg_entities.h"
 
+// Uncomment these to allow debug rendering of packet entity bounds via CLG_DebugDrawPacketEntityBounds.
+
+
 /**
 *	@brief	Submit a world-space debug AABB for a packet entity when enabled by cvar.
 *	@param	packetEntity	Entity carrying decoded mins/maxs and current state.
@@ -68,33 +71,90 @@ static void CLG_DebugDrawPacketEntityBounds( const centity_t *packetEntity ) {
     /**
     *	Queue the bounds via renderer-facing debug API.
     **/
-    clgi.R_DrawDebugBox( world_mins, world_maxs, U32_RED );
+	if ( cl_debug_draw_entity_bounds->integer == 1 ) {
+		clgi.R_DrawDebugBox( world_mins, world_maxs, U32_RED );
+	}
 
 	/**
 	*	Queue the bounds sphere.
 	**/
-	//const Vector3 center = QM_BBox3Center( { world_mins, world_maxs } );
-	//clgi.R_DrawDebugSphere( &center.x, QM_BBox3Radius( {world_mins, world_maxs } ), U32_RED);
+	if ( cl_debug_draw_entity_bounds->integer == 2 ) {
+		const Vector3 center = QM_BBox3Center( { world_mins, world_maxs } );
+		clgi.R_DrawDebugSphere( &center.x, QM_BBox3Radius( { world_mins, world_maxs } ), U32_RED );
+	}
 
 	/**
 	*	Queue the bounds cylinder.
 	**/
-    // Build cylinder endpoints as vertical axis through the AABB center in XY.
-    vec3_t cylinder_start = {
-        ( world_mins[ 0 ] + world_maxs[ 0 ] ) * 0.5f,
-        ( world_mins[ 1 ] + world_maxs[ 1 ] ) * 0.5f,
-        world_mins[ 2 ]
-    };
-    vec3_t cylinder_end = {
-        ( world_mins[ 0 ] + world_maxs[ 0 ] ) * 0.5f,
-        ( world_mins[ 1 ] + world_maxs[ 1 ] ) * 0.5f,
-        world_maxs[ 2 ]
-    };
-    // Use the largest horizontal half-extent so the cylinder encloses the AABB in XY.
-    const float half_size_x = ( world_maxs[ 0 ] - world_mins[ 0 ] ) * 0.5f;
-    const float half_size_y = ( world_maxs[ 1 ] - world_mins[ 1 ] ) * 0.5f;
-    const float cylinder_radius = ( half_size_x > half_size_y ) ? half_size_x : half_size_y;
-    clgi.R_DrawDebugCylinder( cylinder_start, cylinder_end, cylinder_radius, U32_RED );
+	const float half_size_x = ( world_maxs[ 0 ] - world_mins[ 0 ] ) * 0.5f;
+	const float half_size_y = ( world_maxs[ 1 ] - world_mins[ 1 ] ) * 0.5f;
+
+	if ( cl_debug_draw_entity_bounds->integer == 3 ) {
+	// Build cylinder endpoints as vertical axis through the AABB center in XY.
+		vec3_t cylinder_start = {
+			( world_mins[ 0 ] + world_maxs[ 0 ] ) * 0.5f,
+			( world_mins[ 1 ] + world_maxs[ 1 ] ) * 0.5f,
+			world_mins[ 2 ]
+		};
+		vec3_t cylinder_end = {
+			( world_mins[ 0 ] + world_maxs[ 0 ] ) * 0.5f,
+			( world_mins[ 1 ] + world_maxs[ 1 ] ) * 0.5f,
+			world_maxs[ 2 ]
+		};
+		// Use the largest horizontal half-extent so the cylinder encloses the AABB in XY.
+
+		const float cylinder_radius = ( half_size_x > half_size_y ) ? half_size_x : half_size_y;
+		clgi.R_DrawDebugCylinder( cylinder_start, cylinder_end, cylinder_radius, U32_RED );
+	}
+
+    /**
+    *	Queue the bounds capsule.
+    **/
+	if ( cl_debug_draw_entity_bounds->integer == 4 ) {
+		const float center_x = ( world_mins[ 0 ] + world_maxs[ 0 ] ) * 0.5f;
+		const float center_y = ( world_mins[ 1 ] + world_maxs[ 1 ] ) * 0.5f;
+		const float half_size_z = ( world_maxs[ 2 ] - world_mins[ 2 ] ) * 0.5f;
+		const float capsule_radius = ( half_size_x > half_size_y ) ? half_size_x : half_size_y;
+		// Keep hemisphere centers inside the AABB height. If the box is too short, collapse to a sphere.
+		const float half_segment = ( half_size_z > capsule_radius ) ? ( half_size_z - capsule_radius ) : 0.0f;
+		const float center_z = ( world_mins[ 2 ] + world_maxs[ 2 ] ) * 0.5f;
+		vec3_t capsule_start = {
+			center_x,
+			center_y,
+			center_z - half_segment
+		};
+		vec3_t capsule_end = {
+			center_x,
+			center_y,
+			center_z + half_segment
+		};
+		clgi.R_DrawDebugCapsule( capsule_start, capsule_end, capsule_radius, U32_RED );
+	}
+
+	if ( cl_debug_draw_entity_bounds->integer == 5 ) {
+        // Use render-time lerped angles so the debug facing matches the visual orientation.
+        Vector3 facingForward = QM_Vector3Zero();
+        QM_AngleVectors( packetEntity->lerpAngles, &facingForward, nullptr, nullptr );
+
+        // Determine a robust origin near the entity center and a readable direction length.
+        const Vector3 center = QM_BBox3Center( { world_mins, world_maxs } );
+        const float half_size_z = ( world_maxs[ 2 ] - world_mins[ 2 ] ) * 0.5f;
+        const float max_half_size_xy = ( half_size_x > half_size_y ) ? half_size_x : half_size_y;
+        const float max_half_size_xyz = ( max_half_size_xy > half_size_z ) ? max_half_size_xy : half_size_z;
+        const float facing_length = ( max_half_size_xyz * 2.0f > 16.0f ) ? ( max_half_size_xyz * 2.0f ) : 16.0f;
+
+        // Build a world-space endpoint in the current facing direction.
+        const Vector3 facingTarget = {
+            center.x + ( facingForward.x * facing_length ),
+            center.y + ( facingForward.y * facing_length ),
+            center.z + ( facingForward.z * facing_length )
+        };
+
+        // Draw both a line and an arrow to make direction and heading immediately obvious.
+        clgi.R_DrawDebugLine( &center.x, &facingTarget.x, U32_RED );
+        const float arrow_head_length = ( facing_length * 0.25f > 8.0f ) ? ( facing_length * 0.25f ) : 8.0f;
+        clgi.R_DrawDebugArrow( &center.x, &facingTarget.x, arrow_head_length, U32_RED );
+	}
 }
 
 

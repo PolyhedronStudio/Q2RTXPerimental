@@ -90,19 +90,23 @@ void main() {
         float dist_uv = length( v_uv );
         // Pixel distance from the outer edge of the sphere circle.
         float edge_dist_px = ( 1.0 - dist_uv ) * v_half_width_px;
+        // Sphere ring thickness (in pixels) provided by the CPU path.
+        float ring_width_px = max( 1.0, v_outline_px );
 
         // Discard fragments completely outside the sphere circle.
         if ( edge_dist_px < -0.5 ) {
             discard;
         }
 
-        // Smooth feathering at the circle boundary (1-pixel anti-alias band).
-        alpha = smoothstep( 0.0, 1.5, edge_dist_px );
-
-        // Outline zone: within outline_px pixels of the outer edge.
-        if ( v_outline_px > 0.0 && edge_dist_px < v_outline_px ) {
-            in_outline = true;
+        // Discard interior pixels so spheres render as wireframe rings.
+        if ( edge_dist_px > ring_width_px + 1.5 ) {
+            discard;
         }
+
+        // Anti-aliased ring: smooth at the outside and inside edges.
+        float outer_alpha = smoothstep( 0.0, 1.5, edge_dist_px );
+        float inner_fade = smoothstep( ring_width_px, ring_width_px + 1.5, edge_dist_px );
+        alpha = outer_alpha * ( 1.0 - inner_fade );
     } else {
         // Signed cross-axis distance from ribbon centre in pixels.
         float cross_dist_px = abs( v_uv.x ) * v_half_width_px;

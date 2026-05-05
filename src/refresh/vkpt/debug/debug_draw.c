@@ -481,7 +481,8 @@ void vkpt_debug_draw_add_sphere( const vec3_t center, float radius, const vkpt_d
 }
 
 /**
-*	@brief	Queue a capsule primitive represented as a thick segment.
+*\t@brief\tQueue a capsule wireframe approximation.
+*\t@note\tBuilds a cylinder body plus hemisphere arc hints on both caps.
 **/
 void vkpt_debug_draw_add_capsule( const vec3_t start, const vec3_t end, float radius, const vkpt_debug_draw_style_t *style ) {
 	if ( !vkpt_debug_draw_enabled() ) {
@@ -490,7 +491,100 @@ void vkpt_debug_draw_add_capsule( const vec3_t start, const vec3_t end, float ra
 
 	vkpt_debug_draw_style_t resolved_style;
 	vkpt_debug_draw_resolve_style( style, &resolved_style );
-	vkpt_debug_draw_enqueue_segment( start, end, max( 0.25f, radius ), &resolved_style );
+
+	// Keep a minimum world radius so tiny capsules remain visible.
+	const float capsule_radius = max( 0.25f, radius );
+	// Segment helpers expect a screen-space half-thickness value for the ribbon width.
+	const float segment_radius_px = max( 0.25f, resolved_style.thickness_px * 0.5f );
+
+	vec3_t axis;
+	VectorSubtract( end, start, axis );
+	vec3_t direction;
+	const float axis_len = vkpt_debug_vec3_normalize( axis, direction );
+
+	// Degenerate capsule: render as a sphere at the center point.
+	if ( axis_len <= 0.0001f ) {
+		vkpt_debug_draw_enqueue_sphere( start, capsule_radius, &resolved_style );
+		return;
+	}
+
+	vec3_t right;
+	vec3_t up;
+	vkpt_debug_draw_build_basis( direction, right, up );
+
+	/**
+	*\tDraw the cylindrical body ring edges and a few longitudinal guides.
+	**/
+	vec3_t top_prev = { 0.0f };
+	vec3_t bot_prev = { 0.0f };
+	for ( int32_t i = 0; i <= VKPT_DEBUG_DRAW_CYLINDER_STEPS; i++ ) {
+		const float t = (float)i / (float)VKPT_DEBUG_DRAW_CYLINDER_STEPS;
+		const float angle = t * 6.28318530718f;
+		const float c = cosf( angle );
+		const float s = sinf( angle );
+
+		vec3_t offset;
+		offset[ 0 ] = ( right[ 0 ] * c + up[ 0 ] * s ) * capsule_radius;
+		offset[ 1 ] = ( right[ 1 ] * c + up[ 1 ] * s ) * capsule_radius;
+		offset[ 2 ] = ( right[ 2 ] * c + up[ 2 ] * s ) * capsule_radius;
+
+		vec3_t top_curr;
+		vec3_t bot_curr;
+		VectorAdd( start, offset, top_curr );
+		VectorAdd( end, offset, bot_curr );
+
+		if ( i > 0 ) {
+			vkpt_debug_draw_enqueue_segment( top_prev, top_curr, segment_radius_px, &resolved_style );
+			vkpt_debug_draw_enqueue_segment( bot_prev, bot_curr, segment_radius_px, &resolved_style );
+			if ( ( i % max( 1, VKPT_DEBUG_DRAW_CYLINDER_STEPS / 4 ) ) == 0 ) {
+				vkpt_debug_draw_enqueue_segment( top_curr, bot_curr, segment_radius_px, &resolved_style );
+			}
+		}
+
+		VectorCopy( top_curr, top_prev );
+		VectorCopy( bot_curr, bot_prev );
+	}
+
+	/**
+	*\tDraw hemisphere hints using two orthogonal half-circle arcs per cap.
+	**/
+	const int32_t cap_steps = max( 4, VKPT_DEBUG_DRAW_CYLINDER_STEPS / 2 );
+	for ( int32_t plane = 0; plane < 2; plane++ ) {
+		const vec3_t *basis = ( plane == 0 ) ? &right : &up;
+
+		vec3_t prev_start_arc = { 0.0f };
+		vec3_t prev_end_arc = { 0.0f };
+		bool has_prev = false;
+
+		for ( int32_t i = 0; i <= cap_steps; i++ ) {
+			const float t = (float)i / (float)cap_steps;
+			const float theta = t * 3.14159265359f;
+			const float c = cosf( theta );
+			const float s = sinf( theta );
+
+			// Start cap extends opposite to direction.
+			vec3_t start_arc_point = {
+				start[ 0 ] + ( ( *basis )[ 0 ] * c - direction[ 0 ] * s ) * capsule_radius,
+				start[ 1 ] + ( ( *basis )[ 1 ] * c - direction[ 1 ] * s ) * capsule_radius,
+				start[ 2 ] + ( ( *basis )[ 2 ] * c - direction[ 2 ] * s ) * capsule_radius
+			};
+			// End cap extends along direction.
+			vec3_t end_arc_point = {
+				end[ 0 ] + ( ( *basis )[ 0 ] * c + direction[ 0 ] * s ) * capsule_radius,
+				end[ 1 ] + ( ( *basis )[ 1 ] * c + direction[ 1 ] * s ) * capsule_radius,
+				end[ 2 ] + ( ( *basis )[ 2 ] * c + direction[ 2 ] * s ) * capsule_radius
+			};
+
+			if ( has_prev ) {
+				vkpt_debug_draw_enqueue_segment( prev_start_arc, start_arc_point, segment_radius_px, &resolved_style );
+				vkpt_debug_draw_enqueue_segment( prev_end_arc, end_arc_point, segment_radius_px, &resolved_style );
+			}
+
+			VectorCopy( start_arc_point, prev_start_arc );
+			VectorCopy( end_arc_point, prev_end_arc );
+			has_prev = true;
+		}
+	}
 }
 
 /**
@@ -906,8 +1000,34 @@ VkResult vkpt_debug_draw_record( VkCommandBuffer cmd_buf ) {
 				continue;
 			}
 
-			// Billboard radius: match original behaviour (max of world radius and thickness).
-			const float radius_px = fmaxf( inst->point_b[ 3 ], half_width_px );
+			// Project world-space sphere radius to pixels using view-space camera axes.
+			const float sphere_radius_world = fmaxf( 0.25f, inst->point_b[ 3 ] );
+			const float view_radius_x[ 4 ] = {
+				view_a[ 0 ] + sphere_radius_world,
+				view_a[ 1 ],
+				view_a[ 2 ],
+				view_a[ 3 ]
+			};
+			const float view_radius_y[ 4 ] = {
+				view_a[ 0 ],
+				view_a[ 1 ] + sphere_radius_world,
+				view_a[ 2 ],
+				view_a[ 3 ]
+			};
+			float clip_radius_x[ 4 ];
+			float clip_radius_y[ 4 ];
+			vkpt_debug_mat4_mul_vec4( (const float *)ubo->P, view_radius_x, clip_radius_x );
+			vkpt_debug_mat4_mul_vec4( (const float *)ubo->P, view_radius_y, clip_radius_y );
+
+			// Convert NDC delta to pixels and keep minimum width visibility.
+			const float ndc_ax = clip_a[ 0 ] / clip_a[ 3 ];
+			const float ndc_ay = clip_a[ 1 ] / clip_a[ 3 ];
+			const float ndc_rx = clip_radius_x[ 0 ] / clip_radius_x[ 3 ];
+			const float ndc_ry = clip_radius_y[ 1 ] / clip_radius_y[ 3 ];
+			const float radius_px_x = fabsf( ndc_rx - ndc_ax ) * ( vp_w * 0.5f );
+			const float radius_px_y = fabsf( ndc_ry - ndc_ay ) * ( vp_h * 0.5f );
+			const float radius_px = fmaxf( fmaxf( radius_px_x, radius_px_y ), half_width_px );
+			const float ring_thickness_px = fmaxf( 1.0f, thickness_px + outline_px );
 
 			// NDC-space offsets (converted to clip space by multiplying by w).
 			const float ox = radius_px * ( 2.0f / vp_w ) * clip_a[ 3 ];
@@ -934,7 +1054,7 @@ VkResult vkpt_debug_draw_record( VkCommandBuffer cmd_buf ) {
 				v->uv[ 1 ]       = uv_corners[ vi ][ 1 ];
 				v->view_depth    = depth_a;
 				v->half_width_px = radius_px;
-				v->outline_px    = outline_px;
+				v->outline_px    = ring_thickness_px;
 				v->flags         = inst->flags;
 				v->type          = VKPT_DEBUG_DRAW_PRIM_SPHERE;
 				v->pad           = 0;

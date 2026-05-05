@@ -384,7 +384,6 @@ void CLG_UI_DrawRenderCommands() {
 				break;
 			}
 			case MU_COMMAND_CLIP: {
-
 				// When the clip rect is the default max size, we can just disable clipping instead of setting a huge clip rect.
 				if ( muCmd->clip.rect.x == 0 && muCmd->clip.rect.y == 0
 					&& muCmd->clip.rect.w == 0x1000000 && muCmd->clip.rect.h == 0x1000000 )
