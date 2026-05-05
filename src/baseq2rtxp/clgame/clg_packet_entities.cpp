@@ -73,12 +73,28 @@ static void CLG_DebugDrawPacketEntityBounds( const centity_t *packetEntity ) {
 	/**
 	*	Queue the bounds sphere.
 	**/
-	//clgi.R_DrawDebugSphere( &origin.x, QM_Vector3Length( packetEntity->size ), U32_RED );
+	//const Vector3 center = QM_BBox3Center( { world_mins, world_maxs } );
+	//clgi.R_DrawDebugSphere( &center.x, QM_BBox3Radius( {world_mins, world_maxs } ), U32_RED);
 
 	/**
 	*	Queue the bounds cylinder.
 	**/
-	//clgi.R_DrawDebugCylinder( &origin.z, &packetEntity->size.z, packetEntity->size.x, U32_RED );
+    // Build cylinder endpoints as vertical axis through the AABB center in XY.
+    vec3_t cylinder_start = {
+        ( world_mins[ 0 ] + world_maxs[ 0 ] ) * 0.5f,
+        ( world_mins[ 1 ] + world_maxs[ 1 ] ) * 0.5f,
+        world_mins[ 2 ]
+    };
+    vec3_t cylinder_end = {
+        ( world_mins[ 0 ] + world_maxs[ 0 ] ) * 0.5f,
+        ( world_mins[ 1 ] + world_maxs[ 1 ] ) * 0.5f,
+        world_maxs[ 2 ]
+    };
+    // Use the largest horizontal half-extent so the cylinder encloses the AABB in XY.
+    const float half_size_x = ( world_maxs[ 0 ] - world_mins[ 0 ] ) * 0.5f;
+    const float half_size_y = ( world_maxs[ 1 ] - world_mins[ 1 ] ) * 0.5f;
+    const float cylinder_radius = ( half_size_x > half_size_y ) ? half_size_x : half_size_y;
+    clgi.R_DrawDebugCylinder( cylinder_start, cylinder_end, cylinder_radius, U32_RED );
 }
 
 

@@ -16,8 +16,6 @@ extern "C" {
 
 	//! @brief	Enumerator for the icons in the UI atlas. These are used to identify which icon to draw when rendering UI elements that use icons, such as buttons or checkboxes. The ATLAS_WHITE icon is a simple white square that can be tinted with different colors when drawn, and the ATLAS_FONT icon is a placeholder for font characters that will be rendered using a bitmap font system. The actual texture coordinates for these icons will be defined in the UI rendering code, based on their position in the atlas texture.
 	enum { ATLAS_WHITE = MU_ICON_MAX, ATLAS_FONT };
-	//! @brief	The width and height of the UI atlas texture in pixels.
-	enum { ATLAS_WIDTH = 128, ATLAS_HEIGHT = 128 };
 
 	// The internal GameUI icon/font atlas. 
 	extern unsigned char clg_ui_atlas_texture[ ];
@@ -330,7 +328,6 @@ void CLG_UI_DrawRenderCommands() {
 					mu_Rect src = clg_ui_atlas[ ATLAS_FONT + chr ];
 					dst.w = src.w;
 					dst.h = src.h;
-					//push_quad( dst, src, color );
 					clgi.R_DrawPicEx( dst.x, dst.y, dst.w, dst.h, s_gameui_ctx.atlasImageHandle, src.x, src.y, src.w, src.h );
 					dst.x += dst.w;
 				}
@@ -365,7 +362,25 @@ void CLG_UI_DrawRenderCommands() {
 				break;
 			}
 			case MU_COMMAND_ICON: {
-				//r_draw_icon( cmd->icon.id, cmd->icon.rect, cmd->icon.color );
+				// Get the source rectangle for the icon from the atlas, and calculate the destination rectangle based on the command's specified position and size.
+				mu_Rect rect = muCmd->icon.rect;
+				mu_Rect src = clg_ui_atlas[ muCmd->icon.id ];
+				// Calculate the destination position to draw the icon, centering it within the command's specified rectangle.
+				const int32_t destinationX = rect.x + ( rect.w - src.w ) / 2;
+				const int32_t destinationY = rect.y + ( rect.h - src.h ) / 2;
+				// Apply color.
+				clgi.R_SetColor(
+					MakeColor(
+						muCmd->icon.color.r,
+						muCmd->icon.color.g,
+						muCmd->icon.color.b,
+						muCmd->icon.color.a
+					)
+				);
+				// Draw the icon.
+				clgi.R_DrawPicEx( destinationX, destinationY, src.w, src.h, s_gameui_ctx.atlasImageHandle, src.x, src.y, src.w, src.h );
+				// Clear the color after drawing the icon, to avoid affecting subsequent draw calls that don't specify a color.
+				clgi.R_ClearColor();
 				break;
 			}
 			case MU_COMMAND_CLIP: {
