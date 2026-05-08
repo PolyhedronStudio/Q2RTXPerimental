@@ -17,8 +17,9 @@ extern "C" {
 	//! @brief	Enumerator for the icons in the UI atlas. These are used to identify which icon to draw when rendering UI elements that use icons, such as buttons or checkboxes. The ATLAS_WHITE icon is a simple white square that can be tinted with different colors when drawn, and the ATLAS_FONT icon is a placeholder for font characters that will be rendered using a bitmap font system. The actual texture coordinates for these icons will be defined in the UI rendering code, based on their position in the atlas texture.
 	enum { ATLAS_WHITE = MU_ICON_MAX, ATLAS_FONT };
 
-	// The internal GameUI icon/font atlas. 
+	//! The internal GameUI icon/font atlas. 
 	extern unsigned char clg_ui_atlas_texture[ ];
+	//! The rectangle definitions for each icon and font character in the atlas, indexed by the icon/font ID. These rectangles define the position and size of each icon/character in the atlas texture, and they are used when rendering UI elements that use these icons/characters to determine which part of the atlas texture to sample from.
 	extern mu_Rect clg_ui_atlas[ ];
 }
 
@@ -29,7 +30,7 @@ extern "C" {
 #include "sharedgame/sg_game_ui.h"
 
 
-// Define to use R_DrawString font rendering instead of the atlas font.
+//! Define to use R_DrawString font rendering instead of the atlas font.
 //#define USE_R_DRAW_STRING_FONT 1
 
 //! Atlas dimensions for the embedded GameUI atlas texture copy passed to the renderer.
@@ -44,10 +45,11 @@ static constexpr size_t CLG_UI_ATLAS_BYTE_COUNT =
 
 // Forward declarations for internal GameUI functions, these are used to implement the different GameUI windows and the main frame processing function.
 static void __process_frame( mu_Context *ctx );
-static void __style_window( mu_Context *ctx );
-static void __log_window( mu_Context *ctx );
-static void __test_window( mu_Context *ctx );
+static const bool __style_window( mu_Context *ctx );
+static const bool __log_window( mu_Context *ctx );
+static const bool __test_window( mu_Context *ctx );
 static void write_log( const char *text );
+static void MicroUI_SetTextMeasureCallbacks( mu_Context *ctx );
 
 
 
@@ -61,7 +63,10 @@ static void write_log( const char *text );
 *
 **/
 // Global GameUI context, this is allocated when the client game initializes and freed when it shuts down, it's used to manage the state of the GameUI and handle user input events.
-static struct {
+static struct clg_gameui_ctx {
+	//! The GameUI context for MicroUI, this is allocated when the client game initializes and freed when it shuts down, it's used to manage the state of the UI and handle user input events.
+	mu_Context *mu_ctx = nullptr;
+
 	//! The currently active menu, this is set when the client receives a command from 
 	//! the server to open a menu, and it's used to determine which GameUI window to render 
 	//! and process input for in the main frame processing function.
@@ -70,21 +75,26 @@ static struct {
 	//! should return input focus to gameplay.
 	sg_game_ui_menu_id activeMenuID = sg_game_ui_menu_id::NONE;
 
-	//! Handle for the GameUI atlas texture, this is loaded when the client game initializes and it's used to render all the icons and font glyphs in the GameUI.
-	qhandle_t atlasImageHandle = 0;
+	//! Forces the next opened menu to build once before the visible frame so layout-dependent controls settle.
+	bool layoutWarmupPending = false;
+
+	struct {
+		//! Handle for the GameUI atlas texture, this is loaded when the client game initializes and it's used to render all the icons and font glyphs in the GameUI.
+		qhandle_t imageHandle = 0;
+		//! Stores the byte data for the GameUI atlas texture, this is used to upload the atlas texture to the renderer when the client game initializes. We keep a copy of the atlas data in memory so we can re-upload it if needed, such as when the renderer is re-initialized or when the client game reloads.
+		byte *textureCopy = nullptr;
+	} atlas = {};
 } s_gameui_ctx;
-// MicroUI context, this is allocated when the client game initializes and freed when it shuts down, it's used to manage the state of the UI and handle user input events.
-static mu_Context *s_mu_ctx = nullptr;
 
 #ifdef USE_R_DRAW_STRING_FONT
-/**
-*	@brief	Calculate the width of the given text using the specified font. This is used by the UI context to layout text elements correctly.
-+	param font	The font to use for measuring the text. Monospaced font so.
-+	@param text	The text to measure the width of.
-+	@param len	The length of the text. If -1, the function will calculate the length using strlen.
-+	@return
-**/
-static int UI_GetDrawPicTextWidth( mu_Font font, const char *text, int len ) {
+	/**
+	*	@brief	Calculate the width of the given text using the specified font. This is used by the UI context to layout text elements correctly.
+	+	param font	The font to use for measuring the text. Monospaced font so.
+	+	@param text	The text to measure the width of.
+	+	@param len	The length of the text. If -1, the function will calculate the length using strlen.
+	+	@return
+	**/
+	static int UI_GetDrawPicTextWidth( mu_Font font, const char *text, int len ) {
 	if ( len == -1 ) { 
 		len = strlen( text );
 	}
@@ -102,73 +112,95 @@ static int UI_GetDrawPicTextWidth( mu_Font font, const char *text, int len ) {
 
 	return x;
 	//return len * CHAR_WIDTH;//r_get_text_width( text, len );
-}
-/**
- * @brief 
- * @param font 
- * @return 
- */
-static int UI_GetDrawPicTextHeight( mu_Font font ) {
-	return CHAR_HEIGHT;
-}
-#else
-/**
-*	@brief	Calculate the width of the given text using the specified font. This is used by the UI context to layout text elements correctly.
-+	param font	The font to use for measuring the text. Monospaced font so.
-+	@param text	The text to measure the width of.
-+	@param len	The length of the text. If -1, the function will calculate the length using strlen.
-+	@return
-**/
-static int UI_GetAtlasTextWidth( mu_Font font, const char *text, int len ) {
-	int res = 0;
-	for ( const char *p = text; *p && len--; p++ ) {
-		res += clg_ui_atlas[ ATLAS_FONT + ( unsigned char )*p ].w;
 	}
-	return res;
-}
-/**
- * @brief
- * @param font
- * @return
- */
-static int UI_GetAtlasTextHeight( mu_Font font ) {
-	return 18;
-}
+	/**
+	*	@brief 
+	*	@param	font 
+	*	@return 
+	**/
+	static int UI_GetDrawPicTextHeight( mu_Font font ) {
+		return CHAR_HEIGHT;
+	}
+#else
+	/**
+	*	@brief	Calculate the width of the given text using the specified font. This is used by the UI context to layout text elements correctly.
+	+	param font	The font to use for measuring the text. Monospaced font so.
+	+	@param text	The text to measure the width of.
+	+	@param len	The length of the text. If -1, the function will calculate the length using strlen.
+	+	@return
+	**/
+	static int UI_GetAtlasTextWidth( mu_Font font, const char *text, int len ) {
+		int res = 0;
+		for ( const char *p = text; *p && len--; p++ ) {
+			res += clg_ui_atlas[ ATLAS_FONT + ( unsigned char )*p ].w;
+		}
+		return res;
+	}
+	/**
+	*	@brief
+	*	@param	font
+	*	@return
+	**/
+	static int UI_GetAtlasTextHeight( mu_Font font ) {
+		return 18;
+	}
 #endif
+
+/**
+*	@brief	Bind text measurement callbacks for the active font backend.
+*	@param	ctx	Target MicroUI context.
+**/
+static void MicroUI_SetTextMeasureCallbacks( mu_Context *ctx ) {
+#ifdef USE_R_DRAW_STRING_FONT
+	ctx->text_width = UI_GetDrawPicTextWidth;
+	ctx->text_height = UI_GetDrawPicTextHeight;
+#else
+	ctx->text_width = UI_GetAtlasTextWidth;
+	ctx->text_height = UI_GetAtlasTextHeight;
+#endif
+}
 
 /**
 *	@brief	Allocate the client's UI context, called when the client begins and after loading plague has ended.
 **/
 void CLG_UI_AllocateContext() {
 	// Free the UI context.
-	if ( s_mu_ctx != nullptr ) {
-		clgi.TagFree( s_mu_ctx );
+	if ( s_gameui_ctx.mu_ctx != nullptr ) {
+		CLG_UI_FreeContext();
 	}
 
 	// Register the atlas only once and pass renderer-owned memory because raw image backends free the provided pixel buffer.
-	if ( s_gameui_ctx.atlasImageHandle == 0 ) {
+	if ( s_gameui_ctx.atlas.imageHandle == 0 ) {
 		// Allocate a renderer-owned atlas copy so IMG_Unload/GL upload paths can safely free it.
 		byte *atlasTextureCopy = ( byte * )clgi.Z_Malloc( CLG_UI_ATLAS_BYTE_COUNT );
+		// Copy the embedded atlas texture data to the renderer-owned buffer, so it can be safely passed to the renderer for uploading without risking use-after-free bugs if the renderer frees the buffer after upload.
 		memcpy( atlasTextureCopy, clg_ui_atlas_texture, CLG_UI_ATLAS_BYTE_COUNT );
 		// Upload the render owned atlas copy.
-		s_gameui_ctx.atlasImageHandle = clgi.R_RegisterRawImage( "clg_ui_atlas", CLG_UI_ATLAS_WIDTH, CLG_UI_ATLAS_HEIGHT, atlasTextureCopy, IT_PIC, IF_PERMANENT | IF_SRGB );
+		s_gameui_ctx.atlas.imageHandle = clgi.R_RegisterRawImage( "clg_ui_atlas", CLG_UI_ATLAS_WIDTH, CLG_UI_ATLAS_HEIGHT, atlasTextureCopy, IT_PIC, IF_PERMANENT | IF_SRGB );
 		// Registration failed before renderer ownership transfer, so free the temporary heap copy here.
 		//clgi.Z_Free( atlasTextureCopy );
 	}
 
 	// Allocate a UI context.
-	s_mu_ctx = ( mu_Context * )clgi.TagMallocz( sizeof( mu_Context ), TAG_CLGAME );
+	s_gameui_ctx.mu_ctx = ( mu_Context * )clgi.TagMallocz( sizeof( mu_Context ), TAG_CLGAME_GAME_MICRO_UI );
 
-	// Will initialize all the fields in the UI context to their default values, and prepare it for use.
-	CLG_UI_CloseMenu(); // This will also set up the text measurement callbacks, which are used by the UI context to layout text elements correctly.
+	// Initialize the UI context defaults before binding callbacks because mu_init clears the function pointers.
+	mu_init( s_gameui_ctx.mu_ctx );
+	// Bind the text metric callbacks immediately so the first menu frame has valid sizing data.
+	MicroUI_SetTextMeasureCallbacks( s_gameui_ctx.mu_ctx );
 }
 /**
 *	Free the client's UI context, called when the client disconnects and before clearing its state.
 **/
 void CLG_UI_FreeContext() {
-	// Free the UI context.
-	if ( s_mu_ctx != nullptr ) {
-		clgi.TagFree( s_mu_ctx );
+	// Free the MicroUI context.
+	if ( s_gameui_ctx.mu_ctx != nullptr ) {
+		// Free the microui context.
+		//clgi.TagFree( s_gameui_ctx.mu_ctx );
+		clgi.FreeTags( TAG_CLGAME_GAME_UI );
+		clgi.FreeTags( TAG_CLGAME_GAME_MICRO_UI );
+		// Clear the pointer to the UI context to avoid dangling pointers and potential use-after-free bugs.
+		s_gameui_ctx.mu_ctx = nullptr;
 	}
 }
 
@@ -177,13 +209,40 @@ void CLG_UI_FreeContext() {
 *			it runs at the same framerate as the client does so it remains responsive.
 **/
 void CLG_UI_ProcessFrame() {
-	// If there is no UI context, return early.
-	if ( !s_mu_ctx ) {
+	/**
+	*	We will only process the UI context if there is an active menu, this is determined by whether the activeMenuID 
+	*	is set to a valid menu ID or sg_game_ui_menu_id::NONE.This allows us to avoid unnecessary processing when no 
+	*	UI is active and return input focus to gameplay.
+	**/
+	#if 1
+	if ( s_gameui_ctx.activeMenuID == sg_game_ui_menu_id::NONE ) {
+		// Return input focus to gameplay if there is no active menu, this can happen if the server closes the menu by sending a command with sg_game_ui_menu_id::NONE, or if the client opened the menu but then closed it without returning focus to gameplay for some reason.
+		if ( ( clgi.GetKeyEventDestination() & KEY_GAME_UI ) != 0 ) {
+			clgi.SetKeyEventDestination( KEY_GAME );
+		}
 		return;
 	}
-	// Process the UI context for this frame.
+	#endif
+	/**
+	*	If there is no UI context, return early:
+	**/
+	if ( !s_gameui_ctx.mu_ctx ) {
+		return;
+	}
+	/**
+	*	Process the UI context for this frame since there is an active menu. 
+	*	The __process_frame function will handle rendering the correct GameUI window based on the activeMenuID, 
+	*	and it will also handle any input events that were captured by the UI context since the last frame.
+	**/
 	if ( s_gameui_ctx.activeMenuID == sg_game_ui_menu_id::TEAM ) {
-		__process_frame( s_mu_ctx );
+		__process_frame( s_gameui_ctx.mu_ctx );
+	}
+	// The first frame after opening can change scrollbar/body layout once the content size becomes known.
+	// Build one extra time so the visible frame starts with the settled geometry instead of stepping over
+	// a few frames as scrollbars appear and layout widths recalculate.
+	if ( s_gameui_ctx.layoutWarmupPending && s_gameui_ctx.activeMenuID != sg_game_ui_menu_id::NONE ) {
+		s_gameui_ctx.layoutWarmupPending = false;
+		__process_frame( s_gameui_ctx.mu_ctx );
 	}
 }
 
@@ -193,23 +252,20 @@ void CLG_UI_ProcessFrame() {
 void CLG_UI_CloseMenu() {
 	// Clear active menu so GameUI stops processing.
 	s_gameui_ctx.activeMenuID = sg_game_ui_menu_id::NONE;
+	s_gameui_ctx.layoutWarmupPending = false;
 	// Reset MicroUI state so stale captured widget/focus state does not persist across menu re-opens.
-	if ( s_mu_ctx ) {
+	if ( s_gameui_ctx.mu_ctx ) {
 		// Re-initialize the UI context to clear any captured state and prepare it for the next time a menu is opened.
-		mu_init( s_mu_ctx );
+		mu_init( s_gameui_ctx.mu_ctx );
 
-		// Re-setup the UI context's text measurement callbacks, these are used by the UI context to layout text elements correctly.
-		#ifdef USE_R_DRAW_STRING_FONT
-			s_mu_ctx->text_width = UI_GetDrawPicTextWidth;
-			s_mu_ctx->text_height = UI_GetDrawPicTextHeight;
-		#else
-			s_mu_ctx->text_width	= UI_GetAtlasTextWidth;
-			s_mu_ctx->text_height	= UI_GetAtlasTextHeight;
-		#endif
+		// Rebind the text measurement callbacks after the reset so the next open frame still has valid metrics.
+		MicroUI_SetTextMeasureCallbacks( s_gameui_ctx.mu_ctx );
 	}
 
-	// Return input focus to gameplay.
-	clgi.SetKeyEventDestination( KEY_GAME );
+		// Return input focus to gameplay if there is no active menu, this can happen if the server closes the menu by sending a command with sg_game_ui_menu_id::NONE, or if the client opened the menu but then closed it without returning focus to gameplay for some reason.
+	if ( ( clgi.GetKeyEventDestination() & KEY_GAME_UI ) != 0 ) {
+		clgi.SetKeyEventDestination( KEY_GAME );
+	}
 }
 
 /**
@@ -231,6 +287,8 @@ void CLG_UI_OpenMenu( const sg_game_ui_menu_id menuID ) {
 
 	// Remember the active menu so the frame/update path renders the correct GameUI window.
 	s_gameui_ctx.activeMenuID = menuID;
+	// Warm up the layout on the first visible frame so scrollbar-dependent sizing stabilizes before the user sees it.
+	s_gameui_ctx.layoutWarmupPending = true;
 }
 
 
@@ -253,31 +311,31 @@ void CLG_UI_OpenMenu( const sg_game_ui_menu_id menuID ) {
 //! when the client's current input(key) event destination is set to keyEventDest_t::GAME_UI.
 void CLG_UI_MouseMoveEvent( const int32_t x, const int32_t y ) {
 	// Pass the mouse move event to the UI context.
-	mu_input_mousemove( s_mu_ctx, x, y );
+	mu_input_mousemove( s_gameui_ctx.mu_ctx, x, y );
 }
 //! Called when the client receives a mouse button event, gives the client game a chance to handle it 
 //! when the client's current input(key) event destination is set to keyEventDest_t::GAME_UI.
 void CLG_UI_MouseButtonEvent( const int32_t button, const bool isDown, const int32_t x, const int32_t y ) {
 	// Pass the mouse button event to the UI context.
 	if ( isDown == true ) {
-		mu_input_mousedown( s_mu_ctx, x, y, button );
+		mu_input_mousedown( s_gameui_ctx.mu_ctx, x, y, button );
 	} else {
-		mu_input_mouseup( s_mu_ctx, x, y, button );
+		mu_input_mouseup( s_gameui_ctx.mu_ctx, x, y, button );
 	}
 }
 //! Called when the client receives a mouse scroll event, gives the client game a chance to handle it 
 //! when the client's current input(key) event destination is set to keyEventDest_t::GAME_UI.
 void CLG_UI_MouseScrollEvent( /*const int32_t scrollX*/ const int32_t scrollY ) {
-	mu_input_scroll( s_mu_ctx, 0 /* scrollX */, scrollY);
+	mu_input_scroll( s_gameui_ctx.mu_ctx, 0 /* scrollX */, scrollY);
 }
 
 //! Called when the client receives a key event, gives the client game a chance to handle it 
 //! when the client's current key event destination is set to keyEventDest_t::GAME_UI.
 void CLG_UI_KeyEvent( const int32_t key, const bool isDown ) {
 	if ( key && isDown ) {
-		mu_input_keydown( s_mu_ctx, key );
+		mu_input_keydown( s_gameui_ctx.mu_ctx, key );
 	} else if ( key && !isDown ) {
-		mu_input_keyup( s_mu_ctx, key );
+		mu_input_keyup( s_gameui_ctx.mu_ctx, key );
 	}
 }
 
@@ -285,7 +343,7 @@ void CLG_UI_KeyEvent( const int32_t key, const bool isDown ) {
 //! when the client's current key event destination is set to keyEventDest_t::GAME_UI.
 void CLG_UI_TextInputEvent( const char *str ) {
 	// Pass the input text to the UI context.
-	mu_input_text( s_mu_ctx, str );
+	mu_input_text( s_gameui_ctx.mu_ctx, str );
 }
 
 
@@ -306,7 +364,7 @@ void CLG_UI_DrawRenderCommands() {
 	// The active drawing command, used for iterating the command list.
 	mu_Command *muCmd = nullptr;
 	// Iterate on to the next rendering command generated by the UI context, until there are no more commands to process.
-	while ( mu_next_command( s_mu_ctx, &muCmd ) ) {
+	while ( mu_next_command( s_gameui_ctx.mu_ctx, &muCmd ) ) {
 		// Process the command based on its type.
 		switch ( muCmd->type ) {
 			// Simple draw text command, render the text at the specified position with requested color.
@@ -328,7 +386,7 @@ void CLG_UI_DrawRenderCommands() {
 					mu_Rect src = clg_ui_atlas[ ATLAS_FONT + chr ];
 					dst.w = src.w;
 					dst.h = src.h;
-					clgi.R_DrawPicEx( dst.x, dst.y, dst.w, dst.h, s_gameui_ctx.atlasImageHandle, src.x, src.y, src.w, src.h );
+					clgi.R_DrawPicEx( dst.x, dst.y, dst.w, dst.h, s_gameui_ctx.atlas.imageHandle, src.x, src.y, src.w, src.h );
 					dst.x += dst.w;
 				}
 				//// Draw the text using the client's rendering function.
@@ -378,7 +436,7 @@ void CLG_UI_DrawRenderCommands() {
 					)
 				);
 				// Draw the icon.
-				clgi.R_DrawPicEx( destinationX, destinationY, src.w, src.h, s_gameui_ctx.atlasImageHandle, src.x, src.y, src.w, src.h );
+				clgi.R_DrawPicEx( destinationX, destinationY, src.w, src.h, s_gameui_ctx.atlas.imageHandle, src.x, src.y, src.w, src.h );
 				// Clear the color after drawing the icon, to avoid affecting subsequent draw calls that don't specify a color.
 				clgi.R_ClearColor();
 				break;
@@ -435,7 +493,7 @@ static void write_log( const char *text ) {
 }
 
 
-static void __test_window( mu_Context *ctx ) {
+static const bool __test_window( mu_Context *ctx ) {
   /* do window */
 	if ( mu_begin_window( ctx, "Demo Window", mu_rect( 40, 40, 520, 450 ) ) ) {
 		mu_Container *win = mu_get_current_container( ctx );
@@ -490,23 +548,13 @@ static void __test_window( mu_Context *ctx ) {
 				mu_end_treenode( ctx );
 			}
 			if ( mu_begin_treenode( ctx, "Test 2" ) ) {
-				{
-					int widths[ ] = { 144, -110, -1 };
-					mu_layout_row( ctx, 2, widths, 0 );
-					if ( mu_button( ctx, "Button 3" ) ) { write_log( "Pressed button 3" ); }
-					if ( mu_button( ctx, "Button 4" ) ) { write_log( "Pressed button 4" ); }
-					if ( mu_button( ctx, "Button 5" ) ) { write_log( "Pressed button 5" ); }
-					if ( mu_button( ctx, "Button 6" ) ) { write_log( "Pressed button 6" ); }
-					mu_end_treenode( ctx );
-				}
-				{
-					int widths[ ] = { 144, -110, -1 };
-					mu_layout_row( ctx, 2, widths, 0 );
-					if ( mu_button( ctx, "Button 7" ) ) { write_log( "Pressed button 7" ); }
-					if ( mu_button( ctx, "Button 8" ) ) { write_log( "Pressed button 8" ); }
-					if ( mu_button( ctx, "Button 9" ) ) { write_log( "Pressed button 9" ); }
-					if ( mu_button( ctx, "Button 10" ) ) { write_log( "Pressed button 10" ); }
-				}
+				int widths[ ] = { 54, 54 };
+				mu_layout_row( ctx, 2, widths, 0 );
+				if ( mu_button( ctx, "Button 3" ) ) { write_log( "Pressed button 3" ); }
+				if ( mu_button( ctx, "Button 4" ) ) { write_log( "Pressed button 4" ); }
+				if ( mu_button( ctx, "Button 5" ) ) { write_log( "Pressed button 5" ); }
+				if ( mu_button( ctx, "Button 6" ) ) { write_log( "Pressed button 6" ); }
+				mu_end_treenode( ctx );
 			}
 			if ( mu_begin_treenode( ctx, "Test 3" ) ) {
 				static int checks[ 3 ] = { 1, 0, 1 };
@@ -549,11 +597,15 @@ static void __test_window( mu_Context *ctx ) {
 		}
 
 		mu_end_window( ctx );
+		// Visible.
+		return true;
 	}
+	// InVisible.
+	return false;
 }
 
 
-static void __log_window( mu_Context *ctx ) {
+static const bool __log_window( mu_Context *ctx ) {
 	if ( mu_begin_window( ctx, "Log Window", mu_rect( 570, 40, 450, 200 ) ) ) {
 	  /* output text panel */
 		int widths[ ] = { -1 };
@@ -586,7 +638,12 @@ static void __log_window( mu_Context *ctx ) {
 		}
 
 		mu_end_window( ctx );
+
+		// Visible.
+		return true;
 	}
+	// InVisible.
+	return false;
 }
 
 
@@ -601,23 +658,24 @@ static int uint8_slider( mu_Context *ctx, unsigned char *value, int low, int hig
 }
 
 
-static void __style_window( mu_Context *ctx ) {
+static const bool __style_window( mu_Context *ctx ) {
 	static struct { const char *label; int idx; } colors[ ] = {
-	  { "text:",         MU_COLOR_TEXT        },
-	  { "border:",       MU_COLOR_BORDER      },
-	  { "windowbg:",     MU_COLOR_WINDOWBG    },
-	  { "titlebg:",      MU_COLOR_TITLEBG     },
-	  { "titletext:",    MU_COLOR_TITLETEXT   },
-	  { "panelbg:",      MU_COLOR_PANELBG     },
-	  { "button:",       MU_COLOR_BUTTON      },
-	  { "buttonhover:",  MU_COLOR_BUTTONHOVER },
-	  { "buttonfocus:",  MU_COLOR_BUTTONFOCUS },
-	  { "base:",         MU_COLOR_BASE        },
-	  { "basehover:",    MU_COLOR_BASEHOVER   },
-	  { "basefocus:",    MU_COLOR_BASEFOCUS   },
-	  { "scrollbase:",   MU_COLOR_SCROLLBASE  },
-	  { "scrollthumb:",  MU_COLOR_SCROLLTHUMB },
-	  { NULL }
+		{ "text:",         MU_COLOR_TEXT        },
+		{ "border:",       MU_COLOR_BORDER      },
+		{ "windowbg:",     MU_COLOR_WINDOWBG    },
+		{ "titlebgactive:",      MU_COLOR_TITLEBG_ACTIVE   },
+		{ "titlebginactive:",    MU_COLOR_TITLEBG_INACTIVE },
+		{ "titletext:",    MU_COLOR_TITLETEXT   },
+		{ "panelbg:",      MU_COLOR_PANELBG     },
+		{ "button:",       MU_COLOR_BUTTON      },
+		{ "buttonhover:",  MU_COLOR_BUTTONHOVER },
+		{ "buttonfocus:",  MU_COLOR_BUTTONFOCUS },
+		{ "base:",         MU_COLOR_BASE        },
+		{ "basehover:",    MU_COLOR_BASEHOVER   },
+		{ "basefocus:",    MU_COLOR_BASEFOCUS   },
+		{ "scrollbase:",   MU_COLOR_SCROLLBASE  },
+		{ "scrollthumb:",  MU_COLOR_SCROLLTHUMB },
+		{ nullptr }
 	};
 
 	if ( mu_begin_window( ctx, "Style Editor", mu_rect( 650, 320, 420, 320 ) ) ) {
@@ -633,15 +691,30 @@ static void __style_window( mu_Context *ctx ) {
 			mu_draw_rect( ctx, mu_layout_next( ctx ), ctx->style->colors[ i ] );
 		}
 		mu_end_window( ctx );
+		// Visible.
+		return true;
 	}
+	// InVisible.
+	return false;
 }
 
 static void __process_frame( mu_Context *ctx ) {
+	// Used for automatically returning control to whichever state it was.
+	int32_t windowsVisible = 0;
+
+	// Begin actual menu building.
 	mu_begin( ctx );
 	{
-		__style_window( ctx );
-		__log_window( ctx );
-		__test_window( ctx );
+		windowsVisible += __style_window( ctx );
+		windowsVisible += __log_window( ctx );
+		windowsVisible += __test_window( ctx );
 	}
+	// Done building menus.
 	mu_end( ctx );
+
+	// When no windows are visible:
+	if ( !windowsVisible ) {
+		// None are visible so resort to closing the actual menu.
+		CLG_UI_CloseMenu();
+	}
 }

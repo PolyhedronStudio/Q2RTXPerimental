@@ -55,6 +55,7 @@ static mu_Style default_style = {
   /* title_height | scrollbar_size | thumb_size */
   CHAR_HEIGHT + 4, 12, 8,
   {
+	// <Q2RTXP>: WID: Default old initial theme.
     //{ 230, 230, 230, 255 }, /* MU_COLOR_TEXT */
     //{ 25,  25,  25,  255 }, /* MU_COLOR_BORDER */
     //{ 50,  50,  50,  255 }, /* MU_COLOR_WINDOWBG */
@@ -69,24 +70,33 @@ static mu_Style default_style = {
     //{ 40,  40,  40,  255 }, /* MU_COLOR_BASEFOCUS */
     //{ 43,  43,  43,  255 }, /* MU_COLOR_SCROLLBASE */
     //{ 30,  30,  30,  255 }  /* MU_COLOR_SCROLLTHUMB */
+
+	// <Q2RTXP>: WID: Our own custom theme! :-)
 	{ 230, 230, 230, 255 }, /* MU_COLOR_TEXT */
-	{ 255, 170, 120, 235 }, /* MU_COLOR_BORDER */
-	{ 255, 105, 50,  146 }, /* MU_COLOR_WINDOWBG */
-	{ 255, 105, 40,  212 }, /* MU_COLOR_TITLEBG */
-	{ 240, 240, 240, 255 }, /* MU_COLOR_TITLETEXT */
-	{ 136, 125, 110, 255 }, /* MU_COLOR_PANELBG */
-	{ 165, 120, 76,  255 }, /* MU_COLOR_BUTTON */
-	{ 198, 166, 96,  255 }, /* MU_COLOR_BUTTONHOVER */
-	{ 128, 146, 116, 255 }, /* MU_COLOR_BUTTONFOCUS */
-	{ 168, 138, 104, 255 }, /* MU_COLOR_BASE */
-	{ 168, 126, 90,  255 }, /* MU_COLOR_BASEHOVER */
-	{ 165, 118, 76,  255 }, /* MU_COLOR_BASEFOCUS */
-	{ 170, 110, 58,  255 }, /* MU_COLOR_SCROLLBASE */
-	{ 255, 130, 84,  255 }  /* MU_COLOR_SCROLLTHUMB */
+	{ 255, 144,  90, 235 }, /* MU_COLOR_BORDER */
+	{  40,  40,  40, 240 }, /* MU_COLOR_WINDOWBG */
+	{ 255, 120,   0, 255 }, /* MU_COLOR_TITLEBG_ACTIVE */ //! This would be for the `ACTIVE` title bar rendering instead.
+	{ 255, 100,   0, 128 }, /* MU_COLOR_TITLEBG_INACTIVE */ //! This would be for the `IN-ACTIVE` title bar rendering instead.
+	{ 255, 255, 255, 255 }, /* MU_COLOR_TITLETEXT */
+	{   0,   0,   0,   0 }, /* MU_COLOR_PANELBG */
+	{ 255, 145,  90, 156 }, /* MU_COLOR_BUTTON */
+	{ 255, 147,  54, 210 }, /* MU_COLOR_BUTTONHOVER */
+	{ 255, 120,  48, 210 }, /* MU_COLOR_BUTTONFOCUS */
+	{ 255, 255, 255,  58 }, /* MU_COLOR_BASE */
+	{ 255, 126, 90,   44 }, /* MU_COLOR_BASEHOVER */
+	{ 165, 118, 76,  110 }, /* MU_COLOR_BASEFOCUS */
+	{ 170, 110, 58,  160 }, /* MU_COLOR_SCROLLBASE */
+	{ 255, 120,  0,  156 }  /* MU_COLOR_SCROLLTHUMB */
   }
 };
 
 
+/**
+*	@brief	Construct a 2D integer vector.
+*	@param x Horizontal component.
+*	@param y Vertical component.
+*	@return A populated `mu_Vec2`.
+*/
 mu_Vec2 mu_vec2(int x, int y) {
   mu_Vec2 res;
   res.x = x; res.y = y;
@@ -94,6 +104,14 @@ mu_Vec2 mu_vec2(int x, int y) {
 }
 
 
+/**
+*	@brief	Construct an integer rectangle.
+*	@param x Left coordinate.
+*	@param y Top coordinate.
+*	@param w Width.
+*	@param h Height.
+*	@return A populated `mu_Rect`.
+*/
 mu_Rect mu_rect(int x, int y, int w, int h) {
   mu_Rect res;
   res.x = x; res.y = y; res.w = w; res.h = h;
@@ -101,6 +119,14 @@ mu_Rect mu_rect(int x, int y, int w, int h) {
 }
 
 
+/**
+*	@brief	Construct an RGBA color.
+*	@param r Red channel.
+*	@param g Green channel.
+*	@param b Blue channel.
+*	@param a Alpha channel.
+*	@return A populated `mu_Color`.
+*/
 mu_Color mu_color(int r, int g, int b, int a) {
   mu_Color res;
   res.r = r; res.g = g; res.b = b; res.a = a;
@@ -108,11 +134,23 @@ mu_Color mu_color(int r, int g, int b, int a) {
 }
 
 
+/**
+*	@brief	Expand a rectangle outward by a uniform amount.
+*	@param rect Source rectangle.
+*	@param n Amount to expand on each side.
+*	@return The expanded rectangle.
+*/
 static mu_Rect expand_rect(mu_Rect rect, int n) {
   return mu_rect(rect.x - n, rect.y - n, rect.w + n * 2, rect.h + n * 2);
 }
 
 
+/**
+*	@brief	Intersect two rectangles in integer pixel space.
+*	@param r1 First rectangle.
+*	@param r2 Second rectangle.
+*	@return The overlapped region, or an empty rectangle.
+*/
 static mu_Rect intersect_rects(mu_Rect r1, mu_Rect r2) {
   int x1 = mu_max(r1.x, r2.x);
   int y1 = mu_max(r1.y, r2.y);
@@ -124,6 +162,12 @@ static mu_Rect intersect_rects(mu_Rect r1, mu_Rect r2) {
 }
 
 
+/**
+*	@brief	Test whether a point lies inside a rectangle.
+*	@param r Rectangle to test.
+*	@param p Point to test.
+*	@return Non-zero if the point is inside the rectangle.
+*/
 static int rect_overlaps_vec2(mu_Rect r, mu_Vec2 p) {
   return p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h;
 }
@@ -139,7 +183,8 @@ static void draw_frame(mu_Context *ctx, mu_Rect rect, int colorid) {
 	mu_draw_rect(ctx, rect, ctx->style->colors[colorid]);
   if (colorid == MU_COLOR_SCROLLBASE  ||
       colorid == MU_COLOR_SCROLLTHUMB ||
-      colorid == MU_COLOR_TITLEBG) { return; }
+      colorid == MU_COLOR_TITLEBG_INACTIVE ||
+	  colorid == MU_COLOR_TITLEBG_ACTIVE ) { return; }
   /* draw border */
   if (ctx->style->colors[MU_COLOR_BORDER].a) {
     mu_draw_box(ctx, expand_rect(rect, 1), ctx->style->colors[MU_COLOR_BORDER]);
@@ -147,6 +192,10 @@ static void draw_frame(mu_Context *ctx, mu_Rect rect, int colorid) {
 }
 
 
+/**
+*	@brief	Initialize a context and bind the default draw callback and style.
+*	@param ctx Context to initialize.
+*/
 void mu_init(mu_Context *ctx) {
   memset(ctx, 0, sizeof(*ctx));
   ctx->draw_frame = draw_frame;
@@ -155,6 +204,10 @@ void mu_init(mu_Context *ctx) {
 }
 
 
+/**
+*	@brief	Begin a new UI frame and reset per-frame state.
+*	@param ctx Active context.
+*/
 void mu_begin(mu_Context *ctx) {
   expect(ctx->text_width && ctx->text_height);
   ctx->command_list.idx = 0;
@@ -168,11 +221,21 @@ void mu_begin(mu_Context *ctx) {
 }
 
 
+/**
+*	@brief	Compare containers by z-index for sorting.
+*	@param a First container pointer wrapper.
+*	@param b Second container pointer wrapper.
+*	@return Negative, zero, or positive ordering result.
+*/
 static int compare_zindex(const void *a, const void *b) {
   return (*(mu_Container**) a)->zindex - (*(mu_Container**) b)->zindex;
 }
 
 
+/**
+*	@brief	End a UI frame and finalize root container command linking.
+*	@param ctx Active context.
+*/
 void mu_end(mu_Context *ctx) {
   int i, n;
   /* check stacks */
@@ -230,15 +293,28 @@ void mu_end(mu_Context *ctx) {
 }
 
 
+/**
+*	@brief	Set the currently focused widget ID.
+*	@param ctx Active context.
+*	@param id Widget identifier to focus.
+*/
 void mu_set_focus(mu_Context *ctx, mu_Id id) {
   ctx->focus = id;
   ctx->updated_focus = 1;
 }
 
 
-/* 32bit fnv-1a hash */
+/**
+*	@brief	Seed used by the 32-bit FNV-1a hash implementation.
+*/
 #define HASH_INITIAL 2166136261
 
+/**
+*	@brief	Update a widget hash from arbitrary byte data.
+*	@param hash Mutable hash accumulator.
+*	@param data Input bytes.
+*	@param size Input size in bytes.
+*/
 static void hash(mu_Id *hash, const void *data, int size) {
   const unsigned char *p = data;
   while (size--) {
@@ -247,6 +323,13 @@ static void hash(mu_Id *hash, const void *data, int size) {
 }
 
 
+/**
+*	@brief	Hash arbitrary bytes with the current ID stack to produce a stable widget ID.
+*	@param ctx Active context.
+*	@param data Seed data used to derive the ID.
+*	@param size Size of the seed data in bytes.
+*	@return A stable widget ID.
+*/
 mu_Id mu_get_id(mu_Context *ctx, const void *data, int size) {
   int idx = ctx->id_stack.idx;
   mu_Id res = (idx > 0) ? ctx->id_stack.items[idx - 1] : HASH_INITIAL;
@@ -256,33 +339,63 @@ mu_Id mu_get_id(mu_Context *ctx, const void *data, int size) {
 }
 
 
+/**
+*	@brief	Push a scope ID seed for nested ID generation.
+*	@param ctx Active context.
+*	@param data Seed data.
+*	@param size Size of the seed data in bytes.
+*/
 void mu_push_id(mu_Context *ctx, const void *data, int size) {
   push(ctx->id_stack, mu_get_id(ctx, data, size));
 }
 
 
+/**
+*	@brief	Pop the most recent scope ID seed.
+*	@param ctx Active context.
+*/
 void mu_pop_id(mu_Context *ctx) {
   pop(ctx->id_stack);
 }
 
 
+/**
+*	@brief	Push and intersect a new clipping rectangle.
+*	@param ctx Active context.
+*	@param rect Rectangle to intersect with the current clip region.
+*/
 void mu_push_clip_rect(mu_Context *ctx, mu_Rect rect) {
   mu_Rect last = mu_get_clip_rect(ctx);
   push(ctx->clip_stack, intersect_rects(rect, last));
 }
 
 
+/**
+*	@brief	Restore the previous clipping rectangle.
+*	@param ctx Active context.
+*/
 void mu_pop_clip_rect(mu_Context *ctx) {
   pop(ctx->clip_stack);
 }
 
 
+/**
+*	@brief	Get the current effective clipping rectangle.
+*	@param ctx Active context.
+*	@return The active clip rectangle.
+*/
 mu_Rect mu_get_clip_rect(mu_Context *ctx) {
   expect(ctx->clip_stack.idx > 0);
   return ctx->clip_stack.items[ctx->clip_stack.idx - 1];
 }
 
 
+/**
+*	@brief	Test a rectangle against the current clip region.
+*	@param ctx Active context.
+*	@param r Rectangle to test.
+*	@return A clip mode value.
+*/
 int mu_check_clip(mu_Context *ctx, mu_Rect r) {
   mu_Rect cr = mu_get_clip_rect(ctx);
   if (r.x > cr.x + cr.w || r.x + r.w < cr.x ||
@@ -378,6 +491,14 @@ int mu_pool_init(mu_Context *ctx, mu_PoolItem *items, int len, mu_Id id) {
 }
 
 
+/**
+*	@brief\tLook up a retained pool item by ID.
+*	@param ctx Active context.
+*	@param items Pool entries.
+*	@param len Pool length.
+*	@param id Identifier to search for.
+*	@return Index of the matching slot or `-1`.
+*/
 int mu_pool_get(mu_Context *ctx, mu_PoolItem *items, int len, mu_Id id) {
   int i;
   unused(ctx);
@@ -388,20 +509,43 @@ int mu_pool_get(mu_Context *ctx, mu_PoolItem *items, int len, mu_Id id) {
 }
 
 
+/**
+*	@brief\tRefresh the update time for a pool entry.
+*	@param ctx Active context.
+*	@param items Pool entries.
+*	@param idx Slot index to refresh.
+*/
 void mu_pool_update(mu_Context *ctx, mu_PoolItem *items, int idx) {
   items[idx].last_update = ctx->frame;
 }
 
 
+/**
+*	@brief\tInput handler entry points.
+*	@note\tThese functions translate platform input into frame-local UI state.
+*/
 /*============================================================================
 ** input handlers
 **============================================================================*/
 
+/**
+*	@brief\tUpdate the current mouse position.
+*	@param ctx Active context.
+*	@param x Mouse x coordinate.
+*	@param y Mouse y coordinate.
+*/
 void mu_input_mousemove(mu_Context *ctx, int x, int y) {
   ctx->mouse_pos = mu_vec2(x, y);
 }
 
 
+/**
+*	@brief\tRegister a mouse-button press.
+*	@param ctx Active context.
+*	@param x Mouse x coordinate.
+*	@param y Mouse y coordinate.
+*	@param btn Mouse button bitmask.
+*/
 void mu_input_mousedown(mu_Context *ctx, int x, int y, int btn) {
   mu_input_mousemove(ctx, x, y);
   ctx->mouse_down |= btn;
@@ -409,29 +553,57 @@ void mu_input_mousedown(mu_Context *ctx, int x, int y, int btn) {
 }
 
 
+/**
+*	@brief\tRegister a mouse-button release.
+*	@param ctx Active context.
+*	@param x Mouse x coordinate.
+*	@param y Mouse y coordinate.
+*	@param btn Mouse button bitmask.
+*/
 void mu_input_mouseup(mu_Context *ctx, int x, int y, int btn) {
   mu_input_mousemove(ctx, x, y);
   ctx->mouse_down &= ~btn;
 }
 
 
+/**
+*	@brief\tAccumulate mouse-wheel scrolling.
+*	@param ctx Active context.
+*	@param x Horizontal scroll delta.
+*	@param y Vertical scroll delta.
+*/
 void mu_input_scroll(mu_Context *ctx, int x, int y) {
   ctx->scroll_delta.x += x;
   ctx->scroll_delta.y += y;
 }
 
 
+/**
+*	@brief\tRegister a key press.
+*	@param ctx Active context.
+*	@param key Key bitmask.
+*/
 void mu_input_keydown(mu_Context *ctx, int key) {
   ctx->key_pressed |= key;
   ctx->key_down |= key;
 }
 
 
+/**
+*	@brief\tRegister a key release.
+*	@param ctx Active context.
+*	@param key Key bitmask.
+*/
 void mu_input_keyup(mu_Context *ctx, int key) {
   ctx->key_down &= ~key;
 }
 
 
+/**
+*	@brief\tAppend UTF-8 input text to the frame buffer.
+*	@param ctx Active context.
+*	@param text UTF-8 text to append.
+*/
 void mu_input_text(mu_Context *ctx, const char *text) {
   int len = strlen(ctx->input_text);
   int size = strlen(text) + 1;
@@ -440,10 +612,21 @@ void mu_input_text(mu_Context *ctx, const char *text) {
 }
 
 
+/**
+*	@brief\tCommand stream helpers.
+*	@note\tThese functions append and iterate packed draw/control commands.
+*/
 /*============================================================================
 ** commandlist
 **============================================================================*/
 
+/**
+*	@brief\tPush a command payload onto the current command list.
+*	@param ctx Active context.
+*	@param type Command type tag.
+*	@param size Command size in bytes.
+*	@return Pointer to the new command.
+*/
 mu_Command* mu_push_command(mu_Context *ctx, int type, int size) {
   mu_Command *cmd = (mu_Command*) (ctx->command_list.items + ctx->command_list.idx);
   expect(ctx->command_list.idx + size < MU_COMMANDLIST_SIZE);
@@ -454,6 +637,12 @@ mu_Command* mu_push_command(mu_Context *ctx, int type, int size) {
 }
 
 
+/**
+*	@brief\tAdvance to the next executable command in the command list.
+*	@param ctx Active context.
+*	@param cmd Current iterator pointer.
+*	@return Non-zero if a command was produced.
+*/
 int mu_next_command(mu_Context *ctx, mu_Command **cmd) {
   if (*cmd) {
     *cmd = (mu_Command*) (((char*) *cmd) + (*cmd)->base.size);
@@ -468,6 +657,12 @@ int mu_next_command(mu_Context *ctx, mu_Command **cmd) {
 }
 
 
+/**
+*	@brief\tPush a jump command to a destination command.
+*	@param ctx Active context.
+*	@param dst Destination command pointer.
+*	@return The emitted jump command.
+*/
 static mu_Command* push_jump(mu_Context *ctx, mu_Command *dst) {
   mu_Command *cmd;
   cmd = mu_push_command(ctx, MU_COMMAND_JUMP, sizeof(mu_JumpCommand));
@@ -476,6 +671,11 @@ static mu_Command* push_jump(mu_Context *ctx, mu_Command *dst) {
 }
 
 
+/**
+*	@brief\tEmit a clip command.
+*	@param ctx Active context.
+*	@param rect Clip rectangle.
+*/
 void mu_set_clip(mu_Context *ctx, mu_Rect rect) {
   mu_Command *cmd;
   cmd = mu_push_command(ctx, MU_COMMAND_CLIP, sizeof(mu_ClipCommand));
@@ -483,6 +683,12 @@ void mu_set_clip(mu_Context *ctx, mu_Rect rect) {
 }
 
 
+/**
+*	@brief\tEmit a filled rectangle draw command.
+*	@param ctx Active context.
+*	@param rect Rectangle to draw.
+*	@param color Fill color.
+*/
 void mu_draw_rect(mu_Context *ctx, mu_Rect rect, mu_Color color) {
   mu_Command *cmd;
   rect = intersect_rects(rect, mu_get_clip_rect(ctx));
@@ -494,6 +700,12 @@ void mu_draw_rect(mu_Context *ctx, mu_Rect rect, mu_Color color) {
 }
 
 
+/**
+*	@brief\tEmit a 1-pixel box outline using four rectangles.
+*	@param ctx Active context.
+*	@param rect Box rectangle.
+*	@param color Outline color.
+*/
 void mu_draw_box(mu_Context *ctx, mu_Rect rect, mu_Color color) {
   mu_draw_rect(ctx, mu_rect(rect.x + 1, rect.y, rect.w - 2, 1), color);
   mu_draw_rect(ctx, mu_rect(rect.x + 1, rect.y + rect.h - 1, rect.w - 2, 1), color);
@@ -502,6 +714,15 @@ void mu_draw_box(mu_Context *ctx, mu_Rect rect, mu_Color color) {
 }
 
 
+/**
+*	@brief\tEmit a text draw command.
+*	@param ctx Active context.
+*	@param font Font handle.
+*	@param str UTF-8 string.
+*	@param len String length or `-1` for null-terminated input.
+*	@param pos Text position.
+*	@param color Text color.
+*/
 void mu_draw_text(mu_Context *ctx, mu_Font font, const char *str, int len,
   mu_Vec2 pos, mu_Color color)
 {
@@ -524,6 +745,13 @@ void mu_draw_text(mu_Context *ctx, mu_Font font, const char *str, int len,
 }
 
 
+/**
+*	@brief\tEmit an icon draw command.
+*	@param ctx Active context.
+*	@param id Icon identifier.
+*	@param rect Destination rectangle.
+*	@param color Tint color.
+*/
 void mu_draw_icon(mu_Context *ctx, int id, mu_Rect rect, mu_Color color) {
   mu_Command *cmd;
   /* do clip command if the rect isn't fully contained within the cliprect */
@@ -540,6 +768,10 @@ void mu_draw_icon(mu_Context *ctx, int id, mu_Rect rect, mu_Color color) {
 }
 
 
+/**
+*	@brief\tLayout state helpers.
+*	@note\tThese functions manage row/column flow and deferred placement.
+*/
 /*============================================================================
 ** layout
 **============================================================================*/
@@ -547,11 +779,19 @@ void mu_draw_icon(mu_Context *ctx, int id, mu_Rect rect, mu_Color color) {
 enum { RELATIVE = 1, ABSOLUTE = 2 };
 
 
+/**
+*	@brief\tBegin a nested column layout.
+*	@param ctx Active context.
+*/
 void mu_layout_begin_column(mu_Context *ctx) {
   push_layout(ctx, mu_layout_next(ctx), mu_vec2(0, 0));
 }
 
 
+/**
+*	@brief\tEnd the current nested column layout.
+*	@param ctx Active context.
+*/
 void mu_layout_end_column(mu_Context *ctx) {
   mu_Layout *a, *b;
   b = get_layout(ctx);
@@ -565,6 +805,13 @@ void mu_layout_end_column(mu_Context *ctx) {
 }
 
 
+/**
+*	@brief\tConfigure the current layout row.
+*	@param ctx Active context.
+*	@param items Number of items in the row.
+*	@param widths Per-item widths, or `NULL` for automatic sizing.
+*	@param height Row height.
+*/
 void mu_layout_row(mu_Context *ctx, int items, const int *widths, int height) {
   mu_Layout *layout = get_layout(ctx);
   if (widths) {
@@ -578,16 +825,32 @@ void mu_layout_row(mu_Context *ctx, int items, const int *widths, int height) {
 }
 
 
+/**
+*	@brief\tOverride the next item width.
+*	@param ctx Active context.
+*	@param width Desired width.
+*/
 void mu_layout_width(mu_Context *ctx, int width) {
   get_layout(ctx)->size.x = width;
 }
 
 
+/**
+*	@brief\tOverride the next item height.
+*	@param ctx Active context.
+*	@param height Desired height.
+*/
 void mu_layout_height(mu_Context *ctx, int height) {
   get_layout(ctx)->size.y = height;
 }
 
 
+/**
+*	@brief\tSet the next layout rectangle.
+*	@param ctx Active context.
+*	@param r Rectangle to use for the next item.
+*	@param relative Non-zero to treat the rectangle as relative to the body.
+*/
 void mu_layout_set_next(mu_Context *ctx, mu_Rect r, int relative) {
   mu_Layout *layout = get_layout(ctx);
   layout->next = r;
@@ -595,6 +858,11 @@ void mu_layout_set_next(mu_Context *ctx, mu_Rect r, int relative) {
 }
 
 
+/**
+*	@brief\tAdvance the layout and return the next item rectangle.
+*	@param ctx Active context.
+*	@return The next layout rectangle.
+*/
 mu_Rect mu_layout_next(mu_Context *ctx) {
   mu_Layout *layout = get_layout(ctx);
   mu_Style *style = ctx->style;
@@ -644,10 +912,19 @@ mu_Rect mu_layout_next(mu_Context *ctx) {
 }
 
 
+/**
+*	@brief\tInteractive control helpers.
+*	@note\tThese functions update hover/focus state and draw common widget chrome.
+*/
 /*============================================================================
 ** controls
 **============================================================================*/
 
+/**
+*	@brief\tTest whether the active hover root matches the current container stack.
+*	@param ctx Active context.
+*	@return Non-zero when the mouse is still inside the hover root chain.
+*/
 static int in_hover_root(mu_Context *ctx) {
   int i = ctx->container_stack.idx;
   while (i--) {
@@ -660,6 +937,14 @@ static int in_hover_root(mu_Context *ctx) {
 }
 
 
+/**
+*	@brief\tDraw a control frame using the state-dependent theme color.
+*	@param ctx Active context.
+*	@param id Widget identifier.
+*	@param rect Control rectangle.
+*	@param colorid Base color index.
+*	@param opt Control option bitmask.
+*/
 void mu_draw_control_frame(mu_Context *ctx, mu_Id id, mu_Rect rect,
   int colorid, int opt)
 {
@@ -669,6 +954,14 @@ void mu_draw_control_frame(mu_Context *ctx, mu_Id id, mu_Rect rect,
 }
 
 
+/**
+*	@brief\tDraw control text clipped to a rectangle.
+*	@param ctx Active context.
+*	@param str Text string.
+*	@param rect Control rectangle.
+*	@param colorid Theme color index.
+*	@param opt Control option bitmask.
+*/
 void mu_draw_control_text(mu_Context *ctx, const char *str, mu_Rect rect,
   int colorid, int opt)
 {
@@ -689,6 +982,12 @@ void mu_draw_control_text(mu_Context *ctx, const char *str, mu_Rect rect,
 }
 
 
+/**
+*	@brief\tTest whether the mouse is over a rectangle and the active hover root.
+*	@param ctx Active context.
+*	@param rect Rectangle to test.
+*	@return Non-zero when the rectangle is under the cursor.
+*/
 int mu_mouse_over(mu_Context *ctx, mu_Rect rect) {
   return rect_overlaps_vec2(rect, ctx->mouse_pos) &&
     rect_overlaps_vec2(mu_get_clip_rect(ctx), ctx->mouse_pos) &&
@@ -696,6 +995,13 @@ int mu_mouse_over(mu_Context *ctx, mu_Rect rect) {
 }
 
 
+/**
+*	@brief\tUpdate hover and focus state for a control.
+*	@param ctx Active context.
+*	@param id Widget identifier.
+*	@param rect Control rectangle.
+*	@param opt Control option bitmask.
+*/
 void mu_update_control(mu_Context *ctx, mu_Id id, mu_Rect rect, int opt) {
   int mouseover = mu_mouse_over(ctx, rect);
 
@@ -718,6 +1024,11 @@ void mu_update_control(mu_Context *ctx, mu_Id id, mu_Rect rect, int opt) {
 }
 
 
+/**
+*	@brief\tEmit static text using the current layout.
+*	@param ctx Active context.
+*	@param text UTF-8 text to draw.
+*/
 void mu_text(mu_Context *ctx, const char *text) {
   const char *start, *end, *p = text;
   int width = -1;
@@ -744,11 +1055,24 @@ void mu_text(mu_Context *ctx, const char *text) {
 }
 
 
+/**
+*	@brief\tEmit a single-line label using the current layout.
+*	@param ctx Active context.
+*	@param text Label text.
+*/
 void mu_label(mu_Context *ctx, const char *text) {
   mu_draw_control_text(ctx, text, mu_layout_next(ctx), MU_COLOR_TEXT, 0);
 }
 
 
+/**
+*	@brief\tEmit a button widget.
+*	@param ctx Active context.
+*	@param label Button label, or `NULL` when using an icon.
+*	@param icon Icon identifier.
+*	@param opt Control option bitmask.
+*	@return Widget result flags.
+*/
 int mu_button_ex(mu_Context *ctx, const char *label, int icon, int opt) {
   int res = 0;
   mu_Id id = label ? mu_get_id(ctx, label, strlen(label))
@@ -767,6 +1091,13 @@ int mu_button_ex(mu_Context *ctx, const char *label, int icon, int opt) {
 }
 
 
+/**
+*	@brief\tEmit a checkbox widget.
+*	@param ctx Active context.
+*	@param label Checkbox label.
+*	@param state Checkbox state pointer.
+*	@return Widget result flags.
+*/
 int mu_checkbox(mu_Context *ctx, const char *label, int *state) {
   int res = 0;
   mu_Id id = mu_get_id(ctx, &state, sizeof(state));
@@ -789,6 +1120,16 @@ int mu_checkbox(mu_Context *ctx, const char *label, int *state) {
 }
 
 
+/**
+*	@brief\tEdit a raw text buffer in-place.
+*	@param ctx Active context.
+*	@param buf Editable buffer.
+*	@param bufsz Buffer size.
+*	@param id Widget identifier.
+*	@param r Control rectangle.
+*	@param opt Control option bitmask.
+*	@return Widget result flags.
+*/
 int mu_textbox_raw(mu_Context *ctx, char *buf, int bufsz, mu_Id id, mu_Rect r,
   int opt)
 {
@@ -841,6 +1182,14 @@ int mu_textbox_raw(mu_Context *ctx, char *buf, int bufsz, mu_Id id, mu_Rect r,
 }
 
 
+/**
+*	@brief\tHandle numeric text editing mode for sliders and number boxes.
+*	@param ctx Active context.
+*	@param value Numeric value pointer.
+*	@param r Control rectangle.
+*	@param id Widget identifier.
+*	@return Non-zero while text-edit mode is still active.
+*/
 static int number_textbox(mu_Context *ctx, mu_Real *value, mu_Rect r, mu_Id id) {
   if (ctx->mouse_pressed == MU_MOUSE_LEFT && ctx->key_down & MU_KEY_SHIFT &&
       ctx->hover == id
@@ -862,6 +1211,14 @@ static int number_textbox(mu_Context *ctx, mu_Real *value, mu_Rect r, mu_Id id) 
 }
 
 
+/**
+*	@brief\tEmit a standard text box widget.
+*	@param ctx Active context.
+*	@param buf Editable buffer.
+*	@param bufsz Buffer size.
+*	@param opt Control option bitmask.
+*	@return Widget result flags.
+*/
 int mu_textbox_ex(mu_Context *ctx, char *buf, int bufsz, int opt) {
   mu_Id id = mu_get_id(ctx, &buf, sizeof(buf));
   mu_Rect r = mu_layout_next(ctx);
@@ -869,6 +1226,17 @@ int mu_textbox_ex(mu_Context *ctx, char *buf, int bufsz, int opt) {
 }
 
 
+/**
+*	@brief\tEmit a slider widget.
+*	@param ctx Active context.
+*	@param value Slider value pointer.
+*	@param low Minimum value.
+*	@param high Maximum value.
+*	@param step Quantization step.
+*	@param fmt Display format.
+*	@param opt Control option bitmask.
+*	@return Widget result flags.
+*/
 int mu_slider_ex(mu_Context *ctx, mu_Real *value, mu_Real low, mu_Real high,
   mu_Real step, const char *fmt, int opt)
 {
@@ -911,6 +1279,15 @@ int mu_slider_ex(mu_Context *ctx, mu_Real *value, mu_Real low, mu_Real high,
 }
 
 
+/**
+*	@brief\tEmit a numeric entry widget.
+*	@param ctx Active context.
+*	@param value Numeric value pointer.
+*	@param step Dragging step size.
+*	@param fmt Display format.
+*	@param opt Control option bitmask.
+*	@return Widget result flags.
+*/
 int mu_number_ex(mu_Context *ctx, mu_Real *value, mu_Real step,
   const char *fmt, int opt)
 {
@@ -943,6 +1320,14 @@ int mu_number_ex(mu_Context *ctx, mu_Real *value, mu_Real step,
 }
 
 
+/**
+*	@brief\tBuild shared header/tree-node behavior.
+*	@param ctx Active context.
+*	@param label Header label.
+*	@param istreenode Non-zero for treenode styling.
+*	@param opt Control option bitmask.
+*	@return Widget result flags.
+*/
 static int header(mu_Context *ctx, const char *label, int istreenode, int opt) {
   mu_Rect r;
   int active, expanded;
@@ -984,11 +1369,25 @@ static int header(mu_Context *ctx, const char *label, int istreenode, int opt) {
 }
 
 
+/**
+*	@brief\tEmit a header widget.
+*	@param ctx Active context.
+*	@param label Header label.
+*	@param opt Control option bitmask.
+*	@return Widget result flags.
+*/
 int mu_header_ex(mu_Context *ctx, const char *label, int opt) {
   return header(ctx, label, 0, opt);
 }
 
 
+/**
+*	@brief\tEmit a tree-node header widget.
+*	@param ctx Active context.
+*	@param label Node label.
+*	@param opt Control option bitmask.
+*	@return Widget result flags.
+*/
 int mu_begin_treenode_ex(mu_Context *ctx, const char *label, int opt) {
   int res = header(ctx, label, 1, opt);
   if (res & MU_RES_ACTIVE) {
@@ -999,12 +1398,27 @@ int mu_begin_treenode_ex(mu_Context *ctx, const char *label, int opt) {
 }
 
 
+/**
+*	@brief\tEnd the current tree node scope.
+*	@param ctx Active context.
+*/
 void mu_end_treenode(mu_Context *ctx) {
   get_layout(ctx)->indent -= ctx->style->indent;
   mu_pop_id(ctx);
 }
 
 
+/**
+*	@brief\tScrollbar helper for a single axis.
+*	@param ctx Active context.
+*	@param cnt Container being scrolled.
+*	@param b Body rectangle pointer.
+*	@param cs Content size vector.
+*	@param x Axis selector macro token.
+*	@param y Axis selector macro token.
+*	@param w Width selector macro token.
+*	@param h Height selector macro token.
+*/
 #define scrollbar(ctx, cnt, b, cs, x, y, w, h)                              \
   do {                                                                      \
     /* only add scrollbar if content size is larger than body */            \
@@ -1060,6 +1474,13 @@ static void scrollbars(mu_Context *ctx, mu_Container *cnt, mu_Rect *body) {
 }
 
 
+/**
+*	@brief\tPush container body layout and optional scrollbars.
+*	@param ctx Active context.
+*	@param cnt Container being configured.
+*	@param body Content body rectangle.
+*	@param opt Container option bitmask.
+*/
 static void push_container_body(
   mu_Context *ctx, mu_Container *cnt, mu_Rect body, int opt
 ) {
@@ -1069,6 +1490,11 @@ static void push_container_body(
 }
 
 
+/**
+*	@brief\tBegin a root container and emit its linking jump command.
+*	@param ctx Active context.
+*	@param cnt Container to begin.
+*/
 static void begin_root_container(mu_Context *ctx, mu_Container *cnt) {
   push(ctx->container_stack, cnt);
   /* push container to roots list and push head command */
@@ -1088,6 +1514,10 @@ static void begin_root_container(mu_Context *ctx, mu_Container *cnt) {
 }
 
 
+/**
+*	@brief\tEnd a root container and patch its tail jump command.
+*	@param ctx Active context.
+*/
 static void end_root_container(mu_Context *ctx) {
   /* push tail 'goto' jump command and set head 'skip' command. the final steps
   ** on initing these are done in mu_end() */
@@ -1100,6 +1530,14 @@ static void end_root_container(mu_Context *ctx) {
 }
 
 
+/**
+*	@brief\tBegin a standard window container.
+*	@param ctx Active context.
+*	@param title Window title.
+*	@param rect Initial window rectangle.
+*	@param opt Window option bitmask.
+*	@return Widget result flags.
+*/
 int mu_begin_window_ex(mu_Context *ctx, const char *title, mu_Rect rect, int opt) {
   mu_Rect body;
   mu_Id id = mu_get_id(ctx, title, strlen(title));
@@ -1120,7 +1558,15 @@ int mu_begin_window_ex(mu_Context *ctx, const char *title, mu_Rect rect, int opt
   if (~opt & MU_OPT_NOTITLE) {
     mu_Rect tr = rect;
     tr.h = ctx->style->title_height;
-    ctx->draw_frame(ctx, tr, MU_COLOR_TITLEBG);
+        // Draw the titlebar using the active color only for the top-most window
+        // so the title state follows the actual input-active container, not just
+        // the last focused widget id.
+        if ( cnt->zindex == ctx->last_zindex ) {
+            ctx->draw_frame( ctx, tr, MU_COLOR_TITLEBG_ACTIVE );
+        } else {
+            ctx->draw_frame( ctx, tr, MU_COLOR_TITLEBG_INACTIVE );
+        }
+
 
     /* do title text */
     if (~opt & MU_OPT_NOTITLE) {
@@ -1179,12 +1625,21 @@ int mu_begin_window_ex(mu_Context *ctx, const char *title, mu_Rect rect, int opt
 }
 
 
+/**
+*	@brief\tEnd the current window scope.
+*	@param ctx Active context.
+*/
 void mu_end_window(mu_Context *ctx) {
   mu_pop_clip_rect(ctx);
   end_root_container(ctx);
 }
 
 
+/**
+*	@brief\tOpen a named popup at the mouse cursor.
+*	@param ctx Active context.
+*	@param name Popup name.
+*/
 void mu_open_popup(mu_Context *ctx, const char *name) {
   mu_Container *cnt = mu_get_container(ctx, name);
   /* set as hover root so popup isn't closed in begin_window_ex()  */
@@ -1196,6 +1651,12 @@ void mu_open_popup(mu_Context *ctx, const char *name) {
 }
 
 
+/**
+*	@brief\tBegin a popup window with standard popup options.
+*	@param ctx Active context.
+*	@param name Popup name.
+*	@return Widget result flags.
+*/
 int mu_begin_popup(mu_Context *ctx, const char *name) {
   int opt = MU_OPT_POPUP | MU_OPT_AUTOSIZE | MU_OPT_NORESIZE |
             MU_OPT_NOSCROLL | MU_OPT_NOTITLE | MU_OPT_CLOSED;
@@ -1203,11 +1664,21 @@ int mu_begin_popup(mu_Context *ctx, const char *name) {
 }
 
 
+/**
+*	@brief\tEnd the current popup scope.
+*	@param ctx Active context.
+*/
 void mu_end_popup(mu_Context *ctx) {
   mu_end_window(ctx);
 }
 
 
+/**
+*	@brief\tBegin a retained panel widget.
+*	@param ctx Active context.
+*	@param name Panel name.
+*	@param opt Panel option bitmask.
+*/
 void mu_begin_panel_ex(mu_Context *ctx, const char *name, int opt) {
   mu_Container *cnt;
   mu_push_id(ctx, name, strlen(name));
@@ -1222,6 +1693,10 @@ void mu_begin_panel_ex(mu_Context *ctx, const char *name, int opt) {
 }
 
 
+/**
+*	@brief\tEnd the current panel scope.
+*	@param ctx Active context.
+*/
 void mu_end_panel(mu_Context *ctx) {
   mu_pop_clip_rect(ctx);
   pop_container(ctx);

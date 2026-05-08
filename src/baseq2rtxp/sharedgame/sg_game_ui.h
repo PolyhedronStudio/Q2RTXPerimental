@@ -15,7 +15,6 @@ enum class sg_game_ui_menu_id {
 	//! Default menu ID for when no menu is active. If you ever get this value, something is badly wrong.
 	NONE = 0,
 
-
 	//! [Unimplemented] Menu to choose your team with in team-based gamemodes.
 	TEAM,
 	//! [Unimplemented] Menu to buy weapons and items with in objective-based gamemodes.
