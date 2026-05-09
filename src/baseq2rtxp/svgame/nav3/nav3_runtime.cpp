@@ -9,6 +9,9 @@
 #include "svgame/nav3/nav3_debug_draw.h"
 #include "svgame/nav3/nav3_persistence.h"
 
+#include <limits>
+#include <utility>
+
 
 /**
 *
@@ -104,6 +107,24 @@ static const char *Nav3_Runtime_ResolveActiveMapName( void ) {
 }
 
 /**
+*    @brief  Count spans across all sparse generated columns.
+*    @param  generatedMesh  Generated sparse mesh payload.
+*    @return Total span count clamped to uint32_t range.
+**/
+static uint32_t Nav3_Runtime_CountGeneratedSpans( const nav3_generated_mesh_t &generatedMesh ) {
+	uint64_t spanCount = 0;
+	for ( const nav3_generated_column_t &column : generatedMesh.columns ) {
+		spanCount += static_cast<uint64_t>( column.spans.size() );
+	}
+
+	if ( spanCount > static_cast<uint64_t>( std::numeric_limits<uint32_t>::max() ) ) {
+		return std::numeric_limits<uint32_t>::max();
+	}
+
+	return static_cast<uint32_t>( spanCount );
+}
+
+/**
 *    @brief  Clear runtime-owned generated span mesh and reset last generation diagnostics.
 **/
 static void Nav3_Runtime_ClearGeneratedMesh( void ) {
@@ -113,10 +134,10 @@ static void Nav3_Runtime_ClearGeneratedMesh( void ) {
 
 /**
 *    @brief  Rebuild runtime-only lookup tables after a successful asset load.
-*    @note   Stage-4 empty asset payloads have no graph tables yet, so this remains a no-op seam.
+ *    @note   Stage-7 generated asset payloads do not publish graph reverse indices yet, so this remains a no-op seam.
 **/
 static void Nav3_Runtime_RebuildLookupTablesAfterLoad( void ) {
-	// Stage-4 empty assets do not publish graph arrays yet.
+	// Stage-7 generated assets publish sparse columns/spans only; reverse graph indices arrive in later stages.
 }
 
 
@@ -147,6 +168,7 @@ void SVG_Nav3_Runtime_Init( void ) {
 	s_nav3_runtime_status.has_mesh = false;
 	s_nav3_runtime_status.generated_column_count = 0;
 	s_nav3_runtime_status.generated_span_count = 0;
+	s_nav3_runtime_status.generated_mesh_checksum = 0;
 	s_nav3_runtime_status.mesh_generation = 0;
 	s_nav3_runtime_status.publish_state = nav3_runtime_publish_state_t::Empty;
 	Nav3_Runtime_BumpGeneration( &s_nav3_runtime_status.runtime_generation );
@@ -179,6 +201,7 @@ void SVG_Nav3_Runtime_Unload( void ) {
 	s_nav3_runtime_status.has_mesh = false;
 	s_nav3_runtime_status.generated_column_count = 0;
 	s_nav3_runtime_status.generated_span_count = 0;
+	s_nav3_runtime_status.generated_mesh_checksum = 0;
 	s_nav3_runtime_status.mesh_generation = 0;
 	s_nav3_runtime_status.publish_state = nav3_runtime_publish_state_t::Empty;
 }
@@ -236,6 +259,7 @@ const bool SVG_Nav3_Runtime_Generate( void ) {
 		s_nav3_runtime_status.has_mesh = false;
 		s_nav3_runtime_status.generated_column_count = 0;
 		s_nav3_runtime_status.generated_span_count = 0;
+		s_nav3_runtime_status.generated_mesh_checksum = 0;
 		s_nav3_runtime_status.publish_state = nav3_runtime_publish_state_t::Empty;
 		Nav3_Runtime_BumpGeneration( &s_nav3_runtime_status.runtime_generation );
 		return false;
@@ -248,7 +272,8 @@ const bool SVG_Nav3_Runtime_Generate( void ) {
 	s_nav3_runtime_last_generation_stats = s_nav3_runtime_generated_mesh.stats;
 	s_nav3_runtime_status.has_mesh = true;
 	s_nav3_runtime_status.generated_column_count = ( uint32_t )s_nav3_runtime_generated_mesh.columns.size();
-	s_nav3_runtime_status.generated_span_count = ( uint32_t )s_nav3_runtime_generated_mesh.stats.emitted_spans;
+	s_nav3_runtime_status.generated_span_count = Nav3_Runtime_CountGeneratedSpans( s_nav3_runtime_generated_mesh );
+	s_nav3_runtime_status.generated_mesh_checksum = SVG_Nav3_Serialize_BuildGeneratedMeshChecksum( s_nav3_runtime_generated_mesh );
 	s_nav3_runtime_status.publish_state = nav3_runtime_publish_state_t::Published;
 	Nav3_Runtime_BumpGeneration( &s_nav3_runtime_status.mesh_generation );
 	Nav3_Runtime_BumpGeneration( &s_nav3_runtime_status.runtime_generation );
@@ -259,7 +284,7 @@ const bool SVG_Nav3_Runtime_Generate( void ) {
 *    @brief  Save the active nav3 runtime mesh.
 *    @param  filename  Destination path to save.
 *    @return True when save completed.
-*    @note   Stage 4 persists an empty nav3 asset shell while mesh serialization remains future work.
+*    @note   Stage 7 persists generated sparse columns/spans and build config state.
 **/
 const bool SVG_Nav3_Runtime_Save( const char *filename ) {
 	/**
@@ -284,12 +309,20 @@ const bool SVG_Nav3_Runtime_Save( const char *filename ) {
 	}
 
 	/**
-	*    Persist a stage-4 empty nav3 asset for the active map/build-config context.
+	*    Reject save requests when no generated runtime mesh is currently published.
 	**/
-	const nav3_persistence_result_t saveResult = SVG_Nav3_Persistence_SaveEmptyAsset(
+	if ( !s_nav3_runtime_status.has_mesh || s_nav3_runtime_generated_mesh.columns.empty() ) {
+		return false;
+	}
+
+	/**
+	*    Persist a stage-7 generated nav3 asset for the active map/build-config context.
+	**/
+	const nav3_persistence_result_t saveResult = SVG_Nav3_Persistence_SaveGeneratedAsset(
 		filename,
 		Nav3_Runtime_ResolveActiveMapName(),
-		s_nav3_runtime_build_config );
+		s_nav3_runtime_build_config,
+		s_nav3_runtime_generated_mesh );
 	return saveResult.success;
 }
 
@@ -297,7 +330,7 @@ const bool SVG_Nav3_Runtime_Save( const char *filename ) {
 *    @brief  Load a nav3 runtime mesh.
 *    @param  filename  Source path to load.
 *    @return True when load completed and publish succeeded.
-*    @note   Stage 4 validates/publishes an empty nav3 asset shell while mesh payload loading remains future work.
+*    @note   Stage 7 validates/publishes generated sparse columns/spans from serialized asset data.
 **/
 const bool SVG_Nav3_Runtime_Load( const char *filename ) {
 	/**
@@ -322,31 +355,50 @@ const bool SVG_Nav3_Runtime_Load( const char *filename ) {
 	}
 
 	/**
-	*    Load and validate a stage-4 empty nav3 asset into temporary decode storage first.
+	*    Load and validate a stage-7 generated nav3 asset into temporary decode storage first.
 	**/
 	nav3_serialized_header_t loadedHeader = {};
-	const nav3_persistence_result_t loadResult = SVG_Nav3_Persistence_LoadEmptyAsset(
+	nav3_generated_mesh_t loadedGeneratedMesh = {};
+	const nav3_persistence_result_t loadResult = SVG_Nav3_Persistence_LoadGeneratedAsset(
 		filename,
 		Nav3_Runtime_ResolveActiveMapName(),
 		s_nav3_runtime_build_config,
-		&loadedHeader );
+		&loadedHeader,
+		&loadedGeneratedMesh );
 	if ( !loadResult.success ) {
 		return false;
 	}
 	(void)loadedHeader;
 
 	/**
+	*    Reject asset publication when decoded generated payload is empty.
+	**/
+	if ( loadedGeneratedMesh.columns.empty() || loadResult.generated_span_count == 0 ) {
+		return false;
+	}
+
+	/**
+	*    Recompute checksum from decoded payload and reject mismatched runtime decode state.
+	**/
+	const uint32_t loadedMeshChecksum = SVG_Nav3_Serialize_BuildGeneratedMeshChecksum( loadedGeneratedMesh );
+	if ( loadResult.generated_mesh_checksum != 0 && loadedMeshChecksum != loadResult.generated_mesh_checksum ) {
+		return false;
+	}
+
+	/**
 	*    Rebuild runtime-only lookup seams before publishing decoded state.
 	**/
+	s_nav3_runtime_generated_mesh = std::move( loadedGeneratedMesh );
+	s_nav3_runtime_last_generation_stats = s_nav3_runtime_generated_mesh.stats;
 	Nav3_Runtime_RebuildLookupTablesAfterLoad();
 
 	/**
-	*    Publish loaded stage-4 empty asset state only after all validation/rebuild steps succeeded.
+	*    Publish loaded stage-7 generated asset state only after all validation/rebuild steps succeeded.
 	**/
-	Nav3_Runtime_ClearGeneratedMesh();
-	s_nav3_runtime_status.has_mesh = false;
-	s_nav3_runtime_status.generated_column_count = 0;
-	s_nav3_runtime_status.generated_span_count = 0;
+	s_nav3_runtime_status.has_mesh = true;
+	s_nav3_runtime_status.generated_column_count = static_cast<uint32_t>( s_nav3_runtime_generated_mesh.columns.size() );
+	s_nav3_runtime_status.generated_span_count = Nav3_Runtime_CountGeneratedSpans( s_nav3_runtime_generated_mesh );
+	s_nav3_runtime_status.generated_mesh_checksum = loadedMeshChecksum;
 	s_nav3_runtime_status.publish_state = nav3_runtime_publish_state_t::Published;
 	Nav3_Runtime_BumpGeneration( &s_nav3_runtime_status.mesh_generation );
 	Nav3_Runtime_BumpGeneration( &s_nav3_runtime_status.runtime_generation );
@@ -426,8 +478,9 @@ nav3_runtime_status_t SVG_Nav3_Runtime_GetStatus( void ) {
 	nav3_runtime_status_t status = s_nav3_runtime_status;
 	status.enabled = SVG_Nav3_Runtime_IsEnabled();
 	status.debug_enabled = s_nav3_debug && ( s_nav3_debug->integer != 0 );
-	status.generated_column_count = ( uint32_t )s_nav3_runtime_generated_mesh.columns.size();
-	status.generated_span_count = ( uint32_t )s_nav3_runtime_generated_mesh.stats.emitted_spans;
+	status.generated_column_count = s_nav3_runtime_status.generated_column_count;
+	status.generated_span_count = s_nav3_runtime_status.generated_span_count;
+	status.generated_mesh_checksum = s_nav3_runtime_status.generated_mesh_checksum;
 	return status;
 }
 

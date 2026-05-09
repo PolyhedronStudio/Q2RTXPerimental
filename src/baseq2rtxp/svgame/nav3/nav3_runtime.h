@@ -57,7 +57,7 @@ const bool SVG_Nav3_Runtime_Generate( void );
 *    @brief  Save the active nav3 runtime mesh.
 *    @param  filename  Destination path to save.
 *    @return True when save completed.
-*    @note   Stage 4 persists an empty nav3 asset shell while mesh serialization remains future work.
+*    @note   Stage 7 persists generated sparse columns/spans and build-config payload data.
 **/
 const bool SVG_Nav3_Runtime_Save( const char *filename );
 
@@ -65,7 +65,7 @@ const bool SVG_Nav3_Runtime_Save( const char *filename );
 *    @brief  Load a nav3 runtime mesh.
 *    @param  filename  Source path to load.
 *    @return True when load completed and publish succeeded.
-*    @note   Stage 4 validates/publishes an empty nav3 asset shell while mesh payload loading remains future work.
+*    @note   Stage 7 validates/publishes generated sparse columns/spans from serialized assets.
 **/
 const bool SVG_Nav3_Runtime_Load( const char *filename );
 

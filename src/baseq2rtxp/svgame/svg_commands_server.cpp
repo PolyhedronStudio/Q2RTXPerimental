@@ -325,7 +325,7 @@ static void ServerCommand_Nav3Generate_f(void) {
                 resolvedSavePath = ServerCommand_Nav3ResolveFilename(3, defaultPath, sizeof(defaultPath));
             }
             ServerCommand_Nav3Print(
-                "nav3_generate: generation produced no mesh (save deferred path='%s')\n",
+                "nav3_generate: generation produced no mesh (save skipped path='%s')\n",
                 resolvedSavePath ? resolvedSavePath : "<unresolved>");
             return;
         }
@@ -343,9 +343,17 @@ static void ServerCommand_Nav3Generate_f(void) {
         if (!resolvedSavePath) {
             resolvedSavePath = ServerCommand_Nav3ResolveFilename(3, defaultPath, sizeof(defaultPath));
         }
-        ServerCommand_Nav3Print(
-            "nav3_generate: generated runtime spans; save deferred to Stage 7 (requested '%s')\n",
-            resolvedSavePath ? resolvedSavePath : "<unresolved>");
+        if (!resolvedSavePath) {
+            ServerCommand_Nav3Print("nav3_generate: unable to resolve save path\n");
+            return;
+        }
+
+        if (!SVG_Nav3_Runtime_Save(resolvedSavePath)) {
+            ServerCommand_Nav3Print("nav3_generate: generated runtime spans but failed to write '%s'\n", resolvedSavePath);
+            return;
+        }
+
+        ServerCommand_Nav3Print("nav3_generate: generated runtime spans and wrote '%s'\n", resolvedSavePath);
     } else {
         ServerCommand_Nav3Print( "nav3_generate: generated runtime spans (nosave)\n" );
     }
@@ -367,9 +375,9 @@ static void ServerCommand_Nav3Save_f(void) {
     }
 
     /**
-     * Reject save while nav3 backend is disabled.
+     * Reject save while nav3 backend is disabled or no generated mesh is published.
      **/
-    if (!SVG_Nav3_Runtime_IsEnabled()) {
+    if (!SVG_Nav3_Runtime_IsEnabled() || !SVG_Nav3_Runtime_HasMesh()) {
         ServerCommand_Nav3Print( "nav3_save: nav3 disabled/no mesh\n" );
         return;
     }
@@ -457,9 +465,10 @@ static void ServerCommand_Nav3Status_f(void) {
      * Emit one compact generated-data line for stage-5 diagnostics.
      **/
     ServerCommand_Nav3Print(
-        "nav3_status: generated=(columns=%u spans=%u)\n",
+        "nav3_status: generated=(columns=%u spans=%u checksum=0x%08x)\n",
         runtimeStatus.generated_column_count,
-        runtimeStatus.generated_span_count);
+        runtimeStatus.generated_span_count,
+        runtimeStatus.generated_mesh_checksum);
     
         /**
          * Emit one compact schema/build-config line for stage-3 diagnostics.
@@ -598,11 +607,12 @@ static void ServerCommand_Nav3Validate_f(void) {
      * Emit one compact runtime publication line so callers can correlate validate output.
      **/
     ServerCommand_Nav3Print(
-        "nav3_validate: state=%s has_mesh=%d generated=(columns=%u spans=%u)\n",
+        "nav3_validate: state=%s has_mesh=%d generated=(columns=%u spans=%u checksum=0x%08x)\n",
         SVG_Nav3_RuntimePublishStateName(runtimeStatus.publish_state),
         runtimeStatus.has_mesh ? 1 : 0,
         runtimeStatus.generated_column_count,
-        runtimeStatus.generated_span_count);
+        runtimeStatus.generated_span_count,
+        runtimeStatus.generated_mesh_checksum);
 }
 
 #if 0
