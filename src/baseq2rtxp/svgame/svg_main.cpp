@@ -505,6 +505,12 @@ void SVG_ShutdownGame( void ) {
     // Notify of shutdown.
     gi.dprintf( "==== Initiating ServerGame Shutdown ====\n" );
 
+    // Release edict pool ownership before tag cleanup to avoid stale double-free paths.
+    g_edict_pool.edicts = nullptr;
+    g_edict_pool.num_edicts = 0;
+    g_edict_pool.max_edicts = 0;
+    g_edicts = nullptr;
+
 	/**
 	*	We free edicts first since they may be referencing gamemode and level data in their shutdown, and we want to make sure that the gamemode and level are still around when that happens.
 	**/
@@ -527,7 +533,7 @@ void SVG_ShutdownGame( void ) {
 	#endif
     // Shutdown the Lua VM.
     SVG_Lua_Shutdown();
-
+	
 	/**
 	*	NOTE: The gamemode should be freed before the Lua VM since the gamemode may have Lua data that needs to be freed in its shutdown.
 	**/

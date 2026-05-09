@@ -170,13 +170,15 @@ void CLG_UI_AllocateContext() {
 	}
 
 	// Register the atlas only once and pass renderer-owned memory because raw image backends free the provided pixel buffer.
-	if ( s_gameui_ctx.atlas.imageHandle == 0 ) {
-		// Allocate a renderer-owned atlas copy so IMG_Unload/GL upload paths can safely free it.
-		byte *atlasTextureCopy = ( byte * )clgi.Z_Malloc( CLG_UI_ATLAS_BYTE_COUNT );
+	if ( s_gameui_ctx.atlas.textureCopy == nullptr ) {
+		s_gameui_ctx.atlas.textureCopy = ( byte * )clgi.Z_Malloc( CLG_UI_ATLAS_BYTE_COUNT );
 		// Copy the embedded atlas texture data to the renderer-owned buffer, so it can be safely passed to the renderer for uploading without risking use-after-free bugs if the renderer frees the buffer after upload.
-		memcpy( atlasTextureCopy, clg_ui_atlas_texture, CLG_UI_ATLAS_BYTE_COUNT );
+		memcpy( s_gameui_ctx.atlas.textureCopy, clg_ui_atlas_texture, CLG_UI_ATLAS_BYTE_COUNT );
+	}
+	// Check if the atlas texture has already been registered with the renderer, if not, register it now. This allows us to avoid re-registering the texture and uploading it multiple times if the client game reloads or if the renderer is re-initialized, since we keep a copy of the atlas data in memory and can re-upload it as needed.
+	if ( s_gameui_ctx.atlas.imageHandle == 0 ) {
 		// Upload the render owned atlas copy.
-		s_gameui_ctx.atlas.imageHandle = clgi.R_RegisterRawImage( "clg_ui_atlas", CLG_UI_ATLAS_WIDTH, CLG_UI_ATLAS_HEIGHT, atlasTextureCopy, IT_PIC, IF_PERMANENT | IF_SRGB );
+		s_gameui_ctx.atlas.imageHandle = clgi.R_RegisterRawImage( "clg_ui_atlas", CLG_UI_ATLAS_WIDTH, CLG_UI_ATLAS_HEIGHT, s_gameui_ctx.atlas.textureCopy, IT_PIC, /*IF_PERMANENT |*/ IF_SRGB );
 		// Registration failed before renderer ownership transfer, so free the temporary heap copy here.
 		//clgi.Z_Free( atlasTextureCopy );
 	}
@@ -197,7 +199,7 @@ void CLG_UI_FreeContext() {
 	if ( s_gameui_ctx.mu_ctx != nullptr ) {
 		// Free the microui context.
 		//clgi.TagFree( s_gameui_ctx.mu_ctx );
-		clgi.FreeTags( TAG_CLGAME_GAME_UI );
+		clgi.FreeTags( TAG_CLGAME_UI );
 		clgi.FreeTags( TAG_CLGAME_GAME_MICRO_UI );
 		// Clear the pointer to the UI context to avoid dangling pointers and potential use-after-free bugs.
 		s_gameui_ctx.mu_ctx = nullptr;

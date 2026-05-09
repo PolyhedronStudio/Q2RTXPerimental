@@ -264,6 +264,7 @@ svg_base_edict_t **SVG_EdictPool_Release( svg_edict_pool_t *edictPool ) {
 		
 		edictPool->edicts = nullptr;
 		edictPool->num_edicts = 0;
+		edictPool->max_edicts = 0;
 
 		// Free any remainings.
 		gi.FreeTags( TAG_SVGAME_EDICTS );

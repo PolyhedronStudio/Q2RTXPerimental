@@ -492,7 +492,7 @@ int mu_pool_init(mu_Context *ctx, mu_PoolItem *items, int len, mu_Id id) {
 
 
 /**
-*	@brief\tLook up a retained pool item by ID.
+*	@brief	Look up a retained pool item by ID.
 *	@param ctx Active context.
 *	@param items Pool entries.
 *	@param len Pool length.
@@ -510,7 +510,7 @@ int mu_pool_get(mu_Context *ctx, mu_PoolItem *items, int len, mu_Id id) {
 
 
 /**
-*	@brief\tRefresh the update time for a pool entry.
+*	@brief	Refresh the update time for a pool entry.
 *	@param ctx Active context.
 *	@param items Pool entries.
 *	@param idx Slot index to refresh.
@@ -521,15 +521,15 @@ void mu_pool_update(mu_Context *ctx, mu_PoolItem *items, int idx) {
 
 
 /**
-*	@brief\tInput handler entry points.
-*	@note\tThese functions translate platform input into frame-local UI state.
+*	@brief	Input handler entry points.
+*	@note	These functions translate platform input into frame-local UI state.
 */
 /*============================================================================
 ** input handlers
 **============================================================================*/
 
 /**
-*	@brief\tUpdate the current mouse position.
+*	@brief	Update the current mouse position.
 *	@param ctx Active context.
 *	@param x Mouse x coordinate.
 *	@param y Mouse y coordinate.
@@ -540,7 +540,7 @@ void mu_input_mousemove(mu_Context *ctx, int x, int y) {
 
 
 /**
-*	@brief\tRegister a mouse-button press.
+*	@brief	Register a mouse-button press.
 *	@param ctx Active context.
 *	@param x Mouse x coordinate.
 *	@param y Mouse y coordinate.
@@ -554,7 +554,7 @@ void mu_input_mousedown(mu_Context *ctx, int x, int y, int btn) {
 
 
 /**
-*	@brief\tRegister a mouse-button release.
+*	@brief	Register a mouse-button release.
 *	@param ctx Active context.
 *	@param x Mouse x coordinate.
 *	@param y Mouse y coordinate.
@@ -567,7 +567,7 @@ void mu_input_mouseup(mu_Context *ctx, int x, int y, int btn) {
 
 
 /**
-*	@brief\tAccumulate mouse-wheel scrolling.
+*	@brief	Accumulate mouse-wheel scrolling.
 *	@param ctx Active context.
 *	@param x Horizontal scroll delta.
 *	@param y Vertical scroll delta.
@@ -579,7 +579,7 @@ void mu_input_scroll(mu_Context *ctx, int x, int y) {
 
 
 /**
-*	@brief\tRegister a key press.
+*	@brief	Register a key press.
 *	@param ctx Active context.
 *	@param key Key bitmask.
 */
@@ -590,7 +590,7 @@ void mu_input_keydown(mu_Context *ctx, int key) {
 
 
 /**
-*	@brief\tRegister a key release.
+*	@brief	Register a key release.
 *	@param ctx Active context.
 *	@param key Key bitmask.
 */
@@ -600,7 +600,7 @@ void mu_input_keyup(mu_Context *ctx, int key) {
 
 
 /**
-*	@brief\tAppend UTF-8 input text to the frame buffer.
+*	@brief	Append UTF-8 input text to the frame buffer.
 *	@param ctx Active context.
 *	@param text UTF-8 text to append.
 */
@@ -613,15 +613,15 @@ void mu_input_text(mu_Context *ctx, const char *text) {
 
 
 /**
-*	@brief\tCommand stream helpers.
-*	@note\tThese functions append and iterate packed draw/control commands.
+*	@brief	Command stream helpers.
+*	@note	These functions append and iterate packed draw/control commands.
 */
 /*============================================================================
 ** commandlist
 **============================================================================*/
 
 /**
-*	@brief\tPush a command payload onto the current command list.
+*	@brief	Push a command payload onto the current command list.
 *	@param ctx Active context.
 *	@param type Command type tag.
 *	@param size Command size in bytes.
@@ -638,7 +638,7 @@ mu_Command* mu_push_command(mu_Context *ctx, int type, int size) {
 
 
 /**
-*	@brief\tAdvance to the next executable command in the command list.
+*	@brief	Advance to the next executable command in the command list.
 *	@param ctx Active context.
 *	@param cmd Current iterator pointer.
 *	@return Non-zero if a command was produced.
@@ -658,7 +658,7 @@ int mu_next_command(mu_Context *ctx, mu_Command **cmd) {
 
 
 /**
-*	@brief\tPush a jump command to a destination command.
+*	@brief	Push a jump command to a destination command.
 *	@param ctx Active context.
 *	@param dst Destination command pointer.
 *	@return The emitted jump command.
@@ -672,7 +672,7 @@ static mu_Command* push_jump(mu_Context *ctx, mu_Command *dst) {
 
 
 /**
-*	@brief\tEmit a clip command.
+*	@brief	Emit a clip command.
 *	@param ctx Active context.
 *	@param rect Clip rectangle.
 */
@@ -684,7 +684,7 @@ void mu_set_clip(mu_Context *ctx, mu_Rect rect) {
 
 
 /**
-*	@brief\tEmit a filled rectangle draw command.
+*	@brief	Emit a filled rectangle draw command.
 *	@param ctx Active context.
 *	@param rect Rectangle to draw.
 *	@param color Fill color.
@@ -701,7 +701,7 @@ void mu_draw_rect(mu_Context *ctx, mu_Rect rect, mu_Color color) {
 
 
 /**
-*	@brief\tEmit a 1-pixel box outline using four rectangles.
+*	@brief	Emit a 1-pixel box outline using four rectangles.
 *	@param ctx Active context.
 *	@param rect Box rectangle.
 *	@param color Outline color.
@@ -715,7 +715,7 @@ void mu_draw_box(mu_Context *ctx, mu_Rect rect, mu_Color color) {
 
 
 /**
-*	@brief\tEmit a text draw command.
+*	@brief	Emit a text draw command.
 *	@param ctx Active context.
 *	@param font Font handle.
 *	@param str UTF-8 string.
@@ -746,7 +746,7 @@ void mu_draw_text(mu_Context *ctx, mu_Font font, const char *str, int len,
 
 
 /**
-*	@brief\tEmit an icon draw command.
+*	@brief	Emit an icon draw command.
 *	@param ctx Active context.
 *	@param id Icon identifier.
 *	@param rect Destination rectangle.
@@ -769,8 +769,8 @@ void mu_draw_icon(mu_Context *ctx, int id, mu_Rect rect, mu_Color color) {
 
 
 /**
-*	@brief\tLayout state helpers.
-*	@note\tThese functions manage row/column flow and deferred placement.
+*	@brief	Layout state helpers.
+*	@note	These functions manage row/column flow and deferred placement.
 */
 /*============================================================================
 ** layout
@@ -780,7 +780,7 @@ enum { RELATIVE = 1, ABSOLUTE = 2 };
 
 
 /**
-*	@brief\tBegin a nested column layout.
+*	@brief	Begin a nested column layout.
 *	@param ctx Active context.
 */
 void mu_layout_begin_column(mu_Context *ctx) {
@@ -789,7 +789,7 @@ void mu_layout_begin_column(mu_Context *ctx) {
 
 
 /**
-*	@brief\tEnd the current nested column layout.
+*	@brief	End the current nested column layout.
 *	@param ctx Active context.
 */
 void mu_layout_end_column(mu_Context *ctx) {
@@ -806,7 +806,7 @@ void mu_layout_end_column(mu_Context *ctx) {
 
 
 /**
-*	@brief\tConfigure the current layout row.
+*	@brief	Configure the current layout row.
 *	@param ctx Active context.
 *	@param items Number of items in the row.
 *	@param widths Per-item widths, or `NULL` for automatic sizing.
@@ -826,7 +826,7 @@ void mu_layout_row(mu_Context *ctx, int items, const int *widths, int height) {
 
 
 /**
-*	@brief\tOverride the next item width.
+*	@brief	Override the next item width.
 *	@param ctx Active context.
 *	@param width Desired width.
 */
@@ -836,7 +836,7 @@ void mu_layout_width(mu_Context *ctx, int width) {
 
 
 /**
-*	@brief\tOverride the next item height.
+*	@brief	Override the next item height.
 *	@param ctx Active context.
 *	@param height Desired height.
 */
@@ -846,7 +846,7 @@ void mu_layout_height(mu_Context *ctx, int height) {
 
 
 /**
-*	@brief\tSet the next layout rectangle.
+*	@brief	Set the next layout rectangle.
 *	@param ctx Active context.
 *	@param r Rectangle to use for the next item.
 *	@param relative Non-zero to treat the rectangle as relative to the body.
@@ -859,7 +859,7 @@ void mu_layout_set_next(mu_Context *ctx, mu_Rect r, int relative) {
 
 
 /**
-*	@brief\tAdvance the layout and return the next item rectangle.
+*	@brief	Advance the layout and return the next item rectangle.
 *	@param ctx Active context.
 *	@return The next layout rectangle.
 */
@@ -913,15 +913,15 @@ mu_Rect mu_layout_next(mu_Context *ctx) {
 
 
 /**
-*	@brief\tInteractive control helpers.
-*	@note\tThese functions update hover/focus state and draw common widget chrome.
+*	@brief	Interactive control helpers.
+*	@note	These functions update hover/focus state and draw common widget chrome.
 */
 /*============================================================================
 ** controls
 **============================================================================*/
 
 /**
-*	@brief\tTest whether the active hover root matches the current container stack.
+*	@brief	Test whether the active hover root matches the current container stack.
 *	@param ctx Active context.
 *	@return Non-zero when the mouse is still inside the hover root chain.
 */
@@ -938,7 +938,7 @@ static int in_hover_root(mu_Context *ctx) {
 
 
 /**
-*	@brief\tDraw a control frame using the state-dependent theme color.
+*	@brief	Draw a control frame using the state-dependent theme color.
 *	@param ctx Active context.
 *	@param id Widget identifier.
 *	@param rect Control rectangle.
@@ -955,7 +955,7 @@ void mu_draw_control_frame(mu_Context *ctx, mu_Id id, mu_Rect rect,
 
 
 /**
-*	@brief\tDraw control text clipped to a rectangle.
+*	@brief	Draw control text clipped to a rectangle.
 *	@param ctx Active context.
 *	@param str Text string.
 *	@param rect Control rectangle.
@@ -983,7 +983,7 @@ void mu_draw_control_text(mu_Context *ctx, const char *str, mu_Rect rect,
 
 
 /**
-*	@brief\tTest whether the mouse is over a rectangle and the active hover root.
+*	@brief	Test whether the mouse is over a rectangle and the active hover root.
 *	@param ctx Active context.
 *	@param rect Rectangle to test.
 *	@return Non-zero when the rectangle is under the cursor.
@@ -996,7 +996,7 @@ int mu_mouse_over(mu_Context *ctx, mu_Rect rect) {
 
 
 /**
-*	@brief\tUpdate hover and focus state for a control.
+*	@brief	Update hover and focus state for a control.
 *	@param ctx Active context.
 *	@param id Widget identifier.
 *	@param rect Control rectangle.
@@ -1025,7 +1025,7 @@ void mu_update_control(mu_Context *ctx, mu_Id id, mu_Rect rect, int opt) {
 
 
 /**
-*	@brief\tEmit static text using the current layout.
+*	@brief	Emit static text using the current layout.
 *	@param ctx Active context.
 *	@param text UTF-8 text to draw.
 */
@@ -1056,7 +1056,7 @@ void mu_text(mu_Context *ctx, const char *text) {
 
 
 /**
-*	@brief\tEmit a single-line label using the current layout.
+*	@brief	Emit a single-line label using the current layout.
 *	@param ctx Active context.
 *	@param text Label text.
 */
@@ -1066,7 +1066,7 @@ void mu_label(mu_Context *ctx, const char *text) {
 
 
 /**
-*	@brief\tEmit a button widget.
+*	@brief	Emit a button widget.
 *	@param ctx Active context.
 *	@param label Button label, or `NULL` when using an icon.
 *	@param icon Icon identifier.
@@ -1092,7 +1092,7 @@ int mu_button_ex(mu_Context *ctx, const char *label, int icon, int opt) {
 
 
 /**
-*	@brief\tEmit a checkbox widget.
+*	@brief	Emit a checkbox widget.
 *	@param ctx Active context.
 *	@param label Checkbox label.
 *	@param state Checkbox state pointer.
@@ -1121,7 +1121,7 @@ int mu_checkbox(mu_Context *ctx, const char *label, int *state) {
 
 
 /**
-*	@brief\tEdit a raw text buffer in-place.
+*	@brief	Edit a raw text buffer in-place.
 *	@param ctx Active context.
 *	@param buf Editable buffer.
 *	@param bufsz Buffer size.
@@ -1183,7 +1183,7 @@ int mu_textbox_raw(mu_Context *ctx, char *buf, int bufsz, mu_Id id, mu_Rect r,
 
 
 /**
-*	@brief\tHandle numeric text editing mode for sliders and number boxes.
+*	@brief	Handle numeric text editing mode for sliders and number boxes.
 *	@param ctx Active context.
 *	@param value Numeric value pointer.
 *	@param r Control rectangle.
@@ -1212,7 +1212,7 @@ static int number_textbox(mu_Context *ctx, mu_Real *value, mu_Rect r, mu_Id id) 
 
 
 /**
-*	@brief\tEmit a standard text box widget.
+*	@brief	Emit a standard text box widget.
 *	@param ctx Active context.
 *	@param buf Editable buffer.
 *	@param bufsz Buffer size.
@@ -1227,7 +1227,7 @@ int mu_textbox_ex(mu_Context *ctx, char *buf, int bufsz, int opt) {
 
 
 /**
-*	@brief\tEmit a slider widget.
+*	@brief	Emit a slider widget.
 *	@param ctx Active context.
 *	@param value Slider value pointer.
 *	@param low Minimum value.
@@ -1280,7 +1280,7 @@ int mu_slider_ex(mu_Context *ctx, mu_Real *value, mu_Real low, mu_Real high,
 
 
 /**
-*	@brief\tEmit a numeric entry widget.
+*	@brief	Emit a numeric entry widget.
 *	@param ctx Active context.
 *	@param value Numeric value pointer.
 *	@param step Dragging step size.
@@ -1321,7 +1321,7 @@ int mu_number_ex(mu_Context *ctx, mu_Real *value, mu_Real step,
 
 
 /**
-*	@brief\tBuild shared header/tree-node behavior.
+*	@brief	Build shared header/tree-node behavior.
 *	@param ctx Active context.
 *	@param label Header label.
 *	@param istreenode Non-zero for treenode styling.
@@ -1370,7 +1370,7 @@ static int header(mu_Context *ctx, const char *label, int istreenode, int opt) {
 
 
 /**
-*	@brief\tEmit a header widget.
+*	@brief	Emit a header widget.
 *	@param ctx Active context.
 *	@param label Header label.
 *	@param opt Control option bitmask.
@@ -1382,7 +1382,7 @@ int mu_header_ex(mu_Context *ctx, const char *label, int opt) {
 
 
 /**
-*	@brief\tEmit a tree-node header widget.
+*	@brief	Emit a tree-node header widget.
 *	@param ctx Active context.
 *	@param label Node label.
 *	@param opt Control option bitmask.
@@ -1399,7 +1399,7 @@ int mu_begin_treenode_ex(mu_Context *ctx, const char *label, int opt) {
 
 
 /**
-*	@brief\tEnd the current tree node scope.
+*	@brief	End the current tree node scope.
 *	@param ctx Active context.
 */
 void mu_end_treenode(mu_Context *ctx) {
@@ -1409,7 +1409,7 @@ void mu_end_treenode(mu_Context *ctx) {
 
 
 /**
-*	@brief\tScrollbar helper for a single axis.
+*	@brief	Scrollbar helper for a single axis.
 *	@param ctx Active context.
 *	@param cnt Container being scrolled.
 *	@param b Body rectangle pointer.
@@ -1475,7 +1475,7 @@ static void scrollbars(mu_Context *ctx, mu_Container *cnt, mu_Rect *body) {
 
 
 /**
-*	@brief\tPush container body layout and optional scrollbars.
+*	@brief	Push container body layout and optional scrollbars.
 *	@param ctx Active context.
 *	@param cnt Container being configured.
 *	@param body Content body rectangle.
@@ -1491,7 +1491,7 @@ static void push_container_body(
 
 
 /**
-*	@brief\tBegin a root container and emit its linking jump command.
+*	@brief	Begin a root container and emit its linking jump command.
 *	@param ctx Active context.
 *	@param cnt Container to begin.
 */
@@ -1515,7 +1515,7 @@ static void begin_root_container(mu_Context *ctx, mu_Container *cnt) {
 
 
 /**
-*	@brief\tEnd a root container and patch its tail jump command.
+*	@brief	End a root container and patch its tail jump command.
 *	@param ctx Active context.
 */
 static void end_root_container(mu_Context *ctx) {
@@ -1531,7 +1531,7 @@ static void end_root_container(mu_Context *ctx) {
 
 
 /**
-*	@brief\tBegin a standard window container.
+*	@brief	Begin a standard window container.
 *	@param ctx Active context.
 *	@param title Window title.
 *	@param rect Initial window rectangle.
@@ -1626,7 +1626,7 @@ int mu_begin_window_ex(mu_Context *ctx, const char *title, mu_Rect rect, int opt
 
 
 /**
-*	@brief\tEnd the current window scope.
+*	@brief	End the current window scope.
 *	@param ctx Active context.
 */
 void mu_end_window(mu_Context *ctx) {
@@ -1636,7 +1636,7 @@ void mu_end_window(mu_Context *ctx) {
 
 
 /**
-*	@brief\tOpen a named popup at the mouse cursor.
+*	@brief	Open a named popup at the mouse cursor.
 *	@param ctx Active context.
 *	@param name Popup name.
 */
@@ -1652,7 +1652,7 @@ void mu_open_popup(mu_Context *ctx, const char *name) {
 
 
 /**
-*	@brief\tBegin a popup window with standard popup options.
+*	@brief	Begin a popup window with standard popup options.
 *	@param ctx Active context.
 *	@param name Popup name.
 *	@return Widget result flags.
@@ -1665,7 +1665,7 @@ int mu_begin_popup(mu_Context *ctx, const char *name) {
 
 
 /**
-*	@brief\tEnd the current popup scope.
+*	@brief	End the current popup scope.
 *	@param ctx Active context.
 */
 void mu_end_popup(mu_Context *ctx) {
@@ -1674,7 +1674,7 @@ void mu_end_popup(mu_Context *ctx) {
 
 
 /**
-*	@brief\tBegin a retained panel widget.
+*	@brief	Begin a retained panel widget.
 *	@param ctx Active context.
 *	@param name Panel name.
 *	@param opt Panel option bitmask.
@@ -1694,7 +1694,7 @@ void mu_begin_panel_ex(mu_Context *ctx, const char *name, int opt) {
 
 
 /**
-*	@brief\tEnd the current panel scope.
+*	@brief	End the current panel scope.
 *	@param ctx Active context.
 */
 void mu_end_panel(mu_Context *ctx) {

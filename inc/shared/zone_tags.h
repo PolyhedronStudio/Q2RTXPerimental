@@ -49,6 +49,8 @@ Q_DEFINE_ZONETAG( TAG_SVGAME_LUA,       ( 15 ) ) //! Used by Lua, and cleared wh
 //! Client Game DLL tags start here.
 Q_DEFINE_ZONETAG( TAG_CLGAME, 16 )	        //! Remains allocated until the client game is shutdown.
 Q_DEFINE_ZONETAG( TAG_CLGAME_LEVEL, 17 )    //! Clear when loading a new level.
+Q_DEFINE_ZONETAG( TAG_CLGAME_UI, 18 )  //! Used by the GameUI, and cleared when the client game is unloaded.
+Q_DEFINE_ZONETAG( TAG_CLGAME_GAME_MICRO_UI, 19 )  //! Used by the GameUI's MicroUI context, and cleared when the client game is unloaded. Shares the same tag as TAG_CLGAME_UI since they are always allocated and freed together.
 
 //! The Game Modules can add custom Tag Zones after TAG_MAX.
-Q_DEFINE_ZONETAG( TAG_MAX, 18 ) //! (IDs must be Within the range of UINT16_MAX).
+Q_DEFINE_ZONETAG( TAG_MAX, 20 ) //! (IDs must be Within the range of UINT16_MAX).
