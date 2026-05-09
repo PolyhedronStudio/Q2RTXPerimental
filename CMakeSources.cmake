@@ -480,6 +480,14 @@ SET(SRC_BASEQ2RTXP_SVGAME
 
 	baseq2rtxp/svgame/weapons/svg_weapon_fists.cpp
 	baseq2rtxp/svgame/weapons/svg_weapon_pistol.cpp
+
+	baseq2rtxp/svgame/nav3/nav3_core.cpp
+	baseq2rtxp/svgame/nav3/nav3_debug_draw.cpp
+	baseq2rtxp/svgame/nav3/nav3_generate.cpp
+	baseq2rtxp/svgame/nav3/nav3_persistence.cpp
+	baseq2rtxp/svgame/nav3/nav3_runtime.cpp
+	baseq2rtxp/svgame/nav3/nav3_serialize.cpp
+	baseq2rtxp/svgame/nav3/nav3_types.cpp
 	
 #    baseq2rtxp/svgame/nav2/nav2_bench.cpp
 #    baseq2rtxp/svgame/nav2/nav2_budget.cpp
@@ -540,6 +548,14 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_utils.h
 	baseq2rtxp/svgame/svg_usetargets.h
 	baseq2rtxp/svgame/svg_weapons.h
+
+	baseq2rtxp/svgame/nav3/nav3_core.h
+	baseq2rtxp/svgame/nav3/nav3_debug_draw.h
+	baseq2rtxp/svgame/nav3/nav3_generate.h
+	baseq2rtxp/svgame/nav3/nav3_persistence.h
+	baseq2rtxp/svgame/nav3/nav3_runtime.h
+	baseq2rtxp/svgame/nav3/nav3_serialize.h
+	baseq2rtxp/svgame/nav3/nav3_types.h
 
 #    baseq2rtxp/svgame/nav2/nav2_bench.h
 #    baseq2rtxp/svgame/nav2/nav2_budget.h

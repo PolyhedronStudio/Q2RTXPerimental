@@ -201,6 +201,194 @@ static void CLG_ParseTEntPacket( void ) {
 }
 
 
+/***
+*
+*
+*   Nav3 Debug Draw Message Parsing:
+*
+*
+**/
+/**
+*   @brief  Read a world-space vector encoded as three floats.
+*   @param  outVec3  [out] Destination vector.
+**/
+static void CLG_DebugDraw_ReadVec3( vec3_t outVec3 ) {
+    outVec3[ 0 ] = clgi.MSG_ReadFloat();
+    outVec3[ 1 ] = clgi.MSG_ReadFloat();
+    outVec3[ 2 ] = clgi.MSG_ReadFloat();
+}
+
+/**
+*   @brief  Draw an oriented box by submitting twelve edge line segments.
+**/
+static void CLG_DebugDraw_DrawObb(
+    const vec3_t center,
+    const vec3_t extents,
+    const vec3_t axisX,
+    const vec3_t axisY,
+    const vec3_t axisZ,
+    const uint32_t color ) {
+    // Build scaled basis vectors from normalized axes and half-size extents.
+    vec3_t scaledAxisX = { axisX[ 0 ] * extents[ 0 ], axisX[ 1 ] * extents[ 0 ], axisX[ 2 ] * extents[ 0 ] };
+    vec3_t scaledAxisY = { axisY[ 0 ] * extents[ 1 ], axisY[ 1 ] * extents[ 1 ], axisY[ 2 ] * extents[ 1 ] };
+    vec3_t scaledAxisZ = { axisZ[ 0 ] * extents[ 2 ], axisZ[ 1 ] * extents[ 2 ], axisZ[ 2 ] * extents[ 2 ] };
+
+    // Enumerate corner sign combinations.
+    static constexpr int8_t cornerSigns[ 8 ][ 3 ] = {
+        { -1, -1, -1 },
+        {  1, -1, -1 },
+        { -1,  1, -1 },
+        {  1,  1, -1 },
+        { -1, -1,  1 },
+        {  1, -1,  1 },
+        { -1,  1,  1 },
+        {  1,  1,  1 },
+    };
+
+    // Build oriented box corners.
+    vec3_t corners[ 8 ] = {};
+    for ( int32_t i = 0; i < 8; i++ ) {
+        corners[ i ][ 0 ] = center[ 0 ]
+            + ( scaledAxisX[ 0 ] * cornerSigns[ i ][ 0 ] )
+            + ( scaledAxisY[ 0 ] * cornerSigns[ i ][ 1 ] )
+            + ( scaledAxisZ[ 0 ] * cornerSigns[ i ][ 2 ] );
+        corners[ i ][ 1 ] = center[ 1 ]
+            + ( scaledAxisX[ 1 ] * cornerSigns[ i ][ 0 ] )
+            + ( scaledAxisY[ 1 ] * cornerSigns[ i ][ 1 ] )
+            + ( scaledAxisZ[ 1 ] * cornerSigns[ i ][ 2 ] );
+        corners[ i ][ 2 ] = center[ 2 ]
+            + ( scaledAxisX[ 2 ] * cornerSigns[ i ][ 0 ] )
+            + ( scaledAxisY[ 2 ] * cornerSigns[ i ][ 1 ] )
+            + ( scaledAxisZ[ 2 ] * cornerSigns[ i ][ 2 ] );
+    }
+
+    // Render oriented box edges.
+    static constexpr uint8_t edgePairs[ 12 ][ 2 ] = {
+        { 0, 1 }, { 1, 3 }, { 3, 2 }, { 2, 0 },
+        { 4, 5 }, { 5, 7 }, { 7, 6 }, { 6, 4 },
+        { 0, 4 }, { 1, 5 }, { 2, 6 }, { 3, 7 },
+    };
+    for ( int32_t i = 0; i < 12; i++ ) {
+        clgi.R_DrawDebugLine( corners[ edgePairs[ i ][ 0 ] ], corners[ edgePairs[ i ][ 1 ] ], color );
+    }
+}
+
+/**
+*   @brief  Parse one `svc_debug_draw` payload and optionally submit primitives to renderer debug draw.
+*   @param  shouldRender  True to submit decoded primitives to renderer, false to parse-only and discard.
+**/
+static void CLG_ParseDebugDraw( const bool shouldRender ) {
+    // Validate protocol version so parse offsets remain deterministic.
+    const int32_t protocolVersion = clgi.MSG_ReadUint8();
+    if ( protocolVersion != SG_SVC_DEBUG_DRAW_VERSION ) {
+        Com_Error( ERR_DROP, "%s: unsupported debug draw version (%d)", __func__, protocolVersion );
+    }
+
+    // Read bounded primitive count for this message chunk.
+    const int32_t primitiveCount = clgi.MSG_ReadUint16();
+    if ( primitiveCount < 0 || primitiveCount > 4096 ) {
+        Com_Error( ERR_DROP, "%s: invalid primitive count (%d)", __func__, primitiveCount );
+    }
+
+    // Render only when caller allows rendering and local opt-in cvar is enabled.
+    const bool renderPrimitives = shouldRender && clg_nav3_debug_draw && ( clg_nav3_debug_draw->integer != 0 );
+
+    for ( int32_t i = 0; i < primitiveCount; i++ ) {
+        // Parse primitive header shared by every primitive payload.
+        const sg_svc_debug_draw_primitive_type_t primitiveType = static_cast<sg_svc_debug_draw_primitive_type_t>( clgi.MSG_ReadUint8() );
+        const uint32_t color = static_cast<uint32_t>( clgi.MSG_ReadInt32() );
+        const uint16_t styleFlags = static_cast<uint16_t>( clgi.MSG_ReadUint16() );
+        const float thicknessPx = clgi.MSG_ReadFloat();
+        const float outlineThicknessPx = clgi.MSG_ReadFloat();
+
+        (void)styleFlags;
+        (void)thicknessPx;
+        (void)outlineThicknessPx;
+
+        switch ( primitiveType ) {
+        case sg_svc_debug_draw_primitive_type_t::Line: {
+            vec3_t start = {};
+            vec3_t end = {};
+            CLG_DebugDraw_ReadVec3( start );
+            CLG_DebugDraw_ReadVec3( end );
+
+            if ( renderPrimitives ) {
+                clgi.R_DrawDebugLine( start, end, color );
+            }
+            break;
+        }
+        case sg_svc_debug_draw_primitive_type_t::Aabb: {
+            vec3_t mins = {};
+            vec3_t maxs = {};
+            CLG_DebugDraw_ReadVec3( mins );
+            CLG_DebugDraw_ReadVec3( maxs );
+
+            if ( renderPrimitives ) {
+                clgi.R_DrawDebugBox( mins, maxs, color );
+            }
+            break;
+        }
+        case sg_svc_debug_draw_primitive_type_t::Obb: {
+            vec3_t center = {};
+            vec3_t extents = {};
+            vec3_t axisX = {};
+            vec3_t axisY = {};
+            vec3_t axisZ = {};
+            CLG_DebugDraw_ReadVec3( center );
+            CLG_DebugDraw_ReadVec3( extents );
+            CLG_DebugDraw_ReadVec3( axisX );
+            CLG_DebugDraw_ReadVec3( axisY );
+            CLG_DebugDraw_ReadVec3( axisZ );
+
+            if ( renderPrimitives ) {
+                CLG_DebugDraw_DrawObb( center, extents, axisX, axisY, axisZ, color );
+            }
+            break;
+        }
+        case sg_svc_debug_draw_primitive_type_t::Sphere: {
+            vec3_t center = {};
+            CLG_DebugDraw_ReadVec3( center );
+            const float radius = clgi.MSG_ReadFloat();
+
+            if ( renderPrimitives ) {
+                clgi.R_DrawDebugSphere( center, radius, color );
+            }
+            break;
+        }
+        case sg_svc_debug_draw_primitive_type_t::Arrow: {
+            vec3_t start = {};
+            vec3_t end = {};
+            CLG_DebugDraw_ReadVec3( start );
+            CLG_DebugDraw_ReadVec3( end );
+            const float headLength = clgi.MSG_ReadFloat();
+
+            if ( renderPrimitives ) {
+                clgi.R_DrawDebugArrow( start, end, headLength, color );
+            }
+            break;
+        }
+        case sg_svc_debug_draw_primitive_type_t::Text: {
+            vec3_t origin = {};
+            char label[ SG_SVC_DEBUG_DRAW_MAX_LABEL_CHARS ] = {};
+            CLG_DebugDraw_ReadVec3( origin );
+            clgi.MSG_ReadString( label, sizeof( label ) );
+
+            if ( renderPrimitives ) {
+                // Until world-space text rendering is exposed, render a small label anchor marker.
+                vec3_t markerTop = { origin[ 0 ], origin[ 1 ], origin[ 2 ] + 12.0f };
+                clgi.R_DrawDebugArrow( origin, markerTop, 4.0f, color );
+            }
+            break;
+        }
+        case sg_svc_debug_draw_primitive_type_t::Count:
+        default:
+            Com_Error( ERR_DROP, "%s: invalid primitive type (%d)", __func__, static_cast<int32_t>( primitiveType ) );
+            break;
+        }
+    }
+}
+
+
 
 /***`
 *
@@ -440,6 +628,10 @@ const qboolean PF_ParseServerMessage( const int32_t serverMessage ) {
         CLG_ParseCenterPrint();
 		return true;
     break;
+    case svc_debug_draw:
+        CLG_ParseDebugDraw( true );
+        return true;
+    break;
     case svc_damage:
         CLG_ParseDamage();
         return true;
@@ -489,6 +681,10 @@ const qboolean PF_SeekDemoMessage( const int32_t serverMessage ) {
 	case svc_centerprint:
         CLG_ParseCenterPrint();
 		return true;
+    break;
+    case svc_debug_draw:
+        CLG_ParseDebugDraw( false );
+        return true;
     break;
     case svc_damage:
         CLG_ParseDamage();

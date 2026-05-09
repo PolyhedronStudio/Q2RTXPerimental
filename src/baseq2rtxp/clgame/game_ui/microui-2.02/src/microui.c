@@ -1558,15 +1558,14 @@ int mu_begin_window_ex(mu_Context *ctx, const char *title, mu_Rect rect, int opt
   if (~opt & MU_OPT_NOTITLE) {
     mu_Rect tr = rect;
     tr.h = ctx->style->title_height;
-        // Draw the titlebar using the active color only for the top-most window
-        // so the title state follows the actual input-active container, not just
-        // the last focused widget id.
-        if ( cnt->zindex == ctx->last_zindex ) {
-            ctx->draw_frame( ctx, tr, MU_COLOR_TITLEBG_ACTIVE );
-        } else {
-            ctx->draw_frame( ctx, tr, MU_COLOR_TITLEBG_INACTIVE );
-        }
-
+    // Draw the titlebar using the active color only for the top-most window
+    // so the title state follows the actual input-active container, not just
+    // the last focused widget id.
+    if ( cnt->zindex == ctx->last_zindex ) {
+        ctx->draw_frame( ctx, tr, MU_COLOR_TITLEBG_ACTIVE );
+    } else {
+        ctx->draw_frame( ctx, tr, MU_COLOR_TITLEBG_INACTIVE );
+    }
 
     /* do title text */
     if (~opt & MU_OPT_NOTITLE) {

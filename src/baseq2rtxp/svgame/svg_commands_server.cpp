@@ -7,6 +7,11 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "svgame/svg_signalio.h"
+#include "svgame/nav3/nav3_debug_draw.h"
+#include "svgame/nav3/nav3_runtime.h"
+
+#include <algorithm>
+#include <cstdarg>
 // Nav2.
 #include "svgame/nav2/nav2_bench.h"
 #include "svgame/nav2/nav2_connectors.h"
@@ -31,6 +36,573 @@
 void ServerCommand_Test_f(void)
 {
     gi.cprintf(NULL, PRINT_HIGH, "ServerCommand_Test_f()\n");
+}
+
+/**
+ * @brief Print one nav3 command line to both dedicated console and connected clients.
+ * @param format Printf-style format string.
+ **/
+static void ServerCommand_Nav3Print( const char *format, ... ) {
+    char message[ 1024 ] = {};
+
+    va_list args;
+    va_start( args, format );
+    Q_vsnprintf( message, sizeof( message ), format, args );
+    va_end( args );
+
+    gi.dprintf( "%s", message );
+    gi.cprintf( nullptr, PRINT_HIGH, "%s", message );
+}
+
+/**
+ * @brief Print one bounded nav3 stage-1 stub line with runtime status.
+ * @param commandLabel Command name being reported.
+ **/
+static void ServerCommand_Nav3PrintStage1Stub(const char *commandLabel) {
+    /**
+     * Resolve one bounded runtime snapshot so all stage-1 commands report consistent state.
+     **/
+    const nav3_runtime_status_t runtimeStatus = SVG_Nav3_Runtime_GetStatus();
+    ServerCommand_Nav3Print( "%s: stage1 stub (enabled=%d has_mesh=%d state=%s)\n",
+        commandLabel ? commandLabel : "nav3",
+        runtimeStatus.enabled ? 1 : 0,
+        runtimeStatus.has_mesh ? 1 : 0,
+        SVG_Nav3_RuntimePublishStateName( runtimeStatus.publish_state ) );
+}
+
+/**
+ * @brief Resolve an explicit filename argument or fallback nav3 default path.
+ * @param argIndex Command argument index to check.
+ * @param outDefaultPath [out] Storage used for default path fallback.
+ * @param outDefaultPathCount Capacity of `outDefaultPath`.
+ * @return Filename to use, or `nullptr` when no valid path is available.
+ **/
+static const char *ServerCommand_Nav3ResolveFilename(const int32_t argIndex, char *outDefaultPath, const size_t outDefaultPathCount) {
+    /**
+     * Use caller-supplied path first when present.
+     **/
+    if (gi.argc() > argIndex) {
+        const char *filename = gi.argv(argIndex);
+        if (filename && filename[0] != '\0') {
+            return filename;
+        }
+    }
+
+    /**
+     * Fall back to the default map-local nav3 path only when explicit argument is missing.
+     **/
+    if (SVG_Nav3_Runtime_ResolveDefaultAssetPath(outDefaultPath, outDefaultPathCount)) {
+        return outDefaultPath;
+    }
+
+    return nullptr;
+}
+
+/**
+ * @brief Print bounded stage-5 generation counts and timing for one command surface.
+ * @param commandLabel Command prefix used for output lines.
+ * @param stats Last generation stats snapshot to print.
+ **/
+static void ServerCommand_Nav3PrintGenerationSummary(const char *commandLabel, const nav3_generation_stats_t &stats) {
+    const char *label = commandLabel ? commandLabel : "nav3_generate";
+    ServerCommand_Nav3Print(
+        "%s: sampled=%d columns=%d spans=%d max_spans_per_column=%d reject=(solid_point=%d floor_trace=%d floor_miss=%d slope=%d clearance=%d solid_box=%d)\n",
+        label,
+        stats.sampled_columns,
+        stats.emitted_columns,
+        stats.emitted_spans,
+        stats.max_spans_in_column,
+        stats.rejected_solid_point,
+        stats.rejected_floor_trace,
+        stats.rejected_floor_miss,
+        stats.rejected_slope,
+        stats.rejected_clearance,
+        stats.rejected_solid_box);
+
+    ServerCommand_Nav3Print(
+        "%s: classify=(water=%d slime=%d lava=%d ladder=%d stairs=%d ledge=%d) timing_ms=(bounds=%.2f sample=%.2f classify=%.2f total=%.2f)\n",
+        label,
+        stats.spans_with_water,
+        stats.spans_with_slime,
+        stats.spans_with_lava,
+        stats.spans_with_ladder,
+        stats.spans_with_stairs,
+        stats.spans_with_ledge,
+        stats.resolve_bounds_elapsed_ms,
+        stats.sampling_elapsed_ms,
+        stats.classify_elapsed_ms,
+        stats.total_elapsed_ms);
+}
+
+/**
+ * @brief Print bounded stage-6 filter pass counts and erosion diagnostics.
+ * @param commandLabel Command prefix used for output lines.
+ * @param stats Last generation stats snapshot to print.
+ **/
+static void ServerCommand_Nav3PrintFilterSummary(const char *commandLabel, const nav3_generation_stats_t &stats) {
+    const char *label = commandLabel ? commandLabel : "nav3_validate";
+
+    const nav3_generation_filter_pass_stats_t &lowCeiling =
+        stats.filter_pass_stats[ static_cast<int32_t>( nav3_generation_filter_pass_t::LowCeiling ) ];
+    const nav3_generation_filter_pass_stats_t &lowHanging =
+        stats.filter_pass_stats[ static_cast<int32_t>( nav3_generation_filter_pass_t::LowHangingObstruction ) ];
+    const nav3_generation_filter_pass_stats_t &ledgeDrop =
+        stats.filter_pass_stats[ static_cast<int32_t>( nav3_generation_filter_pass_t::LedgeDrop ) ];
+    const nav3_generation_filter_pass_stats_t &slope =
+        stats.filter_pass_stats[ static_cast<int32_t>( nav3_generation_filter_pass_t::Slope ) ];
+    const nav3_generation_filter_pass_stats_t &radiusErosion =
+        stats.filter_pass_stats[ static_cast<int32_t>( nav3_generation_filter_pass_t::RadiusErosion ) ];
+    const nav3_generation_filter_pass_stats_t &liquidHazard =
+        stats.filter_pass_stats[ static_cast<int32_t>( nav3_generation_filter_pass_t::LiquidHazard ) ];
+    const nav3_generation_filter_pass_stats_t &ladderSpecial =
+        stats.filter_pass_stats[ static_cast<int32_t>( nav3_generation_filter_pass_t::LadderSpecialSurface ) ];
+    const nav3_generation_filter_pass_stats_t &capability =
+        stats.filter_pass_stats[ static_cast<int32_t>( nav3_generation_filter_pass_t::CapabilityRequirement ) ];
+
+    ServerCommand_Nav3Print(
+        "%s: filters=(input=%d output=%d erosion_radius=%d erosion_blocked=(missing=%d neighbor=%d) reject_samples=(kept=%d dropped=%d) filter_ms=%.2f)\n",
+        label,
+        stats.filter_input_spans,
+        stats.filter_output_spans,
+        stats.filter_erosion_radius_cells,
+        stats.filter_erosion_blocked_missing_columns,
+        stats.filter_erosion_blocked_neighbor_columns,
+        stats.filter_reject_sample_count,
+        stats.filter_reject_sample_dropped,
+        stats.filter_elapsed_ms);
+
+    ServerCommand_Nav3Print(
+        "%s: filter_passes_a=(low_ceiling=%d/%d low_hanging=%d/%d ledge_drop=%d/%d slope=%d/%d)\n",
+        label,
+        lowCeiling.accepted_count,
+        lowCeiling.rejected_count,
+        lowHanging.accepted_count,
+        lowHanging.rejected_count,
+        ledgeDrop.accepted_count,
+        ledgeDrop.rejected_count,
+        slope.accepted_count,
+        slope.rejected_count);
+
+    ServerCommand_Nav3Print(
+        "%s: filter_passes_b=(radius_erosion=%d/%d liquid_hazard=%d/%d ladder_special=%d/%d capability=%d/%d)\n",
+        label,
+        radiusErosion.accepted_count,
+        radiusErosion.rejected_count,
+        liquidHazard.accepted_count,
+        liquidHazard.rejected_count,
+        ladderSpecial.accepted_count,
+        ladderSpecial.rejected_count,
+        capability.accepted_count,
+        capability.rejected_count);
+}
+
+/**
+ * @brief Queue bounded span debug-draw primitives after generation when debug cvars allow it.
+ * @param commandLabel Command label used by diagnostics.
+ **/
+static void ServerCommand_Nav3QueueGeneratedSpanDebug(const char *commandLabel) {
+    const char *label = commandLabel ? commandLabel : "nav3_generate";
+
+    if (!SVG_Nav3_DebugDraw_IsSubsystemEnabled(nav3_debug_draw_subsystem_t::Spans, 1)) {
+        return;
+    }
+
+    const int32_t queueBefore = SVG_Nav3_DebugDraw_GetQueuedPrimitiveCount();
+    SVG_Nav3_Runtime_DebugDrawGeneratedSpans(96);
+    const int32_t queueAfter = SVG_Nav3_DebugDraw_GetQueuedPrimitiveCount();
+
+    if (queueAfter > queueBefore) {
+        ServerCommand_Nav3Print(
+            "%s: queued %d span debug primitive(s) (nav3_debug_spans=%d)\n",
+            label,
+            queueAfter - queueBefore,
+            SVG_Nav3_DebugDraw_GetSubsystemLevel(nav3_debug_draw_subsystem_t::Spans));
+    }
+}
+
+/**
+ * @brief Queue bounded filter-reject debug primitives when filter debug cvars are enabled.
+ * @param commandLabel Command label used by diagnostics.
+ * @param maxSamples Maximum reject samples to draw.
+ **/
+static void ServerCommand_Nav3QueueFilterRejectDebug(const char *commandLabel, const int32_t maxSamples) {
+    const char *label = commandLabel ? commandLabel : "nav3_validate";
+
+    if (!SVG_Nav3_DebugDraw_IsSubsystemEnabled(nav3_debug_draw_subsystem_t::Filters, 1)) {
+        return;
+    }
+
+    const int32_t queueBefore = SVG_Nav3_DebugDraw_GetQueuedPrimitiveCount();
+    SVG_Nav3_Runtime_DebugDrawFilterRejects(maxSamples);
+    const int32_t queueAfter = SVG_Nav3_DebugDraw_GetQueuedPrimitiveCount();
+
+    if (queueAfter > queueBefore) {
+        ServerCommand_Nav3Print(
+            "%s: queued %d filter reject primitive(s) (nav3_debug_filters=%d)\n",
+            label,
+            queueAfter - queueBefore,
+            SVG_Nav3_DebugDraw_GetSubsystemLevel(nav3_debug_draw_subsystem_t::Filters));
+    }
+}
+
+/**
+ * @brief Backend-aware nav generation wrapper for staged nav3 rollout.
+ **/
+static void ServerCommand_NavGenerate_f(void) {
+    /**
+     * Reject generation when nav3 backend is disabled so command output remains deterministic.
+     **/
+    if (!SVG_Nav3_Runtime_IsEnabled()) {
+        ServerCommand_Nav3Print( "nav_generate: no active generated mesh (s_nav3_enable 0)\n" );
+        return;
+    }
+
+    /**
+     * Dispatch nav3 generation and report bounded stage-5 generation diagnostics.
+     **/
+    const bool generated = SVG_Nav3_Runtime_Generate();
+    const nav3_generation_stats_t &generationStats = SVG_Nav3_Runtime_GetLastGenerationStats();
+    if (!generated || !SVG_Nav3_Runtime_HasMesh()) {
+        if (generationStats.sampled_columns > 0) {
+            ServerCommand_Nav3PrintGenerationSummary("nav_generate", generationStats);
+        }
+        ServerCommand_Nav3Print( "nav_generate: nav3 backend active, but no mesh was generated\n" );
+        return;
+    }
+
+    ServerCommand_Nav3PrintGenerationSummary("nav_generate", generationStats);
+    ServerCommand_Nav3QueueGeneratedSpanDebug("nav_generate");
+    ServerCommand_Nav3Print( "nav_generate: nav3 mesh generated\n" );
+}
+
+/**
+ * @brief Run nav3 generation with optional stage command flags.
+ * @note Usage: sv nav3_generate [save|nosave] [filename]
+ **/
+static void ServerCommand_Nav3Generate_f(void) {
+    /**
+     * Parse optional save mode and optional save path while keeping output bounded.
+     **/
+    bool wantsSave = false;
+    const char *savePath = nullptr;
+    if (gi.argc() >= 3) {
+        const char *arg = gi.argv(2);
+        if (Q_stricmp(arg, "save") == 0) {
+            wantsSave = true;
+        } else if (Q_stricmp(arg, "nosave") == 0) {
+            wantsSave = false;
+        } else {
+            wantsSave = true;
+            savePath = arg;
+        }
+    }
+    if (gi.argc() >= 4) {
+        savePath = gi.argv(3);
+    }
+
+    /**
+     * Reject generation when nav3 backend routing is disabled.
+     **/
+    if (!SVG_Nav3_Runtime_IsEnabled()) {
+        ServerCommand_Nav3Print( "nav3_generate: nav3 disabled/no mesh (set s_nav3_enable 1)\n" );
+        return;
+    }
+
+    /**
+     * Run stage-5 generation path and report bounded generation diagnostics.
+     **/
+    const bool generated = SVG_Nav3_Runtime_Generate();
+    const nav3_generation_stats_t &generationStats = SVG_Nav3_Runtime_GetLastGenerationStats();
+    if (!generated || !SVG_Nav3_Runtime_HasMesh()) {
+        if (generationStats.sampled_columns > 0) {
+            ServerCommand_Nav3PrintGenerationSummary("nav3_generate", generationStats);
+        }
+
+        if (wantsSave) {
+            char defaultPath[MAX_OSPATH] = {};
+            const char *resolvedSavePath = savePath;
+            if (!resolvedSavePath) {
+                resolvedSavePath = ServerCommand_Nav3ResolveFilename(3, defaultPath, sizeof(defaultPath));
+            }
+            ServerCommand_Nav3Print(
+                "nav3_generate: generation produced no mesh (save deferred path='%s')\n",
+                resolvedSavePath ? resolvedSavePath : "<unresolved>");
+            return;
+        }
+
+        ServerCommand_Nav3Print( "nav3_generate: generation produced no mesh\n" );
+        return;
+    }
+
+    ServerCommand_Nav3PrintGenerationSummary("nav3_generate", generationStats);
+    ServerCommand_Nav3QueueGeneratedSpanDebug("nav3_generate");
+
+    if (wantsSave) {
+        char defaultPath[MAX_OSPATH] = {};
+        const char *resolvedSavePath = savePath;
+        if (!resolvedSavePath) {
+            resolvedSavePath = ServerCommand_Nav3ResolveFilename(3, defaultPath, sizeof(defaultPath));
+        }
+        ServerCommand_Nav3Print(
+            "nav3_generate: generated runtime spans; save deferred to Stage 7 (requested '%s')\n",
+            resolvedSavePath ? resolvedSavePath : "<unresolved>");
+    } else {
+        ServerCommand_Nav3Print( "nav3_generate: generated runtime spans (nosave)\n" );
+    }
+}
+
+/**
+ * @brief Save the active nav3 asset snapshot.
+ * @note Usage: sv nav3_save <filename>
+ **/
+static void ServerCommand_Nav3Save_f(void) {
+    /**
+     * Resolve explicit or default filename first so diagnostics are stable.
+     **/
+    char defaultPath[MAX_OSPATH] = {};
+    const char *filename = ServerCommand_Nav3ResolveFilename(2, defaultPath, sizeof(defaultPath));
+    if (!filename) {
+        ServerCommand_Nav3Print( "nav3_save: unable to resolve filename\n" );
+        return;
+    }
+
+    /**
+     * Reject save while nav3 backend is disabled.
+     **/
+    if (!SVG_Nav3_Runtime_IsEnabled()) {
+        ServerCommand_Nav3Print( "nav3_save: nav3 disabled/no mesh\n" );
+        return;
+    }
+
+    /**
+     * Attempt save and report bounded stage-4 persistence failures.
+     **/
+    if (!SVG_Nav3_Runtime_Save(filename)) {
+        ServerCommand_Nav3Print( "nav3_save: failed to write '%s'\n", filename );
+        return;
+    }
+
+    ServerCommand_Nav3Print( "nav3_save: wrote '%s'\n", filename );
+}
+
+/**
+ * @brief Load a nav3 asset snapshot.
+ * @note Usage: sv nav3_load <filename>
+ **/
+static void ServerCommand_Nav3Load_f(void) {
+    /**
+     * Resolve explicit or default filename so load diagnostics stay deterministic.
+     **/
+    char defaultPath[MAX_OSPATH] = {};
+    const char *filename = ServerCommand_Nav3ResolveFilename(2, defaultPath, sizeof(defaultPath));
+    if (!filename) {
+        ServerCommand_Nav3Print( "nav3_load: unable to resolve filename\n" );
+        return;
+    }
+
+    /**
+     * Reject load while nav3 backend routing is disabled.
+     **/
+    if (!SVG_Nav3_Runtime_IsEnabled()) {
+        ServerCommand_Nav3Print( "nav3_load: nav3 disabled/no mesh\n" );
+        return;
+    }
+
+    /**
+     * Attempt load and report bounded stage-4 persistence validation failures.
+     **/
+    if (!SVG_Nav3_Runtime_Load(filename)) {
+        ServerCommand_Nav3Print( "nav3_load: failed to load '%s'\n", filename );
+        return;
+    }
+
+    ServerCommand_Nav3Print( "nav3_load: loaded '%s'\n", filename );
+}
+
+/**
+ * @brief Unload the active nav3 mesh publication state.
+ **/
+static void ServerCommand_Nav3Unload_f(void) {
+    SVG_Nav3_Runtime_Unload();
+    ServerCommand_Nav3Print( "nav3_unload: cleared nav3 runtime mesh state\n" );
+}
+
+/**
+ * @brief Print bounded nav3 runtime status.
+ **/
+static void ServerCommand_Nav3Status_f(void) {
+    /**
+     * Resolve one bounded status snapshot and print user-facing enable/mesh state first.
+     **/
+    const nav3_runtime_status_t runtimeStatus = SVG_Nav3_Runtime_GetStatus();
+    if (!runtimeStatus.enabled) {
+        ServerCommand_Nav3Print( "nav3_status: nav3 disabled/no mesh\n" );
+    } else if (!runtimeStatus.has_mesh) {
+        ServerCommand_Nav3Print( "nav3_status: nav3 enabled/no mesh\n" );
+    } else {
+        ServerCommand_Nav3Print( "nav3_status: nav3 enabled/mesh published\n" );
+    }
+
+    /**
+     * Emit one compact second line with deterministic generation and debug flags.
+     **/
+    ServerCommand_Nav3Print(
+        "nav3_status: state=%s runtime_gen=%u mesh_gen=%u debug=%d\n",
+        SVG_Nav3_RuntimePublishStateName(runtimeStatus.publish_state),
+        runtimeStatus.runtime_generation,
+        runtimeStatus.mesh_generation,
+        runtimeStatus.debug_enabled ? 1 : 0);
+
+    /**
+     * Emit one compact generated-data line for stage-5 diagnostics.
+     **/
+    ServerCommand_Nav3Print(
+        "nav3_status: generated=(columns=%u spans=%u)\n",
+        runtimeStatus.generated_column_count,
+        runtimeStatus.generated_span_count);
+    
+        /**
+         * Emit one compact schema/build-config line for stage-3 diagnostics.
+         **/
+        const nav3_build_config_t &buildConfig = SVG_Nav3_Runtime_GetBuildConfig();
+        ServerCommand_Nav3Print(
+            "nav3_status: schema=%u cell=(%.2f/%.2f) walkable_cells=(h:%d c:%d r:%d)\n",
+            SVG_Nav3_Runtime_GetTypeSchemaVersion(),
+            buildConfig.cell_size,
+            buildConfig.cell_height,
+            buildConfig.walkable_height_cells,
+            buildConfig.walkable_climb_cells,
+            buildConfig.walkable_radius_cells);
+}
+
+/**
+ * @brief Queue bounded synthetic debug primitives for validating svc_debug_draw path.
+ * @note Usage: sv nav3_debug_draw_validate
+ **/
+static void ServerCommand_Nav3DebugDrawValidate_f(void) {
+    /**
+     * Require top-level nav3 debug stream to be enabled before queueing synthetic payloads.
+     **/
+    if (!SVG_Nav3_DebugDraw_IsEnabled()) {
+        ServerCommand_Nav3Print(
+            "nav3_debug_draw_validate: nav3_debug is 0 (enable nav3_debug 1 and client %s 1)\n",
+            SG_SVC_DEBUG_DRAW_CLIENT_CVAR_NAME);
+        return;
+    }
+
+    /**
+     * Queue one bounded synthetic payload that covers all primitive kinds.
+     **/
+    SVG_Nav3_DebugDraw_QueueValidationPrimitives();
+    ServerCommand_Nav3Print(
+        "nav3_debug_draw_validate: queued %d primitives (client opt-in cvar: %s)\n",
+        SVG_Nav3_DebugDraw_GetQueuedPrimitiveCount(),
+        SG_SVC_DEBUG_DRAW_CLIENT_CVAR_NAME);
+}
+
+/**
+ * @brief Run bounded cover-query debug diagnostics in stage-1 mode.
+ * @note Usage: sv nav3_cover_query_debug [max_candidates]
+ **/
+static void ServerCommand_Nav3CoverQueryDebug_f(void) {
+    /**
+     * Parse optional candidate cap while enforcing bounded diagnostic output.
+     **/
+    int32_t maxCandidates = 16;
+    if (gi.argc() >= 3) {
+        maxCandidates = std::max(1, atoi(gi.argv(2)));
+        maxCandidates = std::min(maxCandidates, 256);
+    }
+
+    ServerCommand_Nav3Print( "nav3_cover_query_debug: max_candidates=%d\n", maxCandidates );
+    ServerCommand_Nav3PrintStage1Stub("nav3_cover_query_debug");
+}
+
+/**
+ * @brief Run bounded crowd-scale diagnostics in stage-1 mode.
+ * @note Usage: sv nav3_crowd_validate [scenario] [agent_count]
+ **/
+static void ServerCommand_Nav3CrowdValidate_f(void) {
+    /**
+     * Parse optional scenario and agent count while keeping output bounded and deterministic.
+     **/
+    const char *scenario = "same_goal";
+    int32_t agentCount = 32;
+    if (gi.argc() >= 3) {
+        scenario = gi.argv(2);
+    }
+    if (gi.argc() >= 4) {
+        agentCount = std::max(1, atoi(gi.argv(3)));
+        agentCount = std::min(agentCount, 512);
+    }
+
+    ServerCommand_Nav3Print( "nav3_crowd_validate: scenario='%s' agents=%d\n", scenario, agentCount );
+    ServerCommand_Nav3PrintStage1Stub("nav3_crowd_validate");
+}
+
+/**
+ * @brief Print bounded nav3 query-stat diagnostics for stage-1.
+ **/
+static void ServerCommand_Nav3QueryStats_f(void) {
+    const nav3_runtime_status_t runtimeStatus = SVG_Nav3_Runtime_GetStatus();
+    ServerCommand_Nav3Print(
+        "nav3_query_stats: enabled=%d has_mesh=%d runtime_gen=%u mesh_gen=%u state=%s\n",
+        runtimeStatus.enabled ? 1 : 0,
+        runtimeStatus.has_mesh ? 1 : 0,
+        runtimeStatus.runtime_generation,
+        runtimeStatus.mesh_generation,
+        SVG_Nav3_RuntimePublishStateName(runtimeStatus.publish_state));
+}
+
+/**
+ * @brief Print bounded stage-6 generation/filter validation diagnostics.
+ * @note Usage: sv nav3_validate [max_filter_samples]
+ **/
+static void ServerCommand_Nav3Validate_f(void) {
+    /**
+     * Parse an optional bounded filter debug sample limit.
+     **/
+    int32_t maxFilterSamples = 64;
+    if (gi.argc() >= 3) {
+        maxFilterSamples = std::max(1, atoi(gi.argv(2)));
+        maxFilterSamples = std::min(maxFilterSamples, 256);
+    }
+
+    /**
+     * Reject validation while nav3 backend routing is disabled.
+     **/
+    if (!SVG_Nav3_Runtime_IsEnabled()) {
+        ServerCommand_Nav3Print("nav3_validate: nav3 disabled/no mesh\n");
+        return;
+    }
+
+    const nav3_runtime_status_t runtimeStatus = SVG_Nav3_Runtime_GetStatus();
+    const nav3_generation_stats_t &generationStats = SVG_Nav3_Runtime_GetLastGenerationStats();
+
+    /**
+     * Print generation/filter diagnostics when generation data exists.
+     **/
+    if (generationStats.sampled_columns > 0) {
+        ServerCommand_Nav3PrintGenerationSummary("nav3_validate", generationStats);
+        ServerCommand_Nav3PrintFilterSummary("nav3_validate", generationStats);
+    } else {
+        ServerCommand_Nav3Print("nav3_validate: no generation stats available\n");
+    }
+
+    /**
+     * Queue bounded filter reject debug primitives when debug cvars request it.
+     **/
+    ServerCommand_Nav3QueueFilterRejectDebug("nav3_validate", maxFilterSamples);
+
+    /**
+     * Emit one compact runtime publication line so callers can correlate validate output.
+     **/
+    ServerCommand_Nav3Print(
+        "nav3_validate: state=%s has_mesh=%d generated=(columns=%u spans=%u)\n",
+        SVG_Nav3_RuntimePublishStateName(runtimeStatus.publish_state),
+        runtimeStatus.has_mesh ? 1 : 0,
+        runtimeStatus.generated_column_count,
+        runtimeStatus.generated_span_count);
 }
 
 #if 0
@@ -1345,6 +1917,46 @@ void SVG_ServerCommand(void) {
     cmd = gi.argv(1);
     if ( Q_stricmp( cmd, "test" ) == 0 )
         ServerCommand_Test_f();
+    else if ( Q_stricmp( cmd, "nav_generate" ) == 0 )
+        ServerCommand_NavGenerate_f();
+    else if ( Q_stricmp( cmd, "nav3_generate" ) == 0 )
+        ServerCommand_Nav3Generate_f();
+    else if ( Q_stricmp( cmd, "nav3_save" ) == 0 )
+        ServerCommand_Nav3Save_f();
+    else if ( Q_stricmp( cmd, "nav3_load" ) == 0 )
+        ServerCommand_Nav3Load_f();
+    else if ( Q_stricmp( cmd, "nav3_unload" ) == 0 )
+        ServerCommand_Nav3Unload_f();
+    else if ( Q_stricmp( cmd, "nav3_status" ) == 0 )
+        ServerCommand_Nav3Status_f();
+    else if ( Q_stricmp( cmd, "nav3_validate" ) == 0 )
+        ServerCommand_Nav3Validate_f();
+    else if ( Q_stricmp( cmd, "nav3_debug_draw_validate" ) == 0 )
+        ServerCommand_Nav3DebugDrawValidate_f();
+    else if ( Q_stricmp( cmd, "nav3_octree_validate" ) == 0 )
+        ServerCommand_Nav3PrintStage1Stub( "nav3_octree_validate" );
+    else if ( Q_stricmp( cmd, "nav3_cover_validate" ) == 0 )
+        ServerCommand_Nav3PrintStage1Stub( "nav3_cover_validate" );
+    else if ( Q_stricmp( cmd, "nav3_cover_query_debug" ) == 0 )
+        ServerCommand_Nav3CoverQueryDebug_f();
+    else if ( Q_stricmp( cmd, "nav3_jump_validate" ) == 0 )
+        ServerCommand_Nav3PrintStage1Stub( "nav3_jump_validate" );
+    else if ( Q_stricmp( cmd, "nav3_mover_validate" ) == 0 )
+        ServerCommand_Nav3PrintStage1Stub( "nav3_mover_validate" );
+    else if ( Q_stricmp( cmd, "nav3_cache_validate" ) == 0 )
+        ServerCommand_Nav3PrintStage1Stub( "nav3_cache_validate" );
+    else if ( Q_stricmp( cmd, "nav3_dynamic_validate" ) == 0 )
+        ServerCommand_Nav3PrintStage1Stub( "nav3_dynamic_validate" );
+    else if ( Q_stricmp( cmd, "nav3_agents_validate" ) == 0 )
+        ServerCommand_Nav3PrintStage1Stub( "nav3_agents_validate" );
+    else if ( Q_stricmp( cmd, "nav3_budget_validate" ) == 0 )
+        ServerCommand_Nav3PrintStage1Stub( "nav3_budget_validate" );
+    else if ( Q_stricmp( cmd, "nav3_crowd_validate" ) == 0 )
+        ServerCommand_Nav3CrowdValidate_f();
+    else if ( Q_stricmp( cmd, "nav3_route_validate" ) == 0 )
+        ServerCommand_Nav3PrintStage1Stub( "nav3_route_validate" );
+    else if ( Q_stricmp( cmd, "nav3_query_stats" ) == 0 )
+        ServerCommand_Nav3QueryStats_f();
 	#if 0
     else if ( Q_stricmp( cmd, "nav_generate" ) == 0 )
         ServerCommand_NavGenVoxelMesh_f();

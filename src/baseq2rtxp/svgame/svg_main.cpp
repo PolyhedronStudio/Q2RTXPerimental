@@ -24,6 +24,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/nav2/nav2_bench.h"
 #include "svgame/nav2/nav2_scheduler.h"
 #include "svgame/nav2/nav2_worker_iface.h"
+#include "svgame/nav3/nav3_debug_draw.h"
+#include "svgame/nav3/nav3_runtime.h"
 
 
 /**
@@ -489,6 +491,11 @@ void SVG_InitGame( void ) {
 	#endif
 	// <Q2RTXP>: WID: Happens in SVG_SpawnEntities now since we need the map's entities to initialize the nav system.
 
+    /**
+    *\tInitialize nav3 runtime ownership and command cvars for stage-1 backend routing.
+    **/
+    SVG_Nav3_Runtime_Init();
+
 	// Initialize the player trail system so breadcrumb entities exist for monsters.
 	// This must happen after the edict pool and clients are allocated so the
 	// trail entities can be allocated from the edict pool.
@@ -525,6 +532,8 @@ void SVG_ShutdownGame( void ) {
  // Shutdown the nav2 scheduler foundation after nav users have released their references.
     SVG_Nav2_Scheduler_Shutdown();
 	#endif
+	// Shutdown nav3 runtime ownership after game-level users have been released.
+	SVG_Nav3_Runtime_Shutdown();
     // Shutdown the Lua VM.
     SVG_Lua_Shutdown();
 
@@ -735,6 +744,8 @@ void SVG_RunFrame(void) {
     level.time += FRAME_TIME_MS;
     // Reseed the mersennery twister.
     mt_rand.seed( level.frameNumber );
+    // Begin nav3 debug draw frame bookkeeping.
+    SVG_Nav3_DebugDraw_BeginFrame();
 	#if 0
 	// Reset the nav2 scheduler frame budget and worker mode bookkeeping for this server frame.
     SVG_Nav2_Scheduler_BeginFrame( level.frameNumber );
@@ -752,6 +763,8 @@ void SVG_RunFrame(void) {
 	*	skip the rest of the frame processing.
 	**/
 	if ( game.mode->PreCheckGameRuleConditions() ) {
+        // Flush queued nav3 debug primitives before leaving the frame early.
+        SVG_Nav3_DebugDraw_FlushFrame();
 		// We had a level change or something, so we exit this function.
 		return;
 	}
@@ -917,4 +930,7 @@ void SVG_RunFrame(void) {
 	// Needs a built mesh (`nav_gen_voxelmesh`) and `nav_debug_draw 1`.
 	SVG_Nav_DebugDraw();
 	#endif
+
+    // Flush nav3 debug draw stream after all subsystems have had a chance to submit primitives.
+    SVG_Nav3_DebugDraw_FlushFrame();
 }

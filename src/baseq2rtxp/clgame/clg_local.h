@@ -87,6 +87,7 @@ extern cvar_t *cl_showmiss;
 extern cvar_t *clg_debug_entity_events;
 extern cvar_t *clg_debug_pmove_changed_events;
 extern cvar_t *cl_debug_draw_entity_bounds;
+extern cvar_t *clg_nav3_debug_draw;
 
 extern cvar_t *clg_kickangles;
 extern cvar_t *clg_noskins;
