@@ -470,7 +470,7 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
 	g_edict_pool.num_edicts = game.maxclients + 1;
 
     // Initialize a fresh clients array.
-    //game.clients = SVG_Clients_Reallocate( game.maxclients );
+    game.clients = SVG_Clients_Reallocate( game.maxclients );
 
     // Copy over the mapname and the spawn point. (Optionally set by appending a map name with a $spawntarget)
 	Q_strlcpy( level.mapname, mapname, sizeof( level.mapname ) );
