@@ -600,6 +600,9 @@ typedef struct {
 
 	//!
 	qhandle_t( *R_RegisterRawImage )( const char *name, int width, int height, byte *pic, imagetype_t type, imageflags_t flags );
+	//!
+	void ( *R_UnregisterImage )( qhandle_t handle );
+	//!
 	void ( *R_UpdateRawPic )( const int32_t pic_w, const int32_t pic_h, uint32_t *pic );
 	//!
 	void ( *R_DiscardRawPic )( void );

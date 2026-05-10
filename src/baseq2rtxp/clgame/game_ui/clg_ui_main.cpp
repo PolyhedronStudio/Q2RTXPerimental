@@ -164,32 +164,29 @@ static void MicroUI_SetTextMeasureCallbacks( mu_Context *ctx ) {
 *	@brief	Allocate the client's UI context, called when the client begins and after loading plague has ended.
 **/
 void CLG_UI_AllocateContext() {
-	// Free the UI context.
-	if ( s_gameui_ctx.mu_ctx != nullptr ) {
-		CLG_UI_FreeContext();
+	// Allocate the MicroUI context in TAG_CLGAME_GAME_MICRO_UI.
+	if ( !s_gameui_ctx.mu_ctx ) {
+		s_gameui_ctx.mu_ctx = ( mu_Context * )clgi.TagMallocz( sizeof( mu_Context ), TAG_CLGAME_GAME_MICRO_UI );
 	}
-
 	// Register the atlas only once and pass renderer-owned memory because raw image backends free the provided pixel buffer.
 	if ( s_gameui_ctx.atlas.textureCopy == nullptr ) {
 		s_gameui_ctx.atlas.textureCopy = ( byte * )clgi.Z_Malloc( CLG_UI_ATLAS_BYTE_COUNT );
 		// Copy the embedded atlas texture data to the renderer-owned buffer, so it can be safely passed to the renderer for uploading without risking use-after-free bugs if the renderer frees the buffer after upload.
 		memcpy( s_gameui_ctx.atlas.textureCopy, clg_ui_atlas_texture, CLG_UI_ATLAS_BYTE_COUNT );
 	}
+
 	// Check if the atlas texture has already been registered with the renderer, if not, register it now. This allows us to avoid re-registering the texture and uploading it multiple times if the client game reloads or if the renderer is re-initialized, since we keep a copy of the atlas data in memory and can re-upload it as needed.
 	if ( s_gameui_ctx.atlas.imageHandle == 0 ) {
 		// Upload the render owned atlas copy.
-		s_gameui_ctx.atlas.imageHandle = clgi.R_RegisterRawImage( "clg_ui_atlas", CLG_UI_ATLAS_WIDTH, CLG_UI_ATLAS_HEIGHT, s_gameui_ctx.atlas.textureCopy, IT_PIC, /*IF_PERMANENT |*/ IF_SRGB );
-		// Registration failed before renderer ownership transfer, so free the temporary heap copy here.
-		//clgi.Z_Free( atlasTextureCopy );
+		s_gameui_ctx.atlas.imageHandle = clgi.R_RegisterRawImage( "clg_ui_atlas", CLG_UI_ATLAS_WIDTH, CLG_UI_ATLAS_HEIGHT, s_gameui_ctx.atlas.textureCopy, IT_PIC, IF_PERMANENT | IF_SCRAP | IF_SRGB );
+		// IMG_Load_RTX stores the pointer as image-owned pixel data, so transfer ownership here.
+		s_gameui_ctx.atlas.textureCopy = nullptr;
 	}
-
-	// Allocate a UI context.
-	s_gameui_ctx.mu_ctx = ( mu_Context * )clgi.TagMallocz( sizeof( mu_Context ), TAG_CLGAME_GAME_MICRO_UI );
-
 	// Initialize the UI context defaults before binding callbacks because mu_init clears the function pointers.
 	mu_init( s_gameui_ctx.mu_ctx );
 	// Bind the text metric callbacks immediately so the first menu frame has valid sizing data.
 	MicroUI_SetTextMeasureCallbacks( s_gameui_ctx.mu_ctx );
+
 }
 /**
 *	Free the client's UI context, called when the client disconnects and before clearing its state.
@@ -198,12 +195,27 @@ void CLG_UI_FreeContext() {
 	// Free the MicroUI context.
 	if ( s_gameui_ctx.mu_ctx != nullptr ) {
 		// Free the microui context.
-		//clgi.TagFree( s_gameui_ctx.mu_ctx );
-		clgi.FreeTags( TAG_CLGAME_UI );
-		clgi.FreeTags( TAG_CLGAME_GAME_MICRO_UI );
+		clgi.TagFree( s_gameui_ctx.mu_ctx );
 		// Clear the pointer to the UI context to avoid dangling pointers and potential use-after-free bugs.
 		s_gameui_ctx.mu_ctx = nullptr;
 	}
+	// Clear UI state so reconnect/disconnect cannot leave a stale menu active.
+	s_gameui_ctx.activeMenuID = sg_game_ui_menu_id::NONE;
+	s_gameui_ctx.layoutWarmupPending = false;
+	// Release the registered atlas handle so a future UI allocation recreates it cleanly.
+	if ( s_gameui_ctx.atlas.imageHandle != 0 ) {
+		// Unregister the atlas texture from the renderer, this will free the texture and any associated resources on the renderer side, and it allows us to clean up properly when the client game shuts down or reloads.
+		//clgi.R_UnregisterImage( s_gameui_ctx.atlas.imageHandle );
+		// Clear the atlas image handle to indicate that it is no longer registered, this allows future UI allocations to know that they need to re-register the atlas texture if needed.
+		s_gameui_ctx.atlas.imageHandle = 0;
+	}
+	// Determine the key event destination, if it's currently set to GameUI, switch it back to Game so that input is not left in a state where it is focused on a nonexistent UI after the context is freed.
+	if ( ( clgi.GetKeyEventDestination() & KEY_GAME_UI ) != 0 ) {
+		clgi.SetKeyEventDestination( KEY_GAME );
+	}
+	
+	//clgi.FreeTags( TAG_CLGAME_UI );
+	//clgi.FreeTags( TAG_CLGAME_GAME_MICRO_UI );
 }
 
 /**
@@ -212,29 +224,42 @@ void CLG_UI_FreeContext() {
 **/
 void CLG_UI_ProcessFrame() {
 	/**
-	*	We will only process the UI context if there is an active menu, this is determined by whether the activeMenuID 
-	*	is set to a valid menu ID or sg_game_ui_menu_id::NONE.This allows us to avoid unnecessary processing when no 
-	*	UI is active and return input focus to gameplay.
+	* 	We will only process the UI context if there is an active menu, this is determined by whether the activeMenuID 
+	* 	is set to a valid menu ID or sg_game_ui_menu_id::NONE.This allows us to avoid unnecessary processing when no 
+	* 	UI is active and return input focus to gameplay.
 	**/
 	#if 1
 	if ( s_gameui_ctx.activeMenuID == sg_game_ui_menu_id::NONE ) {
 		// Return input focus to gameplay if there is no active menu, this can happen if the server closes the menu by sending a command with sg_game_ui_menu_id::NONE, or if the client opened the menu but then closed it without returning focus to gameplay for some reason.
 		if ( ( clgi.GetKeyEventDestination() & KEY_GAME_UI ) != 0 ) {
 			clgi.SetKeyEventDestination( KEY_GAME );
+		} else {
+			// Input is already focused on gameplay, nothing to do.
 		}
 		return;
 	}
 	#endif
 	/**
-	*	If there is no UI context, return early:
+	*	Keep input routed to GameUI whenever a menu is active so UI widgets receive keyboard and mouse events.
+	**/
+	if ( ( clgi.GetKeyEventDestination() & KEY_GAME_UI ) == 0 ) {
+		clgi.SetKeyEventDestination( KEY_GAME_UI );
+	}
+	/**
+	* 	If there is no UI context, return early:
 	**/
 	if ( !s_gameui_ctx.mu_ctx ) {
+		s_gameui_ctx.activeMenuID = sg_game_ui_menu_id::NONE;
+		s_gameui_ctx.layoutWarmupPending = false;
+		if ( ( clgi.GetKeyEventDestination() & KEY_GAME_UI ) != 0 ) {
+			clgi.SetKeyEventDestination( KEY_GAME );
+		}
 		return;
 	}
 	/**
-	*	Process the UI context for this frame since there is an active menu. 
-	*	The __process_frame function will handle rendering the correct GameUI window based on the activeMenuID, 
-	*	and it will also handle any input events that were captured by the UI context since the last frame.
+	* 	Process the UI context for this frame since there is an active menu. 
+	* 	The __process_frame function will handle rendering the correct GameUI window based on the activeMenuID, 
+	* 	and it will also handle any input events that were captured by the UI context since the last frame.
 	**/
 	if ( s_gameui_ctx.activeMenuID == sg_game_ui_menu_id::TEAM ) {
 		__process_frame( s_gameui_ctx.mu_ctx );
@@ -255,17 +280,17 @@ void CLG_UI_CloseMenu() {
 	// Clear active menu so GameUI stops processing.
 	s_gameui_ctx.activeMenuID = sg_game_ui_menu_id::NONE;
 	s_gameui_ctx.layoutWarmupPending = false;
+
 	// Reset MicroUI state so stale captured widget/focus state does not persist across menu re-opens.
 	if ( s_gameui_ctx.mu_ctx ) {
 		// Re-initialize the UI context to clear any captured state and prepare it for the next time a menu is opened.
 		mu_init( s_gameui_ctx.mu_ctx );
-
 		// Rebind the text measurement callbacks after the reset so the next open frame still has valid metrics.
 		MicroUI_SetTextMeasureCallbacks( s_gameui_ctx.mu_ctx );
 	}
 
-		// Return input focus to gameplay if there is no active menu, this can happen if the server closes the menu by sending a command with sg_game_ui_menu_id::NONE, or if the client opened the menu but then closed it without returning focus to gameplay for some reason.
-	if ( ( clgi.GetKeyEventDestination() & KEY_GAME_UI ) != 0 ) {
+	// Return input focus to gameplay if there is no active menu, this can happen if the server closes the menu by sending a command with sg_game_ui_menu_id::NONE, or if the client opened the menu but then closed it without returning focus to gameplay for some reason.
+	if ( ( clgi.GetKeyEventDestination() & KEY_GAME_UI ) == 0 ) {
 		clgi.SetKeyEventDestination( KEY_GAME );
 	}
 }
@@ -279,13 +304,20 @@ void CLG_UI_OpenMenu( const sg_game_ui_menu_id menuID ) {
 		return;
 	}
 
+	// If the menu is already open, keep things as is.
+	if ( menuID != sg_game_ui_menu_id::NONE && menuID == s_gameui_ctx.activeMenuID ) {
+		return;
+	}
+
 	// Close the console first so GameUI input can become the active destination without console interference.
 	if ( clgi.Con_Close ) {
 		clgi.Con_Close( true );
 	}
 
 	// Switch input focus to GameUI now that a valid menu exists.
-	clgi.SetKeyEventDestination( KEY_GAME_UI );
+	if ( ( clgi.GetKeyEventDestination() & KEY_GAME_UI ) == 0 ) {
+		clgi.SetKeyEventDestination( KEY_GAME_UI );
+	}
 
 	// Remember the active menu so the frame/update path renders the correct GameUI window.
 	s_gameui_ctx.activeMenuID = menuID;
@@ -312,13 +344,17 @@ void CLG_UI_OpenMenu( const sg_game_ui_menu_id menuID ) {
 //! Called when the client receives a mouse move event, gives the client game a chance to handle it 
 //! when the client's current input(key) event destination is set to keyEventDest_t::GAME_UI.
 void CLG_UI_MouseMoveEvent( const int32_t x, const int32_t y ) {
-	// Pass the mouse move event to the UI context.
+	if ( !s_gameui_ctx.mu_ctx ) {
+		return;
+	}
 	mu_input_mousemove( s_gameui_ctx.mu_ctx, x, y );
 }
 //! Called when the client receives a mouse button event, gives the client game a chance to handle it 
 //! when the client's current input(key) event destination is set to keyEventDest_t::GAME_UI.
 void CLG_UI_MouseButtonEvent( const int32_t button, const bool isDown, const int32_t x, const int32_t y ) {
-	// Pass the mouse button event to the UI context.
+	if ( !s_gameui_ctx.mu_ctx ) {
+		return;
+	}
 	if ( isDown == true ) {
 		mu_input_mousedown( s_gameui_ctx.mu_ctx, x, y, button );
 	} else {
@@ -328,12 +364,18 @@ void CLG_UI_MouseButtonEvent( const int32_t button, const bool isDown, const int
 //! Called when the client receives a mouse scroll event, gives the client game a chance to handle it 
 //! when the client's current input(key) event destination is set to keyEventDest_t::GAME_UI.
 void CLG_UI_MouseScrollEvent( /*const int32_t scrollX*/ const int32_t scrollY ) {
+	if ( !s_gameui_ctx.mu_ctx ) {
+		return;
+	}
 	mu_input_scroll( s_gameui_ctx.mu_ctx, 0 /* scrollX */, scrollY);
 }
 
 //! Called when the client receives a key event, gives the client game a chance to handle it 
 //! when the client's current key event destination is set to keyEventDest_t::GAME_UI.
 void CLG_UI_KeyEvent( const int32_t key, const bool isDown ) {
+	if ( !s_gameui_ctx.mu_ctx ) {
+		return;
+	}
 	if ( key && isDown ) {
 		mu_input_keydown( s_gameui_ctx.mu_ctx, key );
 	} else if ( key && !isDown ) {
@@ -344,6 +386,9 @@ void CLG_UI_KeyEvent( const int32_t key, const bool isDown ) {
 //! Called when the client receives a character event, gives the client game a chance to handle it 
 //! when the client's current key event destination is set to keyEventDest_t::GAME_UI.
 void CLG_UI_TextInputEvent( const char *str ) {
+	if ( !s_gameui_ctx.mu_ctx ) {
+		return;
+	}
 	// Pass the input text to the UI context.
 	mu_input_text( s_gameui_ctx.mu_ctx, str );
 }
@@ -363,6 +408,10 @@ void CLG_UI_TextInputEvent( const char *str ) {
 *	@brief	Iterate the mu drawing commands and render them using the client's rendering functions.
 **/
 void CLG_UI_DrawRenderCommands() {
+	if ( !s_gameui_ctx.mu_ctx ) {
+		return;
+	}
+
 	// The active drawing command, used for iterating the command list.
 	mu_Command *muCmd = nullptr;
 	// Iterate on to the next rendering command generated by the UI context, until there are no more commands to process.

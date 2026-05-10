@@ -83,7 +83,7 @@ const int32_t svg_edict_pool_t::NumberForEdict( const svg_base_edict_t *edict ) 
 /**
 *   @brief  Marks the edict as free
 **/
-void svg_edict_pool_t::FreeEdict( svg_base_edict_t *ed ) {
+void svg_edict_pool_t::FreeEdict( svg_base_edict_t *ed, const bool forceEvenIfSpecialEntity ) {
 	// Make sure ed is valid.
 	if ( !ed ) {
 		gi.error( "%s: ed == (nullptr)\n", __func__ );
@@ -244,7 +244,7 @@ svg_base_edict_t *svg_edict_pool_t::EmplaceNextFreeEdict( svg_base_edict_t *ent 
 **/
 svg_base_edict_t **SVG_EdictPool_Release( svg_edict_pool_t *edictPool ) {
 	// Need a valid pool to deal with.
-	if ( !edictPool ) {
+	if ( !edictPool || !(*edictPool)[0] ) {
 		gi.error( "%s: edictPool == (nullptr)\n", __func__ );
 		return nullptr;
 	}
@@ -255,21 +255,23 @@ svg_base_edict_t **SVG_EdictPool_Release( svg_edict_pool_t *edictPool ) {
 		// Free any previously allocated edicts.
 		for ( int32_t i = 0; i < edictPool->max_edicts; i++ ) {
 			if ( edictPool->edicts[ i ] != nullptr ) {
+				g_edict_pool.FreeEdict( edictPool->edicts[ i ], true /* Force even if we are a special entity */ );
 				// Call upon destructor(if any).
-				delete edictPool->edicts[ i ];
+				//delete edictPool->edicts[ i ];
 				// Set to null.
-				edictPool->edicts[ i ] = nullptr;
+				//edictPool->edicts[ i ] = nullptr;
 			}
 		}
-		
-		edictPool->edicts = nullptr;
-		edictPool->num_edicts = 0;
-		edictPool->max_edicts = 0;
+
 
 		// Free any remainings.
 		gi.FreeTags( TAG_SVGAME_EDICTS );
 		// Free up all SVGAME_LEVEL tag memory.
 		gi.FreeTags( TAG_SVGAME_LEVEL );
+
+		edictPool->edicts = nullptr;
+		edictPool->num_edicts = 0;
+		edictPool->max_edicts = 0;
 	}
 
 	return edictPool->edicts;

@@ -21,6 +21,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/common.h"
 #include "common/zone.h"
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #define Z_MAGIC     0x1d0d
 
 /**
@@ -119,19 +123,66 @@ static inline void Z_CountAlloc(const zhead_t *z)
     s->bytes += z->size;
 }
 
+static bool Z_IsReadableMemory(const void *ptr, size_t size)
+{
+#ifdef _WIN32
+    if (!ptr || !size) {
+        return false;
+    }
+
+    const unsigned char *cursor = static_cast<const unsigned char *>(ptr);
+    size_t remaining = size;
+
+    while (remaining > 0) {
+        MEMORY_BASIC_INFORMATION mbi;
+        if (!VirtualQuery(cursor, &mbi, sizeof(mbi))) {
+            return false;
+        }
+
+        const bool readable = (mbi.State == MEM_COMMIT) &&
+            !(mbi.Protect & (PAGE_NOACCESS | PAGE_GUARD));
+        if (!readable) {
+            return false;
+        }
+
+        const unsigned char *regionEnd = static_cast<const unsigned char *>(mbi.BaseAddress) + mbi.RegionSize;
+        const size_t bytesInRegion = static_cast<size_t>(regionEnd - cursor);
+        if (bytesInRegion == 0) {
+            return false;
+        }
+
+        const size_t advance = (bytesInRegion < remaining) ? bytesInRegion : remaining;
+        cursor += advance;
+        remaining -= advance;
+    }
+
+    return true;
+#else
+    (void)ptr;
+    (void)size;
+    return true;
+#endif
+}
+
 //#define Z_Validate(z) \
 //    Q_assert((z)->magic == Z_MAGIC && (z)->tag != TAG_FREE)
-static const bool Z_Validate( const zhead_t *z ) {
-    // Should we assert at all.
-    bool shouldAssert = !( ( z )->magic == Z_MAGIC && ( z )->tag != TAG_FREE );
-    // Yes we should right? Most likely.
-    if ( shouldAssert ) {
-        // Well fuck me.
+static bool Z_Validate( const zhead_t *z ) {
+    if (!z) {
+        Com_WPrintf("%s: null zone header\n", __func__);
+        return false;
+    }
+
+    if (!Z_IsReadableMemory(z, sizeof(*z))) {
+        Com_WPrintf("%s: unreadable zone header at %p\n", __func__, z);
+        return false;
+    }
+
+    const bool shouldAssert = !(z->magic == Z_MAGIC && z->tag != TAG_FREE);
+    if (shouldAssert) {
         int _varForBreakPoint = 1337; // h4x 4 br34kp01nt
     }
-    // It's actual magic!
-    Q_assert( ( z )->magic == Z_MAGIC && ( z )->tag != TAG_FREE );
-    // Boohooo
+
+    Q_assert(z->magic == Z_MAGIC && z->tag != TAG_FREE);
     return true;
 }
 
@@ -146,11 +197,31 @@ static const bool Z_Validate( const zhead_t *z ) {
 **/
 void Z_LeakTest(memtag_t tag)
 {
+    list_t *cursor, *next;
     zhead_t *z;
     size_t numLeaks = 0, numBytes = 0;
 
-    LIST_FOR_EACH(zhead_t, z, &z_chain, entry) {
-        Z_Validate(z);
+    for (cursor = z_chain.next; cursor != &z_chain; cursor = next) {
+        if (!Z_IsReadableMemory(cursor, sizeof(list_t))) {
+            Com_WPrintf("%s: corrupted zone list link at %p while checking tag %u\n", __func__, cursor, tag);
+            return;
+        }
+
+        next = cursor->next;
+
+        z = LIST_ENTRY(zhead_t, cursor, entry);
+
+        if (!Z_IsReadableMemory(z, sizeof(*z))) {
+            Com_WPrintf("%s: corrupted zone header at %p while checking tag %u\n", __func__, z, tag);
+            return;
+        }
+
+        if (z->magic != Z_MAGIC || z->tag == TAG_FREE) {
+            Com_WPrintf("%s: invalid zone block at %p (magic=0x%x tag=%u) while checking tag %u\n",
+                __func__, z, z->magic, z->tag, tag);
+            return;
+        }
+
         if (z->tag == tag || (tag == TAG_FREE && z->tag >= TAG_MAX)) {
             numLeaks++;
             numBytes += z->size;
@@ -311,9 +382,21 @@ void Z_Stats_f(void)
 **/
 void Z_FreeTags(memtag_t tag)
 {
-    zhead_t *z, *n;
+    for (list_t *cursor = z_chain.next, *next = nullptr; cursor != &z_chain; cursor = next) {
+        if (!Z_IsReadableMemory(cursor, sizeof(list_t))) {
+            Com_WPrintf("%s: corrupted zone list link at %p while freeing tag %u\n", __func__, cursor, tag);
+            return;
+        }
 
-    LIST_FOR_EACH_SAFE(zhead_t, z, n, &z_chain, entry) {
+        next = cursor->next;
+
+        zhead_t *z = LIST_ENTRY(zhead_t, cursor, entry);
+
+        if (!Z_IsReadableMemory(z, sizeof(*z))) {
+            Com_WPrintf("%s: corrupted zone header at %p while freeing tag %u\n", __func__, z, tag);
+            return;
+        }
+
         Z_Validate(z);
         if (z->tag == tag) {
             Z_Free(z + 1);

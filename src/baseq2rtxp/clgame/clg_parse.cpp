@@ -187,6 +187,11 @@ static void CLG_ParseTEntPacket( void ) {
 		clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos1, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
 		clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos2, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
 		break;
+    case TE_DEBUG_BBOX:
+    case TE_DEBUG_POINT:
+        clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos1, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+        clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos2, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+        break;
 	//case TE_DEBUG_BBOX:
 	//	clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos1, MSG_POSITION_ENCODING_NONE );
 	//	clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.offset, MSG_POSITION_ENCODING_NONE );
@@ -196,7 +201,8 @@ static void CLG_ParseTEntPacket( void ) {
 	//	clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.offset, MSG_POSITION_ENCODING_NONE );
 	//	break;
     default:
-        Com_Error( ERR_DROP, "%s: bad type", __func__ );
+        Com_WPrintf( "%s: unsupported temp entity type (%d)\n", __func__, level.parsedMessage.events.tempEntity.type );
+        break;
     }
 }
 

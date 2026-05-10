@@ -175,7 +175,7 @@ public:
 	*	@brief	Releases tag allocated memory if we had any.
 	**/
 	inline void release() noexcept {
-		if ( ptr && *ptr != '\0' ) {
+		if ( ptr/* && *ptr != '\0'*/ ) {
 			SG_Z_TagFree( ptr );
 			count = 0;
 			ptr = nullptr;

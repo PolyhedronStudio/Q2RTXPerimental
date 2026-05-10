@@ -26,25 +26,31 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "svgame/entities/svg_entities_pushermove.h"
 
-#include "sharedgame/sg_tempentity_events.h"
+#include "sharedgame/sg_cmd_messages.h"
 #include "sharedgame/sg_means_of_death.h"
 #include "sharedgame/sg_misc.h"
 
 
 
 /**
-*	@brief	Emit a single `TE_DEBUG_TRAIL` segment (start->end).
+*	@brief	Emit a single debug-draw line segment (start->end).
 **/
 void SVG_DebugDrawLine_TE( const Vector3 &start, const Vector3 &end, const multicast_t multicastType, const bool reliable ) {
-	gi.WriteUint8( svc_temp_entity );
-	gi.WriteUint8( TE_DEBUG_TRAIL );
-	gi.WritePosition( &start, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-	gi.WritePosition( &end, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+    gi.WriteUint8( svc_debug_draw );
+    gi.WriteUint8( SG_SVC_DEBUG_DRAW_VERSION );
+    gi.WriteUint16( 1 );
+    gi.WriteUint8( static_cast<int32_t>( sg_svc_debug_draw_primitive_type_t::Line ) );
+    gi.WriteInt32( -1 );
+    gi.WriteUint16( SG_SVC_DEBUG_DRAW_STYLE_FLAG_DEPTH_TEST );
+    gi.WriteFloat( 2.0f );
+    gi.WriteFloat( 0.0f );
+    gi.WritePosition( &start, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+    gi.WritePosition( &end, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
 	gi.multicast( &start, multicastType, reliable );
 }
 
 /**
-*	@brief	Draw an axis-aligned bounding box by emitting 12 `TE_DEBUG_TRAIL` line segments.
+*	@brief	Draw an axis-aligned bounding box by emitting 12 debug-draw line segments.
 **/
 void SVG_DebugDrawBBox_TE( const Vector3 &mins, const Vector3 &maxs, const multicast_t multicastType, const bool reliable ) {
 	const Vector3 v000 = { mins[ 0 ], mins[ 1 ], mins[ 2 ] };

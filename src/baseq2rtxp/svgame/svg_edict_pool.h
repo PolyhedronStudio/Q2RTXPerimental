@@ -103,7 +103,7 @@ struct svg_edict_pool_t : sv_edict_pool_i {
 	/**
 	*   @brief  Marks the edict as free.
     **/
-    void FreeEdict( svg_base_edict_t *ed );
+    void FreeEdict( svg_base_edict_t *ed, const bool forceEvenIfSpecialEntity = false );
 
     /**
     *   @brief  Support routine for AllocateNextFreeEdict.

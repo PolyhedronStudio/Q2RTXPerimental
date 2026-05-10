@@ -788,29 +788,47 @@ typedef struct {
 } refcfg_t;
 
 /**
-*   @brief
+*	@brief	Per-image bitflags used by the refresh layer to describe how a texture should be
+*			loaded, sampled, and treated by renderer-side image processing.
 **/
 typedef enum {
-    IF_NONE = 0,
-    IF_PERMANENT = ( 1 << 0 ),
-    IF_TRANSPARENT = ( 1 << 1 ),
-    IF_PALETTED = ( 1 << 2 ),
-    IF_UPSCALED = ( 1 << 3 ),
-    IF_SCRAP = ( 1 << 4 ),
-    IF_TURBULENT = ( 1 << 5 ),
-    IF_REPEAT = ( 1 << 6 ),
-    IF_NEAREST = ( 1 << 7 ),
-    IF_OPAQUE = ( 1 << 8 ),
-    IF_SRGB = ( 1 << 9 ),
-    IF_FAKE_EMISSIVE = ( 1 << 10 ),
-    IF_EXACT = ( 1 << 11 ),
-    IF_NORMAL_MAP = ( 1 << 12 ),
-    IF_BILERP = ( 1 << 13 ), // always lerp, independent of bilerp_pics cvar
+	// No special image handling.
+	IF_NONE = 0,
 
-    // Image source indicator/requirement flags
-    IF_SRC_BASE = ( 0x1 << 16 ),
-    IF_SRC_GAME = ( 0x2 << 16 ),
-    IF_SRC_MASK = ( 0x3 << 16 ),
+	// Keep the image resident because it is expected to be reused often or across frames.
+	IF_PERMANENT = ( 1 << 0 ),
+
+	// Preserve transparency/alpha handling for textures that need cutout or blended rendering.
+	IF_TRANSPARENT = ( 1 << 1 ),
+	// Source image is palette-based and needs palette-aware decode/conversion.
+	IF_PALETTED = ( 1 << 2 ),
+	// Image was upscaled relative to its source data and should be treated as a derived asset.
+	IF_UPSCALED = ( 1 << 3 ),
+	// Image comes from scrap/atlas-style data, usually small UI or cached surface pieces.
+	IF_SCRAP = ( 1 << 4 ),
+	// Image uses turbulent/wave-style sampling, typically for water-like animated surfaces.
+	IF_TURBULENT = ( 1 << 5 ),
+	// Texture coordinates should repeat instead of clamping at edges.
+	IF_REPEAT = ( 1 << 6 ),
+	// Force nearest-neighbor sampling for crisp pixel-art or debug-style rendering.
+	IF_NEAREST = ( 1 << 7 ),
+	// Treat the image as fully opaque even if the source format might suggest otherwise.
+	IF_OPAQUE = ( 1 << 8 ),
+	// Sample or upload the image in sRGB space so color data is interpreted correctly.
+	IF_SRGB = ( 1 << 9 ),
+	// Mark the image as emissive-like so the renderer can synthesize stronger glow behavior.
+	IF_FAKE_EMISSIVE = ( 1 << 10 ),
+	// Require exact handling of the source image data, avoiding lossy or approximate treatment.
+	IF_EXACT = ( 1 << 11 ),
+	// Tag the image as a normal map so it is processed using normal-map specific conventions.
+	IF_NORMAL_MAP = ( 1 << 12 ),
+	// Always bilerp this image, regardless of the bilerp_pics cvar.
+	IF_BILERP = ( 1 << 13 ), // always lerp, independent of bilerp_pics cvar
+
+	// Image source indicator/requirement flags used to track where the asset came from.
+	IF_SRC_BASE = ( 0x1 << 16 ), // Asset resolved from the base/game-independent content set.
+	IF_SRC_GAME = ( 0x2 << 16 ), // Asset resolved from game-specific content.
+	IF_SRC_MASK = ( 0x3 << 16 ), // Mask for extracting the source selector bits.
 } imageflags_t;
 QENUM_BIT_FLAGS( imageflags_t );
 

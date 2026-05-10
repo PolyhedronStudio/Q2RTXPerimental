@@ -974,6 +974,14 @@ IMG_Unload_RTX(image_t *image)
 		const uint32_t frame_index = (qvk.frame_counter + MAX_FRAMES_IN_FLIGHT + 1) % DESTROY_LATENCY;
 		UnusedResources* unused_resources = texture_system.unused_resources + frame_index;
 
+		// Guard the delayed-destruction queue so it cannot overwrite adjacent heap data.
+		if (unused_resources->image_num >= MAX_RIMAGES)
+		{
+			Com_EPrintf("%s: delayed image destruction queue overflow (frame %u, max %u)\n",
+				__func__, frame_index, (uint32_t)MAX_RIMAGES);
+			return;
+		}
+
 		const uint32_t unused_index = unused_resources->image_num++;
 
 		unused_resources->images[unused_index] = tex_images[index];
@@ -1902,6 +1910,16 @@ vkpt_textures_end_registration()
 
 	const uint32_t destroy_frame_index = (qvk.frame_counter + MAX_FRAMES_IN_FLIGHT) % DESTROY_LATENCY;
 	UnusedResources* unused_resources = texture_system.unused_resources + destroy_frame_index;
+
+	// Guard the delayed buffer-destruction queue so it cannot overrun its fixed storage.
+	if (unused_resources->buffer_num >= MAX_RBUFFERS)
+	{
+		Com_EPrintf("%s: delayed buffer destruction queue overflow (frame %u, max %u)\n",
+			__func__, destroy_frame_index, (uint32_t)MAX_RBUFFERS);
+		buffer_unmap(&buf_img_upload);
+		buffer_destroy(&buf_img_upload);
+		return VK_ERROR_OUT_OF_DEVICE_MEMORY;
+	}
 
 	const uint32_t unused_index = unused_resources->buffer_num++;
 	unused_resources->buffers[unused_index] = buf_img_upload.buffer;

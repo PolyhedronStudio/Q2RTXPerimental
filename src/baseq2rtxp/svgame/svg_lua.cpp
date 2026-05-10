@@ -252,15 +252,16 @@ static void LUA_UnloadMapScript() {
 	/**
 	*	Very important with how libSol operates to, clean up here properly.
 	**/
-	// Free up any remaining Lua data.
-	gi.FreeTags( TAG_SVGAME_LUA );
-
-	// No more.
+	// No more callbacks dispatched while tearing down.
 	luaMapInstance.scriptInterpreted = false;
 	// Nullptr all callBack references.
 	luaMapInstance.callBacks = {};
 	// Clear out (luaL_close) the SOL Lua State.
 	luaMapInstance.solState = nullptr;
+	luaMapInstance.lState = nullptr;
+
+	// Free up any remaining Lua data after the VM has released Lua-owned references.
+	gi.FreeTags( TAG_SVGAME_LUA );
 
 	// TODO: This is technically not safe, we need to store the buffer elsewhere ... expose FS_LoadFileEx!
 	if ( luaMapInstance.scriptBuffer ) {

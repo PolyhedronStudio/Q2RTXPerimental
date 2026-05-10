@@ -190,5 +190,5 @@ skm_transform_t *SKM_PoseCache_AcquireCachedMemoryBlock( const qhandle_t poseCac
 	*	#1: Insert (actually initialize and allocate memory if it has not done so before.), and return address.
 	**/
 	// Insert into our container to initialize the needed memory.
-	return &( *cache->data.insert( cache->data.end(), _cleanBonePoses.begin(), _cleanBonePoses.begin() + size - 1 ) );
+	return &( *cache->data.insert( cache->data.end(), _cleanBonePoses.begin(), _cleanBonePoses.begin() + size ) );
 }

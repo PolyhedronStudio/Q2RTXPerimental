@@ -534,6 +534,9 @@ void PF_PreShutdownGame( void ) {
 void PF_ShutdownGame( void ) {
 	clgi.Print( print_type_t::PRINT_ALL, "==== Shutdown ClientGame ====\n" );
 
+	// Clear out the UI Context, if any.
+	CLG_UI_FreeContext();
+
 	// Uncomment after we actually allocate anything using this.
 	clgi.FreeTags( TAG_CLGAME_LEVEL );
 	clgi.FreeTags( TAG_CLGAME );
@@ -686,6 +689,12 @@ void PF_InitGame( void ) {
 	game.clients = (cclient_t *)clgi.TagMalloc( game.maxclients * sizeof( game.clients[ 0 ] ), TAG_CLGAME );
 	//globals.num_edicts = game.maxclients + 1;
 	//globals.num_entities = game.maxclients + 1;
+
+	/**
+	*	Setup MicroUI.
+	**/
+	// Allocate a UI context.
+	CLG_UI_AllocateContext();
 
 	// Get the game mode.
 	clgi.Print( print_type_t::PRINT_ALL, "==== Init ClientGame ====\n" );

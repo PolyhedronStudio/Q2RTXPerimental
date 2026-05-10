@@ -150,6 +150,7 @@ static inline sg_qtag_memory_t<_T, _tag> *allocate_qtag_memory( sg_qtag_memory_t
 		// Free what we had.
 		SG_Z_TagFree( ptr->ptr );
 		ptr->count = 0;
+		ptr->ptr = nullptr;
 		return ptr;
 	}
 	// Acquire the count, add + 1 for end of string.

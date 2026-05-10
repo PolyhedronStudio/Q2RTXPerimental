@@ -512,22 +512,6 @@ void SVG_ShutdownGame( void ) {
     // Notify of shutdown.
     gi.dprintf( "==== Initiating ServerGame Shutdown ====\n" );
 
-    // Release edict pool ownership before tag cleanup to avoid stale double-free paths.
-    g_edict_pool.edicts = nullptr;
-    g_edict_pool.num_edicts = 0;
-    g_edict_pool.max_edicts = 0;
-    g_edicts = nullptr;
-
-	/**
-	*	We free edicts first since they may be referencing gamemode and level data in their shutdown, and we want to make sure that the gamemode and level are still around when that happens.
-	**/
-	gi.FreeTags( TAG_SVGAME_EDICTS );
-	/**
-	*	Free any 'level' resources that may be still allocated. 
-	*	This is important to do before freeing the gamemode, 
-	*	since the gamemode may want to reference level data in its shutdown.
-	**/
-	gi.FreeTags( TAG_SVGAME_LEVEL );
 	//! Now Nav data, which may be used by the gamemode, is freed, so we can free the gamemode itself.
 
 	#if 0
@@ -540,15 +524,29 @@ void SVG_ShutdownGame( void ) {
 	#endif
 	// Shutdown nav3 runtime ownership after game-level users have been released.
 	SVG_Nav3_Runtime_Shutdown();
-    // Shutdown the Lua VM.
-    SVG_Lua_Shutdown();
+
 	
 	/**
 	*	NOTE: The gamemode should be freed before the Lua VM since the gamemode may have Lua data that needs to be freed in its shutdown.
 	**/
+	/**
+	*	We free edicts first since they may be referencing gamemode and level data in their shutdown, and we want to make sure that the gamemode and level are still around when that happens.
+	**/
+	if ( g_edict_pool.edicts != nullptr ) {
+        // Release edict pool ownership in one place; this also frees TAG_SVGAME_LEVEL and TAG_SVGAME_EDICTS.
+		g_edicts = SVG_EdictPool_Release( &g_edict_pool );
+	}
+
+	g_edicts = nullptr;
+
 	//gi.FreeTags( TAG_SVGAME_EDICTS );
 	gi.FreeTags( TAG_SVGAME );
-    // Free game mode object.
+
+
+	// Shutdown the Lua VM.
+	SVG_Lua_Shutdown();
+
+    // Free game mode object after Lua has released any game-owned references.
     // game.mode->Shutdown();
     delete game.mode;
     game.mode = nullptr;

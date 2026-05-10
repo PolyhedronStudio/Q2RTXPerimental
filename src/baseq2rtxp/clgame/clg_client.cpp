@@ -95,12 +95,6 @@ void CLG_ClientBegin( void ) {
 *	@brief	Called when the client state has moved into being properly connected to server.
 **/
 void PF_ClientConnected( void ) {
-	/**
-	*	Setup MicroUI.
-	**/
-	// Allocate a UI context.
-	CLG_UI_AllocateContext();
-
 	// Debug notify.
 	clgi.Print( PRINT_NOTICE, "[CLGame]: PF_ClientConnected\n" );
 }
@@ -109,9 +103,6 @@ void PF_ClientConnected( void ) {
 *			the loading plague and starting to clear its state. (So it is still accessible.)
 **/
 void PF_ClientDisconnected( void ) {
-	// Free the UI context.
-	CLG_UI_FreeContext();
-
 	// Clear chat HUD when disconnected.
 	CLG_HUD_ClearChat_f();
 

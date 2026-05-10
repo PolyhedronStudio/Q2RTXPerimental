@@ -604,6 +604,9 @@ void PF_R_DrawFill32( const int32_t x, const int32_t y, const int32_t w, const i
 qhandle_t PF_R_RegisterRawImage( const char *name, int width, int height, byte *pic, imagetype_t type, imageflags_t flags ) {
 	return R_RegisterRawImage( name, width, height, pic, type, flags );
 }
+void PF_R_UnregisterImage( qhandle_t handle ) {
+	R_UnregisterImage( handle );
+}
 void PF_R_UpdateRawPic( const int32_t pic_w, const int32_t pic_h, uint32_t *pic ) {
 	R_UpdateRawPic( pic_w, pic_h, pic );
 }
@@ -1171,6 +1174,7 @@ void CL_GM_LoadProgs( void ) {
 	imports.R_DrawDebugCapsule = PF_R_DrawDebugCapsule;
 	imports.R_DrawDebugCylinder = PF_R_DrawDebugCylinder;
 	imports.R_RegisterRawImage = PF_R_RegisterRawImage;
+	imports.R_UnregisterImage = PF_R_UnregisterImage;
 	imports.R_UpdateRawPic = PF_R_UpdateRawPic;
 	imports.R_DiscardRawPic = PF_R_DiscardRawPic;
 	imports.R_AddDecal = PF_R_AddDecal;
