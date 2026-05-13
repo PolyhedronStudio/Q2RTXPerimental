@@ -23,9 +23,8 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_info_player_coop_t, onSpawn )( svg_info_player
     // Call upon base spawn.
     Super::onSpawn( self );
 
-    // If we are not in coop mode, then we don't want this entity to spawn.
-    if ( !coop->value ) {
-        SVG_FreeEdict( self );
-        return;
-    }
+    // Note: do not free this entity at spawn time based on the coop cvar.
+    // The gamemode and CVARs may not be initialized during map entity spawning,
+    // which would incorrectly remove valid coop spawnpoints. Selection
+    // logic will consult the active gamemode when choosing spawn locations.
 }
