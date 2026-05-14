@@ -14,6 +14,9 @@
 extern "C" {
 	#include "clgame/game_ui/microui-2.02/src/microui.h"
 
+		// Track the last touched player checkbox so the mute label follows the player's state the user just selected.
+		static int focusedMuteTeam = -1;
+		static int focusedMutePlayer = -1;
 	//! @brief	Enumerator for the icons in the UI atlas. These are used to identify which icon to draw when rendering UI elements that use icons, such as buttons or checkboxes. The ATLAS_WHITE icon is a simple white square that can be tinted with different colors when drawn, and the ATLAS_FONT icon is a placeholder for font characters that will be rendered using a bitmap font system. The actual texture coordinates for these icons will be defined in the UI rendering code, based on their position in the atlas texture.
 	enum { ATLAS_WHITE = MU_ICON_MAX, ATLAS_FONT };
 
@@ -28,7 +31,12 @@ extern "C" {
 #include "clgame/game_ui/clg_ui_main.h"
 // SGame UI.
 #include "sharedgame/sg_game_ui.h"
+// C++ helpers for safer string handling and containers used in UI callbacks.
+#include <string>
+#include <array>
 
+// Scoreboard UI
+#include "clgame/game_ui/menus/clg_ui_menu_scoreboard.h"
 
 //! Define to use R_DrawString font rendering instead of the atlas font.
 //#define USE_R_DRAW_STRING_FONT 1
@@ -51,7 +59,54 @@ static const bool __test_window( mu_Context *ctx );
 static void write_log( const char *text );
 static void MicroUI_SetTextMeasureCallbacks( mu_Context *ctx );
 
+static std::string logbuf;
+static bool logbuf_updated = false;
+static float bg[ 3 ] = { 90, 95, 100 };
 
+static void write_log( const char *text ) {
+	if ( !logbuf.empty() ) {
+		logbuf.push_back( '\n' );
+	}
+	logbuf += ( text ? text : "" );
+	logbuf_updated = true;
+}
+
+/**
+* 	@brief	Quote a raw command argument so spaces and punctuation survive tokenization.
+* 	@param	arg	Raw argument text to quote.
+* 	@return	Quoted argument text suitable for CL_ClientCommand.
+**/
+static std::string QuoteCommandArgument( const std::string &arg ) {
+	std::string quoted;
+	quoted.reserve( arg.size() + 2 );
+	quoted.push_back( '"' );
+	for ( const char ch : arg ) {
+		if ( ch == '"' || ch == '\\' ) {
+			quoted.push_back( '\\' );
+		}
+		quoted.push_back( ch );
+	}
+	quoted.push_back( '"' );
+	return quoted;
+}
+
+/**
+* 	@brief	Build a CSV list of the currently selected scoreboard players.
+* 	@param	selectedClients	Client numbers for the selected players.
+* 	@param	selCount	Total number of selected players.
+* 	@param	entries	Scoreboard entry table.
+* 	@return	Comma-separated player list suitable for server commands.
+**/
+static std::string BuildSelectedPlayerCsv( const int *selectedClients, const int selCount, const scoreboard_entry_t *entries ) {
+	std::string csv;
+	for ( int i = 0; i < selCount; i++ ) {
+		if ( i > 0 ) {
+			csv.push_back( ',' );
+		}
+		csv += entries[ selectedClients[ i ] ].clientName;
+	}
+	return csv;
+}
 
 /**
 *
@@ -261,11 +316,11 @@ void CLG_UI_ProcessFrame() {
 	* 	The __process_frame function will handle rendering the correct GameUI window based on the activeMenuID, 
 	* 	and it will also handle any input events that were captured by the UI context since the last frame.
 	**/
-	if ( s_gameui_ctx.activeMenuID == sg_game_ui_menu_id::TEAM ) {
+	if ( s_gameui_ctx.activeMenuID != sg_game_ui_menu_id::NONE ) {
 		__process_frame( s_gameui_ctx.mu_ctx );
 	}
 	// The first frame after opening can change scrollbar/body layout once the content size becomes known.
-	// Build one extra time so the visible frame starts with the settled geometry instead of stepping over
+	// Run one extra frame, so the visible frame starts with the settled geometry instead of stepping over
 	// a few frames as scrollbars appear and layout widths recalculate.
 	if ( s_gameui_ctx.layoutWarmupPending && s_gameui_ctx.activeMenuID != sg_game_ui_menu_id::NONE ) {
 		s_gameui_ctx.layoutWarmupPending = false;
@@ -532,16 +587,6 @@ void CLG_UI_DrawRenderCommands() {
 *
 *
 **/
-static  char logbuf[ 64000 ];
-static   int logbuf_updated = 0;
-static float bg[ 3 ] = { 90, 95, 100 };
-
-
-static void write_log( const char *text ) {
-	if ( logbuf[ 0 ] ) { strcat( logbuf, "\n" ); }
-	strcat( logbuf, text );
-	logbuf_updated = 1;
-}
 
 
 static const bool __test_window( mu_Context *ctx ) {
@@ -664,11 +709,11 @@ static const bool __log_window( mu_Context *ctx ) {
 		mu_begin_panel( ctx, "Log Output" );
 		mu_Container *panel = mu_get_current_container( ctx );
 		mu_layout_row( ctx, 1, widths, -1 );
-		mu_text( ctx, logbuf );
+		mu_text( ctx, logbuf.c_str() );
 		mu_end_panel( ctx );
 		if ( logbuf_updated ) {
 			panel->scroll.y = panel->content_size.y;
-			logbuf_updated = 0;
+			logbuf_updated = false;
 		}
 
 		/* input textbox + submit button */
@@ -749,6 +794,304 @@ static const bool __style_window( mu_Context *ctx ) {
 	return false;
 }
 
+#if 0
+/**
+*	@brief	Draw the temporary team-selection scoreboard mockup.
+* 	@note	Implements the requested two-team layout with per-player voting checkboxes,
+* 			team-wide select toggles, alternating row colors, and fixed-width columns.
+**/
+static const bool __fake_scoreboard( mu_Context *ctx ) {
+	// The number of players, for determining layout height.
+	const int numberOfPlayers = 4;
+	const int teamCount = 2;
+	const int spacerRows = 1;
+	const int footerSpacerRows = 1;
+	const int actionRows = 1;
+
+	// Keep the window sized to the fixed table geometry plus the window padding.
+	const int checkboxWidth = 24;
+	const int nameWidth = 216;
+	const int scoreWidth = 52;
+	const int pingWidth = 52;
+	const int rowWidthTotal = checkboxWidth + nameWidth + scoreWidth + pingWidth;
+	// Include the three inter-column gaps so the drawn bars reach the same visual width as the layout.
+	const int rowWidthVisual = rowWidthTotal + ( ctx->style->spacing * 3 );
+	const int scoreBoardWidth = rowWidthVisual + ( ctx->style->padding * 2 );
+	const int rowHeight = 24;
+	const int totalRows = ( teamCount * ( numberOfPlayers + 1 ) ) + spacerRows + footerSpacerRows + actionRows;
+	const int contentHeight = ( totalRows * rowHeight ) + ( ( totalRows - 1 ) * ctx->style->spacing );
+	const int scoreBoardHeight = contentHeight + ( ctx->style->padding * 2 ) - ctx->style->spacing;
+	const int scoreBoardX = ( clgi.screen->screenWidth - scoreBoardWidth ) / 2;
+	const int scoreBoardY = ( clgi.screen->screenHeight - scoreBoardHeight ) / 2;
+	
+	/* No title. */
+	const int opt = MU_OPT_AUTOSIZE | MU_OPT_ALIGNCENTER | MU_OPT_NOCLOSE | MU_OPT_HOLDFOCUS |
+		MU_OPT_KEEPFOCUS | MU_OPT_NODRAG |
+		/* No resizing or scrolling.*/
+		MU_OPT_NORESIZE | MU_OPT_NOSCROLL;
+	
+	const char *name = "Hostage Reacquisition:"; // Should be gamemode name.
+	if ( mu_begin_window_ex( ctx, name, mu_rect( scoreBoardX, scoreBoardY, 0, scoreBoardHeight ), opt ) ) {
+		//mu_header_ex( ctx, "Scoreboard:", MU_OPT_ALIGNCENTER );
+		/**
+		* 	Keep the scoreboard state persistent so checkbox interactions survive frame updates.
+		**/
+		static int teamSelections[ 2 ] = { 0, 0 };
+		static int playerSelections[ 2 ][ 4 ] = {
+			{ 0, 0, 0, 0 },
+			{ 0, 0, 0, 0 }
+		};
+		static const char *teamNames[ 2 ] = {
+			"Team:    Outlaws",
+			"Team:    ScummieGummies"
+		};
+		static const char *playerNames[ 2 ][ 4 ] = {
+			{ "PlayerWithANose", "Hangman_Noose69", "EpicLulzBro", "Muffinator" },
+			{ "Spoike", "WatIsDeze", "Rambo", "Steven Seagull" }
+		};
+		const int rowWidths[ 4 ] = { checkboxWidth, nameWidth, scoreWidth, pingWidth };
+		const mu_Color rowColorDark = mu_color( 0x44, 0x44, 0x44, 196 );
+		const mu_Color rowColorLight = mu_color( 0x55, 0x55, 0x55, 196 );
+		const mu_Color headerColorA = mu_color( 255, 120, 0, 183 );
+		const mu_Color headerColorB = mu_color( 255, 100, 0, 128 );
+		const mu_Color separatorColor = mu_color( 255, 144, 90, 235 );
+		const char *scoreText[ ] = {
+			"1337",
+			"12",
+			"8",
+			"0"
+		};
+		const char *pingText[ ] = {
+			"50ms",
+			"120ms",
+			"200ms",
+			"999ms"
+		};
+
+		/**
+		* 	Build both team sections with identical column layout and placeholder data.
+		**/
+		for ( int team = 0; team < 2; team++ ) {
+			/**
+			* 	Synchronize the team-wide checkbox with the current player selections before drawing.
+			**/
+			int allSelected = 1;
+			for ( int player = 0; player < numberOfPlayers; player++ ) {
+				if ( playerSelections[ team ][ player ] == 0 ) {
+					allSelected = 0;
+					break;
+				}
+			}
+			teamSelections[ team ] = allSelected;
+
+			/**
+			* 	Draw the team header row and allow it to toggle every player in that team.
+			**/
+			mu_layout_row( ctx, 4, rowWidths, rowHeight );
+			mu_Rect headerRect = mu_layout_next( ctx );
+			mu_layout_set_next( ctx, headerRect, 0 );
+			headerRect.w = rowWidthVisual;
+			mu_draw_rect( ctx, headerRect, ( team == 0 ? headerColorA : headerColorB ) );
+			//mu_draw_rect( ctx, mu_rect( headerRect.x + checkboxWidth + ctx->style->spacing, headerRect.y, 1, headerRect.h ), separatorColor );
+			mu_draw_rect( ctx, mu_rect( headerRect.x + checkboxWidth + nameWidth, headerRect.y, 1, headerRect.h ), separatorColor );
+			mu_draw_rect( ctx, mu_rect( headerRect.x + checkboxWidth + nameWidth + scoreWidth, headerRect.y, 1, headerRect.h ), separatorColor );
+
+			int teamSelectionChanged = mu_checkbox( ctx, "", &teamSelections[ team ] );
+			mu_label( ctx, teamNames[ team ] );
+			mu_label_ex( ctx, "Score:", MU_COLOR_TEXT, MU_OPT_ALIGNRIGHT );
+			mu_label_ex( ctx, "Ping:", MU_COLOR_TEXT, MU_OPT_ALIGNRIGHT );
+
+			/**
+			* 	If the team checkbox changed, propagate the new value to every player row.
+			*	This will allow the user to select/deselect all players in a team with one 
+			*	click, and it will also keep the team checkbox state in sync if the user 
+			*	manually toggles every player row checkbox.
+			**/
+			if ( ( teamSelectionChanged & MU_RES_CHANGE ) != 0 ) {
+				// Team-wide selection changes affect multiple players, so clear any single-player focus.
+				focusedMuteTeam = -1;
+				focusedMutePlayer = -1;
+				for ( int player = 0; player < numberOfPlayers; player++ ) {
+					playerSelections[ team ][ player ] = teamSelections[ team ];
+				}
+			}
+
+			/**
+			* 	Emit the four placeholder player rows, alternating the fill color each time.
+			**/
+			for ( int player = 0; player < numberOfPlayers; player++ ) {
+				mu_layout_row( ctx, 4, rowWidths, rowHeight );
+				mu_Rect rowRect = mu_layout_next( ctx );
+				mu_layout_set_next( ctx, rowRect, 0 );
+				rowRect.w = rowWidthVisual;
+				mu_draw_rect( ctx, rowRect, ( player & 1 ) ? rowColorLight : rowColorDark );
+				//mu_draw_rect( ctx, mu_rect( rowRect.x + checkboxWidth, rowRect.y, 1, rowRect.h ), separatorColor );
+				mu_draw_rect( ctx, mu_rect( rowRect.x + checkboxWidth + nameWidth, rowRect.y, 1, rowRect.h ), separatorColor );
+				mu_draw_rect( ctx, mu_rect( rowRect.x + checkboxWidth + nameWidth + scoreWidth, rowRect.y, 1, rowRect.h ), separatorColor );
+
+				const int playerSelectionChanged = mu_checkbox( ctx, "", &playerSelections[ team ][ player ] );
+				// Remember the last player checkbox the user touched so the footer label can follow a single-player selection.
+				if ( ( playerSelectionChanged & MU_RES_CHANGE ) != 0 ) {
+					if ( playerSelections[ team ][ player ] ) {
+						focusedMuteTeam = team;
+						focusedMutePlayer = player;
+					} else if ( focusedMuteTeam == team && focusedMutePlayer == player ) {
+						focusedMuteTeam = -1;
+						focusedMutePlayer = -1;
+					}
+				}
+				mu_label( ctx, playerNames[ team ][ player ] );
+				mu_label_ex( ctx, scoreText[ player ], MU_COLOR_TEXT, MU_OPT_ALIGNRIGHT );
+				mu_label_ex( ctx, pingText[ player ], MU_COLOR_TEXT, MU_OPT_ALIGNRIGHT );
+			}
+
+			/**
+			* 	Insert the requested blank separator row between the two teams.
+			**/
+			if ( team == 0 ) {
+				mu_layout_row( ctx, 4, rowWidths, ctx->style->padding );
+				mu_label( ctx, "" );
+				mu_label( ctx, "" );
+				mu_label( ctx, "" );
+				mu_label( ctx, "" );
+			}
+
+			/**
+			* 	Refresh the team header state so it reflects the final per-player selection state.
+			**/
+			teamSelections[ team ] = 1;
+			for ( int player = 0; player < 4; player++ ) {
+				if ( playerSelections[ team ][ player ] == 0 ) {
+					teamSelections[ team ] = 0;
+					break;
+				}
+			}
+		}
+
+		/**
+		* 	Add a small footer spacer so the action buttons sit a bit farther below the player list.
+		**/
+		mu_layout_row( ctx, 4, rowWidths, ctx->style->padding );
+		mu_label( ctx, "" );
+		mu_label( ctx, "" );
+		mu_label( ctx, "" );
+		mu_label( ctx, "" );
+
+		/**
+		* 	Action row: Mute/Unmute (left aligned under the name column), Vote Kick, Vote Ban (right aligned across the score+ping columns).
+		* 	Buttons operate on all currently selected players. Basic per-player muted state is tracked locally and actions are logged.
+		**/
+		/**
+		*  Track per-player muted state locally in the UI using a small
+		*  fixed-size C++ container for clarity and type-safety.
+		**/
+		static std::array<std::array<int, 4>, 2> playerMuted = {};
+
+		// Collect selected players and determine if any selected are muted.
+		int selTeam[ 8 ];
+		int selIndex[ 8 ];
+		int selCount = 0;
+		bool anyMutedSelected = false;
+		for ( int t = 0; t < 2; t++ ) {
+			for ( int p = 0; p < numberOfPlayers; p++ ) {
+				if ( playerSelections[ t ][ p ] ) {
+					selTeam[ selCount ] = t;
+					selIndex[ selCount ] = p;
+					selCount++;
+					if ( playerMuted[ t ][ p ] ) { anyMutedSelected = true; }
+				}
+			}
+		}
+
+		const char *voteKickLabel = "Vote Kick";
+		const char *voteBanLabel = "Vote Ban";
+		const bool focusedMutePlayerValid =
+			focusedMuteTeam >= 0 && focusedMuteTeam < 2 &&
+			focusedMutePlayer >= 0 && focusedMutePlayer < 4 &&
+			playerSelections[ focusedMuteTeam ][ focusedMutePlayer ] != 0;
+		const char *muteLabel = "Mute";
+		if ( selCount > 0 ) {
+			// Let the footer label follow the most recently touched selected player when we have one.
+			if ( focusedMutePlayerValid ) {
+				muteLabel = playerMuted[ focusedMuteTeam ][ focusedMutePlayer ] ? "Unmute" : "Mute";
+			} else {
+				muteLabel = anyMutedSelected ? "Unmute" : "Mute";
+			}
+		}
+		const std::string selectedCsv = BuildSelectedPlayerCsv( selTeam, selCount, playerNames );
+
+		// Measure button widths based on the current font metrics so layout is precise.
+		const int muteButtonWidth = ctx->text_width( ctx->style->font, muteLabel, -1 ) + ( ctx->style->padding * 2 );
+		const int voteKickButtonWidth = ctx->text_width( ctx->style->font, voteKickLabel, -1 ) + ( ctx->style->padding * 2 );
+		const int voteBanButtonWidth = ctx->text_width( ctx->style->font, voteBanLabel, -1 ) + ( ctx->style->padding * 2 );
+
+		// Use the same 4-column layout as the players.
+		mu_layout_row( ctx, 4, rowWidths, rowHeight );
+
+		// Skip the checkbox column so the mute button sits under the name column.
+		mu_layout_next( ctx ); // checkbox column
+		mu_Rect nameCol = mu_layout_next( ctx ); // name column rect
+		mu_Rect muteRect = nameCol;
+		muteRect.w = muteButtonWidth;
+		mu_layout_set_next( ctx, muteRect, 0 );
+		if ( mu_button( ctx, muteLabel ) ) {
+			if ( selCount > 0 ) {
+				// Toggle: if any were muted, unmute all; otherwise mute all.
+				const int setMuted = anyMutedSelected ? 0 : 1;
+				for ( int i = 0; i < selCount; i++ ) {
+					int tt = selTeam[ i ];
+					int pp = selIndex[ i ];
+					playerMuted[ tt ][ pp ] = setMuted;
+				}
+				const std::string msg = ( setMuted ? "Muted: " : "Unmuted: " ) + selectedCsv;
+				write_log( msg.c_str() );
+			}
+		}
+
+		// Reserve the score+ping columns for the two right-aligned action buttons.
+		mu_Rect scoreCol = mu_layout_next( ctx );
+		mu_Rect pingCol = mu_layout_next( ctx );
+		mu_Rect combined = scoreCol;
+		combined.w = ( pingCol.x + pingCol.w ) - scoreCol.x;
+
+		const int spacing = ctx->style->spacing;
+		const int totalButtonsW = voteKickButtonWidth + spacing + voteBanButtonWidth;
+		int startX = combined.x + combined.w - totalButtonsW;
+		int y = combined.y;
+		int h = combined.h;
+
+		mu_Rect kickRect = mu_rect( startX, y, voteKickButtonWidth, h );
+		mu_layout_set_next( ctx, kickRect, 0 );
+		if ( mu_button( ctx, voteKickLabel ) ) {
+			if ( selCount > 0 ) {
+				// Log locally and forward the votekick command to the server as a single quoted CSV argument.
+				const std::string logmsg = std::string( "VoteKick: " ) + selectedCsv;
+				write_log( logmsg.c_str() );
+				const std::string cmd = std::string( "votekick " ) + QuoteCommandArgument( selectedCsv );
+				clgi.CL_ClientCommand( cmd.c_str() );
+			}
+		}
+
+		mu_Rect banRect = mu_rect( startX + voteKickButtonWidth + spacing, y, voteBanButtonWidth, h );
+		mu_layout_set_next( ctx, banRect, 0 );
+		if ( mu_button( ctx, voteBanLabel ) ) {
+			if ( selCount > 0 ) {
+				// Log locally and forward the voteban command to the server as a single quoted CSV argument.
+				const std::string logmsg = std::string( "VoteBan: " ) + selectedCsv;
+				write_log( logmsg.c_str() );
+				const std::string cmd = std::string( "voteban " ) + QuoteCommandArgument( selectedCsv );
+				clgi.CL_ClientCommand( cmd.c_str() );
+			}
+		}
+		mu_end_window( ctx );
+		// Visible.
+		return true;
+	}
+	// InVisible.
+	return false;
+}
+#endif
+
 static void __process_frame( mu_Context *ctx ) {
 	// Used for automatically returning control to whichever state it was.
 	int32_t windowsVisible = 0;
@@ -756,9 +1099,10 @@ static void __process_frame( mu_Context *ctx ) {
 	// Begin actual menu building.
 	mu_begin( ctx );
 	{
-		windowsVisible += __style_window( ctx );
-		windowsVisible += __log_window( ctx );
-		windowsVisible += __test_window( ctx );
+		//windowsVisible += __style_window( ctx );
+		//windowsVisible += __log_window( ctx );
+		//windowsVisible += __test_window( ctx );
+		windowsVisible += CLG_MUI_ProcessScoreBoard( ctx );
 	}
 	// Done building menus.
 	mu_end( ctx );

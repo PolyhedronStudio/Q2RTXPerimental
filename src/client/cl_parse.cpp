@@ -887,7 +887,7 @@ static void CL_ParseZPacket(void)
 }
 
 void CL_Scoreboard_ClearFrame( void );
-void CL_Scoreboard_AddEntry( const int64_t clientNumber, const int64_t clientTime, const int64_t clientScore, const int64_t clientPing );
+void CL_Scoreboard_AddEntry( const int64_t clientNumber, const int64_t clientTeamId, const int64_t clientTime, const int64_t clientScore, const int64_t clientPing );
 void CL_Scoreboard_RebuildFrame( const uint8_t totalClients );
 static int64_t scoreBoardFrame = 0;
 
@@ -902,12 +902,13 @@ static void CL_ParseScoreboard( void ) {
     for ( int32_t i = 0; i < numClients; i++ ) {
         // Read in data.
         int32_t clientNumber = MSG_ReadUint8();
+        int32_t clientTeamId = MSG_ReadUint8();
         int64_t clientTime = MSG_ReadIntBase128();
         int64_t clientScore = MSG_ReadIntBase128();
         uint16_t clientPing = MSG_ReadUint16();
 
         // Add in the entry.
-        CL_Scoreboard_AddEntry( clientNumber, clientTime, clientScore, clientPing );
+        CL_Scoreboard_AddEntry( clientNumber, clientTeamId, clientTime, clientScore, clientPing );
     }
 
     // Regenerate scoreboard.

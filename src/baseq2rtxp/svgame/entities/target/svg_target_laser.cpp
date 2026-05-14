@@ -229,7 +229,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_target_laser_t, onThink_StartSpawnLaser )( svg
 
     if ( !self->enemy ) {
         if ( self->targetNames.path ) {
-            ent = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, targetname ), (const char *)self->targetNames.path );
+            ent = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, targetname.ptr ), (const char *)self->targetNames.path );
             if ( !ent )
                 gi.dprintf( "%s at %s: %s is a bad target\n", (const char *)self->classname, vtos( self->s.origin ), (const char *)self->targetNames.path );
             self->enemy = ent;

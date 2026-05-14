@@ -67,8 +67,9 @@ void PlayerTrail_Init(void)
     *	Allocate each breadcrumb edict from the edict pool and store the
     *	pointer in the circular buffer.
     **/
-    for ( int n = 0; n < TRAIL_LENGTH; n++ ) {
-        trail[ n ] = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>( "player_trail" );
+	int32_t initialEntityCount = g_edict_pool.num_edicts;
+    for ( int n = initialEntityCount; n < ( initialEntityCount + TRAIL_LENGTH ); n++ ) {
+        trail[ n - initialEntityCount ] = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>( "player_trail" );
     }
 
     // Reset head index and mark the system active.

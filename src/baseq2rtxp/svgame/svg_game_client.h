@@ -74,6 +74,8 @@ struct client_persistant_t {
 
     //! If true, this client is engaged in 'Spectator' mode.
     bool        spectator = false;
+    //! Team identifier used by scoreboard and team-based game modes (0 = none/unassigned).
+    int32_t     team = 0;
 };
 
 /**

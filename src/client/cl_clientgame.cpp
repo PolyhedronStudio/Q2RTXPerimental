@@ -1051,6 +1051,9 @@ void CL_GM_LoadProgs( void ) {
 	imports.Cmd_RemoveCommand = PF_Cmd_RemoveCommand;
 	imports.Cmd_Register = PF_Cmd_Register;
 	imports.Cmd_Deregister = PF_Cmd_Deregister;
+	imports.CL_ClientCommand = CL_ClientCommand;
+	imports.GetScoreboardEntries = CL_GetScoreboardEntries;
+	imports.GetScoreboardClientCount = CL_GetScoreboardClientCount;
 
 	imports.CVar = PF_CVar;
 	imports.CVar_Get = PF_CVarGet;

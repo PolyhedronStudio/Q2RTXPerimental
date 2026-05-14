@@ -499,7 +499,9 @@ void SVG_InitGame( void ) {
 	// Initialize the player trail system so breadcrumb entities exist for monsters.
 	// This must happen after the edict pool and clients are allocated so the
 	// trail entities can be allocated from the edict pool.
-	PlayerTrail_Init();
+	// <WID>: Never do this here because it interfers with spawning and entity indices.
+	// instead it happens at the first playertrail add attempt.
+	//PlayerTrail_Init();
 }
 
 /**

@@ -97,7 +97,7 @@ void SVG_Trigger_PrintMessage( svg_base_edict_t *self, svg_base_edict_t *activat
 const int32_t SVG_Trigger_KillTargets( svg_base_edict_t *self ) {
     if ( self->targetNames.kill ) {
         svg_base_edict_t *killTargetEntity = nullptr;
-        while ( ( killTargetEntity = SVG_Entities_Find( killTargetEntity, q_offsetof( svg_base_edict_t, targetname ), (const char *)self->targetNames.kill ) ) ) {
+        while ( ( killTargetEntity = SVG_Entities_Find( killTargetEntity, q_offsetof( svg_base_edict_t, targetname.ptr ), (const char *)self->targetNames.kill ) ) ) {
             SVG_FreeEdict( killTargetEntity );
             if ( !self->inUse ) {
                 gi.dprintf( "%s: entity(#%d, \"%s\") was removed while using killtargets\n", __func__, self->s.number, (const char *)self->classname );
@@ -136,7 +136,7 @@ svg_base_edict_t *SVG_PickTarget( const char *targetname ) {
     }
 
     while ( 1 ) {
-        ent = SVG_Entities_Find( ent, q_offsetof( svg_base_edict_t, targetname ), targetname );
+        ent = SVG_Entities_Find( ent, q_offsetof( svg_base_edict_t, targetname.ptr ), targetname );
         if ( !ent )
             break;
         choice[ num_choices++ ] = ent;

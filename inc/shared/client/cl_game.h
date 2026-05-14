@@ -11,7 +11,7 @@
 //
 // cl_game.h -- client game dll information visible to client
 //
-#define CLGAME_API_VERSION    4
+#define CLGAME_API_VERSION    5
 
 // edict->svFlags
 
@@ -100,8 +100,10 @@ typedef struct centity_s {
 } centity_t;
 
 #include "client/client_types.h"
+#include "shared/client/scoreboard.h"
 #else
 #include "client/client_types.h"
+#include "shared/client/scoreboard.h"
 #endif      // CLGAME_INCLUDE
 
 //===============================================================
@@ -157,10 +159,8 @@ typedef struct {
 	const int64_t( *Netchan_GetIncomingAcknowledged )( void );
 	const int64_t( *Netchan_GetDropped )( void );
 
-
 	/**
-	*
-	*	ConfigStrings:
+	*       ConfigStrings:
 	*
 	**/
 	configstring_t *( *GetConfigString )( const int32_t index );
@@ -168,13 +168,13 @@ typedef struct {
 
 	/**
 	*
-	*	Commands:
+	*       Commands:
 	*
 	**/
 	/**
-	*	The functions that execute commands get their parameters with these
-	*	functions. Cmd_Argv () will return an empty string, not a NULL
-	*	if arg > argc, so string operations are always safe.
+	*       The functions that execute commands get their parameters with these
+	*       functions. Cmd_Argv () will return an empty string, not a NULL
+	*       if arg > argc, so string operations are always safe.
 	**/
 	const from_t  ( *Cmd_From )( void );
 	const int32_t ( *Cmd_Argc )( void );
@@ -203,31 +203,42 @@ typedef struct {
 	cmd_macro_t *( *Cmd_FindMacro )( const char *name );
 
 	/**
-	*	@brief	Registers the specified function pointer as the 'name' command.
+	*       @brief  Registers the specified function pointer as the 'name' command.
 	**/
 	void ( *Cmd_AddCommand )( const char *name, xcommand_t function );
 	/**
-	*	@brief	Registers the specified function pointer as the 'name' macro.
+	*       @brief  Registers the specified function pointer as the 'name' macro.
 	**/
 	void ( *Cmd_AddMacro )( const char *name, xmacro_t function );
 	/**
-	*	@brief	Removes the specified 'name' command registration.
+	*       @brief  Removes the specified 'name' command registration.
 	**/
 	void ( *Cmd_RemoveCommand )( const char *name );
 	/**
-	*	@brief	Registers the specified function pointer as the 'name' command.
+	*       @brief  Registers the specified function pointer as the 'name' command.
 	**/
 	void ( *Cmd_Register )( const cmdreg_t *reg );
 	/**
-	*	@brief	Deregisters the specified function pointer as the 'name' command.
+	*       @brief  Deregisters the specified function pointer as the 'name' command.
 	**/
 	void ( *Cmd_Deregister )( const cmdreg_t *reg );
-
-
+	/**
+	*       @brief  Sends a raw command string to the connected server.
+	*       @note   Used by client-game UI code when it needs to preserve quoting and spacing exactly as formatted.
+	**/
+	void ( *CL_ClientCommand )( const char *string );
+	/**
+	*   @brief  Returns the active scoreboard entries parsed from the engine.
+	**/
+	const scoreboard_entry_t *( *GetScoreboardEntries )( void );
+	/**
+	*   @brief  Returns the number of active scoreboard entries.
+	**/
+	int32_t ( *GetScoreboardClientCount )( void );
 
 	/**
 	*
-	*	Console variable interaction:
+	*       Console variable interaction:
 	*
 	**/
 	cvar_t *( *CVar )( const char *var_name, const char *value, const int32_t flags );
@@ -243,12 +254,12 @@ typedef struct {
 	//! Returns NULL if nothing fits.
 	void ( *CVar_Variable_g )( genctx_t *ctx );
 	void ( *CVar_Default_g )( genctx_t *ctx );
-	
+
 
 
 	/**
 	*
-	*	Console:
+	*       Console:
 	* 
 	**/
 	void ( *Con_ClearNotificationTexts_f )( void );

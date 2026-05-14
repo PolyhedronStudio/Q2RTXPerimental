@@ -140,7 +140,7 @@ void svg_func_door_t::SetAreaPortal( const bool isOpen, const bool forceState ) 
 	}
 
 	// Find all func_areaportal entities with matching targetname.
-	while ( ( func_area = SVG_Entities_Find( func_area, q_offsetof( svg_base_edict_t, targetname ), ( const char * )targetNames.target ) ) ) {
+	while ( ( func_area = SVG_Entities_Find( func_area, q_offsetof( svg_base_edict_t, targetname.ptr ), ( const char * )targetNames.target ) ) ) {
 		const bool isAreaPortal =
 			( func_area->s.entityType == ET_AREA_PORTAL ) ||
 			( func_area->classname && strcmp( ( const char * )func_area->classname, "func_areaportal" ) == 0 );

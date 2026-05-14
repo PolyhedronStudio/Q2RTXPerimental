@@ -24,6 +24,8 @@
 ********************************************************************/
 #include "clgame/clg_local.h"
 #include "clgame/clg_input.h"
+#include "clgame/game_ui/clg_ui_main.h"
+#include "sharedgame/sg_game_ui.h"
 
 /**
 *
@@ -203,6 +205,33 @@ static void IN_UseTargetDown( void ) {
 **/
 static void IN_UseTargetUp( void ) {
     clgi.KeyUp( &in_use_target );
+}
+
+static bool s_scoreboardActive = false;
+
+/**
+*   @brief  Show the scoreboard UI and start sending "score" to the server.
+**/
+static void IN_ScoreDown( void ) {
+    if ( !s_scoreboardActive ) {
+        s_scoreboardActive = true;
+        // Open the scoreboard UI (TEAM menu is used for scoreboard)
+        CLG_UI_OpenMenu( sg_game_ui_menu_id::TEAM );
+        // Send initial score command to server
+        clgi.CL_ClientCommand( "score" );
+    }
+}
+
+/**
+*   @brief  Hide the scoreboard UI and stop sending "score" to the server.
+**/
+static void IN_ScoreUp( void ) {
+    if ( s_scoreboardActive ) {
+        s_scoreboardActive = false;
+        // Close the scoreboard UI
+        CLG_UI_CloseMenu();
+        // No need to send anything to server; server will stop updates when menu closes
+    }
 }
 
 /**
@@ -521,7 +550,12 @@ void PF_ClearMoveCommand( client_movecmd_t *moveCommand ) {
 *   @brief    
 **/
 void PF_RegisterUserInput( void ) {
+
     clgi.Cmd_AddCommand( "centerview", IN_CenterView );
+
+    // Scoreboard input (TAB key)
+    clgi.Cmd_AddCommand( "+score", IN_ScoreDown );
+    clgi.Cmd_AddCommand( "-score", IN_ScoreUp );
 
     clgi.Cmd_AddCommand( "+moveup", IN_UpDown );
     clgi.Cmd_AddCommand( "-moveup", IN_UpUp );

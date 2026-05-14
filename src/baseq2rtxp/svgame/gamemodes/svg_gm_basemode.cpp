@@ -141,11 +141,11 @@ svg_base_edict_t *svg_gamemode_t::SelectSpawnPoint( svg_player_edict_t *ent, Vec
     // Find a single player start spot since the game modes found none.
     if ( !spot ) {
         // Iterate for info_player_start that matches the game.spawnpoint targetname to spawn at..
-        while ( ( spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname ), "info_player_start" ) ) != NULL ) {
+        while ( ( spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname.ptr ), "info_player_start" ) ) != NULL ) {
             // Break out if the string data is invalid.
-            if ( !game.spawnpoint[ 0 ] && !(const char *)spot->targetname )
+            if ( game.spawnpoint[ 0 ] == '\0' && !( const char * )spot->targetname )
                 break;
-            if ( !game.spawnpoint[ 0 ] || !(const char *)spot->targetname )
+            if ( game.spawnpoint[ 0 ] == '\0' || !( const char * )spot->targetname )
                 continue;
 
             // Break out in case we found the game.spawnpoint matching info_player_start 'targetname'.
@@ -155,9 +155,9 @@ svg_base_edict_t *svg_gamemode_t::SelectSpawnPoint( svg_player_edict_t *ent, Vec
 
         // Couldn't find any designated spawn points, pick one with just a matching classname instead.
         if ( !spot ) {
-            if ( !game.spawnpoint[ 0 ] ) {
+            if ( game.spawnpoint[ 0 ] == '\0' ) {
                 // there wasn't a spawnpoint without a target, so use any
-                spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname ), "info_player_start" );
+                spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname.ptr ), "info_player_start" );
             }
             if ( !spot )
                 gi.error( "Couldn't find spawn point %s", game.spawnpoint );

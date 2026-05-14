@@ -96,7 +96,7 @@ DEFINE_GLOBAL_CALLBACK_TOUCH( svg_misc_teleporter_onTouch )( svg_base_edict_t *s
 
     if ( !other->client )
         return;
-    dest = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, targetname ), (const char *)self->targetNames.target );
+    dest = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, targetname.ptr ), (const char *)self->targetNames.target );
     if ( !dest ) {
         gi.dprintf( "Couldn't find destination\n" );
         return;

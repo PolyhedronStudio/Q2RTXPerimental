@@ -20,6 +20,9 @@ enum class sg_game_ui_menu_id {
 	//! [Unimplemented] Menu to buy weapons and items with in objective-based gamemodes.
 	ARMORY,
 
+	//! Scoreboard menu, shows player scores and team scores if applicable. This is the only menu that is currently implemented, and it can be opened by the server sending a command with this menu ID, or by the client opening it manually for testing purposes.
+	SCOREBOARD,
+
 	//! Menu to test with.
 	TEST,
 

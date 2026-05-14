@@ -2431,25 +2431,6 @@ void clg_timeout_changed(cvar_t *self)
     self->integer = 1000 * Cvar_ClampValue(self, 0, 24 * 24 * 60 * 60);
 }
 
-// TEST FOR SCOREBOARD:
-void CL_ToggleScoreboard_f() {
-    // Determine if we're the active menu, if not, expose us to be active.
-    menuFrameWork_t *currentMenu = uis.activeMenu;
-
-    //CL_ForwardToServer();
-
-    // Start showing this as the default UI.
-    menuFrameWork_t *scoreboardMenu = UI_FindMenu( "scoreboard" );
-    if ( currentMenu != scoreboardMenu ) {
-        //    // Forward to server so it'll start/stop sending us svc_scoreboard messages.
-        //    //scoreboardMenu->expose( scoreboardMenu );
-        UI_PushMenu( scoreboardMenu );
-    // Otherwise, assume we're already visible, so hide all UI:
-    } else {
-        UI_ForceMenuOff();
-    }
-}
-// END OF TEST:
 static const cmdreg_t c_client[] = {
     { "cmd", CL_ForwardToServer_f },
     { "pause", CL_Pause_f },
@@ -2495,7 +2476,6 @@ static const cmdreg_t c_client[] = {
     { "say", NULL, CL_Say_c },
     { "say_team", NULL, CL_Say_c },
 
-    { "score", CL_ToggleScoreboard_f },
 
     // Q@RTXP:
     { "lua_dumpstack" },

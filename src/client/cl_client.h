@@ -713,6 +713,18 @@ void    SCR_DrawStringMulti(int x, int y, int flags, size_t maxlen, const char *
 const char *SCR_GetColorName( const color_index_t colorIndex );
 
 
+//
+// scoreboard.cpp
+//
+/**
+*   @brief  Returns the shared active scoreboard entry buffer.
+*/
+const scoreboard_entry_t *CL_GetScoreboardEntries( void );
+/**
+*   @brief  Returns the current count of active scoreboard entries.
+*/
+int32_t CL_GetScoreboardClientCount( void );
+
 
 //
 // cin.cpp

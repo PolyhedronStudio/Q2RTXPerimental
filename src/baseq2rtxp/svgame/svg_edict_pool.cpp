@@ -175,15 +175,15 @@ svg_base_edict_t *svg_edict_pool_t::EmplaceNextFreeEdict( svg_base_edict_t *ent 
 			ent->inUse = true;
 			// Free the old entity.
 			SVG_FreeEdict( entity );
-			// Initialize the new one.
-			edicts[ num_edicts ] = ent;
+			// Initialize the new one in the reused slot.
+			edicts[ i ] = ent;
 			// Return its ptr.
 			return /*static_cast<EdictType *>*/( edicts[ i ] );
 		}
 
 		// this is going to be our second chance to spawn an entity in case all free
 		// entities have been freed only recently
-		if ( !freedEntity ) {
+		if ( !freedEntity && entity != nullptr && !entity->inUse ) {
 			freedEntity = entity;
 		}
 	}
@@ -193,16 +193,17 @@ svg_base_edict_t *svg_edict_pool_t::EmplaceNextFreeEdict( svg_base_edict_t *ent 
 		// If we have a freed entity, use it.
 		if ( freedEntity ) {
 			//_InitEdict<EdictType>( entity, i );
+			const int32_t reuseIndex = freedEntity->s.number;
 			// Restore the actual number.
-			ent->s.number = i;
+			ent->s.number = reuseIndex;
 			// Make sure it is set to 'inUse'.
 			ent->inUse = true;
 			// Free the old entity.
 			SVG_FreeEdict( freedEntity );
 			// Initialize the new one.
-			edicts[ i ] = ent;
+			edicts[ reuseIndex ] = ent;
 			// Return its ptr.
-			return /*static_cast<EdictType *>*/( edicts[ i ] );
+			return /*static_cast<EdictType *>*/( edicts[ reuseIndex ] );
 		}
 		// If we don't have any free edicts, error out.
 		gi.error( "SVG_AllocateEdict: no free edicts" );

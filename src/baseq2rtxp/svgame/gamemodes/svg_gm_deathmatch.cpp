@@ -1028,7 +1028,7 @@ svg_base_edict_t *svg_gamemode_deathmatch_t::SelectRandomDeathmatchSpawnPoint( v
 	range1 = range2 = 99999;
 	spot1 = spot2 = NULL;
 
-	while ( ( spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname ), "info_player_deathmatch" ) ) != NULL ) {
+	while ( ( spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname.ptr ), "info_player_deathmatch" ) ) != NULL ) {
 		count++;
 		range = SVG_Util_ClosestClientForEntity( spot );
 		if ( range < range1 ) {
@@ -1052,7 +1052,7 @@ svg_base_edict_t *svg_gamemode_deathmatch_t::SelectRandomDeathmatchSpawnPoint( v
 
 	spot = NULL;
 	do {
-		spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname ), "info_player_deathmatch" );
+		spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname.ptr ), "info_player_deathmatch" );
 		if ( spot == spot1 || spot == spot2 )
 			selection++;
 	} while ( selection-- );
@@ -1072,7 +1072,7 @@ svg_base_edict_t *svg_gamemode_deathmatch_t::SelectFarthestDeathmatchSpawnPoint(
 	spot = NULL;
 	bestspot = NULL;
 	bestdistance = 0;
-	while ( ( spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname ), "info_player_deathmatch" ) ) != NULL ) {
+	while ( ( spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname.ptr ), "info_player_deathmatch" ) ) != NULL ) {
 		bestplayerdistance = SVG_Util_ClosestClientForEntity( spot );
 
 		if ( bestplayerdistance > bestdistance ) {
@@ -1087,7 +1087,7 @@ svg_base_edict_t *svg_gamemode_deathmatch_t::SelectFarthestDeathmatchSpawnPoint(
 
 	// if there is a player just spawned on each and every start spot
 	// we have no choice to turn one into a telefrag meltdown
-	spot = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, classname ), "info_player_deathmatch" );
+	spot = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, classname.ptr ), "info_player_deathmatch" );
 
 	return spot;
 }
@@ -1138,7 +1138,7 @@ void svg_gamemode_deathmatch_t::EndDeathMatch() {
 	if ( level.nextmap[ 0 ] ) {// go to a specific map
 		SVG_HUD_BeginIntermission( CreateTargetChangeLevel( level.nextmap ) );
 	} else {  // search for a changelevel
-		ent = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, classname ), "target_changelevel" );
+		ent = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, classname.ptr ), "target_changelevel" );
 		if ( !ent ) {
 			// the map designer didn't include a changelevel,
 			// so create a fake ent that goes back to the same level

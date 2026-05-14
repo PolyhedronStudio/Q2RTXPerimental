@@ -1054,7 +1054,7 @@ svg_base_edict_t *svg_gamemode_cooperative_t::SelectCoopSpawnPoint( svg_player_e
 
 	// assume there are four coop spots at each spawnpoint
 	while ( 1 ) {
-		spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname ), "info_player_coop" );
+		spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname.ptr ), "info_player_coop" );
 		if ( !spot ) {
 			return NULL;    // we didn't have enough...
 		}

@@ -91,6 +91,16 @@ static mu_Style default_style = {
 };
 
 
+
+/**
+*
+*
+*
+*	Type Initializers:
+*
+*
+*
+**/
 /**
 *	@brief	Construct a 2D integer vector.
 *	@param x Horizontal component.
@@ -103,6 +113,19 @@ mu_Vec2 mu_vec2(int x, int y) {
   return res;
 }
 
+/**
+*	@brief	Construct an RGBA color.
+*	@param r Red channel.
+*	@param g Green channel.
+*	@param b Blue channel.
+*	@param a Alpha channel.
+*	@return A populated `mu_Color`.
+*/
+mu_Color mu_color( int r, int g, int b, int a ) {
+	mu_Color res;
+	res.r = r; res.g = g; res.b = b; res.a = a;
+	return res;
+}
 
 /**
 *	@brief	Construct an integer rectangle.
@@ -117,23 +140,6 @@ mu_Rect mu_rect(int x, int y, int w, int h) {
   res.x = x; res.y = y; res.w = w; res.h = h;
   return res;
 }
-
-
-/**
-*	@brief	Construct an RGBA color.
-*	@param r Red channel.
-*	@param g Green channel.
-*	@param b Blue channel.
-*	@param a Alpha channel.
-*	@return A populated `mu_Color`.
-*/
-mu_Color mu_color(int r, int g, int b, int a) {
-  mu_Color res;
-  res.r = r; res.g = g; res.b = b; res.a = a;
-  return res;
-}
-
-
 /**
 *	@brief	Expand a rectangle outward by a uniform amount.
 *	@param rect Source rectangle.
@@ -143,8 +149,6 @@ mu_Color mu_color(int r, int g, int b, int a) {
 static mu_Rect expand_rect(mu_Rect rect, int n) {
   return mu_rect(rect.x - n, rect.y - n, rect.w + n * 2, rect.h + n * 2);
 }
-
-
 /**
 *	@brief	Intersect two rectangles in integer pixel space.
 *	@param r1 First rectangle.
@@ -160,8 +164,6 @@ static mu_Rect intersect_rects(mu_Rect r1, mu_Rect r2) {
   if (y2 < y1) { y2 = y1; }
   return mu_rect(x1, y1, x2 - x1, y2 - y1);
 }
-
-
 /**
 *	@brief	Test whether a point lies inside a rectangle.
 *	@param r Rectangle to test.
@@ -172,6 +174,17 @@ static int rect_overlaps_vec2(mu_Rect r, mu_Vec2 p) {
   return p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h;
 }
 
+
+
+/**
+*
+*
+*
+*	Core:
+*
+*
+*
+**/
 /**
 *	@brief Draw a frame with the given color id. This is used for drawing all colored
 *	@param ctx The UI context
@@ -184,13 +197,12 @@ static void draw_frame(mu_Context *ctx, mu_Rect rect, int colorid) {
   if (colorid == MU_COLOR_SCROLLBASE  ||
       colorid == MU_COLOR_SCROLLTHUMB ||
       colorid == MU_COLOR_TITLEBG_INACTIVE ||
-	  colorid == MU_COLOR_TITLEBG_ACTIVE ) { return; }
+    colorid == MU_COLOR_TITLEBG_ACTIVE ) { return; }
   /* draw border */
   if (ctx->style->colors[MU_COLOR_BORDER].a) {
     mu_draw_box(ctx, expand_rect(rect, 1), ctx->style->colors[MU_COLOR_BORDER]);
   }
 }
-
 
 /**
 *	@brief	Initialize a context and bind the default draw callback and style.
@@ -203,6 +215,21 @@ void mu_init(mu_Context *ctx) {
   ctx->style = &ctx->_style;
 }
 
+
+/**
+*	@brief	Draw a label while preserving the default padding feel for right-aligned text.
+*	@param	ctx		Active context.
+*	@param	text	Label text.
+*	@param	colorid	Theme color index.
+*	@param	opt		Label option bitmask.
+**/
+void mu_label_ex( mu_Context *ctx, const char *text, const int colorid, const int opt ) {
+    mu_Rect rect = mu_layout_next( ctx );
+    if ( opt & MU_OPT_ALIGNRIGHT ) {
+        rect.w = mu_max( 0, rect.w - ctx->style->padding );
+    }
+    mu_draw_control_text( ctx, text, rect, colorid, opt );
+}
 
 /**
 *	@brief	Begin a new UI frame and reset per-frame state.
@@ -220,7 +247,6 @@ void mu_begin(mu_Context *ctx) {
   ctx->frame++;
 }
 
-
 /**
 *	@brief	Compare containers by z-index for sorting.
 *	@param a First container pointer wrapper.
@@ -230,7 +256,6 @@ void mu_begin(mu_Context *ctx) {
 static int compare_zindex(const void *a, const void *b) {
   return (*(mu_Container**) a)->zindex - (*(mu_Container**) b)->zindex;
 }
-
 
 /**
 *	@brief	End a UI frame and finalize root container command linking.
@@ -292,7 +317,6 @@ void mu_end(mu_Context *ctx) {
   }
 }
 
-
 /**
 *	@brief	Set the currently focused widget ID.
 *	@param ctx Active context.
@@ -304,6 +328,16 @@ void mu_set_focus(mu_Context *ctx, mu_Id id) {
 }
 
 
+
+/**
+*
+*
+*
+*	Hashing:
+*
+*
+*
+**/
 /**
 *	@brief	Seed used by the 32-bit FNV-1a hash implementation.
 */
@@ -315,14 +349,24 @@ void mu_set_focus(mu_Context *ctx, mu_Id id) {
 *	@param data Input bytes.
 *	@param size Input size in bytes.
 */
-static void hash(mu_Id *hash, const void *data, int size) {
-  const unsigned char *p = data;
-  while (size--) {
-    *hash = (*hash ^ *p++) * 16777619;
-  }
+static void hash( mu_Id *hash, const void *data, int size ) {
+	const unsigned char *p = data;
+	while ( size-- ) {
+		*hash = ( *hash ^ *p++ ) * 16777619;
+	}
 }
 
 
+
+/**
+*
+*
+*
+*	ID Generation:
+*
+*
+*
+**/
 /**
 *	@brief	Hash arbitrary bytes with the current ID stack to produce a stable widget ID.
 *	@param ctx Active context.
@@ -359,6 +403,16 @@ void mu_pop_id(mu_Context *ctx) {
 }
 
 
+
+/**
+*
+*
+*
+*	Clipping:
+*
+*
+*
+**/
 /**
 *	@brief	Push and intersect a new clipping rectangle.
 *	@param ctx Active context.
@@ -472,10 +526,21 @@ void mu_bring_to_front(mu_Context *ctx, mu_Container *cnt) {
 }
 
 
-/*============================================================================
-** pool
-**============================================================================*/
 
+/**
+*
+*
+*
+*	Pool:
+*
+*
+*
+**/
+/**
+*	@brief	Initialize a pool slot with a new ID, replacing the least recently updated entry.
+*	@return	Returns the index of the initialized slot.
+*	@note	This is used to manage the fixed-size pool of retained containers, which allows the UI to maintain state across frames for a limited number of widgets.
+**/
 int mu_pool_init(mu_Context *ctx, mu_PoolItem *items, int len, mu_Id id) {
   int i, n = -1, f = ctx->frame;
   for (i = 0; i < len; i++) {
@@ -520,14 +585,17 @@ void mu_pool_update(mu_Context *ctx, mu_PoolItem *items, int idx) {
 }
 
 
-/**
-*	@brief	Input handler entry points.
-*	@note	These functions translate platform input into frame-local UI state.
-*/
-/*============================================================================
-** input handlers
-**============================================================================*/
 
+/**
+*
+*
+*
+*	Input handler entry points:
+*	These functions translate platform input into frame-local UI state.
+*
+*
+*
+**/
 /**
 *	@brief	Update the current mouse position.
 *	@param ctx Active context.
@@ -612,14 +680,17 @@ void mu_input_text(mu_Context *ctx, const char *text) {
 }
 
 
-/**
-*	@brief	Command stream helpers.
-*	@note	These functions append and iterate packed draw/control commands.
-*/
-/*============================================================================
-** commandlist
-**============================================================================*/
 
+/**
+*
+*
+*
+*	Command stream helpers:
+*	These functions append and iterate packed draw/control commands.
+*
+*
+*
+**/
 /**
 *	@brief	Push a command payload onto the current command list.
 *	@param ctx Active context.
@@ -768,14 +839,17 @@ void mu_draw_icon(mu_Context *ctx, int id, mu_Rect rect, mu_Color color) {
 }
 
 
-/**
-*	@brief	Layout state helpers.
-*	@note	These functions manage row/column flow and deferred placement.
-*/
-/*============================================================================
-** layout
-**============================================================================*/
 
+/**
+*
+*
+*
+*	Layout state helpers:
+*	These functions manage row/column flow and deferred placement.
+*
+*
+*
+**/
 enum { RELATIVE = 1, ABSOLUTE = 2 };
 
 
@@ -786,8 +860,6 @@ enum { RELATIVE = 1, ABSOLUTE = 2 };
 void mu_layout_begin_column(mu_Context *ctx) {
   push_layout(ctx, mu_layout_next(ctx), mu_vec2(0, 0));
 }
-
-
 /**
 *	@brief	End the current nested column layout.
 *	@param ctx Active context.
@@ -824,7 +896,6 @@ void mu_layout_row(mu_Context *ctx, int items, const int *widths, int height) {
   layout->item_index = 0;
 }
 
-
 /**
 *	@brief	Override the next item width.
 *	@param ctx Active context.
@@ -833,8 +904,6 @@ void mu_layout_row(mu_Context *ctx, int items, const int *widths, int height) {
 void mu_layout_width(mu_Context *ctx, int width) {
   get_layout(ctx)->size.x = width;
 }
-
-
 /**
 *	@brief	Override the next item height.
 *	@param ctx Active context.
@@ -843,7 +912,6 @@ void mu_layout_width(mu_Context *ctx, int width) {
 void mu_layout_height(mu_Context *ctx, int height) {
   get_layout(ctx)->size.y = height;
 }
-
 
 /**
 *	@brief	Set the next layout rectangle.
@@ -856,8 +924,6 @@ void mu_layout_set_next(mu_Context *ctx, mu_Rect r, int relative) {
   layout->next = r;
   layout->next_type = relative ? RELATIVE : ABSOLUTE;
 }
-
-
 /**
 *	@brief	Advance the layout and return the next item rectangle.
 *	@param ctx Active context.
@@ -912,14 +978,17 @@ mu_Rect mu_layout_next(mu_Context *ctx) {
 }
 
 
-/**
-*	@brief	Interactive control helpers.
-*	@note	These functions update hover/focus state and draw common widget chrome.
-*/
-/*============================================================================
-** controls
-**============================================================================*/
 
+/**
+*
+*
+*
+*	Interactive control helpers:
+*	These functions update hover/focus state and draw common widget chrome.
+* 
+*
+*
+**/
 /**
 *	@brief	Test whether the active hover root matches the current container stack.
 *	@param ctx Active context.
@@ -952,8 +1021,6 @@ void mu_draw_control_frame(mu_Context *ctx, mu_Id id, mu_Rect rect,
   colorid += (ctx->focus == id) ? 2 : (ctx->hover == id) ? 1 : 0;
   ctx->draw_frame(ctx, rect, colorid);
 }
-
-
 /**
 *	@brief	Draw control text clipped to a rectangle.
 *	@param ctx Active context.
@@ -981,7 +1048,34 @@ void mu_draw_control_text(mu_Context *ctx, const char *str, mu_Rect rect,
   mu_pop_clip_rect(ctx);
 }
 
+void mu_draw_control_text_custom_color( mu_Context *ctx, const char *str, mu_Rect rect,
+	mu_Color color, int opt ) {
+	mu_Vec2 pos;
+	mu_Font font = ctx->style->font;
+	int tw = ctx->text_width( font, str, -1 );
+	mu_push_clip_rect( ctx, rect );
+	pos.y = rect.y + ( rect.h - ctx->text_height( font ) ) / 2;
+	if ( opt & MU_OPT_ALIGNCENTER ) {
+		pos.x = rect.x + ( rect.w - tw ) / 2;
+	} else if ( opt & MU_OPT_ALIGNRIGHT ) {
+		pos.x = rect.x + rect.w - tw - ctx->style->padding;
+	} else {
+		pos.x = rect.x + ctx->style->padding;
+	}
+	mu_draw_text( ctx, font, str, -1, pos, color );
+	mu_pop_clip_rect( ctx );
+}
 
+
+/**
+*
+*
+*
+*	Mouse Over/Hover:
+*
+*
+*
+**/
 /**
 *	@brief	Test whether the mouse is over a rectangle and the active hover root.
 *	@param ctx Active context.
@@ -1010,8 +1104,12 @@ void mu_update_control(mu_Context *ctx, mu_Id id, mu_Rect rect, int opt) {
   if (mouseover && !ctx->mouse_down) { ctx->hover = id; }
 
   if (ctx->focus == id) {
-    if (ctx->mouse_pressed && !mouseover) { mu_set_focus(ctx, 0); }
-    if (!ctx->mouse_down && ~opt & MU_OPT_HOLDFOCUS) { mu_set_focus(ctx, 0); }
+    /* KEEPFOCUS keeps the control focused even when the user clicks outside
+    ** the window or releases the mouse outside the control. */
+    if (!(opt & MU_OPT_KEEPFOCUS)) {
+      if (ctx->mouse_pressed && !mouseover) { mu_set_focus(ctx, 0); }
+      if (!ctx->mouse_down && ~opt & MU_OPT_HOLDFOCUS) { mu_set_focus(ctx, 0); }
+    }
   }
 
   if (ctx->hover == id) {
@@ -1024,6 +1122,16 @@ void mu_update_control(mu_Context *ctx, mu_Id id, mu_Rect rect, int opt) {
 }
 
 
+
+/**
+*
+*
+*
+*	MicroUI Controls:
+*
+*
+*
+**/
 /**
 *	@brief	Emit static text using the current layout.
 *	@param ctx Active context.
@@ -1064,7 +1172,13 @@ void mu_label(mu_Context *ctx, const char *text) {
   mu_draw_control_text(ctx, text, mu_layout_next(ctx), MU_COLOR_TEXT, 0);
 }
 
-
+/**
+*	@brief	Emit a single-line label using the current layout.
+*	@param ctx Active context.
+*	@param text Label text.
+*	@param	[in]	colorid	The color to use.
+*	@param	[in]	opt		The special options for this label.
+**/
 /**
 *	@brief	Emit a button widget.
 *	@param ctx Active context.
@@ -1100,9 +1214,11 @@ int mu_button_ex(mu_Context *ctx, const char *label, int icon, int opt) {
 */
 int mu_checkbox(mu_Context *ctx, const char *label, int *state) {
   int res = 0;
+  int colorid = MU_COLOR_BASE;
   mu_Id id = mu_get_id(ctx, &state, sizeof(state));
   mu_Rect r = mu_layout_next(ctx);
   mu_Rect box = mu_rect(r.x, r.y, r.h, r.h);
+  mu_Rect label_rect = mu_rect(r.x + box.w, r.y, mu_max(0, r.w - box.w), r.h);
   mu_update_control(ctx, id, r, 0);
   /* handle click */
   if (ctx->mouse_pressed == MU_MOUSE_LEFT && ctx->focus == id) {
@@ -1110,12 +1226,15 @@ int mu_checkbox(mu_Context *ctx, const char *label, int *state) {
     *state = !*state;
   }
   /* draw */
-  mu_draw_control_frame(ctx, id, box, MU_COLOR_BASE, 0);
+  colorid += (ctx->focus == id) ? 2 : (ctx->hover == id) ? 1 : 0;
+  mu_draw_rect(ctx, box, ctx->style->colors[colorid]);
+  if (ctx->style->colors[MU_COLOR_BORDER].a) {
+    mu_draw_box(ctx, box, ctx->style->colors[MU_COLOR_BORDER]);
+  }
   if (*state) {
     mu_draw_icon(ctx, MU_ICON_CHECK, box, ctx->style->colors[MU_COLOR_TEXT]);
   }
-  r = mu_rect(r.x + box.w, r.y, r.w - box.w, r.h);
-  mu_draw_control_text(ctx, label, r, MU_COLOR_TEXT, 0);
+  mu_draw_control_text(ctx, label, label_rect, MU_COLOR_TEXT, 0);
   return res;
 }
 
@@ -1484,7 +1603,13 @@ static void scrollbars(mu_Context *ctx, mu_Container *cnt, mu_Rect *body) {
 static void push_container_body(
   mu_Context *ctx, mu_Container *cnt, mu_Rect body, int opt
 ) {
-  if (~opt & MU_OPT_NOSCROLL) { scrollbars(ctx, cnt, &body); }
+  if (~opt & MU_OPT_NOSCROLL) {
+    scrollbars(ctx, cnt, &body);
+  } else {
+    /* No-scroll windows should keep symmetric padding and must not reuse any
+    ** retained scroll offset from a prior retained container state. */
+    cnt->scroll = mu_vec2( 0, 0 );
+  }
   push_layout(ctx, expand_rect(body, -ctx->style->padding), cnt->scroll);
   cnt->body = body;
 }
@@ -1572,7 +1697,8 @@ int mu_begin_window_ex(mu_Context *ctx, const char *title, mu_Rect rect, int opt
       mu_Id id = mu_get_id(ctx, "!title", 6);
       mu_update_control(ctx, id, tr, opt);
       mu_draw_control_text(ctx, title, tr, MU_COLOR_TITLETEXT, opt);
-      if (id == ctx->focus && ctx->mouse_down == MU_MOUSE_LEFT) {
+      /* NODRAG keeps this window fixed even if the title bar is clicked. */
+      if (!(opt & MU_OPT_NODRAG) && id == ctx->focus && ctx->mouse_down == MU_MOUSE_LEFT) {
         cnt->rect.x += ctx->mouse_delta.x;
         cnt->rect.y += ctx->mouse_delta.y;
       }

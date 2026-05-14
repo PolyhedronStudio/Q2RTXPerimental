@@ -392,4 +392,3 @@ void M_Menu_Editor_RefreshMaterial( void );
 void M_Menu_PlayerConfig(void);
 void M_Menu_Demos(void);
 void M_Menu_Servers(void);
-void M_Menu_Scoreboard( void );

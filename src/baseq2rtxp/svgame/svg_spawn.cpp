@@ -344,7 +344,7 @@ void SVG_MoveWith_FindParentTargetEntities( void ) {
 		}
 
 		// Fetch 'parent' target entity.
-		svg_base_edict_t *parentMover = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, targetname ), ( const char * )ent->targetNames.movewith.ptr );
+		svg_base_edict_t *parentMover = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, targetname.ptr ), ( const char * )ent->targetNames.movewith.ptr );
 		// Apply.
 		if ( parentMover ) {
 			SVG_MoveWith_SetTargetParentEntity( ( const char * )ent->targetNames.movewith.ptr, parentMover, ent );

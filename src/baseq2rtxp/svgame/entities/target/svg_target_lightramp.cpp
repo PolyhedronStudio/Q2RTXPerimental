@@ -157,7 +157,7 @@ DEFINE_MEMBER_CALLBACK_USE( svg_target_lightramp_t, onUse )( svg_target_lightram
         // check all the targets
         e = NULL;
         while ( 1 ) {
-            e = SVG_Entities_Find( e, q_offsetof( svg_base_edict_t, targetname ), (const char *)self->targetNames.target );
+            e = SVG_Entities_Find( e, q_offsetof( svg_base_edict_t, targetname.ptr ), (const char *)self->targetNames.target );
             if ( !e ) {
                 break;
             }

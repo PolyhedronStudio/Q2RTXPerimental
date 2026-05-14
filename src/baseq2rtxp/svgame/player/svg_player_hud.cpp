@@ -147,21 +147,21 @@ void SVG_HUD_BeginIntermission(svg_base_edict_t *targ)
     level.exitintermission = 0;
 
 	// Find an intermission point, or a start point if none is found.
-    svg_base_edict_t *ent = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, classname ), "info_player_intermission" );
+    svg_base_edict_t *ent = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, classname.ptr ), "info_player_intermission" );
     if ( !ent ) {
         // the map creator forgot to put in an intermission point...
-        ent = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, classname ), "info_player_start" );
+        ent = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, classname.ptr ), "info_player_start" );
         if ( !ent ) {
-            ent = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, classname ), "info_player_deathmatch" );
+            ent = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, classname.ptr ), "info_player_deathmatch" );
         }
     } else {
         // chose one of four spots
         int32_t i = Q_rand() & 3;
         while ( i-- ) {
-            ent = SVG_Entities_Find( ent, q_offsetof( svg_base_edict_t, classname ), "info_player_intermission" );
+            ent = SVG_Entities_Find( ent, q_offsetof( svg_base_edict_t, classname.ptr ), "info_player_intermission" );
             // wrap around the list
             if ( !ent ) {
-                ent = SVG_Entities_Find( ent, q_offsetof( svg_base_edict_t, classname ), "info_player_intermission" );
+                ent = SVG_Entities_Find( ent, q_offsetof( svg_base_edict_t, classname.ptr ), "info_player_intermission" );
             }
         }
     }
@@ -299,7 +299,7 @@ void SVG_HUD_DeathmatchScoreboardMessage(svg_base_edict_t *ent, svg_base_edict_t
     // Now send the number of clients.
     gi.WriteUint8( numberOfClients );
 
-    // Now, for each client, send index, time, score, and ping.
+    // Now, for each client, send index, team id, time, score, and ping.
     for ( int32_t i = 0; i < game.maxclients; i++ ) {
         svg_base_edict_t *cl_ent = g_edict_pool.EdictForNumber( i + 1 );
         if ( !cl_ent || !cl_ent->inUse || game.clients[ i ].resp.spectator
@@ -310,9 +310,12 @@ void SVG_HUD_DeathmatchScoreboardMessage(svg_base_edict_t *ent, svg_base_edict_t
         int64_t score = game.clients[ i ].resp.score;
         QMTime time = level.time - game.clients[ i ].resp.entertime;
         int16_t ping = game.clients[ i ].ping;
+        const int32_t teamValue = game.clients[ i ].pers.team;
+        const uint8_t teamId = ( teamValue < 0 ) ? 0 : ( teamValue > 255 ? 255 : static_cast< uint8_t >( teamValue ) );
 
         // Client name is already known by client infos, so just send the index instead.
         gi.WriteUint8( i );
+        gi.WriteUint8( teamId );
         gi.WriteIntBase128( time.Seconds() );
         gi.WriteIntBase128( score );
         gi.WriteUint16( ping );
@@ -460,7 +463,8 @@ void SVG_HUD_SetStats(svg_base_edict_t *ent) {
     //
     // layouts
     //
-    ent->client->ps.stats[ STAT_LAYOUTS ] = 0;
+    #if 0
+	ent->client->ps.stats[ STAT_LAYOUTS ] = 0;
 
     if ( deathmatch->value ) {
         if ( ent->client->pers.health <= 0 || level.intermissionFrameNumber
@@ -474,18 +478,22 @@ void SVG_HUD_SetStats(svg_base_edict_t *ent) {
         if ( ent->client->showinventory && ent->client->pers.health > 0 )
             ent->client->ps.stats[ STAT_LAYOUTS ] |= 2;
     }
+	#endif
 
     //
     // GUI
     //
-    //ent->client->ps.stats[ STAT_SHOW_SCORES ] = 0;
-    //if ( gamemode->integer != GAMEMODE_SINGLEPLAYER ) {
-    //    if ( ent->client->showscores ) {
-    //        ent->client->ps.stats[ STAT_SHOW_SCORES ] |= 1;
-    //    } else {
-    //        ent->client->ps.stats[ STAT_SHOW_SCORES ] &= ~1;
-    //    }
-    //}
+    ent->client->ps.stats[ STAT_LAYOUTS ] = 0;
+	// Any game made below so is singleplayer or none.
+	if ( SG_GetRequestedGameModeType() >= GAMEMODE_TYPE_COOPERATIVE ) {
+		if ( ent->client->pers.health <= 0 || level.intermissionFrameNumber
+			|| ent->client->showscores )
+		{
+            ent->client->ps.stats[ STAT_LAYOUTS ] |= 1;
+        } else {
+            ent->client->ps.stats[ STAT_LAYOUTS ] &= ~1;
+        }
+    }
 
     //
     // Frags

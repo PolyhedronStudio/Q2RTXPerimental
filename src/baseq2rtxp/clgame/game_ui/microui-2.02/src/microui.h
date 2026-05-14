@@ -192,7 +192,11 @@ enum {
 	//! Start a container in the closed state.
 	MU_OPT_CLOSED       = (1 << 11),
 	//! Force a tree node or header to start expanded.
-	MU_OPT_EXPANDED     = (1 << 12)
+	MU_OPT_EXPANDED     = (1 << 12),
+	//! Prevent focus from being lost when clicking outside the window or on another window.
+	MU_OPT_KEEPFOCUS = ( 1 << 13 ),
+	//! Prevent dragging the window when clicking on the title bar.
+	MU_OPT_NODRAG = ( 1 << 14 ),
 };
 
 /**
@@ -871,6 +875,8 @@ void mu_draw_control_frame(mu_Context *ctx, mu_Id id, mu_Rect rect, int colorid,
 *	@param opt Control option bitmask.
 **/
 void mu_draw_control_text(mu_Context *ctx, const char *str, mu_Rect rect, int colorid, int opt);
+void mu_draw_control_text_custom_color( mu_Context *ctx, const char *str, mu_Rect rect,
+	mu_Color color, int opt );
 
 /**
 *	@brief	Test whether the mouse is over a rectangle and the active hover root.
@@ -911,7 +917,14 @@ void mu_text(mu_Context *ctx, const char *text);
 *	@param text Label text.
 **/
 void mu_label(mu_Context *ctx, const char *text);
-
+/**
+* 	@brief	Emit a single-line label using the current layout.
+* 	@param	ctx		Active context.
+* 	@param	text	Label text.
+* 	@param	colorid	The color to use.
+* 	@param	opt		Special options for this label.
+**/
+void mu_label_ex( mu_Context *ctx, const char *text, const int colorid, const int opt );
 /**
 *	@brief	Emit a button widget.
 *	@param ctx Active context.

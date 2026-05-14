@@ -233,9 +233,12 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_item_edict_t, onTouch_DropTempTouch )( svg_ite
         return;
     }
 
-    // Dispatch touch callback.
-    ent->DispatchTouchCallback( other, plane, surf );
-    //Touch_Item( ent, other, plane, surf );
+	// after
+	// Dispatch touch callback to the entity that touched this item.
+	// This avoids re-entering the item's own touch handler.
+	if ( ent != nullptr && other != nullptr && ent != other ) {
+		ent->DispatchTouchCallback( ent, plane, surf );
+	}
 }
 /**
 *   @brief  Callback for when touched, will pickup(remove item from world) the

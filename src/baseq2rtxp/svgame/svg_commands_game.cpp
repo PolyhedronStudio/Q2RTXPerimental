@@ -789,7 +789,7 @@ static void SVG_GameUI_OpenMenu( svg_base_edict_t *ent, const sg_game_ui_menu_id
 	}
 	// Open menu by sending svc_game_ui_open with the appropriate menu ID, send this as part of a Reliable packet.
 	gi.WriteUint8( svc_game_ui_open );
-	gi.WriteUint8( (uint8_t)sg_game_ui_menu_id::TEAM );
+	gi.WriteUint8( (uint8_t)menuID );
 	gi.unicast( ent, true );
 }
 void SVG_Command_MGUI_f( svg_base_edict_t *ent ) {

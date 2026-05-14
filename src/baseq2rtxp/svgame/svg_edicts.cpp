@@ -38,12 +38,12 @@ svg_base_edict_t *SVG_Entities_Find( svg_base_edict_t *from, const int32_t field
         return nullptr;
     }
 
-    //if ( !from ) {
-    //    from = g_edicts;
-    //} else {
-    //    from++;
-    //}
-    const int32_t startIndex = ( from ? from->s.number + 1 : 0 );
+    if ( !from ) {
+        from = g_edicts[0];
+    } else {
+        from = g_edict_pool.EdictForNumber( from->s.number + 1 );
+    }
+    const int32_t startIndex = ( from ? from->s.number : 0 );
 
     //for ( ; from < &g_edicts[ globals.edictPool->num_edicts ]; from++ ) {
     //    if ( !from || !from->inUse ) {
