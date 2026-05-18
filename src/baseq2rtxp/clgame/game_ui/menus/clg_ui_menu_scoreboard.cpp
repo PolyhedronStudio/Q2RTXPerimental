@@ -222,6 +222,20 @@ const bool CLG_MUI_ProcessScoreBoard( mu_Context *ctx ) {
 	static int playerSelected[ MAX_CLIENTS ] = {};
 	static int playerMuted[ MAX_CLIENTS ] = {};
 	static int focusedMuteClient = -1;
+	static bool scoreboardWasVisible = false;
+
+	/**
+	*	Clear stale state when the scoreboard transitions from hidden to visible.
+	**/
+	const bool scoreboardVisible = CLG_UI_IsMenuOpen( sg_game_ui_menu_id::SCOREBOARD );
+	if ( scoreboardVisible && !scoreboardWasVisible ) {
+		for ( int32_t i = 0; i < MAX_CLIENTS; i++ ) {
+			playerSelected[ i ] = 0;
+			playerMuted[ i ] = 0;
+		}
+		focusedMuteClient = -1;
+	}
+	scoreboardWasVisible = scoreboardVisible;
 
 	const int checkboxWidth = 24;
 	const int nameWidth = 216;
@@ -294,7 +308,6 @@ const bool CLG_MUI_ProcessScoreBoard( mu_Context *ctx ) {
 		mu_layout_set_next( ctx, headerRect, 0 );
 		headerRect.w = rowWidthVisual;
 		mu_draw_rect( ctx, headerRect, headerColor );
-		mu_draw_rect( ctx, mu_rect( headerRect.x + checkboxWidth, headerRect.y, 1, headerRect.h ), separatorColor );
 		mu_draw_rect( ctx, mu_rect( headerRect.x + checkboxWidth + nameWidth, headerRect.y, 1, headerRect.h ), separatorColor );
 		mu_draw_rect( ctx, mu_rect( headerRect.x + checkboxWidth + nameWidth + scoreWidth, headerRect.y, 1, headerRect.h ), separatorColor );
 
@@ -332,7 +345,6 @@ const bool CLG_MUI_ProcessScoreBoard( mu_Context *ctx ) {
 				mu_layout_set_next( ctx, rowRect, 0 );
 				rowRect.w = rowWidthVisual;
 				mu_draw_rect( ctx, rowRect, ( i & 1 ) ? rowColorLight : rowColorDark );
-				mu_draw_rect( ctx, mu_rect( rowRect.x + checkboxWidth, rowRect.y, 1, rowRect.h ), separatorColor );
 				mu_draw_rect( ctx, mu_rect( rowRect.x + checkboxWidth + nameWidth, rowRect.y, 1, rowRect.h ), separatorColor );
 				mu_draw_rect( ctx, mu_rect( rowRect.x + checkboxWidth + nameWidth + scoreWidth, rowRect.y, 1, rowRect.h ), separatorColor );
 

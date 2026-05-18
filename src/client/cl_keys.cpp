@@ -697,6 +697,22 @@ static const bool Key_IsLegacyScoreboardBinding( const int32_t key, const char *
 }
 
 /**
+*	@brief	Normalize legacy bindings before storing them in the active key table.
+*	@param	key	Engine key code the binding belongs to.
+*	@param	binding	Binding text supplied by config execution or the bind command.
+*	@return	Binding text that should be persisted in memory for this key.
+*	@note	This upgrades legacy TAB scoreboard configs from plain "score" to the explicit
+*			+score hold binding so later config writes preserve the corrected behavior.
+**/
+static const char *Key_NormalizeBindingForStorage( const int32_t key, const char *binding ) {
+    if ( Key_IsLegacyScoreboardBinding( key, binding ) ) {
+        return "+score";
+    }
+
+    return binding;
+}
+
+/**
 *	@brief	Dispatch one key event through the command binding interpreter.
 *	@param	key	Engine key code from the input backend.
 *	@param	down	True for key-down events, false for key-up events.
