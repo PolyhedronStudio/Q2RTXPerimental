@@ -753,7 +753,7 @@ void SVG_SetClientEffects( svg_base_edict_t *ent ) {
 	ent->s.entityFlags = 0;
 	ent->s.renderfx = 0;
 
-	if ( ent->health <= 0 || level.intermissionFrameNumber ) {
+	if ( ent->health <= 0 || level.intermissionState.engagedFrameNumber ) {
 		return;
 	}
 

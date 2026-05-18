@@ -21,6 +21,13 @@
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_info_player_base_start_t, onSpawn )( svg_info_player_base_start_t *self ) -> void {
     // Call upon base spawn.
     Super::onSpawn( self );
+
+	// Make it non-solid, and ensure it doesn't have any model or anything else that would cause it to be visible or interactable.
+	self->solid = SOLID_NOT;
+	// No model.
+	self->s.modelindex = 0;
+	// Link it. Bounding Box has been set by Super::onSpawn.
+	gi.linkentity( self );
 }
 
 /**

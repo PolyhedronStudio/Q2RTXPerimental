@@ -640,7 +640,8 @@ enum {
 	MU_KEY_CTRL = ( 1 << 1 ),
 	MU_KEY_ALT = ( 1 << 2 ),
 	MU_KEY_BACKSPACE = ( 1 << 3 ),
-	MU_KEY_RETURN = ( 1 << 4 )
+	MU_KEY_RETURN = ( 1 << 4 ),
+	MU_KEY_TAB = ( 1 << 5 )
 };
 
 static int32_t Key_GameUIToMicrouiKey( const int32_t key ) {
@@ -654,6 +655,8 @@ static int32_t Key_GameUIToMicrouiKey( const int32_t key ) {
     case K_LALT:
     case K_RALT:
         return MU_KEY_ALT;
+	case K_TAB:
+		return MU_KEY_TAB;
     case K_ENTER:
     case K_KP_ENTER:
         return MU_KEY_RETURN;
@@ -664,11 +667,117 @@ static int32_t Key_GameUIToMicrouiKey( const int32_t key ) {
     }
 }
 
+/**
+*	@brief	Determine whether this key event should be consumed by the binding interpreter first.
+*	@param	key	Engine key code from the input backend.
+*	@param	down	True for key-down events, false for key-up events.
+*	@return	True when command bindings have priority over UI/text routing.
+*	@note	This preserves the old behavior where gameplay binds and button-up commands run
+*			before any destination-specific fallback handling.
+**/
+static const bool Key_ShouldDispatchBinding( const int32_t key, const bool down ) {
+    return ( cls.key_dest == KEY_GAME ) ||
+        ( ( cls.key_dest & KEY_CONSOLE ) && !Q_IsBitSet( consolekeys, key ) ) ||
+        ( ( cls.key_dest & KEY_MENU ) && ( key >= K_F1 && key <= K_F12 ) ) ||
+        ( ( cls.key_dest & KEY_GAME_UI ) && ( key >= K_F1 && key <= K_F12 ) ) ||
+        ( !down && Q_IsBitSet( buttondown, key ) );
+}
+
+/**
+*	@brief	Detect the legacy TAB scoreboard binding that still uses plain "score".
+*	@param	key	Engine key code from the input backend.
+*	@param	binding	Resolved binding text for the key.
+*	@return	True when this key should behave like hold-to-show scoreboard input.
+*	@note	Older configs may still bind TAB to "score" instead of "+score". Treating that
+*			combination as a held button preserves the intended modern scoreboard behavior
+*			without requiring the user to manually rewrite existing configs.
+**/
+static const bool Key_IsLegacyScoreboardBinding( const int32_t key, const char *binding ) {
+    return key == K_TAB && binding != nullptr && !Q_stricmp( binding, "score" );
+}
+
+/**
+*	@brief	Dispatch one key event through the command binding interpreter.
+*	@param	key	Engine key code from the input backend.
+*	@param	down	True for key-down events, false for key-up events.
+*	@param	time	Event timestamp used by button commands.
+*	@note	Button bindings keep the original key/time parameters so +commands and -commands
+*			remain symmetrical across down/up transitions.
+**/
+static void Key_DispatchBinding( const int32_t key, const bool down, const unsigned time ) {
+    char *kb = keybindings[ key ];
+    char cmd[ MAX_STRING_CHARS ];
+    const bool isLegacyScoreboardBinding = Key_IsLegacyScoreboardBinding( key, kb );
+
+    /**
+    *	Key up events only generate commands for button bindings.
+    *	This lets held actions stop cleanly even if the input destination changed while the key was down.
+    **/
+    if ( !down ) {
+        if ( isLegacyScoreboardBinding ) {
+            Cbuf_AddText( &cmd_buffer, "-score\n" );
+        } else if ( kb && kb[ 0 ] == '+' ) {
+            Q_snprintf( cmd, sizeof( cmd ), "-%s %i %i\n", kb + 1, key, time );
+            Cbuf_AddText( &cmd_buffer, cmd );
+        }
+        Q_ClearBit( buttondown, key );
+        return;
+    }
+
+    /**
+    *	Ignore auto-repeat for bindings so held keys do not re-trigger one-shot commands every frame.
+    **/
+    if ( keydown[ key ] > 1 ) {
+        return;
+    }
+
+    /**
+    *	Remember that this key produced a down-event so a later release can emit the matching -command.
+    **/
+    Q_SetBit( buttondown, key );
+
+    /**
+    *	Dispatch the bound command, preserving legacy +command parameter behavior.
+    **/
+    if ( kb ) {
+        if ( isLegacyScoreboardBinding ) {
+            Cbuf_AddText( &cmd_buffer, "+score\n" );
+        } else if ( kb[ 0 ] == '+' ) {
+            Q_snprintf( cmd, sizeof( cmd ), "%s %i %i\n", kb, key, time );
+            Cbuf_AddText( &cmd_buffer, cmd );
+
+            // Skip the rest of the cinematic once a gameplay action key is pressed.
+            if ( cls.state == ca_cinematic ) {
+                SCR_FinishCinematic();
+            }
+        } else {
+            Cbuf_AddText( &cmd_buffer, kb );
+            Cbuf_AddText( &cmd_buffer, "\n" );
+        }
+    }
+}
+
+/**
+*	@brief	Forward one key event to the active GameUI using MicroUI key masks only.
+*	@param	key	Engine key code from the input backend.
+*	@param	down	True for key-down events, false for key-up events.
+*	@note	Scoreboard hold/open-close remains owned by the +score / -score binding path.
+*			GameUI only receives the compact keys it needs for widget interaction.
+**/
+static void Key_DispatchGameUIKeyEvent( const int32_t key, const bool down ) {
+    // Bail out when there is no active client-game export table to receive UI events.
+    if ( !clge ) {
+        return;
+    }
+
+    const int32_t gameuiKey = Key_GameUIToMicrouiKey( key );
+    if ( gameuiKey != 0 ) {
+        clge->GameUI_KeyEvent( gameuiKey, down );
+    }
+}
+
 void Key_Event(unsigned key, bool down, unsigned time)
 {
-    char    *kb;
-    char    cmd[MAX_STRING_CHARS];
-
     Q_assert(key < 256);
 
     Com_DDDPrintf("%u: %c%s\n", time,
@@ -679,10 +788,17 @@ void Key_Event(unsigned key, bool down, unsigned time)
         return;
     }
 
+	// Ensure key is within 0 to 255 range, since some input systems may report higher values for special keys.
+	if ( key > 255 ) {
+		Com_WPrintf( "Key_Event: Received key code %u, which is out of range. Ignoring.\n", key );
+	}
+	key = key & 0xFF;
+
     // update key down and auto-repeat status
     if (down) {
-        if (keydown[key] < 255)
-            keydown[key]++;
+		if ( keydown[ key ] < 255 ) {
+			keydown[ key ]++;
+		}
     } else {
         keydown[key] = 0;
     }
@@ -705,6 +821,16 @@ void Key_Event(unsigned key, bool down, unsigned time)
 
     // menu key is hardcoded, so the user can never unbind it
     if (key == K_ESCAPE) {
+        /**
+        *	Resolve escape handling with the same priority rules used by the rest of the key router.
+        *	This prevents stale or mixed destination bits from letting GameUI steal escape handling
+        *	from higher-priority layers such as the console, menus, or chat/message mode.
+        **/
+        const bool consoleActive = ( cls.key_dest & KEY_CONSOLE ) != 0;
+        const bool menuActive = !consoleActive && ( cls.key_dest & KEY_MENU ) != 0;
+        const bool messageActive = !consoleActive && !menuActive && ( cls.key_dest & KEY_MESSAGE ) != 0;
+        const bool gameUIActive = !consoleActive && !menuActive && !messageActive && ( cls.key_dest & KEY_GAME_UI ) != 0;
+
         if (!down) {
             return;
         }
@@ -712,7 +838,9 @@ void Key_Event(unsigned key, bool down, unsigned time)
         if (cls.key_dest == KEY_GAME &&
             // WID: For layout menus on/off checking I suppose.
             cl.frame.ps.stats[STAT_LAYOUTS] &&
+			// Ensure it is not in a demo playback.
             cls.demo.playback == false) {
+			// Held for longer than a single frame.
             if (keydown[key] == 2) {
                 // force main menu if escape is held
                 UI_OpenMenu(UIMENU_GAME);
@@ -728,20 +856,20 @@ void Key_Event(unsigned key, bool down, unsigned time)
             return;
         }
 
-		if ( cls.key_dest & KEY_CONSOLE ) {
-			if ( cls.state < ca_active && !( cls.key_dest & KEY_MENU ) ) {
+        if ( consoleActive ) {
+            if ( cls.state < ca_active && !( cls.key_dest & KEY_MENU ) ) {
 				UI_OpenMenu( UIMENU_MAIN );
 			} else {
 				Con_Close( true );
 			}
-        } else if ( cls.key_dest & KEY_GAME_UI ) {
+        } else if ( menuActive ) {
+            UI_KeyEvent(key, down);
+        } else if ( messageActive ) {
+            Key_Message(key);
+        } else if ( gameUIActive ) {
             if ( clge ) {
                 clge->GameUI_CloseMenu();
             }
-        } else if (cls.key_dest & KEY_MENU) {
-            UI_KeyEvent(key, down);
-        } else if (cls.key_dest & KEY_MESSAGE) {
-            Key_Message(key);
         } else if (cls.state >= ca_active) {
             UI_OpenMenu(UIMENU_GAME);
         } else {
@@ -765,106 +893,63 @@ void Key_Event(unsigned key, bool down, unsigned time)
         IN_Activate();
     }
 
+	// <Q2RTXP>: WID: Disabled, because we don't need to intercept keys for the renderer's sake, 
+	// and it was causing issues with the GameUI receiving input when it should have been.
+	#if 0
 	if (cls.key_dest == KEY_GAME)
 	{
 		if(R_InterceptKey(key, down))
 			return;
 	}
+	#endif
 
-//
-// if not a consolekey, send to the interpreter no matter what mode is
-//
-    if ((cls.key_dest == KEY_GAME) ||
-        ((cls.key_dest & KEY_CONSOLE) && !Q_IsBitSet(consolekeys, key)) ||
-        ((cls.key_dest & KEY_MENU) && (key >= K_F1 && key <= K_F12)) ||
-		( ( cls.key_dest & KEY_GAME_UI ) && ( key >= K_F1 && key <= K_F12 ) ) ||
-        (!down && Q_IsBitSet(buttondown, key))) {
-//
-// Key up events only generate commands if the game key binding is a button
-// command (leading + sign). These will occur even in console mode, to keep the
-// character from continuing an action started before a console switch. Button
-// commands include the kenum as a parameter, so multiple downs can be matched
-// with ups.
-//
-        if (!down) {
-            kb = keybindings[key];
-            if (kb && kb[0] == '+') {
-                Q_snprintf(cmd, sizeof(cmd), "-%s %i %i\n",
-                           kb + 1, key, time);
-                Cbuf_AddText(&cmd_buffer, cmd);
-            }
-            Q_ClearBit(buttondown, key);
-            return;
-        }
-
-        // ignore autorepeats
-        if (keydown[key] > 1) {
-            return;
-        }
-
-        // generate button up command when released
-        Q_SetBit(buttondown, key);
-
-        kb = keybindings[key];
-        if (kb) {
-            if (kb[0] == '+') {
-                // button commands add keynum and time as a parm
-                Q_snprintf(cmd, sizeof(cmd), "%s %i %i\n", kb, key, time);
-                Cbuf_AddText(&cmd_buffer, cmd);
-
-                // skip the rest of the cinematic
-                if (cls.state == ca_cinematic) {
-                    SCR_FinishCinematic();
-                }
-            } else {
-                Cbuf_AddText(&cmd_buffer, kb);
-                Cbuf_AddText(&cmd_buffer, "\n");
-            }
-        }
+    /**
+    *	Stage 1: let command bindings consume the event first when gameplay-style input has priority.
+    *	This keeps +button / -button pairs authoritative before any UI-specific fallback routing runs.
+    **/
+    if ( Key_ShouldDispatchBinding( key, down ) ) {
+        Key_DispatchBinding( key, down, time );
         return;
     }
 
     if (cls.key_dest == KEY_GAME)
         return;
 
-    // GameUI key handling is separate from character/text input; continue into printable routing only for actual text keys.
-    const bool gameui_active = ( cls.key_dest & KEY_GAME_UI ) != 0;
-    if ( gameui_active ) {
+    /**
+    *	Stage 2: resolve destination priority for non-binding keys.
+    *	Console must outrank GameUI, and menu handling must outrank GameUI as well, so mixed
+    *	destinations cannot starve the higher-priority layer of keyboard ownership.
+    **/
+    const bool consoleActive = ( cls.key_dest & KEY_CONSOLE ) != 0;
+    const bool menuActive = !consoleActive && ( cls.key_dest & KEY_MENU ) != 0;
+    const bool gameUIActive = !consoleActive && !menuActive && ( cls.key_dest & KEY_GAME_UI ) != 0;
+    const bool messageActive = !consoleActive && !menuActive && !gameUIActive && ( cls.key_dest & KEY_MESSAGE ) != 0;
+
+    if ( gameUIActive ) {
         // Keep mouse focus stable on the GameUI by preventing this path from reopening other menus.
         if ( cls.key_dest & KEY_MENU ) {
             cls.key_dest = static_cast<keydest_t>( cls.key_dest & ~KEY_MENU );
         }
+
+        // Route through the shared helper so GameUI can react to the mapped MicroUI keys it understands.
+        Key_DispatchGameUIKeyEvent( key, down );
+        return;
     }
 
-    // Map engine keys to microui's compact key mask so the GameUI can handle text widgets and shortcuts.
-    const int32_t gameui_key = Key_GameUIToMicrouiKey( key );
-
     if (!down) {
-		if ( cls.key_dest & KEY_MENU ) {
+        if ( menuActive ) {
 			UI_KeyEvent( key, down );
-		}
-		else if ( cls.key_dest & KEY_GAME_UI ) {
-			clge->GameUI_KeyEvent( gameui_key, false );
 		}
         return;     // other subsystems only care about key down events
     }
 
-    if (cls.key_dest & KEY_CONSOLE) {
+    if ( consoleActive ) {
         Key_Console(key);
-    } else if (cls.key_dest & KEY_MENU) {
+    } else if ( menuActive ) {
         UI_KeyEvent(key, down);
-	} else if ( cls.key_dest & KEY_MESSAGE ) {
+    } else if ( messageActive ) {
 		Key_Message( key );
-    } else if ( gameui_active ) {
-		clge->GameUI_KeyEvent( gameui_key, true );
 	}
-
-    // GameUI text fields already receive printable characters through text-input callbacks,
-    // so only suppress the printable-key fallback path and keep non-printable keys like Enter.
-    if ( gameui_active && key >= 32 && key <= 126 ) {
-        return;
-    }
-
     if (Key_IsDown(K_CTRL) || Key_IsDown(K_ALT)) {
         return;
     }
@@ -926,15 +1011,11 @@ void Key_Event(unsigned key, bool down, unsigned time)
         key = keyshift[key];
     }
 
-    if (cls.key_dest & KEY_CONSOLE) {
+    if ( consoleActive ) {
         Char_Console(key);
-	} else if ( cls.key_dest & KEY_MENU ) {
+    } else if ( menuActive ) {
 		UI_CharEvent( key );
-    } else if ( gameui_active ) {
-        // Pass a nul-terminated UTF-8 byte so GameUI receives a valid text string.
-        const char str[ 2 ] = { static_cast<char>( key ), '\0' };
-		clge->GameUI_TextInputEvent( str );
-    } else if (cls.key_dest & KEY_MESSAGE) {
+    } else if ( messageActive ) {
         Char_Message(key);
     }
 }

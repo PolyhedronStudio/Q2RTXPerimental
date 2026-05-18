@@ -8,6 +8,36 @@
 ********************************************************************/
 #pragma once
 
+/**
+*	@brief	A level's intermission state descriptor.
+*
+*	@details	Level 'Intermission' state data stores related information to a state where
+*				players are awaiting a specific match event or interaction.
+*				
+*				Whether this be the end of the level, or waiting for more players to join, etc.
+*
+*				They go into 'intermission' mode. Which is defined by disabling movement
+*				and clients entering a special state where they can't interact with the world,
+*				and are instead placed into a special camera view.
+*
+*				This is used for showing the level exit in SP mode, or for showing the final
+*				end-game scores in MP modes.
+**/
+struct svg_level_intermission_state_t {
+	//! The level change map string to execute once intermission completed.
+	svg_level_qstring_t changemap = nullptr;
+
+	//! The origin for the intermission camera.
+	Vector3 cameraOrigin = QM_Vector3Zero();
+	//! The angle for the intermission camera.
+	Vector3 cameraAngles = QM_Vector3Zero();
+
+	//! The exact frame number on which the intermission was engaged.
+	//! When zero it means the intermission state is not currently engaged.
+	int64_t	engagedFrameNumber = 0;
+	//! Whether to exit the intermission.
+	int64_t shouldExit = 0;
+};
 
 
 /**
@@ -19,35 +49,43 @@ struct svg_level_locals_t {
     //! of the session's level locals.
     static svg_save_descriptor_field_t saveDescriptorFields[];
 
-    uint64_t    frameNumber = 0;
-    QMTime		time = 0_ms;
+	//! The current frame number, which is incremented for each server frame, and can be used for timing purposes.
+    uint64_t frameNumber = 0;
+	//! The current time in the level, which is used for various timing and scheduling purposes.
+    QMTime time = 0_ms;
 
-    double      gravity = 0.;
+	//! The gravity value for the level, which is used for physics calculations.
+    double gravity = 0.;
 
+	//! A pointer into the initial entities in the map as loaded by the collision model, 
+	//! this is used for spawning the entities during map initialization as it stores their
+	//! key/value pairs and other important information.
     const cm_entity_t **cm_entities = nullptr;
 
-    char        level_name[ MAX_QPATH ] = {};  // the descriptive name (Outer Base, etc)
-    char        mapname[ MAX_QPATH ] = {};     // the server name (base1, etc)
-    char        nextmap[ MAX_QPATH ] = {};     // go here when fraglimit is hit
+	//! The descriptive name (Outer Base, etc).
+	char mapNameDescriptor[ MAX_QPATH ] = {};
+	//! The server map name (base1, etc).
+    char mapname[ MAX_QPATH ] = {};
+	//! Go here when fraglimit is hit.
+    char nextmap[ MAX_QPATH ] = {};
 
     
 	/**
-	*	Level 'Intermission' state data. Whenever players are awaiting something in a match,
-	*	whether this me the end of the level, or waiting for players to join, etc.
+	*	Level 'Intermission' state data stores related information to a state where
+	*	players are awaiting a specific match event or interaction.
+	*
+	*	Whether this be the end of the level, or waiting for more players to join, etc.
 	* 
-	*	They go into 'intermission' mode, where they can't move around, and a special
-	* 	camera view is used to show the level exit, or other players, etc.
+	*	They go into 'intermission' mode. Which is defined by disabling movement 
+	*	and clients entering a special state where they can't interact with the world, 
+	*	and are instead placed into a special camera view. 
+	*
+	*	This is used for showing the level exit in SP mode, or for showing the final
+	*	end-game scores in MP modes.
+	*
 	**/
-	//! Time the intermission was started.
-    int64_t         intermissionFrameNumber = 0;  
-	//! The level change map string.
-    svg_level_qstring_t changemap = nullptr;
-	//! Whether to exit the intermission.
-    int64_t     exitintermission = 0;
-	//! The origin for the intermission camera.
-    Vector3     intermission_origin = QM_Vector3Zero();
-	//! The angle for the intermission camera.
-    Vector3     intermission_angle = QM_Vector3Zero();
+	//! A level's intermission state descriptor.
+	svg_level_intermission_state_t intermissionState = { };
 
 
 	/**

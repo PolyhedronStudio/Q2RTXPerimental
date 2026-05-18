@@ -665,6 +665,15 @@ void SVG_Client_EndServerFrame( svg_base_edict_t *ent ) {
     /**
     *	Now Finalize player state.
     **/
+    /**
+    *	If the scoreboard is active, refresh the streamed scoreboard payload periodically.
+    *	The immediate reliable snapshot is sent when +score first arrives, and these later
+    *	unreliable refreshes keep the visible scoreboard current while the key remains held.
+    **/
+    if ( game.currentViewClient->showscores && !( level.frameNumber & 31 ) ) {
+        SVG_HUD_DeathmatchScoreboardMessage( game.currentViewPlayer, game.currentViewPlayer->enemy, false );
+    }
+
     // Convert certain playerstate properties into entity state properties.
     SG_PlayerStateToEntityState( game.currentViewClient->clientNum, &game.currentViewClient->ps, &game.currentViewPlayer->s, true, false );
     // Send any remaining pending predictable events to all clients but "ourselves".

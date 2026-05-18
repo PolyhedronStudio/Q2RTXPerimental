@@ -1,7 +1,7 @@
 /********************************************************************
 *
 *
-*	SharedGame: sg_string_t type, dynamically allocates the required
+*	SharedGame: sg_qtag_string_t type, dynamically allocates the required
 *				space and copies over the assigned char* string value.
 * 
 *				Also supports move operator, [] index access, as well 

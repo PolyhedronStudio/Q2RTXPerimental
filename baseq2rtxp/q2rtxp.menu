@@ -71,37 +71,39 @@ begin developer_menu
     background #4e4a4edc
     
     title "Developer (Test-)Maps"
-    action --align --status "A map with surfaces that have a different material friction applied to them." "CollisionModel - Friction Materials" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_cm_materials force"
-    action --align --status "A map with surfaces that have a distinct set of footstep audio effects assigned to them." "CollisionModel - Audio Footstep Materials" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_cm_mat_footsteps force"
     blank
-    action --align --status "A map with a basic few NPC's that can follow you around :-)" "NPC - monster_testdummy_puppet" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_npc_puppet force"
+    action --align --status "Deathmatch" "[MP] DeathMatch - It quacks like a duck thus.." "skill 0; gamemode 2; maxclients 8; map q2rtxp_dev_deathmatch force"
+    action --align --status "A simple moving target range level, utilizing Lua and Signal I/O" "[MP] Signal I/O - TargetRange" "skill 0; gamemode 2; maxclients 8; map q2rtxp_dev_sigio_targetrange force"
     blank
-    action --align --status "func_button testbed, several func_buttons to engage triggering lights with in various way." "Entities - func_button" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_buttons force"
-    action --align --status "func_doors & areaportals testbed, tests doors with areaportals." "Entities - func_door & func_areaportal" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_doors_areaportal force"
-    action --align --status "func_doors testbed, teamed doors, lockables, reversable, both directions, usetargets, and rotating!" "Entities - func_door/func_door_rotating" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_doors force"
-    action --align --status "func_plat tests, implements a simple elevator." "Entities - func_plat" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_plat force"
-    action --align --status "func_rotating tests, various types of func_rotating doing their thing." "Entities - func_rotating" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_rotating force"
-    action --align --status "func_train test." "Entities - func_train" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_train force"
-    action --align --status "func_wall tests." "Entities - func_wall" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_wall force"
+    action --align --status "A map with surfaces that have a different material friction applied to them." "[SP] CollisionModel - Friction Materials" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_cm_materials force"
+    action --align --status "A map with surfaces that have a distinct set of footstep audio effects assigned to them." "[SP] CollisionModel - Audio Footstep Materials" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_cm_mat_footsteps force"
     blank
-    action --align --status "info_intermission entity testing." "Entities - info_intermission DM" "skill 0; gamemode 2; maxclients 4; map q2rtxp_dev_intermission force"
+    action --align --status "A map with a basic few NPC's that can follow you around :-)" "[SP] NPC - monster_testdummy_puppet" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_npc_puppet force"
     blank
-    action --align --status "target_* tests." "Entities - target_* entities" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_targets00 force"
+    action --align --status "func_button testbed, several func_buttons to engage triggering lights with in various way." "[SP] Entities - func_button" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_buttons force"
+    action --align --status "func_doors & areaportals testbed, tests doors with areaportals." "[SP] Entities - func_door & func_areaportal" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_doors_areaportal force"
+    action --align --status "func_doors testbed, teamed doors, lockables, reversable, both directions, usetargets, and rotating!" "[SP] Entities - func_door/func_door_rotating" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_doors force"
+    action --align --status "func_plat tests, implements a simple elevator." "[SP] Entities - func_plat" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_plat force"
+    action --align --status "func_rotating tests, various types of func_rotating doing their thing." "[SP] Entities - func_rotating" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_rotating force"
+    action --align --status "func_train test." "[SP] Entities - func_train" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_train force"
+    action --align --status "func_wall tests." "[SP] Entities - func_wall" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_wall force"
+    blank
+    action --align --status "info_intermission entity testing." "[SP] Entities - info_intermission DM" "skill 0; gamemode 2; maxclients 4; map q2rtxp_dev_intermission force"
+    blank
+    action --align --status "target_* tests." "[SP] Entities - target_* entities" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_targets00 force"
 
     blank
-    action --align --status "A map that utilizes various PBR Makkon Textures in pt_nearest mode, very modern retro :-)" "Gfx - Makkon Textures PBR (pt_nearest 1)" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_graph_makkon force"
-    action --align --status "Sprites done using .spj" "Gfx - Sprites(JSON)" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_graph_sprites force"
-    action --align --status "Is what it says really." "Gfx - SpotLights" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_graph_spotlights force"
+    action --align --status "A map that utilizes various PBR Makkon Textures in pt_nearest mode, very modern retro :-)" "[SP] Gfx - Makkon Textures PBR (pt_nearest 1)" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_graph_makkon force"
+    action --align --status "Sprites done using .spj" "[SP] Gfx - Sprites(JSON)" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_graph_sprites force"
+    action --align --status "Is what it says really." "[SP] Gfx - SpotLights" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_graph_spotlights force"
 
     blank
-    action --align --status "Showcases several local entities." "Local Entities - General" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_localents_general force"
-    action --align --status "A map that consists of several sound environments that apply EAX reverb etc effects." "Local Entities - env_sound(EAX Reverb Areas)" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_localents_env_sound force"
-    action --align --status "Testbed for svc_set_portalbit to notify local func_areaportals to open/close." "Local Entities - Local Client PVS" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_localents_pvs force"
-
-    blank
-    action --align --status "A simple moving target range level, utilizing Lua and Signal I/O" "Signal I/O - TargetRange" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_sigio_targetrange force"
-    blank
-    action --align --status "Tests clipping to a (trigger-)brush, which if it clips, has it fire its targets." "Triggers - Trigger Brush Clip" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_trigs_brushclip force"
+    action --align --status "Showcases several local entities." "[SP] Local Entities - General" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_localents_general force"
+    action --align --status "A map that consists of several sound environments that apply EAX reverb etc effects." "[SP] Local Entities - env_sound(EAX Reverb Areas)" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_localents_env_sound force"
+    action --align --status "Testbed for svc_set_portalbit to notify local func_areaportals to open/close." "[SP] Local Entities - Local Client PVS" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_localents_pvs force"   
+    
+    // blank
+    // action --align --status "A simple moving target range level, utilizing Lua and Signal I/O" "[MP] Signal I/O - TargetRange" "skill 0; gamemode 2; maxclients 8; map q2rtxp_dev_sigio_targetrange force"
 end
 
 begin environment

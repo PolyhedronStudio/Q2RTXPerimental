@@ -202,17 +202,25 @@ void svg_gamemode_singleplayer_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
     // GClient Ptr.
     svg_client_t *client = ent->client;
 
-    // Assign the found spawnspot origin and angles.
-	SVG_Util_SetEntityOrigin( ent, spawn_origin, true ); // VectorCopy( spawn_origin, ent->s.origin );
+    // Assign the found spawnspot origin and angles to the client entity.
+	SVG_Util_SetEntityOrigin( ent, spawn_origin, true );
+	// Immediately assign it to its playerstate as well, so that the client can use it for its initial position and for any future position referencing before the next spawn.
 	client->ps.pmove.origin = spawn_origin;
 
     // Get persistent user info and store it into a buffer.
     char    userinfo[ MAX_INFO_STRING ];
     std::memcpy( userinfo, client->pers.userinfo, sizeof( userinfo ) );
-    // Use the buffer to restore the client user info which had been stored as persistent.
+	// Acquire other respawn data.
+	const client_respawn_t savedRespawnData = client->resp;
+
+	// DeathMatch: Reinitialize a fresh persistent data.
+	//SVG_Player_InitPersistantData( ent, client );
+	// Connected, and spawned!
+	client->pers.connected = true;
+	client->pers.spawned = true;
+	// Use the buffer to restore the client user info which had been stored as persistent.
     SVG_Client_UserinfoChanged( ent, userinfo );
-    // Acquire other respawn data.
-    const client_respawn_t savedRespawnData = client->resp;
+
     // Restore client persistent data.
     client->pers = savedRespawnData.pers_respawn;
     // Fresh SP mode has 0 score.
@@ -246,6 +254,7 @@ void svg_gamemode_singleplayer_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
     // <Q2RTXP>: WID: TODO: ???
     // Fix level switch issue.
     ent->client->pers.connected = true;
+	ent->client->pers.spawned = true;
 
     // Clear key entity values by reconfiguring this as a clean slate player entity.
     ent->groundInfo = {};
@@ -273,12 +282,11 @@ void svg_gamemode_singleplayer_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
     // Ensure it is a proper player entity.
     ent->svFlags |= SVF_PLAYER;
     ent->s.entityType = ET_PLAYER;
-
-    // Copy in the bounds.
-    VectorCopy( PM_BBOX_STANDUP_MINS, ent->mins );
-    VectorCopy( PM_BBOX_STANDUP_MAXS, ent->maxs );
-    // Ensure velocity is cleared.
-    VectorClear( ent->velocity );
+	// Copy in the bounds.
+	ent->mins = PM_BBOX_STANDUP_MINS;
+	ent->maxs = PM_BBOX_STANDUP_MAXS;
+	// Ensure velocity is cleared.
+	ent->velocity = {};
 
     // Reset PlayerState values.
     client->ps = {
@@ -335,18 +343,23 @@ void svg_gamemode_singleplayer_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
     // other entities from Spawn Touching.
     gi.linkentity( ent );
 
-    // Ensure proper pitch and roll angles for calculating the delta angles.
-    spawn_angles[ PITCH ] = 0;
-    spawn_angles[ ROLL ] = 0;
-    // Configure all spawn view angles.
+    // Unset pitch and roll spawn_ angles before for calculating the delta angles.
+	spawn_angles = { 0.f, spawn_angles.y, 0.f };
+    // Configure all spawn view angles:
+	// - On the entity itself.
 	SVG_Util_SetEntityAngles( ent, spawn_angles, true ); //ent->s.angles = spawn_angles; // VectorCopy( spawn_angles, );
-    client->ps.viewangles = spawn_angles;
+
+	// - And the player state.
+    client->ps.viewangles		= spawn_angles;
+	// - Also for the active view move data.
     client->viewMove.viewAngles = spawn_angles;
-    // Set the delta angle
-    client->ps.pmove.delta_angles = /*ANGLE2SHORT*/QM_Vector3AngleMod( spawn_angles - client->resp.cmd_angles );
+
+	// Now calculate the delta angles based on the difference between the spawn angles and 
+	// the command angles, so that the player will have a proper view direction when spawning.
+    client->ps.pmove.delta_angles = QM_Vector3AngleMod( spawn_angles - client->resp.cmd_angles );
 
     // Calculate anglevectors.
-    AngleVectors( &client->viewMove.viewAngles.x, &client->viewMove.viewForward.x, nullptr, nullptr );
+    QM_AngleVectors( client->viewMove.viewAngles, &client->viewMove.viewForward, nullptr, nullptr );
 
     #if 0
     // spawn a spectator
@@ -367,8 +380,8 @@ void svg_gamemode_singleplayer_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
         client->resp.spectator = false;
     }
     #else
-    // No spectator in singleplayer.
-    client->resp.spectator = false;
+		// No spectator in singleplayer.
+		client->resp.spectator = false;
     #endif
 
     // Unlink it again, for SVG_UTIL_KillBox.
@@ -382,11 +395,13 @@ void svg_gamemode_singleplayer_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
     // And link it back in.
     gi.linkentity( ent );
 
-    // Force a current active weapon up
-    client->newweapon = client->pers.weapon;
-    SVG_Player_Weapon_Change( ent );
+	// Set the player's weapon to the default weapon if not set already, 
+	// this is to ensure the player has a weapon when they first spawn in.
+	client->newweapon = client->pers.weapon;
+	// Force the current active weapon up.
+	SVG_Player_Weapon_Change( ent );
 
-    // Presend anything else and clear state variables.
+    // Pre-send anything else and clear state variables.
     SVG_Client_EndServerFrame( ent );
 }
 /**
@@ -403,9 +418,11 @@ void svg_gamemode_singleplayer_t::ClientBegin( svg_player_edict_t *ent ) {
     // Always clear out any previous left over useTargetHint stuff.
     SVG_Player_ClearUseTargetHint( ent, ent->client, nullptr );
 
-    // We're spawned now of course.
-    ent->client->resp.entertime = level.time;
-    ent->client->pers.spawned = true;
+	// Store (re-)spawn time.
+	ent->client->resp.entertime = level.time;
+	// We're spawned and connected now of course.
+	ent->client->pers.connected = true;
+	ent->client->pers.spawned = true;
 
     // If there is already a body waiting for us (a loadgame), just take it:
     if ( ent->inUse == true ) {
@@ -418,11 +435,11 @@ void svg_gamemode_singleplayer_t::ClientBegin( svg_player_edict_t *ent ) {
     }
 
     // If in intermission, move our client over into intermission state. (We connected at the end of a match).
-    if ( level.intermissionFrameNumber ) {
+    if ( level.intermissionState.engagedFrameNumber ) {
         SVG_HUD_MoveClientToIntermission( ent );
         // Otherwise, send 'Login' effect even if NOT in a multiplayer game 
     } else {
-        // 
+		// Login effect.
         if ( game.maxclients >= 1 ) {
             SVG_Util_AddEvent( ent, EV_PLAYER_TELEPORT, 0 );
             gi.bprintf( PRINT_HIGH, "%s entered the game\n", ent->client->pers.netname );
@@ -431,7 +448,6 @@ void svg_gamemode_singleplayer_t::ClientBegin( svg_player_edict_t *ent ) {
 
     // Call upon EndServerFrame to make sure all view stuff is valid.
     SVG_Client_EndServerFrame( ent );
-
     // WID: LUA:
     SVG_Lua_CallBack_ClientEnterLevel( ent );
 }
@@ -449,7 +465,7 @@ const bool svg_gamemode_singleplayer_t::PreCheckGameRuleConditions() {
 	// Now the game mode specific checks.
 	
 	// Exit intermission.
-	if ( level.exitintermission ) {
+	if ( level.intermissionState.shouldExit ) {
 		ExitLevel();
 		// Exiting.
 		return true;
@@ -476,7 +492,7 @@ void svg_gamemode_singleplayer_t::BeginServerFrame( svg_player_edict_t *ent ) {
     /**
     *   Opt out of function if we're in intermission mode.
     **/
-    if ( level.intermissionFrameNumber ) {
+    if ( level.intermissionState.engagedFrameNumber ) {
         return;
     }
 
@@ -568,7 +584,7 @@ void svg_gamemode_singleplayer_t::EndServerFrame( svg_player_edict_t *ent ) {
     // If the end of unit layout is displayed, don't give
     // the player any normal movement attributes
     //
-    if ( level.intermissionFrameNumber ) {
+    if ( level.intermissionState.engagedFrameNumber ) {
         // FIXME: add view drifting here?
         ent->client->ps.screen_blend[ 3 ] = 0;
         ent->client->ps.fov = 90;

@@ -267,6 +267,7 @@ SET(SRC_BASEQ2RTXP_CLGAME
 	
     baseq2rtxp/clgame/game_ui/clg_ui_main.cpp
     baseq2rtxp/clgame/game_ui/menus/clg_ui_menu_armory.cpp
+    baseq2rtxp/clgame/game_ui/menus/clg_ui_menu_scoreboard.cpp
     baseq2rtxp/clgame/game_ui/menus/clg_ui_menu_team.cpp
     baseq2rtxp/clgame/game_ui/menus/clg_ui_menu_test.cpp
 
@@ -711,10 +712,10 @@ SET(SRC_CLIENT
 	client/cl_precache.cpp
 	client/cl_predict.cpp
 	client/cl_refresh.cpp
+	client/cl_scoreboard.cpp
 	client/cl_screen.cpp
 	#client/cl_tent.cpp
 	client/cl_view.cpp
-	client/ui/_scoreboard.cpp
 	client/ui/demos.cpp
 	client/ui/editor_rmaterial.cpp
 	client/ui/menu.cpp

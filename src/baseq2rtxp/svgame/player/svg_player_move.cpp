@@ -74,12 +74,12 @@ static const cm_contents_t q_gameabi SV_PM_PointContents( const Vector3 &point )
 *   @return True if we're still in intermission mode.
 **/
 static const bool ClientCheckForIntermission( svg_player_edict_t *ent, svg_client_t *client ) {
-    if ( level.intermissionFrameNumber ) {
+    if ( level.intermissionState.engagedFrameNumber ) {
         client->ps.pmove.pm_type = ( !game.mode->IsMultiplayer() ? PM_SPINTERMISSION : PM_INTERMISSION );
 
         // can exit intermission after five seconds
-        if ( ( level.frameNumber > level.intermissionFrameNumber + 5.0f * BASE_FRAMERATE ) && ( client->buttons & BUTTON_ANY ) ) {
-            level.exitintermission = true;
+        if ( ( level.frameNumber > level.intermissionState.engagedFrameNumber + 5.0f * BASE_FRAMERATE ) && ( client->buttons & BUTTON_ANY ) ) {
+            level.intermissionState.shouldExit = true;
         }
 
         // WID: Also seems set in p_hud.cpp -> SVG_HUD_MoveClientToIntermission

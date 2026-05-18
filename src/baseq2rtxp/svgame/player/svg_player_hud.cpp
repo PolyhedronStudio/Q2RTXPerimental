@@ -14,11 +14,38 @@
 #include "svgame/player/svg_player_hud.h"
 
 #include "sharedgame/sg_gamemode.h"
+#include "sharedgame/sg_game_ui.h"
 
-#include "svgame/svg_gamemode.h"
 #include "svgame/svg_gamemode.h"
 #include "svgame/gamemodes/svg_gm_basemode.h"
 
+
+/***
+*	
+*	
+*	
+*	GameUI HUD Core:
+* 
+* 
+* 
+***/
+/**
+*	@brief	Opens up the MicroUI GameUI menu that matches the given menu name.
+*	@note	If the menu name is not recognized, prints an error message to the client if possible,
+*			otherwise prints it to all connected clients.
+**/
+void SVG_GameUI_OpenMenu( svg_base_edict_t *ent, const sg_game_ui_menu_id &menuID ) {
+	// Ensure the ID is an actual valid and existing one.
+	if ( menuID <= sg_game_ui_menu_id::NONE || menuID >= sg_game_ui_menu_id::MAX_ID ) {
+		//gi.dprintf( "SVG_GameUI_OpenMenu: Invalid menu ID %d attempt on server.\n", menuID );
+		gi.cprintf( ent, PRINT_HIGH, "SVG_GameUI_OpenMenu: Invalid menu ID %d attempt on server.\n", menuID );
+		return;
+	}
+	// Open menu by sending svc_game_ui_open with the appropriate menu ID, send this as part of a Reliable packet.
+	gi.WriteUint8( svc_game_ui_open );
+	gi.WriteUint8( ( uint8_t )menuID );
+	gi.unicast( ent, true );
+}
 
 /***
 *
@@ -38,11 +65,11 @@ void SVG_HUD_MoveClientToIntermission(svg_base_edict_t *ent)
     ent->client->showhelp = false;
 
 	// Move the entity to the intermission origin.
-	SVG_Util_SetEntityOrigin( ent, level.intermission_origin ); //VectorCopy( level.intermission_origin, ent->s.origin ); //VectorCopy( level.intermission_origin, ent->client->ps.pmove.origin );
+	SVG_Util_SetEntityOrigin( ent, level.intermissionState.cameraOrigin ); //VectorCopy( level.intermissionOrigin, ent->s.origin ); //VectorCopy( level.intermissionOrigin, ent->client->ps.pmove.origin );
 	// Ensure the player state is also updated.
-	ent->client->ps.pmove.origin = level.intermission_origin;
+	ent->client->ps.pmove.origin = level.intermissionState.cameraOrigin;
 	// Calculate viewangles.
-	ent->client->ps.viewangles = QM_Vector3AngleMod( level.intermission_angle );
+	ent->client->ps.viewangles = QM_Vector3AngleMod( level.intermissionState.cameraAngles );
 
 	// Set the client to intermission pmove type.
     if ( !game.mode->IsMultiplayer() ) {
@@ -82,6 +109,7 @@ void SVG_HUD_MoveClientToIntermission(svg_base_edict_t *ent)
     gi.unlinkentity(ent);
 
     // Scoreboard:
+	// <Q2RTXP>: TODO: Remove cvar dependency and instead use gamemode rules to determine whether to show the scoreboard or not.
     if (deathmatch->value || coop->value ) {
         // Write out svc_scoreboard command.
         SVG_HUD_DeathmatchScoreboardMessage( ent, nullptr, true );
@@ -95,7 +123,7 @@ void SVG_HUD_MoveClientToIntermission(svg_base_edict_t *ent)
 void SVG_HUD_BeginIntermission(svg_base_edict_t *targ)
 {
     // The intermission is already actively running.
-    if ( level.intermissionFrameNumber ) {
+    if ( level.intermissionState.engagedFrameNumber ) {
         return;     // already activated
     }
     // It isn't auto-saved.
@@ -115,9 +143,9 @@ void SVG_HUD_BeginIntermission(svg_base_edict_t *targ)
     }
     // When an intermission framenumber is set, we are engaged into intermission.
     // Thus we set it right here.
-    level.intermissionFrameNumber = level.frameNumber;
+    level.intermissionState.engagedFrameNumber = level.frameNumber;
 	// Set the change map to the target's map.
-    level.changemap = targ->map;
+    level.intermissionState.changemap = targ->map;
 
     //if (strchr(level.changemap, '*')) {
     //    if (coop->value) {
@@ -138,38 +166,38 @@ void SVG_HUD_BeginIntermission(svg_base_edict_t *targ)
     //} else {
 	// For singleplayer, immediately exit intermission and go to the next level.
     if ( !game.mode->IsMultiplayer() ) {
-        level.exitintermission = 1;     // Go immediately to the next level
+        level.intermissionState.shouldExit = 1;     // Go immediately to the next level
         return;
     }
     //}
 
     // Do not exit intermission for this frame.
-    level.exitintermission = 0;
+    level.intermissionState.shouldExit = 0;
 
 	// Find an intermission point, or a start point if none is found.
-    svg_base_edict_t *ent = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, classname.ptr ), "info_player_intermission" );
+    svg_base_edict_t *ent = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, classname ), "info_player_intermission" );
     if ( !ent ) {
         // the map creator forgot to put in an intermission point...
-        ent = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, classname.ptr ), "info_player_start" );
+        ent = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, classname ), "info_player_start" );
         if ( !ent ) {
-            ent = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, classname.ptr ), "info_player_deathmatch" );
+            ent = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, classname ), "info_player_deathmatch" );
         }
     } else {
         // chose one of four spots
         int32_t i = Q_rand() & 3;
         while ( i-- ) {
-            ent = SVG_Entities_Find( ent, q_offsetof( svg_base_edict_t, classname.ptr ), "info_player_intermission" );
+            ent = SVG_Entities_Find( ent, q_offsetof( svg_base_edict_t, classname ), "info_player_intermission" );
             // wrap around the list
             if ( !ent ) {
-                ent = SVG_Entities_Find( ent, q_offsetof( svg_base_edict_t, classname.ptr ), "info_player_intermission" );
+                ent = SVG_Entities_Find( ent, q_offsetof( svg_base_edict_t, classname ), "info_player_intermission" );
             }
         }
     }
 
 	// Since we found an intermission point, set the intermission origin and angle.
     if ( ent ) {
-        level.intermission_origin = ent->s.origin;
-        level.intermission_angle = ent->s.angles;
+        level.intermissionState.cameraOrigin = ent->s.origin;
+        level.intermissionState.cameraAngles = ent->s.angles;
     }
 
     // Move all the game's clients to the intermission point
@@ -279,51 +307,52 @@ void SVG_HUD_DeathmatchScoreboardMessage(svg_base_edict_t *ent, svg_base_edict_t
     gi.WriteUint8(svc_layout);
     gi.WriteString(string);
     #else
-    if ( ent->client->showscores ) {
-        gi.dprintf( "scores\n" );
-	} else {
-		gi.dprintf( "no scores\n" );
-	}
-    gi.WriteUint8( svc_scoreboard );
+		gi.WriteUint8( svc_scoreboard );
 
-    // First count the total of clients we got in-game.
-    int32_t numberOfClients = 0;
-    for ( int32_t i = 0; i < game.maxclients; i++ ) {
-        svg_base_edict_t *cl_ent = g_edict_pool.EdictForNumber( i + 1 );
-        if ( !cl_ent || !cl_ent->inUse || game.clients[ i ].resp.spectator 
-            /*|| !cl_ent->client->pers.connected*/ ) {
-            continue;
-        }
-        numberOfClients++;
-    }
-    // Now send the number of clients.
-    gi.WriteUint8( numberOfClients );
+		// First count the total of clients we got in-game.
+		int32_t numberOfClients = 0;
+		for ( int32_t i = 0; i < game.maxclients; i++ ) {
+			svg_base_edict_t *cl_ent = g_edict_pool.EdictForNumber( i + 1 );
+			if ( !cl_ent || !cl_ent->inUse || game.clients[ i ].resp.spectator 
+				/*|| !cl_ent->client->pers.connected*/ ) {
+				continue;
+			}
+			numberOfClients++;
+		}
+		// Now send the number of clients.
+		gi.WriteUint8( numberOfClients );
 
-    // Now, for each client, send index, team id, time, score, and ping.
-    for ( int32_t i = 0; i < game.maxclients; i++ ) {
-        svg_base_edict_t *cl_ent = g_edict_pool.EdictForNumber( i + 1 );
-        if ( !cl_ent || !cl_ent->inUse || game.clients[ i ].resp.spectator
-            /*|| !cl_ent->client->pers.connected*/ ) {
-            continue;
-        }
+		// Now, for each client, send index, team id, time, score, and ping.
+		for ( int32_t i = 0; i < game.maxclients; i++ ) {
+			svg_base_edict_t *cl_ent = g_edict_pool.EdictForNumber( i + 1 );
+			if ( !cl_ent || !cl_ent->inUse || game.clients[ i ].resp.spectator
+				/*|| !cl_ent->client->pers.connected*/ ) {
+				continue;
+			}
 
-        int64_t score = game.clients[ i ].resp.score;
-        QMTime time = level.time - game.clients[ i ].resp.entertime;
-        int16_t ping = game.clients[ i ].ping;
-        const int32_t teamValue = game.clients[ i ].pers.team;
-        const uint8_t teamId = ( teamValue < 0 ) ? 0 : ( teamValue > 255 ? 255 : static_cast< uint8_t >( teamValue ) );
+			int64_t score = game.clients[ i ].resp.score;
+			QMTime time = level.time - game.clients[ i ].resp.entertime;
+			int16_t ping = game.clients[ i ].ping;
+			const int32_t teamValue = game.clients[ i ].pers.team;
+			const uint8_t teamId = ( teamValue < 0 ) ? 0 : ( teamValue > 255 ? 255 : static_cast< uint8_t >( teamValue ) );
 
-        // Client name is already known by client infos, so just send the index instead.
-        gi.WriteUint8( i );
-        gi.WriteUint8( teamId );
-        gi.WriteIntBase128( time.Seconds() );
-        gi.WriteIntBase128( score );
-        gi.WriteUint16( ping );
-    }
+			// Client name is already known by client infos, so just send the index instead.
+			gi.WriteUint8( i );
+			gi.WriteUint8( teamId );
+			gi.WriteIntBase128( time.Seconds() );
+			gi.WriteIntBase128( score );
+			gi.WriteUint16( ping );
+		}
     #endif
 
     // Send it over the wire, using supplied reliable false/true.
     gi.unicast( ent, sendAsReliable );
+
+    /**
+    *	Do not reopen the client GameUI menu from every scoreboard update packet.
+    *	The client-side +score / -score hold path owns scoreboard menu visibility, while the
+    *	server side only owns the live scoreboard data stream gated by ent->client->showscores.
+    **/
 }
 
 /**
@@ -481,17 +510,19 @@ void SVG_HUD_SetStats(svg_base_edict_t *ent) {
 	#endif
 
     //
-    // GUI
+	// GUI: Defaults to no layouts active, then sets them based on gamemode rules.
     //
+	// Default clearing of all layouts.
     ent->client->ps.stats[ STAT_LAYOUTS ] = 0;
-	// Any game made below so is singleplayer or none.
+	
+	// Start of the range of MP modes that allow a scoreboard or intermission layout to be shown.
 	if ( SG_GetRequestedGameModeType() >= GAMEMODE_TYPE_COOPERATIVE ) {
-		if ( ent->client->pers.health <= 0 || level.intermissionFrameNumber
-			|| ent->client->showscores )
-		{
-            ent->client->ps.stats[ STAT_LAYOUTS ] |= 1;
+		// Show the intermission layout if we're in intermission, or if the client is dead, or if they're showing the scores.
+		if ( level.intermissionState.engagedFrameNumber || 
+			ent->client->pers.health <= 0 || ent->client->showscores ) {
+			ent->client->ps.stats[ STAT_LAYOUTS ] = static_cast< int64_t >( sg_game_ui_menu_id::SCOREBOARD );
         } else {
-            ent->client->ps.stats[ STAT_LAYOUTS ] &= ~1;
+            ent->client->ps.stats[ STAT_LAYOUTS ] = 0;
         }
     }
 
@@ -520,12 +551,15 @@ void SVG_HUD_SetSpectatorStats( svg_base_edict_t *ent ) {
 
     // layouts are independant in spectator
     cl->ps.stats[ STAT_LAYOUTS ] = 0;
-    if ( cl->pers.health <= 0 || level.intermissionFrameNumber || cl->showscores ) {
+	// <Q2RTXP>: TODO: Implement properly for spectators a scoreboard or sumthing.
+	#if 0
+	if ( cl->pers.health <= 0 || level.intermissionState.engagedFrameNumber || cl->showscores ) {
         cl->ps.stats[ STAT_LAYOUTS ] |= 1;
     }
     if ( cl->showinventory && cl->pers.health > 0 ) {
         cl->ps.stats[ STAT_LAYOUTS ] |= 2;
     }
+	#endif
     // Set the chase target client index as STAT_CHASE.
     if ( cl->chase_target && cl->chase_target->inUse ) {
         cl->ps.stats[ STAT_CHASE ] = CS_PLAYERSKINS +

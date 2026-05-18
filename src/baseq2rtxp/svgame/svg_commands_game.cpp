@@ -715,10 +715,10 @@ void SVG_Command_Say_f(svg_base_edict_t *ent, bool team, bool arg0)
 }
 
 /**
-*   @brief  Display the scoreboard
+*   @brief  Enable scoreboard streaming and publish the scoreboard menu id through STAT_LAYOUTS.
 **/
-void SVG_Command_Score_f( svg_base_edict_t *ent ) {
-    // Hide inventory and help layout screens.
+static void SVG_Command_ScoreShow_f( svg_base_edict_t *ent ) {
+    // Hide inventory and help layout screens while the scoreboard is active.
     ent->client->showinventory = false;
     ent->client->showhelp = false;
 
@@ -726,18 +726,37 @@ void SVG_Command_Score_f( svg_base_edict_t *ent ) {
         return;
     }
 
-    // Hide scores if they were visible.
+    // Ignore repeated open requests while the key is held.
     if ( ent->client->showscores ) {
-        ent->client->showscores = false;
-        //gi.dprintf( "hidescores\n" );
         return;
     }
 
-    // Otherwise show them.
+    // Mark the scoreboard as active so per-frame stat/layout updates can keep advertising it.
     ent->client->showscores = true;
-    //gi.dprintf( "showscores\n" );
-    // Engage in sending svc_scoreboard messages, send this one as part of a Reliable packet.
+    // Send one immediate reliable snapshot so the scoreboard has initial data as soon as it appears.
     SVG_HUD_DeathmatchScoreboardMessage( ent, ent->enemy, true );
+}
+
+/**
+*   @brief  Disable scoreboard streaming and clear the scoreboard menu id from STAT_LAYOUTS.
+**/
+static void SVG_Command_ScoreHide_f( svg_base_edict_t *ent ) {
+    if ( !ent->client->showscores ) {
+        return;
+    }
+
+    ent->client->showscores = false;
+}
+
+/**
+*   @brief  Legacy scoreboard toggle command kept for compatibility with existing scripts/configs.
+**/
+void SVG_Command_Score_f( svg_base_edict_t *ent ) {
+    if ( ent->client->showscores ) {
+        SVG_Command_ScoreHide_f( ent );
+    } else {
+        SVG_Command_ScoreShow_f( ent );
+    }
 }
 
 /**
@@ -780,18 +799,6 @@ void SVG_Command_PlayerList_f(svg_base_edict_t *ent)
 *	@note	If the menu name is not recognized, prints an error message to the client if possible,
 *			otherwise prints it to all connected clients.
 **/
-static void SVG_GameUI_OpenMenu( svg_base_edict_t *ent, const sg_game_ui_menu_id &menuID ) {
-	// Ensure the ID is an actual valid and existing one.
-	if ( menuID <= sg_game_ui_menu_id::NONE || menuID >= sg_game_ui_menu_id::MAX_ID ) {
-		//gi.dprintf( "SVG_GameUI_OpenMenu: Invalid menu ID %d attempt on server.\n", menuID );
-		gi.cprintf( ent, PRINT_HIGH, "SVG_GameUI_OpenMenu: Invalid menu ID %d attempt on server.\n", menuID );
-		return;
-	}
-	// Open menu by sending svc_game_ui_open with the appropriate menu ID, send this as part of a Reliable packet.
-	gi.WriteUint8( svc_game_ui_open );
-	gi.WriteUint8( (uint8_t)menuID );
-	gi.unicast( ent, true );
-}
 void SVG_Command_MGUI_f( svg_base_edict_t *ent ) {
 	#if 0
 	// Only allow in multiplayer.
@@ -858,6 +865,14 @@ void SVG_Client_Command( svg_base_edict_t *ent ) {
         SVG_Command_Score_f( ent );
         return;
     }
+    if ( Q_stricmp( cmd, "+score" ) == 0 ) {
+        SVG_Command_ScoreShow_f( ent );
+        return;
+    }
+    if ( Q_stricmp( cmd, "-score" ) == 0 ) {
+        SVG_Command_ScoreHide_f( ent );
+        return;
+    }
 
 	//
 	//	GameUI:
@@ -871,7 +886,7 @@ void SVG_Client_Command( svg_base_edict_t *ent ) {
 	// Don't allow any other commands while in intermission.
 	//
 	//
-    if ( level.intermissionFrameNumber ) {
+    if ( level.intermissionState.engagedFrameNumber ) {
         return;
     }
 

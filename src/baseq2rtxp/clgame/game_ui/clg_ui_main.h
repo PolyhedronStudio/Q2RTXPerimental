@@ -40,8 +40,15 @@ void CLG_UI_CloseMenu();
 /**
 *	@brief	Will open the specified menu, based on the menuID received from the server.
 **/
-enum class sg_game_ui_menu_id;
+enum class sg_game_ui_menu_id : int64_t;
 void CLG_UI_OpenMenu( const sg_game_ui_menu_id menuID );
+
+/**
+*	@brief	Query whether the given GameUI menu is currently the active menu.
+*	@param	menuID	Menu identifier to compare against the current active menu.
+*	@return	True when the requested menu is currently active.
+**/
+const bool CLG_UI_IsMenuOpen( const sg_game_ui_menu_id menuID );
 
 
 

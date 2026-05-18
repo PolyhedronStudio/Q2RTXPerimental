@@ -114,9 +114,11 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_target_changelevel_t, onSpawn ) ( svg_target_c
 *   @brief
 **/
 DEFINE_MEMBER_CALLBACK_USE( svg_target_changelevel_t, onUse )( svg_target_changelevel_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) -> void {
-    if ( level.intermissionFrameNumber )
-        return;     // already activated
+	if ( level.intermissionState.engagedFrameNumber ) {
+		return;     // already activated
+	}
 
+	// <Q2RTXP>: TODO: Remove cvar checks in the future, but for now we want to keep the old code intact.
     if ( !deathmatch->value && !coop->value ) {
         if ( g_edict_pool.EdictForNumber( 1 )->health <= 0 ) {
             return;

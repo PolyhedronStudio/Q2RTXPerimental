@@ -474,7 +474,7 @@ void svg_gamemode_cooperative_t::ClientBegin( svg_player_edict_t *ent ) {
     }
 
     // If in intermission, move our client over into intermission state. (We connected at the end of a match).
-    if ( level.intermissionFrameNumber ) {
+    if ( level.intermissionState.engagedFrameNumber ) {
         SVG_HUD_MoveClientToIntermission( ent );
         // Otherwise, send 'Login' effect even if NOT in a multiplayer game 
     } else {
@@ -533,7 +533,7 @@ void svg_gamemode_cooperative_t::EntityKilled( svg_base_edict_t *targ, svg_base_
 **/
 const bool svg_gamemode_cooperative_t::PreCheckGameRuleConditions() {
 	// Exit intermission.
-	if ( level.exitintermission ) {
+	if ( level.intermissionState.engagedFrameNumber ) {
 		ExitLevel();
 		return true;
 	}
@@ -558,7 +558,7 @@ void svg_gamemode_cooperative_t::BeginServerFrame( svg_player_edict_t *ent ) {
     /**
     *   Opt out of function if we're in intermission mode.
     **/
-    if ( level.intermissionFrameNumber ) {
+    if ( level.intermissionState.engagedFrameNumber ) {
         return;
     }
 
@@ -655,7 +655,7 @@ void svg_gamemode_cooperative_t::EndServerFrame( svg_player_edict_t *ent ) {
     // If the end of unit layout is displayed, don't give
     // the player any normal movement attributes
     //
-    if ( level.intermissionFrameNumber ) {
+    if ( level.intermissionState.engagedFrameNumber ) {
         // FIXME: add view drifting here?
         ent->client->ps.screen_blend[ 3 ] = 0;
         ent->client->ps.fov = 90;
@@ -1054,7 +1054,7 @@ svg_base_edict_t *svg_gamemode_cooperative_t::SelectCoopSpawnPoint( svg_player_e
 
 	// assume there are four coop spots at each spawnpoint
 	while ( 1 ) {
-		spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname.ptr ), "info_player_coop" );
+		spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname ), "info_player_coop" );
 		if ( !spot ) {
 			return NULL;    // we didn't have enough...
 		}

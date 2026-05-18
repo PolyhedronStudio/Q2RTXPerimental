@@ -10,6 +10,34 @@
 
 
 
+/***
+*
+*
+*
+*	GameUI HUD Core:
+*
+*
+*
+***/
+enum class sg_game_ui_menu_id : int64_t;
+/**
+*	@brief	Opens up the MicroUI GameUI menu that matches the given menu name.
+*	@note	If the menu name is not recognized, prints an error message to the client if possible,
+*			otherwise prints it to all connected clients.
+**/
+void SVG_GameUI_OpenMenu( svg_base_edict_t *ent, const sg_game_ui_menu_id &menuID );
+
+
+
+/***
+*
+*
+*
+*   Intermission:
+*
+*
+*
+***/
 /**
 *   @brief
 **/

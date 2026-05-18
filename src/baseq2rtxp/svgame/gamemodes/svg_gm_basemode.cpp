@@ -141,7 +141,7 @@ svg_base_edict_t *svg_gamemode_t::SelectSpawnPoint( svg_player_edict_t *ent, Vec
     // Find a single player start spot since the game modes found none.
     if ( !spot ) {
         // Iterate for info_player_start that matches the game.spawnpoint targetname to spawn at..
-        while ( ( spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname.ptr ), "info_player_start" ) ) != NULL ) {
+        while ( ( spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname ), "info_player_start" ) ) != NULL ) {
             // Break out if the string data is invalid.
             if ( game.spawnpoint[ 0 ] == '\0' && !( const char * )spot->targetname )
                 break;
@@ -157,7 +157,7 @@ svg_base_edict_t *svg_gamemode_t::SelectSpawnPoint( svg_player_edict_t *ent, Vec
         if ( !spot ) {
             if ( game.spawnpoint[ 0 ] == '\0' ) {
                 // there wasn't a spawnpoint without a target, so use any
-                spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname.ptr ), "info_player_start" );
+                spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname ), "info_player_start" );
             }
             if ( !spot )
                 gi.error( "Couldn't find spawn point %s", game.spawnpoint );
@@ -180,14 +180,17 @@ void svg_gamemode_t::ExitLevel() {
 	SVG_Lua_CallBack_ExitMap();
 
 	// Generate the command string to change the map.
-	char    command[ 256 ];
-	Q_snprintf( command, sizeof( command ), "gamemap \"%s\"\n", (const char *)level.changemap );
+	std::string newMapCommand = "gamemap \"" + (std::string)(level.intermissionState.changemap) + "\"";
+	//Q_snprintf( command, sizeof( command ), "gamemap \"%s\"\n", (const char *)level.changemap );
 	// Add it to the command string queue.
-	gi.AddCommandString( command );
-	// Reset the level changemap, and intermission state.
-	level.changemap = NULL;
-	level.exitintermission = 0;
-	level.intermissionFrameNumber = 0;
+	gi.AddCommandString( newMapCommand.c_str() );
+
+	// Unset the next level changemap.
+	level.intermissionState.changemap = nullptr;
+	// Unset the exiting intermission state.
+	level.intermissionState.shouldExit = 0;
+	// Unset the engaged intermission frame number state.
+	level.intermissionState.engagedFrameNumber = 0;
 
 	// Clear some things before going to next level.
 	for ( int32_t i = 0; i < maxclients->value; i++ ) {
@@ -196,10 +199,17 @@ void svg_gamemode_t::ExitLevel() {
 		if ( !ent || !ent->inUse ) {
 			continue;
 		}
-		// Reset the health of the player to their max health.
-		if ( ent->health > ent->client->pers.max_health ) {
-			ent->health = ent->client->pers.max_health;
-		}
+		/**
+		*	Ensure the client entity health and armor never exceeds the max. This can happen 
+		*	if the player has a powerup that increases their health, but we want to reset it 
+		*	back to normal for the next level.
+		*
+		*	Reset health and armor to max if they are above max, but don't change them if they 
+		*	are below max. This allows the player to keep any health or armor they have, but 
+		*	also ensures that they don't start the next level with more than the maximum allowed.
+		**/
+		ent->health	= std::min( ent->health, ent->client->pers.max_health );
+		ent->armor	= std::min( ent->armor, ent->client->pers.max_armor );
 	}
 }
 

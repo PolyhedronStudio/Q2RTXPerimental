@@ -4,12 +4,14 @@
 - Use 1TBS/K&R braces everywhere for new/modified code.
 - Always use `nullptr` (avoid `NULL`).
 - Prefer tabs for indentation; otherwise, use 4 spaces unless the file predominantly uses a different indent width. Match the immediate file’s indentation quirks.
-- When implementing new systems, prefer enforcing drop limits both in A* edge validation and in path-following safety checks.
-- When adjusting monster navigation/movement, always account for slopes and stairs (walkable surfaces, step-up/step-down) alongside cornering and center-origin hull issues.
-- For repository planning and implementation, treat `svgame/nav2/` as the sole active navigation system head; do not intertwine new masterplan work with `svgame/oldnav/` mechanics, types, or callable surfaces.
 - When following a `masterplan` markdown (`.md`) file, keep task and milestone status lists up-to-date in priority/dependency order: mark completed work as done, blocking issues as blocked/error, and explicitly mark intentional skips with rationale.
+- Always use the C <ctypes.h> and C++ <ctypes> their type definition based variety(e.g. `int32_t`, `int64_t`, `uint32_t`, `int16_t`, and so on.)  Exception to this rule is actual char string buffer related code, it should just remain using `char` or `const char`
 
 ## Code Style
+- Use const correctness where applicable.
+- Use constexpr correctness where applicable(and actually possible).
+- Use Q_assert for assertion checks.
+
 - Follow consistent formatting rules across the project.
 - Adhere to naming conventions as specified in the project documentation.
 - Prefer Doxygen-style comments. Two canonical styles are accepted and should be used depending on context.
@@ -74,12 +76,6 @@ When generating commit messages or summaries for commits, follow this ordering a
 - [SharedGame]: Each distinct change related to files in the ``/baseq2rtxp/sharedgame/`` folder. These changes come seventh in order, with a ``[SharedGame]: `` tag for each distinct change.
 
 Use one line per distinct change and prefix it with the appropriate tag. Combine multiple changes under the same tag as separate lines.
-
-## Navigation Ownership
-
-- `src/baseq2rtxp/svgame/nav2/` is the primary navigation system and must continue absorbing ownership of navigation behavior, types, defaults, and entrypoints.
-- `src/baseq2rtxp/svgame/oldnav/` is reference-only migration material. Do not add new production dependencies from nav2 or gameplay code back into oldnav.
-- When migrating navigation code, prefer introducing nav2-owned names and surfaces first, then shrinking oldnav coupling behind temporary compatibility seams until it can be removed entirely.
 
 ## Control-flow / condition intent comments
 
@@ -230,10 +226,10 @@ To avoid missing comments in future edits, every PR that modifies C++ code must 
 
 - Every non-trivial function has a Doxygen-style header with at least @brief and @note/@param/@return where applicable.
 - Within each function, every logical subsection (sanity checks, resource setup, major algorithm steps, state updates, I/O, early returns, safety checks) must be preceded by a short comment block (starred `/** ... **/` preferred) explaining intent.
-- For complex multi-step subsections (pathfinding, physics/step handling, approach/speed computation), add line-by-line or per-statement comments for critical computations (see Line-by-line example above).
-- For I/O-heavy code (load/save/serialization) and for loops that mutate structures, add a brief action comment above each important statement that changes state (allocations, reads/writes, index updates, frees, pointer swaps). If a line is not self-explanatory, it must be preceded by a short `//` comment.
+- For complex multi-step subsections (e.g: pathfinding, physics/step handling, approach/speed computation), add line-by-line or per-statement comments for critical computations (see Line-by-line example above).
+- For I/O-heavy code (e.g: load/save/serialization) and for loops that mutate structures, add a brief action comment above each important statement that changes state (allocations, reads/writes, index updates, frees, pointer swaps). If a line is not self-explanatory, it must be preceded by a short `//` comment.
 - When refactoring an existing file, bring the whole file up to the standard for any function you touch. Do not only comment the lines you changed; ensure the entire function reads like a narrated set of actions.
-- Small trivial statements (e.g., simple assignments) do not require individual comments unless their intent is non-obvious.
+- Small trivial statements (e.g., simple assignments) do not require individual comments unless their intent is, possibly(noteworthy) non-obvious.
 - Loops, early returns, and guards must have a short comment explaining their purpose and expected invariants.
 
 Enforcement: any PR that modifies C++ files must include in its description a copy of the checklist annotated for each modified file (which function sections were added/changed and where comments were placed). CI may add automated checks to reject PRs that fail to include the required comment blocks.
@@ -241,7 +237,7 @@ Enforcement: any PR that modifies C++ files must include in its description a co
 ### Template for new/modified functions (copy into PR description to show compliance):
 ```cpp
 /**
-*	@brief	Short description of function purpose.
+*	@brief  Short description of function purpose.
 *	@param	... (if applicable)
 *	@return	... (if applicable)
 *	@note	Any important notes or invariants.
@@ -293,7 +289,7 @@ When in doubt: add a comment. It's preferable to be slightly verbose rather than
 *	@description	But you're intended to add any relevant and useful parameters, notes,
 *					into this list here.
 **/
-bool ResetNumbersList( int *numList, int numCount ) {
+bool ResetNumbersList( int32_t *numList, int32_t numCount ) {
 	// Sanity check: ensure caller provided a valid list.
 	if ( numList == nullptr ) {
 		// Developer print the actual error we are facing.
@@ -309,7 +305,7 @@ bool ResetNumbersList( int *numList, int numCount ) {
 	// Iterate over the numbers list.
 	for ( int32_t i = 0; i < numCount; i++ ) {
 		// Print the value as developer.
-		gi.dprintf( "%s: (#%d)", __func__, numList[ i ] );
+		gi.dprintf( "%s: (#" PRId32 ")", __func__, numList[ i ] );
 		// Reset the entry to 0.
 		numList[ i ] = 0;
 	}
@@ -324,6 +320,7 @@ bool ResetNumbersList( int *numList, int numCount ) {
 ```cpp
 /**
 *	@brief	ember helper: Face a horizontal target smoothly by blending between a hint direction and the exact target direction.
+*   @note   Add notations here if necessary and useful to the caller.
 **/
 void svg_monster_testdummy_t::FaceTargetHorizontal( const Vector3 &directionHint, const Vector3 &targetPoint, float blendFactor, float yawSpeed ) {
     // Initially initialize to current yaw. (It will slerp so what we eventually face targetPoint ).
@@ -353,7 +350,6 @@ void svg_monster_testdummy_t::FaceTargetHorizontal( const Vector3 &directionHint
 Here is an example header file with a class declaration:
 ```cpp
 //! This is where GitHub CoPilot can analyse header file style from.
-#ifdef STYLE_TYPE_FOR_COPILOT
 /********************************************************************
 *
 *
@@ -452,13 +448,11 @@ public:
         return currentArmor;
     }
 };
-#endif
 ```
 
 And here is an example of a .cpp file with section headers:
 ```cpp
 //! This is where GitHub CoPilot can analyse header file style from.
-#ifdef STYLE_TYPE_FOR_COPILOT
 /********************************************************************
 *
 *
@@ -520,7 +514,7 @@ void svg_example_copilot_class::SetCurrentHealth( const int32_t newCurrentHealth
 	}
 
 	if ( ( flags & HEALTH_SET_FLAG_NOTIFY ) != 0 ) {
-		Com_Error( ERR_DISCONNECT, "%s's health is now %d.\n", displayName.c_str(), currentHealth );
+		Com_Error( ERR_DISCONNECT, "%s's health is now " PRId32 ".\n", displayName.c_str(), currentHealth );
 		return;
 	}
 
@@ -536,7 +530,7 @@ void svg_example_copilot_class::SetCurrentHealth( const int32_t newCurrentHealth
 			// Check if bit i is set.
 			if ( ( exampleBitmask & ( 1ULL << i ) ) != 0 ) {
 				// Debug print the bit that is set.
-				gi.dprintf( "%s: Bit %d is set in exampleBitmask.\n", __func__, i );
+				gi.dprintf( "%s: Bit %" PRId32 " is set in exampleBitmask.\n", __func__, i );
 			}
 		}
 	}
@@ -548,5 +542,4 @@ void svg_example_copilot_class::SetCurrentHealth( const int32_t newCurrentHealth
 const int32_t svg_example_copilot_class::GetCurrentHealth() const { // <-- Note the const at the end for const correctness. Only apply if necessary.
 	return currentHealth;
 }
-#endif
 ```

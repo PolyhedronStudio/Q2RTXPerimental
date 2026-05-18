@@ -50,7 +50,6 @@ static constexpr int32_t CLG_UI_ATLAS_CHANNELS = 4;
 //! Total byte size for the atlas texture upload buffer.
 static constexpr size_t CLG_UI_ATLAS_BYTE_COUNT =
 	( CLG_UI_ATLAS_WIDTH * CLG_UI_ATLAS_HEIGHT * CLG_UI_ATLAS_CHANNELS );
-
 // Forward declarations for internal GameUI functions, these are used to implement the different GameUI windows and the main frame processing function.
 static void __process_frame( mu_Context *ctx );
 static const bool __style_window( mu_Context *ctx );
@@ -58,6 +57,9 @@ static const bool __log_window( mu_Context *ctx );
 static const bool __test_window( mu_Context *ctx );
 static void write_log( const char *text );
 static void MicroUI_SetTextMeasureCallbacks( mu_Context *ctx );
+static void CLG_UI_AddKeyDestFlag( const keydest_t flag );
+static void CLG_UI_RemoveKeyDestFlag( const keydest_t flag );
+static void CLG_UI_SyncScoreboardMenuFromStats( void );
 
 static std::string logbuf;
 static bool logbuf_updated = false;
@@ -216,6 +218,50 @@ static void MicroUI_SetTextMeasureCallbacks( mu_Context *ctx ) {
 }
 
 /**
+*	@brief	Add one input-destination flag while preserving any higher-priority active destinations.
+*	@param	flag	Destination bit to add.
+*	@note	GameUI must coexist cleanly with other destination bits such as KEY_CONSOLE,
+*			so this helper always modifies the current destination incrementally.
+**/
+static void CLG_UI_AddKeyDestFlag( const keydest_t flag ) {
+	const keydest_t currentDest = clgi.GetKeyEventDestination();
+	if ( ( currentDest & flag ) == 0 ) {
+		clgi.SetKeyEventDestination( static_cast< keydest_t >( currentDest | flag ) );
+	}
+}
+
+/**
+*	@brief	Remove one input-destination flag while preserving all unrelated destinations.
+*	@param	flag	Destination bit to remove.
+*	@note	When no destination bits remain, gameplay becomes the implicit fallback.
+**/
+static void CLG_UI_RemoveKeyDestFlag( const keydest_t flag ) {
+	const keydest_t currentDest = clgi.GetKeyEventDestination();
+	if ( ( currentDest & flag ) != 0 ) {
+		const keydest_t newDest = static_cast< keydest_t >( currentDest & ~flag );
+		clgi.SetKeyEventDestination( newDest );
+	}
+}
+
+/**
+*	@brief	Synchronize scoreboard GameUI visibility with the menu id stored in STAT_LAYOUTS.
+*	@note	The server owns whether the scoreboard should be visible by publishing a single
+*			menu id through player stats. The client only mirrors that state into the local
+*			GameUI menu system, which avoids divergent local/server scoreboard lifetimes.
+**/
+static void CLG_UI_SyncScoreboardMenuFromStats( void ) {
+	const int64_t layoutValue = clgi.client->frame.ps.stats[ STAT_LAYOUTS ];
+	const bool scoreboardRequested = layoutValue == static_cast< int64_t >( sg_game_ui_menu_id::SCOREBOARD );
+	const bool scoreboardOpen = s_gameui_ctx.activeMenuID == sg_game_ui_menu_id::SCOREBOARD;
+
+	if ( scoreboardRequested && !scoreboardOpen ) {
+		CLG_UI_OpenMenu( sg_game_ui_menu_id::SCOREBOARD );
+	} else if ( !scoreboardRequested && scoreboardOpen ) {
+		CLG_UI_CloseMenu();
+	}
+}
+
+/**
 *	@brief	Allocate the client's UI context, called when the client begins and after loading plague has ended.
 **/
 void CLG_UI_AllocateContext() {
@@ -266,7 +312,7 @@ void CLG_UI_FreeContext() {
 	}
 	// Determine the key event destination, if it's currently set to GameUI, switch it back to Game so that input is not left in a state where it is focused on a nonexistent UI after the context is freed.
 	if ( ( clgi.GetKeyEventDestination() & KEY_GAME_UI ) != 0 ) {
-		clgi.SetKeyEventDestination( KEY_GAME );
+		CLG_UI_RemoveKeyDestFlag( KEY_GAME_UI );
 	}
 	
 	//clgi.FreeTags( TAG_CLGAME_UI );
@@ -278,6 +324,9 @@ void CLG_UI_FreeContext() {
 *			it runs at the same framerate as the client does so it remains responsive.
 **/
 void CLG_UI_ProcessFrame() {
+	// Mirror the server-authored menu id in STAT_LAYOUTS before any focus or rendering decisions are made.
+	CLG_UI_SyncScoreboardMenuFromStats();
+
 	/**
 	* 	We will only process the UI context if there is an active menu, this is determined by whether the activeMenuID 
 	* 	is set to a valid menu ID or sg_game_ui_menu_id::NONE.This allows us to avoid unnecessary processing when no 
@@ -287,19 +336,28 @@ void CLG_UI_ProcessFrame() {
 	if ( s_gameui_ctx.activeMenuID == sg_game_ui_menu_id::NONE ) {
 		// Return input focus to gameplay if there is no active menu, this can happen if the server closes the menu by sending a command with sg_game_ui_menu_id::NONE, or if the client opened the menu but then closed it without returning focus to gameplay for some reason.
 		if ( ( clgi.GetKeyEventDestination() & KEY_GAME_UI ) != 0 ) {
-			clgi.SetKeyEventDestination( KEY_GAME );
+			CLG_UI_RemoveKeyDestFlag( KEY_GAME_UI );
 		} else {
 			// Input is already focused on gameplay, nothing to do.
 		}
 		return;
 	}
 	#endif
+
 	/**
-	*	Keep input routed to GameUI whenever a menu is active so UI widgets receive keyboard and mouse events.
+	*	Console input always has priority over GameUI input.
+	*	When the console is active, keep rendering any active GameUI menu if desired, but do not
+	*	let GameUI own the input destination bit for that frame.
 	**/
-	if ( ( clgi.GetKeyEventDestination() & KEY_GAME_UI ) == 0 ) {
-		clgi.SetKeyEventDestination( KEY_GAME_UI );
+	if ( ( clgi.GetKeyEventDestination() & KEY_CONSOLE ) != 0 ) {
+		CLG_UI_RemoveKeyDestFlag( KEY_GAME_UI );
+	} else {
+		/**
+		*	Keep input routed to GameUI whenever a menu is active so UI widgets receive keyboard and mouse events.
+		**/
+		CLG_UI_AddKeyDestFlag( KEY_GAME_UI );
 	}
+
 	/**
 	* 	If there is no UI context, return early:
 	**/
@@ -307,7 +365,7 @@ void CLG_UI_ProcessFrame() {
 		s_gameui_ctx.activeMenuID = sg_game_ui_menu_id::NONE;
 		s_gameui_ctx.layoutWarmupPending = false;
 		if ( ( clgi.GetKeyEventDestination() & KEY_GAME_UI ) != 0 ) {
-			clgi.SetKeyEventDestination( KEY_GAME );
+			CLG_UI_RemoveKeyDestFlag( KEY_GAME_UI );
 		}
 		return;
 	}
@@ -345,8 +403,8 @@ void CLG_UI_CloseMenu() {
 	}
 
 	// Return input focus to gameplay if there is no active menu, this can happen if the server closes the menu by sending a command with sg_game_ui_menu_id::NONE, or if the client opened the menu but then closed it without returning focus to gameplay for some reason.
-	if ( ( clgi.GetKeyEventDestination() & KEY_GAME_UI ) == 0 ) {
-		clgi.SetKeyEventDestination( KEY_GAME );
+	if ( ( clgi.GetKeyEventDestination() & KEY_GAME_UI ) != 0 ) {
+		CLG_UI_RemoveKeyDestFlag( KEY_GAME_UI );
 	}
 }
 
@@ -364,20 +422,24 @@ void CLG_UI_OpenMenu( const sg_game_ui_menu_id menuID ) {
 		return;
 	}
 
-	// Close the console first so GameUI input can become the active destination without console interference.
-	if ( clgi.Con_Close ) {
-		clgi.Con_Close( true );
-	}
-
-	// Switch input focus to GameUI now that a valid menu exists.
-	if ( ( clgi.GetKeyEventDestination() & KEY_GAME_UI ) == 0 ) {
-		clgi.SetKeyEventDestination( KEY_GAME_UI );
+	// Switch input focus to GameUI now that a valid menu exists, unless the console currently owns input priority.
+	if ( ( clgi.GetKeyEventDestination() & KEY_CONSOLE ) == 0 ) {
+		CLG_UI_AddKeyDestFlag( KEY_GAME_UI );
 	}
 
 	// Remember the active menu so the frame/update path renders the correct GameUI window.
 	s_gameui_ctx.activeMenuID = menuID;
 	// Warm up the layout on the first visible frame so scrollbar-dependent sizing stabilizes before the user sees it.
 	s_gameui_ctx.layoutWarmupPending = true;
+}
+
+/**
+*	@brief	Query whether the requested GameUI menu is currently active.
+*	@param	menuID	Menu identifier to compare against the active menu state.
+*	@return	True when the requested menu is active.
+**/
+const bool CLG_UI_IsMenuOpen( const sg_game_ui_menu_id menuID ) {
+	return s_gameui_ctx.activeMenuID == menuID;
 }
 
 
@@ -431,6 +493,7 @@ void CLG_UI_KeyEvent( const int32_t key, const bool isDown ) {
 	if ( !s_gameui_ctx.mu_ctx ) {
 		return;
 	}
+
 	if ( key && isDown ) {
 		mu_input_keydown( s_gameui_ctx.mu_ctx, key );
 	} else if ( key && !isDown ) {

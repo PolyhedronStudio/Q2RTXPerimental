@@ -184,9 +184,9 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_worldspawn_edict_t, onSpawn )( svg_worldspawn_
     // make some data visible to the server
     if ( self->message ) {
         gi.configstring( CS_NAME, self->message );
-        Q_strlcpy( level.level_name, self->message.ptr, sizeof( level.level_name ) );
+        Q_strlcpy( level.mapNameDescriptor, self->message.ptr, sizeof( level.mapNameDescriptor ) );
     } else {
-        Q_strlcpy( level.level_name, level.mapname, sizeof( level.level_name ) );
+        Q_strlcpy( level.mapNameDescriptor, level.mapname, sizeof( level.mapNameDescriptor ) );
     }
 
     if ( self->sky && self->sky[ 0 ] ) {

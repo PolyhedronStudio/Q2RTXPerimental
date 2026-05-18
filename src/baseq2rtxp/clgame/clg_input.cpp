@@ -210,15 +210,53 @@ static void IN_UseTargetUp( void ) {
 static bool s_scoreboardActive = false;
 
 /**
+*   @brief  Fail-safe scoreboard hold reconciliation.
+*   @note   Some focus transitions can swallow the physical TAB key-up event before it reaches
+*           the bound -score command. This helper keeps the server/client scoreboard state
+*           deterministic by force-closing when TAB is no longer physically held.
+**/
+static void CLG_Scoreboard_ReconcileHoldState( void ) {
+    // Only reconcile when our local hold state says the scoreboard is active.
+    if ( !s_scoreboardActive ) {
+        return;
+    }
+
+    // If TAB is still physically down, the hold is still valid.
+    if ( clgi.Key_IsDown( K_TAB ) > 0 ) {
+        return;
+    }
+
+    /**
+    *   TAB is no longer held, so force the same close path as -score even if the key-up
+    *   command event was dropped by a destination/focus transition.
+    **/
+    s_scoreboardActive = false;
+    if ( CLG_UI_IsMenuOpen( sg_game_ui_menu_id::SCOREBOARD ) ) {
+        CLG_UI_CloseMenu();
+    }
+    clgi.CL_ClientCommand( "-score" );
+}
+
+/**
 *   @brief  Show the scoreboard UI and start sending "score" to the server.
 **/
 static void IN_ScoreDown( void ) {
+    /**
+    *	Only react on the initial press edge.
+    *	Auto-repeat must not keep reopening or retriggering the scoreboard state machine.
+    **/
     if ( !s_scoreboardActive ) {
         s_scoreboardActive = true;
-        // Open the scoreboard UI (TEAM menu is used for scoreboard)
-        CLG_UI_OpenMenu( sg_game_ui_menu_id::TEAM );
-        // Send initial score command to server
-        clgi.CL_ClientCommand( "score" );
+
+        // Open immediately on the local client while held; server stats still remain authoritative fallback.
+        CLG_UI_OpenMenu( sg_game_ui_menu_id::SCOREBOARD );
+
+        /**
+        *	Ask the server to enable scoreboard streaming.
+        *	The actual on-screen scoreboard visibility is mirrored from STAT_LAYOUTS once the
+        *	server acknowledges the request and publishes sg_game_ui_menu_id::SCOREBOARD.
+        **/
+        clgi.CL_ClientCommand( "+score" );
     }
 }
 
@@ -226,11 +264,23 @@ static void IN_ScoreDown( void ) {
 *   @brief  Hide the scoreboard UI and stop sending "score" to the server.
 **/
 static void IN_ScoreUp( void ) {
-    if ( s_scoreboardActive ) {
+    /**
+    *	Ignore stray release events when the scoreboard was not opened by the matching +score path.
+    **/
+	if ( s_scoreboardActive ) {
         s_scoreboardActive = false;
-        // Close the scoreboard UI
-        CLG_UI_CloseMenu();
-        // No need to send anything to server; server will stop updates when menu closes
+
+        // Ensure the local menu drops immediately on release.
+        if ( CLG_UI_IsMenuOpen( sg_game_ui_menu_id::SCOREBOARD ) ) {
+            CLG_UI_CloseMenu();
+        }
+
+        /**
+        *	Ask the server to stop scoreboard streaming.
+        *	The client-side GameUI menu will close automatically once STAT_LAYOUTS stops requesting
+        *	sg_game_ui_menu_id::SCOREBOARD.
+        **/
+        clgi.CL_ClientCommand( "-score" );
     }
 }
 
@@ -441,6 +491,9 @@ void CLG_ClearStateDownFlags( client_movecmd_t *moveCommand ) {
 *           Doesn't touch command forward/side/upmove, these are filled by CL_FinalizeCommand.
 **/
 void PF_UpdateMoveCommand( const int64_t msec, client_movecmd_t *moveCommand ) {
+    // Keep scoreboard hold semantics deterministic even if a key-up event is lost during focus transitions.
+    CLG_Scoreboard_ReconcileHoldState();
+
     // Adjust viewangles.
     CLG_AdjustAngles( msec );
 

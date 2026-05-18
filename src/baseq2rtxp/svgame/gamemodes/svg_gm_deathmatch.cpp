@@ -76,8 +76,8 @@ void svg_gamemode_deathmatch_t::PrepareCVars() {
 *	@return	False if conditions are not yet met to end the game, true otherwise.
 **/
 const bool svg_gamemode_deathmatch_t::PreCheckGameRuleConditions() {
-	// Exit intermission.
-	if ( level.exitintermission ) {
+	// Whether to exit intermission and go to the next level.
+	if ( level.intermissionState.shouldExit ) {
 		ExitLevel();
 		// Return false.
 		return true;
@@ -95,7 +95,7 @@ void svg_gamemode_deathmatch_t::BeginServerFrame( svg_player_edict_t *ent ) {
 	/**
 	*   Opt out of function if we're in intermission mode.
 	**/
-	if ( level.intermissionFrameNumber ) {
+	if ( level.intermissionState.engagedFrameNumber ) {
 		return;
 	}
 
@@ -193,7 +193,7 @@ void svg_gamemode_deathmatch_t::EndServerFrame( svg_player_edict_t *ent ) {
 	// If the end of unit layout is displayed, don't give
 	// the player any normal movement attributes
 	//
-	if ( level.intermissionFrameNumber ) {
+	if ( level.intermissionState.engagedFrameNumber ) {
 		// FIXME: add view drifting here?
 		ent->client->ps.screen_blend[ 3 ] = 0;
 		ent->client->ps.fov = 90;
@@ -488,9 +488,10 @@ void svg_gamemode_deathmatch_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
 	// GClient Ptr.
 	svg_client_t *client = ent->client;
 
-	// Assign the found spawnspot origin and angles.
-	SVG_Util_SetEntityOrigin( ent, spawn_origin, true ); // VectorCopy( spawn_origin, ent->s.origin );
-	VectorCopy( spawn_origin, client->ps.pmove.origin );
+	// Assign the found spawnspot origin and angles to the client entity.
+	SVG_Util_SetEntityOrigin( ent, spawn_origin, true );
+	// Immediately assign it to its playerstate as well, so that the client can use it for its initial position and for any future position referencing before the next spawn.
+	client->ps.pmove.origin = spawn_origin;
 
 	// Get persistent user info and store it into a buffer.
 	char    userinfo[ MAX_INFO_STRING ];
@@ -530,7 +531,8 @@ void svg_gamemode_deathmatch_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
 
     // <Q2RTXP>: WID: TODO: ???
     // Fix level switch issue.
-    ent->client->pers.connected = true;
+	ent->client->pers.connected = true;
+	ent->client->pers.spawned = true;
 
     // Clear key entity values by reconfiguring this as a clean slate player entity.
     ent->groundInfo = {};
@@ -558,12 +560,11 @@ void svg_gamemode_deathmatch_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
     // Ensure it is a proper player entity.
     ent->svFlags |= SVF_PLAYER;
     ent->s.entityType = ET_PLAYER;
-
-    // Copy in the bounds.
-    VectorCopy( PM_BBOX_STANDUP_MINS, ent->mins );
-    VectorCopy( PM_BBOX_STANDUP_MAXS, ent->maxs );
+	// Copy in the bounds.
+	ent->mins = PM_BBOX_STANDUP_MINS;
+	ent->maxs = PM_BBOX_STANDUP_MAXS;
     // Ensure velocity is cleared.
-    VectorClear( ent->velocity );
+	ent->velocity = {};
 
 	// Reset PlayerState values.
 	client->ps = {
@@ -616,57 +617,70 @@ void svg_gamemode_deathmatch_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
 	ent->s.old_origin = ent->currentOrigin;
 	client->ps.pmove.origin = ent->currentOrigin;
 
-	// <Q2RTXP>: WID: Link it to calculate absmins/absmaxs, this is to prevent actual
-	// other entities from Spawn Touching.
-	gi.linkentity( ent );
-
-    // Ensure proper pitch and roll angles for calculating the delta angles.
-    spawn_angles[ PITCH ] = 0;
-    spawn_angles[ ROLL ] = 0;
-    // Configure all spawn view angles.
-	SVG_Util_SetEntityAngles( ent, spawn_angles, true );//ent->s.angles = spawn_angles;
-    client->ps.viewangles = spawn_angles;
-    client->viewMove.viewAngles = spawn_angles;
-    // Set the delta angle
-    client->ps.pmove.delta_angles = /*ANGLE2SHORT*/QM_Vector3AngleMod( spawn_angles - client->resp.cmd_angles );
-
-    // Calculate anglevectors.
-    AngleVectors( &client->viewMove.viewAngles.x, &client->viewMove.viewForward.x, nullptr, nullptr );
-
-    // spawn as spectator
-    if ( client->pers.spectator ) {
-        client->chase_target = NULL;
-
-        client->resp.spectator = true;
-
-        ent->movetype = MOVETYPE_NOCLIP;
-        ent->solid = SOLID_NOT;
-        ent->svFlags |= SVF_NOCLIENT;
-        ent->client->ps.gun.modelIndex = 0;
-        ent->client->ps.gun.animationID = 0;
-
-        gi.linkentity( ent );
-        return;
-    } else {
-        client->resp.spectator = false;
-    }
-
-    // Unlink it again, for SVG_UTIL_KillBox.
-    gi.unlinkentity( ent );
-
-    // Kill anything in its path.
-    if ( !SVG_Util_KillBox( ent, true, MEANS_OF_DEATH_TELEFRAGGED ) ) {
-        // could't spawn in?
-        //int x = 10; // debug breakpoint
-    }
-    // And link it back in.
+    // <Q2RTXP>: WID: Link it to calculate absmins/absmaxs, this is to prevent actual
+    // other entities from Spawn Touching.
     gi.linkentity( ent );
 
-    // Force a current active weapon up
-    client->newweapon = client->pers.weapon;
-    SVG_Player_Weapon_Change( ent );
+	// Unset pitch and roll spawn_ angles before for calculating the delta angles.
+	spawn_angles = { 0.f, spawn_angles.y, 0.f };
+	// Configure all spawn view angles:
+	// - On the entity itself.
+	SVG_Util_SetEntityAngles( ent, spawn_angles, true ); //ent->s.angles = spawn_angles; // VectorCopy( spawn_angles, );
 
-	// Presend anything else and clear state variables.
+	// - And the player state.
+	client->ps.viewangles = spawn_angles;
+	// - Also for the active view move data.
+	client->viewMove.viewAngles = spawn_angles;
+
+	// Now calculate the delta angles based on the difference between the spawn angles and 
+	// the command angles, so that the player will have a proper view direction when spawning.
+	client->ps.pmove.delta_angles = QM_Vector3AngleMod( spawn_angles - client->resp.cmd_angles );
+
+	// Calculate anglevectors.
+	QM_AngleVectors( client->viewMove.viewAngles, &client->viewMove.viewForward, nullptr, nullptr );
+
+    #if 0
+		// spawn a spectator
+		if ( client->pers.spectator ) {
+			client->chase_target = NULL;
+
+			client->resp.spectator = true;
+
+			ent->movetype = MOVETYPE_NOCLIP;
+			ent->solid = SOLID_NOT;
+			ent->svFlags |= SVF_NOCLIENT;
+			ent->client->ps.gun.modelIndex = 0;
+			ent->client->ps.gun.animationID = 0;
+
+			gi.linkentity( ent );
+			return;
+		} else {
+			// Not spawning as a spectator right now.
+			client->resp.spectator = false;
+		}
+    #else
+		// No spectator in deathmatch?.
+		client->resp.spectator = false;
+    #endif
+
+	// Unlink it again, for SVG_UTIL_KillBox.
+	gi.unlinkentity( ent );
+
+	// Kill anything in its path.
+	if ( !SVG_Util_KillBox( ent, true, MEANS_OF_DEATH_TELEFRAGGED ) ) {
+		// could't spawn in?
+		//int x = 10; // debug breakpoint
+	}
+	// And link it back in.
+	gi.linkentity( ent );
+
+	// Set the player's weapon to the default weapon if not set already, 
+	// this is to ensure the player has a weapon when they first spawn in.
+	client->newweapon = client->pers.weapon;
+	// Force the current active weapon up.
+	SVG_Player_Weapon_Change( ent );
+
+	// Pre-send anything else and clear state variables.
 	SVG_Client_EndServerFrame( ent );
 }
 /**
@@ -694,16 +708,18 @@ void svg_gamemode_deathmatch_t::ClientBegin( svg_player_edict_t *ent ) {
 	// Always clear out any previous left over useTargetHint stuff.
 	SVG_Player_ClearUseTargetHint( ent, ent->client, nullptr );
 
-	// We're spawned now of course.
+	// Store (re-)spawn time.
 	ent->client->resp.entertime = level.time;
+	// We're spawned and connected now of course.
 	ent->client->pers.connected = true;
 	ent->client->pers.spawned = true;
 
 	// If in intermission, move our client over into intermission state. (We connected at the end of a match).
-	if ( level.intermissionFrameNumber ) {
+	if ( level.intermissionState.engagedFrameNumber ) {
 		SVG_HUD_MoveClientToIntermission( ent );
 	// Otherwise, send 'Login' effect even if NOT in a multiplayer game 
 	} else {
+		//SVG_Util_AddEvent( ent, EV_PLAYER_LOGIN, 0 );
 		SVG_Util_AddEvent( ent, EV_PLAYER_LOGIN, 0 );
 	}
 
@@ -723,37 +739,52 @@ void svg_gamemode_deathmatch_t::ClientBegin( svg_player_edict_t *ent ) {
 **/
 void svg_gamemode_deathmatch_t::PostCheckGameRuleConditions() {
 	// If we're in an intermission, stop checking for rules.
-	if ( level.intermissionFrameNumber ) {
+	if ( level.intermissionState.engagedFrameNumber ) {
 		return;
 	}
 
+	/**
+	*	Check for whether the timelimit or fraglimit has been hit, and end the match if so.
+	**/
 	if ( timelimit->value ) {
+		/**
+		*	Timelimit is in minutes, so convert to seconds and compare against level- 
+		*	time which is in milliseconds.
+		**/
 		if ( level.time >= QMTime::FromMinutes( timelimit->value * 60 ) ) {
+			// Time limit hit.
 			gi.bprintf( PRINT_HIGH, "Timelimit hit.\n" );
-			EndDeathMatch();
-			//EndDMLevel();
+			// End the match.
+			EndDeathMatch(); //EndDMLevel();
 			return;
 		}
 	}
 
+	/**
+	*	If a frag limit has been set, check if any player has reached it, and end the match if so.
+	**/
 	if ( fraglimit->value ) {
+		// Iterate through all clients and check if any has reached the frag limit.
 		for ( int32_t i = 0; i < maxclients->value; i++ ) {
+			// Get client.
 			svg_client_t *cl = &game.clients[ i ];
+			// Get edict.
 			svg_base_edict_t *cledict = g_edict_pool.EdictForNumber( i + 1 );//g_edicts + 1 + i;
+			// If no edict or not in use, skip.
 			if ( !cledict || !cledict->inUse ) {
 				continue;
 			}
-
+			// Now check if this client has reached the frag limit.
 			if ( cl->resp.score >= fraglimit->value ) {
+				// Frag limit hit.
 				gi.bprintf( PRINT_HIGH, "Fraglimit hit.\n" );
+				// End the match.
 				EndDeathMatch();
-				//EndDMLevel();
 				return;
 			}
 		}
 	}
-};
-
+}
 
 /**
 *   @brief  This function is used to apply damage to an entity.
@@ -1028,7 +1059,7 @@ svg_base_edict_t *svg_gamemode_deathmatch_t::SelectRandomDeathmatchSpawnPoint( v
 	range1 = range2 = 99999;
 	spot1 = spot2 = NULL;
 
-	while ( ( spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname.ptr ), "info_player_deathmatch" ) ) != NULL ) {
+	while ( ( spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname ), "info_player_deathmatch" ) ) != NULL ) {
 		count++;
 		range = SVG_Util_ClosestClientForEntity( spot );
 		if ( range < range1 ) {
@@ -1052,7 +1083,7 @@ svg_base_edict_t *svg_gamemode_deathmatch_t::SelectRandomDeathmatchSpawnPoint( v
 
 	spot = NULL;
 	do {
-		spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname.ptr ), "info_player_deathmatch" );
+		spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname ), "info_player_deathmatch" );
 		if ( spot == spot1 || spot == spot2 )
 			selection++;
 	} while ( selection-- );
@@ -1072,7 +1103,7 @@ svg_base_edict_t *svg_gamemode_deathmatch_t::SelectFarthestDeathmatchSpawnPoint(
 	spot = NULL;
 	bestspot = NULL;
 	bestdistance = 0;
-	while ( ( spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname.ptr ), "info_player_deathmatch" ) ) != NULL ) {
+	while ( ( spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname ), "info_player_deathmatch" ) ) != NULL ) {
 		bestplayerdistance = SVG_Util_ClosestClientForEntity( spot );
 
 		if ( bestplayerdistance > bestdistance ) {
@@ -1087,7 +1118,7 @@ svg_base_edict_t *svg_gamemode_deathmatch_t::SelectFarthestDeathmatchSpawnPoint(
 
 	// if there is a player just spawned on each and every start spot
 	// we have no choice to turn one into a telefrag meltdown
-	spot = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, classname.ptr ), "info_player_deathmatch" );
+	spot = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, classname ), "info_player_deathmatch" );
 
 	return spot;
 }
@@ -1138,7 +1169,7 @@ void svg_gamemode_deathmatch_t::EndDeathMatch() {
 	if ( level.nextmap[ 0 ] ) {// go to a specific map
 		SVG_HUD_BeginIntermission( CreateTargetChangeLevel( level.nextmap ) );
 	} else {  // search for a changelevel
-		ent = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, classname.ptr ), "target_changelevel" );
+		ent = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, classname ), "target_changelevel" );
 		if ( !ent ) {
 			// the map designer didn't include a changelevel,
 			// so create a fake ent that goes back to the same level
