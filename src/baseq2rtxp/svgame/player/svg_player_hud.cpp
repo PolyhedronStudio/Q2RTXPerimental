@@ -322,6 +322,14 @@ void SVG_HUD_DeathmatchScoreboardMessage(svg_base_edict_t *ent, svg_base_edict_t
 		// Now send the number of clients.
 		gi.WriteUint8( numberOfClients );
 
+        /**
+        *	Emit the game-mode team count metadata for this scoreboard snapshot.
+        *	If the active game mode does not expose a dedicated team-count policy yet,
+        *	send a faux value of 1 so the client can derive grouping from entry team ids.
+        **/
+        uint8_t numberOfTeams = 1;
+        gi.WriteUint8( numberOfTeams );
+
 		// Now, for each client, send index, team id, time, score, and ping.
 		for ( int32_t i = 0; i < game.maxclients; i++ ) {
 			svg_base_edict_t *cl_ent = g_edict_pool.EdictForNumber( i + 1 );

@@ -1054,6 +1054,7 @@ void CL_GM_LoadProgs( void ) {
 	imports.CL_ClientCommand = CL_ClientCommand;
 	imports.GetScoreboardEntries = CL_GetScoreboardEntries;
 	imports.GetScoreboardClientCount = CL_GetScoreboardClientCount;
+	imports.GetScoreboardTeamCount = CL_GetScoreboardTeamCount;
 
 	imports.CVar = PF_CVar;
 	imports.CVar_Get = PF_CVarGet;

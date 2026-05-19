@@ -724,6 +724,10 @@ const scoreboard_entry_t *CL_GetScoreboardEntries( void );
 *   @brief  Returns the current count of active scoreboard entries.
 */
 int32_t CL_GetScoreboardClientCount( void );
+/**
+*   @brief  Returns the current scoreboard team count supplied by the server.
+*/
+int32_t CL_GetScoreboardTeamCount( void );
 
 
 //

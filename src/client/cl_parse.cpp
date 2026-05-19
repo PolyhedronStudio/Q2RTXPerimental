@@ -888,7 +888,7 @@ static void CL_ParseZPacket(void)
 
 void CL_Scoreboard_ClearFrame( void );
 void CL_Scoreboard_AddEntry( const int64_t clientNumber, const int64_t clientTeamId, const int64_t clientTime, const int64_t clientScore, const int64_t clientPing );
-void CL_Scoreboard_RebuildFrame( const uint8_t totalClients );
+void CL_Scoreboard_RebuildFrame( const uint8_t totalClients, const uint8_t totalTeams );
 static int64_t scoreBoardFrame = 0;
 
 static void CL_ParseScoreboard( void ) {
@@ -897,6 +897,8 @@ static void CL_ParseScoreboard( void ) {
 
     // Read in amount of clients to enlist.
     int32_t numClients = MSG_ReadUint8();
+    // Read in amount of teams as declared by the server game mode.
+    int32_t numTeams = MSG_ReadUint8();
 
     // Iterate over all clients and add their entry.
     for ( int32_t i = 0; i < numClients; i++ ) {
@@ -912,10 +914,10 @@ static void CL_ParseScoreboard( void ) {
     }
 
     // Regenerate scoreboard.
-    CL_Scoreboard_RebuildFrame( numClients );
+    CL_Scoreboard_RebuildFrame( numClients, numTeams );
 
-    Com_LPrintf( PRINT_DEVELOPER, "Parsing scoreboard(clients: %i) and frame(%i)\n",
-                                numClients, cl.frame.number );
+    Com_LPrintf( PRINT_DEVELOPER, "Parsing scoreboard(clients: %i, teams: %i) and frame(%i)\n",
+                                numClients, numTeams, cl.frame.number );
 }
 
 /**

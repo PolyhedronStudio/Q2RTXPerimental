@@ -11,10 +11,13 @@
 ********************************************************************/
 #include "cl_client.h"
 #include "shared/client/scoreboard.h"
+#include <algorithm>
 #include <cstring>
 
 //! Global scoreboard entries array, one entry per possible client.
 static scoreboard_entry_t client_entries[MAX_CLIENTS] = {};
+//! Team count advertised by the server for the current scoreboard snapshot.
+static int32_t client_team_count = 1;
 
 /**
 *	@brief	Clear all scoreboard entries for the current frame.
@@ -23,6 +26,8 @@ static scoreboard_entry_t client_entries[MAX_CLIENTS] = {};
 void CL_Scoreboard_ClearFrame( void ) {
 	// Clear all entries.
 	memset( client_entries, 0, sizeof( scoreboard_entry_t ) * MAX_CLIENTS );
+	// Default to one team until the parser provides frame metadata.
+	client_team_count = 1;
 }
 
 /**
@@ -57,9 +62,13 @@ void CL_Scoreboard_AddEntry( const int64_t clientNumber, const int64_t clientTea
 /**
 *	@brief	Rebuild the scoreboard display after adding all entries for the frame.
 *	@param	totalClients	Total number of active clients in this frame.
+ *	@param	totalTeams	Total number of teams supplied for this frame.
 *	@note	Called after all entries have been added via CL_Scoreboard_AddEntry.
 **/
-void CL_Scoreboard_RebuildFrame( const uint8_t totalClients ) {
+void CL_Scoreboard_RebuildFrame( const uint8_t totalClients, const uint8_t totalTeams ) {
+	// Keep a sane fallback for game modes that do not provide explicit team metadata.
+	client_team_count = std::max( 1, static_cast<int32_t>( totalTeams ) );
+
 	// Currently just a placeholder for future UI rebuilding if needed.
 	// The clgame module will handle UI updates via CLG_UI_OpenMenu.
 }
@@ -86,4 +95,12 @@ int CL_GetScoreboardClientCount( void ) {
 		}
 	}
 	return count;
+}
+
+/**
+ *	@brief	Get the team count associated with the active scoreboard snapshot.
+ *	@return	Number of teams provided by the server, clamped to at least 1.
+ **/
+int32_t CL_GetScoreboardTeamCount( void ) {
+	return std::max( 1, client_team_count );
 }
