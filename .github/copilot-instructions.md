@@ -5,48 +5,39 @@
 - Always use `nullptr` (avoid `NULL`).
 - Prefer tabs for indentation; otherwise, use 4 spaces unless the file predominantly uses a different indent width. Match the immediate file’s indentation quirks.
 - When following a `masterplan` markdown (`.md`) file, keep task and milestone status lists up-to-date in priority/dependency order: mark completed work as done, blocking issues as blocked/error, and explicitly mark intentional skips with rationale.
-- Always use the C <ctypes.h> and C++ <ctypes> their type definition based variety(e.g. `int32_t`, `int64_t`, `uint32_t`, `int16_t`, and so on.)  Exception to this rule is actual char string buffer related code, it should just remain using `char` or `const char`
+- Always use the C <ctypes.h> and C++ <ctypes> their type definition based variety (e.g. `int32_t`, `int64_t`, `uint32_t`, `int16_t`, and so on). Exception to this rule is actual char string buffer related code; it should just remain using `char` or `const char`.
 
 ## Code Style
 - Use const correctness where applicable.
-- Use constexpr correctness where applicable(and actually possible).
+- Use constexpr correctness where applicable (and actually possible).
 - Use Q_assert for assertion checks.
-
 - Follow consistent formatting rules across the project.
 - Adhere to naming conventions as specified in the project documentation.
 - Prefer Doxygen-style comments. Two canonical styles are accepted and should be used depending on context.
 - In generated Doxygen blocks, use actual tab characters between the leading `*` and each tag, and between tags and their text. Do not write literal `\t` escape sequences when a real tab character is intended.
 
   1) Aligned tags (used when tags are long or multiple tags should visually align). The aligned form uses real tab characters after the leading `*` and between columns for spacing:
-    
-  ```cpp
-  /**
-  *	@brief		Append a breadcrumb at `spot` into the circular trail buffer.
-  *	@details	Helper function for `PlayerTrail_New` and `PlayerTrail_Add`. Stores the given
-  *	@param	spot			World-space feet-origin position to store as a breadcrumb.
-  *	@param	spot2			World-space feet-origin position to store as a breadcrumb.
-  *	@param	spot2_example	World-space feet-origin position to store as a breadcrumb.
-  *	@note		Stores the current `level.time` in the breadcrumb's `timestamp`
-  *				and computes a yaw based on the vector from the previous
-  *				breadcrumb to this one.
+    /**
+*	@brief		Append a breadcrumb at `spot` into the circular trail buffer.
+*	@details	Helper function for `PlayerTrail_New` and `PlayerTrail_Add`. Stores the given
+*	@param	spot			World-space feet-origin position to store as a breadcrumb.
+*	@param	spot2			World-space feet-origin position to store as a breadcrumb.
+*	@param	spot2_example	World-space feet-origin position to store as a breadcrumb.
+*	@note		Stores the current `level.time` in the breadcrumb's `timestamp`
+*				and computes a yaw based on the vector from the previous
+*				breadcrumb to this one.
   **/
-  ```
-
   2) Compact tags (preferred for short/simple functions):
-
-  ```cpp
-  /**
-  *	@brief	Append a breadcrumb at `spot` into the circular trail buffer.
-  *	@param	spot	World-space feet-origin position to store as a breadcrumb.
-  *	@note	Stores the current `level.time` in the breadcrumb's `timestamp`
-  *			and computes a yaw based on the vector from the previous
-  *			breadcrumb to this one.
-  **/
-  ```
-
+/**
+*	@brief	Append a breadcrumb at `spot` into the circular trail buffer.
+*	@param	spot	World-space feet-origin position to store as a breadcrumb.
+*	@note	Stores the current `level.time` in the breadcrumb's `timestamp`
+*			and computes a yaw based on the vector from the previous
+*			breadcrumb to this one.
+**/
   In both forms:
   - Use actual tab characters for indentation inside the comment block and after the leading `*`.
-  - Align tags vertically when using the aligned style (add extra tabs if needed so the tag columns line up up to the longest tag).
+  - Align tags vertically when using the aligned style (add extra tabs if needed so the tag columns line up to the longest tag).
   - Prefer the compact style for short/simple functions and the aligned style for more complex functions or when multiple tags/columns improve readability.
 - Use explanatory // comments before small code blocks.
 
@@ -57,12 +48,8 @@
 - If a `//!`-above style would significantly disrupt the surrounding formatting (rare), it is acceptable to use a nearby short block comment, but the preference is always `//!`.
 
 Example:
-
-```cpp
 //! An actual descriptive name of what this variable is and/or might be used for.
 int32_t descriptiveVariableName;
-```
-
 ## Commit message tagging
 
 When generating commit messages or summaries for commits, follow this ordering and tagging convention so generated comments are consistent and easily parsable:
@@ -83,32 +70,22 @@ Use one line per distinct change and prefix it with the appropriate tag. Combine
 - Prefer placing this comment immediately above the statement (or immediately above the controlling condition if wrapped across lines).
 
 Example:
-
-```cpp
 // Maximum amount of loop iterations.
 int32_t maxLength = 0;
 // Iterate over the loop and explain here why/what it is up to.
 for ( int32_t i = 0; i < maxLength; i++ ) {
 	// ..
 }
-```
-
 ### Function-block comment style
 - For blocks of code designated to a specified action inside a function, prefer a short starred comment block that explains the purpose of that code section. If the block appears inside a class declaration, keep it as a brief topic keyword section instead.
 - Example usage inside a function:
-
-```cpp
 /**
 *    There should generally be a comment explaining what is up if this is located within a function.
 *    This explains the intent of the following code block and any important invariants.
 **/
-// ...code for the described action...
-```
-// Line-by-line / subsection comments
+// ...code for the described action...// Line-by-line / subsection comments
 - For complex blocks that perform several steps (e.g., waypoint conversion, approach speed computation), add a short comment for each logical subsection or important line. This makes the code easier to scan and reason about.
 - Example annotated block:
-
-```cpp
 // Convert next nav point from navmesh space to entity feet-origin space.
 navPathProcess.GetNextPathPointEntitySpace( &nextNavPoint_feet );
 // Compute vertical delta between nav point and our feet-origin.
@@ -140,12 +117,8 @@ if ( zDelta < zStepThreshold ) {
         frameVelocity = 0.0f;
     }
 }
-```
-
 // Example: Path-query function annotated with subsection and line-level comments
-// Use this as the canonical example for QueryDirection-style functions.
-```cpp
-/**
+// Use this as the canonical example for QueryDirection-style functions./**
 *	@brief	Query the next 3D movement direction while advancing 2D waypoints.
 *	@param  current_origin	Current agent feet-origin.
 *	@param  policy		Path-follow policy (waypoint radius, etc.).
@@ -218,8 +191,6 @@ const bool svg_nav_path_process_t::QueryDirection3D( const Vector3 &current_orig
     // Return true.
     return true;
 }
-```
-
 ## Mandatory commenting checklist (ENFORCED)
 
 To avoid missing comments in future edits, every PR that modifies C++ code must ensure the following checklist is satisfied for each changed file. Reviewers should expect these items and CI/static checks may be added to enforce them.
@@ -229,14 +200,12 @@ To avoid missing comments in future edits, every PR that modifies C++ code must 
 - For complex multi-step subsections (e.g: pathfinding, physics/step handling, approach/speed computation), add line-by-line or per-statement comments for critical computations (see Line-by-line example above).
 - For I/O-heavy code (e.g: load/save/serialization) and for loops that mutate structures, add a brief action comment above each important statement that changes state (allocations, reads/writes, index updates, frees, pointer swaps). If a line is not self-explanatory, it must be preceded by a short `//` comment.
 - When refactoring an existing file, bring the whole file up to the standard for any function you touch. Do not only comment the lines you changed; ensure the entire function reads like a narrated set of actions.
-- Small trivial statements (e.g., simple assignments) do not require individual comments unless their intent is, possibly(noteworthy) non-obvious.
+- Small trivial statements (e.g., simple assignments) do not require individual comments unless their intent is, possibly (noteworthy) non-obvious.
 - Loops, early returns, and guards must have a short comment explaining their purpose and expected invariants.
 
 Enforcement: any PR that modifies C++ files must include in its description a copy of the checklist annotated for each modified file (which function sections were added/changed and where comments were placed). CI may add automated checks to reject PRs that fail to include the required comment blocks.
 
-### Template for new/modified functions (copy into PR description to show compliance):
-```cpp
-/**
+### Template for new/modified functions (copy into PR description to show compliance):/**
 *	@brief  Short description of function purpose.
 *	@param	... (if applicable)
 *	@return	... (if applicable)
@@ -263,28 +232,20 @@ ReturnType FuncName( Params ) {
 	// ...more commented steps...
 
 	return result;
-}
-```
-When in doubt: add a comment. It's preferable to be slightly verbose rather than leave intent unclear.
+}When in doubt: add a comment. It's preferable to be slightly verbose rather than leave intent unclear.
 
 - Example brief topic inside a class declaration:
-
-```cpp
 /**
 *	Movement handling.
 *		- Handles stepping up/down stairs and slope corrections.
 *		- Uses nav heuristics to avoid large drops.
 **/
-```
-
 ### Explicit Doxygen and sanity-check comments
 - Add full Doxygen-style comment blocks for functions, using a tab after the leading `*` for tags and lines. Include any useful @brief, @param, @return, @note or @description entries. Be explicit even for simple functions — rather be slightly verbose than unclear.
 - Also comment small/sanity-check code blocks inside functions (e.g., null checks, early returns) so future readers immediately see intent.
 - Example function header with Doxygen tags and a commented sanity-check block:
 
-// I think you already do this but, add all the useful doxygens here like this, with a tabbed indent and a tab after that:
-```cpp
-/**
+// I think you already do this but, add all the useful doxygens here like this, with a tabbed indent and a tab after that:/**
 *	@brief			This is an example line.
 *	@description	But you're intended to add any relevant and useful parameters, notes,
 *					into this list here.
@@ -312,12 +273,8 @@ bool ResetNumbersList( int32_t *numList, int32_t numCount ) {
 	// Completed successfully, return true.
 	return true;
 }
-```
-
 ### Emphasize commenting intent for small helper sections
 - It's better to be slightly too obvious than unclear. Small helpers and sections that perform a single logical action should have a short comment block describing intent, inputs, and any invariants. Example:
-
-```cpp
 /**
 *	@brief	ember helper: Face a horizontal target smoothly by blending between a hint direction and the exact target direction.
 *   @note   Add notations here if necessary and useful to the caller.
@@ -341,15 +298,11 @@ void svg_monster_testdummy_t::FaceTargetHorizontal( const Vector3 &directionHint
         // Finally face the ideal yaw.
         SVG_MMove_FaceIdealYaw( this, ideal_yaw, yaw_speed );
     }
-}
-```
-- Use spaced parameter style in function declarations, e.g., `void Func( const Type &param, const int32_t x, const bool flag = false );`
+}- Use spaced parameter style in function declarations, e.g., `void Func( const Type &param, const int32_t x, const bool flag = false );`
 - For header (or rare TU) class declarations, use `svg_func_plat_trigger_t` as the canonical minimal example: sectioned Doxygen blocks for Construct/Destruct, DefineWorldSpawnClass, Save Descriptor Fields, Core (Reset/Save/Restore), Callback Member Functions, Member Functions, Member Variables; with small //! member comments and the established indentation/spacing.
 - Member functions can have Doxygen comments, and member variables can also be documented.
 
-Here is an example header file with a class declaration:
-```cpp
-//! This is where GitHub CoPilot can analyse header file style from.
+Here is an example header file with a class declaration://! This is where GitHub CoPilot can analyse header file style from.
 /********************************************************************
 *
 *
@@ -448,11 +401,7 @@ public:
         return currentArmor;
     }
 };
-```
-
-And here is an example of a .cpp file with section headers:
-```cpp
-//! This is where GitHub CoPilot can analyse header file style from.
+And here is an example of a .cpp file with section headers://! This is where GitHub CoPilot can analyse header file style from.
 /********************************************************************
 *
 *
@@ -542,4 +491,6 @@ void svg_example_copilot_class::SetCurrentHealth( const int32_t newCurrentHealth
 const int32_t svg_example_copilot_class::GetCurrentHealth() const { // <-- Note the const at the end for const correctness. Only apply if necessary.
 	return currentHealth;
 }
-```
+## UI Guidelines
+- For the scoreboard UI, checkbox selections must reset between scoreboard sessions.
+- The 'Muted' header text should be centered in its column, while the Muted column's close icon alone indicates muted players.
