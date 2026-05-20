@@ -12,7 +12,6 @@
 #include "svgame/player/svg_player_weapon.h"
 
 #include "svgame/entities/svg_npc_sound_helper.h"
-#include "svgame/nav2/nav2_types.h"
 #include <algorithm>
 #include <cmath>
 
@@ -112,14 +111,9 @@ static bool SVG_NPCSound_TryProjectOriginToWalkableZ( const Vector3 &origin, Vec
 *    @note	This keeps sound-follow goals on reachable floors without inventing a new XY target.
 **/
 static bool SVG_NPCSound_TryProjectOriginToWalkableZ( const Vector3 &origin, Vector3 *out_origin ) {
-	/**
-	*    Sanity checks: require navmesh storage and an output buffer.
-	**/
-	const nav2_mesh_t *mesh = g_nav_mesh.get();
-	if ( !mesh || !out_origin ) {
-		return false;
-	}
-	return true;
+	( void )origin;
+	( void )out_origin;
+	return false;
 }
 #endif
 

@@ -126,3 +126,21 @@ typedef struct iqmbounds
     float xyradius, radius;
 } iqmBounds_t;
 
+typedef struct iqmextension
+{
+    unsigned int name;
+    unsigned int num_data, ofs_data;
+    unsigned int ofs_extensions;
+} iqmExtension_t;
+
+typedef struct iqmext_fte_mesh
+{
+    unsigned int contents;
+    unsigned int surfaceflags;
+    unsigned int body;
+    unsigned int geomset;
+    unsigned int geomid;
+    float mindist;
+    float maxdist;
+} iqmExtFteMesh_t;
+

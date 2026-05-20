@@ -19,7 +19,7 @@
 //! Debug draw stream protocol version.
 static constexpr int32_t SG_SVC_DEBUG_DRAW_VERSION = 1;
 //! Client userinfo cvar key used to opt into debug-draw streaming.
-static constexpr const char *SG_SVC_DEBUG_DRAW_CLIENT_CVAR_NAME = "clg_nav3_debug_draw";
+static constexpr const char *SG_SVC_DEBUG_DRAW_CLIENT_CVAR_NAME = "clg_debug_draw";
 //! Bounded text label storage per debug draw primitive.
 static constexpr int32_t SG_SVC_DEBUG_DRAW_MAX_LABEL_CHARS = 96;
 

@@ -183,7 +183,7 @@ static void CM_ClipBoxToBrush( const Vector3 &p1, const Vector3 &p2, cm_trace_re
             if ( !reantrantState->trIsPoint ) {
                 // choose the offset coordinate corresponding to the plane axis and sign
                 const double off = reantrantState->trOffsets[ plane->signbits ][ plane->type ];
-                // axial normal has non-zero at plane->type only (usually ±1)
+                // axial normal has non-zero at plane->type only (usually ï¿½1)
                 dist = plane->dist - off * plane->normal[ plane->type ];
             } else {
                 // point trace: no offset
@@ -565,6 +565,9 @@ const cm_trace_t CM_BoxTrace( cm_t *cm,
     reantrantState.trResult = {
 		.entityNumber = ENTITYNUM_NONE,
 		.fraction = 1.0,
+
+		.hitBodyID = -1,
+
 		.plane = {
 			.normal = { 0.0f, 0.0f, 0.0f },
 			.dist = 0.0f,
@@ -716,6 +719,8 @@ const cm_trace_t CM_TransformedBoxTrace( cm_t *cm,
 	reantrantState.trResult = {
 		.entityNumber = ENTITYNUM_NONE,
 		.fraction = 1.0,
+		.hitBodyID = -1,
+
 		.plane = {
 			.normal = { 0.0f, 0.0f, 0.0f },
 			.dist = 0.0f,
@@ -789,6 +794,7 @@ void CM_ClipEntity( cm_t *cm, cm_trace_t *dst, const cm_trace_t *src, const int3
         dst->plane = src->plane;
         dst->surface = src->surface;
         dst->material = src->material;
+        dst->hitBodyID = src->hitBodyID;
         dst->contents = ( dst->contents | src->contents );
 
         dst->plane2 = src->plane2;

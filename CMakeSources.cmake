@@ -372,6 +372,7 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_trigger.cpp
 	baseq2rtxp/svgame/svg_utils.cpp
 	baseq2rtxp/svgame/svg_weapon.cpp
+	baseq2rtxp/svgame/svg_skeletal_hitboxes.cpp
 	baseq2rtxp/svgame/memory/svg_raiiobject.cpp
 
 
@@ -407,9 +408,8 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/misc/svg_misc_teleporter.cpp
 	baseq2rtxp/svgame/entities/misc/svg_misc_teleporter_dest.cpp
 
-    #baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_sfxfollow.cpp
-    #baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_debug_stub.cpp
 	#baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_sfxfollow.cpp
+	baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_puppet.cpp
 	
 	baseq2rtxp/svgame/entities/path/svg_path_corner.cpp
 
@@ -548,6 +548,7 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_trigger.h
 	baseq2rtxp/svgame/svg_utils.h
 	baseq2rtxp/svgame/svg_usetargets.h
+	baseq2rtxp/svgame/svg_skeletal_hitboxes.h
 	baseq2rtxp/svgame/svg_weapons.h
 
 	baseq2rtxp/svgame/nav3/nav3_core.h
@@ -624,8 +625,9 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/light/svg_light_light.h
 	baseq2rtxp/svgame/entities/light/svg_light_spotlight.h
 
-    #baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_sfxfollow.h
-    #baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_debug.h
+	#baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_sfxfollow.h
+	#baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_debug.h
+	baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_puppet.h
 	
 	baseq2rtxp/svgame/entities/misc/svg_misc_explobox.h
 	baseq2rtxp/svgame/entities/misc/svg_misc_skeletal_model.h

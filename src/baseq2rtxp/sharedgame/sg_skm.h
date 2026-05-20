@@ -253,6 +253,11 @@ void SKM_LerpBonePoses( const model_t *model, const skm_transform_t *frameBonePo
 *			'outBonePose' must have enough room for model->num_poses
 **/
 void SKM_LerpRangeBonePoses( const model_t *model, const skm_transform_t *frameBonePoses, const skm_transform_t *oldFrameBonePoses, const int32_t rangeStart, const int32_t rangeSize, const float frontLerp, const float backLerp, skm_transform_t *outBonePose, const int32_t rootMotionBoneID, const int32_t rootMotionAxisFlags );
+/**
+*	@brief	Compute lerped pose transformations for the given model's frame/oldFrame.
+*			'outBonePose' must have enough room for model->num_poses
+**/
+void SKM_ComputeLerpBonePoses( const model_t *model, const int32_t frame, const int32_t oldFrame, const float frontLerp, const float backLerp, skm_transform_t *outBonePose, const int32_t rootMotionBoneID, const int32_t rootMotionAxisFlags );
 
 
 

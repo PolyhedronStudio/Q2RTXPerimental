@@ -30,6 +30,9 @@
 		//! Final position.
 		Vector3     endpos = { 0.f, 0.f, 0.f };
 
+		//! Skeletal hitbox body id, or -1 when the trace hit only coarse collision.
+		int32_t hitBodyID = -1;
+
 		/**
 		*   The first (most close) surface hit by the trace.
 		**/

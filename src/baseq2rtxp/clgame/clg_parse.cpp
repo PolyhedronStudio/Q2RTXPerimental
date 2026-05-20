@@ -297,7 +297,7 @@ static void CLG_ParseDebugDraw( const bool shouldRender ) {
     }
 
     // Render only when caller allows rendering and local opt-in cvar is enabled.
-    const bool renderPrimitives = shouldRender && clg_nav3_debug_draw && ( clg_nav3_debug_draw->integer != 0 );
+    const bool renderPrimitives = shouldRender && clg_debug_draw && ( clg_debug_draw->integer != 0 );
 
     for ( int32_t i = 0; i < primitiveCount; i++ ) {
         // Parse primitive header shared by every primitive payload.

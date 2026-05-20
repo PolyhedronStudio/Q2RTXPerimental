@@ -48,6 +48,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "common/skeletalmodels/cm_skm_configuration.h"
 
+extern cvar_t *cvar_r_drawHitboxMeshes;
+
 static void extract_model_lights(model_t* model)
 {
 	// Count the triangles in the model that have a material with the is_light flag set
@@ -807,11 +809,29 @@ int MOD_LoadIQM_RTX(model_t* model, const void* rawdata, size_t length, const ch
 	CHECK(model->meshes = MOD_Malloc(sizeof(maliasmesh_t) * model->skmData->num_meshes));
 	model->nummeshes = (int)model->skmData->num_meshes;
 	model->numframes = 1; // these are baked frames, so that the VBO uploader will only make one copy of the vertices
+	const bool drawHitboxMeshes = ( cvar_r_drawHitboxMeshes && cvar_r_drawHitboxMeshes->integer != 0 );
 
 	for (unsigned model_idx = 0; model_idx < model->skmData->num_meshes; model_idx++)
 	{
 		skm_mesh_t* skm_mesh = &model->skmData->meshes[model_idx];
 		maliasmesh_t* mesh = &model->meshes[model_idx];
+		
+		// Skip hitbox meshes unless debug drawing is enabled.
+		if ((skm_mesh->flags & IQM_MESH_FLAG_HITBOX) && !drawHitboxMeshes)
+		{
+			mesh->indices = NULL;
+			mesh->positions = NULL;
+			mesh->normals = NULL;
+			mesh->tex_coords = NULL;
+			mesh->tangents = NULL;
+			mesh->blend_indices = NULL;
+			mesh->blend_weights = NULL;
+			mesh->numindices = 0;
+			mesh->numverts = 0;
+			mesh->numtris = 0;
+			mesh->numskins = 0;
+			continue;
+		}
 		
 		mesh->indices = skm_mesh->data->indices ? (int*)skm_mesh->data->indices + skm_mesh->first_triangle * 3 : NULL;
 		mesh->positions = skm_mesh->data->positions ? (vec3_t*)(skm_mesh->data->positions + skm_mesh->first_vertex * 3) : NULL;

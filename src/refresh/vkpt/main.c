@@ -87,6 +87,7 @@ cvar_t *cvar_drs_adjust_down = NULL;
 cvar_t *cvar_drs_gain = NULL;
 cvar_t *cvar_drs_last_scale = NULL;
 cvar_t *cvar_tm_blend_enable = NULL;
+cvar_t *cvar_r_drawHitboxMeshes = NULL;
 extern cvar_t *scr_viewsize;
 extern cvar_t *cvar_bloom_enable;
 extern cvar_t* cvar_flt_taa;
@@ -3853,6 +3854,9 @@ R_Init_RTX(bool total)
 
 	// enables or disables full screen blending effects
 	cvar_tm_blend_enable = Cvar_Get("tm_blend_enable", "1", CVAR_ARCHIVE);
+
+	// Render authored/generated IQM hitbox meshes for debugging when enabled.
+	cvar_r_drawHitboxMeshes = Cvar_Get("r_drawHitboxMeshes", "0", 0);
 
 	drs_init();
 	vkpt_fsr_init_cvars();

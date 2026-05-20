@@ -17,12 +17,108 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 #include "svgame/svg_local.h"
 #include "svgame/svg_entity_events.h"
+#include "svgame/svg_skeletal_hitboxes.h"
 #include "svgame/svg_utils.h"
 
 #include "svgame/entities/svg_player_edict.h"
 
 #include "sharedgame/sg_means_of_death.h"
 #include "sharedgame/sg_tempentity_events.h"
+
+//! Toggle for skeletal bullet trace refinement.
+static cvar_t *s_svg_skeletal_hitboxes = nullptr;
+//! Optional developer logging for skeletal bullet trace refinement.
+static cvar_t *s_svg_skeletal_hitboxes_debug = nullptr;
+
+/**
+*   @brief  Register and cache cvars used by the skeletal bullet trace path.
+**/
+static void SVG_InitSkeletalHitboxTraceCvars() {
+	#ifdef _DEBUG
+		if ( !s_svg_skeletal_hitboxes ) {
+			s_svg_skeletal_hitboxes = gi.cvar( "svg_skeletal_hitboxes", "1", 0 );
+		}
+		if ( !s_svg_skeletal_hitboxes_debug ) {
+			s_svg_skeletal_hitboxes_debug = gi.cvar( "svg_skeletal_hitboxes_debug", "1", 0 );
+		}
+	#else
+		if ( !s_svg_skeletal_hitboxes ) {
+			s_svg_skeletal_hitboxes = gi.cvar( "svg_skeletal_hitboxes", "0", 0 );
+		}
+		if ( !s_svg_skeletal_hitboxes_debug ) {
+			s_svg_skeletal_hitboxes_debug = gi.cvar( "svg_skeletal_hitboxes_debug", "0", 0 );
+		}
+	#endif
+}
+
+/**
+*   @brief  Bullet-only trace wrapper that refines damageable entity hits against skeletal hitboxes.
+*   @note   Keeps generic tracing untouched by staying local to weapon point-shot logic.
+**/
+static svg_trace_t SVG_TraceBullet( const Vector3 &start, const Vector3 &end, const svg_base_edict_t *passEntity, const cm_contents_t contentMask ) {
+    SVG_InitSkeletalHitboxTraceCvars();
+
+    // If disabled, preserve legacy behavior exactly.
+    if ( !s_svg_skeletal_hitboxes || s_svg_skeletal_hitboxes->integer == 0 ) {
+        return SVG_Trace( start, qm_vector3_null, qm_vector3_null, end, passEntity, contentMask );
+    }
+
+    const Vector3 segment = end - start;
+    const double segmentLength = std::sqrt( QM_Vector3DotProduct( segment, segment ) );
+    if ( segmentLength <= 0.000001 ) {
+        return SVG_Trace( start, qm_vector3_null, qm_vector3_null, end, passEntity, contentMask );
+    }
+
+    const Vector3 shotDirection = segment * static_cast<float>( 1.0 / segmentLength );
+
+    Vector3 currentStart = start;
+    const svg_base_edict_t *currentPass = passEntity;
+    static constexpr int32_t maxCoarseMissSkips = 8;
+    static constexpr float retraceEpsilon = 0.125f;
+
+    svg_trace_t lastTrace = {};
+
+    for ( int32_t coarseMissCount = 0; coarseMissCount <= maxCoarseMissSkips; coarseMissCount++ ) {
+        lastTrace = SVG_Trace( currentStart, qm_vector3_null, qm_vector3_null, end, currentPass, contentMask );
+
+        // Nothing hit or world-only result, no refinement work required.
+        if ( lastTrace.fraction >= 1.0f || !lastTrace.ent ) {
+            return lastTrace;
+        }
+
+        // Refine only damageable entities.
+        if ( lastTrace.ent->takedamage >= DAMAGE_YES ) {
+            svg_trace_t refinedTrace = lastTrace;
+            if ( SVG_SkeletalHitboxes_RefinePointTrace( refinedTrace, currentStart, end, lastTrace.ent ) ) {
+                if ( s_svg_skeletal_hitboxes_debug && s_svg_skeletal_hitboxes_debug->integer > 0 ) {
+                    gi.dprintf( "%s: refined hit on ent(#%i), hitBodyID=%" PRId32 "\n", __func__, refinedTrace.entityNumber, refinedTrace.hitBodyID );
+                }
+                return refinedTrace;
+            }
+
+            // Refine missed: continue ray past this coarse bbox so it does not act as an invisible bullet blocker.
+            const Vector3 nextStart = lastTrace.endpos + shotDirection * retraceEpsilon;
+            const Vector3 remaining = end - nextStart;
+
+            if ( QM_Vector3DotProduct( remaining, shotDirection ) <= 0.0f ) {
+                return lastTrace;
+            }
+
+            currentStart = nextStart;
+            currentPass = lastTrace.ent;
+
+            if ( s_svg_skeletal_hitboxes_debug && s_svg_skeletal_hitboxes_debug->integer > 0 ) {
+                gi.dprintf( "%s: coarse miss on ent(#%i), retracing (step=%" PRId32 ")\n", __func__, lastTrace.entityNumber, coarseMissCount + 1 );
+            }
+
+            continue;
+        }
+
+        return lastTrace;
+    }
+
+    return lastTrace;
+}
 
 /*
 =================
@@ -311,8 +407,8 @@ static void fire_lead(svg_base_edict_t *self, const Vector3 &start, const Vector
             content_mask = static_cast<cm_contents_t>( content_mask & ~CM_CONTENTMASK_LIQUID ); // content_mask &= ~CM_CONTENTMASK_LIQUID
         }
 
-		// Trace the bullet.
-        tr = SVG_Trace(start, qm_vector3_null, qm_vector3_null, &end.x, self, content_mask);
+		// Trace the bullet using the bullet-only refinement path.
+        tr = SVG_TraceBullet( start, end, self, content_mask );
 
         // See if we hit water.
         if ( tr.contents & CM_CONTENTMASK_LIQUID ) {
@@ -360,8 +456,8 @@ static void fire_lead(svg_base_edict_t *self, const Vector3 &start, const Vector
                 VectorMA( end, u, up, end );
             }
 
-            // re-trace ignoring water this time
-            tr = SVG_Trace( &water_start.x, qm_vector3_null, qm_vector3_null, &end.x, self, CM_CONTENTMASK_SHOT );
+            // Re-trace ignoring water using the same bullet-only refinement path.
+            tr = SVG_TraceBullet( water_start, end, self, CM_CONTENTMASK_SHOT );
         }
     }
 

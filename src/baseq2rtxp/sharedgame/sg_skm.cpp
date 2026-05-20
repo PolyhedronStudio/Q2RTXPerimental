@@ -1063,3 +1063,146 @@ void SKM_BoneController_ApplyToPoseForTime( skm_bone_controller_t *boneControlle
         }
     }
 }
+
+
+/**
+*
+*
+*
+*   Compute Lerped Bone Poses from Model Frame Data:
+*
+*
+*
+**/
+/**
+*	@brief	Compute lerped pose transformations for the given model's frame/oldFrame.
+*			This function retrieves the bone poses from the skeletal model's frame data
+*			and computes the interpolated transformations between two frames.
+*	@param	model				The skeletal model containing frame pose data.
+*	@param	frame				The current animation frame index (will be wrapped to frame count).
+*	@param	oldFrame			The previous animation frame index for interpolation (will be wrapped to frame count).
+*	@param	frontLerp			Interpolation factor for the current frame (0.0 to 1.0).
+*	@param	backLerp			Interpolation factor for the previous frame (backLerp = 1.0 - frontLerp).
+*	@param	outBonePose			Output array of bone transforms. Must be allocated with at least model->num_poses elements.
+*	@param	rootMotionBoneID	Bone index for root motion handling. Set to -1 to disable root motion processing.
+*	@param	rootMotionAxisFlags	Bitmask specifying which translation axes to apply for root motion (SKM_POSE_TRANSLATE_X/Y/Z/ALL).
+*	@note	Root motion processing allows selective zeroing of translation axes on a specific bone,
+*			useful for grounding character animations while preserving other motion directions.
+**/
+void SKM_ComputeLerpBonePoses( const model_t *model, const int32_t frame, const int32_t oldFrame, const float frontLerp, const float backLerp, skm_transform_t *outBonePose, const int32_t rootMotionBoneID, const int32_t rootMotionAxisFlags ) {
+    /**
+    *	Sanity check: Validate that we have a valid model with skeletal model data.
+    **/
+    // Check for null or invalid model.
+    if ( !model || !model->skmData ) {
+        // Invalid model, return early.
+        return;
+    }
+
+    /**
+    *	Acquire skeletal model data and normalize frame indices to valid range.
+    **/
+    // Get IQM Data from model.
+    skm_model_t *skmData = model->skmData;
+
+    // Keep frame within bounds by wrapping around.
+    const int32_t boundFrame = skmData->num_frames ? frame % (int32_t)skmData->num_frames : 0;
+    const int32_t boundOldFrame = skmData->num_frames ? oldFrame % (int32_t)skmData->num_frames : 0;
+
+    // Keep bone ID sane by wrapping if within valid range, or setting to -1 if invalid.
+    int32_t boundRootMotionBoneID = ( rootMotionBoneID >= 0 ? rootMotionBoneID % (int32_t)skmData->num_joints : -1 );
+
+    // Fetch first joint.
+    skm_transform_t *relativeJoint = outBonePose;
+
+    /**
+    *	Copy animation frame pose when no interpolation is needed (single frame case).
+    **/
+    // Copy the animation frame pos.
+    if ( frame == oldFrame ) {
+        // Single frame case: just copy the pose data.
+        const skm_transform_t *pose = &skmData->poses[ boundFrame * skmData->num_poses ];
+        // Iterate over all pose transforms in the frame.
+        for ( uint32_t pose_idx = 0; pose_idx < skmData->num_poses; pose_idx++, pose++, relativeJoint++ ) {
+            // Check if this is the root motion bone and we need to apply axis masking.
+            if ( rootMotionAxisFlags != SKM_POSE_TRANSLATE_ALL && pose_idx == boundRootMotionBoneID ) {
+                // Translate the selected axises.
+                if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_X ) ) {
+                    relativeJoint->translate[ 0 ] = 0;
+                } else {
+                    relativeJoint->translate[ 0 ] = pose->translate[ 0 ];
+                }
+                if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_Y ) ) {
+                    relativeJoint->translate[ 1 ] = 0;
+                } else {
+                    relativeJoint->translate[ 1 ] = pose->translate[ 1 ];
+                }
+                if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_Z ) ) {
+                    relativeJoint->translate[ 2 ] = 0;
+                } else {
+                    relativeJoint->translate[ 2 ] = pose->translate[ 2 ];
+                }
+                // Copy in scale as per usual.
+                VectorCopy( pose->scale, relativeJoint->scale );
+                // Copy quat rotation as usual.
+                QuatCopy( pose->rotate, relativeJoint->rotate );
+                continue;
+            }
+
+            // Copy the pose data directly.
+            VectorCopy( pose->translate, relativeJoint->translate );
+            QuatCopy( pose->rotate, relativeJoint->rotate );
+            VectorCopy( pose->scale, relativeJoint->scale );
+        }
+    /**
+    *	Lerp animation frames when interpolation between two different frames is needed.
+    **/
+    } else {
+        // Lerp the animation frame pose.
+        const skm_transform_t *pose = &skmData->poses[ boundFrame * skmData->num_poses ];
+        const skm_transform_t *oldPose = &skmData->poses[ boundOldFrame * skmData->num_poses ];
+        // Iterate over all pose transforms and interpolate.
+        for ( uint32_t pose_idx = 0; pose_idx < skmData->num_poses; pose_idx++, oldPose++, pose++, relativeJoint++ ) {
+            // Check if this is the root motion bone and we need to apply axis masking.
+            if ( rootMotionAxisFlags != SKM_POSE_TRANSLATE_ALL && pose_idx == boundRootMotionBoneID ) {
+                // Translate the selected axises.
+                if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_X ) ) {
+                    relativeJoint->translate[ 0 ] = 0;
+                } else {
+                    relativeJoint->translate[ 0 ] = oldPose->translate[ 0 ] * backLerp + pose->translate[ 0 ] * frontLerp;
+                }
+                if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_Y ) ) {
+                    relativeJoint->translate[ 1 ] = 0;
+                } else {
+                    relativeJoint->translate[ 1 ] = oldPose->translate[ 1 ] * backLerp + pose->translate[ 1 ] * frontLerp;
+                }
+                if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_Z ) ) {
+                    relativeJoint->translate[ 2 ] = 0;
+                } else {
+                    relativeJoint->translate[ 2 ] = oldPose->translate[ 2 ] * backLerp + pose->translate[ 2 ] * frontLerp;
+                }
+
+                // Scale Lerp as usual.
+                relativeJoint->scale[ 0 ] = oldPose->scale[ 0 ] * backLerp + pose->scale[ 0 ] * frontLerp;
+                relativeJoint->scale[ 1 ] = oldPose->scale[ 1 ] * backLerp + pose->scale[ 1 ] * frontLerp;
+                relativeJoint->scale[ 2 ] = oldPose->scale[ 2 ] * backLerp + pose->scale[ 2 ] * frontLerp;
+                // Quat Slerp as usual.
+                QuatSlerp( oldPose->rotate, pose->rotate, frontLerp, relativeJoint->rotate );
+                continue;
+            }
+
+            // Linearly interpolate translation components.
+            relativeJoint->translate[ 0 ] = oldPose->translate[ 0 ] * backLerp + pose->translate[ 0 ] * frontLerp;
+            relativeJoint->translate[ 1 ] = oldPose->translate[ 1 ] * backLerp + pose->translate[ 1 ] * frontLerp;
+            relativeJoint->translate[ 2 ] = oldPose->translate[ 2 ] * backLerp + pose->translate[ 2 ] * frontLerp;
+
+            // Linearly interpolate scale components.
+            relativeJoint->scale[ 0 ] = oldPose->scale[ 0 ] * backLerp + pose->scale[ 0 ] * frontLerp;
+            relativeJoint->scale[ 1 ] = oldPose->scale[ 1 ] * backLerp + pose->scale[ 1 ] * frontLerp;
+            relativeJoint->scale[ 2 ] = oldPose->scale[ 2 ] * backLerp + pose->scale[ 2 ] * frontLerp;
+
+            // Spherically interpolate rotation quaternion.
+            QuatSlerp( oldPose->rotate, pose->rotate, frontLerp, relativeJoint->rotate );
+        }
+    }
+}

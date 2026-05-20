@@ -27,13 +27,13 @@
 *	@brief	Submit a world-space debug AABB for a packet entity when enabled by cvar.
 *	@param	packetEntity	Entity carrying decoded mins/maxs and current state.
 *	@note	This is intentionally lightweight and only runs when
-*			`cl_debug_draw_entity_bounds` is enabled.
+*			`clg_debug_draw_entity_bounds` is enabled.
 **/
 static void CLG_DebugDrawPacketEntityBounds( const centity_t *packetEntity ) {
     /**
     *	Guard against disabled cvar and invalid entity pointer.
     **/
-    if ( !cl_debug_draw_entity_bounds || !cl_debug_draw_entity_bounds->integer ) {
+    if ( !clg_debug_draw_entity_bounds || !clg_debug_draw_entity_bounds->integer ) {
         return;
     }
     if ( !packetEntity ) {
@@ -71,14 +71,14 @@ static void CLG_DebugDrawPacketEntityBounds( const centity_t *packetEntity ) {
     /**
     *	Queue the bounds via renderer-facing debug API.
     **/
-	if ( cl_debug_draw_entity_bounds->integer == 1 ) {
+	if ( clg_debug_draw_entity_bounds->integer == 1 ) {
 		clgi.R_DrawDebugBox( world_mins, world_maxs, U32_RED );
 	}
 
 	/**
 	*	Queue the bounds sphere.
 	**/
-	if ( cl_debug_draw_entity_bounds->integer == 2 ) {
+	if ( clg_debug_draw_entity_bounds->integer == 2 ) {
 		const Vector3 center = QM_BBox3Center( { world_mins, world_maxs } );
 		clgi.R_DrawDebugSphere( &center.x, QM_BBox3Radius( { world_mins, world_maxs } ), U32_RED );
 	}
@@ -89,7 +89,7 @@ static void CLG_DebugDrawPacketEntityBounds( const centity_t *packetEntity ) {
 	const float half_size_x = ( world_maxs[ 0 ] - world_mins[ 0 ] ) * 0.5f;
 	const float half_size_y = ( world_maxs[ 1 ] - world_mins[ 1 ] ) * 0.5f;
 
-	if ( cl_debug_draw_entity_bounds->integer == 3 ) {
+	if ( clg_debug_draw_entity_bounds->integer == 3 ) {
 	// Build cylinder endpoints as vertical axis through the AABB center in XY.
 		vec3_t cylinder_start = {
 			( world_mins[ 0 ] + world_maxs[ 0 ] ) * 0.5f,
@@ -110,7 +110,7 @@ static void CLG_DebugDrawPacketEntityBounds( const centity_t *packetEntity ) {
     /**
     *	Queue the bounds capsule.
     **/
-	if ( cl_debug_draw_entity_bounds->integer == 4 ) {
+	if ( clg_debug_draw_entity_bounds->integer == 4 ) {
 		const float center_x = ( world_mins[ 0 ] + world_maxs[ 0 ] ) * 0.5f;
 		const float center_y = ( world_mins[ 1 ] + world_maxs[ 1 ] ) * 0.5f;
 		const float half_size_z = ( world_maxs[ 2 ] - world_mins[ 2 ] ) * 0.5f;
@@ -131,7 +131,7 @@ static void CLG_DebugDrawPacketEntityBounds( const centity_t *packetEntity ) {
 		clgi.R_DrawDebugCapsule( capsule_start, capsule_end, capsule_radius, U32_RED );
 	}
 
-	if ( cl_debug_draw_entity_bounds->integer == 5 ) {
+	if ( clg_debug_draw_entity_bounds->integer == 5 ) {
         // Use render-time lerped angles so the debug facing matches the visual orientation.
         Vector3 facingForward = QM_Vector3Zero();
         QM_AngleVectors( packetEntity->lerpAngles, &facingForward, nullptr, nullptr );

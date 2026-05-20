@@ -373,6 +373,60 @@ typedef struct {
 
     /**
     *
+    *	Skeletal Models (SKM):
+    *
+    **/
+    /**
+    *   @brief  Returns a pointer to the first bone that has a matching name.
+    **/
+    skm_bone_node_t *( *SKM_GetBoneByName )( const model_t *model, const char *boneName );
+    /**
+    *   @brief  Returns a pointer to the first bone that has a matching number.
+    **/
+    skm_bone_node_t *( *SKM_GetBoneByNumber )( const model_t *model, const int32_t boneNumber );
+    /**
+    *	@brief	Acquire a cached memory block for bone pose storage.
+    *	@return	A pointer to a prepared block of memory in the bone cache. If needed, the bone cache resizes to meet
+    *			demands. Note that if it returns a nullptr it means that the actual limit has been reached.
+    **/
+    skm_transform_t *( *SKM_PoseCache_AcquireCachedMemoryBlock )( const uint32_t size );
+    /**
+    *	@return	A pointer to the model's bone poses for 'frame'.
+    *			Frame will wrap around in case of exceeding the frame pose limit.
+    **/
+    const skm_transform_t *( *SKM_GetBonePosesForFrame )( const model_t *model, const int32_t frame );
+    /**
+    *	@brief	Lerped pose transformations between frameBonePoses and oldFrameBonePoses.
+    *			'outBonePose' must have enough room for model->num_poses
+    **/
+    void ( *SKM_LerpBonePoses )( const model_t *model, const skm_transform_t *frameBonePoses, const skm_transform_t *oldFrameBonePoses, const float frontLerp, const float backLerp, skm_transform_t *outBonePose, const int32_t rootMotionBoneID, const int32_t rootMotionAxisFlags );
+    /**
+    *	@brief	Compute pose transformations for the given model + data
+    *			'outBonePose' must have enough room for model->num_poses
+    **/
+    void ( *SKM_ComputeLerpBonePoses )( const model_t *model, const int32_t frame, const int32_t oldFrame, const float frontLerp, const float backLerp, skm_transform_t *outBonePose, const int32_t rootMotionBoneID, const int32_t rootMotionAxisFlags );
+    /**
+    *	@brief	Combine 2 poses into one by performing a recursive blend starting from the given boneNode, using the given fraction as "intensity".
+    *	@param	fraction		When set to 1.0, it blends in the animation at 100% intensity. Take 0.5 for example,
+    *							and a tpose(frac 0.5)+walk would have its arms half bend.
+    *	@param	addBonePose		The actual animation that you want to blend in on top of inBonePoses.
+    *	@param	addToBonePose	A lerped bone pose which we want to blend addBonePoses animation on to.
+    **/
+    void ( *SKM_RecursiveBlendFromBone )( const skm_transform_t *addBonePoses, const skm_transform_t *addToBonePoses, skm_transform_t *outBonePoses, const skm_bone_node_t *boneNode, const double backLerp, const double fraction );
+    /**
+    *	@brief	Compute "Local/Model-Space" matrices for the given pose transformations.
+    **/
+    void ( *SKM_TransformBonePosesLocalSpace )( const skm_model_t *model, const skm_transform_t *relativeBonePose, float *pose_matrices );
+    /**
+    *	@brief	Compute "World-Space" matrices for the given pose transformations.
+    *			This is generally a slower procedure, but can be used to get the
+    *			actual bone's position for in-game usage.
+    **/
+    void ( *SKM_TransformBonePosesWorldSpace )( const skm_model_t *model, const skm_transform_t *relativeBonePose, float *pose_matrices );
+
+
+    /**
+    *
     *
     *	FileSystem:
     *

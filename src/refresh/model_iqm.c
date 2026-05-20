@@ -23,7 +23,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #include <assert.h>
+#include <float.h>
 #include <shared/shared.h>
+#include <common/common.h>
 #include <format/iqm.h>
 #include <refresh/models.h>
 #include <refresh/refresh.h>
@@ -178,6 +180,79 @@ static vec_t QuatNormalize2(const quat_t v, quat_t out)
 	return length;
 }
 
+//! Default metadata values authored by local iqmtool hitbox generation.
+#define IQM_HITBOX_DEFAULT_CONTENTS 0x02000000u
+#define IQM_HITBOX_DEFAULT_SURFACEFLAGS 0x80u
+
+//! Auto-per-bone fallback tuning constants.
+#define IQM_HITBOX_AUTO_MIN_DOMINANT_WEIGHT 32u
+#define IQM_HITBOX_AUTO_MIN_SAMPLES 4u
+#define IQM_HITBOX_AUTO_PAD 1.0f
+
+/**
+*   @brief  Detect whether a copied IQM mesh should be treated as an authored hitbox mesh.
+**/
+static bool IQM_IsAuthoredHitboxMesh(const iqm_mesh_t* mesh)
+{
+	if (!mesh)
+	{
+		return false;
+	}
+
+	if (Q_strcasecmp(mesh->material, "textures/common/hitmesh") == 0)
+	{
+		return true;
+	}
+
+	return Q_strncasecmp(mesh->name, "hitbox", 6) == 0;
+}
+
+/**
+*   @brief  Resolve a single weighted bone for a mesh where every non-zero weight must target the same joint.
+**/
+static int32_t IQM_ResolveSingleWeightedBone(const iqm_model_t* iqmData, const iqm_mesh_t* mesh)
+{
+	if (!iqmData || !mesh || !iqmData->blend_indices || !iqmData->blend_weights)
+	{
+		return -1;
+	}
+
+	int32_t resolvedBone = -1;
+    const uint32_t firstVertex = mesh->first_vertex;
+    const uint32_t endVertex = firstVertex + mesh->num_vertexes;
+    for (uint32_t vertex_idx = firstVertex; vertex_idx < endVertex; vertex_idx++)
+	{
+		const byte* blendIndices = &iqmData->blend_indices[vertex_idx * 4];
+		const byte* blendWeights = &iqmData->blend_weights[vertex_idx * 4];
+        for (uint32_t weight_idx = 0; weight_idx < 4; weight_idx++)
+		{
+			if (blendWeights[weight_idx] == 0)
+			{
+				continue;
+			}
+
+			const int32_t boneIndex = blendIndices[weight_idx];
+			if (boneIndex < 0 || boneIndex >= (int32_t)iqmData->num_joints)
+			{
+				return -1;
+			}
+
+			if (resolvedBone == -1)
+			{
+				resolvedBone = boneIndex;
+				continue;
+			}
+
+			if (resolvedBone != boneIndex)
+			{
+				return -1;
+			}
+		}
+	}
+
+	return resolvedBone;
+}
+
 
 
 /**
@@ -196,6 +271,8 @@ int MOD_LoadIQM_Base(model_t* model, const void* rawdata, size_t length, const c
 	float* mat, * matInv;
 	size_t joint_names;
 	iqm_model_t* iqmData;
+	const iqmExtFteMesh_t* fteMeshMetadata;
+	bool hasFteMeshMetadata;
 	char meshName[MAX_QPATH];
 	int vertexArrayFormat[IQM_COLOR + 1];
 	int ret;
@@ -223,12 +300,55 @@ int MOD_LoadIQM_Base(model_t* model, const void* rawdata, size_t length, const c
 		return Q_ERR_FILE_TOO_SMALL;
 	}
 
+	if (header->num_text && IQM_CheckRange(header, header->ofs_text, header->num_text, sizeof(char)))
+	{
+		return Q_ERR_BAD_EXTENT;
+	}
+
 	// check ioq3 joint limit
 	if (header->num_joints > IQM_MAX_JOINTS)
 	{
 		Com_WPrintf("R_LoadIQM: %s has more than %d joints (%d).\n",
 			mod_name, IQM_MAX_JOINTS, header->num_joints);
 		return Q_ERR_INVALID_FORMAT;
+	}
+
+	fteMeshMetadata = NULL;
+	hasFteMeshMetadata = false;
+
+	if (header->num_extensions)
+	{
+		if (IQM_CheckRange(header, header->ofs_extensions, header->num_extensions, sizeof(iqmExtension_t)))
+		{
+			return Q_ERR_BAD_EXTENT;
+		}
+
+		const iqmExtension_t* extension = (const iqmExtension_t*)((const byte*)header + header->ofs_extensions);
+		for (uint32_t extension_idx = 0; extension_idx < header->num_extensions; extension_idx++, extension++)
+		{
+			if (extension->name >= header->num_text)
+			{
+				continue;
+			}
+
+			const char* extensionName = (const char*)header + header->ofs_text + extension->name;
+			if (Q_strcasecmp(extensionName, "FTE_MESH") != 0)
+			{
+				continue;
+			}
+
+			if (extension->num_data != header->num_meshes * sizeof(iqmExtFteMesh_t) ||
+				IQM_CheckRange(header, extension->ofs_data, extension->num_data, sizeof(byte)))
+			{
+				Com_WPrintf("R_LoadIQM: %s has malformed FTE_MESH extension, ignoring skeletal hitbox metadata.\n", mod_name);
+				break;
+			}
+
+			fteMeshMetadata = (const iqmExtFteMesh_t*)((const byte*)header + extension->ofs_data);
+			hasFteMeshMetadata = true;
+			Com_DPrintf("R_LoadIQM: %s found FTE_MESH metadata for %u meshes.\n", mod_name, header->num_meshes);
+			break;
+		}
 	}
 
 	for (uint32_t vertexarray_idx = 0; vertexarray_idx < q_countof(vertexArrayFormat); vertexarray_idx++)
@@ -462,6 +582,9 @@ int MOD_LoadIQM_Base(model_t* model, const void* rawdata, size_t length, const c
 
 	CHECK(iqmData = MOD_Malloc(sizeof(iqm_model_t)));
 	model->skmData = iqmData;
+	memset(iqmData, 0, sizeof(*iqmData));
+	iqmData->defaultHitboxContents = IQM_HITBOX_DEFAULT_CONTENTS;
+	iqmData->defaultHitboxSurfaceFlags = IQM_HITBOX_DEFAULT_SURFACEFLAGS;
 
 	// fill header
 	iqmData->num_vertexes = (header->num_meshes > 0) ? header->num_vertexes : 0;
@@ -529,6 +652,8 @@ int MOD_LoadIQM_Base(model_t* model, const void* rawdata, size_t length, const c
 		const char* str = (const char*)header + header->ofs_text;
 		for (uint32_t mesh_idx = 0; mesh_idx < header->num_meshes; mesh_idx++, mesh++, surface++)
 		{
+			const iqmExtFteMesh_t* meshMetadata = hasFteMeshMetadata ? &fteMeshMetadata[mesh_idx] : NULL;
+
 			strncpy(surface->name, str + mesh->name, sizeof(surface->name) - 1);
 			Q_strlwr(surface->name); // lowercase the surface name so skin compares are faster
 			strncpy(surface->material, str + mesh->material, sizeof(surface->material) - 1);
@@ -538,6 +663,14 @@ int MOD_LoadIQM_Base(model_t* model, const void* rawdata, size_t length, const c
 			surface->num_vertexes = mesh->num_vertexes;
 			surface->first_triangle = mesh->first_triangle;
 			surface->num_triangles = mesh->num_triangles;
+			surface->flags = 0;
+			surface->fteContents = meshMetadata ? meshMetadata->contents : 0;
+			surface->fteSurfaceFlags = meshMetadata ? meshMetadata->surfaceflags : 0;
+			surface->fteBody = meshMetadata ? meshMetadata->body : 0;
+			surface->fteGeomSet = meshMetadata ? meshMetadata->geomset : 0;
+			surface->fteGeomID = meshMetadata ? meshMetadata->geomid : 0;
+			surface->fteMinDist = meshMetadata ? meshMetadata->mindist : 0.0f;
+			surface->fteMaxDist = meshMetadata ? meshMetadata->maxdist : 0.0f;
 		}
 
 		// copy triangles
@@ -777,6 +910,182 @@ int MOD_LoadIQM_Base(model_t* model, const void* rawdata, size_t length, const c
 			dst->framerate = src->framerate;
 			dst->flags = src->flags;
 			//dst->loop = (src->flags & IQM_LOOP) != 0;
+		}
+	}
+
+	/**
+	*   Build runtime skeletal hitboxes from authored IQM hitbox meshes first,
+	*   then auto-generate per-bone fallback boxes for uncovered bones.
+	**/
+	if (header->num_meshes || header->num_joints)
+	{
+		skm_hitbox_t* tempHitboxes = NULL;
+		const uint32_t maxHitboxCount = header->num_meshes + header->num_joints;
+		bool authoredBoneMask[IQM_MAX_JOINTS] = { false };
+		uint32_t hitboxCount = 0;
+
+		if (maxHitboxCount > 0)
+		{
+			CHECK(tempHitboxes = MOD_Malloc(maxHitboxCount * sizeof(*tempHitboxes)));
+		}
+
+		if (hasFteMeshMetadata && iqmData->blend_indices && iqmData->blend_weights && iqmData->positions)
+		{
+			for (uint32_t mesh_idx = 0; mesh_idx < iqmData->num_meshes; mesh_idx++)
+			{
+				iqm_mesh_t* mesh = &iqmData->meshes[mesh_idx];
+
+				if (!IQM_IsAuthoredHitboxMesh(mesh))
+				{
+					continue;
+				}
+
+				const int32_t boneIndex = IQM_ResolveSingleWeightedBone(iqmData, mesh);
+				if (boneIndex < 0)
+				{
+					Com_WPrintf("R_LoadIQM: %s mesh '%s' looked like a hitbox but had invalid or mixed bone weights, skipping.\n", mod_name, mesh->name);
+					continue;
+				}
+
+				if (mesh->num_vertexes <= 0)
+				{
+					continue;
+				}
+
+				vec3_t localMins;
+				vec3_t localMaxs;
+				ClearBounds(localMins, localMaxs);
+				const uint32_t firstVertex = mesh->first_vertex;
+				const uint32_t endVertex = firstVertex + mesh->num_vertexes;
+				for (uint32_t vertex_idx = firstVertex; vertex_idx < endVertex; vertex_idx++)
+				{
+					AddPointToBounds(&iqmData->positions[vertex_idx * 3], localMins, localMaxs);
+				}
+
+				skm_hitbox_t* hitbox = &tempHitboxes[hitboxCount++];
+				hitbox->boneIndex = boneIndex;
+				hitbox->hitBodyID = (int32_t)mesh->fteBody;
+				hitbox->sourceMeshIndex = mesh_idx;
+				hitbox->contents = mesh->fteContents;
+				hitbox->surfaceflags = mesh->fteSurfaceFlags;
+				VectorCopy(localMins, hitbox->localMins);
+				VectorCopy(localMaxs, hitbox->localMaxs);
+				hitbox->sourceType = SKM_HITBOX_SOURCE_AUTHORED;
+				hitbox->flags = SKM_HITBOX_FLAG_AUTHORED;
+				hitbox->sampleCount = mesh->num_vertexes;
+				hitbox->sampleWeightSum = 255.0f;
+
+				if (boneIndex >= 0 && boneIndex < IQM_MAX_JOINTS)
+				{
+					authoredBoneMask[boneIndex] = true;
+				}
+
+				mesh->flags |= IQM_MESH_FLAG_HITBOX;
+				iqmData->num_hitboxes_authored++;
+			}
+		}
+
+		if (iqmData->blend_indices && iqmData->blend_weights && iqmData->positions && iqmData->num_joints > 0)
+		{
+			vec3_t boneMins[IQM_MAX_JOINTS] = { { 0.0f, 0.0f, 0.0f } };
+			vec3_t boneMaxs[IQM_MAX_JOINTS] = { { 0.0f, 0.0f, 0.0f } };
+			uint32_t boneSampleCount[IQM_MAX_JOINTS] = { 0 };
+			float boneSampleWeightSum[IQM_MAX_JOINTS] = { 0.0f };
+			bool boneHasSamples[IQM_MAX_JOINTS] = { false };
+
+			for (uint32_t vertex_idx = 0; vertex_idx < iqmData->num_vertexes; vertex_idx++)
+			{
+				const byte* blendIndices = &iqmData->blend_indices[vertex_idx * 4];
+				const byte* blendWeights = &iqmData->blend_weights[vertex_idx * 4];
+
+				byte dominantWeight = 0;
+				int32_t dominantBone = -1;
+				for (uint32_t weight_idx = 0; weight_idx < 4; weight_idx++)
+				{
+					const int32_t boneIndex = blendIndices[weight_idx];
+					const byte boneWeight = blendWeights[weight_idx];
+					if (boneWeight <= dominantWeight || boneIndex < 0 || boneIndex >= (int32_t)iqmData->num_joints)
+					{
+						continue;
+					}
+
+					dominantWeight = boneWeight;
+					dominantBone = boneIndex;
+				}
+
+				if (dominantBone < 0 || dominantWeight < IQM_HITBOX_AUTO_MIN_DOMINANT_WEIGHT)
+				{
+					continue;
+				}
+
+				if (authoredBoneMask[dominantBone])
+				{
+					continue;
+				}
+
+				const vec3_t* point = (const vec3_t*)&iqmData->positions[vertex_idx * 3];
+				if (!boneHasSamples[dominantBone])
+				{
+					VectorCopy(*point, boneMins[dominantBone]);
+					VectorCopy(*point, boneMaxs[dominantBone]);
+					boneHasSamples[dominantBone] = true;
+				}
+				else
+				{
+					AddPointToBounds(*point, boneMins[dominantBone], boneMaxs[dominantBone]);
+				}
+
+				boneSampleCount[dominantBone]++;
+				boneSampleWeightSum[dominantBone] += dominantWeight;
+			}
+
+			for (uint32_t bone_idx = 0; bone_idx < iqmData->num_joints; bone_idx++)
+			{
+				if (!boneHasSamples[bone_idx] || boneSampleCount[bone_idx] < IQM_HITBOX_AUTO_MIN_SAMPLES || authoredBoneMask[bone_idx])
+				{
+					continue;
+				}
+
+				const float extentX = boneMaxs[bone_idx][0] - boneMins[bone_idx][0];
+				const float extentY = boneMaxs[bone_idx][1] - boneMins[bone_idx][1];
+				const float extentZ = boneMaxs[bone_idx][2] - boneMins[bone_idx][2];
+				if (extentX < 0.001f && extentY < 0.001f && extentZ < 0.001f)
+				{
+					continue;
+				}
+
+				skm_hitbox_t* hitbox = &tempHitboxes[hitboxCount++];
+				hitbox->boneIndex = (int32_t)bone_idx;
+				hitbox->hitBodyID = (int32_t)bone_idx;
+				hitbox->sourceMeshIndex = 0xFFFFFFFFu;
+				hitbox->contents = iqmData->defaultHitboxContents;
+				hitbox->surfaceflags = iqmData->defaultHitboxSurfaceFlags;
+				hitbox->localMins[0] = boneMins[bone_idx][0] - IQM_HITBOX_AUTO_PAD;
+				hitbox->localMins[1] = boneMins[bone_idx][1] - IQM_HITBOX_AUTO_PAD;
+				hitbox->localMins[2] = boneMins[bone_idx][2] - IQM_HITBOX_AUTO_PAD;
+				hitbox->localMaxs[0] = boneMaxs[bone_idx][0] + IQM_HITBOX_AUTO_PAD;
+				hitbox->localMaxs[1] = boneMaxs[bone_idx][1] + IQM_HITBOX_AUTO_PAD;
+				hitbox->localMaxs[2] = boneMaxs[bone_idx][2] + IQM_HITBOX_AUTO_PAD;
+				hitbox->sourceType = SKM_HITBOX_SOURCE_AUTO_BONE;
+				hitbox->flags = SKM_HITBOX_FLAG_AUTO_GENERATED | SKM_HITBOX_FLAG_FALLBACK;
+				hitbox->sampleCount = boneSampleCount[bone_idx];
+				hitbox->sampleWeightSum = boneSampleWeightSum[bone_idx];
+
+				iqmData->num_hitboxes_auto++;
+			}
+		}
+
+		iqmData->num_hitboxes = hitboxCount;
+		if (hitboxCount > 0)
+		{
+			CHECK(iqmData->hitboxes = MOD_Malloc(hitboxCount * sizeof(*iqmData->hitboxes)));
+			memcpy(iqmData->hitboxes, tempHitboxes, hitboxCount * sizeof(*iqmData->hitboxes));
+
+			Com_DPrintf("R_LoadIQM: %s skeletal hitboxes: authored=%u auto=%u total=%u.\n",
+				mod_name,
+				iqmData->num_hitboxes_authored,
+				iqmData->num_hitboxes_auto,
+				iqmData->num_hitboxes);
 		}
 	}
 

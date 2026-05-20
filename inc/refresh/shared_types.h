@@ -164,6 +164,39 @@ typedef struct {
 //! Typedef for convenience.
 typedef iqm_anim_t skm_anim_t;
 
+//! IQM mesh flags.
+#define IQM_MESH_FLAG_HITBOX ( 1u << 0 )
+
+//! Skeletal hitbox runtime flags.
+#define SKM_HITBOX_FLAG_AUTO_GENERATED ( 1u << 0 )
+#define SKM_HITBOX_FLAG_AUTHORED ( 1u << 1 )
+#define SKM_HITBOX_FLAG_FALLBACK ( 1u << 2 )
+
+/**
+*   @brief  Runtime source for a skeletal hitbox.
+**/
+typedef enum skm_hitbox_source_e {
+    SKM_HITBOX_SOURCE_AUTHORED = 0,
+    SKM_HITBOX_SOURCE_AUTO_BONE = 1,
+} skm_hitbox_source_t;
+
+/**
+*   @brief  Compact runtime skeletal hitbox data.
+**/
+typedef struct skm_hitbox_s {
+    int32_t boneIndex;
+    int32_t hitBodyID;
+    uint32_t sourceMeshIndex;
+    uint32_t contents;
+    uint32_t surfaceflags;
+    vec3_t localMins;
+    vec3_t localMaxs;
+    uint16_t sourceType;
+    uint16_t flags;
+    uint32_t sampleCount;
+    float sampleWeightSum;
+} skm_hitbox_t;
+
 /**
 *   @brief  'Inter-Quake-Model'
 **/
@@ -175,7 +208,11 @@ typedef struct {
 	uint32_t num_joints;
 	uint32_t num_poses;
 	uint32_t num_animations;
+    uint32_t num_hitboxes;
+    uint32_t num_hitboxes_authored;
+    uint32_t num_hitboxes_auto;
 	struct iqm_mesh_s* meshes;
+    skm_hitbox_t* hitboxes;
 
 	uint32_t* indices;
 
@@ -196,6 +233,8 @@ typedef struct {
 	float* bounds;
 	
 	iqm_anim_t* animations;
+    uint32_t defaultHitboxContents;
+    uint32_t defaultHitboxSurfaceFlags;
 } iqm_model_t;
 //! Typedef for convenience.
 typedef iqm_model_t skm_model_t;
@@ -211,6 +250,14 @@ typedef struct iqm_mesh_s
 	uint32_t first_vertex, num_vertexes;
 	uint32_t first_triangle, num_triangles;
 	uint32_t first_influence, num_influences;
+    uint32_t flags;
+    uint32_t fteContents;
+    uint32_t fteSurfaceFlags;
+    uint32_t fteBody;
+    uint32_t fteGeomSet;
+    uint32_t fteGeomID;
+    float fteMinDist;
+    float fteMaxDist;
 } iqm_mesh_t;
 // Typedef for convenience.
 typedef iqm_mesh_t skm_mesh_t;

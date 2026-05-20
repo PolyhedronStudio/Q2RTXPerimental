@@ -20,7 +20,8 @@
 
 #include "system/hunk.h"
 
-
+// Extern C
+QEXTERN_C_OPEN
 
 //!
 //! Shamelessly taken from refresh/models.h
@@ -792,3 +793,5 @@ void SKM_TransformBonePosesWorldSpace( const skm_model_t *model, const skm_trans
 		Matrix34Multiply( inPose, poseMat, outPose );
 	}
 }
+
+QEXTERN_C_CLOSE
