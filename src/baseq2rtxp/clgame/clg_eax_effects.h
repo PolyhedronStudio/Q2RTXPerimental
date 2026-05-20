@@ -12,7 +12,7 @@
 /**
 *   "DEFAULT" reverb effect type properties:
 **/
-static sfx_eax_properties_t cl_eax_default_properties = {
+static sfx_eax_properties_t clg_eax_default_properties = {
     .flDensity = 1.0,
     .flDiffusion = 1.0,
 

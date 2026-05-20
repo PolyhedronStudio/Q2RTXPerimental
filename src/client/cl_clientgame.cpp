@@ -1105,6 +1105,7 @@ void CL_GM_LoadProgs( void ) {
 	imports.FS_FreeFile = PF_FS_FreeFile;
 
 	imports.ActivateInput = IN_Activate;
+	imports.WarpMouse = IN_WarpMouse;
 	imports.KeyDown = CL_KeyDown;
 	imports.KeyUp = CL_KeyUp;
 	imports.KeyClear = CL_KeyClear;
