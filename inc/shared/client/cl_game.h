@@ -11,7 +11,7 @@
 //
 // cl_game.h -- client game dll information visible to client
 //
-#define CLGAME_API_VERSION    5
+#define CLGAME_API_VERSION    6
 
 // edict->svFlags
 
@@ -235,6 +235,11 @@ typedef struct {
 	*   @brief  Returns the number of active scoreboard entries.
 	**/
 	int32_t ( *GetScoreboardClientCount )( void );
+	/**
+	*   @brief  Returns the active scoreboard team count as provided by the server.
+	*   @note   A value of 1 represents non-team or unknown team mode fallback.
+	**/
+	int32_t ( *GetScoreboardTeamCount )( void );
 
 	/**
 	*
@@ -411,6 +416,8 @@ typedef struct {
 	**/
 	//! Activates the input for the window.
 	void ( *ActivateInput )( void );
+	//! Warp the cursor to a specific client-window coordinate.
+	void ( *WarpMouse )( int32_t x, int32_t y );
 	//! Register a button as being 'held down'.
 	void (* KeyDown )( keybutton_t *keyButton );
 	//! Register a button as being 'released'.

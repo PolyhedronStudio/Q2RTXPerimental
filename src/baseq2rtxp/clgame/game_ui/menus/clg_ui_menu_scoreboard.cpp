@@ -77,9 +77,9 @@ static std::string CLG_Scoreboard_QuoteCommandArgument( const std::string &arg )
 *	@param	entries	Scoreboard entry table.
 *	@return	Comma-separated player list suitable for server commands.
 **/
-static std::string CLG_Scoreboard_BuildSelectedPlayerCsv( const int *selectedClients, const int selCount, const scoreboard_entry_t *entries ) {
+static std::string CLG_Scoreboard_BuildSelectedPlayerCsv( const int32_t *selectedClients, const int32_t selCount, const scoreboard_entry_t *entries ) {
 	std::string csv;
-	for ( int i = 0; i < selCount; i++ ) {
+	for ( int32_t i = 0; i < selCount; i++ ) {
 		if ( i > 0 ) {
 			csv.push_back( ',' );
 		}
@@ -151,7 +151,7 @@ static int32_t CLG_Scoreboard_GetEffectiveTeamCount( const scoreboard_entry_t *e
 *	@note	The visible columns are checkbox, muted indicator, name, score, and ping.
 *	@note	Assuming layout row is already configured by caller.
 **/
-static void CLG_Scoreboard_DrawHeaderRow( mu_Context *ctx, const int *rowWidths, const int rowHeight ) {
+static void CLG_Scoreboard_DrawHeaderRow( mu_Context *ctx, const int32_t *rowWidths, const int32_t rowHeight ) {
 	mu_layout_next( ctx );
 	const mu_Rect mutedRect = mu_layout_next( ctx );
 	const mu_Rect nameRect = mu_layout_next( ctx );
@@ -180,21 +180,21 @@ static void CLG_Scoreboard_DrawHeaderRow( mu_Context *ctx, const int *rowWidths,
 *	@return	MicroUI change flag from checkbox interaction.
 *	@note	Assuming layout row is already configured by caller.
 **/
-static int CLG_Scoreboard_DrawClientRow( mu_Context *ctx, const int *rowWidths, const int rowHeight, const scoreboard_entry_t &entry, const int32_t visualIndex, const bool isMuted, int *selected ) {
+static int32_t CLG_Scoreboard_DrawClientRow( mu_Context *ctx, const int32_t *rowWidths, const int32_t rowHeight, const scoreboard_entry_t &entry, const int32_t visualIndex, const bool isMuted, int32_t *selected ) {
 	char scoreText[ 16 ] = {};
 	char pingText[ 16 ] = {};
 	std::snprintf( scoreText, sizeof( scoreText ), "%d", entry.clientScore );
 	std::snprintf( pingText, sizeof( pingText ), "%d", entry.clientPing );
 
-	const int checkboxResult = mu_checkbox( ctx, "", selected );
+	const int32_t checkboxResult = mu_checkbox( ctx, "", selected );
 	mu_Rect mutedRect = mu_layout_next( ctx );
 	if ( isMuted ) {
 		/**
 		*	Draw the muted-state marker inside the dedicated column.
 		*	The close icon gives a compact visual indicator without adding text noise.
 		**/
-		const int iconInset = ctx->style->padding;
-		const int iconSize = std::max( 1, mutedRect.h - ( iconInset * 2 ) );
+		const int32_t iconInset = ctx->style->padding;
+		const int32_t iconSize = std::max( 1, mutedRect.h - ( iconInset * 2 ) );
 		mu_Rect iconRect = mu_rect( mutedRect.x + iconInset, mutedRect.y + iconInset, iconSize, iconSize );
 		mu_draw_icon( ctx, MU_ICON_CLOSE, iconRect, ctx->style->colors[ MU_COLOR_TEXT ] );
 	}
@@ -253,8 +253,8 @@ static const char *CLG_Scoreboard_GetTeamLabel( const int32_t teamIndex ) {
 *	@return	MicroUI change flag from checkbox interaction.
 *	@note	Assuming layout row is already configured by caller.
 **/
-static int CLG_Scoreboard_DrawTeamHeaderRow( mu_Context *ctx, const int *rowWidths, const int rowHeight, const char *teamLabel, int *selected ) {
-	const int checkboxResult = mu_checkbox( ctx, "", selected );
+static int32_t CLG_Scoreboard_DrawTeamHeaderRow( mu_Context *ctx, const int32_t *rowWidths, const int32_t rowHeight, const char *teamLabel, int32_t *selected ) {
+	const int32_t checkboxResult = mu_checkbox( ctx, "", selected );
 	mu_label( ctx, teamLabel );
 	mu_label( ctx, "" );
 	mu_label( ctx, "" );
@@ -275,9 +275,9 @@ const bool CLG_MUI_ProcessScoreBoard( mu_Context *ctx ) {
 	*	Persistent selection and mute state across frames.
 	*	These arrays keep UI state stable even when the scoreboard is rebuilt every frame.
 	**/
-	static int playerSelected[ MAX_CLIENTS ] = {};
-	static int playerMuted[ MAX_CLIENTS ] = {};
-	static int focusedMuteClient = -1;
+	static int32_t playerSelected[ MAX_CLIENTS ] = {};
+	static int32_t playerMuted[ MAX_CLIENTS ] = {};
+	static int32_t focusedMuteClient = -1;
 
 	/**
 	*	Clear transient checkbox state while the scoreboard is hidden.
@@ -292,20 +292,20 @@ const bool CLG_MUI_ProcessScoreBoard( mu_Context *ctx ) {
 		focusedMuteClient = -1;
 	}
 
-	const int checkboxWidth = 24;
-	const int mutedHeaderTextWidth = ctx->text_width( ctx->style->font, "Muted", -1 );
-	const int muteButtonLabelWidth = std::max( ctx->text_width( ctx->style->font, "Mute", -1 ), ctx->text_width( ctx->style->font, "Unmute", -1 ) );
-	const int mutedWidth = std::max( mutedHeaderTextWidth, muteButtonLabelWidth ) + ( ctx->style->padding * 2 );
-	const int nameColumnBudget = 216;
-	const int nameWidth = std::max( 96, nameColumnBudget - mutedWidth - ctx->style->spacing );
-	const int scoreWidth = 52;
-	const int pingWidth = 52;
-	const int rowWidths[ 5 ] = { checkboxWidth, mutedWidth, nameWidth, scoreWidth, pingWidth };
-	const int rowHeight = 24;
-	const int preButtonSpacerHeight = std::max( 0, ctx->style->padding );
-	const int postButtonSpacerHeight = preButtonSpacerHeight;
-	const int rowWidthTotal = checkboxWidth + mutedWidth + nameWidth + scoreWidth + pingWidth;
-	const int rowWidthVisual = rowWidthTotal + ( ctx->style->spacing * 4 );
+	const int32_t checkboxWidth = 24;
+	const int32_t mutedHeaderTextWidth = ctx->text_width( ctx->style->font, "Muted", -1 );
+	const int32_t muteButtonLabelWidth = std::max( ctx->text_width( ctx->style->font, "Mute", -1 ), ctx->text_width( ctx->style->font, "Unmute", -1 ) );
+	const int32_t mutedWidth = std::max( mutedHeaderTextWidth, muteButtonLabelWidth ) + ( ctx->style->padding * 2 );
+	const int32_t nameColumnBudget = 216;
+	const int32_t nameWidth = std::max( 96, nameColumnBudget - mutedWidth - ctx->style->spacing );
+	const int32_t scoreWidth = 52;
+	const int32_t pingWidth = 52;
+	const int32_t rowWidths[ 5 ] = { checkboxWidth, mutedWidth, nameWidth, scoreWidth, pingWidth };
+	const int32_t rowHeight = 24;
+	const int32_t preButtonSpacerHeight = std::max( 0, ctx->style->padding );
+	const int32_t postButtonSpacerHeight = preButtonSpacerHeight;
+	const int32_t rowWidthTotal = checkboxWidth + mutedWidth + nameWidth + scoreWidth + pingWidth;
+	const int32_t rowWidthVisual = rowWidthTotal + ( ctx->style->spacing * 4 );
 
 	/**
 	*	Fetch the current scoreboard snapshot from the client import layer.
@@ -372,11 +372,11 @@ const bool CLG_MUI_ProcessScoreBoard( mu_Context *ctx ) {
 		*	Account for MicroUI inter-column spacing when drawing separators.
 		*	This keeps visual boundaries aligned with actual text/layout rectangles.
 		**/
-		const int columnGap = ctx->style->spacing;
-		const int checkboxMutedSepX = headerRect.x + checkboxWidth + columnGap;
-		const int mutedNameSepX = headerRect.x + checkboxWidth + mutedWidth + ( columnGap * 2 );
-		const int nameScoreSepX = mutedNameSepX + nameWidth + columnGap;
-		const int scorePingSepX = nameScoreSepX + scoreWidth + columnGap;
+		const int32_t columnGap = ctx->style->spacing;
+		const int32_t checkboxMutedSepX = headerRect.x + checkboxWidth + columnGap;
+		const int32_t mutedNameSepX = headerRect.x + checkboxWidth + mutedWidth + ( columnGap * 2 );
+		const int32_t nameScoreSepX = mutedNameSepX + nameWidth + columnGap;
+		const int32_t scorePingSepX = nameScoreSepX + scoreWidth + columnGap;
 		mu_draw_rect( ctx, mu_rect( checkboxMutedSepX, headerRect.y, 1, headerRect.h ), separatorColor );
 		mu_draw_rect( ctx, mu_rect( mutedNameSepX, headerRect.y, 1, headerRect.h ), separatorColor );
 		mu_draw_rect( ctx, mu_rect( nameScoreSepX, headerRect.y, 1, headerRect.h ), separatorColor );
@@ -422,11 +422,11 @@ const bool CLG_MUI_ProcessScoreBoard( mu_Context *ctx ) {
 				/**
 				*	Mirror the spacing-aware separator math from the header for every body row.
 				**/
-				const int columnGap = ctx->style->spacing;
-				const int checkboxMutedSepX = rowRect.x + checkboxWidth + columnGap;
-				const int mutedNameSepX = rowRect.x + checkboxWidth + mutedWidth + ( columnGap * 2 );
-				const int nameScoreSepX = mutedNameSepX + nameWidth + columnGap;
-				const int scorePingSepX = nameScoreSepX + scoreWidth + columnGap;
+				const int32_t columnGap = ctx->style->spacing;
+				const int32_t checkboxMutedSepX = rowRect.x + checkboxWidth + columnGap;
+				const int32_t mutedNameSepX = rowRect.x + checkboxWidth + mutedWidth + ( columnGap * 2 );
+				const int32_t nameScoreSepX = mutedNameSepX + nameWidth + columnGap;
+				const int32_t scorePingSepX = nameScoreSepX + scoreWidth + columnGap;
 				mu_draw_rect( ctx, mu_rect( checkboxMutedSepX, rowRect.y, 1, rowRect.h ), separatorColor );
 				mu_draw_rect( ctx, mu_rect( mutedNameSepX, rowRect.y, 1, rowRect.h ), separatorColor );
 				mu_draw_rect( ctx, mu_rect( nameScoreSepX, rowRect.y, 1, rowRect.h ), separatorColor );
@@ -435,7 +435,7 @@ const bool CLG_MUI_ProcessScoreBoard( mu_Context *ctx ) {
 				/**
 				*	Draw the interactive client row and remember whether the checkbox changed.
 				**/
-				const int checkboxChanged = CLG_Scoreboard_DrawClientRow( ctx, rowWidths, rowHeight, entry, i, isMuted, &playerSelected[ clientIndex ] );
+				const int32_t checkboxChanged = CLG_Scoreboard_DrawClientRow( ctx, rowWidths, rowHeight, entry, i, isMuted, &playerSelected[ clientIndex ] );
 
 				/**
 				*	Track the last client whose checkbox was toggled so mute actions can target it first.
@@ -465,8 +465,8 @@ const bool CLG_MUI_ProcessScoreBoard( mu_Context *ctx ) {
 		/**
 		*	Collect all selected clients so the action buttons can operate on a stable snapshot.
 		**/
-		int selClients[ MAX_CLIENTS ];
-		int selCount = 0;
+		int32_t selClients[ MAX_CLIENTS ];
+		int32_t selCount = 0;
 		bool anyMutedSelected = false;
 
 		/**
@@ -509,9 +509,9 @@ const bool CLG_MUI_ProcessScoreBoard( mu_Context *ctx ) {
 		**/
 		const char *voteKickLabel = "Vote Kick";
 		const char *voteBanLabel = "Vote Ban";
-		const int muteButtonWidth = ctx->text_width( ctx->style->font, muteLabel, -1 ) + ( ctx->style->padding * 2 );
-		const int voteKickButtonWidth = ctx->text_width( ctx->style->font, voteKickLabel, -1 ) + ( ctx->style->padding * 2 );
-		const int voteBanButtonWidth = ctx->text_width( ctx->style->font, voteBanLabel, -1 ) + ( ctx->style->padding * 2 );
+		const int32_t muteButtonWidth = ctx->text_width( ctx->style->font, muteLabel, -1 ) + ( ctx->style->padding * 2 );
+		const int32_t voteKickButtonWidth = ctx->text_width( ctx->style->font, voteKickLabel, -1 ) + ( ctx->style->padding * 2 );
+		const int32_t voteBanButtonWidth = ctx->text_width( ctx->style->font, voteBanLabel, -1 ) + ( ctx->style->padding * 2 );
 
 		/**
 		*	Draw the action row: mute under the name column, vote buttons right-aligned.
@@ -534,8 +534,8 @@ const bool CLG_MUI_ProcessScoreBoard( mu_Context *ctx ) {
 				*	Toggle mute state for every selected player in one action.
 				*	If any selected player is already muted, unmute the group; otherwise mute it.
 				**/
-				const int setMuted = anyMutedSelected ? 0 : 1;
-				for ( int i = 0; i < selCount; i++ ) {
+				const int32_t setMuted = anyMutedSelected ? 0 : 1;
+				for ( int32_t i = 0; i < selCount; i++ ) {
 					playerMuted[ selClients[ i ] ] = setMuted;
 					playerSelected[ selClients[ i ] ] = 0;
 				}
@@ -555,11 +555,11 @@ const bool CLG_MUI_ProcessScoreBoard( mu_Context *ctx ) {
 		mu_Rect combined = scoreCol;
 		combined.w = ( pingCol.x + pingCol.w ) - scoreCol.x;
 
-		const int spacing = ctx->style->spacing;
-		const int totalButtonsW = voteKickButtonWidth + spacing + voteBanButtonWidth;
-		int startX = combined.x + combined.w - totalButtonsW;
-		int y = combined.y;
-		int h = combined.h;
+		const int32_t spacing = ctx->style->spacing;
+		const int32_t totalButtonsW = voteKickButtonWidth + spacing + voteBanButtonWidth;
+		int32_t startX = combined.x + combined.w - totalButtonsW;
+		int32_t y = combined.y;
+		int32_t h = combined.h;
 
 		mu_Rect kickRect = mu_rect( startX, y, voteKickButtonWidth, h );
 		mu_layout_set_next( ctx, kickRect, 0 );

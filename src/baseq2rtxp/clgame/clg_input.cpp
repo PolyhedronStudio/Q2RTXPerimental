@@ -27,6 +27,8 @@
 #include "clgame/game_ui/clg_ui_main.h"
 #include "sharedgame/sg_game_ui.h"
 
+
+
 /**
 *
 *   CVars
@@ -250,6 +252,20 @@ static void IN_ScoreDown( void ) {
 
         // Open immediately on the local client while held; server stats still remain authoritative fallback.
         CLG_UI_OpenMenu( sg_game_ui_menu_id::SCOREBOARD );
+
+        /**
+        *	Recenter the cursor when the scoreboard opens so interactions start from
+        *	a predictable location instead of the last gameplay edge position.
+        **/
+        if ( clgi.screen ) {
+            const int32_t centerX = clgi.screen->screenWidth / 2;
+            const int32_t centerY = clgi.screen->screenHeight / 2;
+
+            if ( clgi.WarpMouse ) {
+                clgi.WarpMouse( centerX, centerY );
+            }
+            CLG_UI_MouseMoveEvent( centerX, centerY );
+        }
 
         /**
         *	Ask the server to enable scoreboard streaming.

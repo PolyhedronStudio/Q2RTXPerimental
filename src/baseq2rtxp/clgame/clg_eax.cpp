@@ -203,7 +203,7 @@ void CLG_EAX_Interpolate( /*const qhandle_t fromID, */ const qhandle_t toID, con
 **/
 sfx_eax_properties_t CLG_EAX_LoadReverbPropertiesFromJSON( const char *filename ) {
 	// The sfx eax properties to load, assigned default values from the hardcoded defualt properties.
-	sfx_eax_properties_t eax_reverb_properties = cl_eax_default_properties;
+	sfx_eax_properties_t eax_reverb_properties = clg_eax_default_properties;
 
 	// Path to the json file.
 	char jsonPath[ MAX_OSPATH ] = { };
@@ -304,7 +304,7 @@ sfx_eax_properties_t CLG_EAX_LoadReverbPropertiesFromJSON( const char *filename 
 **/
 void CLG_EAX_Precache() {
 	// Required by default and should NOT be REMOVED!!
-	precache.eax.properties[ SOUND_EAX_EFFECT_DEFAULT ] = cl_eax_default_properties;
+	precache.eax.properties[ SOUND_EAX_EFFECT_DEFAULT ] = clg_eax_default_properties;
 	precache.eax.properties[ SOUND_EAX_EFFECT_UNDERWATER ] = cl_eax_underwater_properties;
 
 	// Any of the EAX effects below can be replaced by whatever suits your needs.
