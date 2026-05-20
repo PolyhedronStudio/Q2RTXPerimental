@@ -567,7 +567,8 @@ void SVG_Client_RespawnSpectator( svg_base_edict_t *ent ) {
 
     // Add a teleportation effect
     if ( !ent->client->pers.spectator ) {
-        SVG_Util_AddEvent( ent, EV_PLAYER_LOGIN, 0 );
+        // Use the same teleport-style spawn event as other spawn/respawn paths.
+        SVG_Util_AddEvent( ent, EV_PLAYER_TELEPORT, 0 );
 
         // hold in place briefly
         ent->client->ps.pmove.pm_flags = PMF_TIME_TELEPORT;

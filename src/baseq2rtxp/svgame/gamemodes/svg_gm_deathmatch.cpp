@@ -719,8 +719,8 @@ void svg_gamemode_deathmatch_t::ClientBegin( svg_player_edict_t *ent ) {
 		SVG_HUD_MoveClientToIntermission( ent );
 	// Otherwise, send 'Login' effect even if NOT in a multiplayer game 
 	} else {
-		//SVG_Util_AddEvent( ent, EV_PLAYER_LOGIN, 0 );
-		SVG_Util_AddEvent( ent, EV_PLAYER_LOGIN, 0 );
+		// Use the same teleport-style spawn event as singleplayer/coop so client event handling stays consistent.
+		SVG_Util_AddEvent( ent, EV_PLAYER_TELEPORT, 0 );
 	}
 
 	// Notify player joined.
