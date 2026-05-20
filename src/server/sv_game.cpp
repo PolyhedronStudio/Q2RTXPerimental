@@ -25,6 +25,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "shared/cm/cm_entity.h"
 #include "common/async.h"
+#include "common/skeletalmodels/cm_skm.h"
+#include "common/skeletalmodels/cm_skm_posecache.h"
 
 svgame_export_t    *ge;
 
@@ -1064,10 +1066,92 @@ static int PF_FS_Flush(qhandle_t f) {
 }
 
 /**
- *  @brief  Wrapper to expose FS_CreatePath to game module.
- */
+*	@brief	Wrapper to expose FS_CreatePath to game module.
+**/
 static int PF_FS_CreatePath(char *path) {
     return FS_CreatePath(path);
+}
+
+
+/**
+*
+*
+*	Skeletal Models (SKM):
+*
+*
+**/
+/**
+*	@brief	Wrapper to get bone by name from skeletal model.
+**/
+static skm_bone_node_t *PF_SKM_GetBoneByName( const model_t *model, const char *boneName ) {
+    // Forward to common SKM implementation.
+    return SKM_GetBoneByName( model, boneName );
+}
+
+/**
+*	@brief	Wrapper to get bone by number from skeletal model.
+**/
+static skm_bone_node_t *PF_SKM_GetBoneByNumber( const model_t *model, const int32_t boneNumber ) {
+    // Forward to common SKM implementation.
+    return SKM_GetBoneByNumber( model, boneNumber );
+}
+
+/**
+*	@brief	Wrapper to acquire cached memory block for bone pose storage.
+**/
+static skm_transform_t *PF_SKM_PoseCache_AcquireCachedMemoryBlock( const uint32_t size ) {
+    // Use server's shared pose cache for bone pose storage.
+    return SKM_PoseCache_AcquireCachedMemoryBlock( svs.serverPoseCache, size );
+}
+
+/**
+*	@brief	Wrapper to get bone poses for a specific frame.
+**/
+static const skm_transform_t *PF_SKM_GetBonePosesForFrame( const model_t *model, const int32_t frame ) {
+    // Forward to common SKM implementation.
+    return SKM_GetBonePosesForFrame( model, frame );
+}
+
+/**
+*	@brief	Wrapper to lerp between two pose frames.
+**/
+static void PF_SKM_LerpBonePoses( const model_t *model, const skm_transform_t *frameBonePoses, const skm_transform_t *oldFrameBonePoses, const float frontLerp, const float backLerp, skm_transform_t *outBonePose, const int32_t rootMotionBoneID, const int32_t rootMotionAxisFlags ) {
+    // Forward to common SKM implementation.
+    return SKM_LerpBonePoses( model, frameBonePoses, oldFrameBonePoses, frontLerp, backLerp, outBonePose, rootMotionBoneID, rootMotionAxisFlags );
+}
+
+/**
+*	@brief	Wrapper to compute lerped bone poses from model frame data.
+**/
+static void PF_SKM_ComputeLerpBonePoses( const model_t *model, const int32_t frame, const int32_t oldFrame, const float frontLerp, const float backLerp, skm_transform_t *outBonePose, const int32_t rootMotionBoneID, const int32_t rootMotionAxisFlags ) {
+    // Forward to common SKM implementation.
+    return SKM_ComputeLerpBonePoses( model, frame, oldFrame, frontLerp, backLerp, outBonePose, rootMotionBoneID, rootMotionAxisFlags );
+}
+
+/**
+*	@brief	Wrapper to recursively blend bone poses.
+*	@note	Common API version requires exclude nodes parameter; server side passes no exclusions.
+**/
+static void PF_SKM_RecursiveBlendFromBone( const skm_transform_t *addBonePoses, skm_transform_t *addToBonePoses, const skm_bone_node_t *boneNode, const skm_bone_node_t **excludeNodes, const int32_t numExcludeNodes, const double backLerp, const double fraction ) {
+    // Forward to common SKM implementation with passed exclude nodes.
+    return SKM_RecursiveBlendFromBone( addBonePoses, addToBonePoses, boneNode, excludeNodes, numExcludeNodes, backLerp, fraction );
+}
+
+/**
+*	@brief	Wrapper to transform bone poses to local space matrices.
+*	@note	Common API requires bone controllers parameter; server side passes null.
+**/
+static void PF_SKM_TransformBonePosesLocalSpace( const skm_model_t *model, const skm_transform_t *relativeBonePose, const skm_bone_controller_t *boneControllers, float *pose_matrices ) {
+    // Forward to common SKM implementation with passed bone controllers (may be null).
+    return SKM_TransformBonePosesLocalSpace( model, relativeBonePose, boneControllers, pose_matrices );
+}
+
+/**
+*	@brief	Wrapper to transform bone poses to world space matrices.
+**/
+static void PF_SKM_TransformBonePosesWorldSpace( const skm_model_t *model, const skm_transform_t *relativeBonePose, float *pose_matrices ) {
+    // Forward to common SKM implementation.
+    return SKM_TransformBonePosesWorldSpace( model, relativeBonePose, pose_matrices );
 }
 
 
@@ -1439,10 +1523,23 @@ void SV_InitGameProgs(void) {
 	imports.BSP_PointLeaf = PF_BSP_PointLeaf;
 	imports.GetCollisionModel = PF_GetCollisionModel;
 
-    imports.GetModelDataForName = PF_GetModelDataForName;
-    imports.GetModelDataForHandle = PF_GetModelDataForHandle;
+	imports.GetModelDataForName = PF_GetModelDataForName;
+	imports.GetModelDataForHandle = PF_GetModelDataForHandle;
 
-    imports.GetInlineModelDataForHandle = PF_GetInlineModelDataForHandle;
+	/**
+	*	Skeletal Model function pointers.
+	**/
+	imports.SKM_GetBoneByName = PF_SKM_GetBoneByName;
+	imports.SKM_GetBoneByNumber = PF_SKM_GetBoneByNumber;
+	imports.SKM_PoseCache_AcquireCachedMemoryBlock = PF_SKM_PoseCache_AcquireCachedMemoryBlock;
+	imports.SKM_GetBonePosesForFrame = PF_SKM_GetBonePosesForFrame;
+	imports.SKM_LerpBonePoses = PF_SKM_LerpBonePoses;
+	imports.SKM_ComputeLerpBonePoses = PF_SKM_ComputeLerpBonePoses;
+	imports.SKM_RecursiveBlendFromBone = PF_SKM_RecursiveBlendFromBone;
+	imports.SKM_TransformBonePosesLocalSpace = PF_SKM_TransformBonePosesLocalSpace;
+	imports.SKM_TransformBonePosesWorldSpace = PF_SKM_TransformBonePosesWorldSpace;
+
+	imports.GetInlineModelDataForHandle = PF_GetInlineModelDataForHandle;
     imports.GetInlineModelDataForName = PF_GetInlineModelDataForName;
 	imports.CM_InlineModelHeadnode = PF_CM_InlineModelHeadnode;
 

@@ -6,11 +6,25 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
-#include "sharedgame/sg_skm.h"
+
 #include "svgame/svg_skeletal_hitboxes.h"
+#include "svgame/svg_utils.h"
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
+
+//! Optional visual debug draw for skeletal hitbox refinement.
+static cvar_t *s_svg_skeletal_hitboxes_debug_draw = nullptr;
+
+/**
+*   @brief  Register optional cvars used by skeletal hitbox debug paths.
+**/
+static void SVG_SKM_InitDebugCvars() {
+    if ( !s_svg_skeletal_hitboxes_debug_draw ) {
+        s_svg_skeletal_hitboxes_debug_draw = gi.cvar( "svg_skeletal_hitboxes_debug_draw", "0", 0 );
+    }
+}
 
 /**
 *   @brief  Transform a world-space point into entity-local model space.
@@ -58,6 +72,41 @@ static Vector3 SVG_SKM_TransformDirection3x3( const float *matrix3x4, const Vect
         matrix3x4[ 4 ] * direction.x + matrix3x4[ 5 ] * direction.y + matrix3x4[ 6 ] * direction.z,
         matrix3x4[ 8 ] * direction.x + matrix3x4[ 9 ] * direction.y + matrix3x4[ 10 ] * direction.z
     };
+}
+
+/**
+*   @brief  Draw one skeletal hitbox in world space as a wireframe box.
+**/
+static void SVG_SKM_DebugDrawHitboxWorld( const vec3_t localMins, const vec3_t localMaxs, const float *boneLocalMatrix,
+    const Vector3 &entityOrigin, const Vector3 &entityForward, const Vector3 &entityRight, const Vector3 &entityUp ) {
+    const Vector3 boxCornersBoneSpace[ 8 ] = {
+        { localMins[ 0 ], localMins[ 1 ], localMins[ 2 ] },
+        { localMaxs[ 0 ], localMins[ 1 ], localMins[ 2 ] },
+        { localMaxs[ 0 ], localMaxs[ 1 ], localMins[ 2 ] },
+        { localMins[ 0 ], localMaxs[ 1 ], localMins[ 2 ] },
+        { localMins[ 0 ], localMins[ 1 ], localMaxs[ 2 ] },
+        { localMaxs[ 0 ], localMins[ 1 ], localMaxs[ 2 ] },
+        { localMaxs[ 0 ], localMaxs[ 1 ], localMaxs[ 2 ] },
+        { localMins[ 0 ], localMaxs[ 1 ], localMaxs[ 2 ] }
+    };
+
+    Vector3 boxCornersWorldSpace[ 8 ] = { };
+    for ( int32_t i = 0; i < 8; i++ ) {
+        const Vector3 cornerEntitySpace = SVG_SKM_TransformPoint3x4( boneLocalMatrix, boxCornersBoneSpace[ i ] );
+        boxCornersWorldSpace[ i ] = SVG_SKM_EntityToWorldPoint( cornerEntitySpace, entityOrigin, entityForward, entityRight, entityUp );
+    }
+
+    static constexpr int32_t edgePairs[ 12 ][ 2 ] = {
+        { 0, 1 }, { 1, 2 }, { 2, 3 }, { 3, 0 },
+        { 4, 5 }, { 5, 6 }, { 6, 7 }, { 7, 4 },
+        { 0, 4 }, { 1, 5 }, { 2, 6 }, { 3, 7 }
+    };
+
+    for ( int32_t edgeIndex = 0; edgeIndex < 12; edgeIndex++ ) {
+        const Vector3 &start = boxCornersWorldSpace[ edgePairs[ edgeIndex ][ 0 ] ];
+        const Vector3 &end = boxCornersWorldSpace[ edgePairs[ edgeIndex ][ 1 ] ];
+        SVG_DebugDrawLine_TE( start, end, MULTICAST_PVS, false );
+    }
 }
 
 /**
@@ -196,9 +245,86 @@ static const model_t *SVG_SKM_GetEntityModelData( const svg_base_edict_t *target
 }
 
 /**
+*   @brief  Compute player bone local matrices from server-side animation mixer state.
+*   @return True when a valid player pose was built.
+**/
+static bool SVG_SKM_ComputePlayerBoneLocalMatrices( const model_t *modelData, const svg_base_edict_t *target, float outBoneLocalMatrices[ SKM_MAX_BONES ][ 12 ] ) {
+    if ( !modelData || !modelData->skmData || !modelData->skmConfig || !target || !target->client ) {
+        return false;
+    }
+
+    const skm_model_t *skmData = modelData->skmData;
+    if ( !skmData->poses || skmData->num_poses <= 0 || skmData->num_joints <= 0 ) {
+        return false;
+    }
+
+    const sg_skm_animation_mixer_t &animationMixer = target->client->animationMixer;
+
+    skm_transform_t finalPose[ SKM_MAX_BONES ] = { };
+    skm_transform_t currentLowerPose[ SKM_MAX_BONES ] = { };
+    skm_transform_t lastLowerPose[ SKM_MAX_BONES ] = { };
+    skm_transform_t eventLowerPose[ SKM_MAX_BONES ] = { };
+    skm_transform_t eventUpperPose[ SKM_MAX_BONES ] = { };
+
+    auto getLerpedPoseForState = [ & ]( const sg_skm_animation_state_t &inputState, const int32_t rootMotionAxisFlags, skm_transform_t *outPose ) -> bool {
+        sg_skm_animation_state_t state = inputState;
+        int32_t oldFrame = 0;
+        int32_t currentFrame = 0;
+        double backLerp = 0.0;
+
+        const bool finishedOrInvalid = SG_SKM_ProcessAnimationStateForTime( modelData, &state, level.time, &oldFrame, &currentFrame, &backLerp );
+        if ( currentFrame < 0 || oldFrame < 0
+            || currentFrame >= static_cast<int32_t>( skmData->num_frames )
+            || oldFrame >= static_cast<int32_t>( skmData->num_frames ) ) {
+            return false;
+        }
+
+        const float clampedBackLerp = static_cast<float>( std::clamp( backLerp, 0.0, 1.0 ) );
+        const float frontLerp = 1.0f - clampedBackLerp;
+        gi.SKM_ComputeLerpBonePoses( modelData, currentFrame, oldFrame, frontLerp, clampedBackLerp, outPose, 0, rootMotionAxisFlags );
+
+        return !finishedOrInvalid;
+    };
+
+    const bool hasCurrentLowerPose = getLerpedPoseForState( animationMixer.currentBodyStates[ SKM_BODY_LOWER ], SKM_POSE_TRANSLATE_ALL, currentLowerPose );
+    if ( !hasCurrentLowerPose ) {
+        return false;
+    }
+
+    std::memcpy( finalPose, currentLowerPose, sizeof( finalPose ) );
+
+    const bool hasLastLowerPose = getLerpedPoseForState( animationMixer.lastBodyStates[ SKM_BODY_LOWER ], SKM_POSE_TRANSLATE_ALL, lastLowerPose );
+    const skm_bone_node_t *hipsBone = ( modelData->skmConfig->rootBones.hip ? modelData->skmConfig->rootBones.hip : modelData->skmConfig->boneTree );
+    if ( hasLastLowerPose && hipsBone ) {
+        const QMTime blendStart = animationMixer.currentBodyStates[ SKM_BODY_LOWER ].timeStart;
+        const QMTime blendEnd = blendStart + animationMixer.lastBodyStates[ SKM_BODY_LOWER ].timeDuration;
+        const double blendRange = static_cast<double>( blendEnd.Milliseconds() - blendStart.Milliseconds() );
+        const double blendElapsed = static_cast<double>( level.time.Milliseconds() - blendStart.Milliseconds() );
+        const double blendScale = ( blendRange > 0.0 ? std::clamp( blendElapsed / blendRange, 0.0, 1.0 ) : 1.0 );
+        gi.SKM_RecursiveBlendFromBone( finalPose, lastLowerPose, hipsBone, nullptr, 0, blendScale, blendScale );
+    }
+
+    const bool hasEventLowerPose = getLerpedPoseForState( animationMixer.eventBodyState[ SKM_BODY_LOWER ], SKM_POSE_TRANSLATE_Z, eventLowerPose );
+    if ( hasEventLowerPose && hipsBone ) {
+        gi.SKM_RecursiveBlendFromBone( eventLowerPose, finalPose, hipsBone, nullptr, 0, 1.0, 1.0 );
+    }
+
+    const bool hasEventUpperPose = getLerpedPoseForState( animationMixer.eventBodyState[ SKM_BODY_UPPER ], SKM_POSE_TRANSLATE_ALL, eventUpperPose );
+    const skm_bone_node_t *torsoBone = modelData->skmConfig->rootBones.torso;
+    if ( hasEventUpperPose && torsoBone ) {
+        gi.SKM_RecursiveBlendFromBone( eventUpperPose, finalPose, torsoBone, nullptr, 0, 1.0, 1.0 );
+    }
+
+    gi.SKM_TransformBonePosesLocalSpace( skmData, finalPose, nullptr, &outBoneLocalMatrices[ 0 ][ 0 ] );
+    return true;
+}
+
+/**
 *   @brief  Refine a coarse point trace against IQM skeletal hitboxes for the target entity.
 **/
 bool SVG_SkeletalHitboxes_RefinePointTrace( svg_trace_t &trace, const Vector3 &shotStart, const Vector3 &shotEnd, const svg_base_edict_t *target ) {
+    SVG_SKM_InitDebugCvars();
+
     /**
     *   Validate target and current coarse trace state before refining.
     **/
@@ -231,14 +357,22 @@ bool SVG_SkeletalHitboxes_RefinePointTrace( svg_trace_t &trace, const Vector3 &s
     const Vector3 localSegmentEnd = SVG_SKM_WorldToEntityPoint( shotEnd, target->currentOrigin, entityForward, entityRight, entityUp );
 
     /**
-    *   Compute local-space per-bone pose matrices for the entity's current frame.
+    *   Compute local-space per-bone pose matrices.
+    *   Players use animation mixer composition, while non-players use direct frame poses.
     **/
-    const int32_t modelFrame = target->s.frame;
-    skm_transform_t relativeBonePoses[ SKM_MAX_BONES ] = { };
     float boneLocalMatrices[ SKM_MAX_BONES ][ 12 ] = { { 0.0f } };
+    bool hasPoseMatrices = false;
 
-	SKM_ComputeLerpBonePoses( modelData, modelFrame, modelFrame, 1.0f, 0.0f, relativeBonePoses, 0, SKM_POSE_TRANSLATE_ALL );
-	SKM_TransformBonePosesLocalSpace( skmData, relativeBonePoses, &boneLocalMatrices[ 0 ][ 0 ] );
+    if ( target->client ) {
+        hasPoseMatrices = SVG_SKM_ComputePlayerBoneLocalMatrices( modelData, target, boneLocalMatrices );
+    }
+
+    if ( !hasPoseMatrices ) {
+        const int32_t modelFrame = target->s.frame;
+        skm_transform_t relativeBonePoses[ SKM_MAX_BONES ] = { };
+        gi.SKM_ComputeLerpBonePoses( modelData, modelFrame, modelFrame, 1.0f, 0.0f, relativeBonePoses, 0, SKM_POSE_TRANSLATE_ALL );
+        gi.SKM_TransformBonePosesLocalSpace( skmData, relativeBonePoses, nullptr, &boneLocalMatrices[ 0 ][ 0 ] );
+    }
 
     /**
     *   Iterate all hitboxes and keep the nearest valid hit.
@@ -246,7 +380,10 @@ bool SVG_SkeletalHitboxes_RefinePointTrace( svg_trace_t &trace, const Vector3 &s
     bool foundHit = false;
     double bestHitT = 1.0;
     int32_t bestHitBodyID = -1;
+    int32_t bestHitboxIndex = -1;
     Vector3 bestWorldNormal = { 0.0f, 0.0f, 1.0f };
+
+    const int32_t debugDrawMode = ( s_svg_skeletal_hitboxes_debug_draw ? s_svg_skeletal_hitboxes_debug_draw->integer : 0 );
 
     for ( uint32_t hitboxIndex = 0; hitboxIndex < skmData->num_hitboxes; hitboxIndex++ ) {
         const skm_hitbox_t &hitbox = skmData->hitboxes[ hitboxIndex ];
@@ -259,6 +396,11 @@ bool SVG_SkeletalHitboxes_RefinePointTrace( svg_trace_t &trace, const Vector3 &s
 
         if ( !SVG_SKM_InvertAffine3x4( boneLocalMatrix, inverseBoneLocalMatrix ) ) {
             continue;
+        }
+
+        if ( debugDrawMode >= 2 ) {
+            SVG_SKM_DebugDrawHitboxWorld( hitbox.localMins, hitbox.localMaxs, boneLocalMatrix,
+                target->currentOrigin, entityForward, entityRight, entityUp );
         }
 
         const Vector3 boneSpaceStart = SVG_SKM_TransformPoint3x4( inverseBoneLocalMatrix, localSegmentStart );
@@ -275,6 +417,7 @@ bool SVG_SkeletalHitboxes_RefinePointTrace( svg_trace_t &trace, const Vector3 &s
             foundHit = true;
             bestHitT = hitT;
             bestHitBodyID = hitbox.hitBodyID;
+            bestHitboxIndex = static_cast<int32_t>( hitboxIndex );
 
             const Vector3 normalEntitySpace = QM_Vector3Normalize( SVG_SKM_TransformDirection3x3( boneLocalMatrix, hitNormalBoneSpace ) );
             bestWorldNormal = QM_Vector3Normalize( SVG_SKM_EntityToWorldDirection( normalEntitySpace, entityForward, entityRight, entityUp ) );
@@ -293,6 +436,14 @@ bool SVG_SkeletalHitboxes_RefinePointTrace( svg_trace_t &trace, const Vector3 &s
     trace.fraction = bestHitT;
     trace.hitBodyID = bestHitBodyID;
     VectorCopy( bestWorldNormal, trace.plane.normal );
+
+    if ( debugDrawMode >= 1 && bestHitboxIndex >= 0 && bestHitboxIndex < static_cast<int32_t>( skmData->num_hitboxes ) ) {
+        const skm_hitbox_t &bestHitbox = skmData->hitboxes[ bestHitboxIndex ];
+        if ( bestHitbox.boneIndex >= 0 && bestHitbox.boneIndex < static_cast<int32_t>( skmData->num_joints ) ) {
+            SVG_SKM_DebugDrawHitboxWorld( bestHitbox.localMins, bestHitbox.localMaxs,
+                boneLocalMatrices[ bestHitbox.boneIndex ], target->currentOrigin, entityForward, entityRight, entityUp );
+        }
+    }
 
     return true;
 }

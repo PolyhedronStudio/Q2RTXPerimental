@@ -193,7 +193,7 @@ static const bool CLG_ETPlayer_GetLerpedAnimationStatePoseForTime( const model_t
         const double frontLerp = 1.0 - animationStateBackLerp;
         const double backLerp = animationStateBackLerp;
         // Lerp the final pose.
-        SKM_LerpBonePoses( model,
+        SG_SKM_LerpBonePoses( model,
             framePose, oldFramePose,
             frontLerp, backLerp,
             outPoseBuffer,
@@ -350,21 +350,21 @@ void CLG_ETPlayer_ApplyBoneControllers( centity_t *packetEntity, const entity_st
         *   Activate them.
         **/
         // Activate 'Hips', bone controller.
-        SKM_BoneController_Activate(
+        SG_SKM_BoneController_Activate(
             &packetEntity->boneControllers[ 0 ],
             hipsBoneNode, hipsBoneTarget,
             hipsTransform, hipsTransform, SKM_BONE_CONTROLLER_TRANSFORM_ROTATION,
             hipsYawSlerpTime, yawChangedTime
         );
         // Activate 'Spine', bone controller.
-        SKM_BoneController_Activate(
+        SG_SKM_BoneController_Activate(
             &packetEntity->boneControllers[ 1 ],
             spineBoneNode, spineBoneTarget,
             spineTransform, spineTransform, SKM_BONE_CONTROLLER_TRANSFORM_ROTATION,
             spineYawSlerpTime, yawChangedTime
         );
         // Activate 'Spine1', bone controller.
-        SKM_BoneController_Activate(
+        SG_SKM_BoneController_Activate(
             &packetEntity->boneControllers[ 2 ],
             spine1BoneNode, spine1BoneTarget,
             spine1Transform, spine1Transform, SKM_BONE_CONTROLLER_TRANSFORM_ROTATION,
@@ -375,7 +375,7 @@ void CLG_ETPlayer_ApplyBoneControllers( centity_t *packetEntity, const entity_st
     /**
     *   Apply the bone controllers to the lerpedBonePoses.
     **/
-    SKM_BoneController_ApplyToPoseForTime( packetEntity->boneControllers, 3, currentTime, lerpedBonePose );
+    SG_SKM_BoneController_ApplyToPoseForTime( packetEntity->boneControllers, 3, currentTime, lerpedBonePose );
 }
 
 /**
@@ -509,7 +509,7 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
         //CLG_ETPlayer_ApplyBoneControllers( packetEntity, nextState, model, finalStatePose, currentLerpedPose, extrapolatedTime );
 
         //SKM_RecursiveBlendFromBone( lastFinalStatePose, finalStatePose, finalStatePose, hipsBone, switchAnimationScaleFactor, switchAnimationScaleFactor );
-        SKM_RecursiveBlendFromBone( finalStatePose, lastFinalStatePose, finalStatePose, hipsBone, switchAnimationScaleFactor, switchAnimationScaleFactor );
+        SG_SKM_RecursiveBlendFromBone( finalStatePose, lastFinalStatePose, finalStatePose, hipsBone, switchAnimationScaleFactor, switchAnimationScaleFactor );
     } else {
         // They are already lerped so..
         #if 0
@@ -528,11 +528,11 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     // If playing, within a valid time range: Override the whole skeleton with the the lower event state pose.
     if ( lowerEventIsPlaying /*&& lowerEventBodyState->timeEnd >= extrapolatedTime */) {
         //memcpy( currentLerpedPose, lowerEventStatePose, SKM_MAX_BONES ); // This is faster if we override from the hips.
-        SKM_RecursiveBlendFromBone( lowerEventStatePose, finalStatePose, finalStatePose, hipsBone, 1, 1 ); // Slower path..
+        SG_SKM_RecursiveBlendFromBone( lowerEventStatePose, finalStatePose, finalStatePose, hipsBone, 1, 1 ); // Slower path..
     }
     // If playing, the upper event state overrides only the spine bone and all its child bones.
     if ( upperEventIsPlaying /*&& upperEventBodyState->timeEnd >= extrapolatedTime*/ ) {
-        SKM_RecursiveBlendFromBone( upperEventStatePose, finalStatePose, finalStatePose, spineBone, 1, 1 );
+        SG_SKM_RecursiveBlendFromBone( upperEventStatePose, finalStatePose, finalStatePose, spineBone, 1, 1 );
     }
 
 
@@ -556,7 +556,7 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     // Local model space final representation matrices.
     static mat3x4 refreshBoneMats[ SKM_MAX_BONES ];
     // Transform.
-    SKM_TransformBonePosesLocalSpace( model->skmData, currentLerpedPose, (float *)&refreshBoneMats[ 0 ] );
+    SG_SKM_TransformBonePosesLocalSpace( model->skmData, currentLerpedPose, (float *)&refreshBoneMats[ 0 ] );
     // Assign final refresh mats.
     refreshEntity->localSpaceBonePose3x4Matrices = (float *)&refreshBoneMats[ 0 ];
     refreshEntity->rootMotionBoneID = 0;

@@ -188,11 +188,11 @@ const bool SG_SKM_SetStateAnimation( const model_t *model, sg_skm_animation_stat
 /**
 *	@brief	Compute "Local/Model-Space" matrices for the given pose transformations.
 **/
-void SKM_TransformBonePosesLocalSpace( const skm_model_t *model, const skm_transform_t *relativeBonePose, float *pose_matrices );
+void SG_SKM_TransformBonePosesLocalSpace( const skm_model_t *model, const skm_transform_t *relativeBonePose, float *pose_matrices );
 /**
 *   @brief
 **/
-void SKM_TransformBonePosesWorldSpace( const skm_model_t *model, const skm_transform_t *relativeBonePose, const skm_bone_controller_t *boneControllers, float *pose_matrices );
+void SG_SKM_TransformBonePosesWorldSpace( const skm_model_t *model, const skm_transform_t *relativeBonePose, const skm_bone_controller_t *boneControllers, float *pose_matrices );
 
 
 
@@ -209,12 +209,12 @@ void SKM_TransformBonePosesWorldSpace( const skm_model_t *model, const skm_trans
 *	@brief	Lerped pose transformations between frameBonePoses and oldFrameBonePoses.
 *			'outBonePose' must have enough room for model->num_poses
 **/
-void SKM_LerpBonePoses( const model_t *model, const skm_transform_t *frameBonePoses, const skm_transform_t *oldFrameBonePoses, const float frontLerp, const float backLerp, skm_transform_t *outBonePose, const int32_t rootMotionBoneID, const int32_t rootMotionAxisFlags );
+void SG_SKM_LerpBonePoses( const model_t *model, const skm_transform_t *frameBonePoses, const skm_transform_t *oldFrameBonePoses, const float frontLerp, const float backLerp, skm_transform_t *outBonePose, const int32_t rootMotionBoneID, const int32_t rootMotionAxisFlags );
 /**
 *	@brief	Lerped pose transformations between frameBonePoses and oldFrameBonePoses.
 *			'outBonePose' must have enough room for model->num_poses
 **/
-void SKM_LerpRangeBonePoses( const model_t * model, const skm_transform_t * frameBonePoses, const skm_transform_t * oldFrameBonePoses, const int32_t rangeStart, const int32_t rangeSize, const float frontLerp, const float backLerp, skm_transform_t * outBonePose, const int32_t rootMotionBoneID, const int32_t rootMotionAxisFlags );
+void SG_SKM_LerpRangeBonePoses( const model_t * model, const skm_transform_t * frameBonePoses, const skm_transform_t * oldFrameBonePoses, const int32_t rangeStart, const int32_t rangeSize, const float frontLerp, const float backLerp, skm_transform_t * outBonePose, const int32_t rootMotionBoneID, const int32_t rootMotionAxisFlags );
 
 
 
@@ -230,7 +230,7 @@ void SKM_LerpRangeBonePoses( const model_t * model, const skm_transform_t * fram
 /**
 *   @brief  Will recursively blend(lerp by lerpfracs/slerp by fraction) the addBonePoses to addToBonePoses starting from the boneNode.
 **/
-void SKM_RecursiveBlendFromBone( const skm_transform_t *addBonePoses, const skm_transform_t *addToBonePoses, skm_transform_t *outBonePoses, const skm_bone_node_t *boneNode, const double backLerp, const double fraction );
+void SG_SKM_RecursiveBlendFromBone( const skm_transform_t *addBonePoses, const skm_transform_t *addToBonePoses, skm_transform_t *outBonePoses, const skm_bone_node_t *boneNode, const double backLerp, const double fraction );
 
 
 
@@ -247,17 +247,17 @@ void SKM_RecursiveBlendFromBone( const skm_transform_t *addBonePoses, const skm_
 *	@brief	Lerped pose transformations between frameBonePoses and oldFrameBonePoses.
 *			'outBonePose' must have enough room for model->num_poses
 **/
-void SKM_LerpBonePoses( const model_t *model, const skm_transform_t *frameBonePoses, const skm_transform_t *oldFrameBonePoses, const float frontLerp, const float backLerp, skm_transform_t *outBonePose, const int32_t rootMotionBoneID, const int32_t rootMotionAxisFlags );
+void SG_SKM_LerpBonePoses( const model_t *model, const skm_transform_t *frameBonePoses, const skm_transform_t *oldFrameBonePoses, const float frontLerp, const float backLerp, skm_transform_t *outBonePose, const int32_t rootMotionBoneID, const int32_t rootMotionAxisFlags );
 /**
 *	@brief	:erped pose transformations between frameBonePoses and oldFrameBonePoses.
 *			'outBonePose' must have enough room for model->num_poses
 **/
-void SKM_LerpRangeBonePoses( const model_t *model, const skm_transform_t *frameBonePoses, const skm_transform_t *oldFrameBonePoses, const int32_t rangeStart, const int32_t rangeSize, const float frontLerp, const float backLerp, skm_transform_t *outBonePose, const int32_t rootMotionBoneID, const int32_t rootMotionAxisFlags );
+void SG_SKM_LerpRangeBonePoses( const model_t *model, const skm_transform_t *frameBonePoses, const skm_transform_t *oldFrameBonePoses, const int32_t rangeStart, const int32_t rangeSize, const float frontLerp, const float backLerp, skm_transform_t *outBonePose, const int32_t rootMotionBoneID, const int32_t rootMotionAxisFlags );
 /**
 *	@brief	Compute lerped pose transformations for the given model's frame/oldFrame.
 *			'outBonePose' must have enough room for model->num_poses
 **/
-void SKM_ComputeLerpBonePoses( const model_t *model, const int32_t frame, const int32_t oldFrame, const float frontLerp, const float backLerp, skm_transform_t *outBonePose, const int32_t rootMotionBoneID, const int32_t rootMotionAxisFlags );
+void SG_SKM_ComputeLerpBonePoses( const model_t *model, const int32_t frame, const int32_t oldFrame, const float frontLerp, const float backLerp, skm_transform_t *outBonePose, const int32_t rootMotionBoneID, const int32_t rootMotionAxisFlags );
 
 
 
@@ -273,10 +273,10 @@ void SKM_ComputeLerpBonePoses( const model_t *model, const int32_t frame, const 
 /**
 *   @brief  Activates the bone controller and (re-)initializes its initial state as well as its imer.
 **/
-void SKM_BoneController_Activate( skm_bone_controller_t *boneController, const skm_bone_node_t *boneNode, const skm_bone_controller_target_t &target, const skm_transform_t *initialTransform, const skm_transform_t *currentTransform, const int32_t transformMask, const QMTime &timeDuration, const QMTime &timeActivated );
+void SG_SKM_BoneController_Activate( skm_bone_controller_t *boneController, const skm_bone_node_t *boneNode, const skm_bone_controller_target_t &target, const skm_transform_t *initialTransform, const skm_transform_t *currentTransform, const int32_t transformMask, const QMTime &timeDuration, const QMTime &timeActivated );
 /**
 *   @brief  Processes and applies the bone controllers to the pose, for the current time.
 *   @note   The pose is expected to be untempered with in any way.
 *           This means that it should contain purely relative blended joints sourced by lerping and recursive blending.
 **/
-void SKM_BoneController_ApplyToPoseForTime( skm_bone_controller_t *boneControllers, const int32_t numBoneControllers, const QMTime &currentTime, skm_transform_t *inOutBonePoses );
+void SG_SKM_BoneController_ApplyToPoseForTime( skm_bone_controller_t *boneControllers, const int32_t numBoneControllers, const QMTime &currentTime, skm_transform_t *inOutBonePoses );

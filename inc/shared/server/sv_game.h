@@ -412,11 +412,12 @@ typedef struct {
     *	@param	addBonePose		The actual animation that you want to blend in on top of inBonePoses.
     *	@param	addToBonePose	A lerped bone pose which we want to blend addBonePoses animation on to.
     **/
-    void ( *SKM_RecursiveBlendFromBone )( const skm_transform_t *addBonePoses, const skm_transform_t *addToBonePoses, skm_transform_t *outBonePoses, const skm_bone_node_t *boneNode, const double backLerp, const double fraction );
+    void ( *SKM_RecursiveBlendFromBone )( const skm_transform_t *addBonePoses, skm_transform_t *addToBonePoses, const skm_bone_node_t *boneNode, const skm_bone_node_t **excludeNodes, const int32_t numExcludeNodes, const double backLerp, const double fraction );
     /**
     *	@brief	Compute "Local/Model-Space" matrices for the given pose transformations.
+    *	@note	Common API includes bone controllers parameter; server side passes null.
     **/
-    void ( *SKM_TransformBonePosesLocalSpace )( const skm_model_t *model, const skm_transform_t *relativeBonePose, float *pose_matrices );
+    void ( *SKM_TransformBonePosesLocalSpace )( const skm_model_t *model, const skm_transform_t *relativeBonePose, const skm_bone_controller_t *boneControllers, float *pose_matrices );
     /**
     *	@brief	Compute "World-Space" matrices for the given pose transformations.
     *			This is generally a slower procedure, but can be used to get the
