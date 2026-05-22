@@ -1,3 +1,4 @@
+
 /********************************************************************
 *
 *
@@ -11,6 +12,149 @@
 #include "clgame/clg_temp_entities.h"
 
 #include "sharedgame/sg_entity_flags.h"
+
+/**
+*\t@brief\tSelect a readable debug color for one skeletal hitbox wireframe.
+*\t@param\thitboxIndex\tCurrent hitbox iteration index.
+*\t@param\thitBodyID\tBody-part identifier from the hitbox definition.
+*\t@note\tAlternating a small palette improves separation when many hitboxes overlap.
+**/
+static uint32_t CLG_DebugColorForMonsterHitbox( const uint32_t hitboxIndex, const int32_t hitBodyID ) {
+    static constexpr uint32_t palette[] = {
+        U32_CYAN,
+        U32_MAGENTA,
+        U32_RED,
+        U32_WHITE,
+        U32_BLUE,
+        U32_GREEN,
+    };
+
+    const uint32_t paletteCount = static_cast<uint32_t>( sizeof( palette ) / sizeof( palette[ 0 ] ) );
+    const uint32_t bodyHash = static_cast<uint32_t>( hitBodyID >= 0 ? hitBodyID : 0 );
+    return palette[ ( hitboxIndex + bodyHash ) % paletteCount ];
+}
+
+
+/**
+*\t@brief\tDraw posed skeletal hitbox boxes for a monster packet entity when the client debug cvar is enabled.
+*\t@param\trefreshEntity\tRefresh entity carrying the current pose state.
+*\t@param\tmodel\tModel resource for the monster entity.
+*\t@note\tThis mirrors the server-side hitbox geometry but stays entirely local to the client render path.
+**/
+static void CLG_DebugDrawMonsterSkeletalHitboxes( const entity_t *refreshEntity, const model_t *model ) {
+    // Sanity: require the debug toggle and the model/pose data needed to build the box corners.
+    if ( !clg_skeletal_hitboxes_debug_draw || !clg_skeletal_hitboxes_debug_draw->integer ) {
+        return;
+    }
+    if ( !refreshEntity || !model || !model->skmData ) {
+        return;
+    }
+
+    const skm_model_t *skmData = model->skmData;
+    if ( skmData->num_hitboxes <= 0 || skmData->num_joints <= 0 || !skmData->poses || skmData->num_poses <= 0 ) {
+        return;
+    }
+
+    // Build the same entity-space basis that the render path uses so the overlay stays aligned to the model.
+    Vector3 entityForward = { 0.0f, 0.0f, 0.0f };
+    Vector3 entityRight = { 0.0f, 0.0f, 0.0f };
+    Vector3 entityUp = { 0.0f, 0.0f, 0.0f };
+    QM_AngleVectors( refreshEntity->angles, &entityForward, &entityRight, &entityUp );
+    // Match renderer AnglesToAxis convention: axis[1] is inverted right vector.
+    entityRight = -entityRight;
+
+    // Recompute the current frame's bone transforms locally so the hitboxes match the displayed animation.
+    static skm_transform_t relativeBonePoses[ SKM_MAX_BONES ] = {};
+    static float boneLocalMatrices[ SKM_MAX_BONES ][ 12 ] = {};
+    SG_SKM_ComputeLerpBonePoses( model, refreshEntity->frame, refreshEntity->oldframe,
+        1.0f - refreshEntity->backlerp, refreshEntity->backlerp, relativeBonePoses,
+        refreshEntity->rootMotionBoneID,
+        refreshEntity->rootMotionFlags );
+    SG_SKM_TransformBonePosesLocalSpace( skmData, relativeBonePoses, &boneLocalMatrices[ 0 ][ 0 ] );
+
+    // Draw every hitbox as a world-space wireframe box so the client can inspect the final posed extents.
+    static constexpr uint8_t edgePairs[ 12 ][ 2 ] = {
+        { 0, 1 }, { 1, 3 }, { 3, 2 }, { 2, 0 },
+        { 4, 5 }, { 5, 7 }, { 7, 6 }, { 6, 4 },
+        { 0, 4 }, { 1, 5 }, { 2, 6 }, { 3, 7 }
+    };
+    for ( uint32_t hitboxIndex = 0; hitboxIndex < skmData->num_hitboxes; hitboxIndex++ ) {
+        const skm_hitbox_t &hitbox = skmData->hitboxes[ hitboxIndex ];
+        if ( hitbox.boneIndex < 0 || hitbox.boneIndex >= (int32_t)skmData->num_joints ) {
+            continue;
+        }
+
+        const uint32_t hitboxColor = CLG_DebugColorForMonsterHitbox( hitboxIndex, hitbox.hitBodyID );
+
+        const Vector3 localMins = Vector3( hitbox.localMins );
+        const Vector3 localMaxs = Vector3( hitbox.localMaxs );
+        const Vector3 localCorners[ 8 ] = {
+            { localMins.x, localMins.y, localMins.z },
+            { localMaxs.x, localMins.y, localMins.z },
+            { localMins.x, localMaxs.y, localMins.z },
+            { localMaxs.x, localMaxs.y, localMins.z },
+            { localMins.x, localMins.y, localMaxs.z },
+            { localMaxs.x, localMins.y, localMaxs.z },
+            { localMins.x, localMaxs.y, localMaxs.z },
+            { localMaxs.x, localMaxs.y, localMaxs.z },
+        };
+
+        const float *boneLocalMatrix = boneLocalMatrices[ hitbox.boneIndex ];
+        Vector3 worldCorners[ 8 ] = {};
+        for ( int32_t cornerIndex = 0; cornerIndex < 8; cornerIndex++ ) {
+            const Vector3 modelPoint = {
+                boneLocalMatrix[ 0 ] * localCorners[ cornerIndex ].x + boneLocalMatrix[ 1 ] * localCorners[ cornerIndex ].y + boneLocalMatrix[ 2 ] * localCorners[ cornerIndex ].z + boneLocalMatrix[ 3 ],
+                boneLocalMatrix[ 4 ] * localCorners[ cornerIndex ].x + boneLocalMatrix[ 5 ] * localCorners[ cornerIndex ].y + boneLocalMatrix[ 6 ] * localCorners[ cornerIndex ].z + boneLocalMatrix[ 7 ],
+                boneLocalMatrix[ 8 ] * localCorners[ cornerIndex ].x + boneLocalMatrix[ 9 ] * localCorners[ cornerIndex ].y + boneLocalMatrix[ 10 ] * localCorners[ cornerIndex ].z + boneLocalMatrix[ 11 ]
+            };
+            worldCorners[ cornerIndex ] = refreshEntity->origin
+                + ( entityForward * modelPoint.x )
+                + ( entityRight * modelPoint.y )
+                + ( entityUp * modelPoint.z );
+        }
+
+        for ( int32_t edgeIndex = 0; edgeIndex < 12; edgeIndex++ ) {
+            clgi.R_DrawDebugLine( &worldCorners[ edgePairs[ edgeIndex ][ 0 ] ].x, &worldCorners[ edgePairs[ edgeIndex ][ 1 ] ].x, hitboxColor );
+        }
+    }
+}
+
+/**
+*\t@brief\tDraw default packet-entity world AABB for monsters while skeletal overlay is enabled.
+*\t@param\tpacketEntity\tMonster packet entity with decoded bounds and lerped origin.
+**/
+static void CLG_DebugDrawMonsterDefaultBounds( const centity_t *packetEntity ) {
+    if ( !clg_skeletal_hitboxes_debug_draw || !clg_skeletal_hitboxes_debug_draw->integer ) {
+        return;
+    }
+    if ( !packetEntity ) {
+        return;
+    }
+
+    if ( packetEntity->current.solid == SOLID_NOT || packetEntity->current.solid == BOUNDS_BRUSHMODEL ) {
+        return;
+    }
+
+    vec3_t worldMins = {};
+    vec3_t worldMaxs = {};
+    worldMins[ 0 ] = packetEntity->lerpOrigin.x + packetEntity->mins.x;
+    worldMins[ 1 ] = packetEntity->lerpOrigin.y + packetEntity->mins.y;
+    worldMins[ 2 ] = packetEntity->lerpOrigin.z + packetEntity->mins.z;
+    worldMaxs[ 0 ] = packetEntity->lerpOrigin.x + packetEntity->maxs.x;
+    worldMaxs[ 1 ] = packetEntity->lerpOrigin.y + packetEntity->maxs.y;
+    worldMaxs[ 2 ] = packetEntity->lerpOrigin.z + packetEntity->maxs.z;
+
+    // Default gameplay collision box in high-contrast yellow.
+    clgi.R_DrawDebugBox( worldMins, worldMaxs, U32_YELLOW );
+
+    // Add two face diagonals so default bounds remain visually distinct from skeletal wireframes.
+    const Vector3 topDiagStart = { worldMins[ 0 ], worldMins[ 1 ], worldMaxs[ 2 ] };
+    const Vector3 topDiagEnd = { worldMaxs[ 0 ], worldMaxs[ 1 ], worldMaxs[ 2 ] };
+    const Vector3 topDiagStart2 = { worldMins[ 0 ], worldMaxs[ 1 ], worldMaxs[ 2 ] };
+    const Vector3 topDiagEnd2 = { worldMaxs[ 0 ], worldMins[ 1 ], worldMaxs[ 2 ] };
+    clgi.R_DrawDebugLine( &topDiagStart.x, &topDiagEnd.x, U32_YELLOW );
+    clgi.R_DrawDebugLine( &topDiagStart2.x, &topDiagEnd2.x, U32_YELLOW );
+}
 
 
 /**
@@ -39,6 +183,7 @@ void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEnti
         Vector3 lerpedOrigin = QM_Vector3Lerp( packetEntity->prev.origin, packetEntity->current.origin, clgi.client->lerpfrac );
         VectorCopy( lerpedOrigin, refreshEntity->origin );
         VectorCopy( refreshEntity->origin, refreshEntity->oldorigin );
+
     }
 
     //
@@ -112,20 +257,27 @@ void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEnti
         //
         // Animation Frame Lerping:
         //
+        // Initialize these every frame so rendering/debug paths never see stale or zeroed root-motion settings.
+        refreshEntity->frame = packetEntity->current_frame;
+        refreshEntity->oldframe = packetEntity->last_frame;
+        refreshEntity->backlerp = 0.0f;
+        refreshEntity->rootMotionBoneID = 0;
+        refreshEntity->rootMotionFlags = SKM_POSE_TRANSLATE_Z | SKM_POSE_TRANSLATE_Y;
+
         if ( !( refreshEntity->model & 0x80000000 ) && packetEntity->last_frame != packetEntity->current_frame ) {
             // Calculate back lerpfraction using clgi.client->time. (40hz.)
             constexpr int32_t animationHz = BASE_FRAMERATE;
             constexpr float animationMs = 1.f / ( animationHz ) * 1000.f;
             refreshEntity->backlerp = 1.f - ( ( clgi.client->time - ( (float)packetEntity->frame_servertime - clgi.client->sv_frametime ) ) / animationMs );
             refreshEntity->backlerp = QM_Clamp( refreshEntity->backlerp, 0.0f, 1.f );
-            refreshEntity->frame = packetEntity->current_frame;
-            refreshEntity->oldframe = packetEntity->last_frame;
-            refreshEntity->rootMotionBoneID = 0;
-            refreshEntity->rootMotionFlags = SKM_POSE_TRANSLATE_Z | SKM_POSE_TRANSLATE_Y;
         }
 
         // Add refresh entity to scene.
         clgi.V_AddEntity( refreshEntity );
+
+        // Draw the same posed hitbox boxes locally for debug validation without involving the server debug-draw channel.
+        CLG_DebugDrawMonsterSkeletalHitboxes( refreshEntity, clgi.R_GetModelDataForHandle( refreshEntity->model ) );
+
     }
     // Model Index #2:
     if ( nextState->modelindex2 ) {
@@ -156,4 +308,7 @@ void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEnti
 
     // skip:
     VectorCopy( refreshEntity->origin, packetEntity->lerpOrigin );
+
+    // Keep default monster collision bounds visible when using the skeletal hitbox overlay.
+    CLG_DebugDrawMonsterDefaultBounds( packetEntity );
 }

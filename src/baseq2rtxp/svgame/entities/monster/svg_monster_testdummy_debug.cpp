@@ -1,3 +1,5 @@
+
+	// Client-side skeletal hitbox overlay now handles this visualization.
 /********************************************************************
 *
 *    ServerGame: TestDummy Debug Monster Edict (A* only) - Implementation
@@ -7,6 +9,7 @@
 #include "svgame/svg_local.h"
 #include "svgame/svg_entity_events.h"
 #include "svgame/svg_misc.h"
+#include "svgame/svg_skeletal_hitboxes.h"
 #include "svgame/svg_trigger.h"
 #include "svgame/svg_utils.h"
 
@@ -210,6 +213,8 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink )( svg_mons
 	if ( DUMMY_NAV_DEBUG != 0 ) {
 		Dummy_DebugLogStateGateInputs( self );
 	}
+
+	// Server-side skeletal hitbox debug rendering was removed in favor of client-side overlays.
 
 	/**
 	*   Dispatch to the active explicit state behavior. (Simple 'state machine'.)

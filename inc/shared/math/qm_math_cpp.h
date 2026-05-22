@@ -342,36 +342,36 @@ struct Vector3 {
         return *this = QM_Vector3DivideValue( *this, right );
     }
 
-    /**
-    *   @brief  Compare each element with s, return vector of 1 or 0 based on test.
-    **/
-    [[nodiscard]] inline constexpr const Vector3 &operator < ( const float &scalar ) {
+	/**
+	*   @brief  Compare each element with s, return vector of 1 or 0 based on test.
+	**/
+	[[nodiscard]] inline constexpr const Vector3 operator < ( const float &scalar ) {
 		return { ( x < scalar ? 1 : 0 ), ( y < scalar ? 1 : 0 ), ( z < scalar ? 1 : 0 ) };
-    }
-    [[nodiscard]] inline constexpr const Vector3 &operator > ( const float &scalar ) {
-        return { ( x > scalar ? 1 : 0 ), ( y > scalar ? 1 : 0 ), ( z > scalar ? 1 : 0 ) };
-    }
+	}
+	[[nodiscard]] inline constexpr const Vector3 operator > ( const float &scalar ) {
+		return { ( x > scalar ? 1 : 0 ), ( y > scalar ? 1 : 0 ), ( z > scalar ? 1 : 0 ) };
+	}
 
-    /**
-    *   @brief  Element-wise less than comparion, return vector of 1 or 0 based on test.
-    **/
-    [[nodiscard]] inline constexpr const Vector3 &operator < ( const Vector3 &v ) {
-        return { ( x < v.x ? 1 : 0 ), ( y < v.y? 1 : 0 ), ( z < v.z ? 1 : 0 ) };
+	/**
+	*   @brief  Element-wise less than comparion, return vector of 1 or 0 based on test.
+	**/
+	[[nodiscard]] inline constexpr const Vector3 operator < ( const Vector3 &v ) {
+		return { ( x < v.x ? 1 : 0 ), ( y < v.y? 1 : 0 ), ( z < v.z ? 1 : 0 ) };
 
-    }
-    /**
-    *   @brief  Element-wise greater than comparion, return vector of 1 or 0 based on test.
-    **/
-    [[nodiscard]] inline constexpr const Vector3 &operator > ( const Vector3 &v ) {
-        return { ( x > v.x ? 1 : 0 ), ( y > v.y ? 1 : 0 ), ( z > v.z ? 1 : 0 ) };
-    }
+	}
+	/**
+	*   @brief  Element-wise greater than comparion, return vector of 1 or 0 based on test.
+	**/
+	[[nodiscard]] inline constexpr const Vector3 operator > ( const Vector3 &v ) {
+		return { ( x > v.x ? 1 : 0 ), ( y > v.y ? 1 : 0 ), ( z > v.z ? 1 : 0 ) };
+	}
 
-    /**
-    *   @brief  Vector3 C++ 'Equals' operator:
-    **/
-    [[nodiscard]] inline const bool operator==( const Vector3 &right ) {
-        return QM_Vector3Equals( *this, right, QM_FLOAT_EPSILON );
-    }
+	/**
+	*   @brief  Vector3 C++ 'Equals' operator:
+	**/
+	[[nodiscard]] inline const bool operator==( const Vector3 &right ) {
+		return QM_Vector3Equals( *this, right, QM_FLOAT_EPSILON );
+	}
     /**
     *   @brief  Vector3 C++ 'Not Equals' operator:
     **/
@@ -380,33 +380,33 @@ struct Vector3 {
     }
     #endif // 0
 
-    /**
-    *   @brief  Compare each element with s, return vector of 1 or 0 based on test.
-    **/
-    [[nodiscard]] inline constexpr const Vector3 &operator < ( const float &scalar ) {
+	/**
+	*   @brief  Compare each element with s, return vector of 1 or 0 based on test.
+	**/
+	[[nodiscard]] inline constexpr const Vector3 operator < ( const float &scalar ) {
 		return { ( x < scalar ? 1 : 0 ), ( y < scalar ? 1 : 0 ), ( z < scalar ? 1 : 0 ) };
-    }
-    [[nodiscard]] inline constexpr const Vector3 &operator > ( const float &scalar ) {
-        return { ( x > scalar ? 1 : 0 ), ( y > scalar ? 1 : 0 ), ( z > scalar ? 1 : 0 ) };
-    }
+	}
+	[[nodiscard]] inline constexpr const Vector3 operator > ( const float &scalar ) {
+		return { ( x > scalar ? 1 : 0 ), ( y > scalar ? 1 : 0 ), ( z > scalar ? 1 : 0 ) };
+	}
 
-    /**
-    *   @brief  Element-wise less than comparion, return vector of 1 or 0 based on test.
-    **/
-    [[nodiscard]] inline constexpr const Vector3 &operator < ( const Vector3 &v ) {
-        return { ( x < v.x ? 1 : 0 ), ( y < v.y? 1 : 0 ), ( z < v.z ? 1 : 0 ) };
+	/**
+	*   @brief  Element-wise less than comparion, return vector of 1 or 0 based on test.
+	**/
+	[[nodiscard]] inline constexpr const Vector3 operator < ( const Vector3 &v ) {
+		return { ( x < v.x ? 1 : 0 ), ( y < v.y? 1 : 0 ), ( z < v.z ? 1 : 0 ) };
 
-    }
-    /**
-    *   @brief  Element-wise greater than comparion, return vector of 1 or 0 based on test.
-    **/
-    [[nodiscard]] inline constexpr const Vector3 &operator > ( const Vector3 &v ) {
-        return { ( x > v.x ? 1 : 0 ), ( y > v.y ? 1 : 0 ), ( z > v.z ? 1 : 0 ) };
-    }
+	}
+	/**
+	*   @brief  Element-wise greater than comparion, return vector of 1 or 0 based on test.
+	**/
+	[[nodiscard]] inline constexpr const Vector3 operator > ( const Vector3 &v ) {
+		return { ( x > v.x ? 1 : 0 ), ( y > v.y ? 1 : 0 ), ( z > v.z ? 1 : 0 ) };
+	}
 
-    /**
-    *  C++ Array like component accessors:
-    **/
+	/**
+	*  C++ Array like component accessors:
+	**/
     [[nodiscard]] inline constexpr const float &operator[]( const size_t i ) const;
     [[nodiscard]] inline constexpr float &operator[]( const size_t i );
 

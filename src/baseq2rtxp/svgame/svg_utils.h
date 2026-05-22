@@ -10,8 +10,12 @@
 
 
 /**
-*	@brief	Server-side debug draw helpers using svc_debug_draw.
-**/
+*
+*
+*	ServerGame: General Utility Functions:
+*
+*
+********************************************************************/
 void SVG_DebugDrawLine_TE( const Vector3 &start, const Vector3 &end, const multicast_t multicastType = MULTICAST_PVS, const bool reliable = true );
 void SVG_DebugDrawBBox_TE( const Vector3 &mins, const Vector3 &maxs, const multicast_t multicastType = MULTICAST_ALL, const bool reliable = true );
 void SVG_DebugDrawCube_TE( const Vector3 &center, const float halfExtent, const multicast_t multicastType = MULTICAST_ALL, const bool reliable = true );

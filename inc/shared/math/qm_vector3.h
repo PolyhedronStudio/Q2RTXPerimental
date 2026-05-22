@@ -250,12 +250,12 @@ QM_API double QM_Vector3Angle( const Vector3 &v1, const Vector3 &v2 ) {
 }
 
 // Divide vector by vector
-[[nodiscard]] constexpr inline const Vector3 &QM_Vector3Divide( const Vector3 &v1, const Vector3 &v2 ) {
+[[nodiscard]] constexpr inline const Vector3 QM_Vector3Divide( const Vector3 &v1, const Vector3 &v2 ) {
     return { v1.x / v2.x, v1.y / v2.y, v1.z / v2.z };
 }
 
 // Q2RTXPerimental: Divide vector by vector
-[[nodiscard]] constexpr inline const Vector3 &QM_Vector3DivideValue( const Vector3 &v1, const float scalar ) {
+[[nodiscard]] constexpr inline const Vector3 QM_Vector3DivideValue( const Vector3 &v1, const float scalar ) {
     return { v1.x / scalar, v1.y / scalar, v1.z / scalar };
 }
 
@@ -483,7 +483,7 @@ QM_API_CONSTEXPR Vector3 QM_Vector3Reflect( const Vector3 &v, const Vector3 &nor
 }
 
 // Get min value for each pair of components
-QM_API_CONSTEXPR Vector3 &QM_Vector3Minf( const Vector3 &v1, const Vector3 &v2 ) {
+QM_API_CONSTEXPR Vector3 QM_Vector3Minf( const Vector3 &v1, const Vector3 &v2 ) {
     return {
         std::fmin( v1.x, v2.x ),
         std::fmin( v1.y, v2.y ),
@@ -492,7 +492,7 @@ QM_API_CONSTEXPR Vector3 &QM_Vector3Minf( const Vector3 &v1, const Vector3 &v2 )
 }
 
 // Get max value for each pair of components
-QM_API_CONSTEXPR Vector3 &QM_Vector3Maxf( const Vector3 &v1, const Vector3 &v2 ) {
+QM_API_CONSTEXPR Vector3 QM_Vector3Maxf( const Vector3 &v1, const Vector3 &v2 ) {
     return {
         std::fmax( v1.x, v2.x ),
         std::fmax( v1.y, v2.y ),
@@ -501,7 +501,7 @@ QM_API_CONSTEXPR Vector3 &QM_Vector3Maxf( const Vector3 &v1, const Vector3 &v2 )
 }
 
 // Get absolute value for each pair of components
-QM_API_CONSTEXPR Vector3 &QM_Vector3Absf( const Vector3 &v ) {
+QM_API_CONSTEXPR Vector3 QM_Vector3Absf( const Vector3 &v ) {
     return {
         std::fabs( v.x ),
         std::fabs( v.y ),
@@ -978,7 +978,7 @@ QM_API Vector3 QM_Vector3Random( void ) {
 QM_API_CONSTEXPR Vector3 operator+( const Vector3 &left, const Vector3 &right ) {
     return QM_Vector3Add( left, right );
 }
-QM_API_CONSTEXPR Vector3 &operator+( const Vector3 &left, const float &right ) {
+QM_API_CONSTEXPR Vector3 operator+( const Vector3 &left, const float &right ) {
     return QM_Vector3AddValue( left, right );
 }
 
@@ -995,10 +995,10 @@ QM_API_CONSTEXPR_DISCARD Vector3 &operator+=( Vector3 &left, const float &right 
 QM_API_CONSTEXPR Vector3 operator-( const Vector3 &left, const Vector3 &right ) {
     return QM_Vector3Subtract( left, right );
 }
-QM_API_CONSTEXPR Vector3 &operator-( const Vector3 &left, const float &right ) {
+QM_API_CONSTEXPR Vector3 operator-( const Vector3 &left, const float &right ) {
     return QM_Vector3SubtractValue( left, right );
 }
-QM_API_CONSTEXPR Vector3 &operator-( const Vector3 &v ) {
+QM_API_CONSTEXPR Vector3 operator-( const Vector3 &v ) {
     return QM_Vector3Negate( v );
 }
 
@@ -1036,7 +1036,7 @@ QM_API_CONSTEXPR_DISCARD Vector3 &operator*=( Vector3 &left, const float &right 
 QM_API_CONSTEXPR Vector3 operator/( const Vector3 &left, const Vector3 &right ) {
     return QM_Vector3Divide( left, right );
 }
-QM_API_CONSTEXPR Vector3 &operator/( const Vector3 &left, const float &right ) {
+QM_API_CONSTEXPR Vector3 operator/( const Vector3 &left, const float &right ) {
     return QM_Vector3DivideValue( left, right );
 }
 

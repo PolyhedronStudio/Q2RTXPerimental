@@ -1,15 +1,13 @@
+
+    // Client-side skeletal hitbox overlay now handles this visualization.
 /********************************************************************
-*
-*    ServerGame: TestDummy Puppet (Straight-Line)
-*    File: svg_monster_testdummy_puppet.cpp
-*    Description:
-*        Minimal test dummy for hitbox debugging. Moves in a straight line
-*        toward a target point, no navigation system required.
+    // Server-side skeletal hitbox debug rendering was removed in favor of client-side overlays.
 *
 ********************************************************************/
 #include "svgame/entities/monster/svg_monster_testdummy_puppet.h"
 #include "svgame/svg_entity_events.h"
 #include "svgame/svg_misc.h"
+#include "svgame/svg_skeletal_hitboxes.h"
 #include "svgame/monsters/svg_mmove.h"
 #include "svgame/monsters/svg_mmove_slidemove.h"
 #include "svgame/player/svg_player_weapon.h"
@@ -316,6 +314,10 @@ DEFINE_MEMBER_CALLBACK_THINK(svg_monster_testdummy_puppet_t, onThink)(svg_monste
         self->nextthink = level.time + FRAME_TIME_MS;
         return;
     }
+
+    /**
+    *   Debug rendering: draw posed skeletal hitbox segments while activated.
+    **/
 
     /**
     *   Acquire the freshest available audible or visible target.
