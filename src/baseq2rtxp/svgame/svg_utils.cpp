@@ -31,6 +31,30 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "sharedgame/sg_misc.h"
 
 
+/**
+*   @brief  Write a world-space vector for `svc_debug_draw` using float components.
+*   @note   Must stay byte-compatible with `CLG_DebugDraw_ReadVec3` on the client.
+**/
+static inline void SVG_DebugDraw_WriteVec3( const Vector3 &value ) {
+    gi.WriteFloat( value.x );
+    gi.WriteFloat( value.y );
+    gi.WriteFloat( value.z );
+}
+
+/**
+*   @brief  Serialize one line primitive payload into the active `svc_debug_draw` message stream.
+**/
+static inline void SVG_DebugDraw_WriteLinePrimitive( const Vector3 &start, const Vector3 &end ) {
+    gi.WriteUint8( static_cast<int32_t>( sg_svc_debug_draw_primitive_type_t::Line ) );
+    gi.WriteInt32( -1 );
+    gi.WriteUint16( SG_SVC_DEBUG_DRAW_STYLE_FLAG_DEPTH_TEST );
+    gi.WriteFloat( 2.0f );
+    gi.WriteFloat( 0.0f );
+    SVG_DebugDraw_WriteVec3( start );
+    SVG_DebugDraw_WriteVec3( end );
+}
+
+
 
 /**
 *	@brief	Emit a single debug-draw line segment (start->end).
@@ -39,13 +63,7 @@ void SVG_DebugDrawLine_TE( const Vector3 &start, const Vector3 &end, const multi
     gi.WriteUint8( svc_debug_draw );
     gi.WriteUint8( SG_SVC_DEBUG_DRAW_VERSION );
     gi.WriteUint16( 1 );
-    gi.WriteUint8( static_cast<int32_t>( sg_svc_debug_draw_primitive_type_t::Line ) );
-    gi.WriteInt32( -1 );
-    gi.WriteUint16( SG_SVC_DEBUG_DRAW_STYLE_FLAG_DEPTH_TEST );
-    gi.WriteFloat( 2.0f );
-    gi.WriteFloat( 0.0f );
-    gi.WritePosition( &start, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-    gi.WritePosition( &end, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+	SVG_DebugDraw_WriteLinePrimitive( start, end );
 	gi.multicast( &start, multicastType, reliable );
 }
 
@@ -723,37 +741,6 @@ const bool SVG_Util_KillBox( svg_base_edict_t *ent, const bool bspClipping, sg_m
     int32_t num = gi.BoxEdicts( &absMin, &absMax, touchedEdicts, MAX_EDICTS, AREA_SOLID );
     
     for ( int32_t i = 0; i < num; i++ ) {
-        #if 0
-        svg_base_edict_t *hit = touchedEdicts[ i ];
-
-        if ( hit == ent )
-            continue;
-		// Will prevent spawn point telefragging if no client is assigned yet.
-        else if ( hit != nullptr && !hit->client && hit->s.entityType == ET_PLAYER )
-            continue;
-        else if ( !hit->inUse || !hit->takedamage || !hit->solid || hit->solid == SOLID_TRIGGER || hit->solid == SOLID_BSP )
-            continue;
-        else if ( hit->client && !( mask & CONTENTS_PLAYER ) )
-            continue;
-
-        if ( ( ent->solid == SOLID_BSP || ( ent->svFlags & SVF_HULL ) ) && bspClipping ) {
-            svg_trace_t clip = gi.clip( ent, hit->s.origin, hit->mins, hit->maxs, hit->s.origin, SVG_GetClipMask( hit ) );
-
-            if ( clip.fraction == 1.0f )
-                continue;
-        }
-
-        // [Paril-KEX] don't allow telefragging of friends in coop.
-        // the player that is about to be telefragged will have collision
-        // disabled until another time.
-        //if ( ent->client && hit->client && coop->integer ) {
-        //    hit->clipMask &= ~CONTENTS_PLAYER;
-        //    ent->clipMask &= ~CONTENTS_PLAYER;
-        //    continue;
-        //}
-
-        SVG_DamageEntity( hit, ent, ent, vec3_origin, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, meansOfDeath );
-        #else
         // Pointer to touched entity.
         svg_base_edict_t *hit = touchedEdicts[ i ];
         // Make sure its valid.
@@ -806,7 +793,6 @@ const bool SVG_Util_KillBox( svg_base_edict_t *ent, const bool bspClipping, sg_m
         if ( hit->solid ) {
             return false;
         }
-        #endif
     }
 
     return true;        // all clear

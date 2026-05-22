@@ -302,5 +302,6 @@ void SVG_MMove_FaceIdealYaw( svg_base_edict_t *ent, const float idealYaw, const 
 	// AngleMod the final resulting angles.
 	ent->currentAngles[ YAW ] = QM_AngleMod( currentYawAngle + yawAngleMove );
 
-	//SVG_Util_SetEntityAngles( ent, ent->currentAngles, true );
+	// Keep render/network state synchronized with the authoritative currentAngles update.
+	SVG_Util_SetEntityAngles( ent, ent->currentAngles, true );
 }

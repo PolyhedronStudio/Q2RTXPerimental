@@ -3856,8 +3856,11 @@ R_Init_RTX(bool total)
 	cvar_tm_blend_enable = Cvar_Get("tm_blend_enable", "1", CVAR_ARCHIVE);
 
 	// Render authored/generated IQM hitbox meshes for debugging when enabled.
+	#ifdef _DEBUG
+	cvar_r_drawHitboxMeshes = Cvar_Get("r_drawHitboxMeshes", "1", 0);
+	#else
 	cvar_r_drawHitboxMeshes = Cvar_Get("r_drawHitboxMeshes", "0", 0);
-
+	#endif
 	drs_init();
 	vkpt_fsr_init_cvars();
 

@@ -973,7 +973,7 @@ int MOD_LoadIQM_Base(model_t* model, const void* rawdata, size_t length, const c
 				hitbox->sourceType = SKM_HITBOX_SOURCE_AUTHORED;
 				hitbox->flags = SKM_HITBOX_FLAG_AUTHORED;
 				hitbox->sampleCount = mesh->num_vertexes;
-				hitbox->sampleWeightSum = 255.0f;
+				hitbox->sampleWeightSum = (float)mesh->num_vertexes;
 
 				if (boneIndex >= 0 && boneIndex < IQM_MAX_JOINTS)
 				{
@@ -1036,7 +1036,7 @@ int MOD_LoadIQM_Base(model_t* model, const void* rawdata, size_t length, const c
 				}
 
 				boneSampleCount[dominantBone]++;
-				boneSampleWeightSum[dominantBone] += dominantWeight;
+				boneSampleWeightSum[dominantBone] += 1.0f;
 			}
 
 			for (uint32_t bone_idx = 0; bone_idx < iqmData->num_joints; bone_idx++)

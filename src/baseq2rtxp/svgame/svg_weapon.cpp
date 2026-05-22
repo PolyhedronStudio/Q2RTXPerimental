@@ -31,6 +31,64 @@ static cvar_t *s_svg_skeletal_hitboxes = nullptr;
 static cvar_t *s_svg_skeletal_hitboxes_debug = nullptr;
 
 /**
+*   @brief  Query damageable candidates and return the nearest exact skeletal-hitbox hit.
+*   @param  start          World-space segment start.
+*   @param  end            World-space segment end.
+*   @param  passEntity     Entity to ignore.
+*   @param  maxFraction    Upper bound for accepted hit fraction (used to stay in front of world hits).
+*   @param  outTrace       [out] Best matching fallback trace.
+*   @return True when a candidate skeletal-hitbox hit is found.
+**/
+static bool SVG_TraceBullet_FindAnimatedEnvelopeCandidate( const Vector3 &start, const Vector3 &end, const svg_base_edict_t *passEntity, const float maxFraction, svg_trace_t *outTrace ) {
+    if ( !outTrace ) {
+        return false;
+    }
+
+    bool foundHit = false;
+    svg_trace_t bestTrace = {};
+    bestTrace.fraction = maxFraction;
+
+    // Scan active edicts directly because BoxEdicts broadphase is keyed by coarse abs bounds,
+    // which can miss true animated protrusions outside those bounds.
+    for ( int32_t i = 1; i < g_edict_pool.num_edicts; i++ ) {
+        svg_base_edict_t *candidate = g_edict_pool.EdictForNumber( i );
+        if ( !candidate || !candidate->inUse ) {
+            continue;
+        }
+        if ( candidate == passEntity ) {
+            continue;
+        }
+        if ( candidate->solid == SOLID_NOT ) {
+            continue;
+        }
+        if ( candidate->takedamage < DAMAGE_YES ) {
+            continue;
+        }
+
+        svg_trace_t candidateTrace = {};
+        if ( !SVG_SkeletalHitboxes_RefinePointTrace( candidateTrace, start, end, candidate ) ) {
+            continue;
+        }
+
+        if ( candidateTrace.fraction >= maxFraction ) {
+            continue;
+        }
+
+        if ( !foundHit || candidateTrace.fraction < bestTrace.fraction ) {
+            foundHit = true;
+            bestTrace = candidateTrace;
+        }
+    }
+
+    if ( !foundHit ) {
+        return false;
+    }
+
+    *outTrace = bestTrace;
+    return true;
+}
+
+/**
 *   @brief  Register and cache cvars used by the skeletal bullet trace path.
 **/
 static void SVG_InitSkeletalHitboxTraceCvars() {
@@ -71,6 +129,9 @@ static svg_trace_t SVG_TraceBullet( const Vector3 &start, const Vector3 &end, co
 
     const Vector3 shotDirection = segment * static_cast<float>( 1.0 / segmentLength );
 
+    // Keep the original pass-entity (shooter/self) separate from retrace pass entities.
+    const svg_base_edict_t *originalPassEntity = passEntity;
+
     Vector3 currentStart = start;
     const svg_base_edict_t *currentPass = passEntity;
     static constexpr int32_t maxCoarseMissSkips = 8;
@@ -83,6 +144,13 @@ static svg_trace_t SVG_TraceBullet( const Vector3 &start, const Vector3 &end, co
 
         // Nothing hit or world-only result, no refinement work required.
         if ( lastTrace.fraction >= 1.0f || !lastTrace.ent ) {
+            svg_trace_t animatedOnlyTrace = {};
+            if ( SVG_TraceBullet_FindAnimatedEnvelopeCandidate( currentStart, end, originalPassEntity, lastTrace.fraction, &animatedOnlyTrace ) ) {
+                if ( s_svg_skeletal_hitboxes_debug && s_svg_skeletal_hitboxes_debug->integer > 0 ) {
+                    gi.dprintf( "%s: skeletal candidate hit on ent(#%i)\n", __func__, animatedOnlyTrace.entityNumber );
+                }
+                return animatedOnlyTrace;
+            }
             return lastTrace;
         }
 
@@ -112,6 +180,15 @@ static svg_trace_t SVG_TraceBullet( const Vector3 &start, const Vector3 &end, co
             }
 
             continue;
+        }
+
+        // For world/other non-damageable blockers, still allow an earlier animated candidate to win.
+        svg_trace_t animatedOnlyTrace = {};
+        if ( SVG_TraceBullet_FindAnimatedEnvelopeCandidate( currentStart, end, originalPassEntity, lastTrace.fraction, &animatedOnlyTrace ) ) {
+            if ( s_svg_skeletal_hitboxes_debug && s_svg_skeletal_hitboxes_debug->integer > 0 ) {
+                gi.dprintf( "%s: skeletal candidate hit on ent(#%i) before blocker\n", __func__, animatedOnlyTrace.entityNumber );
+            }
+            return animatedOnlyTrace;
         }
 
         return lastTrace;

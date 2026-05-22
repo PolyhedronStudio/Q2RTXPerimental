@@ -1,12 +1,10 @@
-/********************************************************************
-*
-*    ServerGame: TestDummy Sound-Follow NPC Edict - Implementation
-*
-********************************************************************/
 
-#include "svgame/svg_local.h"
+	// Client-side skeletal hitbox overlay now handles this visualization.
+/********************************************************************
+	// Server-side skeletal hitbox debug rendering was removed in favor of client-side overlays.
 #include "svgame/svg_entity_events.h"
 #include "svgame/svg_misc.h"
+#include "svgame/svg_skeletal_hitboxes.h"
 #include "svgame/svg_trigger.h"
 #include "svgame/svg_utils.h"
 
@@ -582,6 +580,13 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_sfxfollow_t, onThink )( svg_
 	**/
 	if ( DUMMY_NAV_DEBUG != 0 ) {
 		Dummy_DebugLogStateGateInputs( self );
+	}
+
+	/**
+	*   Debug rendering: draw posed skeletal hitbox segments only while activated.
+	**/
+	if ( self->isActivated ) {
+		// Server-side skeletal hitbox debug rendering was removed in favor of client-side overlays.
 	}
 
 	/**
