@@ -162,12 +162,15 @@ static void SV_EmitPacketEntities( client_t *client,
                         fallback_oldent = &nullEntityState;
                     }
                 } else {
-                    // Missing chunk pointer: log once
-                    if ( !baseline_oob_logged ) {
-                        Com_DPrintf( "%s: missing baseline chunk for newnum=%d baselineIndex=%u (falling back to nullEntityState)\n",
-                            client->name[ 0 ] ? client->name : "<unknown>", newnum, baselineIndex );
-                        baseline_oob_logged = true;
-                    }
+                    // // Missing chunk pointer: log once
+                    // if ( !baseline_oob_logged ) {
+                    //     Com_DPrintf( "%s: missing baseline chunk for newnum=%d baselineIndex=%u (falling back to nullEntityState)\n",
+                    //         client->name[ 0 ] ? client->name : "<unknown>", newnum, baselineIndex );
+                    //     baseline_oob_logged = true;
+                    // }
+                    // fallback_oldent = &nullEntityState;
+                    
+                    // Missing chunk is expected with sparse baseline allocation for entities that did not exist at map baseline creation.
                     fallback_oldent = &nullEntityState;
                 }
             } else {

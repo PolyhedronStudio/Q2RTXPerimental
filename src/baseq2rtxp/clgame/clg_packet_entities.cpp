@@ -352,6 +352,9 @@ void CLG_AddPacketEntities( void ) {
     **/
 	// Convert the predicted player_state_t into an entity_state_t for the predicted client entity.
 	SG_PlayerStateToEntityState( clgi.client->clientNumber, &game.predictedState.currentPs, &game.predictedEntity.current, true, false );
+    // Keep predicted collision bounds synchronized for ET_PLAYER render/bounds debug alignment.
+    game.predictedEntity.mins = game.predictedState.mins;
+    game.predictedEntity.maxs = game.predictedState.maxs;
     // Backup a possible pointer to an already allocated cache so we can reapply it.
     skm_transform_t *bonePoses = game.predictedEntity.refreshEntity.bonePoses;
     // Setup the refresh entity ID to match that of the client game entity with the RESERVED_ENTITY_COUNT in mind.
@@ -370,6 +373,13 @@ void CLG_AddPacketEntities( void ) {
     for ( int32_t frameEntityNumber = 0; frameEntityNumber < clgi.client->frame.numEntities; frameEntityNumber++ ) {
 		// Get the new received, to be 'next', entity state.
         entity_state_t *nextState = &clgi.client->entityStates[ ( clgi.client->frame.firstEntity + frameEntityNumber ) & PARSE_ENTITIES_MASK ];
+
+        // The predicted local player entity is already submitted above. Rendering the server snapshot
+        // again would double-submit the same player with a second origin basis and duplicate debug bounds.
+        if ( nextState->number == clgi.client->frame.ps.clientNumber + 1 ) {
+            continue;
+        }
+
 		// Get the packet entity corresponding to the new state.
         centity_t *packetEntity = &clg_entities[ nextState->number ];
 

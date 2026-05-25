@@ -1127,11 +1127,13 @@ svg_base_edict_t *svg_gamemode_deathmatch_t::SelectFarthestDeathmatchSpawnPoint(
 *			the next level to play. After which it will spawn a TargetChangeLevel entity.
 **/
 void svg_gamemode_deathmatch_t::EndDeathMatch() {
-	svg_base_edict_t *ent;
-	char *s, *t, *f;
+	// For finding the intermission spot.
+	svg_base_edict_t *intermissionSpotEntity = nullptr;
+	char *s = nullptr, *t = nullptr, *f = nullptr;
+	// Acceptable separators for parsing the map list.
 	static const char *seps = " ,\n\r";
 
-	// stay on same level flag
+	// Stay on same level flag
 	if ( (int)dmflags->value & DF_SAME_LEVEL ) {
 		SVG_HUD_BeginIntermission( CreateTargetChangeLevel( level.mapname ) );
 		return;
@@ -1139,43 +1141,64 @@ void svg_gamemode_deathmatch_t::EndDeathMatch() {
 
 	// see if it's in the map list
 	if ( *sv_maplist->string ) {
+		// Go through the list and find the current level, then go to the next one.
 		s = strdup( sv_maplist->string );
-		f = NULL;
+		// First one in the list, in case we need to loop around to it.
+		f = nullptr;
+		// Tokenize the map list.
 		t = strtok( s, seps );
-		while ( t != NULL ) {
+		// Go through the list.
+		while ( t != nullptr ) {
+			// Check if the current level is in the list.
 			if ( Q_stricmp( t, level.mapname ) == 0 ) {
-				// it's in the list, go to the next one
-				t = strtok( NULL, seps );
-				if ( t == NULL ) { // end of list, go to first one
-					if ( f == NULL ) {// there isn't a first one, same level
+				// It is in the list, so tokenize to the next one in the list.
+				t = strtok( nullptr, seps );
+				// The current level is the last one in the list, so go to the first one.
+				if ( t == nullptr ) {
+					// There isn't a first one in the list, so just go to the current level again.
+					if ( f == nullptr ) {
+						// No first one in the list, and no next one in the list, so just go to the current level again.
 						SVG_HUD_BeginIntermission( CreateTargetChangeLevel( level.mapname ) );
 					} else {
+						// Go to the first one in the list.
 						SVG_HUD_BeginIntermission( CreateTargetChangeLevel( f ) );
 					}
+				// Go to the next one in the list.
 				} else {
+					// Go to the next one in the list.
 					SVG_HUD_BeginIntermission( CreateTargetChangeLevel( t ) );
 				}
+				// We found the current level in the list and have initiated the intermission, so we can free the duplicated string and return.
 				free( s );
 				return;
 			}
+			// The current level isn't in the list, so keep going through the list.
 			if ( !f ) {
+				// This is the first one in the list, so remember it in case we need to loop around to it.
 				f = t;
 			}
+			// Tokenize to the next one in the list.
 			t = strtok( NULL, seps );
 		}
+		// Free the duplicated string.
 		free( s );
 	}
 
-	if ( level.nextmap[ 0 ] ) {// go to a specific map
+	// Nextmap has been set, which is a dominator, so go to that:
+	if ( level.nextmap[ 0 ] ) {
+		// Go to a specific map.
 		SVG_HUD_BeginIntermission( CreateTargetChangeLevel( level.nextmap ) );
-	} else {  // search for a changelevel
-		ent = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, classname ), "target_changelevel" );
-		if ( !ent ) {
-			// the map designer didn't include a changelevel,
-			// so create a fake ent that goes back to the same level
+	// Otherwise search for a changelevel entity:
+	} else {
+		// Search for a target_changelevel entity to use as intermission spot.
+		intermissionSpotEntity = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, classname ), "target_changelevel" );
+		// The map designer didn't include a changelevel
+		if ( !intermissionSpotEntity ) {
+			// So we resort to creating an in-frame fake entity that'll reload the same level.
 			SVG_HUD_BeginIntermission( CreateTargetChangeLevel( level.mapname ) );
 			return;
 		}
-		SVG_HUD_BeginIntermission( ent );
+		// Go to the map specified in the target_changelevel's target.
+		SVG_HUD_BeginIntermission( intermissionSpotEntity );
 	}
 }

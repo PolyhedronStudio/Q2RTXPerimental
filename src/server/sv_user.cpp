@@ -43,6 +43,13 @@ static int      stringCmdCount;
 *   @brief  Entity baselines are used to compress the update messages
 *           to the clients -- only the fields that differ from the
 *           baseline will be transmitted.
+*
+*   @note   Getting output such as “missing baseline chunk for newnum=177 baselineIndex=2” can occure,
+*           Reason:
+*
+*           Baselines are sparsely allocated in sv_user.cpp:80, 
+*           so newly spawned dynamic/temp entities can legitimately
+*           have no baseline chunk and should delta from null state.
 **/
 static void SV_CreateBaselines(void) {
 	// Used for baseline chunk allocation.

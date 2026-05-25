@@ -72,6 +72,27 @@ static Vector3 SVG_SKM_EntityToWorldPoint( const Vector3 &entityPoint, const Vec
 }
 
 /**
+*   @brief  Resolve the model-space origin used for skeletal hitbox queries.
+*   @param  target Entity being tested.
+*   @return World-space model origin aligned with the model/root space used by hitboxes.
+*   @note   Player skeletal roots are offset relative to gameplay origin by mins.z. Without this
+*           offset, server hit tests appear shifted upward by roughly half player height.
+**/
+static Vector3 SVG_SKM_GetModelOriginForHitboxTrace( const svg_base_edict_t *target ) {
+	if ( !target ) {
+		return {};
+	}
+
+	Vector3 modelOrigin = target->currentOrigin;
+
+	if ( target && target->client ) {
+		modelOrigin[ 2 ] += target->mins[ 2 ];
+	}
+
+	return modelOrigin;
+}
+
+/**
 *   @brief  Transform a point by a row-major affine 3x4 matrix.
 **/
 static Vector3 SVG_SKM_TransformPoint3x4( const float *matrix3x4, const Vector3 &point ) {
@@ -250,9 +271,10 @@ bool SVG_SkeletalHitboxes_RefinePointTrace( svg_trace_t &trace, const Vector3 &s
 	QM_AngleVectors( target->currentAngles, &entityForward, &entityRight, &entityUp );
 	// Match renderer AnglesToAxis convention: axis[1] is inverted right vector.
 	entityRight = -entityRight;
+	const Vector3 modelOrigin = SVG_SKM_GetModelOriginForHitboxTrace( target );
 
-	const Vector3 localShotStart = SVG_SKM_WorldToEntityPoint( shotStart, target->currentOrigin, entityForward, entityRight, entityUp );
-	const Vector3 localShotEnd = SVG_SKM_WorldToEntityPoint( shotEnd, target->currentOrigin, entityForward, entityRight, entityUp );
+	const Vector3 localShotStart = SVG_SKM_WorldToEntityPoint( shotStart, modelOrigin, entityForward, entityRight, entityUp );
+	const Vector3 localShotEnd = SVG_SKM_WorldToEntityPoint( shotEnd, modelOrigin, entityForward, entityRight, entityUp );
 
 	const int32_t rawCurrentFrame = target->s.frame;
 	const int32_t rawOldFrame = target->s.old_frame;
@@ -477,9 +499,32 @@ bool SVG_SkeletalHitboxes_TracePointAgainstAnimatedBounds( svg_trace_t &trace, c
 		return false;
 	}
 
+	/**
+	*   Convert world segment into entity-local model space using renderer-parity basis.
+	**/
+	Vector3 entityForward = { 0.0f, 0.0f, 0.0f };
+	Vector3 entityRight = { 0.0f, 0.0f, 0.0f };
+	Vector3 entityUp = { 0.0f, 0.0f, 0.0f };
+	QM_AngleVectors( target->currentAngles, &entityForward, &entityRight, &entityUp );
+	// Match renderer AnglesToAxis convention: axis[1] is inverted right vector.
+	entityRight = -entityRight;
+	const Vector3 modelOrigin = SVG_SKM_GetModelOriginForHitboxTrace( target );
+	const Vector3 modelOriginShiftLocal = SVG_SKM_WorldToEntityPoint( target->currentOrigin, modelOrigin, entityForward, entityRight, entityUp );
+
+	const Vector3 localShotStart = SVG_SKM_WorldToEntityPoint( shotStart, modelOrigin, entityForward, entityRight, entityUp );
+	const Vector3 localShotEnd = SVG_SKM_WorldToEntityPoint( shotEnd, modelOrigin, entityForward, entityRight, entityUp );
+
 	// Require real expansion beyond the coarse collision hull; otherwise this fallback is just re-accepting bbox hits.
-	const float coarseMins[ 3 ] = { target->mins.x, target->mins.y, target->mins.z };
-	const float coarseMaxs[ 3 ] = { target->maxs.x, target->maxs.y, target->maxs.z };
+	const float coarseMins[ 3 ] = {
+		target->mins.x + modelOriginShiftLocal.x,
+		target->mins.y + modelOriginShiftLocal.y,
+		target->mins.z + modelOriginShiftLocal.z,
+	};
+	const float coarseMaxs[ 3 ] = {
+		target->maxs.x + modelOriginShiftLocal.x,
+		target->maxs.y + modelOriginShiftLocal.y,
+		target->maxs.z + modelOriginShiftLocal.z,
+	};
 	static constexpr float expansionEpsilon = 0.05f;
 	const bool hasAnimatedExpansion =
 		( envelopeMins[ 0 ] < ( coarseMins[ 0 ] - expansionEpsilon ) ) ||
@@ -491,19 +536,6 @@ bool SVG_SkeletalHitboxes_TracePointAgainstAnimatedBounds( svg_trace_t &trace, c
 	if ( !hasAnimatedExpansion ) {
 		return false;
 	}
-
-	/**
-	*   Convert world segment into entity-local model space using renderer-parity basis.
-	**/
-	Vector3 entityForward = { 0.0f, 0.0f, 0.0f };
-	Vector3 entityRight = { 0.0f, 0.0f, 0.0f };
-	Vector3 entityUp = { 0.0f, 0.0f, 0.0f };
-	QM_AngleVectors( target->currentAngles, &entityForward, &entityRight, &entityUp );
-	// Match renderer AnglesToAxis convention: axis[1] is inverted right vector.
-	entityRight = -entityRight;
-
-	const Vector3 localShotStart = SVG_SKM_WorldToEntityPoint( shotStart, target->currentOrigin, entityForward, entityRight, entityUp );
-	const Vector3 localShotEnd = SVG_SKM_WorldToEntityPoint( shotEnd, target->currentOrigin, entityForward, entityRight, entityUp );
 
 	/**
 	*   Segment vs animated-envelope test.

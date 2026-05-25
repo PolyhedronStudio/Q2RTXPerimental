@@ -342,8 +342,8 @@ void CLG_CalculateViewValues( void ) {
         //VectorCopy( clgi.client->refdef.vieworg, game.predictedState.currentPs.pmove.origin );
         //VectorCopy( game.predictedState.currentPs.pmove.origin, clgi.client->refdef.vieworg );
 
-		// Ensure predicted state origin and currentPs origin are the same as refdef vieworg.
-        game.predictedState.origin = game.predictedState.currentPs.pmove.origin = clgi.client->refdef.vieworg;
+        // Ensure predicted state origin and currentPs origin remain body-space feet origins.
+        game.predictedState.origin = game.predictedState.currentPs.pmove.origin = viewOrg;
 
         #if 0
         clgi.client->refdef.vieworg[ 2 ] -= ops->pmove.origin.z;

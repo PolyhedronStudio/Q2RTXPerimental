@@ -136,16 +136,19 @@ void SG_PlayerStateToEntityState( const int32_t clientNumber, player_state_t *pl
 * 			Used for special cases where we need more control over the entity state setup:
 *			(e.g.: When creating pending temporary entities for PMove.)
 **/
-void SG_PlayerStateToMinimalEntityState( const int32_t clientNumber, player_state_t *playerState, entity_state_t *entityState, const bool snapOrigin ) {
-	#if 0
-		/**
-		*	Entity Number: Expected to match, otherwise rectified.
-		**/
-		// In case not, set it here.
-		const int32_t psClientNumber = playerState->clientNumber;
-		// The expected entity number.
-		const int32_t clientEntityNumber = psClientNumber + 1;
-		// Inspect it for discrepancy and if so, warn and then correct it.:
+void SG_PlayerStateToMinimalEntityState( const int32_t clientNumber, player_state_t *playerState, entity_state_t *entityState, const bool snapOrigin, const bool enforceClientEntityNumber ) {
+	/**
+	*	Entity Number:
+	*	By default expected to match the client entity slot and rectified if not.
+	*	Callers may opt out for temporary entities that intentionally use a different number.
+	**/
+	// Determine expected local player entity number for this client.
+	const int32_t psClientNumber = clientNumber;
+	// Expected client-owned player entity number.
+	const int32_t clientEntityNumber = psClientNumber + 1;
+	// Enforce number only for regular player entity conversion paths.
+	if ( enforceClientEntityNumber ) {
+		// Inspect it for discrepancy and if so, warn and then correct it.
 		if ( entityState->number != clientEntityNumber ) {
 			// Debug print.
 			SG_DPrintf( "%s: Correcting entityState number from %d to %d for client %d\n",
@@ -153,25 +156,20 @@ void SG_PlayerStateToMinimalEntityState( const int32_t clientNumber, player_stat
 			// Set it.
 			entityState->number = clientEntityNumber;
 		}
+	}
 
-		/**
-		*	Skin Client Number Encoding:
-		**/
-		// Encode into some client information into entity state its skin number.
-		encoded_skinnum_t previousSkinNum = static_cast<encoded_skinnum_t>( entityState->skinnum );
-		// (Re-)Encode the skin number, preserving the view weapon index and view height if 
-		entityState->skinnum = encoded_skinnum_t{
-			// Set the client number.
-			.clientNumber = (int16_t)psClientNumber,
-			//! Set the view weapon index.
-			.viewWeaponIndex = (uint8_t)playerState->gun.modelIndex,
-			//! Set the view height.
-			.viewHeight = (int8_t)playerState->pmove.viewheight,
-		}.skinnum;
-	#else
-		entityState->modelindex = 0;
-		entityState->skinnum = 0;
-	#endif
+	/**
+	*	Skin Client Number Encoding:
+	**/
+	// (Re-)Encode the skin number while keeping client identity and first-person info coherent.
+	entityState->skinnum = encoded_skinnum_t{
+		// Set the client number.
+		.clientNumber = (int16_t)psClientNumber,
+		//! Set the view weapon index.
+		.viewWeaponIndex = (uint8_t)playerState->gun.modelIndex,
+		//! Set the view height.
+		.viewHeight = (int8_t)playerState->pmove.viewheight,
+	}.skinnum;
 
 	/**
 	*	Origin:

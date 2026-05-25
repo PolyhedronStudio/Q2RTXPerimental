@@ -575,61 +575,178 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
 * 
 **/
 /**
+*   @brief  Select a readable debug color for one ET_PLAYER skeletal hitbox wireframe.
+*   @param  hitboxIndex Current hitbox iteration index.
+*   @param  hitBodyID Body-part identifier from the hitbox definition.
+**/
+static uint32_t CLG_DebugColorForPlayerHitbox( const uint32_t hitboxIndex, const int32_t hitBodyID ) {
+    static constexpr uint32_t palette[] = {
+        U32_CYAN,
+        U32_MAGENTA,
+        U32_RED,
+        U32_WHITE,
+        U32_BLUE,
+        U32_GREEN,
+    };
+
+    const uint32_t paletteCount = static_cast<uint32_t>( sizeof( palette ) / sizeof( palette[ 0 ] ) );
+    const uint32_t bodyHash = static_cast<uint32_t>( hitBodyID >= 0 ? hitBodyID : 0 );
+    return palette[ ( hitboxIndex + bodyHash ) % paletteCount ];
+}
+
+/**
+*   @brief  Draw posed skeletal hitboxes for ET_PLAYER entities when the debug cvar is enabled.
+*   @param  refreshEntity Refresh entity carrying current pose state.
+*   @param  model Model resource for the player entity.
+*   @note   Uses the final posed `refreshEntity->bonePoses` so the overlay always matches rendered animation.
+**/
+static void CLG_DebugDrawPlayerSkeletalHitboxes( const entity_t *refreshEntity, const model_t *model ) {
+    if ( !clg_skeletal_hitboxes_debug_draw || !clg_skeletal_hitboxes_debug_draw->integer ) {
+        return;
+    }
+    // Suppress local-player hitbox debug draw while running first-person style model modes.
+    if ( refreshEntity
+        && refreshEntity->id == REFRESHENTITIY_RESERVED_PREDICTED_PLAYER
+        && cl_player_model
+        && cl_player_model->integer <= CL_PLAYER_MODEL_FIRST_PERSON ) {
+        return;
+    }
+    if ( !refreshEntity || !model || !model->skmData || !refreshEntity->bonePoses ) {
+        return;
+    }
+
+    const skm_model_t *skmData = model->skmData;
+    if ( skmData->num_hitboxes <= 0 || skmData->num_joints <= 0 ) {
+        return;
+    }
+
+    Vector3 entityForward = { 0.0f, 0.0f, 0.0f };
+    Vector3 entityRight = { 0.0f, 0.0f, 0.0f };
+    Vector3 entityUp = { 0.0f, 0.0f, 0.0f };
+    QM_AngleVectors( refreshEntity->angles, &entityForward, &entityRight, &entityUp );
+    entityRight = -entityRight;
+
+    static float boneLocalMatrices[ SKM_MAX_BONES ][ 12 ] = {};
+    SG_SKM_TransformBonePosesLocalSpace( skmData, refreshEntity->bonePoses, &boneLocalMatrices[ 0 ][ 0 ] );
+
+    static constexpr uint8_t edgePairs[ 12 ][ 2 ] = {
+        { 0, 1 }, { 1, 3 }, { 3, 2 }, { 2, 0 },
+        { 4, 5 }, { 5, 7 }, { 7, 6 }, { 6, 4 },
+        { 0, 4 }, { 1, 5 }, { 2, 6 }, { 3, 7 }
+    };
+
+    for ( uint32_t hitboxIndex = 0; hitboxIndex < skmData->num_hitboxes; hitboxIndex++ ) {
+        const skm_hitbox_t &hitbox = skmData->hitboxes[ hitboxIndex ];
+        if ( hitbox.boneIndex < 0 || hitbox.boneIndex >= (int32_t)skmData->num_joints ) {
+            continue;
+        }
+
+        const uint32_t hitboxColor = CLG_DebugColorForPlayerHitbox( hitboxIndex, hitbox.hitBodyID );
+
+        const Vector3 localMins = Vector3( hitbox.localMins );
+        const Vector3 localMaxs = Vector3( hitbox.localMaxs );
+        const Vector3 localCorners[ 8 ] = {
+            { localMins.x, localMins.y, localMins.z },
+            { localMaxs.x, localMins.y, localMins.z },
+            { localMins.x, localMaxs.y, localMins.z },
+            { localMaxs.x, localMaxs.y, localMins.z },
+            { localMins.x, localMins.y, localMaxs.z },
+            { localMaxs.x, localMins.y, localMaxs.z },
+            { localMins.x, localMaxs.y, localMaxs.z },
+            { localMaxs.x, localMaxs.y, localMaxs.z },
+        };
+
+        const float *boneLocalMatrix = boneLocalMatrices[ hitbox.boneIndex ];
+        Vector3 worldCorners[ 8 ] = {};
+        for ( int32_t cornerIndex = 0; cornerIndex < 8; cornerIndex++ ) {
+            const Vector3 modelPoint = {
+                boneLocalMatrix[ 0 ] * localCorners[ cornerIndex ].x + boneLocalMatrix[ 1 ] * localCorners[ cornerIndex ].y + boneLocalMatrix[ 2 ] * localCorners[ cornerIndex ].z + boneLocalMatrix[ 3 ],
+                boneLocalMatrix[ 4 ] * localCorners[ cornerIndex ].x + boneLocalMatrix[ 5 ] * localCorners[ cornerIndex ].y + boneLocalMatrix[ 6 ] * localCorners[ cornerIndex ].z + boneLocalMatrix[ 7 ],
+                boneLocalMatrix[ 8 ] * localCorners[ cornerIndex ].x + boneLocalMatrix[ 9 ] * localCorners[ cornerIndex ].y + boneLocalMatrix[ 10 ] * localCorners[ cornerIndex ].z + boneLocalMatrix[ 11 ]
+            };
+            worldCorners[ cornerIndex ] = refreshEntity->origin
+                + ( entityForward * modelPoint.x )
+                + ( entityRight * modelPoint.y )
+                + ( entityUp * modelPoint.z );
+        }
+
+        for ( int32_t edgeIndex = 0; edgeIndex < 12; edgeIndex++ ) {
+            clgi.R_DrawDebugLine( &worldCorners[ edgePairs[ edgeIndex ][ 0 ] ].x, &worldCorners[ edgePairs[ edgeIndex ][ 1 ] ].x, hitboxColor );
+        }
+    }
+}
+
+/**
 *   @brief  Type specific routine for LERPing ET_PLAYER origins.
 **/
 void CLG_ETPlayer_LerpOrigin( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *nextState ) {
     // If client entity, use predicted origin instead of Lerped:
     if ( CLG_IsLocalClientEntity( nextState ) ) {
-        #if 0
-            VectorCopy( clgi.client->playerEntityOrigin, refreshEntity->origin );
-            VectorCopy( packetEntity->current.origin, refreshEntity->oldorigin );  // FIXME
-
-            // We actually need to offset the Z axis origin by half the bbox height.
-            Vector3 correctedOrigin = clgi.client->playerEntityOrigin;
-            Vector3 correctedOldOrigin = packetEntity->current.origin;
-            // For being Dead:
-            if ( game.predictedState.currentPs.stats[ STAT_HEALTH ] <= GIB_DEATH_HEALTH ) {
-                correctedOrigin.z += PM_BBOX_GIBBED_MINS.z;
-                correctedOldOrigin.z += PM_BBOX_GIBBED_MINS.z;
-                // For being Ducked:
-            } else if ( game.predictedState.currentPs.pmove.pm_flags & PMF_DUCKED ) {
-                correctedOrigin.z += PM_BBOX_DUCKED_MINS.z;
-                correctedOldOrigin.z += PM_BBOX_DUCKED_MINS.z;
-            } else {
-                correctedOrigin.z += PM_BBOX_STANDUP_MINS.z;
-                correctedOldOrigin.z += PM_BBOX_STANDUP_MINS.z;
-            }
-            VectorCopy( correctedOrigin, refreshEntity->origin );
-            VectorCopy( correctedOldOrigin, refreshEntity->oldorigin );
-        #else
-            // We actually need to offset the Z axis origin by half the bbox height.
-            Vector3 correctedOrigin = clgi.client->playerEntityOrigin;
-            // For being Dead( Gibbed ):
-            if ( game.predictedState.currentPs.stats[ STAT_HEALTH ] <= GIB_DEATH_HEALTH ) {
-                correctedOrigin.z += PM_BBOX_GIBBED_MINS.z;
-            // For being Ducked:
-            } else if ( game.predictedState.currentPs.pmove.pm_flags & PMF_DUCKED ) {
-                correctedOrigin.z += PM_BBOX_DUCKED_MINS.z;
-            } else {
-                correctedOrigin.z += PM_BBOX_STANDUP_MINS.z;
-            }
-
-            // Now apply the corrected origin to our refresh entity.
-            VectorCopy( correctedOrigin, refreshEntity->origin );
-            VectorCopy( refreshEntity->origin, refreshEntity->oldorigin );
-        #endif
+        // Use predicted body origin (pmove origin), not the camera/view origin.
+        // `clgi.client->playerEntityOrigin` is bound to refdef.vieworg and carries view-height.
+        VectorCopy( game.predictedState.currentPs.pmove.origin, refreshEntity->origin );
+        VectorCopy( game.predictedState.lastPs.pmove.origin, refreshEntity->oldorigin );
     // Lerp Origin:
     } else {
         // Lerp origin.
         Vector3 lerpedOrigin = QM_Vector3Lerp( packetEntity->prev.origin, packetEntity->current.origin, clgi.client->lerpfrac );
-        // We actually need to offset the Z axis origin by half the bbox height.
-        Vector3 correctionVector = { 0.f, 0.f, packetEntity->mins[ 2 ] };
-        // Add the correction vector,
-        lerpedOrigin += correctionVector;
         // Assign to refresh entity object.
         VectorCopy( lerpedOrigin, refreshEntity->origin );
         VectorCopy( refreshEntity->origin, refreshEntity->oldorigin );
     }
+}
+
+/**
+*   @brief  Resolve ET_PLAYER render-space origin offset so model/root space stays aligned with collision space.
+*   @param  packetEntity Packet entity with decoded collision mins/maxs for remote players.
+*   @param  nextState Next state used to determine local-vs-remote player path.
+*   @return World-space Z offset to apply to render-origin only.
+*   @note   Keep packetEntity->lerpOrigin in gameplay/body space for bounds debug and tracing.
+**/
+static float CLG_ETPlayer_GetRenderOriginOffsetZ( const centity_t *packetEntity, const entity_state_t *nextState ) {
+    if ( CLG_IsLocalClientEntity( nextState ) ) {
+        // Prefer predicted movement hull mins for the local predicted entity.
+        // This keeps third-person model/root-space aligned with the active PMove bounds.
+        const float predictedHullHeight = game.predictedState.maxs[ 2 ] - game.predictedState.mins[ 2 ];
+        if ( predictedHullHeight > 0.0f ) {
+            return game.predictedState.mins[ 2 ];
+        }
+
+        // Fallback to packet-entity mins if prediction bounds are not yet initialized.
+        if ( packetEntity ) {
+            const float packetHullHeight = packetEntity->maxs[ 2 ] - packetEntity->mins[ 2 ];
+            if ( packetHullHeight > 0.0f ) {
+                return packetEntity->mins[ 2 ];
+            }
+        }
+
+        if ( game.predictedState.currentPs.stats[ STAT_HEALTH ] <= GIB_DEATH_HEALTH ) {
+            return PM_BBOX_GIBBED_MINS.z;
+        }
+        if ( game.predictedState.currentPs.pmove.pm_flags & PMF_DUCKED ) {
+            return PM_BBOX_DUCKED_MINS.z;
+        }
+        return PM_BBOX_STANDUP_MINS.z;
+    }
+
+    if ( packetEntity ) {
+        return packetEntity->mins[ 2 ];
+    }
+
+    return 0.0f;
+}
+
+/**
+*   @brief  Apply ET_PLAYER render-space origin offset to current and previous refresh origins.
+**/
+static void CLG_ETPlayer_ApplyRenderOriginOffset( const centity_t *packetEntity, entity_t *refreshEntity, const entity_state_t *nextState ) {
+    if ( !refreshEntity ) {
+        return;
+    }
+
+    const float renderOffsetZ = CLG_ETPlayer_GetRenderOriginOffsetZ( packetEntity, nextState );
+    refreshEntity->origin[ 2 ] += renderOffsetZ;
+    refreshEntity->oldorigin[ 2 ] += renderOffsetZ;
 }
 /**
 *   @brief  Type specific routine for LERPing ET_PLAYER angles.
@@ -707,6 +824,13 @@ void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntit
     // Special RF_STAIR_STEP lerp for Z axis.
     // 
     CLG_ETPlayer_LerpStairStep( packetEntity, refreshEntity, nextState );
+
+    // Keep packet-entity lerp origin in gameplay/body space. This must happen before
+    // any render-only offsets (e.g. first-person model push-back).
+    VectorCopy( refreshEntity->origin, packetEntity->lerpOrigin );
+
+    // Apply ET_PLAYER model/root-space Z offset only to render-space origins.
+    CLG_ETPlayer_ApplyRenderOriginOffset( packetEntity, refreshEntity, nextState );
 
     //
     // Add Refresh Entity Model:
@@ -810,6 +934,9 @@ void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntit
 
         // Add model.
         clgi.V_AddEntity( refreshEntity );
+
+        // Draw posed ET_PLAYER hitboxes locally for debug validation.
+        CLG_DebugDrawPlayerSkeletalHitboxes( refreshEntity, clgi.R_GetModelDataForHandle( refreshEntity->model ) );
     }
     // Model Index #2:
     if ( nextState->modelindex2 ) {
@@ -867,5 +994,4 @@ void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntit
     }
 
     // skip:
-    VectorCopy( refreshEntity->origin, packetEntity->lerpOrigin );
 }

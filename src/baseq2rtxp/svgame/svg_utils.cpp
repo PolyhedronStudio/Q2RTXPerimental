@@ -486,6 +486,13 @@ svg_base_edict_t *SVG_Util_CreateTempEventEntity( const Vector3 &origin, const s
 	// Setup the duration of the event.
 	tempEventEntity->eventDuration = eventDuration;
 
+    /**
+    *	Temp event entities are meant to be sent over the wire.
+    *	Clear NOCLIENT so SVF_SENDCLIENT_* filters can be used safely by callers.
+    **/
+    // Ensure send-client filtering flags are not conflicting with NOCLIENT.
+    tempEventEntity->svFlags &= ~SVF_NOCLIENT;
+
     // Last but not least, set the origin, link it and return it.
     // Now snap the origin into the entityState_t.
 	// <Q2RTXP>: WID: Use proper snapping function.

@@ -51,4 +51,4 @@ void SG_PlayerStateToEntityState( const int32_t clientNumber, player_state_t *pl
 * 			Used for special cases where we need more control over the entity state setup:
 *			(e.g.: When creating pending temporary entities for PMove.)
 **/
-void SG_PlayerStateToMinimalEntityState( const int32_t clientNumber, player_state_t *playerState, entity_state_t *entityState, const bool snapOrigin );
+void SG_PlayerStateToMinimalEntityState( const int32_t clientNumber, player_state_t *playerState, entity_state_t *entityState, const bool snapOrigin, const bool enforceClientEntityNumber = true );
