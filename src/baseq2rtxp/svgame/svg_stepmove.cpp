@@ -314,9 +314,9 @@ M_ChangeYaw
 void M_ChangeYaw(svg_base_edict_t *ent)
 {
     // Get angle modded angles.
-    const float current = QM_AngleMod(ent->s.angles[YAW]);
+    const double current = QM_AngleMod(ent->s.angles[YAW]);
     // Get ideal desired for yaw angle.
-    const float ideal = ent->ideal_yaw;
+    const double ideal = ent->ideal_yaw;
 
     // If we're already facing ideal yaw, escape.
     if ( current == ideal ) {

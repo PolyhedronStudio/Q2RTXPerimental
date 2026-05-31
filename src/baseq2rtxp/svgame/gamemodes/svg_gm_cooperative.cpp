@@ -574,25 +574,6 @@ void svg_gamemode_cooperative_t::BeginServerFrame( svg_player_edict_t *ent ) {
     }
 
     /**
-    *   Run (+usetarget) logics.
-    **/
-    // Update the (+/-usetarget) key state actions if not done so already by ClientUserThink.
-    if ( client->useTarget.tracedFrameNumber < level.frameNumber && !client->resp.spectator ) {
-        SVG_Player_TraceForUseTarget( ent, client, false );
-    } else {
-        client->useTarget.tracedFrameNumber = level.frameNumber;
-    }
-
-    /**
-    *   Run weapon logic if it hasn't been done by a usercmd_t in ClientThink.
-    **/
-    if ( client->weapon_thunk == false && !client->resp.spectator ) {
-        SVG_Player_Weapon_Think( ent, false );
-    } else {
-        client->weapon_thunk = false;
-    }
-
-    /**
     *   If dead, check for any user input after the client's respawn_time has expired.
     **/
     if ( ent->lifeStatus != LIFESTATUS_ALIVE ) {
@@ -609,19 +590,38 @@ void svg_gamemode_cooperative_t::BeginServerFrame( svg_player_edict_t *ent ) {
             }
         }
         return;
-    }
+	}
 
- /**
-    *   Add player trail so monsters can follow (Q2/Q2RTX behavior).
-    *   Notes:
-    *   - only for non-deathmatch
-    *   - only for alive, non-spectator players
-    *   - only add when player can't see the last trail spot
-    *   - add old position (previous origin), not current
-    **/
-    /**
-    *   Seed trail once so the first breadcrumb is valid.
-    **/
+	/**
+	*   Run (+usetarget) logics.
+	**/
+	// Update the (+/-usetarget) key state actions if not done so already by ClientUserThink.
+	if ( client->useTarget.tracedFrameNumber < level.frameNumber && !client->resp.spectator ) {
+		SVG_Player_TraceForUseTarget( ent, client, false );
+	} else {
+		client->useTarget.tracedFrameNumber = level.frameNumber;
+	}
+
+	/**
+	*   Run weapon logic if it hasn't been done by a usercmd_t in ClientThink.
+	**/
+	if ( client->weapon_thunk == false && !client->resp.spectator ) {
+		SVG_Player_Weapon_Think( ent, false );
+	} else {
+		client->weapon_thunk = false;
+	}
+
+	/**
+	*   Add player trail so monsters can follow (Q2/Q2RTX behavior).
+	*   Notes:
+	*   - only for non-deathmatch
+	*   - only for alive, non-spectator players
+	*   - only add when player can't see the last trail spot
+	*   - add old position (previous origin), not current
+	**/
+	/**
+	*   Seed trail once so the first breadcrumb is valid.
+	**/
 	svg_base_edict_t *lastTrailSpot = PlayerTrail_LastSpot();
 	// Seed trail once so the first breadcrumb is valid. Only add when there is
 	// no previous spot or when the last spot is older than a small interval to

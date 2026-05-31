@@ -907,7 +907,7 @@ void P_Weapon_DeterminePredictableEvents( svg_base_edict_t *ent ) {
 **/
 void SVG_Player_Weapon_Think( svg_base_edict_t *ent, const bool processUserInputOnly ) {
     // If we just died, put the weapon away.
-    if ( ent->health < 1 ) {
+    if ( ent->health <= 0 ) {
         // Select no weapon.
         ent->client->newweapon = nullptr;
         // Apply an instant change since we're dead.
@@ -917,6 +917,9 @@ void SVG_Player_Weapon_Think( svg_base_edict_t *ent, const bool processUserInput
         return;
     }
 
+	// <Q2RTXP>: TODO: Implement weapon changing in a more elegant way. This is just a quick fix to make sure the weapon will be changed when we want it to, 
+	// but it causes some issues with responsiveness and feel since the change will only occur after the weapon think routine is done, 
+	// which can be quite a while if the weapon has a long animation for example.
     #if 0
     if ( !ent->client->pers.weapon ) {
         if ( ent->client->newweapon ) {
@@ -928,8 +931,10 @@ void SVG_Player_Weapon_Think( svg_base_edict_t *ent, const bool processUserInput
     
     // Call active weapon think routine if any at all.
     const bool hasActiveWeapon = ( ent->client->pers.weapon != nullptr ? true : false );
-    const bool hasThinkRoutine = ( hasActiveWeapon && ent->client->pers.weapon->weaponthink != nullptr ? true : false );
-    if ( hasActiveWeapon && hasThinkRoutine ) {
+    const bool hasWeaponThinkRoutine = ( hasActiveWeapon && ent->client->pers.weapon->weaponthink != nullptr ? true : false );
+	// Only perform weapon think if we have an active weapon and it has a think routine.
+    if ( hasActiveWeapon && hasWeaponThinkRoutine ) {
+		// Call the weapon's think routine, which handles things such as firing and reloading.
         ent->client->pers.weapon->weaponthink( ent, processUserInputOnly );
 
         // Determine whether to add player state (predictable-) weapon events.

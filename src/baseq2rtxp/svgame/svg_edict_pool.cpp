@@ -107,7 +107,7 @@ void svg_edict_pool_t::FreeEdict( svg_base_edict_t *ed, const bool forceEvenIfSp
 	const int32_t edictNumber = ed->s.number;
 
 	// Validate.
-	if ( ( edictNumber /*ed - g_edicts*/ ) <= ( maxclients->value + BODY_QUEUE_SIZE ) ) {
+	if ( !forceEvenIfSpecialEntity && ( edictNumber /*ed - g_edicts*/ ) <= ( maxclients->value + BODY_QUEUE_SIZE ) ) {
 		#ifdef _DEBUG
 		gi.dprintf( "tried to free special edict(#%d) within special edict range(%d)\n",
 			edictNumber, maxclients->value + BODY_QUEUE_SIZE );

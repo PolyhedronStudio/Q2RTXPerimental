@@ -65,6 +65,11 @@ static bool SVG_TraceBullet_FindAnimatedEnvelopeCandidate( const Vector3 &start,
             continue;
         }
 
+        // Skip entities that do not support skeletal refinement.
+        if ( !SVG_SkeletalHitboxes_HasRefinableData( candidate ) ) {
+            continue;
+        }
+
         svg_trace_t candidateTrace = {};
         if ( !SVG_SkeletalHitboxes_RefinePointTrace( candidateTrace, start, end, candidate ) ) {
             continue;
@@ -156,6 +161,12 @@ static svg_trace_t SVG_TraceBullet( const Vector3 &start, const Vector3 &end, co
 
         // Refine only damageable entities.
         if ( lastTrace.ent->takedamage >= DAMAGE_YES ) {
+            // Preserve legacy behavior for non-skeletal/static targets (md2/md3 or iqm without usable skeleton data).
+            // Only retrace-through is allowed when this entity can actually be refined against skeletal hitboxes.
+            if ( !SVG_SkeletalHitboxes_HasRefinableData( lastTrace.ent ) ) {
+                return lastTrace;
+            }
+
             svg_trace_t refinedTrace = lastTrace;
             if ( SVG_SkeletalHitboxes_RefinePointTrace( refinedTrace, currentStart, end, lastTrace.ent ) ) {
                 if ( s_svg_skeletal_hitboxes_debug && s_svg_skeletal_hitboxes_debug->integer > 0 ) {

@@ -52,6 +52,35 @@ static const model_t *SVG_SKM_GetEntityModelData( const svg_base_edict_t *target
 }
 
 /**
+*   @brief  Check whether an entity has valid skeletal hitbox data for refinement.
+*   @param  target  Entity to inspect.
+*   @return True when skeletal refinement data is present and usable.
+**/
+bool SVG_SkeletalHitboxes_HasRefinableData( const svg_base_edict_t *target ) {
+	// Require a valid target and resolved model.
+	if ( !target ) {
+		return false;
+	}
+
+	const model_t *modelData = SVG_SKM_GetEntityModelData( target );
+	if ( !modelData || !modelData->skmData ) {
+		return false;
+	}
+
+	const skm_model_t *skmData = modelData->skmData;
+	if ( !skmData->hitboxes || skmData->num_hitboxes == 0 || skmData->num_joints == 0 || !skmData->poses || skmData->num_poses == 0 ) {
+		return false;
+	}
+
+	const int32_t frameCount = static_cast<int32_t>( skmData->num_frames );
+	if ( frameCount <= 0 ) {
+		return false;
+	}
+
+	return true;
+}
+
+/**
 *   @brief  Transform a world-space point into entity-local model space.
 *   @note   This uses the entity angle basis so the refinement follows the same world-facing pose as rendering.
 **/

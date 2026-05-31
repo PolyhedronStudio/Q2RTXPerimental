@@ -502,25 +502,6 @@ void svg_gamemode_singleplayer_t::BeginServerFrame( svg_player_edict_t *ent ) {
     svg_client_t *client = ent->client;
 
     /**
-    *   Run (+usetarget) logics.
-    **/
-    // Update the (+/-usetarget) key state actions if not done so already by ClientUserThink.
-    if ( client->useTarget.tracedFrameNumber < level.frameNumber && !client->resp.spectator ) {
-        SVG_Player_TraceForUseTarget( ent, client, false );
-    } else {
-        client->useTarget.tracedFrameNumber = level.frameNumber;
-    }
-
-    /**
-    *   Run weapon logic if it hasn't been done by a usercmd_t in ClientThink.
-    **/
-    if ( client->weapon_thunk == false && !client->resp.spectator ) {
-        SVG_Player_Weapon_Think( ent, false );
-    } else {
-        client->weapon_thunk = false;
-    }
-
-    /**
     *   If dead, check for any user input after the client's respawn_time has expired.
     **/
     if ( ent->lifeStatus != LIFESTATUS_ALIVE ) {
@@ -539,6 +520,24 @@ void svg_gamemode_singleplayer_t::BeginServerFrame( svg_player_edict_t *ent ) {
         return;
     }
 
+	/**
+	*   Run (+usetarget) logics.
+	**/
+	// Update the (+/-usetarget) key state actions if not done so already by ClientUserThink.
+	if ( client->useTarget.tracedFrameNumber < level.frameNumber && !client->resp.spectator ) {
+		SVG_Player_TraceForUseTarget( ent, client, false );
+	} else {
+		client->useTarget.tracedFrameNumber = level.frameNumber;
+	}
+
+	/**
+	*   Run weapon logic if it hasn't been done by a usercmd_t in ClientThink.
+	**/
+	if ( client->weapon_thunk == false && !client->resp.spectator ) {
+		SVG_Player_Weapon_Think( ent, false );
+	} else {
+		client->weapon_thunk = false;
+	}
 
 	/**
     *   Add player trail so monsters can follow (Q2/Q2RTX behavior).

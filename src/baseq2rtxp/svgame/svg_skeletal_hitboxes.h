@@ -24,6 +24,14 @@ struct svg_base_edict_t;
 *   @note   This helper does not replace generic collision. It only refines a point trace.
 **/
 #ifdef __cplusplus
+/**
+*   @brief  Check whether an entity has valid skeletal hitbox data for refinement.
+*   @param  target  Entity to inspect.
+*   @return True when skeletal refinement data is present and usable.
+*   @note   Callers can use this to keep legacy coarse trace behavior for static/non-skeletal models.
+**/
+bool SVG_SkeletalHitboxes_HasRefinableData( const svg_base_edict_t *target );
+
 bool SVG_SkeletalHitboxes_RefinePointTrace( svg_trace_t &trace, const Vector3 &shotStart, const Vector3 &shotEnd, const svg_base_edict_t *target );
 
 /**

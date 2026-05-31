@@ -113,13 +113,20 @@ const pm_slidemove_flags_t PM_SlideMove_Generic(
 			#if 1
 				// Use a bouncy clip against the ground plane.
 				SG_BounceClipVelocity( pm->state->pmove.velocity, pml->groundTrace.plane.normal, pm->state->pmove.velocity, PM_OVERCLIP );
+				// Keep end velocity in the same clipped-space as current velocity to avoid reintroducing
+				// downward drift when gravity is committed at the end of the slide move.
+				SG_BounceClipVelocity( endVelocity, pml->groundTrace.plane.normal, endVelocity, PM_OVERCLIP );
 			#else
 				// Use a non-bouncy clip against the ground plane to avoid injecting upward velocity
 				// from overbounce/reflection which causes spurious kickoff/miss toggles.
 				SG_SlideClipVelocity( pm->state->pmove.velocity, pml->groundTrace.plane.normal, pm->state->pmove.velocity );
+				SG_SlideClipVelocity( endVelocity, pml->groundTrace.plane.normal, endVelocity );
 				// Clear tiny vertical noise that can still remain from floating point ops / normalization.
 				if ( std::fabs( pm->state->pmove.velocity.z ) < 0.5 ) {
 					pm->state->pmove.velocity.z = 0.0;
+				}
+				if ( std::fabs( endVelocity.z ) < 0.5 ) {
+					endVelocity.z = 0.0;
 				}
 			#endif
 		}
@@ -138,8 +145,8 @@ const pm_slidemove_flags_t PM_SlideMove_Generic(
 	}
 
 	// Never turn against original velocity. 
-	// (We assign it to a variable, to stop compiler from warnings about unused return value.)
-	const double velLength = QM_Vector3NormalizeLength2( pm->state->pmove.velocity, planes[ numPlanes ] );
+	// Normalize into a clip plane guard vector; ignore returned length intentionally.
+	( void )QM_Vector3NormalizeLength2( pm->state->pmove.velocity, planes[ numPlanes ] );
 	numPlanes++;
 
 	for ( bumpCount = 0; bumpCount < numBumps; bumpCount++ ) {
@@ -186,21 +193,22 @@ const pm_slidemove_flags_t PM_SlideMove_Generic(
 
 		// At this point we are blocked but not trapped.
 		//slideMoveFlags |= PM_SLIDEMOVEFLAG_BLOCKED;
-		// Is it a vertical wall?
-		if ( trace.plane.normal[ 2 ] >= 1.0 ) {
+		// Classify what we touched from plane steepness.
+		if ( trace.plane.normal[ 2 ] <= 0.0 ) {
+			// Vertical wall or overhang/ceiling interaction.
 			slideMoveFlags |= PM_SLIDEMOVEFLAG_WALL_BLOCKED;
-		} else if ( trace.plane.normal[ 2 ] >= PM_STEP_MIN_NORMAL ) {
-			// We hit a wall/step.
+		} else if ( trace.plane.normal[ 2 ] < PM_STEP_MIN_NORMAL ) {
+			// Too steep to be treated as walkable ground.
 			slideMoveFlags |= PM_SLIDEMOVEFLAG_SLOPE_BLOCKED;
-		} else if ( trace.plane.normal[ 2 ] > 0.0 && trace.plane.normal[ 2 ] < PM_STEP_MIN_NORMAL ) {
-			// We hit a slope.
+		} else {
+			// Walkable slope/ground plane.
 			slideMoveFlags |= PM_SLIDEMOVEFLAG_SLOPE_GROUND;
 		}
 
 		// If this is a plane we have touched before, try clipping
 		// the velocity along it's normal and repeat.
 		for ( i = 0; i < numPlanes; i++ ) {
-			if ( QM_Vector3DotProductDP( trace.plane.normal, planes[ i ] ) > 0.99 /*1.0 - DBL_EPSILON */) {
+			if ( QM_Vector3DotProductDP( trace.plane.normal, planes[ i ] ) > DblEpsilon ) {
 				pm->state->pmove.velocity += trace.plane.normal;
 				break;
 			}
@@ -220,8 +228,8 @@ const pm_slidemove_flags_t PM_SlideMove_Generic(
 		for ( i = 0; i < numPlanes; i++ ) {
 			// Determine if we bumped into it.
 			into = QM_Vector3DotProductDP( pm->state->pmove.velocity, planes[ i ] );
-			// Not entering this plane.
-			if ( into >= 0.1 ) {
+			// Not entering this plane. (Use normalized angle threshold to avoid speed-dependent behavior.)
+			if ( !QM_IsEnteringPlane( pm->state->pmove.velocity, planes[ i ] ) ) {
 				continue;
 			}
 
@@ -242,8 +250,8 @@ const pm_slidemove_flags_t PM_SlideMove_Generic(
 				if ( j == i ) {
 					continue;
 				}
-				// Move doesn't interact with the plane.
-				if ( QM_Vector3DotProductDP( clipVelocity, planes[ j ] ) >= 0.1 ) {
+				// Move doesn't enter this plane.
+				if ( !QM_IsEnteringPlane( clipVelocity, planes[ j ] ) ) {
 					continue;
 				}
 				// Try clipping the move to the plane.
@@ -272,8 +280,8 @@ const pm_slidemove_flags_t PM_SlideMove_Generic(
 					if ( k == i || k == j ) {
 						continue;
 					}
-					// Move doesn't interact with the plane.
-					if ( QM_Vector3DotProductDP( clipVelocity, planes[ k ] ) >= 0.1 ) {
+					// Move doesn't enter this plane.
+					if ( !QM_IsEnteringPlane( clipVelocity, planes[ k ] ) ) {
 						continue;
 					}
 					// Stop dead at a tripple plane interaction.
@@ -345,7 +353,7 @@ const pm_slidemove_flags_t PM_StepSlideMove_Generic(
 	down = pm->state->pmove.origin;
 	down.z -= PM_STEP_GROUND_DIST;
 	//down.z -= stepSize + PM_STEP_GROUND_DIST;
-	trace = PM_Trace( start_o, pm->mins, pm->maxs, down );
+	trace = PM_Trace( pm->state->pmove.origin, pm->mins, pm->maxs, down );
 
 	// Never step up when you still have up velocity.
 	if ( QM_Vector3DotProductDP( trace.plane.normal, pm->state->pmove.velocity ) > 0.0 &&
