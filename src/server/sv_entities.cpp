@@ -517,12 +517,15 @@ static inline const bool SV_CheckEntityInFrame( sv_edict_t *ent, const Vector3 &
                 }
             }
 
-            /**
-            *   Don't send sounds if they will be attenuated away.
-            **/
-            if ( !SV_CheckEntitySoundDistance( ent, viewOrigin ) ) {
-				entityVisible = false;
-            }
+                /**
+                *   Apply sound-distance culling only to regular entities.
+                *   Temp event entities also carry short-lived visual effects (impact decals,
+                *   sparks, etc), so hard-culling them at ~400 units drops valid long-range
+                *   impact visuals before the client can process them.
+                **/
+                if ( !isTempEventEntity && !SV_CheckEntitySoundDistance( ent, viewOrigin ) ) {
+				    entityVisible = false;
+                }
         }
         ///**
         //*   Don't send sounds if they will be attenuated away.

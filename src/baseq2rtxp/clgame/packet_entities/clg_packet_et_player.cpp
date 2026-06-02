@@ -604,6 +604,12 @@ static void CLG_DebugDrawPlayerSkeletalHitboxes( const entity_t *refreshEntity, 
     if ( !clg_skeletal_hitboxes_debug_draw || !clg_skeletal_hitboxes_debug_draw->integer ) {
         return;
     }
+
+    // Require explicit developer mode for skeletal hitbox overlays.
+    if ( !developer || !developer->integer ) {
+        return;
+    }
+
     // Suppress local-player hitbox debug draw while running first-person style model modes.
     if ( refreshEntity
         && refreshEntity->id == REFRESHENTITIY_RESERVED_PREDICTED_PLAYER

@@ -40,6 +40,7 @@ extern clgame_export_t globals;
 #include "sharedgame/sg_skm.h"
 // SharedGame includes:
 #include "sharedgame/sg_shared.h"
+#include "clgame/decals/clg_decals.h"
 
 
 

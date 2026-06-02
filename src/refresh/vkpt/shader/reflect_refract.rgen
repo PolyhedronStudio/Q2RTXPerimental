@@ -660,6 +660,21 @@ main()
 		primary_emissive,
 		primary_specular_factor);
 
+	{
+		Ray decal_ray;
+		decal_ray.origin = reflection_ray.origin;
+		decal_ray.direction = reflection_ray.direction;
+		decal_ray.t_min = reflection_ray.t_min;
+		decal_ray.t_max = ray_payload_geometry.hit_distance + 0.25;
+
+		vec4 decal_overlay = trace_decal_ray(decal_ray);
+		if (decal_overlay.a > 0.0)
+		{
+			vec3 decal_color = decal_overlay.rgb / decal_overlay.a;
+			primary_base_color = mix(primary_base_color, decal_color, clamp(decal_overlay.a, 0.0, 1.0));
+		}
+	}
+
 	primary_is_weapon = false;
 
 	// will be used in case of transparency, to retain difference between TRANSPARENT and TRANSP_MODEL

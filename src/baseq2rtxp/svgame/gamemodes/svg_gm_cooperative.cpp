@@ -21,6 +21,7 @@
 
 #include "sharedgame/pmove/sg_pmove.h"
 #include "sharedgame/sg_entities.h"
+#include "sharedgame/sg_entity_flags.h"
 #include "sharedgame/sg_gamemode.h"
 #include "sharedgame/sg_means_of_death.h"
 #include "sharedgame/sg_muzzleflashes.h"
@@ -848,7 +849,12 @@ void svg_gamemode_cooperative_t::DamageEntity( svg_base_edict_t *targ, svg_base_
     if ( ( targ->flags & FL_GODMODE ) && !( damageFlags & DAMAGE_NO_PROTECTION ) ) {
         take = 0;
         save = finalDamage;
-		SVG_TempEventEntity_GunShot( point, normal, te_sparks );
+        svg_base_edict_t *tempEventEntity = SVG_TempEventEntity_GunShot( point, normal, te_sparks );
+        // Preserve impacted brush-model identity so client decals can target inline receivers.
+        if ( tempEventEntity && targ->solid == SOLID_BSP && ( targ->movetype == MOVETYPE_PUSH || targ->movetype == MOVETYPE_STOP ) && targ->s.number > ENTITYNUM_WORLD ) {
+            tempEventEntity->s.otherEntityNumber = targ->s.number;
+            tempEventEntity->s.entityFlags |= EF_ENTITY_EVENT_TARGET_OTHER;
+        }
     }
 
     // check for invincibility
@@ -877,7 +883,12 @@ void svg_gamemode_cooperative_t::DamageEntity( svg_base_edict_t *targ, svg_base_
 			SVG_TempEventEntity_Blood( point, normal, take );
 		} else {
 			//SVG_SpawnDamage( te_sparks, point, normal, take );
-			SVG_TempEventEntity_GunShot( point, normal, te_sparks );
+            svg_base_edict_t *tempEventEntity = SVG_TempEventEntity_GunShot( point, normal, te_sparks );
+            // Preserve impacted brush-model identity so client decals can target inline receivers.
+            if ( tempEventEntity && targ->solid == SOLID_BSP && ( targ->movetype == MOVETYPE_PUSH || targ->movetype == MOVETYPE_STOP ) && targ->s.number > ENTITYNUM_WORLD ) {
+                tempEventEntity->s.otherEntityNumber = targ->s.number;
+                tempEventEntity->s.entityFlags |= EF_ENTITY_EVENT_TARGET_OTHER;
+            }
 		}
         targ->health = targ->health - take;
 

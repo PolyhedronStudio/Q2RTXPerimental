@@ -1020,6 +1020,12 @@ void R_ModeChanged_GL(int width, int height, int flags)
 }
 
 void R_AddDecal_GL(decal_t *d) {}
+void R_AddDecalMesh_GL(const decal_mesh_vertex_t *vertices, int32_t vertexCount, const vec3_t albedo, float alpha, uint32_t materialHash, float lifeSeconds) {}
+void R_ClearDecals_GL(void) {}
+void R_ClearDecalMaterialMappings_GL(void) {}
+void R_SetDecalMaterialMapping_GL(uint32_t materialHash, const char *materialName) {}
+void R_SetDecalRenderMode_GL(int32_t renderMode) {}
+void R_DumpDecalMaterialMappings_GL(void) {}
 bool R_InterceptKey_GL(unsigned key, bool down) { return false; }
 void R_DrawDebugBox_GL( const vec3_t mins, const vec3_t maxs, uint32_t color ) {}
 void R_DrawDebugLine_GL( const vec3_t start, const vec3_t end, uint32_t color ) {}
@@ -1068,6 +1074,12 @@ void R_RegisterFunctionsGL()
 	R_EndFrame = R_EndFrame_GL;
 	R_ModeChanged = R_ModeChanged_GL;
 	R_AddDecal = R_AddDecal_GL;
+    R_AddDecalMesh = R_AddDecalMesh_GL;
+    R_ClearDecals = R_ClearDecals_GL;
+    R_ClearDecalMaterialMappings = R_ClearDecalMaterialMappings_GL;
+    R_SetDecalMaterialMapping = R_SetDecalMaterialMapping_GL;
+    R_SetDecalRenderMode = R_SetDecalRenderMode_GL;
+    R_DumpDecalMaterialMappings = R_DumpDecalMaterialMappings_GL;
 	R_InterceptKey = R_InterceptKey_GL;
 	R_IsHDR = NULL;
 	IMG_Load = IMG_Load_GL;

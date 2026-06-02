@@ -21,6 +21,7 @@
 #include "clgame/clg_temp_entities.h"
 #include "clgame/clg_screen.h"
 #include "clgame/clg_view.h"
+#include "clgame/decals/clg_decals.h"
 
 #include "clgame/game_ui/clg_ui_main.h"
 
@@ -295,6 +296,8 @@ void PF_ClearState( void ) {
 	}
 	// Clear Temporary Entities.
 	CLG_TemporaryEntities_Clear();
+	// Clear Decals.
+	CLG_Decals_Clear();
 	// Clear out remaining effect types.
 	CLG_ClearEffects();
 
@@ -535,6 +538,9 @@ void PF_PreShutdownGame( void ) {
 void PF_ShutdownGame( void ) {
 	clgi.Print( print_type_t::PRINT_ALL, "==== Shutdown ClientGame ====\n" );
 
+	// Shutdown decals before we free tags.
+	CLG_Decals_Shutdown();
+
 	// Clear out the UI Context, if any.
 	CLG_UI_FreeContext();
 
@@ -595,9 +601,9 @@ void PF_InitGame( void ) {
 	clg_debug_entity_events = clgi.CVar_Get( "clg_debug_entity_events", "0", 0 );
 	clg_debug_pmove_changed_events = clgi.CVar_Get( "clg_debug_pmove_changed_events", "1", 0 );
 	#ifdef _DEBUG
-		clg_debug_draw_entity_bounds = clgi.CVar_Get( "clg_debug_draw_entity_bounds", "1", CVAR_ARCHIVE );
-		clg_debug_draw = clgi.CVar_Get( SG_SVC_DEBUG_DRAW_CLIENT_CVAR_NAME, "1", CVAR_USERINFO | CVAR_ARCHIVE );
-		clg_skeletal_hitboxes_debug_draw = clgi.CVar_Get( "clg_skeletal_hitboxes_debug_draw", "1", CVAR_ARCHIVE );
+		clg_debug_draw_entity_bounds = clgi.CVar_Get( "clg_debug_draw_entity_bounds", "0", CVAR_ARCHIVE );
+		clg_debug_draw = clgi.CVar_Get( SG_SVC_DEBUG_DRAW_CLIENT_CVAR_NAME, "0", CVAR_USERINFO | CVAR_ARCHIVE );
+		clg_skeletal_hitboxes_debug_draw = clgi.CVar_Get( "clg_skeletal_hitboxes_debug_draw", "0", CVAR_ARCHIVE );
 	#else
 		clg_debug_draw_entity_bounds = clgi.CVar_Get( "clg_debug_draw_entity_bounds", "0", CVAR_ARCHIVE );
 		clg_debug_draw = clgi.CVar_Get( SG_SVC_DEBUG_DRAW_CLIENT_CVAR_NAME, "0", CVAR_USERINFO | CVAR_ARCHIVE );
@@ -674,6 +680,7 @@ void PF_InitGame( void ) {
 	**/
 	CLG_InitEffects();
 	CLG_TemporaryEntities_Init();
+	CLG_Decals_Init();
 
 	/**
 	*	Default EAX Environment:

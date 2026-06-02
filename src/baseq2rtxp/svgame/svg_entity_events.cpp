@@ -520,6 +520,15 @@ svg_base_edict_t *SVG_TempEventEntity_GunShot( const Vector3 &origin, const Vect
 		// Set a shorter duration for splash particles.
 		FRAME_TIME_MS
 	);
+	/**
+	*    Carry the exact impact normal in temp-entity state as Euler angles. Network delta
+	*    serialization angle-mods `entity_state_t::angles`, so writing raw XYZ normal
+	*    components here would fold negative values into [0, 360) and corrupt the vector.
+	**/
+	const Vector3 preciseNormal = QM_Vector3NormalizeDP( normal );
+	if ( QM_Vector3LengthSqrDP( preciseNormal ) > ( 0.001 * 0.001 ) ) {
+		tempEventEntity->s.angles = QM_Vector3ToAngles( preciseNormal );
+	}
 	// Return the temp entity event pointer.
 	return tempEventEntity;
 }

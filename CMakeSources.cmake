@@ -200,6 +200,7 @@ SET(SRC_BASEQ2RTXP_SHAREDGAME
     baseq2rtxp/sharedgame/math/sg_math_velocity.cpp
 )
 SET(HEADERS_BASEQ2RTXP_SHAREDGAME
+	baseq2rtxp/sharedgame/sg_decal_shared.h
 	baseq2rtxp/sharedgame/sg_cmd_messages.h
 	baseq2rtxp/sharedgame/sg_entities.h
 	baseq2rtxp/sharedgame/sg_gamemode.h
@@ -256,6 +257,11 @@ SET(SRC_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/clg_view_weapon.cpp
 	baseq2rtxp/clgame/clg_view_state_transition.cpp
 	baseq2rtxp/clgame/clg_world.cpp
+	baseq2rtxp/clgame/decals/clg_decal_clip.cpp
+	baseq2rtxp/clgame/decals/clg_decal_mesh.cpp
+	baseq2rtxp/clgame/decals/clg_decal_events.cpp
+	baseq2rtxp/clgame/decals/clg_decal_pool.cpp
+	baseq2rtxp/clgame/decals/clg_decals.cpp
 
 	baseq2rtxp/clgame/effects/clg_fx_classic.cpp
 	baseq2rtxp/clgame/effects/clg_fx_dynamiclights.cpp
@@ -319,6 +325,10 @@ SET(HEADERS_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/clg_view_weapon.h
 	baseq2rtxp/clgame/clg_view_state_transition.h
 	baseq2rtxp/clgame/clg_world.h
+	baseq2rtxp/clgame/decals/clg_decal_clip.h
+	baseq2rtxp/clgame/decals/clg_decal_mesh.h
+	baseq2rtxp/clgame/decals/clg_decal_pool.h
+	baseq2rtxp/clgame/decals/clg_decals.h
 
 	baseq2rtxp/clgame/effects/clg_fx_classic.h
 	baseq2rtxp/clgame/effects/clg_fx_dynamiclights.h
@@ -994,6 +1004,9 @@ SET(SRC_VKPT
 	refresh/vkpt/asvgf.c
 	refresh/vkpt/bloom.c
 	refresh/vkpt/bsp_mesh.c
+	refresh/vkpt/decals/vkpt_decals.c
+	refresh/vkpt/decals/vkpt_decals_geometry.c
+	refresh/vkpt/decals/vkpt_decals_screenspace.c
 	refresh/vkpt/draw.c
 	refresh/vkpt/fog.c
 	refresh/vkpt/cameras.c
@@ -1024,6 +1037,8 @@ SET(SRC_VKPT
 SET(HEADERS_VKPT
 	refresh/vkpt/vkpt.h
 	refresh/vkpt/vk_util.h
+	refresh/vkpt/decals/vkpt_decals.h
+	refresh/vkpt/decals/vkpt_decals_geometry.h
 	refresh/vkpt/buddy_allocator.h
 	refresh/vkpt/device_memory_allocator.h
 	refresh/vkpt/fog.h
@@ -1043,6 +1058,7 @@ set(SRC_SHADERS
 	refresh/vkpt/shader/bloom_downscale.comp
 	refresh/vkpt/shader/compositing.comp
 	refresh/vkpt/shader/checkerboard_interleave.comp
+	refresh/vkpt/shader/decal_screenspace.comp
 	refresh/vkpt/shader/asvgf_atrous.comp
 	refresh/vkpt/shader/asvgf_gradient_atrous.comp
 	refresh/vkpt/shader/asvgf_gradient_img.comp
@@ -1077,6 +1093,7 @@ set(SRC_RT_SHADERS
 	refresh/vkpt/shader/path_tracer.rchit
 	refresh/vkpt/shader/path_tracer.rmiss
 	refresh/vkpt/shader/path_tracer_masked.rahit
+	refresh/vkpt/shader/path_tracer_decal.rahit
 	refresh/vkpt/shader/path_tracer_particle.rahit
 	refresh/vkpt/shader/path_tracer_sprite.rahit
 	refresh/vkpt/shader/path_tracer_beam.rahit

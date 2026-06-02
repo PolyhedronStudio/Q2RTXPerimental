@@ -36,6 +36,14 @@ static void CLG_DebugDrawPacketEntityBounds( const centity_t *packetEntity ) {
     if ( !clg_debug_draw_entity_bounds || !clg_debug_draw_entity_bounds->integer ) {
         return;
     }
+
+    /**
+    *	Require explicit developer mode for packet-entity debug overlays.
+    **/
+    if ( !developer || !developer->integer ) {
+        return;
+    }
+
     if ( !packetEntity ) {
         return;
     }

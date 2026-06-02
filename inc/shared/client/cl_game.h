@@ -627,6 +627,18 @@ typedef struct {
 
 	//! Unimplemented in VKPT, but, adds a decal.
 	void ( *R_AddDecal )( decal_t *d );
+	//! Submits pre-clipped decal mesh triangles to renderer.
+	void ( *R_AddDecalMesh )( const decal_mesh_vertex_t *vertices, const int32_t vertexCount, const vec3_t albedo, const float alpha, const uint32_t materialHash, const float lifeSeconds );
+	//! Clears all renderer-side decal submissions.
+	void ( *R_ClearDecals )( void );
+	//! Clears all renderer-side decal material hash to material-name mappings.
+	void ( *R_ClearDecalMaterialMappings )( void );
+	//! Sets one renderer-side decal material hash to material-name mapping.
+	void ( *R_SetDecalMaterialMapping )( const uint32_t materialHash, const char *materialName );
+	//! Sets the renderer-side decal render mode hint controlled by ClientGame.
+	void ( *R_SetDecalRenderMode )( const int32_t renderMode );
+	//! Dumps renderer-side decal material mappings for runtime validation.
+	void ( *R_DumpDecalMaterialMappings )( void );
 	
 	// Very cheesy, but we need access to it however
 	const uint32_t *( *R_Get8BitTo24BitTable )( void );

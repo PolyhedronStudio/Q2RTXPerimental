@@ -382,7 +382,7 @@ static void PF_Cvar_Reset( cvar_t *cvar ) {
 }
 
 /**
-*\t@brief\tWrap the client console closer with the shared qboolean signature expected by the game import table.
+*	@brief	Wrap the client console closer with the shared qboolean signature expected by the game import table.
 **/
 static void PF_Con_Close( const qboolean force ) {
 	Con_Close( force != qfalse );
@@ -528,6 +528,59 @@ const qhandle_t PF_R_RegisterPic2( const char *name ) {
 **/
 void PF_R_AddDecal( decal_t *d ) {
 	return R_AddDecal( d );
+}
+
+/**
+*	@brief	Submits one clipped decal mesh to renderer.
+**/
+void PF_R_AddDecalMesh( const decal_mesh_vertex_t *vertices, const int32_t vertexCount, const vec3_t albedo, const float alpha, const uint32_t materialHash, const float lifeSeconds ) {
+	if ( R_AddDecalMesh ) {
+		R_AddDecalMesh( vertices, vertexCount, albedo, alpha, materialHash, lifeSeconds );
+	}
+}
+
+/**
+*	@brief	Clears renderer-side retained decal submissions.
+**/
+void PF_R_ClearDecals( void ) {
+	if ( R_ClearDecals ) {
+		R_ClearDecals();
+	}
+}
+
+/**
+*	@brief	Clears renderer-side decal material mappings.
+**/
+void PF_R_ClearDecalMaterialMappings( void ) {
+	if ( R_ClearDecalMaterialMappings ) {
+		R_ClearDecalMaterialMappings();
+	}
+}
+
+/**
+*	@brief	Sets one renderer-side decal material mapping.
+**/
+void PF_R_SetDecalMaterialMapping( const uint32_t materialHash, const char *materialName ) {
+	if ( R_SetDecalMaterialMapping ) {
+		R_SetDecalMaterialMapping( materialHash, materialName );
+	}
+}
+/**
+*	@brief	Sets the renderer-side decal render mode hint.
+**/
+void PF_R_SetDecalRenderMode( const int32_t renderMode ) {
+	if ( R_SetDecalRenderMode ) {
+		R_SetDecalRenderMode( renderMode );
+	}
+}
+
+/**
+*    @brief  Dumps renderer-side decal material mappings for validation.
+**/
+void PF_R_DumpDecalMaterialMappings( void ) {
+	if ( R_DumpDecalMaterialMappings ) {
+		R_DumpDecalMaterialMappings();
+	}
 }
 /**
 *	@brief	Returns a pointer to d_8to24table[256]; And yes, I know this is a cheesy method.
@@ -1183,6 +1236,12 @@ void CL_GM_LoadProgs( void ) {
 	imports.R_UpdateRawPic = PF_R_UpdateRawPic;
 	imports.R_DiscardRawPic = PF_R_DiscardRawPic;
 	imports.R_AddDecal = PF_R_AddDecal;
+	imports.R_AddDecalMesh = PF_R_AddDecalMesh;
+	imports.R_ClearDecals = PF_R_ClearDecals;
+	imports.R_ClearDecalMaterialMappings = PF_R_ClearDecalMaterialMappings;
+	imports.R_SetDecalMaterialMapping = PF_R_SetDecalMaterialMapping;
+	imports.R_SetDecalRenderMode = PF_R_SetDecalRenderMode;
+	imports.R_DumpDecalMaterialMappings = PF_R_DumpDecalMaterialMappings;
 	imports.R_Get8BitTo24BitTable = PF_R_Get8BitTo24BitTable;
 
 	imports.SCR_GetColorName = SCR_GetColorName;

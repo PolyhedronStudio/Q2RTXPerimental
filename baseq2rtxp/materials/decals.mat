@@ -1,0 +1,8 @@
+textures/decals/bullets/bullethole_01:
+	texture_base textures/decals/bullets/*.tga
+	texture_normals textures/decals/bullets/*_n.tga
+    texture_mask textures/decals/bullets/*_m.tga
+	base_factor 1
+	bump_scale 1.0
+	specular_factor 0.125
+	roughness_override -1

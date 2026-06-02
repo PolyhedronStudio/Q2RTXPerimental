@@ -49,15 +49,22 @@ static void CLG_ParseGameUI_OpenMenu( void ) {
 	CLG_UI_OpenMenu( menuID );
 }
 /**
-*	@brief	Will open the specified menu, based on the menuID received from the server.
-*			This is for the server to be able to open a menu on the client, such as the
-*			team selection menu at the beginning of a (death-)match.
+*	@brief	Will close the specified menu, based on the menuID received from the server.
+*			This is for the server to be able to close a menu on the client, such as when
+* 			the team selection menu is closed after the player has made their choice.
+*			Or, another map is loaded, and the server needs to make sure all menus are closed.
+* 
+*	@note	Currently, the menuID is not actually used for anything in the menu system, 
+*			but we still parse it here in case we want to use it in the future to specify which 
+*			menu to close, or to have some sort of validation that the server is trying to 
+*			close a valid menu.
 **/
 static void CLG_ParseGameUI_CloseMenu( void ) {
 	// Parse the menuID.
 	const int32_t menuID = clgi.MSG_ReadUint8();
 
 	// Pass it on to the actual menu system code for further processing.
+	CLG_UI_CloseMenu( /* menuID */);
 }
 
 /***
@@ -296,8 +303,13 @@ static void CLG_ParseDebugDraw( const bool shouldRender ) {
         Com_Error( ERR_DROP, "%s: invalid primitive count (%d)", __func__, primitiveCount );
     }
 
-    // Render only when caller allows rendering and local opt-in cvar is enabled.
-    const bool renderPrimitives = shouldRender && clg_debug_draw && ( clg_debug_draw->integer != 0 );
+    // Render only when caller allows rendering, local opt-in cvar is enabled,
+    // and developer mode is explicitly enabled.
+    const bool renderPrimitives = shouldRender
+        && clg_debug_draw
+        && ( clg_debug_draw->integer != 0 )
+        && developer
+        && ( developer->integer != 0 );
 
     for ( int32_t i = 0; i < primitiveCount; i++ ) {
         // Parse primitive header shared by every primitive payload.

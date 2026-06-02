@@ -63,6 +63,12 @@ DeviceMemoryAllocator* create_device_memory_allocator(VkDevice device)
 
 DMAResult allocate_device_memory(DeviceMemoryAllocator* allocator, DeviceMemory* device_memory)
 {
+	if (!allocator || !device_memory)
+		return DMA_NOT_ENOUGH_MEMORY;
+
+	if (device_memory->memory_type >= VK_MAX_MEMORY_TYPES)
+		return DMA_NOT_ENOUGH_MEMORY;
+
 	const uint32_t memory_type = device_memory->memory_type;
 	if (allocator->sub_allocators[memory_type] == NULL)
 	{
@@ -112,10 +118,35 @@ DMAResult allocate_device_memory(DeviceMemoryAllocator* allocator, DeviceMemory*
 
 void free_device_memory(DeviceMemoryAllocator* allocator, const DeviceMemory* device_memory)
 {
+	if (!allocator || !device_memory)
+		return;
+
+	if (device_memory->memory_type >= VK_MAX_MEMORY_TYPES)
+	{
+		Com_EPrintf("%s: invalid memory_type %u\n", __func__, device_memory->memory_type);
+		return;
+	}
+
+	if (device_memory->memory == VK_NULL_HANDLE)
+		return;
+
 	SubAllocator* sub_allocator = allocator->sub_allocators[device_memory->memory_type];
 
-	while (sub_allocator->memory != device_memory->memory)
+	while (sub_allocator && sub_allocator->memory != device_memory->memory)
 		sub_allocator = sub_allocator->next;
+
+	if (!sub_allocator)
+	{
+		Com_EPrintf("%s: unable to find sub-allocator for VkDeviceMemory 0x%p (type %u)\n",
+			__func__, (void*)device_memory->memory, device_memory->memory_type);
+		return;
+	}
+
+	if (!sub_allocator->buddy_allocator)
+	{
+		Com_EPrintf("%s: sub-allocator has null buddy allocator (type %u)\n", __func__, device_memory->memory_type);
+		return;
+	}
 
 	buddy_allocator_free(sub_allocator->buddy_allocator, device_memory->memory_offset, device_memory->size);
 
@@ -132,6 +163,8 @@ void destroy_device_memory_allocator(DeviceMemoryAllocator* allocator)
 		SubAllocator* sub_allocator = allocator->sub_allocators[i];
 		while (sub_allocator != NULL)
 		{
+			destroy_buddy_allocator(sub_allocator->buddy_allocator);
+			sub_allocator->buddy_allocator = NULL;
 			vkFreeMemory(allocator->device, sub_allocator->memory, NULL);
 			SubAllocator* next = sub_allocator->next;
 			Z_Free(sub_allocator);
@@ -152,7 +185,7 @@ int create_sub_allocator(DeviceMemoryAllocator* allocator, uint32_t memory_type,
 	if (alignment > block_size)
 	{
 		block_size = alignment;
-		capacity = 1;
+		capacity = block_size;
 
 		while (capacity < ALLOCATOR_CAPACITY)
 			capacity *= 2;

@@ -451,6 +451,10 @@ trace_effects_ray(Ray ray, bool skip_procedural)
 			case SBTO_SPRITE: // sprites
 				transparent = pt_logic_sprite(primitiveID, bary);
 				break;
+
+			case SBTO_DECAL: // decals
+				transparent = pt_logic_decal(primitiveID, bary);
+				break;
 			}
 		}
 
@@ -472,6 +476,55 @@ trace_effects_ray(Ray ray, bool skip_procedural)
 		return get_payload_transparency(ray_payload_effects);
 
 	return get_payload_transparency_with_fog(ray_payload_effects, ray.t_max);
+}
+
+vec4
+trace_decal_ray(Ray ray)
+{
+	uint rayFlags = gl_RayFlagsSkipProceduralPrimitives;
+	uint instance_mask = AS_FLAG_DECALS;
+
+	ray_payload_effects.transparency = uvec2(0);
+	ray_payload_effects.distances = 0;
+	ray_payload_effects.fog1 = uvec4(0);
+	ray_payload_effects.fog2 = uvec4(0);
+#ifndef KHR_RAY_QUERY
+	ray_payload_effects.rayTmax = ray.t_max;
+#endif
+
+#ifdef KHR_RAY_QUERY
+
+	rayQueryEXT rayQuery;
+	rayQueryInitializeEXT(rayQuery, topLevelAS[TLAS_INDEX_EFFECTS], rayFlags, instance_mask,
+		ray.origin, ray.t_min, ray.direction, ray.t_max);
+
+	while (rayQueryProceedEXT(rayQuery))
+	{
+		uint sbtOffset = rayQueryGetIntersectionInstanceShaderBindingTableRecordOffsetEXT(rayQuery, false);
+		if (sbtOffset != SBTO_DECAL)
+			continue;
+
+		int primitiveID = rayQueryGetIntersectionPrimitiveIndexEXT(rayQuery, false);
+		vec2 bary = rayQueryGetIntersectionBarycentricsEXT(rayQuery, false);
+		float hitT = rayQueryGetIntersectionTEXT(rayQuery, false);
+
+		vec3 decalAlbedo = vec3(0.0);
+		float decalAlpha = 0.0;
+		if (pt_logic_decal_sample(primitiveID, bary, decalAlbedo, decalAlpha))
+		{
+			update_payload_transparency(ray_payload_effects, vec4(decalAlbedo * decalAlpha, decalAlpha), hitT);
+		}
+	}
+
+#else
+
+	traceRayEXT( topLevelAS[TLAS_INDEX_EFFECTS], rayFlags, instance_mask,
+			SBT_RCHIT_EFFECTS /*sbtRecordOffset*/, 0 /*sbtRecordStride*/, SBT_RMISS_EMPTY /*missIndex*/,
+			ray.origin, ray.t_min, ray.direction, ray.t_max, RT_PAYLOAD_EFFECTS);
+
+#endif
+
+	return get_payload_transparency(ray_payload_effects);
 }
 
 Ray get_shadow_ray(vec3 p1, vec3 p2, float tmin)

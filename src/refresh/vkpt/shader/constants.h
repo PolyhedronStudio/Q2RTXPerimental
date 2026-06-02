@@ -136,6 +136,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 // Effects TLAS flags
 #define AS_FLAG_EFFECTS         (1 << 0)
+#define AS_FLAG_DECALS          (1 << 1)
 
 #define RT_PAYLOAD_GEOMETRY      0
 #define RT_PAYLOAD_EFFECTS       1
@@ -150,8 +151,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define SBT_RAHIT_PARTICLE       5
 #define SBT_RAHIT_EXPLOSION      6
 #define SBT_RAHIT_SPRITE         7
-#define SBT_RINT_BEAM            8
-#define SBT_ENTRIES_PER_PIPELINE 9
+#define SBT_RAHIT_DECAL          8
+#define SBT_RINT_BEAM            9
+#define SBT_ENTRIES_PER_PIPELINE 10
 // vkpt_pt_create_pipelines() relies on all 'transparency' SBT entries coming after SBT_FIRST_TRANSPARENCY
 #define SBT_FIRST_TRANSPARENCY SBT_RCHIT_EFFECTS
 
@@ -162,6 +164,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define SBTO_PARTICLE   (SBT_RAHIT_PARTICLE - SBT_RCHIT_EFFECTS)
 #define SBTO_EXPLOSION  (SBT_RAHIT_EXPLOSION - SBT_RCHIT_EFFECTS)
 #define SBTO_SPRITE     (SBT_RAHIT_SPRITE - SBT_RCHIT_EFFECTS)
+#define SBTO_DECAL      (SBT_RAHIT_DECAL - SBT_RCHIT_EFFECTS)
 #define SBTO_BEAM       (SBT_RINT_BEAM - SBT_RCHIT_EFFECTS)
 
 #ifndef M_PI

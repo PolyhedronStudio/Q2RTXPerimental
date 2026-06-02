@@ -39,6 +39,7 @@ typedef struct BuddyAllocator
 {
 	uint32_t block_size;
 	uint32_t level_num;
+	uint32_t block_num;
 	struct AllocatorFreeListItem** free_block_lists;
 	uint8_t* block_states;
 	struct AllocatorFreeListItem* free_items;
@@ -82,6 +83,7 @@ BuddyAllocator* create_buddy_allocator(uint64_t capacity, uint64_t block_size)
 	BuddyAllocator* allocator = (BuddyAllocator*)memory;
 	allocator->block_size = block_size;
 	allocator->level_num = level_num;
+	allocator->block_num = block_num;
 	allocator->free_block_lists = (AllocatorFreeListItem**)(memory + allocator_size);
 	allocator->free_items = (AllocatorFreeListItem*)(memory + allocator_size + free_list_array_size);
 	allocator->block_states = (uint8_t*)(memory + allocator_size + free_list_array_size + free_item_buffer_size);
@@ -98,6 +100,12 @@ BuddyAllocator* create_buddy_allocator(uint64_t capacity, uint64_t block_size)
 
 BAResult buddy_allocator_allocate(BuddyAllocator* allocator, uint64_t size, uint64_t alignment, uint64_t* offset)
 {
+	if (!allocator || !offset || !allocator->block_states || !allocator->free_block_lists)
+		return BA_NOT_ENOUGH_MEMORY;
+
+	if (alignment == 0)
+		return BA_INVALID_ALIGNMENT;
+
 	const uint32_t level = uint_log2_ceil(div_ceil(size, allocator->block_size));
 
 	// The requested size exceeds the allocator capacity
@@ -123,9 +131,15 @@ BAResult buddy_allocator_allocate(BuddyAllocator* allocator, uint64_t size, uint
 		subdivide_block(allocator, i, level);
 
 	AllocatorFreeListItem* item = allocator->free_block_lists[level];
+	if (!item)
+		return BA_NOT_ENOUGH_MEMORY;
+
 	allocator->free_block_lists[level] = item->next;
 
 	const uint32_t level_block_offset = get_level_offset(allocator, level);
+	if (level_block_offset + item->block_index >= allocator->block_num)
+		return BA_NOT_ENOUGH_MEMORY;
+
 	allocator->block_states[level_block_offset + item->block_index] = BLOCK_ALLOCATED;
 
 	*offset = item->block_index * block_size;
@@ -136,12 +150,53 @@ BAResult buddy_allocator_allocate(BuddyAllocator* allocator, uint64_t size, uint
 
 void buddy_allocator_free(BuddyAllocator* allocator, uint64_t offset, uint64_t size)
 {
+	if (!allocator || !allocator->block_states)
+		return;
+
+	if (size == 0 || allocator->block_size == 0)
+		return;
+
 	const uint32_t level = uint_log2_ceil(div_ceil(size, allocator->block_size));
+	if (level >= allocator->level_num)
+	{
+		Com_EPrintf("%s: invalid level %u (size=%" PRIu64 ", block_size=%u, levels=%u)\n",
+			__func__, level, size, allocator->block_size, allocator->level_num);
+		return;
+	}
+
 	const uint64_t block_size = (uint64_t)(1 << level) * allocator->block_size;
+	if (block_size == 0 || (offset % block_size) != 0)
+	{
+		Com_EPrintf("%s: invalid free request (offset=%" PRIu64 ", size=%" PRIu64 ", block_size=%" PRIu64 ")\n",
+			__func__, offset, size, block_size);
+		return;
+	}
+
 	const uint32_t block_index = offset / block_size;
+	const uint32_t level_block_count = 1u << ((allocator->level_num - 1) - level);
+	if (block_index >= level_block_count)
+	{
+		Com_EPrintf("%s: block index out of range (index=%u, level_count=%u, level=%u)\n",
+			__func__, block_index, level_block_count, level);
+		return;
+	}
 
 	const uint32_t level_block_offset = get_level_offset(allocator, level);
+	if (level_block_offset + block_index >= allocator->block_num)
+	{
+		Com_EPrintf("%s: state index out of range (offset=%u, index=%u, block_num=%u)\n",
+			__func__, level_block_offset, block_index, allocator->block_num);
+		return;
+	}
+
 	assert(allocator->block_states[level_block_offset + block_index] == BLOCK_ALLOCATED);
+	if (allocator->block_states[level_block_offset + block_index] != BLOCK_ALLOCATED)
+	{
+		Com_EPrintf("%s: block is not allocated (state=%u, level=%u, index=%u, offset=%" PRIu64 ", size=%" PRIu64 ")\n",
+			__func__, allocator->block_states[level_block_offset + block_index], level, block_index, offset, size);
+		return;
+	}
+
 	allocator->block_states[level_block_offset + block_index] = BLOCK_FREE;
 
 	if (!merge_blocks(allocator, level, block_index))
@@ -262,6 +317,9 @@ static inline int32_t uint_log2_ceil(uint64_t x)
 
 static inline AllocatorFreeListItem* allocate_list_item(BuddyAllocator* allocator)
 {
+	if (!allocator || !allocator->free_items)
+		return NULL;
+
 	AllocatorFreeListItem* item = allocator->free_items;
 	allocator->free_items = item->next;
 	return item;
@@ -276,6 +334,9 @@ static inline void free_list_item(BuddyAllocator* allocator, AllocatorFreeListIt
 static inline void write_free_block_to_list(BuddyAllocator* allocator, uint32_t level, uint32_t block_index)
 {
 	AllocatorFreeListItem* item = allocate_list_item(allocator);
+	if (!item)
+		return;
+
 	item->block_index = block_index;
 	item->next = allocator->free_block_lists[level];
 	allocator->free_block_lists[level] = item;

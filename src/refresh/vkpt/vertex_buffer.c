@@ -498,7 +498,12 @@ inject_model_lights(bsp_mesh_t* bsp_mesh, bsp_t* bsp, int num_model_lights, ligh
 
 	for (int nlight = 0; nlight < num_model_lights; nlight++)
 	{
-		local_light_counts[transformed_model_lights[nlight].cluster]++;
+		int cidx = transformed_model_lights[ nlight ].cluster;
+		if ( cidx < 0 || cidx >= bsp_mesh->num_clusters ) {
+			continue;
+		}
+		local_light_counts[ cidx ]++;
+//		local_light_counts[transformed_model_lights[nlight].cluster]++;
 	}
 
 	// Count the number of model lights visible from each cluster, using the PVS
@@ -508,12 +513,19 @@ inject_model_lights(bsp_mesh_t* bsp_mesh, bsp_t* bsp, int num_model_lights, ligh
 		if (local_light_counts[c])
 		{
 			const byte* mask = BSP_GetPvs(bsp, c);
+			if (!mask)
+				continue;
 
 			for (int j = 0; j < bsp->visrowsize; j++) {
 				if (mask[j]) {
 					for (int k = 0; k < 8; ++k) {
-						if (mask[j] & (1 << k))
-							cluster_light_counts[j * 8 + k] += local_light_counts[c];
+						if (mask[j] & (1 << k)) {
+							int other_cluster = j * 8 + k;
+							if ( other_cluster >= bsp_mesh->num_clusters ) {
+								continue;
+							}
+							cluster_light_counts[other_cluster] += local_light_counts[c];
+						}
 					}
 				}
 			}
@@ -570,7 +582,13 @@ inject_model_lights(bsp_mesh_t* bsp_mesh, bsp_t* bsp, int num_model_lights, ligh
 
 	for (int nlight = 0; nlight < num_model_lights; nlight++)
 	{
-		const byte* mask = BSP_GetPvs(bsp, transformed_model_lights[nlight].cluster);
+		int cidx = transformed_model_lights[nlight].cluster;
+		if (cidx < 0 || cidx >= bsp_mesh->num_clusters)
+			continue;
+
+		const byte* mask = BSP_GetPvs(bsp, cidx);
+		if (!mask)
+			continue;
 
 		for (int j = 0; j < bsp->visrowsize; j++) {
 			if (mask[j]) {
@@ -578,6 +596,10 @@ inject_model_lights(bsp_mesh_t* bsp_mesh, bsp_t* bsp, int num_model_lights, ligh
 					if (mask[j] & (1 << k))
 					{
 						int other_cluster = j * 8 + k;
+						if ( other_cluster >= bsp_mesh->num_clusters ) {
+							continue;
+						}
+
 						int list_index = light_list_tails[other_cluster]++;
 						// assert we're not writing into the space reserved for following cluster
 						assert(list_index < dst_list_offsets[other_cluster + 1]);

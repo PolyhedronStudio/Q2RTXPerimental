@@ -46,6 +46,12 @@ static void CLG_DebugDrawMonsterSkeletalHitboxes( const entity_t *refreshEntity,
     if ( !clg_skeletal_hitboxes_debug_draw || !clg_skeletal_hitboxes_debug_draw->integer ) {
         return;
     }
+
+    // Require explicit developer mode for skeletal hitbox overlays.
+    if ( !developer || !developer->integer ) {
+        return;
+    }
+
     if ( !refreshEntity || !model || !model->skmData ) {
         return;
     }
@@ -127,6 +133,12 @@ static void CLG_DebugDrawMonsterDefaultBounds( const centity_t *packetEntity ) {
     if ( !clg_skeletal_hitboxes_debug_draw || !clg_skeletal_hitboxes_debug_draw->integer ) {
         return;
     }
+
+    // Require explicit developer mode for packet-entity bounds overlays.
+    if ( !developer || !developer->integer ) {
+        return;
+    }
+
     if ( !packetEntity ) {
         return;
     }

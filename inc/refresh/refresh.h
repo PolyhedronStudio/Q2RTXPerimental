@@ -108,6 +108,18 @@ extern void    (*R_ModeChanged)(int width, int height, int flags);
 
 // add decal to ring buffer
 extern void (*R_AddDecal)(decal_t* d);
+// add pre-clipped decal mesh triangles
+extern void (*R_AddDecalMesh)(const decal_mesh_vertex_t *vertices, int32_t vertexCount, const vec3_t albedo, float alpha, uint32_t materialHash, float lifeSeconds);
+// clear all renderer-side decal submissions
+extern void (*R_ClearDecals)(void);
+// clear all renderer-side decal material mappings
+extern void (*R_ClearDecalMaterialMappings)(void);
+// configure one renderer-side decal material mapping
+extern void (*R_SetDecalMaterialMapping)(uint32_t materialHash, const char *materialName);
+// configure the renderer-side decal render mode
+extern void (*R_SetDecalRenderMode)(int32_t renderMode);
+// dump renderer-side decal material mappings for runtime diagnostics
+extern void (*R_DumpDecalMaterialMappings)(void);
 
 extern bool (*R_InterceptKey)(unsigned key, bool down);
 extern bool (*R_IsHDR)(void);

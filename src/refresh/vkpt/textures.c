@@ -144,8 +144,13 @@ static void textures_destroy_unused_set(uint32_t set_index)
 		if(unused_resources->images[i] != VK_NULL_HANDLE)
 		vkDestroyImage(qvk.device, unused_resources->images[i], NULL);
 
-		if(unused_resources->image_memory[i].memory != VK_NULL_HANDLE)
+		if (tex_device_memory_allocator && unused_resources->image_memory[i].memory != VK_NULL_HANDLE)
 		free_device_memory(tex_device_memory_allocator, &unused_resources->image_memory[i]);
+
+		unused_resources->images[i] = VK_NULL_HANDLE;
+		unused_resources->image_views[i] = VK_NULL_HANDLE;
+		unused_resources->image_views_mip0[i] = VK_NULL_HANDLE;
+		memset(&unused_resources->image_memory[i], 0, sizeof(unused_resources->image_memory[i]));
 	}
 	unused_resources->image_num = 0;
 
@@ -992,6 +997,7 @@ IMG_Unload_RTX(image_t *image)
 		tex_images[index] = VK_NULL_HANDLE;
 		tex_image_views[index] = VK_NULL_HANDLE;
 		tex_image_views_mip0[index] = VK_NULL_HANDLE;
+		memset(&tex_image_memory[index], 0, sizeof(tex_image_memory[index]));
 		tex_upload_frames[index] = 0;
 
 		vkpt_invalidate_texture_descriptors();

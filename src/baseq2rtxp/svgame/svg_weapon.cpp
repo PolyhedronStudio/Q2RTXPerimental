@@ -22,6 +22,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "svgame/entities/svg_player_edict.h"
 
+#include "sharedgame/sg_entity_flags.h"
 #include "sharedgame/sg_means_of_death.h"
 #include "sharedgame/sg_tempentity_events.h"
 
@@ -557,7 +558,13 @@ static void fire_lead(svg_base_edict_t *self, const Vector3 &start, const Vector
             } else {
                 //if ( strncmp( tr.surface->name, "sky", 3 ) != 0 ) {
 				//if ( ( tr.surface->flags & CM_SURFACE_FLAG_SKY ) != 0 ) {
-					SVG_TempEventEntity_GunShot( tr.endpos, tr.plane.normal, te_impact, 28, 40 );
+                    svg_base_edict_t *tempEventEntity = SVG_TempEventEntity_GunShot( tr.endpos, tr.plane.normal, te_impact, 28, 40 );
+
+                    // Preserve the impacted brush-model entity so the client can resolve inline-model decals.
+                    if ( tempEventEntity && tr.ent && tr.ent->solid == SOLID_BSP && ( tr.ent->movetype == MOVETYPE_PUSH || tr.ent->movetype == MOVETYPE_STOP ) && tr.ent->s.number > ENTITYNUM_WORLD ) {
+                        tempEventEntity->s.otherEntityNumber = tr.ent->s.number;
+                        tempEventEntity->s.entityFlags |= EF_ENTITY_EVENT_TARGET_OTHER;
+                    }
 					//gi.WriteUint8( svc_temp_entity );
                     //gi.WriteUint8( te_impact );
                     //gi.WritePosition( &tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );

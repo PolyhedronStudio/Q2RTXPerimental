@@ -29,6 +29,34 @@ uniform utextureBuffer sprite_texure_buffer;
 layout(set = 0, binding = 4)
 uniform utextureBuffer beam_info_buffer;
 
+struct DecalVertex {
+	float position_x;
+	float position_y;
+	float position_z;
+	float pad0;
+	float normal_x;
+	float normal_y;
+	float normal_z;
+	float pad1;
+	float uv_x;
+	float uv_y;
+	float albedo_x;
+	float albedo_y;
+	float albedo_z;
+	float alpha;
+	uint textureIndex;
+	uint maskTextureIndex;
+	uint decalFlags;
+	uint pad2_x;
+	uint pad2_y;
+	uint pad2_z;
+};
+
+layout(set = 0, binding = 5, std430)
+readonly buffer decal_vertex_buffer_s {
+	DecalVertex decal_vertices[];
+};
+
 void get_model_index_and_prim_offset(int instanceID, int geometryIndex, out int model_index, out uint prim_offset)
 {
 	model_index = instance_buffer.tlas_instance_model_indices[instanceID];
@@ -197,6 +225,72 @@ vec4 pt_logic_explosion(int primitiveID, int instanceID, uint instanceCustomInde
 	emission.rgb *= global_ubo.prev_adapted_luminance * 500;
 
 	return emission;
+}
+
+bool pt_logic_decal_sample(int primitiveID, vec2 bary, out vec3 outAlbedo, out float outAlpha)
+{
+	const uint DECAL_FLAG_MASK_INVERTED = (1u << 0u);
+	outAlbedo = vec3(0.0);
+	outAlpha = 0.0;
+
+	const int v0_idx = primitiveID * 3 + 0;
+	const int v1_idx = primitiveID * 3 + 1;
+	const int v2_idx = primitiveID * 3 + 2;
+
+	const DecalVertex v0 = decal_vertices[v0_idx];
+	const DecalVertex v1 = decal_vertices[v1_idx];
+	const DecalVertex v2 = decal_vertices[v2_idx];
+
+	const vec3 barycentric = vec3(1.0 - bary.x - bary.y, bary.x, bary.y);
+	const vec2 uv0 = vec2(v0.uv_x, v0.uv_y);
+	const vec2 uv1 = vec2(v1.uv_x, v1.uv_y);
+	const vec2 uv2 = vec2(v2.uv_x, v2.uv_y);
+	const vec3 albedo0 = vec3(v0.albedo_x, v0.albedo_y, v0.albedo_z);
+	const vec3 albedo1 = vec3(v1.albedo_x, v1.albedo_y, v1.albedo_z);
+	const vec3 albedo2 = vec3(v2.albedo_x, v2.albedo_y, v2.albedo_z);
+	vec2 uv = (uv0 * barycentric.x) + (uv1 * barycentric.y) + (uv2 * barycentric.z);
+	uv = clamp(uv, vec2(0.0), vec2(1.0));
+	vec3 albedo = (albedo0 * barycentric.x) + (albedo1 * barycentric.y) + (albedo2 * barycentric.z);
+	float alpha = (v0.alpha * barycentric.x) + (v1.alpha * barycentric.y) + (v2.alpha * barycentric.z);
+	const uint textureIndex = v0.textureIndex;
+	const uint maskTextureIndex = v0.maskTextureIndex;
+	const uint decalFlags = v0.decalFlags;
+
+	if (maskTextureIndex > 0u)
+	{
+		float mask = global_textureLod(maskTextureIndex, uv, 0).x;
+		if ((decalFlags & DECAL_FLAG_MASK_INVERTED) != 0u)
+			mask = 1.0 - mask;
+
+		if (mask < 0.5)
+			return false;
+	}
+
+	if (textureIndex > 0u)
+	{
+		vec4 sampled = global_textureLod(textureIndex, uv, 0);
+		albedo *= sampled.rgb;
+		alpha *= sampled.a;
+	}
+
+	alpha = clamp(alpha, 0.0, 1.0);
+	if (alpha <= 0.001)
+		return false;
+
+	outAlbedo = albedo;
+	outAlpha = alpha;
+	return true;
+	}
+
+vec4 pt_logic_decal(int primitiveID, vec2 bary)
+{
+	vec3 albedo = vec3(0.0);
+	float alpha = 0.0;
+	if (!pt_logic_decal_sample(primitiveID, bary, albedo, alpha))
+		return vec4(0);
+
+	vec4 color = vec4(albedo * alpha, alpha);
+	return color;
 }
 
 // Adapted from: http://www.pbr-book.org/3ed-2018/Utilities/Mathematical_Routines.html#SolvingQuadraticEquations

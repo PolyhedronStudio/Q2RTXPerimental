@@ -428,7 +428,9 @@ void CLG_TemporaryEntities_Parse( void ) {
 	*	Debug Specific:
 	**/
 	case TE_DEBUG_TRAIL:
-		CLG_FX_DebugTrail( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.pos2 );
+		if ( developer && developer->integer ) {
+			CLG_FX_DebugTrail( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.pos2 );
+		}
 		break;
     default:
         Com_Error( ERR_DROP, "%s: unknown temp entity type(ID: #%d)", __func__, level.parsedMessage.events.tempEntity.type );

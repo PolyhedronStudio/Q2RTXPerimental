@@ -6,6 +6,7 @@
 - Prefer tabs for indentation; otherwise, use 4 spaces unless the file predominantly uses a different indent width. Match the immediate file’s indentation quirks.
 - When following a `masterplan` markdown (`.md`) file, keep task and milestone status lists up-to-date in priority/dependency order: mark completed work as done, blocking issues as blocked/error, and explicitly mark intentional skips with rationale.
 - Always use the C <ctypes.h> and C++ <ctypes> their type definition based variety (e.g. `int32_t`, `int64_t`, `uint32_t`, `int16_t`, and so on). Exception to this rule is actual char string buffer related code; it should just remain using `char` or `const char`.
+- Keep sharedgame decal header usage in CLGame/SVGame as the source of truth; do not include sharedgame decal headers in VKPT renderer code. Renderer should receive decal values via R_ API and may use its own internal structures/constants.
 
 ## Code Style
 - Use const correctness where applicable.

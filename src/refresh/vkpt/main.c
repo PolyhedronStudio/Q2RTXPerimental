@@ -36,6 +36,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "cameras.h"
 #include "physical_sky.h"
 #include "conversion.h"
+#include "decals/vkpt_decals.h"
 #include "../../client/cl_client.h"
 #include "../../client/ui/ui.h"
 
@@ -3275,6 +3276,8 @@ R_RenderFrame_RTX(refdef_t *fd)
 
 		vkpt_taa(post_cmd_buf);
 
+		_VK( vkpt_decals_screenspace_dispatch( post_cmd_buf ) );
+
 		BEGIN_PERF_MARKER(post_cmd_buf, PROFILER_BLOOM);
 		if (cvar_bloom_enable->integer != 0 || qvk.frame_menu_mode)
 		{
@@ -3834,7 +3837,7 @@ R_Init_RTX(bool total)
 	#if _DEBUG 
 	// Debug 3D overlay rendering for vkpt. Keep this disabled by default so the
 	// renderer does not spend any CPU or GPU work on debug geometry unless asked.
-	cvar_pt_draw_debug_3d_geometry = Cvar_Get( "pt_draw_debug_3d_geometry", "1", CVAR_ARCHIVE );
+	cvar_pt_draw_debug_3d_geometry = Cvar_Get( "pt_draw_debug_3d_geometry", "0", CVAR_ARCHIVE );
 	#else
 	// Debug 3D overlay rendering for vkpt. Keep this disabled by default so the
 	// renderer does not spend any CPU or GPU work on debug geometry unless asked.
@@ -3937,6 +3940,7 @@ R_Init_RTX(bool total)
 
 	vkpt_fog_init();
 	vkpt_cameras_init();
+	_VK(vkpt_decals_initialize());
 
 	for (int i = 0; i < 256; i++) {
 		qvk.sintab[i] = sinf(i * (2 * M_PI / 255));
@@ -3976,6 +3980,7 @@ R_Shutdown_RTX(bool total)
 
 	vkpt_fog_shutdown();
 	vkpt_cameras_shutdown();
+	vkpt_decals_shutdown();
 	MAT_Shutdown();
 	IMG_FreeAll();
 	vkpt_textures_destroy_unused();
@@ -4299,7 +4304,39 @@ R_SetSky_RTX(const char *name, float rotate, int autorotate, const vec3_t axis)
 }
 
 void R_AddDecal_RTX(decal_t *d)
-{ }
+{
+	vkpt_decals_submit(d);
+}
+
+void R_AddDecalMesh_RTX(const decal_mesh_vertex_t *vertices, int32_t vertexCount, const vec3_t albedo, float alpha, uint32_t materialHash, float lifeSeconds)
+{
+	vkpt_decals_submit_mesh(vertices, vertexCount, albedo, alpha, materialHash, lifeSeconds);
+}
+
+void R_ClearDecals_RTX(void)
+{
+	vkpt_decals_clear();
+}
+
+void R_ClearDecalMaterialMappings_RTX(void)
+{
+	vkpt_decals_clear_material_mappings();
+}
+
+void R_SetDecalMaterialMapping_RTX(uint32_t materialHash, const char *materialName)
+{
+	vkpt_decals_set_material_mapping(materialHash, materialName);
+}
+
+void R_SetDecalRenderMode_RTX(int32_t renderMode)
+{
+	vkpt_decals_set_render_mode(renderMode);
+}
+
+void R_DumpDecalMaterialMappings_RTX(void)
+{
+	vkpt_decals_dump_material_mappings();
+}
 
 void
 R_BeginRegistration_RTX(const char *name)
@@ -4356,6 +4393,7 @@ R_BeginRegistration_RTX(const char *name)
 	vkpt_bloom_reset();
 	vkpt_tone_mapping_request_reset();
 	vkpt_light_buffer_reset_counts();
+	vkpt_decals_clear();
 
 	memset(cluster_debug_mask, 0, sizeof(cluster_debug_mask));
 	cluster_debug_index = -1;
@@ -4622,6 +4660,12 @@ void R_RegisterFunctionsRTX()
 	R_EndFrame = R_EndFrame_RTX;
 	R_ModeChanged = R_ModeChanged_RTX;
 	R_AddDecal = R_AddDecal_RTX;
+	R_AddDecalMesh = R_AddDecalMesh_RTX;
+	R_ClearDecals = R_ClearDecals_RTX;
+	R_ClearDecalMaterialMappings = R_ClearDecalMaterialMappings_RTX;
+	R_SetDecalMaterialMapping = R_SetDecalMaterialMapping_RTX;
+	R_SetDecalRenderMode = R_SetDecalRenderMode_RTX;
+	R_DumpDecalMaterialMappings = R_DumpDecalMaterialMappings_RTX;
 	R_InterceptKey = R_InterceptKey_RTX;
 	R_IsHDR = R_IsHDR_RTX;
 	IMG_Load = IMG_Load_RTX;

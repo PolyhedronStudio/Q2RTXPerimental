@@ -10,6 +10,7 @@
 #include "clgame/clg_effects.h"
 #include "clgame/clg_events.h"
 #include "clgame/clg_precache.h"
+#include "clgame/decals/clg_decals.h"
 #include "clgame/clg_temp_entities.h"
 #include "clgame/clg_world.h"
 
@@ -99,9 +100,9 @@ static void CLG_EntityEvent_MoreBlood( const Vector3 & origin, const uint8_t dir
 
 static void CLG_EntityEvent_ItemRespawn( centity_t * cent, const int32_t entityNumber, const Vector3 & origin );
 
-static void CLG_EntityEvent_ImpactGunShot( const Vector3 & origin, const uint8_t direction, const int32_t count );
+static void CLG_EntityEvent_ImpactGunShot( const Vector3 & origin, const Vector3 &impactNormal, const uint8_t direction, const int32_t count, const int32_t hitEntityNumber );
 static void CLG_EntityEvent_ImpactSparks( const Vector3 & origin, const uint8_t direction );
-static void CLG_EntityEvent_ImpactBulletSparks( const Vector3 & origin, const uint8_t direction, const int32_t count );
+static void CLG_EntityEvent_ImpactBulletSparks( const Vector3 & origin, const Vector3 &impactNormal, const uint8_t direction, const int32_t count, const int32_t hitEntityNumber );
 
 static void CLG_EntityEvent_Splash( const Vector3 & origin, const uint8_t direction, const int32_t splashType, const int32_t count );
 
@@ -292,8 +293,10 @@ void CLG_Events_FireEntityEvent( const int32_t eventValue, const Vector3 &lerpOr
 		case EV_FX_IMPACT_GUNSHOT: {
 			// Print event name for debugging.
 			DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+			// Preserve the impacted brush-model entity only when the temp event explicitly targets one.
+			const int32_t hitEntityNumber = ( ( cent->current.entityFlags & EF_ENTITY_EVENT_TARGET_OTHER ) != 0 && cent->current.otherEntityNumber > ENTITYNUM_WORLD ) ? cent->current.otherEntityNumber : ENTITYNUM_WORLD;
 			// Fire the gun shot effect.
-			CLG_EntityEvent_ImpactGunShot( cent->current.origin, cent->current.eventParm1, cent->current.eventParm0 );
+			CLG_EntityEvent_ImpactGunShot( cent->current.origin, cent->current.angles, cent->current.eventParm1, cent->current.eventParm0, hitEntityNumber );
 			break;
 		}
 		case EV_FX_IMPACT_SPARKS: {
@@ -306,8 +309,10 @@ void CLG_Events_FireEntityEvent( const int32_t eventValue, const Vector3 &lerpOr
 		case EV_FX_IMPACT_BULLET_SPARKS: {
 			// Print event name for debugging.
 			DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+			// Preserve the impacted brush-model entity only when the temp event explicitly targets one.
+			const int32_t hitEntityNumber = ( ( cent->current.entityFlags & EF_ENTITY_EVENT_TARGET_OTHER ) != 0 && cent->current.otherEntityNumber > ENTITYNUM_WORLD ) ? cent->current.otherEntityNumber : ENTITYNUM_WORLD;
 			// Fire the bullet sparks effect.
-			CLG_EntityEvent_ImpactBulletSparks( cent->current.origin, cent->current.eventParm1, cent->current.eventParm0 );
+			CLG_EntityEvent_ImpactBulletSparks( cent->current.origin, cent->current.angles, cent->current.eventParm1, cent->current.eventParm0, hitEntityNumber );
 			break;
 		}
 
@@ -851,10 +856,50 @@ static void CLG_EntityEvent_Trail( const Vector3 &start, const Vector3 &end, con
 /**************************************
 *   [ EV_FX_IMPACT_GUNSHOT ] Event Handler:
 ***************************************/
-static void CLG_EntityEvent_ImpactGunShot( const Vector3 &origin, const uint8_t direction, const int32_t count ) {
+/**
+*   @brief  Decodes impact direction from temp-entity state angles.
+*   @param  encodedAngles Angles payload from entity state.
+*   @param  outDirection [out] Normalized forward direction.
+*   @return True when decoding produced a valid direction.
+**/
+static bool CLG_EntityEvent_DecodeImpactDirectionFromStateAngles( const Vector3 &encodedAngles, vec3_t outDirection ) {
+	if ( !outDirection ) {
+		return false;
+	}
+
+	if ( QM_Vector3LengthSqr( encodedAngles ) <= ( 0.001f * 0.001f ) ) {
+		return false;
+	}
+
+	Vector3 forward = QM_Vector3Zero();
+	QM_AngleVectors( encodedAngles, &forward, nullptr, nullptr );
+	if ( QM_Vector3LengthSqrDP( forward ) <= ( 0.001 * 0.001 ) ) {
+		return false;
+	}
+
+	outDirection[ 0 ] = forward.x;
+	outDirection[ 1 ] = forward.y;
+	outDirection[ 2 ] = forward.z;
+	VectorNormalize( outDirection );
+	return true;
+}
+
+static void CLG_EntityEvent_ImpactGunShot( const Vector3 &origin, const Vector3 &impactNormal, const uint8_t direction, const int32_t count, const int32_t hitEntityNumber ) {
 	// Decode the direction byte to a direction vector.
 	vec3_t decodedDirection = { 0.f, 0.f, 0.f };
-	ByteToDir( direction, decodedDirection );
+	if ( !CLG_EntityEvent_DecodeImpactDirectionFromStateAngles( impactNormal, decodedDirection ) ) {
+		// Compatibility fallback for older payloads that only carried the packed direction.
+		ByteToDir( direction, decodedDirection );
+	}
+
+	if ( VectorLength( decodedDirection ) <= 0.001f ) {
+		VectorSet( decodedDirection, 0.0f, 0.0f, 1.0f );
+	} else {
+		VectorNormalize( decodedDirection );
+	}
+
+	// Queue a decal spawn request from the impact event payload.
+	CLG_DecalEvents_HandleImpactGunShot( &origin.x, decodedDirection, direction, count, hitEntityNumber );
 
 	// Call the generic particle effect function.
 	CLG_FX_ParticleEffect( &origin.x, decodedDirection, 0, count );
@@ -887,10 +932,22 @@ static void CLG_EntityEvent_ImpactSparks( const Vector3 &origin, const uint8_t d
 /**************************************
 *   [ EV_FX_IMPACT_BULLET_SPARKS ] Event Handler:
 ***************************************/
-static void CLG_EntityEvent_ImpactBulletSparks( const Vector3 &origin, const uint8_t direction, const int32_t count ) {
+static void CLG_EntityEvent_ImpactBulletSparks( const Vector3 &origin, const Vector3 &impactNormal, const uint8_t direction, const int32_t count, const int32_t hitEntityNumber ) {
 	// Decode the direction byte to a direction vector.
 	vec3_t decodedDirection = { 0.f, 0.f, 0.f };
-	ByteToDir( direction, decodedDirection );
+	if ( !CLG_EntityEvent_DecodeImpactDirectionFromStateAngles( impactNormal, decodedDirection ) ) {
+		// Compatibility fallback for older payloads that only carried the packed direction.
+		ByteToDir( direction, decodedDirection );
+	}
+
+	if ( VectorLength( decodedDirection ) <= 0.001f ) {
+		VectorSet( decodedDirection, 0.0f, 0.0f, 1.0f );
+	} else {
+		VectorNormalize( decodedDirection );
+	}
+
+	// Queue a decal spawn request from the impact event payload.
+	CLG_DecalEvents_HandleImpactBulletSparks( &origin.x, decodedDirection, direction, count, hitEntityNumber );
 
 	// Call the generic particle effect function.
 	CLG_FX_ParticleEffect( &origin.x, decodedDirection, 0xe0, count );

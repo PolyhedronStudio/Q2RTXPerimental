@@ -746,8 +746,17 @@ typedef struct decal_s {
     vec3_t dir;
     float spread;
     float length;
+    vec3_t albedo;
+    float alpha;
+    uint32_t materialHash;
     float dummy;
 } decal_t;
+
+typedef struct decal_mesh_vertex_s {
+    vec3_t position;
+    vec3_t normal;
+    vec2_t uv;
+} decal_mesh_vertex_t;
 
 
 

@@ -13,6 +13,7 @@
 #include "clgame/clg_hud.h"
 #include "clgame/clg_local_entities.h"
 #include "clgame/clg_predict.h"
+#include "clgame/decals/clg_decals.h"
 
 #include "clgame/game_ui/clg_ui_main.h"
 
@@ -114,6 +115,7 @@ void PF_ClientDisconnected( void ) {
 *	@brief	Simulate similar the server side, a ClientBeginFrame function.
 **/
 static void CLG_ClientBeginLocalFrame( void ) {
+	CLG_Decals_BeginFrame();
 
 }
 
@@ -123,6 +125,7 @@ static void CLG_ClientBeginLocalFrame( void ) {
 static void CLG_ClientEndLocalFrame( void ) {
 	// Figure out the exact 'reverb' effect for our client to use.
 	CLG_EAX_DetermineEffect();
+	CLG_Decals_EndFrame();
 }
 
 /**
