@@ -248,6 +248,7 @@ bool pt_logic_decal_sample(int primitiveID, vec2 bary, out vec3 outAlbedo, out f
 	const vec3 albedo0 = vec3(v0.albedo_x, v0.albedo_y, v0.albedo_z);
 	const vec3 albedo1 = vec3(v1.albedo_x, v1.albedo_y, v1.albedo_z);
 	const vec3 albedo2 = vec3(v2.albedo_x, v2.albedo_y, v2.albedo_z);
+	float mask_alpha = 1.0;
 	vec2 uv = (uv0 * barycentric.x) + (uv1 * barycentric.y) + (uv2 * barycentric.z);
 	uv = clamp(uv, vec2(0.0), vec2(1.0));
 	vec3 albedo = (albedo0 * barycentric.x) + (albedo1 * barycentric.y) + (albedo2 * barycentric.z);
@@ -258,11 +259,23 @@ bool pt_logic_decal_sample(int primitiveID, vec2 bary, out vec3 outAlbedo, out f
 
 	if (maskTextureIndex > 0u)
 	{
-		float mask = global_textureLod(maskTextureIndex, uv, 0).x;
-		if ((decalFlags & DECAL_FLAG_MASK_INVERTED) != 0u)
-			mask = 1.0 - mask;
+		vec4 mask_sample = global_textureLod(maskTextureIndex, uv, 0);
+		float mask_alpha_rgb = dot(mask_sample.rgb, vec3(0.33333334));
+		float resolved_mask_alpha = mask_sample.a;
 
-		if (mask < 0.5)
+		/**
+		*    Some authored decal masks store coverage in RGB with alpha forced to 1.
+		*    Prefer alpha channel when it carries coverage; otherwise fall back to RGB.
+		**/
+		if (resolved_mask_alpha >= 0.999)
+			resolved_mask_alpha = mask_alpha_rgb;
+
+		if ((decalFlags & DECAL_FLAG_MASK_INVERTED) != 0u)
+			resolved_mask_alpha = 1.0 - resolved_mask_alpha;
+
+		mask_alpha = clamp(resolved_mask_alpha, 0.0, 1.0);
+		alpha *= mask_alpha;
+		if (alpha <= 0.001)
 			return false;
 	}
 
@@ -270,7 +283,10 @@ bool pt_logic_decal_sample(int primitiveID, vec2 bary, out vec3 outAlbedo, out f
 	{
 		vec4 sampled = global_textureLod(textureIndex, uv, 0);
 		albedo *= sampled.rgb;
-		alpha *= sampled.a;
+
+		// When a dedicated mask texture exists, that mask controls coverage.
+		if (maskTextureIndex == 0u)
+			alpha *= sampled.a;
 	}
 
 	alpha = clamp(alpha, 0.0, 1.0);

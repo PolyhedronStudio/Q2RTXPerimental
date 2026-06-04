@@ -10,6 +10,7 @@
 #include <cstdint>
 
 #include "sharedgame/sg_decal_shared.h"
+#include "clgame/decals/clg_decal_mesh.h"
 
 /**
 *    @brief  One active-or-free decal runtime entry.
@@ -24,6 +25,18 @@ typedef struct clg_decal_instance_s {
     vec3_t attachedLocalRight;
     int32_t attachedEntityNumber;
     uint32_t randomSeed;
+    //! Cached clipped mesh for static world decals to avoid per-frame re-clipping.
+    clg_decal_mesh_t cachedClipMesh;
+    //! Candidate count that produced cachedClipMesh for debug/status accounting.
+    int32_t cachedClipMeshCandidateCount;
+    //! True when cachedClipMesh contains valid concrete clipped geometry.
+    qboolean cachedClipMeshValid;
+    //! True once static-world clip mesh generation has been attempted at least once.
+    qboolean cachedClipMeshAttempted;
+    //! True when cachedClipMesh vertices/normals are stored in mover-local space.
+    qboolean cachedClipMeshIsMoverLocal;
+    //! Brush-model entity number that owns mover-local cached clip vertices.
+    int32_t cachedClipMeshSourceEntityNumber;
 } clg_decal_instance_t;
 
 /**

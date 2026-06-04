@@ -58,17 +58,17 @@ typedef enum sg_decal_material_hash_e {
 } sg_decal_material_hash_t;
 
 //! Default decal material path (resolved through materials/*.mat registration).
-#define SG_DECAL_MATERIAL_NAME_DEFAULT "textures/decals/bullets/bullethole_01.tga"
-//! Concrete impact decal texture path.
-#define SG_DECAL_MATERIAL_PATH_GUNSHOT_CONCRETE "textures/decals/bullets/bullethole_01.tga"
-//! Metal impact decal texture path.
-#define SG_DECAL_MATERIAL_PATH_SPARKS_METAL "textures/decals/bullets/bullethole_01.tga"
-//! Flesh impact decal texture path.
-#define SG_DECAL_MATERIAL_PATH_BLOOD_FLESH "textures/decals/bullets/bullethole_01.tga"
-//! Wood impact decal texture path.
-#define SG_DECAL_MATERIAL_PATH_SPLINTER_WOOD "textures/decals/bullets/bullethole_01.tga"
-//! Glass impact decal texture path.
-#define SG_DECAL_MATERIAL_PATH_CRACK_GLASS "textures/decals/bullets/bullethole_01.tga"
+#define SG_DECAL_MATERIAL_NAME_DEFAULT "textures/decals/bullets/bullethole_01"
+//! Concrete impact decal material path.
+#define SG_DECAL_MATERIAL_PATH_GUNSHOT_CONCRETE "textures/decals/bullets/bullethole_01"
+//! Metal impact decal material path.
+#define SG_DECAL_MATERIAL_PATH_SPARKS_METAL "textures/decals/bullets/bullethole_01"
+//! Flesh impact decal material path.
+#define SG_DECAL_MATERIAL_PATH_BLOOD_FLESH "textures/decals/bullets/bullethole_01"
+//! Wood impact decal material path.
+#define SG_DECAL_MATERIAL_PATH_SPLINTER_WOOD "textures/decals/bullets/bullethole_01"
+//! Glass impact decal material path.
+#define SG_DECAL_MATERIAL_PATH_CRACK_GLASS "textures/decals/bullets/bullethole_01"
 
 /**
 *	@brief	Decal spawn request payload shared between clgame and renderer.
@@ -85,6 +85,8 @@ typedef struct sg_decal_spawn_params_s {
 	float fadeOutSeconds;
 	sg_decal_surface_class_t surfaceClass;
 	int32_t hitEntityNumber;
+	//! Exact world brush-side handle captured from the impact trace when available.
+	uintptr_t hitSurfaceHandle;
 	uint32_t flags;
 } sg_decal_spawn_params_t;
 

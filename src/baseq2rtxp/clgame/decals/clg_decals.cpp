@@ -54,6 +54,18 @@ static cvar_t *clg_decals_debug = nullptr;
 static constexpr sg_decal_material_hash_t CLG_DECAL_TEST_SPAWN_MATERIAL = SG_DECAL_MATERIAL_HASH_DEFAULT;
 
 /**
+*    @brief  Returns true when decal debug logging is enabled at or above one level.
+*    @param  level Required debug level.
+**/
+static bool CLG_Decals_IsDebugLevel( const int32_t level ) {
+    if ( !clg_decals_debug ) {
+        return false;
+    }
+
+    return ( clg_decals_debug->integer >= level );
+}
+
+/**
 *    @brief  Pushes CLGame-owned decal material mappings to the renderer.
 *    @note   Renderer remains data-driven and does not hardcode sharedgame hashes or paths.
 **/
@@ -138,12 +150,17 @@ static const centity_t *CLG_Decals_GetMoverAttachmentEntity( const int32_t entit
         return nullptr;
     }
 
-    if ( !clgi.GetEntityHullNode ) {
-        return nullptr;
+    const centity_t *entity = &clg_entities[ entityNumber ];
+
+    if ( entity->current.solid == BOUNDS_BRUSHMODEL ) {
+        return entity;
     }
 
-    const centity_t *entity = &clg_entities[ entityNumber ];
-    if ( entity->current.solid != BOUNDS_BRUSHMODEL ) {
+    /**
+    *    Some mover snapshots expose transitional solid encodings while still providing a
+    *    valid inline hull node. Accept that path so attachment remains stable.
+    **/
+    if ( !clgi.GetEntityHullNode ) {
         return nullptr;
     }
 
@@ -282,7 +299,7 @@ static void CLG_Decals_CacheMoverAttachment( clg_decal_instance_t *instance ) {
         VectorNormalize( instance->attachedLocalRight );
     }
 
-    instance->attachedEntityNumber = entity->current.number;
+    instance->attachedEntityNumber = instance->spawnParams.hitEntityNumber;
 }
 
 /**
@@ -356,7 +373,7 @@ static const bool CLG_Decals_BuildRenderSpawnParams( const clg_decal_instance_t 
         outParams->rotationRadians = CLG_Decals_ComputeRotationRadiansFromRightAxis( outParams->normal, worldRight );
     }
 
-    outParams->hitEntityNumber = entity->current.number;
+    outParams->hitEntityNumber = instance->attachedEntityNumber;
     return true;
 }
 
@@ -380,23 +397,31 @@ static const bool CLG_Decals_SubmitImpactPlaneMesh( const clg_decal_clip_context
 
     decal_mesh_vertex_t vertices[ 6 ] = {};
     vec3_t corners[ 4 ] = {};
+    vec3_t planeOrigin = {};
+
+    /**
+    *    Apply a tiny receiver-normal lift so fallback quads do not disappear into the
+    *    contacted surface due depth precision or coincident-plane rendering.
+    **/
+    VectorCopy( context.spawn.origin, planeOrigin );
+    VectorMA( planeOrigin, 0.10f, context.basisForward, planeOrigin );
 
     /**
     *    Build one compact quad directly on the original trace impact plane.
     **/
-    VectorCopy( context.spawn.origin, corners[ 0 ] );
+    VectorCopy( planeOrigin, corners[ 0 ] );
     VectorMA( corners[ 0 ], -context.halfSize, context.basisRight, corners[ 0 ] );
     VectorMA( corners[ 0 ], -context.halfSize, context.basisUp, corners[ 0 ] );
 
-    VectorCopy( context.spawn.origin, corners[ 1 ] );
+    VectorCopy( planeOrigin, corners[ 1 ] );
     VectorMA( corners[ 1 ], context.halfSize, context.basisRight, corners[ 1 ] );
     VectorMA( corners[ 1 ], -context.halfSize, context.basisUp, corners[ 1 ] );
 
-    VectorCopy( context.spawn.origin, corners[ 2 ] );
+    VectorCopy( planeOrigin, corners[ 2 ] );
     VectorMA( corners[ 2 ], context.halfSize, context.basisRight, corners[ 2 ] );
     VectorMA( corners[ 2 ], context.halfSize, context.basisUp, corners[ 2 ] );
 
-    VectorCopy( context.spawn.origin, corners[ 3 ] );
+    VectorCopy( planeOrigin, corners[ 3 ] );
     VectorMA( corners[ 3 ], -context.halfSize, context.basisRight, corners[ 3 ] );
     VectorMA( corners[ 3 ], context.halfSize, context.basisUp, corners[ 3 ] );
 
@@ -457,15 +482,6 @@ static float CLG_Decals_ComputePolygonArea( const clg_decal_clip_polygon_t &poly
 }
 
 /**
-*	@brief	Return true when one clipped receiver is a raw world trace-plane fallback.
-*	@param	surface	Candidate receiver surface.
-*	@return	True when the receiver is world-owned plane fallback without BSP face geometry.
-**/
-static bool CLG_Decals_IsWorldPlaneFallbackSurface( const clg_world_surface_t &surface ) {
-    return ( surface.bspFace == nullptr && surface.entityNumber == ENTITYNUM_WORLD );
-}
-
-/**
 *	@brief	Build one clipped decal mesh from gathered receiver surfaces.
 *	@param	context		Built decal clip context.
 *	@param	outMesh		[out] Accumulated clipped triangle mesh.
@@ -493,18 +509,17 @@ static const bool CLG_Decals_BuildClippedMesh( const clg_decal_clip_context_t &c
 
     clg_decal_clip_polygon_t clippedPolygons[ 64 ] = {};
     bool clippedCandidateMask[ 64 ] = {};
+    bool clippedConcreteBspMask[ 64 ] = {};
     float clippedAreas[ 64 ] = {};
     int32_t clippedCandidateCount = 0;
-    bool hasClippedConcreteWorldFace = false;
-    bool hasClippedConcreteWorldImpactFace = false;
+    bool hasClippedConcreteBspFace = false;
 
     /**
-    *	Clip every gathered receiver first so primary-plane filtering only reasons about
-    *	faces that actually overlap the decal volume. This avoids choosing a dead primary
-    *	plane from bevel or stair neighbors before polygon clipping has disqualified them.
+    *	Clip every gathered receiver first so primary-face ranking and mesh assembly only
+    *	reason about faces that actually overlap the decal volume.
     **/
     for ( int32_t i = 0; i < candidateCount; i++ ) {
-        if ( !CLG_DecalClip_ClipSurfaceToDecal( context, &surfaces[ i ], &clippedPolygons[ i ] ) ) {
+        if ( !CLG_DecalClip_ClipSurfaceToDecal( context, &surfaces[ i ], &clippedPolygons[ i ], &clippedConcreteBspMask[ i ] ) ) {
             continue;
         }
 
@@ -512,12 +527,8 @@ static const bool CLG_Decals_BuildClippedMesh( const clg_decal_clip_context_t &c
         clippedAreas[ i ] = CLG_Decals_ComputePolygonArea( clippedPolygons[ i ], surfaces[ i ].normal );
         clippedCandidateCount++;
 
-        if ( surfaces[ i ].bspFace != nullptr && surfaces[ i ].entityNumber == ENTITYNUM_WORLD ) {
-            hasClippedConcreteWorldFace = true;
-
-            if ( surfaces[ i ].containsImpactPoint ) {
-                hasClippedConcreteWorldImpactFace = true;
-            }
+        if ( ( surfaces[ i ].bspFace != nullptr || surfaces[ i ].collisionBrushSide != nullptr ) && clippedConcreteBspMask[ i ] ) {
+            hasClippedConcreteBspFace = true;
         }
     }
 
@@ -525,7 +536,17 @@ static const bool CLG_Decals_BuildClippedMesh( const clg_decal_clip_context_t &c
         return false;
     }
 
+    /**
+    *    Treat plane-only recovery polygons as a visibility fallback, not as true clipped
+    *    receiver geometry. If no concrete BSP face survived clipping, let the caller use
+    *    the stable impact-plane mesh instead of submitting stretched fallback strips.
+    **/
+    if ( !hasClippedConcreteBspFace ) {
+        return false;
+    }
+
     int32_t primaryCandidateIndex = -1;
+    int32_t primaryCandidateEntityNumber = ENTITYNUM_WORLD;
     float primaryCandidateAbsDepth = 1.0e30f;
     float primaryCandidateArea = -1.0f;
     float primaryCandidateFacing = -1.0f;
@@ -542,24 +563,11 @@ static const bool CLG_Decals_BuildClippedMesh( const clg_decal_clip_context_t &c
         }
 
         /**
-        *	Once at least one concrete world BSP face clipped successfully, treat the raw
-        *	world trace-plane fallback as a dead-zone-only backup and keep it out of primary
-        *	selection. Otherwise the plane fallback can outrank the real face simply because
-        *	it is marked as impact-containing, which reintroduces the skewed slope result.
+        *	Once any concrete BSP face clipped successfully, ignore plane-only fallback
+        *	polygons during primary selection so pseudo-clipped recovery quads cannot outrank
+        *	or distort the real receiver geometry.
         **/
-        if ( hasClippedConcreteWorldFace && CLG_Decals_IsWorldPlaneFallbackSurface( surfaces[ i ] ) ) {
-            continue;
-        }
-
-        /**
-        *	If a concrete world BSP face actually contains the impact point, keep primary
-        *	selection anchored to that one face instead of allowing neighboring stair-step
-        *	or bevel faces on the same plane to participate in the same decal mesh.
-        **/
-        if ( hasClippedConcreteWorldImpactFace &&
-            surfaces[ i ].entityNumber == ENTITYNUM_WORLD &&
-            surfaces[ i ].bspFace != nullptr &&
-            !surfaces[ i ].containsImpactPoint ) {
+        if ( ( surfaces[ i ].bspFace == nullptr && surfaces[ i ].collisionBrushSide == nullptr ) || !clippedConcreteBspMask[ i ] ) {
             continue;
         }
 
@@ -575,6 +583,7 @@ static const bool CLG_Decals_BuildClippedMesh( const clg_decal_clip_context_t &c
             ( containsImpactPoint == primaryContainsImpact && fabsf( candidateAbsDepth - primaryCandidateAbsDepth ) <= 0.001f && clippedAreas[ i ] > primaryCandidateArea ) ||
             ( containsImpactPoint == primaryContainsImpact && fabsf( candidateAbsDepth - primaryCandidateAbsDepth ) <= 0.001f && fabsf( clippedAreas[ i ] - primaryCandidateArea ) <= 0.01f && candidateFacing > primaryCandidateFacing ) ) {
             primaryCandidateIndex = i;
+            primaryCandidateEntityNumber = surfaces[ i ].entityNumber;
             primaryCandidateAbsDepth = candidateAbsDepth;
             primaryCandidateArea = clippedAreas[ i ];
             primaryCandidateFacing = candidateFacing;
@@ -582,42 +591,50 @@ static const bool CLG_Decals_BuildClippedMesh( const clg_decal_clip_context_t &c
         }
     }
 
-    float primarySignedDepth = 0.0f;
-    vec3_t primaryNormal = {};
+    vec3_t primarySurfaceOrigin = {};
+    vec3_t primarySurfaceNormal = {};
     if ( primaryCandidateIndex >= 0 ) {
-        vec3_t toPrimarySurface = {};
-        VectorSubtract( surfaces[ primaryCandidateIndex ].origin, context.spawn.origin, toPrimarySurface );
-        primarySignedDepth = DotProduct( toPrimarySurface, context.basisForward );
-        VectorCopy( surfaces[ primaryCandidateIndex ].normal, primaryNormal );
+        VectorCopy( surfaces[ primaryCandidateIndex ].origin, primarySurfaceOrigin );
+        VectorCopy( surfaces[ primaryCandidateIndex ].normal, primarySurfaceNormal );
     }
 
     /**
-    *	Append only clipped polygons that stay on the chosen receiver plane so split faces
-    *	can merge while bevels and neighboring trims stay excluded.
+    *	Append all clipped concrete receiver faces from the selected receiver domain so
+    *	edge shots can wrap onto neighboring brush faces instead of stopping mid-air.
+    *	The broad-phase gather, facing checks, and OBB clipping already reject unrelated
+    *	geometry, so additional same-plane filtering would incorrectly drop valid neighbors.
     **/
     for ( int32_t i = 0; i < candidateCount; i++ ) {
         if ( !clippedCandidateMask[ i ] ) {
             continue;
         }
 
-        if ( hasClippedConcreteWorldFace && CLG_Decals_IsWorldPlaneFallbackSurface( surfaces[ i ] ) ) {
+        /**
+        *    Keep fallback plane quads out of concrete clipped mesh output. Real BSP-face
+        *    polygons provide the wrapped geometry here; plane-only recovery belongs to the
+        *    separate impact-plane fallback path.
+        **/
+        if ( ( surfaces[ i ].bspFace == nullptr && surfaces[ i ].collisionBrushSide == nullptr ) || !clippedConcreteBspMask[ i ] ) {
             continue;
         }
 
-        if ( hasClippedConcreteWorldImpactFace &&
-            surfaces[ i ].entityNumber == ENTITYNUM_WORLD &&
-            surfaces[ i ].bspFace != nullptr &&
-            i != primaryCandidateIndex ) {
+        /**
+        *    Keep one decal submission bound to one receiver domain selected by primary
+        *    ranking so world-rescue gather cannot mix world + inline brush faces.
+        **/
+        if ( primaryCandidateIndex >= 0 && surfaces[ i ].entityNumber != primaryCandidateEntityNumber ) {
             continue;
         }
 
-        if ( primaryCandidateIndex >= 0 && clippedCandidateCount > 1 ) {
-            vec3_t toSurface = {};
-            VectorSubtract( surfaces[ i ].origin, context.spawn.origin, toSurface );
-            const float signedDepth = DotProduct( toSurface, context.basisForward );
-            const float normalDot = fabsf( DotProduct( surfaces[ i ].normal, primaryNormal ) );
-
-            if ( normalDot < 0.95f || fabsf( signedDepth - primarySignedDepth ) > 1.0f ) {
+        /**
+        *    Keep secondary receivers close to the primary hit area to avoid collecting
+        *    unrelated clipped neighbors that can produce unstable triangulation artifacts.
+        **/
+        if ( primaryCandidateIndex >= 0 && i != primaryCandidateIndex ) {
+            vec3_t toSecondary = {};
+            VectorSubtract( surfaces[ i ].origin, primarySurfaceOrigin, toSecondary );
+            const float maxSecondaryDistance = ( context.halfSize * 2.5f ) + context.halfDepth + 1.0f;
+            if ( VectorLengthSquared( toSecondary ) > ( maxSecondaryDistance * maxSecondaryDistance ) ) {
                 continue;
             }
         }
@@ -632,7 +649,232 @@ static const bool CLG_Decals_BuildClippedMesh( const clg_decal_clip_context_t &c
 }
 
 /**
+*    @brief  Retries clipped-mesh build with small origin nudges along impact normal.
+*    @param  context Base clip context built from runtime spawn params.
+*    @param  outMesh [out] Recovered mesh when one retry succeeds.
+*    @param  inOutCandidateCount [in/out] Candidate counter updated by retry attempts.
+*    @return True when any nudged retry produced a valid clipped mesh.
+*    @note   Temp-event origin quantization can land exactly on large brush boundaries.
+*            Small signed nudges recover the expected receiver without forcing broad
+*            plane-only fallback geometry.
+**/
+static bool CLG_Decals_TryBuildClippedMeshWithOriginNudges( const clg_decal_clip_context_t &context, clg_decal_mesh_t *outMesh, int32_t *inOutCandidateCount ) {
+    if ( !outMesh ) {
+        return false;
+    }
+
+    vec3_t normalizedNormal = {};
+    VectorCopy( context.spawn.normal, normalizedNormal );
+    if ( VectorNormalize( normalizedNormal ) <= 0.001f ) {
+        return false;
+    }
+
+    int32_t bestCandidateCount = ( inOutCandidateCount ) ? *inOutCandidateCount : 0;
+    static constexpr float originNudges[] = { 0.5f, -0.5f, 1.5f, -1.5f, 3.0f, -3.0f };
+
+    for ( int32_t nudgeIndex = 0; nudgeIndex < (int32_t)std::size( originNudges ); nudgeIndex++ ) {
+        clg_decal_clip_context_t retryContext = context;
+        VectorMA( context.spawn.origin, originNudges[ nudgeIndex ], normalizedNormal, retryContext.spawn.origin );
+
+        clg_decal_mesh_t retryMesh = {};
+        int32_t retryCandidateCount = 0;
+        if ( CLG_Decals_BuildClippedMesh( retryContext, &retryMesh, &retryCandidateCount ) ) {
+            *outMesh = retryMesh;
+            if ( inOutCandidateCount ) {
+                *inOutCandidateCount = retryCandidateCount;
+            }
+            return true;
+        }
+
+        if ( retryCandidateCount > bestCandidateCount ) {
+            bestCandidateCount = retryCandidateCount;
+        }
+    }
+
+    if ( inOutCandidateCount ) {
+        *inOutCandidateCount = bestCandidateCount;
+    }
+
+    return false;
+}
+
+/**
+*    @brief  Returns true when one decal can safely reuse cached clipped mesh output.
+*    @param  instance Runtime decal instance.
+*    @param  renderParams World-space render params for this frame.
+*    @note   World-space receivers can reuse cached world-space mesh output directly.
+**/
+static bool CLG_Decals_ShouldUseWorldMeshCache( const clg_decal_instance_t *instance, const sg_decal_spawn_params_t &renderParams ) {
+    if ( !instance ) {
+        return false;
+    }
+
+    if ( instance->attachedEntityNumber > ENTITYNUM_WORLD ) {
+        return false;
+    }
+
+    if ( renderParams.hitEntityNumber > ENTITYNUM_WORLD ) {
+        return false;
+    }
+
+    return true;
+}
+
+/**
+*    @brief  Returns true when one mover-attached decal can use local-space mesh cache.
+*    @param  instance Runtime decal instance.
+*    @param  renderParams World-space render params for this frame.
+**/
+static bool CLG_Decals_ShouldUseMoverLocalMeshCache( const clg_decal_instance_t *instance, const sg_decal_spawn_params_t &renderParams ) {
+    if ( !instance ) {
+        return false;
+    }
+
+    if ( instance->attachedEntityNumber <= ENTITYNUM_WORLD ) {
+        return false;
+    }
+
+    if ( renderParams.hitEntityNumber <= ENTITYNUM_WORLD ) {
+        return false;
+    }
+
+    return true;
+}
+
+/**
+*    @brief  Copies one CLGame mesh into shared renderer payload vertices.
+*    @param  mesh CLGame mesh to copy.
+*    @param  outVertices [out] Shared payload vertices.
+*    @param  outVertexCapacity Capacity of outVertices.
+**/
+static void CLG_Decals_CopyMeshToRendererVertices( const clg_decal_mesh_t &mesh, decal_mesh_vertex_t *outVertices, const int32_t outVertexCapacity ) {
+    if ( !outVertices || outVertexCapacity <= 0 ) {
+        return;
+    }
+
+    const int32_t copyCount = ( mesh.vertexCount < outVertexCapacity ) ? mesh.vertexCount : outVertexCapacity;
+    for ( int32_t i = 0; i < copyCount; i++ ) {
+        VectorCopy( mesh.vertices[ i ].position, outVertices[ i ].position );
+        VectorCopy( mesh.vertices[ i ].normal, outVertices[ i ].normal );
+        outVertices[ i ].uv[ 0 ] = mesh.vertices[ i ].uv[ 0 ];
+        outVertices[ i ].uv[ 1 ] = mesh.vertices[ i ].uv[ 1 ];
+    }
+}
+
+/**
+*    @brief  Stores one world-space clipped mesh as mover-local cached geometry.
+*    @param  instance Runtime decal instance owning the cache.
+*    @param  worldMesh World-space clipped mesh generated this frame.
+*    @return True when local-space cache conversion succeeded.
+**/
+static bool CLG_Decals_CacheMeshAsMoverLocalSpace( clg_decal_instance_t *instance, const clg_decal_mesh_t &worldMesh ) {
+    if ( !instance || instance->attachedEntityNumber <= ENTITYNUM_WORLD ) {
+        return false;
+    }
+
+    const centity_t *entity = CLG_Decals_GetMoverAttachmentEntity( instance->attachedEntityNumber );
+    if ( !entity ) {
+        return false;
+    }
+
+    vec3_t basisForward = {};
+    vec3_t basisRight = {};
+    vec3_t basisUp = {};
+    CLG_Decals_BuildEntityBasis( &entity->lerpAngles.x, basisForward, basisRight, basisUp );
+
+    clg_decal_mesh_t localMesh = {};
+    CLG_DecalMesh_Clear( &localMesh );
+    localMesh.vertexCount = worldMesh.vertexCount;
+    localMesh.triangleCount = worldMesh.triangleCount;
+
+    for ( int32_t i = 0; i < worldMesh.vertexCount; i++ ) {
+        vec3_t worldPositionDelta = {};
+        vec3_t localPosition = {};
+        vec3_t localNormal = {};
+        VectorSubtract( worldMesh.vertices[ i ].position, &entity->lerpOrigin.x, worldPositionDelta );
+
+        CLG_Decals_WorldVectorToLocal( worldPositionDelta, basisForward, basisRight, basisUp, localPosition );
+        CLG_Decals_WorldVectorToLocal( worldMesh.vertices[ i ].normal, basisForward, basisRight, basisUp, localNormal );
+
+        if ( VectorLength( localNormal ) <= 0.001f ) {
+            VectorCopy( instance->attachedLocalNormal, localNormal );
+        } else {
+            VectorNormalize( localNormal );
+        }
+
+        VectorCopy( localPosition, localMesh.vertices[ i ].position );
+        VectorCopy( localNormal, localMesh.vertices[ i ].normal );
+        localMesh.vertices[ i ].uv[ 0 ] = worldMesh.vertices[ i ].uv[ 0 ];
+        localMesh.vertices[ i ].uv[ 1 ] = worldMesh.vertices[ i ].uv[ 1 ];
+    }
+
+    instance->cachedClipMesh = localMesh;
+    instance->cachedClipMeshCandidateCount = 0;
+    instance->cachedClipMeshValid = qtrue;
+    instance->cachedClipMeshAttempted = qtrue;
+    instance->cachedClipMeshIsMoverLocal = qtrue;
+    instance->cachedClipMeshSourceEntityNumber = instance->attachedEntityNumber;
+    return true;
+}
+
+/**
+*    @brief  Rebuilds world-space mesh from mover-local cached clipped vertices.
+*    @param  instance Runtime decal instance holding mover-local cached mesh.
+*    @param  outWorldMesh [out] Reconstructed world-space mesh for this frame.
+*    @return True when conversion succeeded.
+**/
+static bool CLG_Decals_BuildWorldMeshFromMoverLocalCache( const clg_decal_instance_t *instance, clg_decal_mesh_t *outWorldMesh ) {
+    if ( !instance || !outWorldMesh ) {
+        return false;
+    }
+
+    if ( instance->cachedClipMeshIsMoverLocal == qfalse || instance->attachedEntityNumber <= ENTITYNUM_WORLD ) {
+        return false;
+    }
+
+    if ( instance->cachedClipMeshSourceEntityNumber != instance->attachedEntityNumber ) {
+        return false;
+    }
+
+    const centity_t *entity = CLG_Decals_GetMoverAttachmentEntity( instance->attachedEntityNumber );
+    if ( !entity ) {
+        return false;
+    }
+
+    vec3_t basisForward = {};
+    vec3_t basisRight = {};
+    vec3_t basisUp = {};
+    CLG_Decals_BuildEntityBasis( &entity->lerpAngles.x, basisForward, basisRight, basisUp );
+
+    CLG_DecalMesh_Clear( outWorldMesh );
+    outWorldMesh->vertexCount = instance->cachedClipMesh.vertexCount;
+    outWorldMesh->triangleCount = instance->cachedClipMesh.triangleCount;
+
+    for ( int32_t i = 0; i < instance->cachedClipMesh.vertexCount; i++ ) {
+        vec3_t worldPositionDelta = {};
+        vec3_t worldNormal = {};
+
+        CLG_Decals_LocalVectorToWorld( instance->cachedClipMesh.vertices[ i ].position, basisForward, basisRight, basisUp, worldPositionDelta );
+        VectorAdd( &entity->lerpOrigin.x, worldPositionDelta, outWorldMesh->vertices[ i ].position );
+
+        CLG_Decals_LocalVectorToWorld( instance->cachedClipMesh.vertices[ i ].normal, basisForward, basisRight, basisUp, worldNormal );
+        if ( VectorLength( worldNormal ) <= 0.001f ) {
+            VectorCopy( instance->spawnParams.normal, worldNormal );
+        } else {
+            VectorNormalize( worldNormal );
+        }
+        VectorCopy( worldNormal, outWorldMesh->vertices[ i ].normal );
+
+        outWorldMesh->vertices[ i ].uv[ 0 ] = instance->cachedClipMesh.vertices[ i ].uv[ 0 ];
+        outWorldMesh->vertices[ i ].uv[ 1 ] = instance->cachedClipMesh.vertices[ i ].uv[ 1 ];
+    }
+
+    return true;
+}
+
+/**
 *	@brief	Submit one clipped receiver mesh through the mesh decal API.
+*	@param	instance	Runtime decal instance used for world/mover cache reuse.
 *	@param	context		Built decal clip context.
 *	@param	albedo		Decal albedo tint.
 *	@param	alpha		Decal alpha tint.
@@ -640,7 +882,7 @@ static const bool CLG_Decals_BuildClippedMesh( const clg_decal_clip_context_t &c
 *	@param	lifeSeconds	Renderer lifetime in seconds; zero means static.
 *	@return	True when a clipped mesh was submitted to the renderer.
 **/
-static const bool CLG_Decals_SubmitClippedMesh( const clg_decal_clip_context_t &context, const vec3_t albedo, const float alpha, const uint32_t materialHash, const float lifeSeconds ) {
+static const bool CLG_Decals_SubmitClippedMesh( clg_decal_instance_t *instance, const clg_decal_clip_context_t &context, const vec3_t albedo, const float alpha, const uint32_t materialHash, const float lifeSeconds ) {
     /**
     *	Sanity: mesh submission is only possible when the refresh API is available.
     **/
@@ -650,26 +892,121 @@ static const bool CLG_Decals_SubmitClippedMesh( const clg_decal_clip_context_t &
 
     clg_decal_mesh_t mesh = {};
     int32_t candidateCount = 0;
-    if ( !CLG_Decals_BuildClippedMesh( context, &mesh, &candidateCount ) ) {
-        s_clgDecalLastCandidateCount = candidateCount;
-        s_clgDecalLastTriangleCount = mesh.triangleCount;
-        return false;
+    const bool useWorldCache = CLG_Decals_ShouldUseWorldMeshCache( instance, context.spawn );
+    const bool useMoverLocalCache = CLG_Decals_ShouldUseMoverLocalMeshCache( instance, context.spawn );
+    const bool shouldUseClipCache = ( useWorldCache || useMoverLocalCache );
+    bool meshReadyFromCache = false;
+
+    /**
+    *    Reuse one cached clip result whenever possible. World decals keep world-space
+    *    vertices, and mover-attached decals keep mover-local vertices that are transformed
+    *    back into world space each frame.
+    **/
+    if ( shouldUseClipCache && instance->cachedClipMeshAttempted ) {
+        candidateCount = instance->cachedClipMeshCandidateCount;
+
+        if ( instance->cachedClipMeshValid != qfalse ) {
+            if ( useWorldCache && instance->cachedClipMeshIsMoverLocal == qfalse ) {
+                mesh = instance->cachedClipMesh;
+                meshReadyFromCache = true;
+            }
+
+            if ( useMoverLocalCache && instance->cachedClipMeshIsMoverLocal != qfalse && CLG_Decals_BuildWorldMeshFromMoverLocalCache( instance, &mesh ) ) {
+                meshReadyFromCache = true;
+            }
+
+            if ( !meshReadyFromCache ) {
+                /**
+                *    Cached geometry exists but cannot be reconstructed for the current frame.
+                *    Mark invalid and fall back to legacy submission without re-clipping.
+                **/
+                instance->cachedClipMeshValid = qfalse;
+            }
+        }
+
+        /**
+        *    Do not re-run clipping per frame once this decal has already attempted cacheable
+        *    clip generation. This keeps clipping as a spawn-time operation only.
+        **/
+        if ( !meshReadyFromCache ) {
+            s_clgDecalLastCandidateCount = candidateCount;
+            s_clgDecalLastTriangleCount = 0;
+
+            if ( CLG_Decals_IsDebugLevel( 2 ) ) {
+                clgi.Print( PRINT_DEVELOPER, "[CLG Decals][MeshDbg] clipped-submit:no cache-miss-no-reclip candidates:%d\n", candidateCount );
+            }
+            return false;
+        }
     }
 
-    decal_mesh_vertex_t submittedVertices[ 256 ] = {};
+    if ( !meshReadyFromCache ) {
+        if ( !CLG_Decals_BuildClippedMesh( context, &mesh, &candidateCount ) ) {
+            bool recoveredByNudge = false;
+            if ( candidateCount <= 0 ) {
+                recoveredByNudge = CLG_Decals_TryBuildClippedMeshWithOriginNudges( context, &mesh, &candidateCount );
+            }
+
+            if ( !recoveredByNudge ) {
+                s_clgDecalLastCandidateCount = candidateCount;
+                s_clgDecalLastTriangleCount = mesh.triangleCount;
+
+                if ( shouldUseClipCache ) {
+                    instance->cachedClipMesh = mesh;
+                    instance->cachedClipMeshCandidateCount = candidateCount;
+                    instance->cachedClipMeshValid = qfalse;
+                    instance->cachedClipMeshAttempted = qtrue;
+                    instance->cachedClipMeshIsMoverLocal = qfalse;
+                    instance->cachedClipMeshSourceEntityNumber = context.spawn.hitEntityNumber;
+                }
+
+                if ( CLG_Decals_IsDebugLevel( 2 ) ) {
+                    clgi.Print( PRINT_DEVELOPER, "[CLG Decals][MeshDbg] clipped-submit:no candidates:%d triangles:%d\n", candidateCount, mesh.triangleCount );
+                }
+                return false;
+            }
+
+            if ( CLG_Decals_IsDebugLevel( 2 ) ) {
+                clgi.Print( PRINT_DEVELOPER, "[CLG Decals][MeshDbg] clipped-submit:recovered-by-origin-nudge candidates:%d triangles:%d\n", candidateCount, mesh.triangleCount );
+            }
+        }
+
+        if ( shouldUseClipCache ) {
+            instance->cachedClipMeshCandidateCount = candidateCount;
+
+            if ( useMoverLocalCache ) {
+                if ( !CLG_Decals_CacheMeshAsMoverLocalSpace( instance, mesh ) ) {
+                    instance->cachedClipMesh = mesh;
+                    instance->cachedClipMeshCandidateCount = candidateCount;
+                    instance->cachedClipMeshAttempted = qtrue;
+                    instance->cachedClipMeshValid = qfalse;
+                    instance->cachedClipMeshIsMoverLocal = qfalse;
+                    instance->cachedClipMeshSourceEntityNumber = ENTITYNUM_WORLD;
+                } else {
+                    instance->cachedClipMeshCandidateCount = candidateCount;
+                }
+            } else {
+                instance->cachedClipMesh = mesh;
+                instance->cachedClipMeshValid = qtrue;
+                instance->cachedClipMeshAttempted = qtrue;
+                instance->cachedClipMeshIsMoverLocal = qfalse;
+                instance->cachedClipMeshSourceEntityNumber = ENTITYNUM_WORLD;
+            }
+        }
+    }
+
+    decal_mesh_vertex_t submittedVertices[ 1024 ] = {};
 
     /**
     *	Copy the CLGame mesh into the shared refresh payload explicitly so submission
     *	does not rely on aliasing distinct struct types.
     **/
-    for ( int32_t i = 0; i < mesh.vertexCount; i++ ) {
-        VectorCopy( mesh.vertices[ i ].position, submittedVertices[ i ].position );
-        VectorCopy( mesh.vertices[ i ].normal, submittedVertices[ i ].normal );
-        VectorCopy( mesh.vertices[ i ].uv, submittedVertices[ i ].uv );
-    }
+    CLG_Decals_CopyMeshToRendererVertices( mesh, submittedVertices, (int32_t)std::size( submittedVertices ) );
 
     s_clgDecalLastCandidateCount = candidateCount;
     s_clgDecalLastTriangleCount = mesh.triangleCount;
+    if ( CLG_Decals_IsDebugLevel( 3 ) ) {
+        clgi.Print( PRINT_DEVELOPER, "[CLG Decals][MeshDbg] clipped-submit:yes candidates:%d triangles:%d\n", candidateCount, mesh.triangleCount );
+    }
     clgi.R_AddDecalMesh( submittedVertices, mesh.vertexCount, albedo, alpha, materialHash, lifeSeconds );
     return true;
 }
@@ -680,7 +1017,7 @@ static const bool CLG_Decals_SubmitClippedMesh( const clg_decal_clip_context_t &
 *    @param  renderParams Rebuilt world-space spawn params for this frame.
 **/
 static void CLG_Decals_DebugPrintInstance( const clg_decal_instance_t *instance, const sg_decal_spawn_params_t &renderParams ) {
-    if ( !clg_decals_debug || clg_decals_debug->integer == 0 || !instance ) {
+    if ( !CLG_Decals_IsDebugLevel( 3 ) || !instance ) {
         return;
     }
 
@@ -747,9 +1084,10 @@ static void CLG_Decals_DumpMaterials_f( void ) {
 
 /**
 *    @brief  Submits one decal to refresh using clipped mesh triangles when supported.
+*    @param  instance Runtime decal instance, used for static-world mesh cache reuse.
 *    @note   Falls back to legacy center-projected quad payload when mesh API is unavailable.
 **/
-static void CLG_Decals_SubmitLegacyDecal( const sg_decal_spawn_params_t &params ) {
+static void CLG_Decals_SubmitLegacyDecal( clg_decal_instance_t *instance, const sg_decal_spawn_params_t &params ) {
     if ( !clgi.R_AddDecalMesh && !clgi.R_AddDecal ) {
         return;
     }
@@ -791,7 +1129,16 @@ static void CLG_Decals_SubmitLegacyDecal( const sg_decal_spawn_params_t &params 
             break;
     }
 
-    legacyDecal.alpha = 0.90f;
+    float runtimeAlpha = 1.0f;
+    if ( instance ) {
+        runtimeAlpha = instance->runtime.alpha;
+    }
+    if ( runtimeAlpha < 0.0f ) {
+        runtimeAlpha = 0.0f;
+    } else if ( runtimeAlpha > 1.0f ) {
+        runtimeAlpha = 1.0f;
+    }
+    legacyDecal.alpha = 0.90f * runtimeAlpha;
 
     // Resolve one explicit decal material path in CLGame before handing off.
     const uint32_t resolvedMaterialHash = ( params.materialHash != 0u )
@@ -804,21 +1151,37 @@ static void CLG_Decals_SubmitLegacyDecal( const sg_decal_spawn_params_t &params 
     (void)resolvedMaterialPath;
 
     /**
-    *    Simplified runtime policy: in path-traced mode, submit one impact-plane quad
-    *    from the event-normal basis and refined client-side impact origin. This bypasses
-    *    broad-phase BSP receiver gather/clip variability on overlap seams.
+    *    In path-traced mode, prefer BSP-clipped receiver meshes so decals stay bound to
+    *    real receiver geometry. If clipping fails for edge cases, fall back to the
+    *    impact-plane submission path to keep impacts visible.
     **/
     const bool shouldSubmitImpactPlaneMesh = ( clgi.R_AddDecalMesh != nullptr && clg_decals_mode && clg_decals_mode->integer == SG_DECAL_RENDER_PATH_TRACED );
     if ( shouldSubmitImpactPlaneMesh ) {
         clg_decal_clip_context_t context = {};
         if ( CLG_DecalClip_BuildContext( params, &context ) ) {
             const float rendererLifeSeconds = 0.0f;
-            if ( CLG_Decals_SubmitImpactPlaneMesh( context, legacyDecal.albedo, legacyDecal.alpha, resolvedMaterialHash, rendererLifeSeconds ) ) {
-                s_clgDecalLastCandidateCount = 0;
-                s_clgDecalLastTriangleCount = 2;
+            if ( CLG_Decals_SubmitClippedMesh( instance, context, legacyDecal.albedo, legacyDecal.alpha, resolvedMaterialHash, rendererLifeSeconds ) ) {
+                return;
+            }
+
+            /**
+            *    In path-traced mode, keep the fallback in the mesh path too so we never drop
+            *    back to legacy sprite-style submission.
+            **/
+            const bool allowImpactPlaneFallback = ( s_clgDecalLastTriangleCount <= 0 );
+            if ( allowImpactPlaneFallback && CLG_Decals_SubmitImpactPlaneMesh( context, legacyDecal.albedo, legacyDecal.alpha, resolvedMaterialHash, rendererLifeSeconds ) ) {
+                if ( s_clgDecalLastTriangleCount <= 0 ) {
+                    s_clgDecalLastCandidateCount = 0;
+                    s_clgDecalLastTriangleCount = 2;
+                }
                 return;
             }
         }
+
+        /**
+        *    Path-traced mode should never fall through to legacy sprite submission.
+        **/
+        return;
     }
 
     if ( clgi.R_AddDecal ) {
@@ -860,7 +1223,7 @@ static void CLG_Decals_RebuildRendererDecals( void ) {
         }
 
         CLG_Decals_DebugPrintInstance( instance, renderParams );
-        CLG_Decals_SubmitLegacyDecal( renderParams );
+        CLG_Decals_SubmitLegacyDecal( instance, renderParams );
     }
 }
 
@@ -1262,6 +1625,12 @@ const bool CLG_Decals_QueueSpawn( const sg_decal_spawn_params_t &params ) {
     instance->runtime.alpha = 0.0f;
     instance->runtime.active = qtrue;
     instance->randomSeed = instance->runtime.decalId * 2654435761u;
+    CLG_DecalMesh_Clear( &instance->cachedClipMesh );
+    instance->cachedClipMeshCandidateCount = 0;
+    instance->cachedClipMeshValid = qfalse;
+    instance->cachedClipMeshAttempted = qfalse;
+    instance->cachedClipMeshIsMoverLocal = qfalse;
+    instance->cachedClipMeshSourceEntityNumber = ENTITYNUM_WORLD;
     s_clgDecalSpawnAccepted++;
 
     return true;

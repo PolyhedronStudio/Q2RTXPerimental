@@ -11,7 +11,8 @@
 #include "clgame/decals/clg_decal_clip.h"
 
 //! Minimum alignment required between decal projection normal and candidate surface normal.
-static constexpr float CLG_DECAL_MIN_FACING_DOT = 0.50f;
+//! Keep a small positive threshold to reject pathological near-perpendicular receivers.
+static constexpr float CLG_DECAL_MIN_FACING_DOT = 0.10f;
 //! Small depth slack to avoid precision edge rejection at clip volume boundaries.
 static constexpr float CLG_DECAL_DEPTH_EPSILON = 0.25f;
 //! Maximum projected-depth difference to treat two candidates as the same receiving plane.
@@ -24,16 +25,34 @@ static constexpr float CLG_DECAL_CLIP_PLANE_EPSILON = 0.05f;
 static constexpr float CLG_DECAL_CLIP_VERTEX_MERGE_EPSILON = 0.05f;
 //! Broad-phase expansion around decal OBB bounds for robust leaf/node overlap queries.
 static constexpr float CLG_DECAL_BOUNDS_QUERY_EXPANSION = 2.0f;
-//! Radius used for impact-local leaf lookup fallback when broad-phase gather returns no faces.
-static constexpr float CLG_DECAL_IMPACT_LOOKUP_RADIUS = 6.0f;
+//! Seed extent used to recover one collision brush-side polygon by clipping against the owning brush.
+static constexpr float CLG_DECAL_COLLISION_FACE_SEED_EXTENT = 8192.0f;
 //! Edge slack used when deciding whether the snapped impact still belongs to a BSP face winding.
-static constexpr float CLG_DECAL_FACE_CONTAINMENT_EDGE_EPSILON = 0.5f;
-//! Lift used when probing plane-only fallback corners back onto real collision.
-static constexpr float CLG_DECAL_PLANE_FALLBACK_TRACE_LIFT = 0.5f;
-//! Maximum acceptable offset from the intended receiver plane during plane-only support probes.
-static constexpr float CLG_DECAL_PLANE_FALLBACK_SUPPORT_EPSILON = 1.0f;
+//! Increased tolerance to absorb quantized impact origin jitter on detail brush seams.
+static constexpr float CLG_DECAL_FACE_CONTAINMENT_EDGE_EPSILON = 4.0f;
 
+/**
+*    @brief  Returns true when clip-debug logging is enabled at or above one level.
+*    @param  level Required debug level.
+**/
+static bool CLG_DecalClip_IsDebugLevel( const int32_t level ) {
+    static cvar_t *clg_decals_debug = nullptr;
+    if ( !clg_decals_debug ) {
+        clg_decals_debug = clgi.CVar_Get( "clg_decals_debug", "0", CVAR_ARCHIVE );
+    }
 
+    return ( clg_decals_debug && clg_decals_debug->integer >= level );
+}
+
+/**
+*    @brief  Returns true when one BSP face has safe surfedge/edge/vertex references.
+*    @param  worldBsp World BSP cache.
+*    @param  face Candidate face pointer.
+*    @return True when all face geometry references are valid for traversal.
+**/
+static bool CLG_DecalClip_IsValidBspFaceGeometry( const bsp_t *worldBsp, const mface_t *face );
+static const mmodel_t *CLG_DecalClip_FindInlineBrushModel( const centity_t *inlineBrushEntity );
+static bool CLG_DecalClip_IsFacePointerInWorldBsp( const bsp_t *worldBsp, const mface_t *face );
 
 /**
 *    @brief  Builds an orthonormal decal basis from projected forward vector.
@@ -45,41 +64,16 @@ static constexpr float CLG_DECAL_PLANE_FALLBACK_SUPPORT_EPSILON = 1.0f;
 static void CLG_DecalClip_BuildBasis( const vec3_t forward, vec3_t outRight, vec3_t outUp, vec3_t outForward );
 
 /**
-*    @brief  Builds a stable tangent basis on a receiver plane aligned to the decal projection.
+*    @brief  Computes signed depth of one world point inside decal projection space.
 *    @param  context Decal clip context.
-*    @param  surfaceNormal Receiver plane normal.
-*    @param  outTangent [out] Tangent axis projected onto receiver plane.
-*    @param  outBitangent [out] Bitangent axis projected onto receiver plane.
+*    @param  worldPoint Point in world space.
+*    @return Signed depth along projection forward axis.
 **/
-static void CLG_DecalClip_BuildSurfaceBasis( const clg_decal_clip_context_t &context, const vec3_t surfaceNormal, vec3_t outTangent, vec3_t outBitangent );
+static float CLG_DecalClip_ComputeSignedDepth( const clg_decal_clip_context_t &context, const vec3_t worldPoint );
 
 /**
-*    @brief  Builds the eight world-space corners of the oriented decal clip box.
-*    @param  context Decal clip context.
-*    @param  outCorners [out] World-space clip box corners.
-**/
-static void CLG_DecalClip_BuildVolumeCorners( const clg_decal_clip_context_t &context, vec3_t outCorners[ 8 ] );
-
-/**
-*    @brief  Builds world-space AABB bounds enclosing the oriented decal volume.
-*    @param  context Decal clip context.
-*    @param  outMins [out] Minimum world-space bounds.
-*    @param  outMaxs [out] Maximum world-space bounds.
-**/
-static void CLG_DecalClip_BuildVolumeBounds( const clg_decal_clip_context_t &context, vec3_t outMins, vec3_t outMaxs );
-
-/**
-*    @brief  Builds a simple 4-vertex quad on receiver plane aligned to surface basis.
-*    @param  context Decal clip context with spawn/volume info.
-*    @param  surface Surface with normal, tangent, and bitangent already computed.
-*    @param  outPolygon [out] Quad polygon (4 vertices) aligned to surface axes.
-*    @return True if quad was successfully created.
-**/
-static bool CLG_DecalClip_BuildPlaneQuad( const clg_decal_clip_context_t &context, const clg_world_surface_t *surface, clg_decal_clip_polygon_t *outPolygon );
-
-/**
-*    @brief  Computes signed distance between a point and a receiver plane.
-*    @param  planePoint One point on the plane.
+*    @brief  Computes signed point distance from one plane.
+*    @param  planePoint Any point on the plane.
 *    @param  planeNormal Plane normal.
 *    @param  point Point to classify.
 *    @return Signed distance from plane.
@@ -87,94 +81,34 @@ static bool CLG_DecalClip_BuildPlaneQuad( const clg_decal_clip_context_t &contex
 static float CLG_DecalClip_ComputePlaneDistance( const vec3_t planePoint, const vec3_t planeNormal, const vec3_t point );
 
 /**
-*    @brief  Appends one unique polygon vertex if it is not already present.
-*    @param  point Candidate vertex.
-*    @param  outPolygon [out] Polygon receiving the unique point.
-*    @return True when point was appended or already existed.
-**/
-static bool CLG_DecalClip_TryAppendUniqueVertex( const vec3_t point, clg_decal_clip_polygon_t *outPolygon );
-
-/**
-*    @brief  Computes decal UV coordinates for one world-space point.
+*    @brief  Flips one normal to face the same hemisphere as the decal projection.
 *    @param  context Decal clip context.
-*    @param  point World-space point on the clipped polygon.
-*    @param  outUv [out] Decal UV inside 0..1 footprint.
-**/
-static void CLG_DecalClip_ProjectPointToUv( const clg_decal_clip_context_t &context, const vec3_t point, vec2_t outUv );
-
-/**
-*    @brief  Sorts a convex clipped polygon around its centroid for stable fan triangulation.
-*    @param  surface Receiver surface holding tangent basis.
-*    @param  inOutPolygon [in/out] Polygon to reorder in-place.
-**/
-static void CLG_DecalClip_SortPolygonVertices( const clg_world_surface_t *surface, clg_decal_clip_polygon_t *inOutPolygon );
-
-/**
-*    @brief  Returns the effective outward normal for one BSP face.
-*    @param  face BSP face whose oriented normal should be returned.
-*    @param  outNormal [out] Effective face normal with draw-side applied.
-**/
-static void CLG_DecalClip_GetBspFaceNormal( const mface_t *face, vec3_t outNormal );
-
-/**
-*    @brief  Aligns one receiver normal to the same hemisphere as the decal projection.
-*    @param  context Decal clip context.
-*    @param  inOutNormal [in/out] Receiver normal to orient consistently.
+*    @param  inOutNormal [in/out] Normal to orient.
 **/
 static void CLG_DecalClip_AlignNormalToProjection( const clg_decal_clip_context_t &context, vec3_t inOutNormal );
 
 /**
-*    @brief  Appends one candidate surface after facing, depth, and duplicate checks.
+*    @brief  Returns one inline brush entity used for local-space clipping.
+*    @param  entityNumber Candidate entity number.
+*    @return Valid inline entity when a hull node exists, nullptr otherwise.
+**/
+static const centity_t *CLG_DecalClip_GetInlineBrushEntity( const int32_t entityNumber );
+
+/**
+*    @brief  Returns true when a surface normal is sufficiently aligned with decal projection.
 *    @param  context Decal clip context.
-*    @param  origin Representative point on the candidate receiver.
-*    @param  normal Receiver normal.
-*    @param  containsImpactPoint True when the original impact projects inside this receiver.
-*    @param  bspFace Optional concrete BSP face for polygon clipping.
-*    @param  entityNumber Receiver entity number for inline brush-model fallbacks.
-*    @param  outSurfaces Destination candidate array.
-*    @param  maxSurfaces Maximum writable candidates.
-*    @param  inOutCount [in/out] Candidate count.
-*    @return True when a new candidate was appended.
+*    @param  surfaceNormal Candidate normal.
+*    @return True when alignment passes facing threshold.
 **/
-static bool CLG_DecalClip_TryAddSurfaceCandidate( const clg_decal_clip_context_t &context, const vec3_t origin, const vec3_t normal, const bool containsImpactPoint, const mface_t *bspFace, const int32_t entityNumber, clg_world_surface_t *outSurfaces, const int32_t maxSurfaces, int32_t *inOutCount );
+static bool CLG_DecalClip_IsSurfaceFacingProjection( const clg_decal_clip_context_t &context, const vec3_t surfaceNormal );
 
 /**
-*    @brief  Appends one BSP face as a candidate receiver when it passes broad-phase filters.
+*    @brief  Returns true when one signed depth lies inside decal depth bounds.
 *    @param  context Decal clip context.
-*    @param  face BSP face to consider.
-*    @param  referencePoint Point used to project onto the face plane.
-*    @param  outSurfaces Destination candidate array.
-*    @param  maxSurfaces Maximum writable candidates.
-*    @param  inOutCount [in/out] Candidate count.
-*    @return True when a new candidate was appended.
+*    @param  signedDepth Signed depth value in decal space.
+*    @return True when depth is inside clip slab.
 **/
-static bool CLG_DecalClip_TryAddBspFaceCandidate( const clg_decal_clip_context_t &context, const mface_t *face, const vec3_t referencePoint, clg_world_surface_t *outSurfaces, const int32_t maxSurfaces, int32_t *inOutCount );
-
-/**
-*    @brief  Returns true when [start, start + bytes) lies fully inside [base, base + spanBytes).
-*    @param  start Address range start.
-*    @param  bytes Address range length in bytes.
-*    @param  base Span base address.
-*    @param  spanBytes Span length in bytes.
-*    @return True when range is fully contained and arithmetic is overflow-safe.
-**/
-static bool CLG_DecalClip_IsAddressRangeInsideSpan( const void *start, const size_t bytes, const void *base, const size_t spanBytes );
-
-/**
-*    @brief  Returns true when one BSP face pointer lies inside world BSP face storage.
-*    @param  worldBsp World BSP cache.
-*    @param  face Candidate face pointer.
-*    @return True when the pointer belongs to the world BSP face array.
-**/
-static bool CLG_DecalClip_IsFacePointerInWorldBsp( const bsp_t *worldBsp, const mface_t *face );
-
-/**
-*    @brief  Returns true when one BSP face has safe surfedge/edge/vertex references.
-*    @param  worldBsp World BSP cache.
-*    @param  face Candidate face pointer.
-*    @return True when all face geometry references are valid for traversal.
-**/
-static bool CLG_DecalClip_IsValidBspFaceGeometry( const bsp_t *worldBsp, const mface_t *face );
+static bool CLG_DecalClip_IsDepthInsideVolume( const clg_decal_clip_context_t &context, const float signedDepth );
 
 /**
 *    @brief  Returns true when two world-space AABBs overlap.
@@ -196,6 +130,8 @@ static bool CLG_DecalClip_DoBoundsOverlap( const vec3_t minsA, const vec3_t maxs
 *    @param  inOutCount [in/out] Candidate count.
 **/
 static void CLG_DecalClip_GatherLeafFaceCandidates( const clg_decal_clip_context_t &context, const vec3_t queryMins, const vec3_t queryMaxs, clg_world_surface_t *outSurfaces, const int32_t maxSurfaces, int32_t *inOutCount );
+static void CLG_DecalClip_GatherInlineModelFaceCandidates( const clg_decal_clip_context_t &context, const centity_t *inlineBrushEntity, const mmodel_t *inlineModel, const vec3_t localQueryMins, const vec3_t localQueryMaxs, const vec3_t localReferencePoint, clg_world_surface_t *outSurfaces, const int32_t maxSurfaces, int32_t *inOutCount );
+static void CLG_DecalClip_GatherInlineNodeFaceCandidatesRecursive( const clg_decal_clip_context_t &context, const centity_t *inlineBrushEntity, const mnode_t *node, const vec3_t localQueryMins, const vec3_t localQueryMaxs, const vec3_t localReferencePoint, clg_world_surface_t *outSurfaces, const int32_t maxSurfaces, int32_t *inOutCount );
 
 /**
 *    @brief  Recursively gathers candidate BSP faces from intersecting BSP nodes.
@@ -208,43 +144,6 @@ static void CLG_DecalClip_GatherLeafFaceCandidates( const clg_decal_clip_context
 *    @param  inOutCount [in/out] Candidate count.
 **/
 static void CLG_DecalClip_GatherNodeFaceCandidatesRecursive( const clg_decal_clip_context_t &context, const mnode_t *node, const vec3_t queryMins, const vec3_t queryMaxs, clg_world_surface_t *outSurfaces, const int32_t maxSurfaces, int32_t *inOutCount );
-
-/**
-*    @brief  Scores one nearby BSP face as a fallback receiver candidate near the impact point.
-*    @param  context Decal clip context.
-*    @param  face BSP face to evaluate.
-*    @param  maxPlaneDistance Relaxed local plane-distance budget from impact point.
-*    @param  inOutBestFace [in/out] Best scored face so far.
-*    @param  inOutBestPlaneDistance [in/out] Best scored plane distance so far.
-*    @param  inOutBestImpactInset [in/out] Best scored impact inset inside the face winding.
-*    @param  inOutBestFacingAlignment [in/out] Best scored facing alignment so far.
-**/
-static void CLG_DecalClip_ConsiderImpactAnchoredFaceCandidate( const clg_decal_clip_context_t &context, const mface_t *face, const float maxPlaneDistance, const mface_t **inOutBestFace, float *inOutBestPlaneDistance, float *inOutBestImpactInset, float *inOutBestFacingAlignment );
-
-/**
-*    @brief  Recursively scans intersecting BSP nodes for the best impact-local fallback face.
-*    @param  context Decal clip context.
-*    @param  node Current BSP node to test.
-*    @param  queryMins Minimum world-space bounds around the impact.
-*    @param  queryMaxs Maximum world-space bounds around the impact.
-*    @param  maxPlaneDistance Relaxed local plane-distance budget from impact point.
-*    @param  inOutBestFace [in/out] Best scored face so far.
-*    @param  inOutBestPlaneDistance [in/out] Best scored plane distance so far.
-*    @param  inOutBestImpactInset [in/out] Best scored impact inset inside the face winding.
-*    @param  inOutBestFacingAlignment [in/out] Best scored facing alignment so far.
-**/
-static void CLG_DecalClip_FindBestImpactAnchoredFaceRecursive( const clg_decal_clip_context_t &context, const mnode_t *node, const vec3_t queryMins, const vec3_t queryMaxs, const float maxPlaneDistance, const mface_t **inOutBestFace, float *inOutBestPlaneDistance, float *inOutBestImpactInset, float *inOutBestFacingAlignment );
-
-/**
-*    @brief  Appends one impact-anchored fallback face near decal origin when broad-phase gather misses.
-*    @param  context Decal clip context.
-*    @param  outSurfaces Destination candidate array.
-*    @param  maxSurfaces Maximum writable candidates.
-*    @param  inOutCount [in/out] Candidate count.
-*    @param  outSelectedPlaneDistance [out] Selected fallback face plane distance from impact origin.
-*    @return True when one fallback face candidate was appended.
-**/
-static bool CLG_DecalClip_GatherImpactAnchoredFallbackCandidate( const clg_decal_clip_context_t &context, clg_world_surface_t *outSurfaces, const int32_t maxSurfaces, int32_t *inOutCount, float *outSelectedPlaneDistance );
 
 /**
 *    @brief  Builds a world-space polygon from one BSP face.
@@ -261,7 +160,11 @@ static bool CLG_DecalClip_BuildPolygonFromBspFace( const mface_t *face, clg_deca
 *    @param  outProjectedPoint [out] Projected point on the face plane.
 *    @return True when the face supplied a valid plane.
 **/
+static bool CLG_DecalClip_BuildPolygonFromCollisionBrushSide( const mbrush_t *brush, const mbrushside_t *brushSide, const vec3_t referencePoint, clg_decal_clip_polygon_t *outPolygon );
+static bool CLG_DecalClip_ProjectPointOntoPlane( const cm_plane_t *plane, const vec3_t point, vec3_t outProjectedPoint );
 static bool CLG_DecalClip_ProjectPointOntoBspFacePlane( const mface_t *face, const vec3_t point, vec3_t outProjectedPoint );
+static bool CLG_DecalClip_ProjectPointOntoCollisionBrushSidePlane( const mbrushside_t *brushSide, const vec3_t point, vec3_t outProjectedPoint );
+static bool CLG_DecalClip_ComputeProjectedPointInsetToPolygon( const clg_decal_clip_polygon_t &polygon, const vec3_t projectedPoint, const vec3_t faceNormal, float *outInset );
 
 /**
 *    @brief  Computes how far one projected point lies inside a convex BSP face winding.
@@ -293,13 +196,31 @@ static bool CLG_DecalClip_ClipPolygonAgainstPlane( const clg_decal_clip_polygon_
 **/
 static bool CLG_DecalClip_ClipBspFaceToDecalVolume( const clg_decal_clip_context_t &context, const clg_world_surface_t *surface, clg_decal_clip_polygon_t *outPolygon );
 
-
+/**
+ *    @brief  Finds the exact world BSP face matching one traced world brush-side handle.
+ *    @param  context Decal clip context holding the impact origin.
+ *    @param  surfaceHandle Stable handle captured from the impact trace brush side.
+*    @return Matching world BSP face, or nullptr when the handle could not be resolved.
+**/
+static const mface_t *CLG_DecalClip_FindWorldFaceBySurfaceHandle( const clg_decal_clip_context_t &context, const uintptr_t surfaceHandle );
 
 /**
-*    @brief  Returns signed depth of a world point in decal projection space.
-*    @param  context Decal clip context.
-*    @param  worldPoint Point in world space.
+*    @brief  Builds orthonormal basis vectors for one inline brush-model entity.
+*    @param  entity Inline brush-model entity.
+*    @param  outForward [out] Local forward axis in world space.
+*    @param  outRight [out] Local right axis in world space.
+*    @param  outUp [out] Local up axis in world space.
 **/
+static bool CLG_DecalClip_BuildInlineEntityBasis( const centity_t *entity, vec3_t outForward, vec3_t outRight, vec3_t outUp );
+
+/**
+*    @brief  Converts one world-space point into inline-model local space.
+*    @param  entity Inline brush-model entity.
+*    @param  worldPoint World-space point.
+*    @param  outLocalPoint [out] Point in inline-model local space.
+**/
+static bool CLG_DecalClip_WorldPointToInlineLocal( const centity_t *entity, const vec3_t worldPoint, vec3_t outLocalPoint );
+
 static float CLG_DecalClip_ComputeSignedDepth( const clg_decal_clip_context_t &context, const vec3_t worldPoint ) {
     vec3_t toPoint = {};
     VectorSubtract( worldPoint, context.spawn.origin, toPoint );
@@ -339,10 +260,10 @@ static const centity_t *CLG_DecalClip_GetInlineBrushEntity( const int32_t entity
     }
 
     const centity_t *entity = &clg_entities[ entityNumber ];
-    if ( entity->current.solid != BOUNDS_BRUSHMODEL ) {
-        return nullptr;
-    }
-
+    /**
+    *    Accept any entity that provides a valid inline hull node. This keeps mover-domain
+    *    decal clipping robust when network snapshots expose transitional solid encodings.
+    **/
     if ( clgi.GetEntityHullNode( entity ) == nullptr ) {
         return nullptr;
     }
@@ -371,169 +292,7 @@ static bool CLG_DecalClip_IsDepthInsideVolume( const clg_decal_clip_context_t &c
     return ( fabsf( signedDepth ) <= ( context.halfDepth + CLG_DECAL_DEPTH_EPSILON ) );
 }
 
-/**
-*	@brief	Probe whether one plane-only fallback point is actually supported by collision.
-*	@param	context		Decal clip context.
-*	@param	surface		Plane-only fallback surface basis/normal.
-*	@param	point		Candidate point on the receiver plane.
-*	@param	outSupportedPoint	[out] Collision-supported point projected back from trace.
-*	@return	True when the point is supported by a nearby surface aligned to the receiver plane.
-**/
-static bool CLG_DecalClip_SamplePlaneFallbackSupport( const clg_decal_clip_context_t &context, const clg_world_surface_t *surface, const vec3_t point, vec3_t outSupportedPoint ) {
-    if ( !surface || !outSupportedPoint ) {
-        return false;
-    }
 
-    const centity_t *clipEntity = CLG_DecalClip_GetInlineBrushEntity( surface->entityNumber );
-
-    vec3_t traceStart = {};
-    vec3_t traceEnd = {};
-    VectorCopy( point, traceStart );
-    VectorMA( traceStart, CLG_DECAL_PLANE_FALLBACK_TRACE_LIFT, surface->normal, traceStart );
-    VectorCopy( point, traceEnd );
-    VectorMA( traceEnd, -( context.halfDepth + CLG_DECAL_PLANE_FALLBACK_TRACE_LIFT + CLG_DECAL_DEPTH_EPSILON ), surface->normal, traceEnd );
-
-    const cm_trace_t trace = CLG_Clip( traceStart, nullptr, nullptr, traceEnd, clipEntity, CM_CONTENTMASK_SOLID );
-    if ( trace.allsolid || trace.startsolid || trace.fraction >= 1.0 ) {
-        return false;
-    }
-
-    if ( fabsf( DotProduct( trace.plane.normal, surface->normal ) ) < CLG_DECAL_MIN_FACING_DOT ) {
-        return false;
-    }
-
-    /**
-    *    Convert the trace endpoint into the legacy vec3_t layout before feeding it to
-    *    clip helpers that still accept raw float-array vectors.
-    **/
-    vec3_t traceEndPoint = {};
-    VectorCopy( trace.endpos, traceEndPoint );
-
-    const float planeOffset = fabsf( CLG_DecalClip_ComputePlaneDistance( point, surface->normal, traceEndPoint ) );
-    if ( planeOffset > CLG_DECAL_PLANE_FALLBACK_SUPPORT_EPSILON ) {
-        return false;
-    }
-
-    VectorCopy( trace.endpos, outSupportedPoint );
-    return true;
-}
-
-/**
-*	@brief	Bisect one fallback quad edge to find the last supported point before it leaves the receiver.
-*	@param	context		Decal clip context.
-*	@param	surface		Plane-only fallback surface basis/normal.
-*	@param	supportedCorner	Known supported edge endpoint.
-*	@param	unsupportedCorner	Known unsupported edge endpoint.
-*	@param	outEdgePoint	[out] Approximated boundary point that still lies on supported collision.
-*	@return	True when an edge boundary point was found.
-**/
-static bool CLG_DecalClip_FindPlaneFallbackEdgePoint( const clg_decal_clip_context_t &context, const clg_world_surface_t *surface, const vec3_t supportedCorner, const vec3_t unsupportedCorner, vec3_t outEdgePoint ) {
-    if ( !surface || !outEdgePoint ) {
-        return false;
-    }
-
-    vec3_t low = {};
-    vec3_t high = {};
-    vec3_t bestSupportedPoint = {};
-    VectorCopy( supportedCorner, low );
-    VectorCopy( unsupportedCorner, high );
-
-    if ( !CLG_DecalClip_SamplePlaneFallbackSupport( context, surface, low, bestSupportedPoint ) ) {
-        return false;
-    }
-
-    for ( int32_t iteration = 0; iteration < 6; iteration++ ) {
-        vec3_t mid = {};
-        vec3_t midSupportedPoint = {};
-        for ( int32_t axis = 0; axis < 3; axis++ ) {
-            mid[ axis ] = 0.5f * ( low[ axis ] + high[ axis ] );
-        }
-
-        if ( CLG_DecalClip_SamplePlaneFallbackSupport( context, surface, mid, midSupportedPoint ) ) {
-            VectorCopy( mid, low );
-            VectorCopy( midSupportedPoint, bestSupportedPoint );
-        } else {
-            VectorCopy( mid, high );
-        }
-    }
-
-    VectorCopy( bestSupportedPoint, outEdgePoint );
-    return true;
-}
-
-/**
-*	@brief	Build a simple 4-vertex quad on the receiver plane aligned to surface basis axes.
-*	@param	context		Decal clip context with spawn/volume info.
-*	@param	surface		Surface with normal, tangent, and bitangent already computed.
-*	@param	outPolygon	[out] Quad polygon (4 vertices) aligned to surface axes.
-*	@return	True if quad was successfully created.
-*	@note	For plane-only candidates (no BSP face), this creates a properly-oriented
-*			decal footprint that avoids stretching/misalignment on sloped surfaces by
-*			aligning the quad directly to the surface's tangent/bitangent basis.
-**/
-static bool CLG_DecalClip_BuildPlaneQuad( const clg_decal_clip_context_t &context, const clg_world_surface_t *surface, clg_decal_clip_polygon_t *outPolygon ) {
-    if ( !surface || !outPolygon ) {
-        return false;
-    }
-
-    memset( outPolygon, 0, sizeof( *outPolygon ) );
-    const float halfSize = context.halfSize;
-    vec3_t corners[ 4 ] = {};
-    vec3_t supportedPoints[ 4 ] = {};
-    bool cornerSupported[ 4 ] = { false, false, false, false };
-
-    // Corner 0: +tangent +bitangent
-    VectorCopy( surface->origin, corners[ 0 ] );
-    VectorMA( corners[ 0 ], halfSize, surface->tangent, corners[ 0 ] );
-    VectorMA( corners[ 0 ], halfSize, surface->bitangent, corners[ 0 ] );
-
-    // Corner 1: -tangent +bitangent
-    VectorCopy( surface->origin, corners[ 1 ] );
-    VectorMA( corners[ 1 ], -halfSize, surface->tangent, corners[ 1 ] );
-    VectorMA( corners[ 1 ], halfSize, surface->bitangent, corners[ 1 ] );
-
-    // Corner 2: -tangent -bitangent
-    VectorCopy( surface->origin, corners[ 2 ] );
-    VectorMA( corners[ 2 ], -halfSize, surface->tangent, corners[ 2 ] );
-    VectorMA( corners[ 2 ], -halfSize, surface->bitangent, corners[ 2 ] );
-
-    // Corner 3: +tangent -bitangent
-    VectorCopy( surface->origin, corners[ 3 ] );
-    VectorMA( corners[ 3 ], halfSize, surface->tangent, corners[ 3 ] );
-    VectorMA( corners[ 3 ], -halfSize, surface->bitangent, corners[ 3 ] );
-
-    /**
-    *	Probe each intended corner back into collision so plane-only fallback quads do not
-    *	hang off unsupported edges when the exact BSP face could not be resolved.
-    **/
-    for ( int32_t cornerIndex = 0; cornerIndex < 4; cornerIndex++ ) {
-        cornerSupported[ cornerIndex ] = CLG_DecalClip_SamplePlaneFallbackSupport( context, surface, corners[ cornerIndex ], supportedPoints[ cornerIndex ] );
-    }
-
-    for ( int32_t edgeIndex = 0; edgeIndex < 4; edgeIndex++ ) {
-        const int32_t nextIndex = ( edgeIndex + 1 ) % 4;
-        if ( cornerSupported[ edgeIndex ] ) {
-            if ( !CLG_DecalClip_TryAppendUniqueVertex( supportedPoints[ edgeIndex ], outPolygon ) ) {
-                return false;
-            }
-        }
-
-        if ( cornerSupported[ edgeIndex ] == cornerSupported[ nextIndex ] ) {
-            continue;
-        }
-
-        const int32_t supportedIndex = cornerSupported[ edgeIndex ] ? edgeIndex : nextIndex;
-        const int32_t unsupportedIndex = cornerSupported[ edgeIndex ] ? nextIndex : edgeIndex;
-        vec3_t edgePoint = {};
-        if ( CLG_DecalClip_FindPlaneFallbackEdgePoint( context, surface, corners[ supportedIndex ], corners[ unsupportedIndex ], edgePoint ) ) {
-            if ( !CLG_DecalClip_TryAppendUniqueVertex( edgePoint, outPolygon ) ) {
-                return false;
-            }
-        }
-    }
-
-    return ( outPolygon->vertexCount >= 3 );
-}
 
 static void CLG_DecalClip_BuildSurfaceBasis( const clg_decal_clip_context_t &context, const vec3_t surfaceNormal, vec3_t outTangent, vec3_t outBitangent ) {
     /**
@@ -594,6 +353,130 @@ static void CLG_DecalClip_BuildVolumeBounds( const clg_decal_clip_context_t &con
             outMaxs[ axis ] = std::max( outMaxs[ axis ], corners[ i ][ axis ] );
         }
     }
+}
+
+static bool CLG_DecalClip_BuildInlineEntityBasis( const centity_t *entity, vec3_t outForward, vec3_t outRight, vec3_t outUp ) {
+    if ( !entity || !outForward || !outRight || !outUp ) {
+        return false;
+    }
+
+    vec3_t axis[ 3 ] = {};
+    AnglesToAxis( &entity->lerpAngles.x, axis );
+    VectorCopy( axis[ 0 ], outForward );
+    VectorCopy( axis[ 1 ], outRight );
+    VectorCopy( axis[ 2 ], outUp );
+
+    if ( VectorLength( outForward ) <= 0.001f ) {
+        VectorSet( outForward, 1.0f, 0.0f, 0.0f );
+    }
+    if ( VectorLength( outRight ) <= 0.001f ) {
+        VectorSet( outRight, 0.0f, 1.0f, 0.0f );
+    }
+    if ( VectorLength( outUp ) <= 0.001f ) {
+        VectorSet( outUp, 0.0f, 0.0f, 1.0f );
+    }
+
+    VectorNormalize( outForward );
+    VectorNormalize( outRight );
+    VectorNormalize( outUp );
+    return true;
+}
+
+static bool CLG_DecalClip_WorldPointToInlineLocal( const centity_t *entity, const vec3_t worldPoint, vec3_t outLocalPoint ) {
+    if ( !entity || !worldPoint || !outLocalPoint ) {
+        return false;
+    }
+
+    vec3_t basisForward = {};
+    vec3_t basisRight = {};
+    vec3_t basisUp = {};
+    if ( !CLG_DecalClip_BuildInlineEntityBasis( entity, basisForward, basisRight, basisUp ) ) {
+        return false;
+    }
+
+    vec3_t toPoint = {};
+    toPoint[ 0 ] = worldPoint[ 0 ] - entity->lerpOrigin.x;
+    toPoint[ 1 ] = worldPoint[ 1 ] - entity->lerpOrigin.y;
+    toPoint[ 2 ] = worldPoint[ 2 ] - entity->lerpOrigin.z;
+
+    outLocalPoint[ 0 ] = DotProduct( toPoint, basisForward );
+    outLocalPoint[ 1 ] = DotProduct( toPoint, basisRight );
+    outLocalPoint[ 2 ] = DotProduct( toPoint, basisUp );
+    return true;
+}
+
+static bool CLG_DecalClip_InlineLocalPointToWorld( const centity_t *entity, const vec3_t localPoint, vec3_t outWorldPoint ) {
+    if ( !entity || !localPoint || !outWorldPoint ) {
+        return false;
+    }
+
+    vec3_t basisForward = {};
+    vec3_t basisRight = {};
+    vec3_t basisUp = {};
+    if ( !CLG_DecalClip_BuildInlineEntityBasis( entity, basisForward, basisRight, basisUp ) ) {
+        return false;
+    }
+
+    outWorldPoint[ 0 ] = entity->lerpOrigin.x;
+    outWorldPoint[ 1 ] = entity->lerpOrigin.y;
+    outWorldPoint[ 2 ] = entity->lerpOrigin.z;
+    VectorMA( outWorldPoint, localPoint[ 0 ], basisForward, outWorldPoint );
+    VectorMA( outWorldPoint, localPoint[ 1 ], basisRight, outWorldPoint );
+    VectorMA( outWorldPoint, localPoint[ 2 ], basisUp, outWorldPoint );
+    return true;
+}
+
+static bool CLG_DecalClip_InlineLocalNormalToWorld( const centity_t *entity, const vec3_t localNormal, vec3_t outWorldNormal ) {
+    if ( !entity || !localNormal || !outWorldNormal ) {
+        return false;
+    }
+
+    vec3_t basisForward = {};
+    vec3_t basisRight = {};
+    vec3_t basisUp = {};
+    if ( !CLG_DecalClip_BuildInlineEntityBasis( entity, basisForward, basisRight, basisUp ) ) {
+        return false;
+    }
+
+    VectorClear( outWorldNormal );
+    VectorMA( outWorldNormal, localNormal[ 0 ], basisForward, outWorldNormal );
+    VectorMA( outWorldNormal, localNormal[ 1 ], basisRight, outWorldNormal );
+    VectorMA( outWorldNormal, localNormal[ 2 ], basisUp, outWorldNormal );
+    if ( VectorLength( outWorldNormal ) <= 0.001f ) {
+        return false;
+    }
+
+    VectorNormalize( outWorldNormal );
+    return true;
+}
+
+static bool CLG_DecalClip_BuildInlineVolumeLocalBounds( const clg_decal_clip_context_t &context, const centity_t *inlineBrushEntity, vec3_t outLocalMins, vec3_t outLocalMaxs ) {
+    if ( !inlineBrushEntity || !outLocalMins || !outLocalMaxs ) {
+        return false;
+    }
+
+    vec3_t worldCorners[ 8 ] = {};
+    vec3_t localCorner = {};
+    CLG_DecalClip_BuildVolumeCorners( context, worldCorners );
+
+    if ( !CLG_DecalClip_WorldPointToInlineLocal( inlineBrushEntity, worldCorners[ 0 ], localCorner ) ) {
+        return false;
+    }
+
+    VectorCopy( localCorner, outLocalMins );
+    VectorCopy( localCorner, outLocalMaxs );
+    for ( int32_t i = 1; i < 8; i++ ) {
+        if ( !CLG_DecalClip_WorldPointToInlineLocal( inlineBrushEntity, worldCorners[ i ], localCorner ) ) {
+            return false;
+        }
+
+        for ( int32_t axis = 0; axis < 3; axis++ ) {
+            outLocalMins[ axis ] = std::min( outLocalMins[ axis ], localCorner[ axis ] );
+            outLocalMaxs[ axis ] = std::max( outLocalMaxs[ axis ], localCorner[ axis ] );
+        }
+    }
+
+    return true;
 }
 
 static bool CLG_DecalClip_TryAppendUniqueVertex( const vec3_t point, clg_decal_clip_polygon_t *outPolygon ) {
@@ -661,7 +544,7 @@ static void CLG_DecalClip_SortPolygonVertices( const clg_world_surface_t *surfac
     centroid[ 1 ] *= invCount;
     centroid[ 2 ] *= invCount;
 
-    float angles[ 32 ] = {};
+    float angles[ CLG_DECAL_CLIP_POLYGON_MAX_VERTICES ] = {};
     for ( int32_t i = 0; i < inOutPolygon->vertexCount; i++ ) {
         vec3_t toVertex = {};
         VectorSubtract( inOutPolygon->positions[ i ], centroid, toVertex );
@@ -722,6 +605,14 @@ static void CLG_DecalClip_GetBspFaceNormal( const mface_t *face, vec3_t outNorma
     }
 }
 
+static bool CLG_DecalClip_SurfaceHasConcretePolygonSource( const clg_world_surface_t *surface ) {
+    if ( !surface ) {
+        return false;
+    }
+
+    return ( surface->bspFace != nullptr || ( surface->collisionBrush != nullptr && surface->collisionBrushSide != nullptr ) );
+}
+
 static bool CLG_DecalClip_TryAddSurfaceCandidate( const clg_decal_clip_context_t &context, const vec3_t origin, const vec3_t normal, const bool containsImpactPoint, const mface_t *bspFace, const int32_t entityNumber, clg_world_surface_t *outSurfaces, const int32_t maxSurfaces, int32_t *inOutCount ) {
     if ( !outSurfaces || !inOutCount || *inOutCount >= maxSurfaces ) {
         return false;
@@ -730,14 +621,44 @@ static bool CLG_DecalClip_TryAddSurfaceCandidate( const clg_decal_clip_context_t
     vec3_t orientedNormal = {};
     VectorCopy( normal, orientedNormal );
     CLG_DecalClip_AlignNormalToProjection( context, orientedNormal );
+    const bool hasConcretePolygonSource = ( bspFace != nullptr );
 
-    if ( !CLG_DecalClip_IsSurfaceFacingProjection( context, orientedNormal ) ) {
+    /**
+    *    Keep receiver domains constrained:
+    *    - world impacts clip only against world BSP faces/fallbacks
+    *    - inline brush impacts accept inline brush receivers first, with optional world
+    *      rescue when inline gather cannot produce usable candidates.
+    *    Mesh assembly later locks output to one chosen domain so one decal still does
+    *    not mix brush and world receivers in the final submission.
+    **/
+    const centity_t *inlineBrushEntity = CLG_DecalClip_GetInlineBrushEntity( context.spawn.hitEntityNumber );
+    if ( inlineBrushEntity ) {
+        if ( entityNumber != context.spawn.hitEntityNumber && entityNumber != ENTITYNUM_WORLD ) {
+            return false;
+        }
+    } else if ( entityNumber != ENTITYNUM_WORLD ) {
         return false;
     }
 
-    const float signedDepth = CLG_DecalClip_ComputeSignedDepth( context, origin );
-    if ( !CLG_DecalClip_IsDepthInsideVolume( context, signedDepth ) ) {
+    /**
+    *    Keep facing rejection for plane-only fallback receivers, but allow concrete BSP faces
+    *    to continue into polygon-vs-OBB clipping even when they are nearly perpendicular.
+    *    Wrapped corner decals need those adjacent faces to survive this stage.
+    **/
+    if ( !hasConcretePolygonSource && !CLG_DecalClip_IsSurfaceFacingProjection( context, orientedNormal ) ) {
         return false;
+    }
+
+    /**
+    *    For concrete BSP faces, defer depth overlap decisions to polygon-vs-OBB clipping.
+    *    Center-depth rejection here can incorrectly drop adjacent edge faces that should
+    *    contribute to wrapped decals.
+    **/
+    if ( !hasConcretePolygonSource ) {
+        const float signedDepth = CLG_DecalClip_ComputeSignedDepth( context, origin );
+        if ( !CLG_DecalClip_IsDepthInsideVolume( context, signedDepth ) ) {
+            return false;
+        }
     }
 
     /**
@@ -746,11 +667,12 @@ static bool CLG_DecalClip_TryAddSurfaceCandidate( const clg_decal_clip_context_t
     **/
     for ( int32_t i = 0; i < *inOutCount; i++ ) {
         const clg_world_surface_t *existing = &outSurfaces[ i ];
-        if ( bspFace && existing->bspFace == bspFace ) {
+        if ( bspFace && existing->bspFace == bspFace && existing->entityNumber == entityNumber ) {
             return false;
         }
 
         const float normalDot = fabsf( DotProduct( orientedNormal, existing->normal ) );
+		const float signedDepth = CLG_DecalClip_ComputeSignedDepth( context, origin );
         const float existingDepth = CLG_DecalClip_ComputeSignedDepth( context, existing->origin );
 		if ( !bspFace && existing->entityNumber == entityNumber && normalDot >= CLG_DECAL_CANDIDATE_MERGE_NORMAL_DOT && fabsf( signedDepth - existingDepth ) <= CLG_DECAL_CANDIDATE_MERGE_DEPTH_EPSILON ) {
             return false;
@@ -763,6 +685,67 @@ static bool CLG_DecalClip_TryAddSurfaceCandidate( const clg_decal_clip_context_t
 	surface->containsImpactPoint = containsImpactPoint;
 	surface->entityNumber = entityNumber;
     surface->bspFace = bspFace;
+	surface->collisionBrush = nullptr;
+	surface->collisionBrushSide = nullptr;
+
+    vec3_t tangent = {};
+    vec3_t bitangent = {};
+    CLG_DecalClip_BuildSurfaceBasis( context, surface->normal, tangent, bitangent );
+    VectorCopy( tangent, surface->tangent );
+    VectorCopy( bitangent, surface->bitangent );
+    return true;
+}
+
+static bool CLG_DecalClip_TryAddCollisionBrushSideCandidate( const clg_decal_clip_context_t &context, const mbrush_t *brush, const mbrushside_t *brushSide, const vec3_t referencePoint, clg_world_surface_t *outSurfaces, const int32_t maxSurfaces, int32_t *inOutCount ) {
+    if ( !brush || !brushSide || !brush->firstbrushside || brush->numsides <= 0 || !brushSide->plane || !brushSide->texinfo || !outSurfaces || !inOutCount || *inOutCount >= maxSurfaces ) {
+        return false;
+    }
+
+    if ( ( brushSide->texinfo->c.flags & ( CM_SURFACE_FLAG_SKY | CM_SURFACE_NODRAW ) ) != 0 ) {
+        return false;
+    }
+
+    for ( int32_t i = 0; i < *inOutCount; i++ ) {
+        const clg_world_surface_t *existing = &outSurfaces[ i ];
+        if ( existing->collisionBrush == brush && existing->collisionBrushSide == brushSide ) {
+            return false;
+        }
+    }
+
+    clg_decal_clip_polygon_t facePolygon = {};
+    if ( !CLG_DecalClip_BuildPolygonFromCollisionBrushSide( brush, brushSide, referencePoint, &facePolygon ) ) {
+        return false;
+    }
+
+    vec3_t projectedOrigin = {};
+    if ( !CLG_DecalClip_ProjectPointOntoCollisionBrushSidePlane( brushSide, referencePoint, projectedOrigin ) ) {
+        return false;
+    }
+
+    float impactInset = -FLT_MAX;
+    const bool containsImpactPoint = CLG_DecalClip_ComputeProjectedPointInsetToPolygon( facePolygon, projectedOrigin, brushSide->plane->normal, &impactInset ) && impactInset >= -CLG_DECAL_FACE_CONTAINMENT_EDGE_EPSILON;
+
+    vec3_t orientedNormal = {};
+    VectorCopy( brushSide->plane->normal, orientedNormal );
+    CLG_DecalClip_AlignNormalToProjection( context, orientedNormal );
+
+    const centity_t *inlineBrushEntity = CLG_DecalClip_GetInlineBrushEntity( context.spawn.hitEntityNumber );
+    if ( inlineBrushEntity ) {
+        return false;
+    }
+
+    if ( *inOutCount >= maxSurfaces ) {
+        return false;
+    }
+
+    clg_world_surface_t *surface = &outSurfaces[ ( *inOutCount )++ ];
+    VectorCopy( projectedOrigin, surface->origin );
+    VectorCopy( orientedNormal, surface->normal );
+    surface->containsImpactPoint = containsImpactPoint;
+    surface->entityNumber = ENTITYNUM_WORLD;
+    surface->bspFace = nullptr;
+    surface->collisionBrush = brush;
+    surface->collisionBrushSide = brushSide;
 
     vec3_t tangent = {};
     vec3_t bitangent = {};
@@ -804,63 +787,46 @@ static bool CLG_DecalClip_TryAddBspFaceCandidate( const clg_decal_clip_context_t
     return CLG_DecalClip_TryAddSurfaceCandidate( context, projectedOrigin, faceNormal, containsImpactPoint, face, ENTITYNUM_WORLD, outSurfaces, maxSurfaces, inOutCount );
 }
 
-static void CLG_DecalClip_ConsiderImpactAnchoredFaceCandidate( const clg_decal_clip_context_t &context, const mface_t *face, const float maxPlaneDistance, const mface_t **inOutBestFace, float *inOutBestPlaneDistance, float *inOutBestImpactInset, float *inOutBestFacingAlignment ) {
-    if ( !face || !inOutBestFace || !inOutBestPlaneDistance || !inOutBestImpactInset || !inOutBestFacingAlignment ) {
-        return;
+static bool CLG_DecalClip_TryAddInlineBspFaceCandidate( const clg_decal_clip_context_t &context, const centity_t *inlineBrushEntity, const mface_t *face, const vec3_t localReferencePoint, clg_world_surface_t *outSurfaces, const int32_t maxSurfaces, int32_t *inOutCount ) {
+    if ( !inlineBrushEntity || !face || !face->plane || !face->texinfo || face->numsurfedges < 3 ) {
+        return false;
     }
 
     if ( !clgi.client || !clgi.client->collisionModel.cache ) {
-        return;
+        return false;
     }
 
     bsp_t *worldBsp = clgi.client->collisionModel.cache;
     if ( !CLG_DecalClip_IsFacePointerInWorldBsp( worldBsp, face ) || !CLG_DecalClip_IsValidBspFaceGeometry( worldBsp, face ) ) {
-        return;
-    }
-
-    if ( !face->plane || !face->texinfo ) {
-        return;
+        return false;
     }
 
     if ( ( face->texinfo->c.flags & ( CM_SURFACE_FLAG_SKY | CM_SURFACE_NODRAW ) ) != 0 ) {
-        return;
+        return false;
     }
 
-    vec3_t faceNormal = {};
-    CLG_DecalClip_GetBspFaceNormal( face, faceNormal );
-    CLG_DecalClip_AlignNormalToProjection( context, faceNormal );
-    if ( !CLG_DecalClip_IsSurfaceFacingProjection( context, faceNormal ) ) {
-        return;
-    }
+    vec3_t faceNormalLocal = {};
+    CLG_DecalClip_GetBspFaceNormal( face, faceNormalLocal );
 
-    const float planeDistance = fabsf( PlaneDiff( context.spawn.origin, face->plane ) );
-    if ( planeDistance > maxPlaneDistance ) {
-        return;
-    }
-
-    vec3_t projectedImpactPoint = {};
-    if ( !CLG_DecalClip_ProjectPointOntoBspFacePlane( face, context.spawn.origin, projectedImpactPoint ) ) {
-        return;
+    vec3_t projectedOriginLocal = {};
+    if ( !CLG_DecalClip_ProjectPointOntoBspFacePlane( face, localReferencePoint, projectedOriginLocal ) ) {
+        return false;
     }
 
     float impactInset = -FLT_MAX;
-    if ( !CLG_DecalClip_ComputeProjectedPointInsetToFace( face, projectedImpactPoint, faceNormal, &impactInset ) ) {
-        return;
+    const bool containsImpactPoint = CLG_DecalClip_ComputeProjectedPointInsetToFace( face, projectedOriginLocal, faceNormalLocal, &impactInset ) && impactInset >= -CLG_DECAL_FACE_CONTAINMENT_EDGE_EPSILON;
+
+    vec3_t projectedOriginWorld = {};
+    if ( !CLG_DecalClip_InlineLocalPointToWorld( inlineBrushEntity, projectedOriginLocal, projectedOriginWorld ) ) {
+        return false;
     }
 
-    if ( impactInset < -CLG_DECAL_FACE_CONTAINMENT_EDGE_EPSILON ) {
-        return;
+    vec3_t faceNormalWorld = {};
+    if ( !CLG_DecalClip_InlineLocalNormalToWorld( inlineBrushEntity, faceNormalLocal, faceNormalWorld ) ) {
+        return false;
     }
 
-    const float facingAlignment = DotProduct( faceNormal, context.basisForward );
-    if ( planeDistance < *inOutBestPlaneDistance ||
-        ( fabsf( planeDistance - *inOutBestPlaneDistance ) <= 0.001f && impactInset > *inOutBestImpactInset ) ||
-        ( fabsf( planeDistance - *inOutBestPlaneDistance ) <= 0.001f && fabsf( impactInset - *inOutBestImpactInset ) <= 0.001f && facingAlignment > *inOutBestFacingAlignment ) ) {
-        *inOutBestPlaneDistance = planeDistance;
-        *inOutBestImpactInset = impactInset;
-        *inOutBestFacingAlignment = facingAlignment;
-        *inOutBestFace = face;
-    }
+    return CLG_DecalClip_TryAddSurfaceCandidate( context, projectedOriginWorld, faceNormalWorld, containsImpactPoint, face, context.spawn.hitEntityNumber, outSurfaces, maxSurfaces, inOutCount );
 }
 
 static bool CLG_DecalClip_DoBoundsOverlap( const vec3_t minsA, const vec3_t maxsA, const vec3_t minsB, const vec3_t maxsB ) {
@@ -894,6 +860,92 @@ static bool CLG_DecalClip_IsAddressRangeInsideSpan( const void *start, const siz
     }
 
     return true;
+}
+
+static const mface_t *CLG_DecalClip_FindWorldFaceBySurfaceHandle( const clg_decal_clip_context_t &context, const uintptr_t surfaceHandle ) {
+    if ( surfaceHandle == 0u || !clgi.client || !clgi.client->collisionModel.cache ) {
+        return nullptr;
+    }
+
+    const bsp_t *worldBsp = clgi.client->collisionModel.cache;
+    if ( !worldBsp->faces || worldBsp->numfaces <= 0 || !worldBsp->brushsides || worldBsp->numbrushsides <= 0 ) {
+        return nullptr;
+    }
+
+    const mbrushside_t *impactBrushSide = (const mbrushside_t *)surfaceHandle;
+    if ( !CLG_DecalClip_IsAddressRangeInsideSpan( impactBrushSide, sizeof( *impactBrushSide ), worldBsp->brushsides, (size_t)worldBsp->numbrushsides * sizeof( *impactBrushSide ) ) ) {
+        return nullptr;
+    }
+
+    const mface_t *bestFace = nullptr;
+    float bestImpactInset = -FLT_MAX;
+
+    /**
+    *    Collision traces identify the struck world brush side. Resolve it back to the one render
+    *    face on the same plane/texinfo combination that actually contains the impact point.
+    **/
+    for ( int32_t faceIndex = 0; faceIndex < worldBsp->numfaces; faceIndex++ ) {
+        const mface_t *face = &worldBsp->faces[ faceIndex ];
+        if ( !face || !face->texinfo ) {
+            continue;
+        }
+
+        if ( face->texinfo != impactBrushSide->texinfo || face->plane != impactBrushSide->plane ) {
+            continue;
+        }
+
+        if ( !CLG_DecalClip_IsValidBspFaceGeometry( worldBsp, face ) ) {
+            continue;
+        }
+
+        vec3_t projectedImpactPoint = {};
+        if ( !CLG_DecalClip_ProjectPointOntoBspFacePlane( face, context.spawn.origin, projectedImpactPoint ) ) {
+            continue;
+        }
+
+        vec3_t faceNormal = {};
+        CLG_DecalClip_GetBspFaceNormal( face, faceNormal );
+
+        float impactInset = -FLT_MAX;
+        if ( !CLG_DecalClip_ComputeProjectedPointInsetToFace( face, projectedImpactPoint, faceNormal, &impactInset ) ) {
+            continue;
+        }
+
+        if ( impactInset < -CLG_DECAL_FACE_CONTAINMENT_EDGE_EPSILON ) {
+            continue;
+        }
+
+        if ( !bestFace || impactInset > bestImpactInset ) {
+            bestFace = face;
+            bestImpactInset = impactInset;
+        }
+    }
+
+    return bestFace;
+}
+
+static const mbrush_t *CLG_DecalClip_FindOwningWorldBrushForSide( const mbrushside_t *brushSide ) {
+    if ( !brushSide || !clgi.client || !clgi.client->collisionModel.cache ) {
+        return nullptr;
+    }
+
+    const bsp_t *worldBsp = clgi.client->collisionModel.cache;
+    if ( !worldBsp->brushes || worldBsp->numbrushes <= 0 ) {
+        return nullptr;
+    }
+
+    for ( int32_t brushIndex = 0; brushIndex < worldBsp->numbrushes; brushIndex++ ) {
+        const mbrush_t *brush = &worldBsp->brushes[ brushIndex ];
+        if ( !brush || !brush->firstbrushside || brush->numsides <= 0 ) {
+            continue;
+        }
+
+        if ( CLG_DecalClip_IsAddressRangeInsideSpan( brushSide, sizeof( *brushSide ), brush->firstbrushside, (size_t)brush->numsides * sizeof( *brushSide ) ) ) {
+            return brush;
+        }
+    }
+
+    return nullptr;
 }
 
 static bool CLG_DecalClip_IsFacePointerInWorldBsp( const bsp_t *worldBsp, const mface_t *face ) {
@@ -944,6 +996,77 @@ static bool CLG_DecalClip_IsValidBspFaceGeometry( const bsp_t *worldBsp, const m
     return true;
 }
 
+static const mmodel_t *CLG_DecalClip_FindInlineBrushModel( const centity_t *inlineBrushEntity ) {
+    if ( !inlineBrushEntity || !clgi.GetEntityHullNode || !clgi.client || !clgi.client->collisionModel.cache ) {
+        return nullptr;
+    }
+
+    const bsp_t *worldBsp = clgi.client->collisionModel.cache;
+    if ( !worldBsp->models || worldBsp->nummodels <= 0 ) {
+        return nullptr;
+    }
+
+    const mnode_t *inlineHeadNode = clgi.GetEntityHullNode( inlineBrushEntity );
+    if ( !inlineHeadNode ) {
+        return nullptr;
+    }
+
+    for ( int32_t modelIndex = 0; modelIndex < worldBsp->nummodels; modelIndex++ ) {
+        const mmodel_t *model = &worldBsp->models[ modelIndex ];
+        if ( !model || model->headnode != inlineHeadNode ) {
+            continue;
+        }
+
+        if ( model->numfaces <= 0 || !model->firstface ) {
+            continue;
+        }
+
+        return model;
+    }
+
+    return nullptr;
+}
+
+static void CLG_DecalClip_GatherInlineModelFaceCandidates( const clg_decal_clip_context_t &context, const centity_t *inlineBrushEntity, const mmodel_t *inlineModel, const vec3_t localQueryMins, const vec3_t localQueryMaxs, const vec3_t localReferencePoint, clg_world_surface_t *outSurfaces, const int32_t maxSurfaces, int32_t *inOutCount ) {
+    if ( !inlineBrushEntity || !inlineModel || !outSurfaces || !inOutCount || *inOutCount >= maxSurfaces ) {
+        return;
+    }
+
+    if ( !clgi.client || !clgi.client->collisionModel.cache ) {
+        return;
+    }
+
+    const bsp_t *worldBsp = clgi.client->collisionModel.cache;
+    for ( int32_t faceIndex = 0; faceIndex < inlineModel->numfaces && *inOutCount < maxSurfaces; faceIndex++ ) {
+        const mface_t *face = inlineModel->firstface + faceIndex;
+        if ( !CLG_DecalClip_IsFacePointerInWorldBsp( worldBsp, face ) ) {
+            continue;
+        }
+
+        clg_decal_clip_polygon_t localFacePolygon = {};
+        if ( !CLG_DecalClip_BuildPolygonFromBspFace( face, &localFacePolygon ) ) {
+            continue;
+        }
+
+        vec3_t faceMins = {};
+        vec3_t faceMaxs = {};
+        VectorCopy( localFacePolygon.positions[ 0 ], faceMins );
+        VectorCopy( localFacePolygon.positions[ 0 ], faceMaxs );
+        for ( int32_t vertexIndex = 1; vertexIndex < localFacePolygon.vertexCount; vertexIndex++ ) {
+            for ( int32_t axis = 0; axis < 3; axis++ ) {
+                faceMins[ axis ] = std::min( faceMins[ axis ], localFacePolygon.positions[ vertexIndex ][ axis ] );
+                faceMaxs[ axis ] = std::max( faceMaxs[ axis ], localFacePolygon.positions[ vertexIndex ][ axis ] );
+            }
+        }
+
+        if ( !CLG_DecalClip_DoBoundsOverlap( localQueryMins, localQueryMaxs, faceMins, faceMaxs ) ) {
+            continue;
+        }
+
+        (void)CLG_DecalClip_TryAddInlineBspFaceCandidate( context, inlineBrushEntity, face, localReferencePoint, outSurfaces, maxSurfaces, inOutCount );
+    }
+}
+
 static void CLG_DecalClip_GatherLeafFaceCandidates( const clg_decal_clip_context_t &context, const vec3_t queryMins, const vec3_t queryMaxs, clg_world_surface_t *outSurfaces, const int32_t maxSurfaces, int32_t *inOutCount ) {
     if ( !outSurfaces || !inOutCount || *inOutCount >= maxSurfaces ) {
         return;
@@ -980,145 +1103,6 @@ static void CLG_DecalClip_GatherLeafFaceCandidates( const clg_decal_clip_context
     }
 }
 
-static bool CLG_DecalClip_GatherImpactAnchoredFallbackCandidate( const clg_decal_clip_context_t &context, clg_world_surface_t *outSurfaces, const int32_t maxSurfaces, int32_t *inOutCount, float *outSelectedPlaneDistance ) {
-    if ( outSelectedPlaneDistance ) {
-        *outSelectedPlaneDistance = -1.0f;
-    }
-
-    if ( !outSurfaces || !inOutCount || *inOutCount >= maxSurfaces ) {
-        return false;
-    }
-
-    if ( !clgi.client || !clgi.client->collisionModel.cache ) {
-        return false;
-    }
-
-    const centity_t *inlineBrushEntity = CLG_DecalClip_GetInlineBrushEntity( context.spawn.hitEntityNumber );
-    if ( inlineBrushEntity ) {
-        /**
-        *    Inline brush-model impacts already know the exact trace plane and entity, so
-        *    bypass world BSP fallback lookup and let entity-targeted support traces trim
-        *    the plane quad against the mover's collision instead.
-        **/
-        if ( CLG_DecalClip_TryAddSurfaceCandidate( context, context.spawn.origin, context.spawn.normal, true, nullptr, inlineBrushEntity->current.number, outSurfaces, maxSurfaces, inOutCount ) ) {
-            if ( outSelectedPlaneDistance ) {
-                *outSelectedPlaneDistance = 0.0f;
-            }
-
-            return true;
-        }
-
-        return false;
-    }
-
-    bsp_t *worldBsp = clgi.client->collisionModel.cache;
-    if ( !worldBsp->faces || worldBsp->numfaces <= 0 ) {
-        return false;
-    }
-
-    vec3_t queryMins = {};
-    vec3_t queryMaxs = {};
-    const float impactLookupRadius = std::max( CLG_DECAL_IMPACT_LOOKUP_RADIUS, context.halfSize + context.halfDepth + 2.0f );
-    for ( int32_t axis = 0; axis < 3; axis++ ) {
-        queryMins[ axis ] = context.spawn.origin[ axis ] - impactLookupRadius;
-        queryMaxs[ axis ] = context.spawn.origin[ axis ] + impactLookupRadius;
-    }
-
-    mleaf_t *leafs[ 64 ] = {};
-    mnode_t *topnode = nullptr;
-    const int32_t leafCount = clgi.CM_BoxLeafs( queryMins, queryMaxs, leafs, (int32_t)std::size( leafs ), &topnode );
-
-    const mface_t *bestFace = nullptr;
-    float bestPlaneDistance = FLT_MAX;
-    float bestImpactInset = -FLT_MAX;
-    float bestFacingAlignment = -1.0f;
-    const float maxPlaneDistance = std::max( 2.0f, context.halfSize * 0.5f );
-
-    for ( int32_t leafIndex = 0; leafIndex < leafCount; leafIndex++ ) {
-        const mleaf_t *leaf = leafs[ leafIndex ];
-        if ( !leaf || !leaf->firstleafface ) {
-            continue;
-        }
-
-        for ( int32_t faceIndex = 0; faceIndex < leaf->numleaffaces; faceIndex++ ) {
-            const mface_t *face = leaf->firstleafface[ faceIndex ];
-            CLG_DecalClip_ConsiderImpactAnchoredFaceCandidate( context, face, maxPlaneDistance, &bestFace, &bestPlaneDistance, &bestImpactInset, &bestFacingAlignment );
-        }
-    }
-
-    /**
-    *    Nearby world surfaces can live on node-owned faces instead of leaf-owned face lists.
-    *    Re-scan the intersecting BSP nodes with the same local scoring before giving up and
-    *    falling back to the raw trace plane on stairs, bevels, and sloped brush seams.
-    **/
-    CLG_DecalClip_FindBestImpactAnchoredFaceRecursive(
-        context,
-        topnode ? topnode : worldBsp->nodes,
-        queryMins,
-        queryMaxs,
-        maxPlaneDistance,
-        &bestFace,
-        &bestPlaneDistance,
-        &bestImpactInset,
-        &bestFacingAlignment );
-
-    if ( bestFace && CLG_DecalClip_TryAddBspFaceCandidate( context, bestFace, context.spawn.origin, outSurfaces, maxSurfaces, inOutCount ) ) {
-        if ( outSelectedPlaneDistance ) {
-            *outSelectedPlaneDistance = bestPlaneDistance;
-        }
-
-        return true;
-    }
-
-    /**
-    *    If we resolved a valid BSP face but it was already present in the candidate set,
-    *    do not fall through to the raw trace-normal plane fallback. That plane-only quad
-    *    can be slightly tilted relative to the real brush plane on slopes, which produces
-    *    skewed receiver quads that intersect the surface.
-    **/
-    if ( bestFace ) {
-        return false;
-    }
-
-    /**
-    *    Last resort: use the original impact endpoint and trace normal as an infinite
-    *    receiver plane. This is intentionally simple so dead-zone areas still behave
-    *    like normal impact surfaces even when BSP face lookup misses or returns only
-    *    troublesome neighboring candidates.
-    **/
-    if ( CLG_DecalClip_TryAddSurfaceCandidate( context, context.spawn.origin, context.spawn.normal, true, nullptr, ENTITYNUM_WORLD, outSurfaces, maxSurfaces, inOutCount ) ) {
-        if ( outSelectedPlaneDistance ) {
-            *outSelectedPlaneDistance = 0.0f;
-        }
-
-        return true;
-    }
-
-    return false;
-}
-
-static void CLG_DecalClip_FindBestImpactAnchoredFaceRecursive( const clg_decal_clip_context_t &context, const mnode_t *node, const vec3_t queryMins, const vec3_t queryMaxs, const float maxPlaneDistance, const mface_t **inOutBestFace, float *inOutBestPlaneDistance, float *inOutBestImpactInset, float *inOutBestFacingAlignment ) {
-    if ( !node || !node->plane || !inOutBestFace || !inOutBestPlaneDistance || !inOutBestImpactInset || !inOutBestFacingAlignment ) {
-        return;
-    }
-
-    if ( !CLG_DecalClip_DoBoundsOverlap( queryMins, queryMaxs, node->mins, node->maxs ) ) {
-        return;
-    }
-
-    if ( node->numfaces > 0 && !node->firstface ) {
-        return;
-    }
-
-    for ( int32_t faceIndex = 0; faceIndex < node->numfaces; faceIndex++ ) {
-        const mface_t *face = node->firstface + faceIndex;
-        CLG_DecalClip_ConsiderImpactAnchoredFaceCandidate( context, face, maxPlaneDistance, inOutBestFace, inOutBestPlaneDistance, inOutBestImpactInset, inOutBestFacingAlignment );
-    }
-
-    CLG_DecalClip_FindBestImpactAnchoredFaceRecursive( context, node->children[ 0 ], queryMins, queryMaxs, maxPlaneDistance, inOutBestFace, inOutBestPlaneDistance, inOutBestImpactInset, inOutBestFacingAlignment );
-    CLG_DecalClip_FindBestImpactAnchoredFaceRecursive( context, node->children[ 1 ], queryMins, queryMaxs, maxPlaneDistance, inOutBestFace, inOutBestPlaneDistance, inOutBestImpactInset, inOutBestFacingAlignment );
-}
-
 static void CLG_DecalClip_GatherNodeFaceCandidatesRecursive( const clg_decal_clip_context_t &context, const mnode_t *node, const vec3_t queryMins, const vec3_t queryMaxs, clg_world_surface_t *outSurfaces, const int32_t maxSurfaces, int32_t *inOutCount ) {
     if ( !node || !node->plane || !outSurfaces || !inOutCount || *inOutCount >= maxSurfaces ) {
         return;
@@ -1148,6 +1132,37 @@ static void CLG_DecalClip_GatherNodeFaceCandidatesRecursive( const clg_decal_cli
 
     CLG_DecalClip_GatherNodeFaceCandidatesRecursive( context, node->children[ 0 ], queryMins, queryMaxs, outSurfaces, maxSurfaces, inOutCount );
     CLG_DecalClip_GatherNodeFaceCandidatesRecursive( context, node->children[ 1 ], queryMins, queryMaxs, outSurfaces, maxSurfaces, inOutCount );
+}
+
+static void CLG_DecalClip_GatherInlineNodeFaceCandidatesRecursive( const clg_decal_clip_context_t &context, const centity_t *inlineBrushEntity, const mnode_t *node, const vec3_t localQueryMins, const vec3_t localQueryMaxs, const vec3_t localReferencePoint, clg_world_surface_t *outSurfaces, const int32_t maxSurfaces, int32_t *inOutCount ) {
+    if ( !inlineBrushEntity || !node || !node->plane || !outSurfaces || !inOutCount || *inOutCount >= maxSurfaces ) {
+        return;
+    }
+
+    if ( !CLG_DecalClip_DoBoundsOverlap( localQueryMins, localQueryMaxs, node->mins, node->maxs ) ) {
+        return;
+    }
+
+    bsp_t *worldBsp = clgi.client->collisionModel.cache;
+    if ( !worldBsp || !worldBsp->faces || worldBsp->numfaces <= 0 ) {
+        return;
+    }
+
+    if ( node->numfaces > 0 && !node->firstface ) {
+        return;
+    }
+
+    for ( int32_t faceIndex = 0; faceIndex < node->numfaces && *inOutCount < maxSurfaces; faceIndex++ ) {
+        const mface_t *face = node->firstface + faceIndex;
+        if ( !CLG_DecalClip_IsFacePointerInWorldBsp( worldBsp, face ) ) {
+            continue;
+        }
+
+        (void)CLG_DecalClip_TryAddInlineBspFaceCandidate( context, inlineBrushEntity, face, localReferencePoint, outSurfaces, maxSurfaces, inOutCount );
+    }
+
+    CLG_DecalClip_GatherInlineNodeFaceCandidatesRecursive( context, inlineBrushEntity, node->children[ 0 ], localQueryMins, localQueryMaxs, localReferencePoint, outSurfaces, maxSurfaces, inOutCount );
+    CLG_DecalClip_GatherInlineNodeFaceCandidatesRecursive( context, inlineBrushEntity, node->children[ 1 ], localQueryMins, localQueryMaxs, localReferencePoint, outSurfaces, maxSurfaces, inOutCount );
 }
 
 static bool CLG_DecalClip_BuildPolygonFromBspFace( const mface_t *face, clg_decal_clip_polygon_t *outPolygon ) {
@@ -1180,24 +1195,113 @@ static bool CLG_DecalClip_BuildPolygonFromBspFace( const mface_t *face, clg_deca
     return ( outPolygon->vertexCount >= 3 );
 }
 
+static bool CLG_DecalClip_BuildPolygonFromCollisionBrushSide( const mbrush_t *brush, const mbrushside_t *brushSide, const vec3_t referencePoint, clg_decal_clip_polygon_t *outPolygon ) {
+    if ( !brush || !brushSide || !brush->firstbrushside || brush->numsides < 3 || !brushSide->plane || !referencePoint || !outPolygon ) {
+        return false;
+    }
+
+    memset( outPolygon, 0, sizeof( *outPolygon ) );
+
+    vec3_t tangent = {};
+    vec3_t bitangent = {};
+    vec3_t normal = {};
+    CLG_DecalClip_BuildBasis( brushSide->plane->normal, tangent, bitangent, normal );
+
+    /**
+    *    Seed collision-side winding recovery around the projected impact point instead of
+    *    normal*dist from world origin. This keeps the temporary winding local to the
+    *    actually struck area on large/tangent-offset planes.
+    **/
+    vec3_t projectedSeedCenter = {};
+    VectorCopy( referencePoint, projectedSeedCenter );
+    const float seedPlaneDistance = PlaneDiff( referencePoint, brushSide->plane );
+    VectorMA( projectedSeedCenter, -seedPlaneDistance, brushSide->plane->normal, projectedSeedCenter );
+
+    const float seedExtent = CLG_DECAL_COLLISION_FACE_SEED_EXTENT;
+    vec3_t seedCorners[ 4 ] = {};
+
+    VectorCopy( projectedSeedCenter, seedCorners[ 0 ] );
+    VectorMA( seedCorners[ 0 ], seedExtent, tangent, seedCorners[ 0 ] );
+    VectorMA( seedCorners[ 0 ], seedExtent, bitangent, seedCorners[ 0 ] );
+
+    VectorCopy( projectedSeedCenter, seedCorners[ 1 ] );
+    VectorMA( seedCorners[ 1 ], -seedExtent, tangent, seedCorners[ 1 ] );
+    VectorMA( seedCorners[ 1 ], seedExtent, bitangent, seedCorners[ 1 ] );
+
+    VectorCopy( projectedSeedCenter, seedCorners[ 2 ] );
+    VectorMA( seedCorners[ 2 ], -seedExtent, tangent, seedCorners[ 2 ] );
+    VectorMA( seedCorners[ 2 ], -seedExtent, bitangent, seedCorners[ 2 ] );
+
+    VectorCopy( projectedSeedCenter, seedCorners[ 3 ] );
+    VectorMA( seedCorners[ 3 ], seedExtent, tangent, seedCorners[ 3 ] );
+    VectorMA( seedCorners[ 3 ], -seedExtent, bitangent, seedCorners[ 3 ] );
+
+    for ( int32_t cornerIndex = 0; cornerIndex < 4; cornerIndex++ ) {
+        if ( !CLG_DecalClip_TryAppendUniqueVertex( seedCorners[ cornerIndex ], outPolygon ) ) {
+            return false;
+        }
+    }
+
+    /**
+    *    Recover the actual collision-side polygon by clipping the large on-plane seed quad
+    *    against every other side of the owning convex brush.
+    **/
+    for ( int32_t sideIndex = 0; sideIndex < brush->numsides; sideIndex++ ) {
+        const mbrushside_t *clipSide = brush->firstbrushside + sideIndex;
+        if ( !clipSide || clipSide == brushSide || !clipSide->plane ) {
+            continue;
+        }
+
+        vec3_t clipPlanePoint = {};
+        if ( !CLG_DecalClip_ProjectPointOntoPlane( clipSide->plane, projectedSeedCenter, clipPlanePoint ) ) {
+            return false;
+        }
+
+        clg_decal_clip_polygon_t scratchPolygon = {};
+        if ( !CLG_DecalClip_ClipPolygonAgainstPlane( *outPolygon, clipPlanePoint, clipSide->plane->normal, &scratchPolygon ) ) {
+            return false;
+        }
+
+        *outPolygon = scratchPolygon;
+    }
+
+    return ( outPolygon->vertexCount >= 3 );
+}
+
+static bool CLG_DecalClip_ProjectPointOntoPlane( const cm_plane_t *plane, const vec3_t point, vec3_t outProjectedPoint ) {
+    if ( !plane || !outProjectedPoint ) {
+        return false;
+    }
+
+    const float normalLengthSquared = DotProduct( plane->normal, plane->normal );
+    if ( normalLengthSquared <= 0.000001f ) {
+        return false;
+    }
+
+    VectorCopy( point, outProjectedPoint );
+    const float signedDistance = PlaneDiff( point, plane ) / normalLengthSquared;
+    VectorMA( outProjectedPoint, -signedDistance, plane->normal, outProjectedPoint );
+    return true;
+}
+
 static bool CLG_DecalClip_ProjectPointOntoBspFacePlane( const mface_t *face, const vec3_t point, vec3_t outProjectedPoint ) {
     if ( !face || !face->plane || !outProjectedPoint ) {
         return false;
     }
 
-    VectorCopy( point, outProjectedPoint );
-    const float planeDistance = PlaneDiff( point, face->plane );
-    VectorMA( outProjectedPoint, -planeDistance, face->plane->normal, outProjectedPoint );
-    return true;
+    return CLG_DecalClip_ProjectPointOntoPlane( face->plane, point, outProjectedPoint );
 }
 
-static bool CLG_DecalClip_ComputeProjectedPointInsetToFace( const mface_t *face, const vec3_t projectedPoint, const vec3_t faceNormal, float *outInset ) {
-    if ( !outInset ) {
+static bool CLG_DecalClip_ProjectPointOntoCollisionBrushSidePlane( const mbrushside_t *brushSide, const vec3_t point, vec3_t outProjectedPoint ) {
+    if ( !brushSide || !brushSide->plane || !outProjectedPoint ) {
         return false;
     }
 
-    clg_decal_clip_polygon_t facePolygon = {};
-    if ( !CLG_DecalClip_BuildPolygonFromBspFace( face, &facePolygon ) ) {
+    return CLG_DecalClip_ProjectPointOntoPlane( brushSide->plane, point, outProjectedPoint );
+}
+
+static bool CLG_DecalClip_ComputeProjectedPointInsetToPolygon( const clg_decal_clip_polygon_t &polygon, const vec3_t projectedPoint, const vec3_t faceNormal, float *outInset ) {
+    if ( !outInset || polygon.vertexCount < 3 ) {
         return false;
     }
 
@@ -1206,10 +1310,10 @@ static bool CLG_DecalClip_ComputeProjectedPointInsetToFace( const mface_t *face,
     /**
     *    Accumulate a stable polygon normal so edge tests can respect the stored winding.
     **/
-    for ( int32_t i = 0; i < facePolygon.vertexCount; i++ ) {
-        const int32_t nextIndex = ( i + 1 ) % facePolygon.vertexCount;
+    for ( int32_t i = 0; i < polygon.vertexCount; i++ ) {
+        const int32_t nextIndex = ( i + 1 ) % polygon.vertexCount;
         vec3_t edgeCross = {};
-        CrossProduct( facePolygon.positions[ i ], facePolygon.positions[ nextIndex ], edgeCross );
+        CrossProduct( polygon.positions[ i ], polygon.positions[ nextIndex ], edgeCross );
         VectorAdd( polygonNormal, edgeCross, polygonNormal );
     }
 
@@ -1225,17 +1329,17 @@ static bool CLG_DecalClip_ComputeProjectedPointInsetToFace( const mface_t *face,
     *    Measure the signed perpendicular distance from the projected impact point to each
     *    face edge. Positive values are inside the winding, negative values lie outside.
     **/
-    for ( int32_t i = 0; i < facePolygon.vertexCount; i++ ) {
-        const int32_t nextIndex = ( i + 1 ) % facePolygon.vertexCount;
+    for ( int32_t i = 0; i < polygon.vertexCount; i++ ) {
+        const int32_t nextIndex = ( i + 1 ) % polygon.vertexCount;
         vec3_t edge = {};
-        VectorSubtract( facePolygon.positions[ nextIndex ], facePolygon.positions[ i ], edge );
+        VectorSubtract( polygon.positions[ nextIndex ], polygon.positions[ i ], edge );
         const float edgeLength = VectorLength( edge );
         if ( edgeLength <= 0.001f ) {
             continue;
         }
 
         vec3_t toPoint = {};
-        VectorSubtract( projectedPoint, facePolygon.positions[ i ], toPoint );
+        VectorSubtract( projectedPoint, polygon.positions[ i ], toPoint );
 
         vec3_t edgeCrossPoint = {};
         CrossProduct( edge, toPoint, edgeCrossPoint );
@@ -1252,6 +1356,19 @@ static bool CLG_DecalClip_ComputeProjectedPointInsetToFace( const mface_t *face,
 
     *outInset = minInset;
     return true;
+}
+
+static bool CLG_DecalClip_ComputeProjectedPointInsetToFace( const mface_t *face, const vec3_t projectedPoint, const vec3_t faceNormal, float *outInset ) {
+    if ( !outInset ) {
+        return false;
+    }
+
+    clg_decal_clip_polygon_t facePolygon = {};
+    if ( !CLG_DecalClip_BuildPolygonFromBspFace( face, &facePolygon ) ) {
+        return false;
+    }
+
+    return CLG_DecalClip_ComputeProjectedPointInsetToPolygon( facePolygon, projectedPoint, faceNormal, outInset );
 }
 
 
@@ -1293,15 +1410,158 @@ static bool CLG_DecalClip_ClipPolygonAgainstPlane( const clg_decal_clip_polygon_
     return ( outPolygon->vertexCount >= 3 );
 }
 
+/**
+*    @brief  Print projection-space bounds for a world face that failed concrete OBB clipping.
+*    @param  context Decal clip context.
+*    @param  surface Concrete world BSP candidate.
+*    @param  polygon Working polygon state at the rejecting clip plane.
+*    @param  rejectPlaneIndex Clip-plane index that emptied the polygon.
+**/
+static void CLG_DecalClip_DebugLogConcreteWorldFaceClipFailure( const clg_decal_clip_context_t &context, const clg_world_surface_t *surface, const clg_decal_clip_polygon_t &polygon, const int32_t rejectPlaneIndex ) {
+    if ( !CLG_DecalClip_IsDebugLevel( 2 ) || !surface || !surface->bspFace || surface->entityNumber != ENTITYNUM_WORLD || polygon.vertexCount < 3 ) {
+        return;
+    }
+
+    float rightMin = FLT_MAX;
+    float rightMax = -FLT_MAX;
+    float upMin = FLT_MAX;
+    float upMax = -FLT_MAX;
+    float forwardMin = FLT_MAX;
+    float forwardMax = -FLT_MAX;
+
+    /**
+    *    Measure the candidate face extent in decal-local projection space so failed world
+    *    clips can report whether the polygon actually overlaps the footprint or dies on a
+    *    specific local axis range.
+    **/
+    for ( int32_t i = 0; i < polygon.vertexCount; i++ ) {
+        vec3_t toVertex = {};
+        VectorSubtract( polygon.positions[ i ], context.spawn.origin, toVertex );
+
+        const float rightDistance = DotProduct( toVertex, context.basisRight );
+        const float upDistance = DotProduct( toVertex, context.basisUp );
+        const float forwardDistance = DotProduct( toVertex, context.basisForward );
+
+        rightMin = std::min( rightMin, rightDistance );
+        rightMax = std::max( rightMax, rightDistance );
+        upMin = std::min( upMin, upDistance );
+        upMax = std::max( upMax, upDistance );
+        forwardMin = std::min( forwardMin, forwardDistance );
+        forwardMax = std::max( forwardMax, forwardDistance );
+    }
+
+    const float planeDistance = surface->bspFace->plane ? fabsf( PlaneDiff( context.spawn.origin, surface->bspFace->plane ) ) : -1.0f;
+    const float facingDot = fabsf( DotProduct( surface->normal, context.basisForward ) );
+
+    clgi.Print( PRINT_DEVELOPER,
+        "[CLG Decals][ClipDbg] world-face clip-fail reject-plane:%d contains-impact:%s surfedges:%d plane-dist:%.3f facing:%.3f right:[%.2f,%.2f] up:[%.2f,%.2f] fwd:[%.2f,%.2f]\n",
+        rejectPlaneIndex,
+        surface->containsImpactPoint ? "yes" : "no",
+        surface->bspFace->numsurfedges,
+        planeDistance,
+        facingDot,
+        rightMin,
+        rightMax,
+        upMin,
+        upMax,
+        forwardMin,
+        forwardMax );
+}
+
+/**
+*    @brief  Print projection-space bounds for a collision brush-side concrete clip failure.
+*    @param  context Decal clip context.
+*    @param  surface Concrete collision brush-side candidate.
+*    @param  polygon Working polygon state at the rejecting clip plane.
+*    @param  rejectPlaneIndex Clip-plane index that emptied the polygon.
+**/
+static void CLG_DecalClip_DebugLogConcreteCollisionSideClipFailure( const clg_decal_clip_context_t &context, const clg_world_surface_t *surface, const clg_decal_clip_polygon_t &polygon, const int32_t rejectPlaneIndex ) {
+    if ( !CLG_DecalClip_IsDebugLevel( 2 ) || !surface || !surface->collisionBrushSide || surface->entityNumber != ENTITYNUM_WORLD || polygon.vertexCount < 3 ) {
+        return;
+    }
+
+    float rightMin = FLT_MAX;
+    float rightMax = -FLT_MAX;
+    float upMin = FLT_MAX;
+    float upMax = -FLT_MAX;
+    float forwardMin = FLT_MAX;
+    float forwardMax = -FLT_MAX;
+
+    for ( int32_t i = 0; i < polygon.vertexCount; i++ ) {
+        vec3_t toVertex = {};
+        VectorSubtract( polygon.positions[ i ], context.spawn.origin, toVertex );
+
+        const float rightDistance = DotProduct( toVertex, context.basisRight );
+        const float upDistance = DotProduct( toVertex, context.basisUp );
+        const float forwardDistance = DotProduct( toVertex, context.basisForward );
+
+        rightMin = std::min( rightMin, rightDistance );
+        rightMax = std::max( rightMax, rightDistance );
+        upMin = std::min( upMin, upDistance );
+        upMax = std::max( upMax, upDistance );
+        forwardMin = std::min( forwardMin, forwardDistance );
+        forwardMax = std::max( forwardMax, forwardDistance );
+    }
+
+    const float planeDistance = surface->collisionBrushSide->plane ? fabsf( PlaneDiff( context.spawn.origin, surface->collisionBrushSide->plane ) ) : -1.0f;
+    const float facingDot = fabsf( DotProduct( surface->normal, context.basisForward ) );
+
+    clgi.Print( PRINT_DEVELOPER,
+        "[CLG Decals][ClipDbg] world-collision clip-fail reject-plane:%d contains-impact:%s plane-dist:%.3f facing:%.3f right:[%.2f,%.2f] up:[%.2f,%.2f] fwd:[%.2f,%.2f]\n",
+        rejectPlaneIndex,
+        surface->containsImpactPoint ? "yes" : "no",
+        planeDistance,
+        facingDot,
+        rightMin,
+        rightMax,
+        upMin,
+        upMax,
+        forwardMin,
+        forwardMax );
+}
+
 static bool CLG_DecalClip_ClipBspFaceToDecalVolume( const clg_decal_clip_context_t &context, const clg_world_surface_t *surface, clg_decal_clip_polygon_t *outPolygon ) {
-    if ( !surface || !surface->bspFace || !outPolygon ) {
+    if ( !surface || !outPolygon ) {
         return false;
     }
 
     clg_decal_clip_polygon_t workingPolygon = {};
     clg_decal_clip_polygon_t scratchPolygon = {};
-    if ( !CLG_DecalClip_BuildPolygonFromBspFace( surface->bspFace, &workingPolygon ) ) {
+
+    /**
+    *    Build the concrete receiver polygon from either the resolved render face or the
+    *    traced collision brush side when face recovery misses the actual struck receiver.
+    **/
+    if ( surface->bspFace ) {
+        if ( !CLG_DecalClip_BuildPolygonFromBspFace( surface->bspFace, &workingPolygon ) ) {
+            return false;
+        }
+    } else if ( surface->collisionBrush && surface->collisionBrushSide ) {
+        if ( !CLG_DecalClip_BuildPolygonFromCollisionBrushSide( surface->collisionBrush, surface->collisionBrushSide, surface->origin, &workingPolygon ) ) {
+            return false;
+        }
+    } else {
         return false;
+    }
+
+    /**
+    *    Inline brush-model BSP geometry is stored in model-local space. Convert the concrete
+    *    winding into world space before clipping against the world-space decal OBB.
+    **/
+    if ( surface->entityNumber != ENTITYNUM_WORLD ) {
+        const centity_t *inlineBrushEntity = CLG_DecalClip_GetInlineBrushEntity( surface->entityNumber );
+        if ( !inlineBrushEntity ) {
+            return false;
+        }
+
+        for ( int32_t i = 0; i < workingPolygon.vertexCount; i++ ) {
+            vec3_t worldVertex = {};
+            if ( !CLG_DecalClip_InlineLocalPointToWorld( inlineBrushEntity, workingPolygon.positions[ i ], worldVertex ) ) {
+                return false;
+            }
+
+            VectorCopy( worldVertex, workingPolygon.positions[ i ] );
+        }
     }
 
     const vec3_t planeNormals[ 6 ] = {
@@ -1314,6 +1574,19 @@ static bool CLG_DecalClip_ClipBspFaceToDecalVolume( const clg_decal_clip_context
     };
     vec3_t planePoints[ 6 ] = {};
 
+    vec3_t depthOrigin = {};
+    VectorCopy( context.spawn.origin, depthOrigin );
+
+    /**
+    *    For collision-side concrete receivers, center only the forward/back depth slab on the
+    *    side's projected impact point while keeping right/up footprint bounds anchored at the
+    *    original impact origin. This preserves decal footprint locality and enables edge wrap
+    *    when the owning brush side is offset along projection depth.
+    **/
+    if ( !surface->bspFace && surface->collisionBrushSide ) {
+        VectorCopy( surface->origin, depthOrigin );
+    }
+
     VectorCopy( context.spawn.origin, planePoints[ 0 ] );
     VectorMA( planePoints[ 0 ], context.halfSize, context.basisRight, planePoints[ 0 ] );
     VectorCopy( context.spawn.origin, planePoints[ 1 ] );
@@ -1322,9 +1595,9 @@ static bool CLG_DecalClip_ClipBspFaceToDecalVolume( const clg_decal_clip_context
     VectorMA( planePoints[ 2 ], context.halfSize, context.basisUp, planePoints[ 2 ] );
     VectorCopy( context.spawn.origin, planePoints[ 3 ] );
     VectorMA( planePoints[ 3 ], -context.halfSize, context.basisUp, planePoints[ 3 ] );
-    VectorCopy( context.spawn.origin, planePoints[ 4 ] );
+    VectorCopy( depthOrigin, planePoints[ 4 ] );
     VectorMA( planePoints[ 4 ], context.halfDepth, context.basisForward, planePoints[ 4 ] );
-    VectorCopy( context.spawn.origin, planePoints[ 5 ] );
+    VectorCopy( depthOrigin, planePoints[ 5 ] );
     VectorMA( planePoints[ 5 ], -context.halfDepth, context.basisForward, planePoints[ 5 ] );
 
     /**
@@ -1332,6 +1605,11 @@ static bool CLG_DecalClip_ClipBspFaceToDecalVolume( const clg_decal_clip_context
     **/
     for ( int32_t planeIndex = 0; planeIndex < 6; planeIndex++ ) {
         if ( !CLG_DecalClip_ClipPolygonAgainstPlane( workingPolygon, planePoints[ planeIndex ], planeNormals[ planeIndex ], &scratchPolygon ) ) {
+            if ( surface->bspFace ) {
+                CLG_DecalClip_DebugLogConcreteWorldFaceClipFailure( context, surface, workingPolygon, planeIndex );
+            } else if ( surface->collisionBrushSide ) {
+                CLG_DecalClip_DebugLogConcreteCollisionSideClipFailure( context, surface, workingPolygon, planeIndex );
+            }
             return false;
         }
 
@@ -1419,10 +1697,42 @@ int32_t CLG_DecalClip_GatherCandidateSurfaces( const clg_decal_clip_context_t &c
     }
 
     int32_t outCount = 0;
+    bool impactSeededConcreteFace = false;
     vec3_t queryMins = {};
     vec3_t queryMaxs = {};
     CLG_DecalClip_BuildVolumeBounds( context, queryMins, queryMaxs );
     const centity_t *inlineBrushEntity = CLG_DecalClip_GetInlineBrushEntity( context.spawn.hitEntityNumber );
+
+    /**
+    *    Seed world impacts with the exact traced brush-side face when available. This anchors
+    *    clipped decals to the real hit receiver before nearby leaf/node scans add neighboring faces
+    *    for edge wrapping.
+    **/
+    if ( !inlineBrushEntity && context.spawn.hitSurfaceHandle != 0u ) {
+        const mbrushside_t *impactBrushSide = (const mbrushside_t *)context.spawn.hitSurfaceHandle;
+        const mbrush_t *impactBrush = CLG_DecalClip_FindOwningWorldBrushForSide( impactBrushSide );
+        if ( impactBrush ) {
+            impactSeededConcreteFace = CLG_DecalClip_TryAddCollisionBrushSideCandidate( context, impactBrush, impactBrushSide, context.spawn.origin, outSurfaces, maxSurfaces, &outCount );
+
+            /**
+            *    Seed connected sides from the same collision brush so edge-adjacent wrap faces
+            *    survive even when render-face lookup falls back to distant coplanar geometry.
+            **/
+            for ( int32_t sideIndex = 0; sideIndex < impactBrush->numsides && outCount < maxSurfaces; sideIndex++ ) {
+                const mbrushside_t *neighborSide = impactBrush->firstbrushside + sideIndex;
+                if ( !neighborSide || neighborSide == impactBrushSide ) {
+                    continue;
+                }
+
+                (void)CLG_DecalClip_TryAddCollisionBrushSideCandidate( context, impactBrush, neighborSide, context.spawn.origin, outSurfaces, maxSurfaces, &outCount );
+            }
+        } else {
+            const mface_t *impactFace = CLG_DecalClip_FindWorldFaceBySurfaceHandle( context, context.spawn.hitSurfaceHandle );
+            if ( impactFace ) {
+                impactSeededConcreteFace = CLG_DecalClip_TryAddBspFaceCandidate( context, impactFace, context.spawn.origin, outSurfaces, maxSurfaces, &outCount );
+            }
+        }
+    }
 
     /**
     *    Expand broad-phase bounds slightly to avoid precision misses near leaf splits
@@ -1435,75 +1745,112 @@ int32_t CLG_DecalClip_GatherCandidateSurfaces( const clg_decal_clip_context_t &c
     }
 
     /**
-    *    Gather from overlapping leaves first, then from intersecting BSP nodes so large
-    *    faces referenced above leaf level are still captured without scanning all faces.
+    *    Gather from overlapping leaves first, then include intersecting node-owned faces
+    *    to catch adjacent receivers that are not referenced directly by leaf face lists.
     **/
-    if ( !inlineBrushEntity ) {
+    if ( inlineBrushEntity ) {
+        vec3_t localQueryMins = {};
+        vec3_t localQueryMaxs = {};
+        vec3_t localReferencePoint = {};
+        const mmodel_t *inlineModel = CLG_DecalClip_FindInlineBrushModel( inlineBrushEntity );
+        const mnode_t *inlineHeadNode = clgi.GetEntityHullNode( inlineBrushEntity );
+        if ( CLG_DecalClip_BuildInlineVolumeLocalBounds( context, inlineBrushEntity, localQueryMins, localQueryMaxs ) &&
+            CLG_DecalClip_WorldPointToInlineLocal( inlineBrushEntity, context.spawn.origin, localReferencePoint ) ) {
+            for ( int32_t axis = 0; axis < 3; axis++ ) {
+                localQueryMins[ axis ] -= queryExpansion;
+                localQueryMaxs[ axis ] += queryExpansion;
+            }
+
+            if ( inlineModel ) {
+                CLG_DecalClip_GatherInlineModelFaceCandidates( context, inlineBrushEntity, inlineModel, localQueryMins, localQueryMaxs, localReferencePoint, outSurfaces, maxSurfaces, &outCount );
+            }
+
+            if ( outCount <= 0 && inlineHeadNode ) {
+                CLG_DecalClip_GatherInlineNodeFaceCandidatesRecursive( context, inlineBrushEntity, inlineHeadNode, localQueryMins, localQueryMaxs, localReferencePoint, outSurfaces, maxSurfaces, &outCount );
+            }
+
+            if ( outCount > 0 ) {
+                impactSeededConcreteFace = true;
+            }
+        }
+    } else {
         CLG_DecalClip_GatherLeafFaceCandidates( context, queryMins, queryMaxs, outSurfaces, maxSurfaces, &outCount );
         CLG_DecalClip_GatherNodeFaceCandidatesRecursive( context, clgi.client->collisionModel.cache->nodes, queryMins, queryMaxs, outSurfaces, maxSurfaces, &outCount );
     }
     const int32_t broadPhaseCandidateCount = outCount;
 
-    /**
-    *    Always let the impact-local receiver participate in the candidate set. Broad-phase
-    *    can find nearby split faces while still missing the exact surface hit by the trace,
-    *    so using this only when the broad phase is empty leaves dead-zones on large floors.
-    **/
-    bool fallbackUsed = false;
-    float fallbackSelectedPlaneDistance = -1.0f;
-    fallbackUsed = CLG_DecalClip_GatherImpactAnchoredFallbackCandidate( context, outSurfaces, maxSurfaces, &outCount, &fallbackSelectedPlaneDistance );
+    bool worldRescueGatherUsed = false;
 
-	clgi.Print( PRINT_DEVELOPER, "[CLG Decals][ClipDbg] hit-entity:%d broad-phase candidates:%d fallback-used:%s fallback-selected-plane-distance:%.3f\n",
-		context.spawn.hitEntityNumber,
-        broadPhaseCandidateCount,
-        fallbackUsed ? "yes" : "no",
-        fallbackSelectedPlaneDistance );
+    int32_t concreteCandidateCount = 0;
+    for ( int32_t i = 0; i < outCount; i++ ) {
+        if ( CLG_DecalClip_SurfaceHasConcretePolygonSource( &outSurfaces[ i ] ) ) {
+            concreteCandidateCount++;
+        }
+    }
+
+    /**
+    *    Some static/detail brush slopes can report a non-world hit entity even though
+    *    world BSP face gather is the only path that yields concrete clip faces.
+    *    If inline-domain gather produced no candidates at all, retry once in world domain.
+    **/
+    if ( inlineBrushEntity && concreteCandidateCount <= 0 ) {
+        const int32_t preRescueCount = outCount;
+        clg_decal_clip_context_t worldContext = context;
+        worldContext.spawn.hitEntityNumber = ENTITYNUM_WORLD;
+        CLG_DecalClip_GatherLeafFaceCandidates( worldContext, queryMins, queryMaxs, outSurfaces, maxSurfaces, &outCount );
+        CLG_DecalClip_GatherNodeFaceCandidatesRecursive( worldContext, clgi.client->collisionModel.cache->nodes, queryMins, queryMaxs, outSurfaces, maxSurfaces, &outCount );
+        worldRescueGatherUsed = ( outCount > preRescueCount );
+
+        concreteCandidateCount = 0;
+        for ( int32_t i = 0; i < outCount; i++ ) {
+            if ( CLG_DecalClip_SurfaceHasConcretePolygonSource( &outSurfaces[ i ] ) ) {
+                concreteCandidateCount++;
+            }
+        }
+    }
+
+    if ( CLG_DecalClip_IsDebugLevel( 1 ) ) {
+	    clgi.Print( PRINT_DEVELOPER, "[CLG Decals][ClipDbg] hit-entity:%d impact-seed:%s broad-phase candidates:%d concrete:%d world-rescue:%s\n",
+		    context.spawn.hitEntityNumber,
+		    impactSeededConcreteFace ? "yes" : "no",
+            broadPhaseCandidateCount,
+            concreteCandidateCount,
+            worldRescueGatherUsed ? "yes" : "no" );
+    }
 
     return outCount;
 }
 
-const bool CLG_DecalClip_ClipSurfaceToDecal( const clg_decal_clip_context_t &context, const clg_world_surface_t *surface, clg_decal_clip_polygon_t *outPolygon ) {
+const bool CLG_DecalClip_ClipSurfaceToDecal( const clg_decal_clip_context_t &context, const clg_world_surface_t *surface, clg_decal_clip_polygon_t *outPolygon, bool *outUsedConcreteBspClip ) {
+    if ( outUsedConcreteBspClip ) {
+        *outUsedConcreteBspClip = false;
+    }
+
     if ( !surface || !outPolygon ) {
         return false;
     }
 
-    // Clip-stage facing rejection to guard against stale or externally sourced candidates.
-    if ( !CLG_DecalClip_IsSurfaceFacingProjection( context, surface->normal ) ) {
-        return false;
-    }
-
-    const float centerDepth = CLG_DecalClip_ComputeSignedDepth( context, surface->origin );
-    // Clip-stage depth rejection to avoid projecting through nearby opposite walls.
-    if ( !CLG_DecalClip_IsDepthInsideVolume( context, centerDepth ) ) {
+    /**
+    *    Only concrete BSP receivers are valid in the clipping path. Plane-only fallback
+    *    receivers are handled by the legacy impact-plane submission path when needed.
+    **/
+    if ( !CLG_DecalClip_SurfaceHasConcretePolygonSource( surface ) ) {
         return false;
     }
 
     memset( outPolygon, 0, sizeof( *outPolygon ) );
 
     /**
-    *    Prefer clipping the real BSP face polygon against the decal OBB. If no concrete
-    *    face was resolved for this trace, fall back to the receiver-plane intersection path.
+    *    Prefer clipping the real BSP face polygon against the decal OBB.
     **/
-    if ( surface->bspFace ) {
-        if ( !CLG_DecalClip_ClipBspFaceToDecalVolume( context, surface, outPolygon ) ) {
-            return false;
-        }
-
-        goto finalize_polygon;
+    if ( !CLG_DecalClip_ClipBspFaceToDecalVolume( context, surface, outPolygon ) ) {
+        return false;
     }
 
-    {
-        /**
-		*	For plane-only candidates (no BSP face), build a simple quad aligned to the
-		*	surface's tangent/bitangent basis. This ensures proper angular alignment to the
-		*	surface normal and avoids stretching/misalignment issues on sloped surfaces.
-		**/
-		if ( !CLG_DecalClip_BuildPlaneQuad( context, surface, outPolygon ) ) {
-			return false;
-		}
+    if ( outUsedConcreteBspClip ) {
+        *outUsedConcreteBspClip = true;
     }
 
-finalize_polygon:
     /**
     *    Project UVs from decal-local axes and sort the convex polygon before triangulation.
     **/
@@ -1512,13 +1859,11 @@ finalize_polygon:
     }
 
     /**
-    *    Concrete BSP faces already preserve cyclic winding through face expansion and
-    *    Sutherland-Hodgman clipping. Re-sorting those small beveled polygons can perturb
-    *    a valid winding into a bad fan, so only plane-only fallback polygons are re-ordered.
+    *    Sort all clipped polygons before fan triangulation. This normalizes winding when
+    *    clipping introduces near-duplicate points and prevents self-crossing fan artifacts.
     **/
-    if ( !surface->bspFace ) {
-        CLG_DecalClip_SortPolygonVertices( surface, outPolygon );
-    }
+    CLG_DecalClip_SortPolygonVertices( surface, outPolygon );
 
     return true;
 }
+

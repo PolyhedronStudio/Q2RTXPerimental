@@ -278,6 +278,7 @@ main()
 	float primary_specular_factor = 1;
 	vec3 throughput = vec3(1);
 	vec3 normal;
+	vec4 primary_decal_overlay = vec4(0.0);
 
 	// Get the primary surface material parameters
     get_material(
@@ -297,16 +298,17 @@ main()
 
 	{
 		Ray decal_ray;
+		const float decal_trace_extension = 12.0;
 		decal_ray.origin = ray.origin;
 		decal_ray.direction = ray.direction;
 		decal_ray.t_min = ray.t_min;
-		decal_ray.t_max = ray_payload_geometry.hit_distance + 0.25;
+		decal_ray.t_max = ray_payload_geometry.hit_distance + decal_trace_extension;
 
-		vec4 decal_overlay = trace_decal_ray(decal_ray);
-		if (decal_overlay.a > 0.0)
+		primary_decal_overlay = trace_decal_ray(decal_ray);
+		if (primary_decal_overlay.a > 0.0)
 		{
-			vec3 decal_color = decal_overlay.rgb / decal_overlay.a;
-			primary_base_color = mix(primary_base_color, decal_color, clamp(decal_overlay.a, 0.0, 1.0));
+			vec3 decal_color = primary_decal_overlay.rgb / primary_decal_overlay.a;
+			primary_base_color = mix(primary_base_color, decal_color, clamp(primary_decal_overlay.a, 0.0, 1.0));
 		}
 	}
 
@@ -478,6 +480,7 @@ main()
 
 	// Add the world effects
 	transparent = alpha_blend_premultiplied(effects, transparent);
+	transparent = alpha_blend_premultiplied(primary_decal_overlay, transparent);
 
 	imageStore(IMG_PT_TRANSPARENT, ipos, transparent);
 }

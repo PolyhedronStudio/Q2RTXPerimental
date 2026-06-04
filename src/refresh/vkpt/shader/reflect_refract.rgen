@@ -644,6 +644,7 @@ main()
 	float primary_roughness = 1;
 	vec3 primary_emissive = vec3(0);
 	float primary_specular_factor = 1;
+	vec4 primary_decal_overlay = vec4(0.0);
 
 	get_material(
 		triangle, 
@@ -662,16 +663,17 @@ main()
 
 	{
 		Ray decal_ray;
+		const float decal_trace_extension = 12.0;
 		decal_ray.origin = reflection_ray.origin;
 		decal_ray.direction = reflection_ray.direction;
 		decal_ray.t_min = reflection_ray.t_min;
-		decal_ray.t_max = ray_payload_geometry.hit_distance + 0.25;
+		decal_ray.t_max = ray_payload_geometry.hit_distance + decal_trace_extension;
 
-		vec4 decal_overlay = trace_decal_ray(decal_ray);
-		if (decal_overlay.a > 0.0)
+		primary_decal_overlay = trace_decal_ray(decal_ray);
+		if (primary_decal_overlay.a > 0.0)
 		{
-			vec3 decal_color = decal_overlay.rgb / decal_overlay.a;
-			primary_base_color = mix(primary_base_color, decal_color, clamp(decal_overlay.a, 0.0, 1.0));
+			vec3 decal_color = primary_decal_overlay.rgb / primary_decal_overlay.a;
+			primary_base_color = mix(primary_base_color, decal_color, clamp(primary_decal_overlay.a, 0.0, 1.0));
 		}
 	}
 
@@ -764,6 +766,7 @@ main()
     	// Emissive component on the reflected/refracted surface - blend it with zero alpha
 		transparent = alpha_blend_premultiplied(transparent, vec4(primary_emissive * throughput, 0));
 	}
+	transparent = alpha_blend_premultiplied(primary_decal_overlay, transparent);
 
 	{
 		uvec2 vis_buf;

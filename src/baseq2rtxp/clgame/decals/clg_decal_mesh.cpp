@@ -8,6 +8,9 @@
 #include "clgame/clg_local.h"
 #include "clgame/decals/clg_decal_mesh.h"
 
+//! Small normal-space push used to keep clipped decal triangles from z-fighting the receiver.
+static constexpr float CLG_DECAL_MESH_NORMAL_BIAS = 0.10f;
+
 void CLG_DecalMesh_Clear( clg_decal_mesh_t *mesh ) {
     if ( !mesh ) {
         return;
@@ -49,18 +52,24 @@ const bool CLG_DecalMesh_AppendPolygon( clg_decal_mesh_t *mesh, const clg_decal_
 
         clg_decal_mesh_vertex_t *v0 = &mesh->vertices[ mesh->vertexCount++ ];
         VectorCopy( polygon.positions[ 0 ], v0->position );
+        VectorMA( v0->position, CLG_DECAL_MESH_NORMAL_BIAS, normal, v0->position );
         VectorCopy( normal, v0->normal );
-        VectorCopy( polygon.uv[ 0 ], v0->uv );
+        v0->uv[ 0 ] = polygon.uv[ 0 ][ 0 ];
+        v0->uv[ 1 ] = polygon.uv[ 0 ][ 1 ];
 
         clg_decal_mesh_vertex_t *v1 = &mesh->vertices[ mesh->vertexCount++ ];
         VectorCopy( polygon.positions[ i ], v1->position );
+        VectorMA( v1->position, CLG_DECAL_MESH_NORMAL_BIAS, normal, v1->position );
         VectorCopy( normal, v1->normal );
-        VectorCopy( polygon.uv[ i ], v1->uv );
+        v1->uv[ 0 ] = polygon.uv[ i ][ 0 ];
+        v1->uv[ 1 ] = polygon.uv[ i ][ 1 ];
 
         clg_decal_mesh_vertex_t *v2 = &mesh->vertices[ mesh->vertexCount++ ];
         VectorCopy( polygon.positions[ i + 1 ], v2->position );
+        VectorMA( v2->position, CLG_DECAL_MESH_NORMAL_BIAS, normal, v2->position );
         VectorCopy( normal, v2->normal );
-        VectorCopy( polygon.uv[ i + 1 ], v2->uv );
+        v2->uv[ 0 ] = polygon.uv[ i + 1 ][ 0 ];
+        v2->uv[ 1 ] = polygon.uv[ i + 1 ][ 1 ];
 
         // Keep winding consistent with surface normal so adjacent clipped surfaces do not flip triangles.
         if ( DotProduct( triNormal, normal ) < 0.0f ) {
