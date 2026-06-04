@@ -25,16 +25,23 @@
 *
 *
 ****/
+/**
+*	@brief	Encloses the `ENCLOSED_CODE` into an `extern "C" { ... }` block.
+**/
 #define QEXTERN_C_ENCLOSE(ENCLOSED_CODE) \
 extern "C" {                             \
         ENCLOSED_CODE                    \
 };                                       \
                                          \
-
+/**
+*	@brief	Ensures the code is `extern "C" {`
+**/
 #define QEXTERN_C_OPEN          \
 extern "C" {                    \
                                 \
-
+/**
+*	@brief	Closes what is expected to be the scope of QEXTERN_C_OPEN, place at the end of such code blocks.
+**/
 #define QEXTERN_C_CLOSE         \
 };                              \
                                 \
@@ -69,42 +76,98 @@ static inline size_t Q_concat_stdarray(char* dest, size_t size, std::vector<cons
 *   reducing the need to do specific and possibly wrong casts everywhere.
 ****/
 #define QENUM_BIT_FLAGS(E)                                                                                      \
-    inline constexpr E operator~( const E &tFirst ) {                                                          \
-        return static_cast<E>( ~static_cast<std::underlying_type<E>::type>( tFirst ) );                         \
-    }                                                                                                           \
-    inline constexpr E operator |( const E &tFirst, const E &tSecond ) {                                                                        \
-        return static_cast<E>( static_cast<std::underlying_type<E>::type>( tFirst ) | static_cast<std::underlying_type<E>::type>( tSecond ) );  \
-    }                                                                                                                                           \
-    inline constexpr E operator &( const E &tFirst, const E &tSecond ) {                                                                        \
-        return static_cast<E>( static_cast<std::underlying_type<E>::type>( tFirst ) & static_cast<std::underlying_type<E>::type>( tSecond ) );  \
-    }                                                                                                                                           \
-    inline constexpr E operator ^( const E &tFirst, const E &tSecond ) {                                                                        \
-        return static_cast<E>( static_cast<std::underlying_type<E>::type>( tFirst ) ^ static_cast<std::underlying_type<E>::type>( tSecond ) );  \
-    }                                                                                                                                           \
-    template< typename E2 = E, typename = std::enable_if_t< std::is_same_v< E2, E > > >             \
-    inline constexpr E& operator|=( E &e, const E &e2 )                                             \
-    {                                                                                               \
-        e = e | e2;                                                                                 \
-        return e;                                                                                   \
-    }                                                                                               \
-    template< typename E2 = E, typename = std::enable_if_t< std::is_same_v< E2, E > > >             \
-    inline constexpr E& operator&=( E &e, const E &e2 )                                             \
-    {                                                                                               \
-        e = e & e2;                                                                                 \
-        return e;                                                                                   \
-    }                                                                                               \
-    template< typename E2 = E, typename = std::enable_if_t< std::is_same_v< E2, E > > >             \
-    inline constexpr E& operator^=( E &e, const E &e2 )                                             \
-    {                                                                                               \
-        e = e ^ e2;                                                                                 \
-        return e;                                                                                   \
-    }                                                                                               \
-    template< typename E2 = E, typename = std::enable_if_t< std::is_same_v< E2, E > > >             \
-    inline constexpr E& operator|=( E &e, E &e2 )                                             \
-    {                                                                                               \
-        e = e | e2;                                                                                 \
-        return e;                                                                                   \
-    }
+	/**
+	*	@brief	Bitwise NOT operator overload for enum type E.
+	*	@param	tFirst	The enum value to apply bitwise NOT to.
+	*	@return	Result of bitwise NOT operation on the enum value.
+	*	@note	Casts the enum to its underlying integral type, applies ~, then casts back to enum type.
+	**/\
+	inline constexpr E operator~( const E &tFirst ) {                                                          \
+		return static_cast<E>( ~static_cast<std::underlying_type<E>::type>( tFirst ) );                         \
+	}                                                                                                           \
+	/**
+	*	@brief	Bitwise OR operator overload for enum type E.
+	*	@param	tFirst	The first enum value operand.
+	*	@param	tSecond	The second enum value operand.
+	*	@return	Result of bitwise OR operation between the two enum values.
+	*	@note	Casts both enums to their underlying integral type, applies |, then casts back to enum type.
+	**/\
+	inline constexpr E operator |( const E &tFirst, const E &tSecond ) {                                                                        \
+		return static_cast<E>( static_cast<std::underlying_type<E>::type>( tFirst ) | static_cast<std::underlying_type<E>::type>( tSecond ) );  \
+	}                                                                                                                                           \
+	/**
+	*	@brief	Bitwise AND operator overload for enum type E.
+	*	@param	tFirst	The first enum value operand.
+	*	@param	tSecond	The second enum value operand.
+	*	@return	Result of bitwise AND operation between the two enum values.
+	*	@note	Casts both enums to their underlying integral type, applies &, then casts back to enum type.
+	**/ \
+	inline constexpr E operator &( const E &tFirst, const E &tSecond ) {                                                                        \
+		return static_cast<E>( static_cast<std::underlying_type<E>::type>( tFirst ) & static_cast<std::underlying_type<E>::type>( tSecond ) );  \
+	}                                                                                                                                           \
+	/**
+	*	@brief	Bitwise XOR operator overload for enum type E.
+	*	@param	tFirst	The first enum value operand.
+	*	@param	tSecond	The second enum value operand.
+	*	@return	Result of bitwise XOR operation between the two enum values.
+	*	@note	Casts both enums to their underlying integral type, applies ^, then casts back to enum type.
+	**/ \
+	inline constexpr E operator ^( const E &tFirst, const E &tSecond ) {                                                                        \
+		return static_cast<E>( static_cast<std::underlying_type<E>::type>( tFirst ) ^ static_cast<std::underlying_type<E>::type>( tSecond ) );  \
+	}                                                                                                                                           \
+	/**
+	*	@brief	Compound bitwise OR assignment operator overload for enum type E.
+	*	@param	e	The enum value to modify (left-hand side operand).
+	*	@param	e2	The enum value to OR with (right-hand side operand).
+	*	@return	Reference to the modified enum value.
+	*	@note	Uses SFINAE to ensure type safety; applies bitwise OR then assigns the result back to e.
+	**/ \
+	template< typename E2 = E, typename = std::enable_if_t< std::is_same_v< E2, E > > >             \
+	inline constexpr E& operator|=( E &e, const E &e2 )                                             \
+	{                                                                                               \
+		e = e | e2;                                                                                 \
+		return e;                                                                                   \
+	}                                                                                               \
+	/**
+	*	@brief	Compound bitwise AND assignment operator overload for enum type E.
+	*	@param	e	The enum value to modify (left-hand side operand).
+	*	@param	e2	The enum value to AND with (right-hand side operand).
+	*	@return	Reference to the modified enum value.
+	*	@note	Uses SFINAE to ensure type safety; applies bitwise AND then assigns the result back to e.
+	**/ \
+	template< typename E2 = E, typename = std::enable_if_t< std::is_same_v< E2, E > > >             \
+	inline constexpr E& operator&=( E &e, const E &e2 )                                             \
+	{                                                                                               \
+		e = e & e2;                                                                                 \
+		return e;                                                                                   \
+	}                                                                                               \
+	/**
+	*	@brief	Compound bitwise XOR assignment operator overload for enum type E.
+	*	@param	e	The enum value to modify (left-hand side operand).
+	*	@param	e2	The enum value to XOR with (right-hand side operand).
+	*	@return	Reference to the modified enum value.
+	*	@note	Uses SFINAE to ensure type safety; applies bitwise XOR then assigns the result back to e.
+	**/ \
+	template< typename E2 = E, typename = std::enable_if_t< std::is_same_v< E2, E > > >             \
+	inline constexpr E& operator^=( E &e, const E &e2 )                                             \
+	{                                                                                               \
+		e = e ^ e2;                                                                                 \
+		return e;                                                                                   \
+	}                                                                                               \
+	/**
+	*	@brief	Compound bitwise OR assignment operator overload for enum type E (non-const rvalue reference variant).
+	*	@param	e	The enum value to modify (left-hand side operand).
+	*	@param	e2	The enum value to OR with (right-hand side operand, non-const reference).
+	*	@return	Reference to the modified enum value.
+	*	@note	Uses SFINAE to ensure type safety; applies bitwise OR then assigns the result back to e.
+	*			This overload handles non-const rvalue references to avoid ambiguous overload resolution.
+	**/ \
+	template< typename E2 = E, typename = std::enable_if_t< std::is_same_v< E2, E > > >             \
+	inline constexpr E& operator|=( E &e, E &e2 )                                             \
+	{                                                                                               \
+		e = e | e2;                                                                                 \
+		return e;                                                                                   \
+	}
 
 
 
