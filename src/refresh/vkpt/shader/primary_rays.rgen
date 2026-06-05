@@ -480,7 +480,6 @@ main()
 
 	// Add the world effects
 	transparent = alpha_blend_premultiplied(effects, transparent);
-	transparent = alpha_blend_premultiplied(primary_decal_overlay, transparent);
 
 	imageStore(IMG_PT_TRANSPARENT, ipos, transparent);
 }

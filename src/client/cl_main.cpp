@@ -551,35 +551,37 @@ static void CL_Rcon_c(genctx_t *ctx, int argnum)
 /**
 *   @brief  Clear any state that should not persist over multiple server connections.
 **/
-void CL_ClearState(void)
-{
+void CL_ClearState(void) {
     S_StopAllSounds();
     OGG_Stop();
     SCR_StopCinematic();
 
     // Let the client game wipe state also.
     clge->ClearState();
-
     // Don't forget to clear the pose cache.
     SKM_PoseCache_ClearCache( cls.clientPoseCache );
+	// Clear renderer-retained state before the client structs are zeroed out.
+	// This prevents stale renderer caches from surviving reconnect/map-change teardown.
+	if ( R_ClearState ) {
+		R_ClearState();
+	}
     // Unload the collision models.
     CM_FreeMap( &cl.collisionModel ); //BSP_Free(cl.bsp);
-    
-    // Wipe local PVS.
-    std::memset( &cl.localPVS, 0, sizeof( cl.localPVS ) / sizeof(char) );
-    cl.localPVS = { 0 };
 
-    // Wipe the entire cl structure.
+	// Wipe local PVS.
+    std::memset( &cl.localPVS, 0, sizeof( client_state_s::LocalPVS )/* / sizeof(char) */);
+	// Wipe the entire cl structure.
     std::memset(&cl, 0, sizeof(cl));
 	//std::fill_n( reinterpret_cast< std::byte * >( &cl ), sizeof( cl ), std::byte{ 0 } ); // level = {}; // Warning: Cc6262 function uses '65832' bytes of stack.
 
 	// If we are in a state higher than ca_connected, drop back to ca_connected.
-	// This 
-    if (cls.state > ca_connected) {
-        cls.state = ca_connected;
-        CL_CheckForPause();
-        CL_UpdateFrameTimes();
-    }
+	// This can happen when we are in the middle of a map change, and the server 
+	// disconnects us before we have fully connected to the new map.
+	if ( cls.state > ca_connected ) {
+		cls.state = ca_connected;
+		CL_CheckForPause();
+		CL_UpdateFrameTimes();
+	}
 
     // unprotect game cvar
     fs_game->flags &= ~CVAR_ROM;

@@ -112,6 +112,8 @@ extern void (*R_AddDecal)(decal_t* d);
 extern void (*R_AddDecalMesh)(const decal_mesh_vertex_t *vertices, int32_t vertexCount, const vec3_t albedo, float alpha, uint32_t materialHash, float lifeSeconds);
 // clear all renderer-side decal submissions
 extern void (*R_ClearDecals)(void);
+// clear renderer-side transient state (entity history, decals, etc.)
+extern void ( *R_ClearState )( void );
 // clear all renderer-side decal material mappings
 extern void (*R_ClearDecalMaterialMappings)(void);
 // configure one renderer-side decal material mapping

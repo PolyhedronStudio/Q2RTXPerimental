@@ -279,7 +279,7 @@ void CLG_UI_AllocateContext() {
 	// Check if the atlas texture has already been registered with the renderer, if not, register it now. This allows us to avoid re-registering the texture and uploading it multiple times if the client game reloads or if the renderer is re-initialized, since we keep a copy of the atlas data in memory and can re-upload it as needed.
 	if ( s_gameui_ctx.atlas.imageHandle == 0 ) {
 		// Upload the render owned atlas copy.
-		s_gameui_ctx.atlas.imageHandle = clgi.R_RegisterRawImage( "clg_ui_atlas", CLG_UI_ATLAS_WIDTH, CLG_UI_ATLAS_HEIGHT, s_gameui_ctx.atlas.textureCopy, IT_PIC, IF_PERMANENT | IF_SCRAP | IF_SRGB );
+		s_gameui_ctx.atlas.imageHandle = clgi.R_RegisterRawImage( "clg_ui_atlas", CLG_UI_ATLAS_WIDTH, CLG_UI_ATLAS_HEIGHT, s_gameui_ctx.atlas.textureCopy, IT_PIC, /*IF_PERMANENT |*/ IF_SCRAP | IF_SRGB );
 		// IMG_Load_RTX stores the pointer as image-owned pixel data, so transfer ownership here.
 		s_gameui_ctx.atlas.textureCopy = nullptr;
 	}

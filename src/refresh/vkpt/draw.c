@@ -601,7 +601,7 @@ VkResult vkpt_draw_create_pipelines() {
 		.y        = 0.0f,
 		.width    = (float) vkpt_draw_get_extent().width,
 		.height   = (float) vkpt_draw_get_extent().height,
-		.minDepth = -1.0f,
+		.minDepth = 0.0f,
 		.maxDepth = 1.0f,
 	};
 
@@ -841,7 +841,7 @@ VkResult vkpt_draw_submit_stretch_pics(VkCommandBuffer cmd_buf) {
 			.y = 0.0f,
 			.width = (float)vkpt_draw_get_extent().width,
 			.height = (float)vkpt_draw_get_extent().height,
-			.minDepth = -1.0f,
+			.minDepth = 0.0f,
 			.maxDepth = 1.0f,
 		};
 		vkCmdSetViewport( cmd_buf, 0, 1, &viewport );

@@ -432,7 +432,10 @@ typedef struct bsp_mesh_s {
 } bsp_mesh_t;
 
 void bsp_mesh_create_from_bsp(bsp_mesh_t *wm, bsp_t *bsp, const char* map_name);
+void vkpt_vertex_buffer_cleanup_bsp_mesh(bsp_mesh_t *bsp_mesh);
+
 void bsp_mesh_destroy(bsp_mesh_t *wm);
+
 void bsp_mesh_register_textures(bsp_t *bsp);
 void bsp_mesh_animate_light_polys(bsp_mesh_t *wm);
 uint32_t encode_normal(const vec3_t normal);
@@ -523,6 +526,7 @@ typedef enum {
 typedef struct EntityUploadInfo
 {
 	uint32_t num_instances;
+	uint32_t animated_instances;
 	uint32_t num_prims;
 	uint32_t opaque_prim_count;
 	uint32_t transparent_prim_offset;

@@ -77,6 +77,7 @@ static void create_buffers(void);
 static bool allocate_and_bind_memory_to_buffers(void);
 static void create_buffer_views(void);
 static void fill_index_buffer(void);
+void destroy_transparency(void);
 
 // update
 static void write_particle_geometry(const float* view_matrix, const particle_t* particles, int particle_num);
@@ -90,6 +91,14 @@ cvar_t* cvar_pt_beam_lights = NULL;
 extern cvar_t* cvar_pt_enable_particles;
 extern cvar_t* cvar_pt_particle_emissive;
 extern cvar_t* cvar_pt_projection;
+//! One-shot warning gate for transparency beam truncation.
+static qboolean s_warned_transparency_beam_truncation = false;
+//! One-shot warning gate for transparency particle layout mismatches.
+static qboolean s_warned_transparency_particle_layout_mismatch = false;
+//! One-shot warning gate for transparency beam layout mismatches.
+static qboolean s_warned_transparency_beam_layout_mismatch = false;
+//! One-shot warning gate for transparency sprite layout mismatches.
+static qboolean s_warned_transparency_sprite_layout_mismatch = false;
 
 void cast_u32_to_f32_color(int color_index, const color_t* pcolor, float* color_f32, float hdr_factor)
 {
@@ -131,7 +140,10 @@ bool initialize_transparency()
 	create_buffers();
 
 	if (allocate_and_bind_memory_to_buffers() != VK_TRUE)
+	{
+		destroy_transparency();
 		return false;
+	}
 
 	create_buffer_views();
 	fill_index_buffer();
@@ -166,7 +178,19 @@ void update_transparency(VkCommandBuffer command_buffer, const float* view_matri
 	const particle_t* particles, int particle_num, const entity_t* entities, int entity_num)
 {
 	transparency.host_frame_index = (transparency.host_frame_index + 1) % transparency.host_buffered_frame_num;
-	particle_num = min(particle_num, TR_PARTICLE_MAX_NUM);
+	if (particle_num < 0)
+	{
+		particle_num = 0;
+	}
+	else if (particle_num > TR_PARTICLE_MAX_NUM)
+	{
+		particle_num = TR_PARTICLE_MAX_NUM;
+	}
+
+	if (entity_num < 0)
+	{
+		entity_num = 0;
+	}
 
 	uint32_t beam_num = 0;
 	uint32_t sprite_num = 0;
@@ -202,6 +226,20 @@ void update_transparency(VkCommandBuffer command_buffer, const float* view_matri
 	transparency.beam_color_host_offset = transparency.beam_aabb_host_offset + beam_num * TR_BEAM_AABB_SIZE;
 	transparency.beam_intersect_host_offset = transparency.beam_color_host_offset + beam_num * TR_COLOR_SIZE;
 	transparency.current_upload_size = transparency.beam_intersect_host_offset + beam_num * TR_BEAM_INTERSECT_SIZE;
+
+	// Fail closed if the computed scratch layout would exceed the host-frame buffer.
+	// This avoids copying partial or stale data when a future count/writer mismatch appears.
+	if (transparency.current_upload_size > transparency.host_frame_size)
+	{
+		if (!s_warned_transparency_beam_truncation)
+		{
+			s_warned_transparency_beam_truncation = true;
+			Com_WPrintf("vkpt: transparency upload size overflow prevented (%zu > %zu)\n",
+				transparency.current_upload_size, transparency.host_frame_size);
+		}
+
+		return;
+	}
 
 	if (particle_num > 0 || beam_num > 0 || sprite_num > 0)
 	{
@@ -290,12 +328,21 @@ static void write_particle_geometry(const float* view_matrix, const particle_t* 
 
 	const vec3_t view_y = { view_matrix[1], view_matrix[5], view_matrix[9] };
 
+	/**
+	*    Validate the particle slice before writing so the host-frame scratch layout
+	*    cannot drift past the counted bounds without tripping a debug signal.
+	**/
+	const size_t particle_vertices_bytes = (size_t)particle_num * 4u * TR_POSITION_SIZE;
+	const size_t particle_colors_bytes = (size_t)particle_num * TR_COLOR_SIZE;
+	assert( transparency.vertex_position_host_offset + particle_vertices_bytes + particle_colors_bytes <= transparency.host_frame_size );
+
 	// TODO: remove vkpt_refdef.fd, it's better to calculate it from the view matrix
 	const vec3_t view_origin = { vkpt_refdef.fd->vieworg[0], vkpt_refdef.fd->vieworg[1], vkpt_refdef.fd->vieworg[2] };
 
 	// TODO: use better alignment?
 	vec3_t* vertex_positions = (vec3_t*)(transparency.host_buffer_shadow + transparency.vertex_position_host_offset);
 	float* particle_colors = (float*)(transparency.host_buffer_shadow + transparency.particle_color_host_offset);
+	int written_particles = 0;
 
 	for (int i = 0; i < particle_num; i++)
 	{
@@ -343,6 +390,16 @@ static void write_particle_geometry(const float* view_matrix, const particle_t* 
 		VectorSubtract(temp, y_axis, vertex_positions[3]);
 
 		vertex_positions += 4;
+		written_particles++;
+	}
+
+	/**
+	*    Confirm that the writer consumed exactly the counted particle budget so any
+	*    upstream mismatch is visible before the upload stage copies stale scratch data.
+	**/
+	if ( written_particles != particle_num && !s_warned_transparency_particle_layout_mismatch ) {
+		s_warned_transparency_particle_layout_mismatch = true;
+		Com_WPrintf( "vkpt: transparency particle writer emitted %d of %d counted particles\n", written_particles, particle_num );
 	}
 }
 
@@ -353,17 +410,32 @@ static void write_beam_geometry(const entity_t* entities, int entity_num)
 	if (transparency.beam_num == 0)
 		return;
 
+	/**
+	*    Validate the beam slices before writing so beam AABBs, colors, and intersect
+	*    data stay inside the per-frame scratch block used by the upload step.
+	**/
+	const size_t beam_aabb_bytes = (size_t)transparency.beam_num * TR_BEAM_AABB_SIZE;
+	const size_t beam_color_bytes = (size_t)transparency.beam_num * TR_COLOR_SIZE;
+	const size_t beam_intersect_bytes = (size_t)transparency.beam_num * TR_BEAM_INTERSECT_SIZE;
+	assert( transparency.beam_aabb_host_offset + beam_aabb_bytes + beam_color_bytes + beam_intersect_bytes <= transparency.host_frame_size );
+
 	const size_t beam_aabb_offset = transparency.beam_aabb_host_offset;
 
 	// TODO: use better alignment?
 	VkAabbPositionsKHR* aabb_positions = (VkAabbPositionsKHR*)(transparency.host_buffer_shadow + beam_aabb_offset);
 	uint32_t* beam_infos = (uint32_t*)(transparency.host_buffer_shadow + transparency.beam_intersect_host_offset);
 	float* beam_colors = (float*)(transparency.host_buffer_shadow + transparency.beam_color_host_offset);
+	int beam_count = 0;
 
 	for (int i = 0; i < entity_num; i++)
 	{
 		if ((entities[i].flags & RF_BEAM) == 0)
 			continue;
+
+		if (beam_count >= (int)transparency.beam_num)
+		{
+			break;
+		}
 
 		const entity_t* beam = entities + i;
 
@@ -443,6 +515,16 @@ static void write_beam_geometry(const entity_t* entities, int entity_num)
 		*(float *)(beam_infos + 10) = beam_radius;
 		*(float *)(beam_infos + 11) = VectorLength(to_end);
 		beam_infos += TR_BEAM_INTERSECT_SIZE / sizeof(uint32_t);
+		beam_count++;
+	}
+
+	/**
+	*    Check that beam writes matched the counted beam budget so a future append bug
+	*    cannot silently leave the tail of the frame scratch buffer stale.
+	**/
+	if ( beam_count != (int)transparency.beam_num && !s_warned_transparency_beam_layout_mismatch ) {
+		s_warned_transparency_beam_layout_mismatch = true;
+		Com_WPrintf( "vkpt: transparency beam writer emitted %d of %u counted beams\n", beam_count, transparency.beam_num );
 	}
 }
 
@@ -615,6 +697,15 @@ static void write_sprite_geometry(const float* view_matrix, const entity_t* enti
 	if (transparency.sprite_num == 0)
 		return;
 
+	/**
+	*    Validate the sprite slice before writing so the sprite quad vertices and info
+	*    payload cannot overrun the same scratch frame as particles and beams.
+	**/
+	const size_t particle_vertex_data_size = transparency.particle_num * 4 * TR_POSITION_SIZE;
+	const size_t sprite_vertex_data_size = (size_t)transparency.sprite_num * 4u * TR_POSITION_SIZE;
+	const size_t sprite_info_data_size = (size_t)transparency.sprite_num * TR_SPRITE_INFO_SIZE;
+	assert( transparency.vertex_position_host_offset + particle_vertex_data_size + sprite_vertex_data_size + sprite_info_data_size <= transparency.host_frame_size );
+
 	const vec3_t view_x = { view_matrix[0], view_matrix[4], view_matrix[8] };
 	const vec3_t view_y = { view_matrix[1], view_matrix[5], view_matrix[9] };
 	const vec3_t world_y = { 0.f, 0.f, 1.f };
@@ -622,7 +713,7 @@ static void write_sprite_geometry(const float* view_matrix, const entity_t* enti
 	// TODO: remove vkpt_refdef.fd, it's better to calculate it from the view matrix
 	const vec3_t view_origin = { vkpt_refdef.fd->vieworg[0], vkpt_refdef.fd->vieworg[1], vkpt_refdef.fd->vieworg[2] };
 
-	const size_t particle_vertex_data_size = transparency.particle_num * 4 * TR_POSITION_SIZE;
+//	const size_t particle_vertex_data_size = transparency.particle_num * 4 * TR_POSITION_SIZE;
 	const size_t sprite_vertex_offset = transparency.vertex_position_host_offset + particle_vertex_data_size;
 
 	// TODO: use better alignment?
@@ -696,10 +787,19 @@ static void write_sprite_geometry(const float* view_matrix, const entity_t* enti
 
 
 		vertex_positions += 4;
-		sprite_info += TR_SPRITE_INFO_SIZE / sizeof(int);
+		sprite_info += TR_SPRITE_INFO_SIZE / sizeof(uint32_t);
 
 		if (++sprite_count >= TR_SPRITE_MAX_NUM)
 			return;
+	}
+
+	/**
+	*    Confirm that the sprite writer matched the counted sprite budget so any future
+	*    entity/model mismatch is visible before upload copies the frame scratch buffer.
+	**/
+	if ( sprite_count != (int)transparency.sprite_num && !s_warned_transparency_sprite_layout_mismatch ) {
+		s_warned_transparency_sprite_layout_mismatch = true;
+		Com_WPrintf( "vkpt: transparency sprite writer emitted %d of %u counted sprites\n", sprite_count, transparency.sprite_num );
 	}
 }
 
@@ -708,6 +808,13 @@ static void upload_geometry(VkCommandBuffer command_buffer)
 	transparency.sprite_vertex_device_offset = transparency.particle_num * 4 * TR_POSITION_SIZE;
 
     const size_t host_buffer_offset = transparency.host_frame_index * transparency.host_frame_size;
+	const size_t host_buffer_end = host_buffer_offset + transparency.current_upload_size;
+
+	/**
+	*    Keep every per-frame copy inside the computed upload range so a bad writer
+	*    cannot spill past the scratch frame and poison later GPU work.
+	**/
+	assert( transparency.current_upload_size <= transparency.host_frame_size );
 
 	assert(transparency.current_upload_size > 0);
 	memcpy(transparency.mapped_host_buffer + host_buffer_offset, transparency.host_buffer_shadow, transparency.current_upload_size);
@@ -748,6 +855,17 @@ static void upload_geometry(VkCommandBuffer command_buffer)
 		.dstOffset = 0,
 		.size = transparency.beam_num * TR_BEAM_INTERSECT_SIZE
 	};
+
+	/**
+	*    Sanity-check each copy against the frame end so the debug build will flag any
+	*    future offset/count drift before the driver sees it.
+	**/
+	assert( vertices.srcOffset + vertices.size <= host_buffer_end );
+	assert( beam_aabbs.srcOffset + beam_aabbs.size <= host_buffer_end );
+	assert( particle_colors.srcOffset + particle_colors.size <= host_buffer_end );
+	assert( beam_colors.srcOffset + beam_colors.size <= host_buffer_end );
+	assert( sprite_infos.srcOffset + sprite_infos.size <= host_buffer_end );
+	assert( beam_intersect.srcOffset + beam_intersect.size <= host_buffer_end );
 
 	if (vertices.size)
 		vkCmdCopyBuffer(command_buffer, transparency.host_buffer, transparency.vertex_buffer.buffer,
@@ -882,6 +1000,10 @@ static bool allocate_and_bind_memory_to_buffers(void)
 		(void**)&transparency.mapped_host_buffer));
 
 	transparency.host_buffer_shadow = Z_Mallocz(transparency.host_frame_size);
+	if (!transparency.host_buffer_shadow)
+	{
+		return false;
+	}
 	
 	return true;
 }

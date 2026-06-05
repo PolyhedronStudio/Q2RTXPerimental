@@ -762,11 +762,10 @@ main()
 		}
 	}
 
-	if(luminance(primary_emissive) > 0) {
+	if(luminance(primary_emissive) > 0) { 
     	// Emissive component on the reflected/refracted surface - blend it with zero alpha
 		transparent = alpha_blend_premultiplied(transparent, vec4(primary_emissive * throughput, 0));
 	}
-	transparent = alpha_blend_premultiplied(primary_decal_overlay, transparent);
 
 	{
 		uvec2 vis_buf;

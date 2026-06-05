@@ -10,6 +10,7 @@
 #include "refresh/images.h"
 #include "refresh/vkpt/material.h"
 #include "refresh/vkpt/vkpt.h"
+#include <SDL_mutex.h>
 #include <stddef.h>
 
 //! Maximum retained dynamic decal submissions used for path-traced decal generation.
@@ -46,6 +47,8 @@ static vkpt_decal_runtime_item_t s_vkptStaticDecalItems[ VKPT_DECAL_GEOMETRY_STA
 static int32_t s_vkptStaticDecalItemCount = 0;
 //! Persistent CPU staging array used to flatten runtime decal items before upload.
 static vkpt_decal_vertex_t *s_vkptGeneratedVertices = NULL;
+//! Serializes decal submission, clear, and BLAS rebuild state.
+static SDL_mutex *s_vkptDecalsGeometryMutex = NULL;
 
 //! Maximum amount of CLGame-configured material hash mappings cached by renderer.
 #define VKPT_DECAL_MATERIAL_LOOKUP_MAX 64
@@ -74,6 +77,39 @@ static qboolean s_vkpt_warned_runtime_vertex_truncation = false;
 
 //! Runtime debug/authoring override for decal mask inversion.
 static cvar_t *cvar_pt_decals_mask_invert = NULL;
+
+/**
+*	@brief	Log the decal geometry lifetime state for map-transition diagnostics.
+*	@note	Captures CPU-side retained items and the GPU vertex buffer handle/size.
+**/
+static void vkpt_decals_geometry_log_state( const char *reason ) {
+	#if 0
+	const char *tag = ( reason && reason[ 0 ] ) ? reason : "state";
+	Com_WPrintf(
+		"vkpt: decal-geom %s init=%d dyn=%d static=%d vertexCount=%u vb=%p size=%zu\n",
+		tag,
+		s_vkpt_decals_geometry_initialized ? 1 : 0,
+		s_vkptDynamicDecalItemCount,
+		s_vkptStaticDecalItemCount,
+		s_vkpt_decals_vertex_count,
+		(void *)s_vkpt_decal_vertex_buffer.buffer,
+		(size_t)s_vkpt_decal_vertex_buffer.size );
+	#endif
+}
+
+static void vkpt_decals_geometry_lock( void ) {
+	if ( s_vkptDecalsGeometryMutex ) {
+		SDL_LockMutex( s_vkptDecalsGeometryMutex );
+	}
+}
+
+static void vkpt_decals_geometry_unlock( void ) {
+	if ( s_vkptDecalsGeometryMutex ) {
+		SDL_UnlockMutex( s_vkptDecalsGeometryMutex );
+	}
+}
+
+static VkResult vkpt_decals_geometry_upload_locked( const vkpt_decal_vertex_t *vertices, uint32_t vertexCount );
 
 static uint32_t vkpt_decals_geometry_resolve_texture_index( const uint32_t materialHash );
 
@@ -416,6 +452,12 @@ static void vkpt_decals_geometry_submit_runtime_vertices( const vkpt_decal_verte
 	const int32_t targetCapacity = isStatic ? VKPT_DECAL_GEOMETRY_STATIC_MAX : VKPT_DECAL_GEOMETRY_DYNAMIC_MAX;
 
 	if ( *targetItemCount >= targetCapacity ) {
+		// Keep the pool bounded by evicting the oldest submission before appending the new one.
+		if ( !s_vkpt_warned_runtime_vertex_truncation ) {
+			s_vkpt_warned_runtime_vertex_truncation = true;
+			Com_WPrintf( "vkpt: decal runtime item pool full (%d); dropping oldest submission before append\n", targetCapacity );
+		}
+
 		memmove( &targetItems[ 0 ], &targetItems[ 1 ], sizeof( targetItems[ 0 ] ) * ( targetCapacity - 1 ) );
 		*targetItemCount = targetCapacity - 1;
 	}
@@ -433,6 +475,14 @@ static void vkpt_decals_geometry_submit_runtime_vertices( const vkpt_decal_verte
 }
 
 VkResult vkpt_decals_geometry_initialize( void ) {
+	vkpt_decals_geometry_log_state( "init-before" );
+	if ( !s_vkptDecalsGeometryMutex ) {
+		s_vkptDecalsGeometryMutex = SDL_CreateMutex();
+		if ( !s_vkptDecalsGeometryMutex ) {
+			Com_WPrintf( "vkpt: failed to create decal geometry mutex\n" );
+			return VK_ERROR_INITIALIZATION_FAILED;
+		}
+	}
 	s_vkpt_decals_geometry_initialized = true;
 	s_vkpt_decals_vertex_count = 0u;
 	s_vkptDynamicDecalItemCount = 0;
@@ -454,9 +504,11 @@ VkResult vkpt_decals_geometry_initialize( void ) {
 	if ( result != VK_SUCCESS ) {
 		Com_WPrintf( "vkpt: failed to allocate persistent decal vertex buffer (%u vertices)\n", VKPT_DECAL_GEOMETRY_MAX_VERTICES );
 		s_vkpt_decals_geometry_initialized = false;
+		vkpt_decals_geometry_log_state( "init-failed" );
 		return result;
 	}
 
+	vkpt_decals_geometry_log_state( "init-after" );
 	return VK_SUCCESS;
 }
 
@@ -465,22 +517,31 @@ void vkpt_decals_geometry_clear( void ) {
 		return;
 	}
 
+	vkpt_decals_geometry_lock();
+	vkpt_decals_geometry_log_state( "clear-before" );
+
 	/**
-	*    Clear retained runtime submissions so old map decals cannot be rebuilt into the
+	*    Clear retained runtime submission counters so old map decals cannot be rebuilt into the
 	*    next frame BLAS after a client/map state reset.
+	*
+	*    Do not memset the retained item arrays here: renderer rebuilds can overlap with this
+	*    call path on another thread, and zeroing the shared staging data was corrupting in-flight
+	*    decal/BLAS rebuild work.
 	**/
-	memset( s_vkptDynamicDecalItems, 0, sizeof( s_vkptDynamicDecalItems ) );
-	memset( s_vkptStaticDecalItems, 0, sizeof( s_vkptStaticDecalItems ) );
 	s_vkptDynamicDecalItemCount = 0;
 	s_vkptStaticDecalItemCount = 0;
 	s_vkpt_decals_vertex_count = 0u;
 
-	if ( s_vkptGeneratedVertices ) {
-		memset( s_vkptGeneratedVertices, 0, sizeof( vkpt_decal_vertex_t ) * VKPT_DECAL_GEOMETRY_MAX_VERTICES );
-	}
+	vkpt_decals_geometry_log_state( "clear-after" );
+	vkpt_decals_geometry_unlock();
 }
 
 void vkpt_decals_geometry_shutdown( void ) {
+	vkpt_decals_geometry_lock();
+	vkpt_decals_geometry_log_state( "shutdown-before" );
+	for ( int32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++ ) {
+		(void)vkpt_pt_create_decal_blas( NULL, i, NULL, 0, 0, NULL, 0, 0 );
+	}
 	if ( s_vkpt_decal_vertex_buffer.buffer ) {
 		buffer_destroy( &s_vkpt_decal_vertex_buffer );
 	}
@@ -494,6 +555,12 @@ void vkpt_decals_geometry_shutdown( void ) {
 	s_vkpt_decals_vertex_count = 0u;
 	s_vkptDynamicDecalItemCount = 0;
 	s_vkptStaticDecalItemCount = 0;
+	vkpt_decals_geometry_log_state( "shutdown-after" );
+	vkpt_decals_geometry_unlock();
+	if ( s_vkptDecalsGeometryMutex ) {
+		SDL_DestroyMutex( s_vkptDecalsGeometryMutex );
+		s_vkptDecalsGeometryMutex = NULL;
+	}
 }
 
 void vkpt_decals_geometry_submit_legacy( const decal_t *decal ) {
@@ -501,10 +568,12 @@ void vkpt_decals_geometry_submit_legacy( const decal_t *decal ) {
 		return;
 	}
 
+	vkpt_decals_geometry_lock();
 	vkpt_decal_vertex_t quadVertices[ 6 ] = { 0 };
 	uint32_t quadVertexCount = 0u;
 	vkpt_decals_geometry_append_decal_quad( decal, quadVertices, &quadVertexCount, (uint32_t)LENGTH( quadVertices ) );
 	vkpt_decals_geometry_submit_runtime_vertices( quadVertices, quadVertexCount, VKPT_DECAL_GEOMETRY_LIFE_MS, false );
+	vkpt_decals_geometry_unlock();
 }
 
 void vkpt_decals_geometry_submit_mesh( const decal_mesh_vertex_t *vertices, int32_t vertexCount, const vec3_t albedo, float alpha, uint32_t materialHash, float lifeSeconds ) {
@@ -512,6 +581,7 @@ void vkpt_decals_geometry_submit_mesh( const decal_mesh_vertex_t *vertices, int3
 		return;
 	}
 
+	vkpt_decals_geometry_lock();
 	const int32_t clampedVertexCount = ( vertexCount > (int32_t)VKPT_DECAL_GEOMETRY_MAX_VERTICES_PER_ITEM )
 		? (int32_t)VKPT_DECAL_GEOMETRY_MAX_VERTICES_PER_ITEM
 		: vertexCount;
@@ -521,7 +591,7 @@ void vkpt_decals_geometry_submit_mesh( const decal_mesh_vertex_t *vertices, int3
 	}
 	const int32_t triangleAlignedVertexCount = ( clampedVertexCount / 3 ) * 3;
 	if ( triangleAlignedVertexCount < 3 ) {
-		return;
+		goto cleanup;
 	}
 
 	vkpt_decal_vertex_t convertedVertices[ VKPT_DECAL_GEOMETRY_MAX_VERTICES_PER_ITEM ] = { 0 };
@@ -569,6 +639,9 @@ void vkpt_decals_geometry_submit_mesh( const decal_mesh_vertex_t *vertices, int3
 	}
 
 	vkpt_decals_geometry_submit_runtime_vertices( convertedVertices, (uint32_t)triangleAlignedVertexCount, lifeMs, isStaticSubmission );
+
+cleanup:
+	vkpt_decals_geometry_unlock();
 }
 
 void vkpt_decals_geometry_get_descriptor_buffer_info( VkDescriptorBufferInfo *outVertexBufferInfo ) {
@@ -594,6 +667,13 @@ VkResult vkpt_decals_geometry_upload( const vkpt_decal_vertex_t *vertices, uint3
 		return VK_SUCCESS;
 	}
 
+	vkpt_decals_geometry_lock();
+	const VkResult uploadResult = vkpt_decals_geometry_upload_locked( vertices, vertexCount );
+	vkpt_decals_geometry_unlock();
+	return uploadResult;
+}
+
+static VkResult vkpt_decals_geometry_upload_locked( const vkpt_decal_vertex_t *vertices, uint32_t vertexCount ) {
 	const size_t vertexBytes = (size_t)vertexCount * sizeof( vkpt_decal_vertex_t );
 	if ( !s_vkpt_decal_vertex_buffer.buffer || s_vkpt_decal_vertex_buffer.size < vertexBytes ) {
 		Com_WPrintf( "vkpt: decal vertex upload would exceed persistent buffer size (%zu > %zu bytes)\n", vertexBytes, (size_t)s_vkpt_decal_vertex_buffer.size );
@@ -616,12 +696,18 @@ VkResult vkpt_decals_geometry_build_blas( VkCommandBuffer cmd_buf, const int32_t
 		return VK_SUCCESS;
 	}
 
+	vkpt_decals_geometry_log_state( "build-entry" );
+	vkpt_decals_geometry_lock();
+
 	const uint32_t nowMs = Sys_Milliseconds();
 	vkpt_decals_geometry_prune_dynamic( nowMs );
 
 	if ( vkpt_decals_get_render_mode() != VKPT_DECAL_RENDER_PATH_TRACED || ( s_vkptDynamicDecalItemCount <= 0 && s_vkptStaticDecalItemCount <= 0 ) ) {
 		s_vkpt_decals_vertex_count = 0u;
-		return vkpt_pt_create_decal_blas( cmd_buf, frameIndex, NULL, 0, 0, NULL, 0, 0 );
+		vkpt_decals_geometry_log_state( "build-empty" );
+		VkResult blasResult = vkpt_pt_create_decal_blas( cmd_buf, frameIndex, NULL, 0, 0, NULL, 0, 0 );
+		vkpt_decals_geometry_unlock();
+		return blasResult;
 	}
 
 	uint32_t generatedVertexCount = 0u;
@@ -632,12 +718,27 @@ VkResult vkpt_decals_geometry_build_blas( VkCommandBuffer cmd_buf, const int32_t
 		generatedVertexCount += s_vkptStaticDecalItems[ i ].vertexCount;
 	}
 
+	// Guard the flattened vertex staging buffer even if upstream counts become inconsistent.
+	if ( generatedVertexCount > VKPT_DECAL_GEOMETRY_MAX_VERTICES ) {
+		if ( !s_vkpt_warned_runtime_vertex_truncation ) {
+			s_vkpt_warned_runtime_vertex_truncation = true;
+			Com_WPrintf( "vkpt: decal geometry flatten would exceed staging capacity (%u > %u); truncating upload\n",
+				generatedVertexCount, VKPT_DECAL_GEOMETRY_MAX_VERTICES );
+		}
+
+		generatedVertexCount = VKPT_DECAL_GEOMETRY_MAX_VERTICES;
+	}
+
 	if ( generatedVertexCount < 3u ) {
 		s_vkpt_decals_vertex_count = 0u;
-		return vkpt_pt_create_decal_blas( cmd_buf, frameIndex, NULL, 0, 0, NULL, 0, 0 );
+		vkpt_decals_geometry_log_state( "build-too-small" );
+		VkResult blasResult = vkpt_pt_create_decal_blas( cmd_buf, frameIndex, NULL, 0, 0, NULL, 0, 0 );
+		vkpt_decals_geometry_unlock();
+		return blasResult;
 	}
 
 	if ( !s_vkptGeneratedVertices ) {
+		vkpt_decals_geometry_unlock();
 		return VK_ERROR_OUT_OF_HOST_MEMORY;
 	}
 
@@ -646,6 +747,10 @@ VkResult vkpt_decals_geometry_build_blas( VkCommandBuffer cmd_buf, const int32_t
 		vkpt_decal_runtime_item_t *item = &s_vkptDynamicDecalItems[ i ];
 		if ( item->vertexCount == 0u ) {
 			continue;
+		}
+
+		if ( writeVertex + item->vertexCount > VKPT_DECAL_GEOMETRY_MAX_VERTICES ) {
+			break;
 		}
 
 		memcpy( &s_vkptGeneratedVertices[ writeVertex ], item->vertices, sizeof( vkpt_decal_vertex_t ) * item->vertexCount );
@@ -657,21 +762,33 @@ VkResult vkpt_decals_geometry_build_blas( VkCommandBuffer cmd_buf, const int32_t
 			continue;
 		}
 
+		if ( writeVertex + item->vertexCount > VKPT_DECAL_GEOMETRY_MAX_VERTICES ) {
+			break;
+		}
+
 		memcpy( &s_vkptGeneratedVertices[ writeVertex ], item->vertices, sizeof( vkpt_decal_vertex_t ) * item->vertexCount );
 		writeVertex += item->vertexCount;
 	}
 
 	if ( writeVertex < 3u ) {
 		s_vkpt_decals_vertex_count = 0u;
-		return vkpt_pt_create_decal_blas( cmd_buf, frameIndex, NULL, 0, 0, NULL, 0, 0 );
+		vkpt_decals_geometry_log_state( "build-written-too-small" );
+		VkResult blasResult = vkpt_pt_create_decal_blas( cmd_buf, frameIndex, NULL, 0, 0, NULL, 0, 0 );
+		vkpt_decals_geometry_unlock();
+		return blasResult;
 	}
 
-	VkResult uploadResult = vkpt_decals_geometry_upload( s_vkptGeneratedVertices, writeVertex, NULL, 0u );
+	VkResult uploadResult = vkpt_decals_geometry_upload_locked( s_vkptGeneratedVertices, writeVertex );
 	if ( uploadResult != VK_SUCCESS ) {
+		vkpt_decals_geometry_log_state( "build-upload-failed" );
+		vkpt_decals_geometry_unlock();
 		return uploadResult;
 	}
 
-	return vkpt_pt_create_decal_blas( cmd_buf, frameIndex, &s_vkpt_decal_vertex_buffer, 0, s_vkpt_decals_vertex_count, NULL, 0, 0 );
+	vkpt_decals_geometry_log_state( "build-uploaded" );
+	VkResult blasResult = vkpt_pt_create_decal_blas( cmd_buf, frameIndex, &s_vkpt_decal_vertex_buffer, 0, s_vkpt_decals_vertex_count, NULL, 0, 0 );
+	vkpt_decals_geometry_unlock();
+	return blasResult;
 }
 
 void vkpt_decals_geometry_append_tlas_instance( const int32_t frameIndex ) {

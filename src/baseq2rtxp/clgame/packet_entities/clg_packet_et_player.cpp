@@ -26,11 +26,6 @@
 *   @brief  Will only be called once whenever the add player entity method encounters an empty bone pose.
 **/
 void CLG_ETPlayer_AllocatePoseCache( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *nextState ) {
-    // We'll assume that, in this case, all caches are allocated.
-    if ( packetEntity->bonePoseCache[ 0 ] != nullptr ) {
-        return;
-    }
-
     // Determine whether the entity now has a skeletal model, and if so, allocate a bone pose cache for it.
     if ( const model_t *entModel = clgi.R_GetModelDataForHandle( refreshEntity->model ) ) {
         // Make sure it has proper SKM data.
@@ -410,8 +405,13 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     }
 
     // Wait till we got the cache.
-    if ( !packetEntity->bonePoseCache[0] || !packetEntity->lastBonePoseCache[0] ) {
+    if ( !packetEntity->bonePoseCache[0] ) {
         return;
+    }
+    if ( !packetEntity->lastBonePoseCache[0] ) {
+        packetEntity->lastBonePoseCache[ SKM_BODY_LOWER ] = packetEntity->bonePoseCache[ SKM_BODY_LOWER ];
+        packetEntity->lastBonePoseCache[ SKM_BODY_UPPER ] = packetEntity->bonePoseCache[ SKM_BODY_UPPER ];
+        packetEntity->lastBonePoseCache[ SKM_BODY_HEAD ]  = packetEntity->bonePoseCache[ SKM_BODY_HEAD ];
     }
 
     /**
@@ -472,7 +472,9 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     const double switchAnimationScaleFactor = CLG_ETPlayer_GetSwitchAnimationScaleFactor( currentLowerBodyState->timeStart, lastLowerBodyState->timeDuration + currentLowerBodyState->timeStart, extrapolatedTime );
     if ( switchAnimationScaleFactor >= 0 && switchAnimationScaleFactor <= 1 ) {
         // Process the 'LAST' lower body animation. (This is so we can smoothly transition from 'last' to 'current').
-        lastStateIsPlaying = CLG_ETPlayer_GetLerpedAnimationStatePoseForTime( model, extrapolatedTime, SKM_POSE_TRANSLATE_ALL, nullptr, lastLowerBodyState, lastFinalStatePose );
+        if ( lastFinalStatePose ) {
+            lastStateIsPlaying = CLG_ETPlayer_GetLerpedAnimationStatePoseForTime( model, extrapolatedTime, SKM_POSE_TRANSLATE_ALL, nullptr, lastLowerBodyState, lastFinalStatePose );
+        }
     }
     // Process the 'CURRENT' lower body animation.
     CLG_ETPlayer_GetLerpedAnimationStatePoseForTime( model, extrapolatedTime, SKM_POSE_TRANSLATE_ALL, nullptr, currentLowerBodyState, finalStatePose );
@@ -488,12 +490,16 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     // Process the lower event body state animation IF still within valid time range:
     skm_transform_t *lowerEventStatePose = packetEntity->eventBonePoseCache[ SKM_BODY_LOWER ];
     if ( lowerEventBodyState->timeEnd >= extrapolatedTime ) {
-        lowerEventIsPlaying = !CLG_ETPlayer_GetLerpedAnimationStatePoseForTime( model, extrapolatedTime, lowerEventRootMotionAxisFlags, nullptr, lowerEventBodyState, lowerEventStatePose );
+        if ( lowerEventStatePose ) {
+            lowerEventIsPlaying = !CLG_ETPlayer_GetLerpedAnimationStatePoseForTime( model, extrapolatedTime, lowerEventRootMotionAxisFlags, nullptr, lowerEventBodyState, lowerEventStatePose );
+        }
     }
     // Process the upper event body state animation IF still within valid time range:
     skm_transform_t *upperEventStatePose = packetEntity->eventBonePoseCache[ SKM_BODY_UPPER ];
     if ( upperEventBodyState->timeEnd >= extrapolatedTime ) {
-        upperEventIsPlaying = !CLG_ETPlayer_GetLerpedAnimationStatePoseForTime( model, extrapolatedTime, upperEventRootMotionAxisFlags, nullptr, upperEventBodyState, upperEventStatePose );
+        if ( upperEventStatePose ) {
+            upperEventIsPlaying = !CLG_ETPlayer_GetLerpedAnimationStatePoseForTime( model, extrapolatedTime, upperEventRootMotionAxisFlags, nullptr, upperEventBodyState, upperEventStatePose );
+        }
     }
 
 

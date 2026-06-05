@@ -211,6 +211,11 @@ void CLG_HUD_ScaleFrame( refcfg_t *refcfg ) {
 *	@brief	Called when screen module is drawing its 2D overlay(s).
 **/
 void CLG_HUD_DrawFrame( refcfg_t *refcfg ) {
+	// Has to be valid.
+	if ( !clgi.client ) {
+		return;
+	}
+
     clgi.R_ClearColor();
     // Set general alpha scale.
     //clgi.R_SetAlphaScale( clgi.screen->hud_alpha );

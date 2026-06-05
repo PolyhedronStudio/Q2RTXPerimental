@@ -545,26 +545,25 @@ void svg_base_edict_t::DispatchDieCallback( svg_base_edict_t *inflictor, svg_bas
 *   Reconstructs the object, optionally retaining the entityDictionary.
 **/
 void svg_base_edict_t::Reset( const bool retainDictionary ) {
-	// Reset base-class state first and keep a copy of it so we can restore it
-	using Base = sv_shared_edict_t<svg_base_edict_t, svg_client_t>;
-
-	// Unlink from world and free if we were linked.
-	if ( isLinked || ( area.next != nullptr || area.prev != nullptr ) ) {
-		gi.unlinkentity( this );
-	}
-	
-	// Call base-class Reset(...)
-    Base::Reset( retainDictionary );
-    
-    // Now, reset derived-class state.
-	// IMPLEMENT_EDICT_RESET_BY_COPY_ASSIGNMENT( Super, SelfType, retainDictionary );
-    #if 1
     /**
-    *   Reset all member variables to defaults.
+    *	Sanitize any stale world linkage before we overwrite the entity state.
+    *
+    *	If the entity still carries a live area-link topology, force the server to
+    *	unlink it first so the collision model can detach the old chain cleanly.
     **/
-    if ( !retainDictionary ) {
-        entityDictionary = nullptr; // We don't retain the dictionary in this implementation.
+    // Unlink from world and free any area links before we overwrite the entity state.
+    if ( isLinked || ( area.next != nullptr || area.prev != nullptr ) ) {
+        gi.unlinkentity( this );
     }
+
+    // Reset the shared base state first so the edict returns to its baseline server state.
+    using Base = sv_shared_edict_t<svg_base_edict_t, svg_client_t>;
+    Base::Reset( retainDictionary );
+    // Clear any stale area topology after the unlink has detached the entity from the world grid.
+    area = { .next = nullptr, .prev = nullptr };
+
+    // Reset the derived edict state that is not handled by the shared base class.
+    entityDictionary = ( retainDictionary ? entityDictionary : nullptr );
     spawn_count = 0;
     freetime = 0_ms;
     timestamp = 0_ms;
@@ -581,29 +580,7 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     *   Entity Event Properties:
     **/
     eventTime = 0_ms;
-	eventDuration = QMTime::FromMilliseconds( EVENT_VALID_MSEC );
-    freeAfterEvent = false;
-    unlinkAfterEvent = false;
-    #else
-    /**
-    *   Reset all member variables to defaults. ( Avoid using memset because it corrupts vtable. )
-    **/
-    spawn_count = 0;
-    freetime = 0_ms;
-    timestamp = 0_ms;
-    neverFreeOnlyUnlink = false;
-
-    classname = svg_level_qstring_t::from_char_str( "svg_base_edict_t" );
-    model = nullptr;
-    angle = 0.0f;
-    
-    spawnflags = 0;
-    flags = entity_flags_t::FL_NONE;
-
-    /**
-    *   Entity Event Properties:
-    **/
-    eventTime = 0_ms;
+    eventDuration = QMTime::FromMilliseconds( EVENT_VALID_MSEC );
     freeAfterEvent = false;
     unlinkAfterEvent = false;
 
@@ -626,7 +603,7 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     /**
     *   Target Name Fields:
     **/
-    targetname = {}; // level_qstring_t
+    targetname = {};
     targetNames = {};
 
     /**
@@ -640,8 +617,7 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     luaProperties = {};
 
     /**
-    *   "Delay" entities, these are created when (UseTargets/SignalOut) with a
-    *   special "delay" worldspawn key/value set.
+    *   "Delay" entities:
     **/
     delayed.signalOut.arguments.clear();
     delayed = {};
@@ -664,7 +640,6 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     gravity = 0.;
 
     pausetime = 0_ms;
-
 
     /**
     *   Pushers(MOVETYPE_PUSH/MOVETYPE_STOP) Physics:
@@ -692,10 +667,6 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     *   NextThink AND Entity Callbacks:
     **/
     nextthink = 0_ms;
-    // <Q2RTXP>: WID: We keep this around for reuse.
-	//SetSpawnCallback( svg_base_edict_t::onSpawn );
-	//spawnCallbackFuncPtr = nullptr;
-    // Clear all other callbacks.
     postSpawnCallbackFuncPtr = nullptr;
     preThinkCallbackFuncPtr = nullptr;
     thinkCallbackFuncPtr = nullptr;
@@ -746,8 +717,9 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     *   (Player-)Noise/Trail:
     **/
     noisePath = nullptr;
-    mynoise = nullptr;
-    mynoise2 = nullptr;
+    personalNoiseEntity = nullptr;
+    weaponNoiseEntity = nullptr;
+    impactNoiseEntity = nullptr;
     noiseSoundIndexA = 0;
     noiseSoundIndexB = 0;
 
@@ -771,12 +743,10 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     **/
     airFinishedBreathTime = 0_ms;
     debounceDamageTime = 0_ms;
-    last_move_time = 0_ms;
     debounceTouchTime = 0_ms;
     debouncePainTime = 0_ms;
     hostileShowTime = 0_ms;
     timeOfDeath = 0_ms;
-    trail_time = 0_ms;
 
     /**
     *   Various Data:
@@ -795,7 +765,6 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     **/
     move_origin = QM_Vector3Zero();
     move_angles = QM_Vector3Zero();
-    #endif
 }
 /**
 *   @brief  Used for savegaming the entity. Each derived entity type

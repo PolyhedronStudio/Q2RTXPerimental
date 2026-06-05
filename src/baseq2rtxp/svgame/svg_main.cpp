@@ -494,7 +494,7 @@ void SVG_InitGame( void ) {
     /**
     *\tInitialize nav3 runtime ownership and command cvars for stage-1 backend routing.
     **/
-    SVG_Nav3_Runtime_Init();
+    //SVG_Nav3_Runtime_Init();
 
 	// Initialize the player trail system so breadcrumb entities exist for monsters.
 	// This must happen after the edict pool and clients are allocated so the
@@ -525,7 +525,7 @@ void SVG_ShutdownGame( void ) {
     SVG_Nav2_Scheduler_Shutdown();
 	#endif
 	// Shutdown nav3 runtime ownership after game-level users have been released.
-	SVG_Nav3_Runtime_Shutdown();
+	//SVG_Nav3_Runtime_Shutdown();
 
 	
 	/**
@@ -751,7 +751,7 @@ void SVG_RunFrame(void) {
     // Reseed the mersennery twister.
     mt_rand.seed( level.frameNumber );
     // Begin nav3 debug draw frame bookkeeping.
-    SVG_Nav3_DebugDraw_BeginFrame();
+    //SVG_Nav3_DebugDraw_BeginFrame();
 	#if 0
 	// Reset the nav2 scheduler frame budget and worker mode bookkeeping for this server frame.
     SVG_Nav2_Scheduler_BeginFrame( level.frameNumber );
@@ -770,7 +770,7 @@ void SVG_RunFrame(void) {
 	**/
 	if ( game.mode->PreCheckGameRuleConditions() ) {
         // Flush queued nav3 debug primitives before leaving the frame early.
-        SVG_Nav3_DebugDraw_FlushFrame();
+        //SVG_Nav3_DebugDraw_FlushFrame();
 		// We had a level change or something, so we exit this function.
 		return;
 	}

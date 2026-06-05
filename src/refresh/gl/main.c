@@ -1021,6 +1021,7 @@ void R_ModeChanged_GL(int width, int height, int flags)
 
 void R_AddDecal_GL(decal_t *d) {}
 void R_AddDecalMesh_GL(const decal_mesh_vertex_t *vertices, int32_t vertexCount, const vec3_t albedo, float alpha, uint32_t materialHash, float lifeSeconds) {}
+void R_ClearState_GL( void ) {}
 void R_ClearDecals_GL(void) {}
 void R_ClearDecalMaterialMappings_GL(void) {}
 void R_SetDecalMaterialMapping_GL(uint32_t materialHash, const char *materialName) {}
@@ -1075,6 +1076,7 @@ void R_RegisterFunctionsGL()
 	R_ModeChanged = R_ModeChanged_GL;
 	R_AddDecal = R_AddDecal_GL;
     R_AddDecalMesh = R_AddDecalMesh_GL;
+	R_ClearState = R_ClearState_GL;
     R_ClearDecals = R_ClearDecals_GL;
     R_ClearDecalMaterialMappings = R_ClearDecalMaterialMappings_GL;
     R_SetDecalMaterialMapping = R_SetDecalMaterialMapping_GL;

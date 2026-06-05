@@ -49,6 +49,33 @@ static int              sv_numSectorNodes;
 static std::shared_mutex  sv_world_area_mutex;
 
 /**
+*   @brief  Checks whether a list node belongs to a known area list.
+*   @note   Used to avoid dereferencing obviously corrupted pointers during unlink.
+**/
+static bool SV_IsKnownAreaListNode( const list_t *node ) {
+    if ( !node ) {
+        return false;
+    }
+
+    for ( int32_t i = 0; i < sv_numSectorNodes; i++ ) {
+        if ( node == &sv_sectorNodes[ i ].trigger_edicts || node == &sv_sectorNodes[ i ].solid_edicts ) {
+            return true;
+        }
+    }
+
+    if ( ge && ge->edictPool && ge->edictPool->edicts ) {
+        for ( int32_t i = 0; i < ge->edictPool->max_edicts; i++ ) {
+            sv_edict_t *edict = ge->edictPool->edicts[ i ];
+            if ( edict && node == &edict->area ) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+/**
 *   @brief  Per-query scratch state for `SV_AreaEdicts`.
 *   @note   Keeping this state on the caller stack avoids the previous shared file-scope
 *           area-query scratch that raced between concurrent readers.
@@ -182,18 +209,27 @@ static inline const bounds_packed_t _MSG_PackBoundsUint32( const Vector3 &mins, 
 *           sets ent->leafnums[] for pvs determination even if the entity is not solid.
 *			(So we know where it is at.)
 **/
-void SV_LinkEdict(cm_t *cm, sv_edict_t *ent)
-{
-    std::unique_lock<std::shared_mutex> lock(sv_world_area_mutex);
+void SV_LinkEdict( cm_t *cm, sv_edict_t *ent ) {
+	mleaf_t *leafs[ MAX_TOTAL_ENT_LEAFS ];
+	int32_t clusters[ MAX_TOTAL_ENT_LEAFS ];
+	int32_t num_leafs;
+	int32_t i, j;
+	int32_t area;
+	mnode_t *topnode;
 
-    mleaf_t *leafs[MAX_TOTAL_ENT_LEAFS];
-    int32_t clusters[MAX_TOTAL_ENT_LEAFS];
-    int32_t num_leafs;
-    int32_t i, j;
-    int32_t area;
-    mnode_t     *topnode;
+	std::unique_lock<std::shared_mutex> lock( sv_world_area_mutex );
 
-    // set the size
+	if ( !cm || !cm->cache ) {
+		return;
+	}
+
+	if ( !ent ) {
+		Com_WPrintf( "(nullptr) entity\n" );
+		return;
+	}
+
+
+	// set the size
     //VectorSubtract(ent->maxs, ent->mins, ent->size);
 	// <Q2RTXP>: PATCH: currentOrigin/currentAngles.
 	ent->size = ent->maxs - ent->mins;
@@ -307,17 +343,51 @@ void SV_LinkEdict(cm_t *cm, sv_edict_t *ent)
 **/
 void PF_UnlinkEdict(edict_ptr_t *ent)
 {
-    std::unique_lock<std::shared_mutex> lock(sv_world_area_mutex);
+	// Lock world area data for the duration of this unlink, so concurrent traces or area queries never observe partially unlinked entities.
+	std::unique_lock<std::shared_mutex> lock( sv_world_area_mutex );
 
-	// Not linked in anywhere
-	if ( !ent->area.prev ) {
+	if ( !ent ) {
+		Com_WPrintf( "(nullptr) entity\n" );
 		return;
 	}
+
+    // Already unlinked or reset.
+    if ( !ent->isLinked ) {
+        ent->area.prev = ent->area.next = nullptr;
+		return;
+	}
+
+    list_t *prev = ent->area.prev;
+    list_t *next = ent->area.next;
+
+    // Partial or obviously corrupted link state.
+    if ( !prev || !next ) {
+        Com_WPrintf( "%s: entity %d has incomplete area links\n", __func__, NUMBER_OF_EDICT( ent ) );
+        ent->isLinked = false;
+        ent->area.prev = ent->area.next = nullptr;
+        return;
+    }
+
+    // Avoid dereferencing pointers that are not part of the known area list topology.
+    if ( !SV_IsKnownAreaListNode( prev ) || !SV_IsKnownAreaListNode( next ) ) {
+        Com_WPrintf( "%s: entity %d has corrupted area links prev=%p next=%p\n", __func__, NUMBER_OF_EDICT( ent ), (void *)prev, (void *)next );
+        ent->isLinked = false;
+        ent->area.prev = ent->area.next = nullptr;
+        return;
+    }
+
+    // Sanity check the surrounding list topology before unlinking.
+    if ( prev->next != &ent->area || next->prev != &ent->area ) {
+        Com_WPrintf( "%s: entity %d area list integrity check failed\n", __func__, NUMBER_OF_EDICT( ent ) );
+        ent->isLinked = false;
+        ent->area.prev = ent->area.next = nullptr;
+        return;
+    }
 
 	// Mark linked status as false.
 	ent->isLinked = false;
 	// Remove from area.
-    List_Remove(&ent->area);
+    List_Unlink( prev, next );
 	// Clear area links.
     ent->area.prev = ent->area.next = nullptr;
 }
@@ -334,8 +404,15 @@ void PF_LinkEdict( edict_ptr_t *ent ) {
     if ( !ent ) {
         Com_Error( ERR_DROP, "%s: (nullptr) edict_t pointer\n", __func__ );
     }
-    // If it has been linked previously(possibly to an other position), unlink first.
-    if ( ent->area.prev ) {
+
+	// Can't link of no world has been precached yet.
+	if ( !sv.cm.cache ) {
+		return;
+	}
+
+    // If it was ever linked, let the unlink path validate and clear any stale topology first.
+    // This catches restored entities where `isLinked` survived but the serialized area list did not.
+    if ( ent->isLinked || ent->area.prev || ent->area.next ) {
         PF_UnlinkEdict( ent );
     }
 
@@ -350,10 +427,6 @@ void PF_LinkEdict( edict_ptr_t *ent ) {
 		return;
 	}
 
-	// Can't link of no world has been precached yet.
-	if ( !sv.cm.cache ) {
-		return;
-	}
 
 	// Get entity number.
 	const int32_t entnum = NUMBER_OF_EDICT( ent );
@@ -531,7 +604,7 @@ static void SV_AreaEdicts_r( worldSector_t *node, sv_area_edicts_context_t &cont
 const int32_t SV_AreaEdicts(const Vector3 *mins, const Vector3 *maxs,
                   sv_edict_t **list, const int32_t maxcount, const int32_t areatype)
 {
-    std::shared_lock<std::shared_mutex> read_lock(sv_world_area_mutex);
+	std::shared_lock<std::shared_mutex> read_lock( sv_world_area_mutex );
 
     /**
     *   Reject invalid caller arguments and the no-world case before touching sector lists.

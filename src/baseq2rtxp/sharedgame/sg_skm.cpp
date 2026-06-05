@@ -779,6 +779,9 @@ void SG_SKM_LerpBonePoses( const model_t *model, const skm_transform_t *frameBon
     // Copy the animation frame pos.
     if ( frameBonePoses == oldFrameBonePoses ) {
         const skm_transform_t *pose = frameBonePoses;
+		if ( !pose ) {
+			return;
+		}
         for ( uint32_t pose_idx = 0; pose_idx < skmData->num_poses; pose_idx++, pose++, relativeJoint++ ) {
             #if 1
             if ( rootMotionAxisFlags != SKM_POSE_TRANSLATE_ALL && pose_idx == boundRootMotionBoneID ) {
@@ -814,6 +817,11 @@ void SG_SKM_LerpBonePoses( const model_t *model, const skm_transform_t *frameBon
     } else {
         const skm_transform_t *pose = frameBonePoses;
         const skm_transform_t *oldPose = oldFrameBonePoses;
+		
+		if ( !pose || !oldPose ) {
+			return;
+		}
+
         for ( uint32_t pose_idx = 0; pose_idx < skmData->num_poses; pose_idx++, oldPose++, pose++, relativeJoint++ ) {
             #if 1
             if ( rootMotionAxisFlags != SKM_POSE_TRANSLATE_ALL && pose_idx == boundRootMotionBoneID ) {

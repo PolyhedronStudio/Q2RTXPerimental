@@ -12,6 +12,7 @@ textures/dark/tex_11,
 textures/dark/tex_12,
 textures/dark/tex_13:
 	texture_base **.png
+	texture_normals **_n.tga
 	base_factor 2.5
 	metalness_factor 0.000000
 	specular_factor 0.125
@@ -31,7 +32,8 @@ textures/green/tex_11,
 textures/green/tex_12,
 textures/green/tex_13:
 	texture_base **.png
-	base_factor 1.0
+	texture_normals **_n.tga
+	base_factor 2.5
 	metalness_factor 0.000000
 	specular_factor 0.125
 	default_radiance 1
@@ -50,6 +52,7 @@ textures/light/tex_11,
 textures/light/tex_12,
 textures/light/tex_13:
 	texture_base **.png
+	texture_normals **_n.tga
 	base_factor 1.0
 	metalness_factor 0.000000
 	specular_factor 0.125
@@ -69,7 +72,8 @@ textures/orange/tex_11,
 textures/orange/tex_12,
 textures/orange/tex_13:
 	texture_base **.png
-	base_factor 1.0
+	texture_normals **_n.tga
+	base_factor 2.5
 	metalness_factor 0.000000
 	specular_factor 0.125
 	default_radiance 1
@@ -88,7 +92,8 @@ textures/purple/tex_11,
 textures/purple/tex_12,
 textures/purple/tex_13:
 	texture_base **.png
-	base_factor 1.0
+	texture_normals **_n.tga
+	base_factor 2.5
 	metalness_factor 0.000000
 	specular_factor 0.125
 	default_radiance 1
@@ -107,7 +112,9 @@ textures/red/tex_11,
 textures/red/tex_12,
 textures/red/tex_13:
 	texture_base **.png
-	base_factor 1.0
+	texture_normals **_n.tga
+	base_factor 2.5
 	metalness_factor 0.000000
 	specular_factor 0.125
 	default_radiance 1
+	bsp+ra

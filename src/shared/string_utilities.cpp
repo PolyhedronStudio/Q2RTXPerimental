@@ -473,7 +473,8 @@ char *COM_Parse( const char **data_p ) {
 	const char *data;
 	char *s = com_token[ com_tokidx ];
 
-	com_tokidx = ( com_tokidx + 1 ) & COM_MAX_PARSE_TOKENS - 1;
+	// Wrap through the token ring with a real modulo because 12 is not a power of two.
+	com_tokidx = ( com_tokidx + 1 ) % COM_MAX_PARSE_TOKENS;
 
 	data = *data_p;
 	len = 0;

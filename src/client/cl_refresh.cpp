@@ -517,6 +517,7 @@ void( *R_ModeChanged )( int width, int height, int flags ) = NULL;
 void( *R_AddDecal )( decal_t *d ) = NULL;
 void( *R_AddDecalMesh )( const decal_mesh_vertex_t *vertices, int32_t vertexCount, const vec3_t albedo, float alpha, uint32_t materialHash, float lifeSeconds ) = NULL;
 void( *R_ClearDecals )( void ) = NULL;
+void( *R_ClearState )( void ) = NULL;
 void( *R_ClearDecalMaterialMappings )( void ) = NULL;
 void( *R_SetDecalMaterialMapping )( uint32_t materialHash, const char *materialName ) = NULL;
 void( *R_SetDecalRenderMode )( int32_t renderMode ) = NULL;

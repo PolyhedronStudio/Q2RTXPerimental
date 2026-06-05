@@ -257,10 +257,8 @@ svg_base_edict_t **SVG_EdictPool_Release( svg_edict_pool_t *edictPool ) {
 		for ( int32_t i = 0; i < edictPool->max_edicts; i++ ) {
 			if ( edictPool->edicts[ i ] != nullptr ) {
 				g_edict_pool.FreeEdict( edictPool->edicts[ i ], true /* Force even if we are a special entity */ );
-				// Call upon destructor(if any).
-				//delete edictPool->edicts[ i ];
-				// Set to null.
-				//edictPool->edicts[ i ] = nullptr;
+				// Clear the slot so callers cannot observe a stale freed pointer during teardown.
+				edictPool->edicts[ i ] = nullptr;
 			}
 		}
 

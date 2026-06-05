@@ -36,7 +36,8 @@ extern cvar_t* cvar_pt_bsp_radiance_scale;
 extern cvar_t *cvar_pt_bsp_sky_lights;
 
 //! Maximum of surface vertices.
-//static const int max_vertices = 128;
+// Kept for compatibility with existing callers that still expect a nominal limit,
+// but the polygon buffers below are now allocated dynamically.
 #define max_vertices 128
 
 static void
@@ -263,6 +264,10 @@ create_poly(
 		if (primitive_index + i >= max_prim)
 		{
 			assert(!"Primitive buffer overflow - there's a bug somewhere.");
+			Z_Free(positions);
+			Z_Free(tex_coords);
+			if (bases)
+				Z_Free(bases);
 			return i;
 		}
 
@@ -785,12 +790,29 @@ typedef struct {
 	float x, y;
 } point2_t;
 
+static void
+poly_reserve(point2_t **verts, int *cap, int min_cap)
+{
+	if (*cap >= min_cap)
+		return;
+
+	int new_cap = (*cap > 0) ? *cap : 8;
+	while (new_cap < min_cap)
+	{
+		new_cap = max(new_cap * 2, min_cap);
+	}
+
+	*verts = *verts ? Z_Realloc(*verts, new_cap * sizeof(point2_t)) : Z_Malloc(new_cap * sizeof(point2_t));
+	*cap = new_cap;
+}
+
 // WID: Adjusted to properly support higher geometry brushes.
 //#define MAX_POLY_VERTS 32
-#define MAX_POLY_VERTS 128
+#define MAX_POLY_VERTS 4096
 typedef struct {
-	point2_t v[MAX_POLY_VERTS];
+	point2_t *v;
 	int len;
+	int cap;
 } poly_t;
 
 static inline float
@@ -848,9 +870,33 @@ line_sect(point2_t* x0, point2_t* x1, point2_t* y0, point2_t* y1, point2_t* res)
 }
 
 static void
+poly_init(poly_t *p, int cap)
+{
+	p->v = NULL;
+	p->len = 0;
+	p->cap = 0;
+	if (cap > 0)
+	{
+		poly_reserve(&p->v, &p->cap, cap);
+	}
+}
+
+static void
+poly_free(poly_t *p)
+{
+	if (p->v)
+	{
+		Z_Free(p->v);
+	}
+	p->v = NULL;
+	p->len = 0;
+	p->cap = 0;
+}
+
+static void
 poly_append(poly_t* p, point2_t* v)
 {
-	assert(p->len < MAX_POLY_VERTS - 1);
+	poly_reserve(&p->v, &p->cap, p->len + 1);
 	p->v[p->len++] = *v;
 }
 
@@ -895,6 +941,10 @@ clip_polygon(poly_t* input, poly_t* clipper, poly_t* output)
 	poly_t* p2 = &p2_m;
 	poly_t* tmp;
 
+	poly_init(p1, input->len + clipper->len + 1);
+	poly_init(p2, input->len + clipper->len + 1);
+	poly_reserve(&output->v, &output->cap, input->len + clipper->len + 1);
+
 	int dir = poly_winding(clipper);
 	poly_edge_clip(input, clipper->v + clipper->len - 1, clipper->v, dir, p2);
 	for (i = 0; i < clipper->len - 1; i++) {
@@ -909,6 +959,9 @@ clip_polygon(poly_t* input, poly_t* clipper, poly_t* output)
 	output->len = p2->len;
 	if (output->len)
 		memcpy(output->v, p2->v, p2->len * sizeof(point2_t));
+
+	poly_free(p1);
+	poly_free(p2);
 }
 
 static light_poly_t*
@@ -934,7 +987,11 @@ collect_one_light_poly_entire_texture(bsp_t *bsp, mface_t *surf, mtexinfo_t *tex
 									  const vec3_t light_color, float emissive_factor, int light_style,
 									  int *num_lights, int *allocated_lights, light_poly_t **lights)
 {
-	float positions[3 * max_vertices /*32*/];
+	int vertex_count = surf->numsurfedges;
+	if (vertex_count < 3)
+		return;
+
+	float *positions = Z_Malloc((size_t)vertex_count * 3 * sizeof(float));
 
 	for (int i = 0; i < surf->numsurfedges; i++)
 	{
@@ -949,12 +1006,17 @@ collect_one_light_poly_entire_texture(bsp_t *bsp, mface_t *surf, mtexinfo_t *tex
 
 	int num_vertices = surf->numsurfedges;
 	remove_collinear_edges(positions, NULL, NULL, &num_vertices);
+	if (num_vertices < 3)
+	{
+		Z_Free(positions);
+		return;
+	}
 
-	const int num_triangles = surf->numsurfedges - 2;
+	const int num_triangles = num_vertices - 2;
 
 	for (int i = 0; i < num_triangles; i++)
 	{
-		const int e = surf->numsurfedges;
+		const int e = num_vertices;
 
 		int i1 = (i + 2) % e;
 		int i2 = (i + 1) % e;
@@ -988,6 +1050,8 @@ collect_one_light_poly_entire_texture(bsp_t *bsp, mface_t *surf, mtexinfo_t *tex
 			memcpy(list_light, &light, sizeof(light_poly_t));
 		}
 	}
+
+	Z_Free(positions);
 }
 
 static void
@@ -996,6 +1060,10 @@ collect_one_light_poly(bsp_t *bsp, mface_t *surf, mtexinfo_t *texinfo, int model
 					   const vec3_t light_color, float emissive_factor, int light_style,
 					   int* num_lights, int* allocated_lights, light_poly_t** lights)
 {
+	int vertex_count = surf->numsurfedges;
+	if (vertex_count < 3)
+		return;
+
 	// Scale the texture axes according to the original resolution of the game's .wal textures
 	vec4_t tex_axis0, tex_axis1;
 	VectorScale(texinfo->axis[0], tex_scale[0], tex_axis0);
@@ -1026,7 +1094,8 @@ collect_one_light_poly(bsp_t *bsp, mface_t *surf, mtexinfo_t *texinfo, int model
 	// Construct the surface polygon in texture space, and find its texture extents
 
 	poly_t tex_poly;
-	tex_poly.len = surf->numsurfedges;
+	poly_init(&tex_poly, vertex_count);
+	tex_poly.len = vertex_count;
 
 	point2_t tex_min = { FLT_MAX, FLT_MAX };
 	point2_t tex_max = { -FLT_MAX, -FLT_MAX };
@@ -1064,6 +1133,7 @@ collect_one_light_poly(bsp_t *bsp, mface_t *surf, mtexinfo_t *texinfo, int model
 			// The square polygon, for this repetition, according to the extents of emissive pixels
 
 			poly_t clipper;
+			poly_init(&clipper, 4);
 			clipper.len = 4;
 			clipper.v[0].x = x_min; clipper.v[0].y = y_min;
 			clipper.v[1].x = x_max; clipper.v[1].y = y_min;
@@ -1073,17 +1143,20 @@ collect_one_light_poly(bsp_t *bsp, mface_t *surf, mtexinfo_t *texinfo, int model
 			// Clip it
 
 			poly_t instance;
+			poly_init(&instance, 0);
 			clip_polygon(&tex_poly, &clipper, &instance);
 
 			if (instance.len < 3)
 			{
 				// The square polygon was outside of the original surface
+				poly_free(&instance);
+				poly_free(&clipper);
 				continue;
 			}
 
 			// Map the clipped polygon back onto the surface plane
 
-			vec3_t instance_positions[MAX_POLY_VERTS];
+			vec3_t *instance_positions = Z_Malloc((size_t)instance.len * sizeof(vec3_t));
 			for (int vert = 0; vert < instance.len; vert++)
 			{
 				// Find a world space point on the texture projection plane
@@ -1154,8 +1227,14 @@ collect_one_light_poly(bsp_t *bsp, mface_t *surf, mtexinfo_t *texinfo, int model
 					light->cluster = -1;
 				}
 			}
+
+			Z_Free(instance_positions);
+			poly_free(&instance);
+			poly_free(&clipper);
 		}
 	}
+
+	poly_free(&tex_poly);
 
 }
 
@@ -1303,7 +1382,11 @@ collect_sky_and_lava_light_polys(bsp_mesh_t *wm, bsp_t* bsp)
 		if (!is_sky && !is_lava)
 			continue;
 
-		float positions[3 * max_vertices /*32*/];
+		int vertex_count = surf->numsurfedges;
+		if (vertex_count < 3)
+			continue;
+
+		float *positions = Z_Malloc((size_t)vertex_count * 3 * sizeof(float));
 
 		for (int i = 0; i < surf->numsurfedges; i++)
 		{
@@ -1318,6 +1401,11 @@ collect_sky_and_lava_light_polys(bsp_mesh_t *wm, bsp_t* bsp)
 
 		int num_vertices = surf->numsurfedges;
 		remove_collinear_edges(positions, NULL, NULL, &num_vertices);
+		if (num_vertices < 3)
+		{
+			Z_Free(positions);
+			continue;
+		}
 
 		const int num_triangles = num_vertices - 2;
 
@@ -1361,6 +1449,8 @@ collect_sky_and_lava_light_polys(bsp_mesh_t *wm, bsp_t* bsp)
 				memcpy(list_light, &light, sizeof(light_poly_t));
 			}
 		}
+
+		Z_Free(positions);
 	}
 }
 
@@ -1800,8 +1890,9 @@ bsp_mesh_load_custom_sky(const char* map_name)
 static uint32_t
 bsp_mesh_create_custom_sky_prims(uint32_t* prim_ctr, bsp_mesh_t* wm, const bsp_t* bsp)
 {
+	const uint32_t num_face_num_verts = custom_sky_attrib.num_face_num_verts;
 	int face_offset = 0;
-	for (uint32_t nprim = 0; nprim < custom_sky_attrib.num_face_num_verts; nprim++)
+	for (uint32_t nprim = 0; nprim < num_face_num_verts; nprim++)
 	{
 		int face_num_verts = custom_sky_attrib.face_num_verts[nprim];
 		int i0 = custom_sky_attrib.faces[face_offset + 0].v_idx;
@@ -1851,7 +1942,7 @@ bsp_mesh_create_custom_sky_prims(uint32_t* prim_ctr, bsp_mesh_t* wm, const bsp_t
 
 	tinyobj_attrib_free(&custom_sky_attrib);
 
-	return custom_sky_attrib.num_face_num_verts;
+	return num_face_num_verts;
 }
 
 void
@@ -2005,6 +2096,15 @@ bsp_mesh_create_from_bsp(bsp_mesh_t *wm, bsp_t *bsp, const char* map_name)
 void
 bsp_mesh_destroy(bsp_mesh_t *wm)
 {
+	if (wm->models) {
+		vkpt_vertex_buffer_cleanup_bsp_mesh(wm);
+
+		// Release the per-model light polygon arrays that were allocated during BSP loading.
+		for (int i = 0; i < wm->num_models; i++) {
+			Z_Free(wm->models[i].light_polys);
+		}
+	}
+
 	Z_Free(wm->models);
 
 	Z_Free(wm->primitives);
@@ -2017,6 +2117,9 @@ bsp_mesh_destroy(bsp_mesh_t *wm)
 	memset(wm, 0, sizeof(*wm));
 }
 
+/*
+* @brief For registering the bsp map in the material system.
+*/
 void
 bsp_mesh_register_textures(bsp_t *bsp)
 {

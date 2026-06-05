@@ -210,6 +210,13 @@ static void build_model_blas(VkCommandBuffer cmd_buf, model_geometry_t* info, si
 		total_prims += info->prim_counts[index];
 	}
 
+	//if (total_prims == 0)
+	//{
+	//	qvkDestroyAccelerationStructureKHR(qvk.device, info->accel, NULL);
+	//	info->accel = VK_NULL_HANDLE;
+	//	return;
+	//}
+
 	VkAccelerationStructureBuildGeometryInfoKHR blasBuildinfo = {
 		.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
 		.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
@@ -234,8 +241,14 @@ static void build_model_blas(VkCommandBuffer cmd_buf, model_geometry_t* info, si
 		.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR
 	};
 
+	// Ray-query devices consume the acceleration-structure results through compute,
+	// while ray-tracing-pipeline devices consume them through the RT stage.
+	VkPipelineStageFlags post_build_stage = qvk.use_ray_query
+		? VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
+		: VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
+
 	vkCmdPipelineBarrier(cmd_buf, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-		VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR, 0, 1,
+		post_build_stage, 0, 1,
 		&barrier, 0, 0, 0, 0);
 }
 

@@ -22,16 +22,27 @@
 		//! Contents on other side of surface hit. (The inside of the brush.)
 		cm_contents_t  contents = CONTENTS_NONE;
 
+		/**
+		*	Entity and Brush Identification:
+		**/
 		//! Not set by CM_*() functions. But respectively set by the game code.
 		int32_t entityNumber = ENTITYNUM_NONE;
+		//! Can be set by CM_ but also by the client and server game code. 
+		//! Used for identifying the brushID of the World BSP(and its inline-models),
+		//! as well as the temporary Hull of the entity that was hit by the trace, if any.
+		int32_t brushID = BRUSHID_NONE;
+		//! Skeletal hitbox body id, or -1 when the trace hit only coarse collision.
+		int32_t hitBodyID = HITBODYID_NONE;
 
+
+		/**
+		*	Fraction and End Position:
+		**/
 		//! The fraction of the trace that was completed. ( 1.0 = didn't hit anything. )
 		double      fraction = 1.0;
 		//! Final position.
 		Vector3     endpos = { 0.f, 0.f, 0.f };
 
-		//! Skeletal hitbox body id, or -1 when the trace hit only coarse collision.
-		int32_t hitBodyID = -1;
 
 		/**
 		*   The first (most close) surface hit by the trace.
@@ -74,6 +85,13 @@
 
 		//! Not set by CM_*() functions. But respectively set by the game code.
 		int32_t entityNumber;
+		//! Can be set by CM_ but also by the client and server game code. 
+		//! Used for identifying the brushID of the World BSP(and its inline-models),
+		//! as well as the temporary Hull of the entity that was hit by the trace, if any.
+		int32_t brushID;
+		//! Skeletal hitbox body id, or -1 when the trace hit only coarse collision.
+		int32_t hitBodyID;
+
 
 		//! The fraction of the trace that was completed. ( 1.0 = didn't hit anything. )
 		double      fraction;
@@ -89,6 +107,7 @@
 		cm_surface_t *surface;
 		//! First Surface collision model material pointer.
 		struct cm_material_s *material;
+
 
 		/**
 		*   The 'second best' surface hit by the trace.

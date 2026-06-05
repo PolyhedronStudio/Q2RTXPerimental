@@ -20,6 +20,21 @@ static int32_t s_vkpt_decals_render_mode = VKPT_DECAL_RENDER_DISABLED;
 static uint32_t s_vkpt_decals_submitted = 0;
 
 /**
+*	@brief	Emit a compact summary of the current decal renderer state.
+*	@note	Used to confirm which GPU-backed decal resources are still live during map transitions.
+**/
+static void vkpt_decals_log_state( const char *reason ) {
+	const char *tag = ( reason && reason[ 0 ] ) ? reason : "state";
+	Com_WPrintf(
+		"vkpt: decals %s init=%d enabled=%d mode=%d submitted=%u\n",
+		tag,
+		s_vkpt_decals_initialized ? 1 : 0,
+		s_vkpt_decals_enabled ? 1 : 0,
+		s_vkpt_decals_render_mode,
+		s_vkpt_decals_submitted );
+}
+
+/**
 *	@brief	Builds a legacy decal marker from one submitted mesh payload.
 *	@param	vertices	Mesh vertices provided by CLGame.
 *	@param	vertexCount	Number of vertices in the mesh payload.
@@ -103,6 +118,7 @@ VkResult vkpt_decals_initialize( void ) {
 }
 
 void vkpt_decals_shutdown( void ) {
+	vkpt_decals_log_state( "shutdown-before" );
 	vkpt_decals_screenspace_shutdown();
 	vkpt_decals_geometry_shutdown();
 
@@ -111,13 +127,16 @@ void vkpt_decals_shutdown( void ) {
 	s_vkpt_decals_render_mode = VKPT_DECAL_RENDER_DISABLED;
 	s_vkpt_decals_submitted = 0;
 	cvar_pt_decals_enable = NULL;
+	vkpt_decals_log_state( "shutdown-after" );
 }
 
 void vkpt_decals_clear( void ) {
+	vkpt_decals_log_state( "clear-before" );
 	s_vkpt_decals_submitted = 0;
 	vkpt_decals_geometry_clear();
 	(void)vkpt_decals_geometry_upload( NULL, 0u, NULL, 0u );
 	vkpt_decals_screenspace_clear();
+	vkpt_decals_log_state( "clear-after" );
 }
 
 void vkpt_decals_set_enabled( const qboolean enabled ) {

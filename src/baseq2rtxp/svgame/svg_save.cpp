@@ -517,8 +517,7 @@ void SVG_ReadLevel(const char *filename)
             ent->client = &game.clients[ entnum - 1 ];
         }
         #endif
-        // Let the server relink the entity in.
-        memset(&ent->area, 0, sizeof(ent->area));
+        // Let the server relink the entity in. The server link path owns area cleanup.
         gi.linkentity(ent);
     }
 

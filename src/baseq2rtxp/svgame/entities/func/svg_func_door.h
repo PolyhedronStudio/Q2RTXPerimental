@@ -178,7 +178,7 @@ struct svg_func_door_t : public svg_pushmove_edict_t {
     *
     **/
 	//! Tracks whether this door team currently holds an areaportal ref (ON). Team master only.
-	bool areaPortalRefHeld = false;
+	int32_t areaPortalRefHeld = false;
 
     /**
     *   Spawnflags:

@@ -35,9 +35,9 @@ typedef struct uid_plane_key_s {
 	/**
 	*	Reduced integer coefficients(gcd - normalized) for ax + by + cz = d
 	**/
-	#ifndef __cplusplus
+#ifndef __cplusplus
 	int64_t a, b, c, d;
-	#else
+#else
 	int64_t a = 0, b = 0, c = 0, d = 0;
 	/**
 	*	@brief	`IsEqual` operator

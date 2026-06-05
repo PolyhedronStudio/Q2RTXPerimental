@@ -63,8 +63,8 @@ DEFINE_GLOBAL_CALLBACK_THINK( PlayerNoise_onThink )( svg_base_edict_t *self ) ->
 	//}
 
 	//// Set think method for the next frame.
-	//self->nextthink = level.time + FRAME_TIME_MS;
-	//self->SetThinkCallback( PlayerNoise_onThink );
+	self->nextthink = level.time + FRAME_TIME_MS;
+	self->SetThinkCallback( &SVG_FreeEdict );
 }
 
 /**

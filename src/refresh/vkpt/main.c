@@ -1605,9 +1605,33 @@ static int model_entity_id_count[2];
 static int iqm_matrix_count[2];
 static ModelInstance model_instances_prev[MAX_MODEL_INSTANCES];
 
+static void
+vkpt_reset_entity_history(void)
+{
+	entity_frame_num = 0;
+	memset(model_entity_ids, 0, sizeof(model_entity_ids));
+	memset(model_entity_id_count, 0, sizeof(model_entity_id_count));
+	memset(iqm_matrix_count, 0, sizeof(iqm_matrix_count));
+	memset(model_instances_prev, 0, sizeof(model_instances_prev));
+
+	if (qvk.iqm_matrices_shadow)
+	{
+		memset(qvk.iqm_matrices_shadow, 0, sizeof(*qvk.iqm_matrices_shadow));
+	}
+
+	if (qvk.iqm_matrices_prev)
+	{
+		memset(qvk.iqm_matrices_prev, 0, sizeof(*qvk.iqm_matrices_prev));
+	}
+}
+
 #define MAX_MODEL_LIGHTS 16384
 static int num_model_lights = 0;
 static light_poly_t model_lights[MAX_MODEL_LIGHTS];
+//! One-shot warning gate for fixed-size entity index list overflow.
+static bool s_warned_entity_index_overflow = false;
+//! One-shot warning gate for fixed-size dynamic-light overflow.
+static bool s_warned_dyn_light_overflow = false;
 
 static pbr_material_t const * get_mesh_material(const entity_t* entity, const maliasmesh_t* mesh)
 {
@@ -1809,8 +1833,22 @@ add_dlights(const dlight_t* lights, int num_lights, QVKUniformBuffer_t* ubo)
 {
 	ubo->num_dyn_lights = 0;
 
+	// Clamp the dynamic-light list to the UBO array size so a map cannot overwrite
+	// the tail of the uniform buffer when too many lights are present.
 	for (int i = 0; i < num_lights; i++)
 	{
+		if (ubo->num_dyn_lights >= MAX_LIGHT_SOURCES)
+		{
+			if (!s_warned_dyn_light_overflow)
+			{
+				s_warned_dyn_light_overflow = true;
+				Com_WPrintf("vkpt: dynamic light list overflow prevented at %d entries (max %d)\n",
+					ubo->num_dyn_lights, MAX_LIGHT_SOURCES);
+			}
+
+			break;
+		}
+
 		const dlight_t* light = lights + i;
 
 		DynLightData* dynlight_data = ubo->dyn_light_data + ubo->num_dyn_lights;
@@ -1882,6 +1920,7 @@ static void instance_model_lights(const entity_t *entity, int num_light_polys, c
 		num_model_lights++;
 	}
 }
+//! Identity transform used as a convenient no-op matrix for instances that require a default transform.
 static const mat4 g_identity_transform = {
 	{ 1.f, 0.f, 0.f, 0.f },
 	{ 0.f, 1.f, 0.f, 0.f },
@@ -1889,75 +1928,99 @@ static const mat4 g_identity_transform = {
 	{ 0.f, 0.f, 0.f, 1.f }
 };
 
-static void process_bsp_entity(const entity_t* entity, int* instance_count)
-{
-	InstanceBuffer* uniform_instance_buffer = &vkpt_refdef.uniform_instance_buffer;
+/**
+*	@brief	Process a BSP (world) model entity and append a model instance to the instance buffer.
+*	@param	entity			Pointer to the entity representing a BSP model (entity->model is a BSP model reference).
+*	@param	instance_count	[in,out] Index of the next free model instance slot; incremented on success.
+*	@note	This function:
+*		- builds the entity world transform,
+*		- finds an appropriate BSP cluster for the model (falls back to AABB corners if the center is outside),
+*		- populates a `ModelInstance` entry in `vkpt_refdef.uniform_instance_buffer`,
+*		- records entity/model identifiers for selection/picking, and
+*		- schedules BLAS instance recording and shadow mapping where applicable.
+**/
+static void process_bsp_entity( const entity_t *entity, int *instance_count ) {
+	/**
+	*	Sanity: verify we have an available instance slot.
+	**/
+	InstanceBuffer *uniform_instance_buffer = &vkpt_refdef.uniform_instance_buffer;
 
 	const int current_instance_idx = *instance_count;
-	if (current_instance_idx >= MAX_MODEL_INSTANCES)
-	{
-		assert(!"Entity count overflow");
+	if ( current_instance_idx >= MAX_MODEL_INSTANCES ) {
+		assert( !"Entity count overflow" );
 		return;
 	}
-	
-	float transform[16];
-	create_entity_matrix(transform, (entity_t*)entity);
 
-	bsp_model_t* model = vkpt_refdef.bsp_mesh_world.models + (~entity->model);
+	/**
+	*	Compute world transform for the entity.
+	**/
+	float transform[ 16 ];
+	create_entity_matrix( transform, ( entity_t * )entity );
 
-	// Assign entity.
+	/**
+	*	Resolve BSP model associated with entity and assign linkage.
+	**/
+	bsp_model_t *model = vkpt_refdef.bsp_mesh_world.models + ( ~entity->model );
+
+	// Assign entity pointer to the model for later use.
 	model->entity = entity;
 
+	/**
+	*	Determine cluster for visibility/spatial mapping.
+	*	If the model center lies outside any BSP node, try the 8 AABB corners.
+	**/
 	vec3_t origin;
-	transform_point(model->center, transform, origin);
-	int cluster = BSP_PointLeaf(bsp_world_model->nodes, origin)->cluster;
+	transform_point( model->center, transform, origin );
+	int cluster = BSP_PointLeaf( bsp_world_model->nodes, origin )->cluster;
 
-	if (cluster < 0)
-	{
-		// In some cases, a model slides into a wall, like a push button, so that its center 
-		// is no longer in any BSP node. We still need to assign a cluster to the model,
-		// so try the corners of the model instead, see if any of them has a valid cluster.
-		for (int corner = 0; corner < 8; corner++)
-		{
+	if ( cluster < 0 ) {
+		// Try AABB corners as fallback when the model center is not in any leaf.
+		for ( int corner = 0; corner < 8; corner++ ) {
 			vec3_t corner_pt = {
-				(corner & 1) ? model->aabb_max[0] : model->aabb_min[0],
-				(corner & 2) ? model->aabb_max[1] : model->aabb_min[1],
-				(corner & 4) ? model->aabb_max[2] : model->aabb_min[2]
+				( corner & 1 ) ? model->aabb_max[ 0 ] : model->aabb_min[ 0 ],
+				( corner & 2 ) ? model->aabb_max[ 1 ] : model->aabb_min[ 1 ],
+				( corner & 4 ) ? model->aabb_max[ 2 ] : model->aabb_min[ 2 ]
 			};
 
 			vec3_t corner_pt_world;
-			transform_point(corner_pt, transform, corner_pt_world);
+			transform_point( corner_pt, transform, corner_pt_world );
 
-			cluster = BSP_PointLeaf(bsp_world_model->nodes, corner_pt_world)->cluster;
+			cluster = BSP_PointLeaf( bsp_world_model->nodes, corner_pt_world )->cluster;
 
-			if (cluster >= 0)
+			if ( cluster >= 0 )
 				break;
 		}
 	}
 
+	/**
+	*	Record a compact entity->model->mesh hash for selection/picking per-frame.
+	**/
 	entity_hash_t hash;
 	hash.entity = entity->id;
 	hash.model = ~entity->model;
 	hash.mesh = 0;
 	hash.bsp = 1;
 
-	memcpy(&model_entity_ids[entity_frame_num][current_instance_idx], &hash, sizeof(uint32_t));
+	memcpy( &model_entity_ids[ entity_frame_num ][ current_instance_idx ], &hash, sizeof( uint32_t ) );
 
-	// Alpha?
-	float model_alpha = (entity->flags & RF_TRANSLUCENT) ? entity->alpha : 1.f;
-	
-	// <Q2RTXP>: WID: Shell?
-	//material_and_shell_t mat_shell = compute_bspmesh_material_flags( entity, model, model_alpha );
+	/**
+	*	Alpha handling and material/shell determination (shell disabled here, placeholder).
+	**/
+	float model_alpha = ( entity->flags & RF_TRANSLUCENT ) ? entity->alpha : 1.f;
+	// material_and_shell_t mat_shell = compute_bspmesh_material_flags( entity, model, model_alpha );
 
-	// BSP Mesh Model Instance:
-	ModelInstance* mi = uniform_instance_buffer->model_instances + current_instance_idx;
-	memcpy(&mi->transform, transform, sizeof(transform));
-	memcpy(&mi->transform_prev, transform, sizeof(transform));
+	/**
+	*	Populate the ModelInstance entry for this BSP model.
+	*	BSP models are not animated by the instancing shader, so pose-related fields are neutral.
+	**/
+	ModelInstance *mi = uniform_instance_buffer->model_instances + current_instance_idx;
+	memcpy( &mi->transform, transform, sizeof( transform ) );
+	memcpy( &mi->transform_prev, transform, sizeof( transform ) );
 	mi->material = 0;
 	//mi->shell = mat_shell.shell;	// <Q2RTXP>: WID: Apply fetched material shell.
 	mi->cluster = cluster;
 	mi->source_buffer_idx = VERTEX_BUFFER_WORLD;
-	mi->prim_count = model->geometry.prim_counts[0];
+	mi->prim_count = model->geometry.prim_counts[ 0 ];
 	mi->prim_offset_curr_pose_curr_frame = 0; // bsp models are not processed by the instancing shader
 	mi->prim_offset_prev_pose_curr_frame = 0;
 	mi->prim_offset_curr_pose_prev_frame = 0;
@@ -1966,14 +2029,20 @@ static void process_bsp_entity(const entity_t* entity, int* instance_count)
 	mi->pose_lerp_prev_frame = 0.f;
 	mi->iqm_matrix_offset_curr_frame = -1;
 	mi->iqm_matrix_offset_prev_frame = -1;
-	mi->alpha_and_frame = (entity->frame << 16) | floatToHalf(model_alpha);
+	mi->alpha_and_frame = ( entity->frame << 16 ) | floatToHalf( model_alpha );
 	mi->render_buffer_idx = VERTEX_BUFFER_WORLD;
-	mi->render_prim_offset = model->geometry.prim_offsets[0];
-	
-	instance_model_lights(entity, model->num_light_polys, model->light_polys, transform);
+	mi->render_prim_offset = model->geometry.prim_offsets[ 0 ];
 
-	if (model->geometry.accel)
-	{
+	/**
+	*	Instance model-local lights into the global model light list (collects light polys).
+	**/
+	instance_model_lights( entity, model->num_light_polys, model->light_polys, transform );
+
+	/**
+	*	If geometry has an acceleration structure (BLAS), record an instance for ray/brush tracing.
+	*	Also honor translucency and RF_NOSHADOW flags when selecting override masks.
+	**/
+	if ( model->geometry.accel ) {
 		// <Q2RTXP>: WID: RF_NOSHADOW
 		uint32_t override_masks = ( mi->alpha_and_frame < 1.f ) ? AS_FLAG_TRANSPARENT : 0;
 
@@ -1981,18 +2050,21 @@ static void process_bsp_entity(const entity_t* entity, int* instance_count)
 			override_masks |= AS_FLAG_OPAQUE_NO_SHADOW;
 
 		vkpt_pt_instance_model_blas( &model->geometry, mi->transform, VERTEX_BUFFER_WORLD, current_instance_idx, override_masks );
-		//vkpt_pt_instance_model_blas( &model->geometry, mi->transform, VERTEX_BUFFER_WORLD, current_instance_idx, ( mi->alpha_and_frame < 1.f ) ? AS_FLAG_TRANSPARENT : 0 );
 		// <Q2RTXP>: WID: RF_NOSHADOW
-
 	}
 
-	if (!model->transparent)
-	{
-		vkpt_shadow_map_add_instance(transform, qvk.buf_world.buffer, vkpt_refdef.bsp_mesh_world.vertex_data_offset
-			+ mi->render_prim_offset * sizeof(prim_positions_t), mi->prim_count);
+	/**
+	*	If the BSP model is opaque, add it to the shadow-map instance list.
+	**/
+	if ( !model->transparent ) {
+		vkpt_shadow_map_add_instance( transform, qvk.buf_world.buffer, vkpt_refdef.bsp_mesh_world.vertex_data_offset
+			+ mi->render_prim_offset * sizeof( prim_positions_t ), mi->prim_count );
 	}
 
-	(*instance_count)++;
+	/**
+	*	Commit instance addition.
+	**/
+	( *instance_count )++;
 }
 
 #define MESH_FILTER_TRANSPARENT 1
@@ -2000,163 +2072,208 @@ static void process_bsp_entity(const entity_t* entity, int* instance_count)
 #define MESH_FILTER_MASKED 4
 #define MESH_FILTER_ALL 7
 
+/**
+*	@brief	Process a regular (alias/animated/static) model entity and append one or more instances.
+*	@param	entity					Entity pointer to process.
+*	@param	model					Model referenced by the entity.
+*	@param	is_viewer_weapon		True if the model should use the special view-weapon transform.
+*	@param	is_double_sided		True if the material is double-sided (affects material selection).
+*	@param	instance_count			[in,out] Current model instance count; updated with newly added instances.
+*	@param	animated_count			[in,out] Count of animated model instances (for the skinning/instancing path).
+*	@param	num_instanced_prim		[in,out] Number of instanced primitives consumed/produced.
+*	@param	mesh_filter				Bitmask filter controlling which mesh types to include (opaque/masked/transparent).
+*	@param	contains_transparent	[out,opt] Flag set if any processed meshes are transparent.
+*	@param	contains_masked			[out,opt] Flag set if any processed meshes are masked.
+*	@param	iqm_matrix_offset		[in,out] Offset into the IQM matrix scratch buffer; advanced by the function when poses are written.
+*	@param	iqm_matrix_data			Pre-allocated buffer where per-pose matrices are written when skinning is required.
+*	@note	This function:
+*		- computes per-entity transform (viewer weapon variant supported),
+*		- evaluates skinning pose matrices for IQM/skinned models,
+*		- optionally records static BLAS instances for static-model acceleration,
+*		- iterates model meshes and, for each visible/selected mesh, fills a ModelInstance entry,
+*		- chooses whether a mesh should be rendered via the static or instanced path based on `use_static_blas`,
+*		- updates shadow mapping for opaque parts, and
+*		- appends cylinder lights for entities marked as `MCLASS_STATIC_LIGHT`.
+**/
 static void process_regular_entity(
-	const entity_t* entity, 
-	const model_t* model, 
-	bool is_viewer_weapon, 
-	bool is_double_sided, 
-	int* instance_count, 
-	int* animated_count, 
-	int* num_instanced_prim, 
-	int mesh_filter, 
-	bool* contains_transparent,
-	bool* contains_masked,
-	int* iqm_matrix_offset,
-	float* iqm_matrix_data)
-{
-	InstanceBuffer* uniform_instance_buffer = &vkpt_refdef.uniform_instance_buffer;
+	const entity_t *entity,
+	const model_t *model,
+	bool is_viewer_weapon,
+	bool is_double_sided,
+	int *instance_count,
+	int *animated_count,
+	int *num_instanced_prim,
+	int mesh_filter,
+	bool *contains_transparent,
+	bool *contains_masked,
+	int *iqm_matrix_offset,
+	float *iqm_matrix_data ) {
+	/**
+	*	Compute entity transform: viewer-weapon uses a special matrix; otherwise use the entity matrix.
+	**/
+	InstanceBuffer *uniform_instance_buffer = &vkpt_refdef.uniform_instance_buffer;
 
-	float transform[16];
-	if (is_viewer_weapon)
-		create_viewweapon_matrix(transform, (entity_t *)entity);
+	float transform[ 16 ];
+	if ( is_viewer_weapon )
+		create_viewweapon_matrix( transform, ( entity_t * )entity );
 	else
-		create_entity_matrix(transform, (entity_t*)entity);
-	
+		create_entity_matrix( transform, ( entity_t * )entity );
+
 	int current_instance_index = *instance_count;
 	int current_animated_index = *animated_count;
 	int current_num_instanced_prim = *num_instanced_prim;
 
-	if (contains_transparent)
+	/**
+	*	Initialize transparent flag output if requested.
+	**/
+	if ( contains_transparent )
 		*contains_transparent = false;
 
+	/**
+	*	If the model has IQM/skinning data, compute and write the pose matrices into the provided buffer,
+	*	and reserve matrix slots by incrementing `iqm_matrix_offset`.
+	**/
 	int iqm_matrix_index = -1;
-	if (model->skmData && model->skmData->num_poses)
-	{
+	if ( model->skmData && model->skmData->num_poses ) {
 		iqm_matrix_index = *iqm_matrix_offset;
-		
-		if (iqm_matrix_index + model->skmData->num_poses > MAX_IQM_MATRICES)
-		{
-			assert(!"IQM matrix buffer overflow");
+
+		if ( iqm_matrix_index + model->skmData->num_poses > MAX_IQM_MATRICES ) {
+			assert( !"IQM matrix buffer overflow" );
 			return;
 		}
-		
-		R_ComputePoseTransforms(model, entity, iqm_matrix_data + (iqm_matrix_index * 12));
-		
-		*iqm_matrix_offset += (int)model->skmData->num_poses;
+
+		R_ComputePoseTransforms( model, entity, iqm_matrix_data + ( iqm_matrix_index * 12 ) );
+
+		*iqm_matrix_offset += ( int )model->skmData->num_poses;
 	}
 
-	float alpha = (entity->flags & RF_TRANSLUCENT) ? entity->alpha : 1.f;
+	/**
+	*	Alpha/compositing state for the entity (used to decide BLAS instance masks and render-path).
+	**/
+	float alpha = ( entity->flags & RF_TRANSLUCENT ) ? entity->alpha : 1.f;
 
-	bool use_static_blas = vkpt_model_is_static(model) && (mesh_filter != MESH_FILTER_ALL);
+	/**
+	*	Decide whether to use static BLAS instancing (static model + not querying all mesh types).
+	**/
+	bool use_static_blas = vkpt_model_is_static( model ) && ( mesh_filter != MESH_FILTER_ALL );
 
-	const model_vbo_t* vbo = vkpt_get_model_vbo(model);
+	const model_vbo_t *vbo = vkpt_get_model_vbo( model );
 
-	if (use_static_blas)
-	{
-		const model_geometry_t* geom = NULL;
+	/**
+	*	If static BLAS is used, pick the appropriate geometry subset (opaque/masked/transparent)
+	*	and record a BLAS instance for the whole mesh set when available.
+	**/
+	if ( use_static_blas ) {
+		const model_geometry_t *geom = NULL;
 
-		if (mesh_filter & MESH_FILTER_MASKED)
+		if ( mesh_filter & MESH_FILTER_MASKED )
 			geom = &vbo->geom_masked;
-		else if (mesh_filter & MESH_FILTER_TRANSPARENT)
+		else if ( mesh_filter & MESH_FILTER_TRANSPARENT )
 			geom = &vbo->geom_transparent;
 		else
 			geom = &vbo->geom_opaque;
-		
-		if (geom->accel)
-		{
-			// ugly typecast
+
+		if ( geom->accel ) {
+			// ugly typecast to match expected mat4 layout
 			mat4 transform_;
-			memcpy(transform_, transform, sizeof(mat4));
+			memcpy( transform_, transform, sizeof( mat4 ) );
 
-			uint32_t model_index = (uint32_t)(model - r_models);
+			uint32_t model_index = ( uint32_t )( model - r_models );
 
-			// <Q2RTXP>: WID: RF_NOSHADOW
+			// Respect translucency and RF_NOSHADOW when setting instance override masks.
 			uint32_t override_masks = ( alpha < 1.f ) ? AS_FLAG_TRANSPARENT : 0;
 
 			if ( entity->flags & RF_NOSHADOW )
 				override_masks |= AS_FLAG_OPAQUE_NO_SHADOW;
 			vkpt_pt_instance_model_blas( geom, transform_, VERTEX_BUFFER_FIRST_MODEL + model_index, current_instance_index, override_masks );
-			//vkpt_pt_instance_model_blas( geom, transform_, VERTEX_BUFFER_FIRST_MODEL + model_index, current_instance_index, ( alpha < 1.f ) ? AS_FLAG_TRANSPARENT : 0 );
-			// <Q2RTXP>: WID: RF_NOSHADOW
 		}
 	}
 
-	for (int i = 0; i < model->nummeshes; i++)
-	{
-		const maliasmesh_t* mesh = model->meshes + i;
+	/**
+	*	Per-mesh processing: for each alias mesh inside the model, determine material,
+	*	filter by mask/transparent/opaque according to mesh_filter, and create instances.
+	**/
+	for ( int i = 0; i < model->nummeshes; i++ ) {
+		const maliasmesh_t *mesh = model->meshes + i;
 
-		if (current_instance_index >= MAX_MODEL_INSTANCES)
-		{
-			assert(!"Model instance count overflow");
+		// Bounds checks for instance and animated indices.
+		if ( current_instance_index >= MAX_MODEL_INSTANCES ) {
+			assert( !"Model instance count overflow" );
 			break;
 		}
 
-		if (!use_static_blas && current_animated_index >= MAX_MODEL_INSTANCES)
-		{
-			assert(!"Animated model count overflow");
+		if ( !use_static_blas && current_animated_index >= MAX_MODEL_INSTANCES ) {
+			assert( !"Animated model count overflow" );
 			break;
 		}
 
-		if (mesh->tri_offset < 0)
-		{
+		// Skip meshes without uploaded vertex data.
+		if ( mesh->tri_offset < 0 ) {
 			// failed to upload the vertex data - don't instance this mesh
 			continue;
 		}
 
-		material_and_shell_t mat_shell = compute_aliasmesh_material_flags(entity, model, mesh, is_viewer_weapon, is_double_sided, alpha);
+		/**
+		*	Compute material and shell flags for this mesh instance; skip if no material resolved.
+		**/
+		material_and_shell_t mat_shell = compute_aliasmesh_material_flags( entity, model, mesh, is_viewer_weapon, is_double_sided, alpha );
 
-		if (!mat_shell.material_id)
+		if ( !mat_shell.material_id )
 			continue;
 
-		if (MAT_IsMasked(mat_shell.material_id))
-		{
-			if (contains_masked)
+		/**
+		*	Filter by mask/transparent/opaque based on the selected mesh_filter and mark output flags.
+		**/
+		if ( MAT_IsMasked( mat_shell.material_id ) ) {
+			if ( contains_masked )
 				*contains_masked = true;
 
-			if (!(mesh_filter & MESH_FILTER_MASKED))
+			if ( !( mesh_filter & MESH_FILTER_MASKED ) )
 				continue;
-		}
-		else if (MAT_IsTransparent(mat_shell.material_id) || (alpha < 1.0f))
-		{
-			if(contains_transparent)
+		} else if ( MAT_IsTransparent( mat_shell.material_id ) || ( alpha < 1.0f ) ) {
+			if ( contains_transparent )
 				*contains_transparent = true;
 
-			if(!(mesh_filter & MESH_FILTER_TRANSPARENT))
+			if ( !( mesh_filter & MESH_FILTER_TRANSPARENT ) )
 				continue;
-		}
-		else
-		{
-			if (!(mesh_filter & MESH_FILTER_OPAQUE))
+		} else {
+			if ( !( mesh_filter & MESH_FILTER_OPAQUE ) )
 				continue;
 		}
 
+		/**
+		*	Record per-frame model->entity->mesh hash for selection/picking.
+		**/
 		entity_hash_t hash;
 		hash.entity = entity->id;
 		hash.model = entity->model;
 		hash.mesh = i;
 		hash.bsp = 0;
 
-		memcpy(&model_entity_ids[entity_frame_num][current_instance_index], &hash, sizeof(uint32_t));
-		
-		ModelInstance* mi = uniform_instance_buffer->model_instances + current_instance_index;
+		memcpy( &model_entity_ids[ entity_frame_num ][ current_instance_index ], &hash, sizeof( uint32_t ) );
 
-		fill_model_instance(mi, entity, model, mesh, transform, mat_shell,
-			current_instance_index, iqm_matrix_index);
+		/**
+		*	Fill the ModelInstance structure for this mesh and assign it to the instance buffer.
+		**/
+		ModelInstance *mi = uniform_instance_buffer->model_instances + current_instance_index;
 
-		if (use_static_blas)
-		{
+		fill_model_instance( mi, entity, model, mesh, transform, mat_shell,
+			current_instance_index, iqm_matrix_index );
+
+		/**
+		*	Choose render path: static BLAS uses the model's source buffer; dynamic/animated path uses the instanced buffer.
+		*	Update shadow mapping for opaque parts on the static path.
+		**/
+		if ( use_static_blas ) {
 			mi->render_buffer_idx = mi->source_buffer_idx;
 			mi->render_prim_offset = mi->prim_offset_curr_pose_curr_frame;
 
-			if (!MAT_IsTransparent(mat_shell.material_id))
-			{
-				vkpt_shadow_map_add_instance(transform, vbo->buffer.buffer, vbo->vertex_data_offset
-					+ mi->render_prim_offset * sizeof(prim_positions_t), mi->prim_count);
+			if ( !MAT_IsTransparent( mat_shell.material_id ) ) {
+				vkpt_shadow_map_add_instance( transform, vbo->buffer.buffer, vbo->vertex_data_offset
+					+ mi->render_prim_offset * sizeof( prim_positions_t ), mi->prim_count );
 			}
-		}
-		else
-		{
-			uniform_instance_buffer->animated_model_indices[current_animated_index] = current_instance_index;
+		} else {
+			uniform_instance_buffer->animated_model_indices[ current_animated_index ] = current_instance_index;
 
 			mi->render_buffer_idx = VERTEX_BUFFER_INSTANCED;
 			mi->render_prim_offset = current_num_instanced_prim;
@@ -2168,185 +2285,327 @@ static void process_regular_entity(
 		current_instance_index++;
 	}
 
-	// add cylinder lights for wall lamps
-	if (model->model_class == MCLASS_STATIC_LIGHT)
-	{
+	/**
+	*	Special-case: add cylinder lights for models marked as static light fixtures.
+	**/
+	if ( model->model_class == MCLASS_STATIC_LIGHT ) {
 		vec4_t begin, end, color;
 		vec4_t offset1 = { 0.f, 0.5f, -10.f, 1.f };
 		vec4_t offset2 = { 0.f, 0.5f,  10.f, 1.f };
 
-		mult_matrix_vector(begin, transform, offset1);
-		mult_matrix_vector(end, transform, offset2);
-		VectorSet(color, 0.25f, 0.5f, 0.07f);
+		mult_matrix_vector( begin, transform, offset1 );
+		mult_matrix_vector( end, transform, offset2 );
+		VectorSet( color, 0.25f, 0.5f, 0.07f );
 
-		vkpt_build_cylinder_light(model_lights, &num_model_lights, MAX_MODEL_LIGHTS, bsp_world_model, begin, end, color, 1.5f);
+		vkpt_build_cylinder_light( model_lights, &num_model_lights, MAX_MODEL_LIGHTS, bsp_world_model, begin, end, color, 1.5f );
 	}
 
+	/**
+	*	Write back updated indices and counts to the caller's storage.
+	**/
 	*instance_count = current_instance_index;
 	*animated_count = current_animated_index;
 	*num_instanced_prim = current_num_instanced_prim;
 }
 
+/**
+*	@brief		Prepare per-frame entity instance data and populate the provided upload info.
+*	@param		upload_info	[out] Structure that receives offsets and counts for opaque, transparent, masked,
+*				viewer models, viewer weapons, explosions, instance and primitive counts, and other flags.
+*	@note		This function:
+*					- Toggles the double-buffered entity frame index.
+*					- Builds fixed-size index lists for entity categories (transparent/masked/viewer/weapon/explosion).
+*					- Processes BSP-embedded entities and regular models (including animated models).
+*					- Collects per-model lights and IQM (skinned) matrix data, preserving previous-frame history
+*					  for temporal reprojection and pose interpolation.
+*					- Fills reverse lookup tables mapping current <-> previous model instance indices and copies the
+*					  previous-frame instance parameters into the current instance buffer where a match exists.
+*					- Uploads IQM matrices into a staging buffer for the GPU.
+**/
 static void
-prepare_entities(EntityUploadInfo* upload_info)
-{
+prepare_entities( EntityUploadInfo *upload_info ) {
 	entity_frame_num = !entity_frame_num;
 
-	InstanceBuffer* instance_buffer = &vkpt_refdef.uniform_instance_buffer;
-	
-	static int transparent_model_indices[MAX_ENTITIES];
-	static int masked_model_indices[MAX_ENTITIES];
-	static int viewer_model_indices[MAX_ENTITIES];
-	static int viewer_weapon_indices[MAX_ENTITIES];
-	static int explosion_indices[MAX_ENTITIES];
+	InstanceBuffer *instance_buffer = &vkpt_refdef.uniform_instance_buffer;
+
+	/**
+	*	Index lists for this frame.
+	*	Keep them static so the backing memory is stable; only the counts below determine active entries.
+	**/
+	static int transparent_model_indices[ MAX_ENTITIES ];
+	static int masked_model_indices[ MAX_ENTITIES ];
+	static int viewer_model_indices[ MAX_ENTITIES ];
+	static int viewer_weapon_indices[ MAX_ENTITIES ];
+	static int explosion_indices[ MAX_ENTITIES ];
 	int transparent_model_num = 0;
 	int masked_model_num = 0;
 	int viewer_model_num = 0;
 	int viewer_weapon_num = 0;
 	int explosion_num = 0;
 
+	/**
+	*	Working counters for instance and primitive bookkeeping.
+	*	- model_instance_idx: total model instances encountered this frame (used to index model instance ID arrays)
+	*	- animated_instance_idx: number of animated (IQM) instances
+	*	- num_instanced_prim: number of instanced primitives produced so far (used to compute offsets/counts)
+	*	- instance_idx: total instances (unused for many decisions but preserved for upload_info)
+	*	- iqm_matrix_offset: running offset into IQM matrix storage for this frame
+	**/
 	int model_instance_idx = 0;
+	int animated_instance_idx = 0;
 	int num_instanced_prim = 0; /* need to track this here to find lights */
 	int instance_idx = 0;
 	int iqm_matrix_offset = 0;
 
-	const bool first_person_model = (CL_RefExport_GetPlayerModelCvar()->integer == CL_PLAYER_MODEL_FIRST_PERSON ) && CL_RefExport_GetBaseInfoModelHandle();
+	const bool first_person_model = ( CL_RefExport_GetPlayerModelCvar()->integer == CL_PLAYER_MODEL_FIRST_PERSON ) && CL_RefExport_GetBaseInfoModelHandle();
 
-	for (int i = 0; i < vkpt_refdef.fd->num_entities; i++)
-	{
-		const entity_t* entity = vkpt_refdef.fd->entities + i;
+	/**
+	*	Iterate all entities in the frame and categorize/process them.
+	*	We keep each per-frame category inside a fixed-size array to avoid dynamic allocations
+	*	and to prevent pathological scenes from scribbling memory beyond MAX_ENTITIES.
+	**/
+	for ( int i = 0; i < vkpt_refdef.fd->num_entities; i++ ) {
+		const entity_t *entity = vkpt_refdef.fd->entities + i;
 
-		if (entity->model & 0x80000000)
-		{
-			process_bsp_entity(entity, &model_instance_idx); /* embedded in bsp */
-		}
-		else
-		{
-			const model_t* model = MOD_ForHandle(entity->model);
-			if (model == NULL || model->meshes == NULL)
+		/**
+		*	BSP-embedded entities are encoded with the high bit set in entity->model.
+		*	They are processed by the BSP-specific handler which updates the model instance index.
+		**/
+		if ( entity->model & 0x80000000 ) {
+			process_bsp_entity( entity, &model_instance_idx ); /* embedded in bsp */
+		} else {
+			/**
+			*	Regular model: resolve handle, skip invalid models or models without meshes.
+			**/
+			const model_t *model = MOD_ForHandle( entity->model );
+			if ( model == NULL || model->meshes == NULL )
 				continue;
 
-			if (entity->flags & RF_VIEWERMODEL)
-				viewer_model_indices[viewer_model_num++] = i;
-			else if (entity->flags & RF_WEAPONMODEL)
-				viewer_weapon_indices[viewer_weapon_num++] = i;
-			else if (model->model_class == MCLASS_EXPLOSION || model->model_class == MCLASS_FLASH)
-				explosion_indices[explosion_num++] = i;
-			else
-			{
+			/**
+			*	Top-level categorization:
+			*	- Viewer models (first-person arms)
+			*	- Viewer weapons
+			*	- Explosions / flashes (special visual effects)
+			*	- Otherwise: treat as regular geometry and probe for transparent/masked submeshes
+			**/
+			if ( entity->flags & RF_VIEWERMODEL ) {
+				// Prevent overflow of the viewer model index list.
+				if ( viewer_model_num >= MAX_ENTITIES ) {
+					if ( !s_warned_entity_index_overflow ) {
+						s_warned_entity_index_overflow = true;
+						Com_WPrintf( "vkpt: viewer model index list overflow prevented at %d entries (max %d)\n",
+							viewer_model_num, MAX_ENTITIES );
+					}
+
+					continue;
+				}
+				viewer_model_indices[ viewer_model_num++ ] = i;
+			} else if ( entity->flags & RF_WEAPONMODEL ) {
+				// Prevent overflow of the viewer weapon index list.
+				if ( viewer_weapon_num >= MAX_ENTITIES ) {
+					if ( !s_warned_entity_index_overflow ) {
+						s_warned_entity_index_overflow = true;
+						Com_WPrintf( "vkpt: weapon model index list overflow prevented at %d entries (max %d)\n",
+							viewer_weapon_num, MAX_ENTITIES );
+					}
+
+					continue;
+				}
+				viewer_weapon_indices[ viewer_weapon_num++ ] = i;
+			} else if ( model->model_class == MCLASS_EXPLOSION || model->model_class == MCLASS_FLASH ) {
+				// Prevent overflow of the explosion index list.
+				if ( explosion_num >= MAX_ENTITIES ) {
+					if ( !s_warned_entity_index_overflow ) {
+						s_warned_entity_index_overflow = true;
+						Com_WPrintf( "vkpt: explosion model index list overflow prevented at %d entries (max %d)\n",
+							explosion_num, MAX_ENTITIES );
+					}
+
+					continue;
+				}
+				explosion_indices[ explosion_num++ ] = i;
+			} else {
+				/**
+				*	Process a regular entity as opaque first.
+				*	process_regular_entity updates model/animated/primitive counters and returns whether the model
+				*	contains transparent or masked submeshes via the out parameters.
+				**/
 				bool contains_transparent = false;
 				bool contains_masked = false;
-				process_regular_entity(entity, model, false, false, &model_instance_idx, &instance_idx, &num_instanced_prim,
-					MESH_FILTER_OPAQUE, &contains_transparent, &contains_masked, &iqm_matrix_offset, qvk.iqm_matrices_shadow);
+				process_regular_entity( entity, model, false, false, &model_instance_idx, &animated_instance_idx, &num_instanced_prim,
+					MESH_FILTER_OPAQUE, &contains_transparent, &contains_masked, &iqm_matrix_offset, qvk.iqm_matrices_shadow );
 
-				if (contains_transparent)
-					transparent_model_indices[transparent_model_num++] = i;
-				if (contains_masked)
-					masked_model_indices[masked_model_num++] = i;
+				// If the model contains transparent submeshes, remember its entity index for later transparent pass.
+				if ( contains_transparent ) {
+					if ( transparent_model_num >= MAX_ENTITIES ) {
+						if ( !s_warned_entity_index_overflow ) {
+							s_warned_entity_index_overflow = true;
+							Com_WPrintf( "vkpt: transparent model index list overflow prevented at %d entries (max %d)\n",
+								transparent_model_num, MAX_ENTITIES );
+						}
+
+						continue;
+					}
+					transparent_model_indices[ transparent_model_num++ ] = i;
+				}
+				// If the model contains masked submeshes (alpha tested), remember for masked pass.
+				if ( contains_masked ) {
+					if ( masked_model_num >= MAX_ENTITIES ) {
+						if ( !s_warned_entity_index_overflow ) {
+							s_warned_entity_index_overflow = true;
+							Com_WPrintf( "vkpt: masked model index list overflow prevented at %d entries (max %d)\n",
+								masked_model_num, MAX_ENTITIES );
+						}
+
+						continue;
+					}
+					masked_model_indices[ masked_model_num++ ] = i;
+				}
 			}
 
-			if (model->num_light_polys > 0)
-			{
-				float transform[16];
-				const bool is_viewer_weapon = (entity->flags & RF_WEAPONMODEL) != 0;
-				if (is_viewer_weapon)
-					create_viewweapon_matrix(transform, (entity_t*)entity);
+			/**
+			*	If the model defines light-emitting polygons, compute the appropriate world transform
+			*	(for viewer-weapons use a different matrix) and generate model lights for the instance.
+			**/
+			if ( model->num_light_polys > 0 ) {
+				float transform[ 16 ];
+				const bool is_viewer_weapon = ( entity->flags & RF_WEAPONMODEL ) != 0;
+				if ( is_viewer_weapon )
+					create_viewweapon_matrix( transform, ( entity_t * )entity );
 				else
-					create_entity_matrix(transform, (entity_t*)entity);
+					create_entity_matrix( transform, ( entity_t * )entity );
 
-				instance_model_lights(entity, model->num_light_polys, model->light_polys, transform);
+				instance_model_lights( entity, model->num_light_polys, model->light_polys, transform );
 			}
 		}
 	}
 
+	/**
+	*	Record opaque primitive count and mark where the transparent primitives will begin.
+	**/
 	upload_info->opaque_prim_count = num_instanced_prim;
 	upload_info->transparent_prim_offset = num_instanced_prim;
-	
-	for (int i = 0; i < transparent_model_num; i++)
-	{
-		const entity_t* entity = vkpt_refdef.fd->entities + transparent_model_indices[i];
 
-		const model_t* model = MOD_ForHandle(entity->model);
-		process_regular_entity(entity, model, false, false, &model_instance_idx, &instance_idx, &num_instanced_prim,
-			MESH_FILTER_TRANSPARENT, NULL, NULL, &iqm_matrix_offset, qvk.iqm_matrices_shadow);
+	/**
+	*	Now process the previously collected transparent models so their transparent submeshes are emitted
+	*	in the correct order/section.
+	**/
+	for ( int i = 0; i < transparent_model_num; i++ ) {
+		const entity_t *entity = vkpt_refdef.fd->entities + transparent_model_indices[ i ];
+
+		const model_t *model = MOD_ForHandle( entity->model );
+		process_regular_entity( entity, model, false, false, &model_instance_idx, &animated_instance_idx, &num_instanced_prim,
+			MESH_FILTER_TRANSPARENT, NULL, NULL, &iqm_matrix_offset, qvk.iqm_matrices_shadow );
 	}
 
 	upload_info->transparent_prim_count = num_instanced_prim - upload_info->transparent_prim_offset;
 	upload_info->masked_prim_offset = num_instanced_prim;
 
-	for (int i = 0; i < masked_model_num; i++)
-	{
-		const entity_t* entity = vkpt_refdef.fd->entities + masked_model_indices[i];
-		
-		const model_t* model = MOD_ForHandle(entity->model);
-		process_regular_entity(entity, model, false, true, &model_instance_idx, &instance_idx, &num_instanced_prim,
-			MESH_FILTER_MASKED, NULL, NULL, &iqm_matrix_offset, qvk.iqm_matrices_shadow);
+	/**
+	*	Process masked models (alpha-tested geometry) next.
+	**/
+	for ( int i = 0; i < masked_model_num; i++ ) {
+		const entity_t *entity = vkpt_refdef.fd->entities + masked_model_indices[ i ];
+
+		const model_t *model = MOD_ForHandle( entity->model );
+		process_regular_entity( entity, model, false, true, &model_instance_idx, &animated_instance_idx, &num_instanced_prim,
+			MESH_FILTER_MASKED, NULL, NULL, &iqm_matrix_offset, qvk.iqm_matrices_shadow );
 	}
 
 	upload_info->masked_prim_count = num_instanced_prim - upload_info->masked_prim_offset;
 	upload_info->viewer_model_prim_offset = num_instanced_prim;
-	
-	if (first_person_model)
-	{
-		for (int i = 0; i < viewer_model_num; i++)
-		{
-			const entity_t* entity = vkpt_refdef.fd->entities + viewer_model_indices[i];
-			const model_t* model = MOD_ForHandle(entity->model);
-			process_regular_entity(entity, model, false, true, &model_instance_idx, &instance_idx, &num_instanced_prim,
-				MESH_FILTER_ALL, NULL, NULL, &iqm_matrix_offset, qvk.iqm_matrices_shadow);
+
+	/**
+	*	If the client uses a first-person player model, render the viewer model section here.
+	**/
+	if ( first_person_model ) {
+		for ( int i = 0; i < viewer_model_num; i++ ) {
+			const entity_t *entity = vkpt_refdef.fd->entities + viewer_model_indices[ i ];
+			const model_t *model = MOD_ForHandle( entity->model );
+			process_regular_entity( entity, model, false, true, &model_instance_idx, &animated_instance_idx, &num_instanced_prim,
+				MESH_FILTER_ALL, NULL, NULL, &iqm_matrix_offset, qvk.iqm_matrices_shadow );
 		}
 	}
 
 	upload_info->viewer_model_prim_count = num_instanced_prim - upload_info->viewer_model_prim_offset;
 	upload_info->viewer_weapon_prim_offset = num_instanced_prim;
 
+	/**
+	*	Process viewer weapons. Track left/right handedness (info_hand cvar).
+	**/
 	upload_info->weapon_left_handed = false;
-	
-	for (int i = 0; i < viewer_weapon_num; i++)
-	{
-		const entity_t* entity = vkpt_refdef.fd->entities + viewer_weapon_indices[i];
-		const model_t* model = MOD_ForHandle(entity->model);
-		process_regular_entity(entity, model, true, false, &model_instance_idx, &instance_idx, &num_instanced_prim,
-			MESH_FILTER_ALL, NULL, NULL, &iqm_matrix_offset, qvk.iqm_matrices_shadow);
 
-		if (info_hand->integer == 1)
+	for ( int i = 0; i < viewer_weapon_num; i++ ) {
+		const entity_t *entity = vkpt_refdef.fd->entities + viewer_weapon_indices[ i ];
+		const model_t *model = MOD_ForHandle( entity->model );
+		process_regular_entity( entity, model, true, false, &model_instance_idx, &animated_instance_idx, &num_instanced_prim,
+			MESH_FILTER_ALL, NULL, NULL, &iqm_matrix_offset, qvk.iqm_matrices_shadow );
+
+		if ( info_hand->integer == 1 )
 			upload_info->weapon_left_handed = true;
 	}
 
 	upload_info->viewer_weapon_prim_count = num_instanced_prim - upload_info->viewer_weapon_prim_offset;
 	upload_info->explosions_prim_offset = num_instanced_prim;
-	
-	for (int i = 0; i < explosion_num; i++)
-	{
-		const entity_t* entity = vkpt_refdef.fd->entities + explosion_indices[i];
-		const model_t* model = MOD_ForHandle(entity->model);
-		process_regular_entity(entity, model, false, false, &model_instance_idx, &instance_idx, &num_instanced_prim,
-			MESH_FILTER_ALL, NULL, NULL, &iqm_matrix_offset, qvk.iqm_matrices_shadow);
+
+	/**
+	*	Process explosions/flash effects last.
+	**/
+	for ( int i = 0; i < explosion_num; i++ ) {
+		const entity_t *entity = vkpt_refdef.fd->entities + explosion_indices[ i ];
+		const model_t *model = MOD_ForHandle( entity->model );
+		process_regular_entity( entity, model, false, false, &model_instance_idx, &animated_instance_idx, &num_instanced_prim,
+			MESH_FILTER_ALL, NULL, NULL, &iqm_matrix_offset, qvk.iqm_matrices_shadow );
 	}
 
 	upload_info->explosions_prim_count = num_instanced_prim - upload_info->explosions_prim_offset;
 
+	/**
+	*	Finalize instance/primitive counts into the upload info structure.
+	**/
 	upload_info->num_instances = instance_idx;
-	upload_info->num_prims  = num_instanced_prim;
-	
-	memset(instance_buffer->model_current_to_prev, -1, sizeof(instance_buffer->model_current_to_prev));
-	memset(instance_buffer->model_prev_to_current, -1, sizeof(instance_buffer->model_prev_to_current));
-	
-	model_entity_id_count[entity_frame_num] = model_instance_idx;
-	for(int i = 0; i < model_entity_id_count[entity_frame_num]; i++) {
-		for(int j = 0; j < model_entity_id_count[!entity_frame_num]; j++) {
+	upload_info->animated_instances = animated_instance_idx;
+	upload_info->num_prims = num_instanced_prim;
+
+	/**
+	*	Reset the reverse mapping arrays; they will be filled below by matching current-frame models
+	*	to previous-frame models so temporal reprojection/state copy can be performed.
+	**/
+	memset( instance_buffer->model_current_to_prev, -1, sizeof( instance_buffer->model_current_to_prev ) );
+	memset( instance_buffer->model_prev_to_current, -1, sizeof( instance_buffer->model_prev_to_current ) );
+
+	model_entity_id_count[ entity_frame_num ] = model_instance_idx;
+
+	/**
+	*	Clamp the previous-frame model count so the nested match loop below cannot read past the buffer.
+	**/
+	int previous_model_count = model_entity_id_count[ !entity_frame_num ];
+	if ( previous_model_count > MAX_MODEL_INSTANCES ) {
+		Com_WPrintf( "vkpt: previous model instance history overflow (%d > %d); truncating previous history\n",
+			previous_model_count, MAX_MODEL_INSTANCES );
+		previous_model_count = MAX_MODEL_INSTANCES;
+	}
+
+	/**
+	*	Match current-frame model entity IDs against previous-frame IDs. For matched instances:
+	*	- fill reverse lookup arrays so shaders/logic can map current -> previous indices and vice-versa
+	*	- copy previous-frame instance parameters (transforms, pose offsets, IQM matrix offsets, lerp) into the current
+	*	  ModelInstance structure so the renderer has access to previous-pose data for motion/temporal effects.
+	**/
+	for ( int i = 0; i < model_entity_id_count[ entity_frame_num ]; i++ ) {
+		for ( int j = 0; j < previous_model_count; j++ ) {
 			entity_hash_t hash;
-			memcpy(&hash, &model_entity_ids[entity_frame_num][i], sizeof(entity_hash_t));
+			memcpy( &hash, &model_entity_ids[ entity_frame_num ][ i ], sizeof( entity_hash_t ) );
 
-			if(model_entity_ids[entity_frame_num][i] == model_entity_ids[!entity_frame_num][j] && hash.entity != 0u) {
-				instance_buffer->model_current_to_prev[i] = j;
-				instance_buffer->model_prev_to_current[j] = i;
+			if ( model_entity_ids[ entity_frame_num ][ i ] == model_entity_ids[ !entity_frame_num ][ j ] && hash.entity != 0u ) {
+				instance_buffer->model_current_to_prev[ i ] = j;
+				instance_buffer->model_prev_to_current[ j ] = i;
 
-				// Copy the "prev" instance paramters from the previous frame's instance buffer
-				ModelInstance* mi_curr = instance_buffer->model_instances + i;
-				ModelInstance* mi_prev = model_instances_prev + j;
+				// Copy the "prev" instance parameters from the previous frame's instance buffer into the current instance.
+				ModelInstance *mi_curr = instance_buffer->model_instances + i;
+				ModelInstance *mi_prev = model_instances_prev + j;
 
-				memcpy(mi_curr->transform_prev, mi_prev->transform, sizeof(mi_curr->transform_prev));
+				memcpy( mi_curr->transform_prev, mi_prev->transform, sizeof( mi_curr->transform_prev ) );
 				mi_curr->prim_offset_curr_pose_prev_frame = mi_prev->prim_offset_curr_pose_curr_frame;
 				mi_curr->prim_offset_prev_pose_prev_frame = mi_prev->prim_offset_prev_pose_curr_frame;
 				mi_curr->pose_lerp_prev_frame = mi_prev->pose_lerp_curr_frame;
@@ -2355,43 +2614,59 @@ prepare_entities(EntityUploadInfo* upload_info)
 		}
 	}
 
+	/**
+	*	Handle IQM (skinned) matrix history:
+	*	- store the number of matrices produced this frame
+	*	- if there are previous-frame matrices, preserve them in a shadow buffer after the current matrices
+	*	  and patch per-instance previous offsets to reflect their new positions.
+	*	- copy the combined matrices into the GPU staging buffer for upload.
+	**/
 	// Store the number of IQM matrices for the next frame
-	iqm_matrix_count[entity_frame_num] = iqm_matrix_offset;
+	iqm_matrix_count[ entity_frame_num ] = iqm_matrix_offset;
 
-	if (iqm_matrix_count[entity_frame_num] > 0)
-	{
-		// If we had some matrices previously...
-		if (iqm_matrix_count[!entity_frame_num] > 0)
-		{
+	if ( iqm_matrix_count[ entity_frame_num ] > 0 ) {
+		int current_matrix_count = iqm_matrix_count[ entity_frame_num ];
+		int previous_matrix_count = iqm_matrix_count[ !entity_frame_num ];
+
+		// Guard against total matrix history overflow.
+		if ( current_matrix_count + previous_matrix_count > MAX_IQM_MATRICES ) {
+			Com_WPrintf( "vkpt: IQM matrix history overflow (%d + %d > %d); dropping previous-frame matrices\n",
+				current_matrix_count, previous_matrix_count, MAX_IQM_MATRICES );
+			previous_matrix_count = 0;
+		}
+
+		// If we retained previous-frame matrices, copy them into the shadow buffer after the current block.
+		if ( previous_matrix_count > 0 ) {
 			// Copy over the previous frame IQM matrices into an offset location in the current frame buffer
-			memcpy(qvk.iqm_matrices_shadow + (iqm_matrix_count[entity_frame_num] * 12),
-				qvk.iqm_matrices_prev, iqm_matrix_count[!entity_frame_num] * 12 * sizeof(float));
+			memcpy( qvk.iqm_matrices_shadow + ( current_matrix_count * 12 ),
+				qvk.iqm_matrices_prev, previous_matrix_count * 12 * sizeof( float ) );
 
-			// Patch the previous matrix offsets to point at the new locations
-			for (int i = 0; i < model_entity_id_count[entity_frame_num]; i++)
-			{
-				ModelInstance* instance = &instance_buffer->model_instances[i];
-				if (instance->iqm_matrix_offset_prev_frame >= 0) {
+			// Patch the previous matrix offsets stored in instances to point at their new locations in the appended block.
+			for ( int i = 0; i < model_entity_id_count[ entity_frame_num ]; i++ ) {
+				ModelInstance *instance = &instance_buffer->model_instances[ i ];
+				if ( instance->iqm_matrix_offset_prev_frame >= 0 ) {
 					// Offset = current matrix count
-					instance->iqm_matrix_offset_prev_frame += iqm_matrix_count[entity_frame_num];
+					instance->iqm_matrix_offset_prev_frame += current_matrix_count;
 				}
 			}
 		}
 
 		// Store the current matrices for the next frame
-		memcpy(qvk.iqm_matrices_prev, qvk.iqm_matrices_shadow, iqm_matrix_count[entity_frame_num] * 12 * sizeof(float));
+		memcpy( qvk.iqm_matrices_prev, qvk.iqm_matrices_shadow, current_matrix_count * 12 * sizeof( float ) );
 
-		// Upload the current matrices to the staging buffer
-		IqmMatrixBuffer* iqm_matrix_staging = buffer_map(&qvk.buf_iqm_matrices_staging[qvk.current_frame_index]);
+		// Upload the current matrices to the staging buffer for GPU consumption.
+		IqmMatrixBuffer *iqm_matrix_staging = buffer_map( &qvk.buf_iqm_matrices_staging[ qvk.current_frame_index ] );
 
-		int total_matrix_count = (iqm_matrix_count[entity_frame_num] + iqm_matrix_count[!entity_frame_num]);
-		memcpy(iqm_matrix_staging, qvk.iqm_matrices_shadow, total_matrix_count * 12 * sizeof(float));
+		int total_matrix_count = current_matrix_count + previous_matrix_count;
+		memcpy( iqm_matrix_staging, qvk.iqm_matrices_shadow, total_matrix_count * 12 * sizeof( float ) );
 
-		buffer_unmap(&qvk.buf_iqm_matrices_staging[qvk.current_frame_index]);
+		buffer_unmap( &qvk.buf_iqm_matrices_staging[ qvk.current_frame_index ] );
 	}
 
-	// Save the current model instances for the next frame
-	memcpy(model_instances_prev, instance_buffer->model_instances, sizeof(ModelInstance) * model_entity_id_count[entity_frame_num]);
+	/**
+	*	Save the current model instances snapshot for the next frame's matching.
+	**/
+	memcpy( model_instances_prev, instance_buffer->model_instances, sizeof( ModelInstance ) * model_entity_id_count[ entity_frame_num ] );
 }
 
 #ifdef VKPT_IMAGE_DUMPS
@@ -3161,7 +3436,8 @@ R_RenderFrame_RTX(refdef_t *fd)
 		END_PERF_MARKER(trace_cmd_buf, PROFILER_UPDATE_ENVIRONMENT);
 
 		BEGIN_PERF_MARKER(trace_cmd_buf, PROFILER_INSTANCE_GEOMETRY);
-		vkpt_instance_geometry(trace_cmd_buf, upload_info.num_instances, update_world_animations);
+		// Animate only the model instances that were actually written into the animated-instance list.
+		vkpt_instance_geometry(trace_cmd_buf, upload_info.animated_instances, update_world_animations);
 		END_PERF_MARKER(trace_cmd_buf, PROFILER_INSTANCE_GEOMETRY);
 
 		BEGIN_PERF_MARKER(trace_cmd_buf, PROFILER_BVH_UPDATE);
@@ -4315,6 +4591,14 @@ void R_AddDecalMesh_RTX(const decal_mesh_vertex_t *vertices, int32_t vertexCount
 
 void R_ClearDecals_RTX(void)
 {
+	vkDeviceWaitIdle( qvk.device );
+	vkpt_decals_clear();
+}
+
+void R_ClearState_RTX(void)
+{
+	vkDeviceWaitIdle(qvk.device);
+	vkpt_reset_entity_history();
 	vkpt_decals_clear();
 }
 
@@ -4346,7 +4630,7 @@ R_BeginRegistration_RTX(const char *name)
 	Com_Printf("loading %s\n", name);
 	vkDeviceWaitIdle(qvk.device);
 
-	vkpt_fog_reset();
+	vkpt_fog_reset();	
 
 	Com_AddConfigFile("maps/default.cfg", 0);
 	Com_AddConfigFile(va("maps/%s.cfg", name), 0);
@@ -4398,6 +4682,7 @@ R_BeginRegistration_RTX(const char *name)
 	memset(cluster_debug_mask, 0, sizeof(cluster_debug_mask));
 	cluster_debug_index = -1;
 
+	vkpt_reset_entity_history();
 	drs_last_frame_world = false;
 }
 
@@ -4662,6 +4947,7 @@ void R_RegisterFunctionsRTX()
 	R_AddDecal = R_AddDecal_RTX;
 	R_AddDecalMesh = R_AddDecalMesh_RTX;
 	R_ClearDecals = R_ClearDecals_RTX;
+	R_ClearState = R_ClearState_RTX;
 	R_ClearDecalMaterialMappings = R_ClearDecalMaterialMappings_RTX;
 	R_SetDecalMaterialMapping = R_SetDecalMaterialMapping_RTX;
 	R_SetDecalRenderMode = R_SetDecalRenderMode_RTX;

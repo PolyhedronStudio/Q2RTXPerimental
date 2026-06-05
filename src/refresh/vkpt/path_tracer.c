@@ -110,6 +110,10 @@ typedef struct QvkGeometryInstance_s {
 
 static uint32_t g_num_instances;
 static QvkGeometryInstance_t g_instances[MAX_TLAS_INSTANCES];
+//! One-shot warning gate for TLAS instance overflow in release builds.
+static bool s_vkptWarnedTlasInstanceOverflow = false;
+//! One-shot warning gate for missing TLAS descriptor fallback.
+static bool s_vkptWarnedMissingTlasDescriptor = false;
 
 typedef struct {
 	int gpu_index;
@@ -143,16 +147,18 @@ append_blas(
 
 #define MEM_BARRIER_BUILD_ACCEL(cmd_buf, ...) \
 	do { \
+		VkPipelineStageFlags dst_stage_mask = qvk.use_ray_query ? \
+			VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT : VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR; \
 		VkMemoryBarrier mem_barrier = {  \
 			.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,  \
 			.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR \
 						   | VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR, \
-			.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR, \
+			.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR | VK_ACCESS_SHADER_READ_BIT, \
 			__VA_ARGS__  \
 		};  \
 	 \
 		vkCmdPipelineBarrier(cmd_buf, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, \
-				VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR, 0, 1, \
+				dst_stage_mask, 0, 1, \
 				&mem_barrier, 0, 0, 0, 0); \
 	} while(0)
 
@@ -302,10 +308,23 @@ vkpt_pt_init()
 VkResult
 vkpt_pt_update_descripter_set_bindings(int idx)
 {
+	VkAccelerationStructureKHR fallback_tlas = tlas_geometry[idx].accel ? tlas_geometry[idx].accel : tlas_effects[idx].accel;
+	if (fallback_tlas == VK_NULL_HANDLE)
+	{
+		if (!s_vkptWarnedMissingTlasDescriptor)
+		{
+			s_vkptWarnedMissingTlasDescriptor = true;
+			Com_WPrintf("vkpt: skipping RT descriptor update, no valid TLAS for frame %d\n", idx);
+		}
+		return VK_SUCCESS;
+	}
+
+	s_vkptWarnedMissingTlasDescriptor = false;
+
 	/* update descriptor set bindings */
 	const VkAccelerationStructureKHR tlas[TLAS_COUNT] = {
-		[TLAS_INDEX_GEOMETRY] = tlas_geometry[idx].accel,
-		[TLAS_INDEX_EFFECTS] = tlas_effects[idx].accel
+		[TLAS_INDEX_GEOMETRY] = tlas_geometry[idx].accel ? tlas_geometry[idx].accel : fallback_tlas,
+		[TLAS_INDEX_EFFECTS] = tlas_effects[idx].accel ? tlas_effects[idx].accel : fallback_tlas
 	};
 	
 	VkWriteDescriptorSetAccelerationStructureKHR desc_accel_struct = {
@@ -421,10 +440,26 @@ vkpt_pt_create_decal_blas(
 {
 	if (!vertex_buffer)
 	{
+		Com_WPrintf("vkpt: decal BLAS[%d] destroy path vertex_buffer=NULL present=%d accel=%p mem=%p size=%zu\n",
+			idx,
+			blas_decals[idx].present ? 1 : 0,
+			(void *)blas_decals[idx].accel,
+			(void *)blas_decals[idx].mem.buffer,
+			(size_t)blas_decals[idx].mem.size);
 		destroy_accel_struct(&blas_decals[idx]);
 		blas_decals[idx].present = false;
 		return VK_SUCCESS;
 	}
+
+	Com_WPrintf("vkpt: decal BLAS[%d] build vertex_buffer=%p offset=%llu vcount=%u present=%d accel=%p mem=%p size=%zu\n",
+		idx,
+		(void *)vertex_buffer->buffer,
+		(unsigned long long)vertex_offset,
+		vertex_count,
+		blas_decals[idx].present ? 1 : 0,
+		(void *)blas_decals[idx].accel,
+		(void *)blas_decals[idx].mem.buffer,
+		(size_t)blas_decals[idx].mem.size);
 
 	vkpt_pt_create_accel_bottom(cmd_buf,
 		vertex_buffer,
@@ -835,7 +870,13 @@ append_blas(QvkGeometryInstance_t *instances, uint32_t *num_instances, accel_str
 
 	instance.acceleration_structure = qvkGetAccelerationStructureDeviceAddressKHR(qvk.device, &as_device_address_info);
 	
-	assert(*num_instances < MAX_TLAS_INSTANCES);
+	if ( *num_instances >= MAX_TLAS_INSTANCES ) {
+		if ( !s_vkptWarnedTlasInstanceOverflow ) {
+			s_vkptWarnedTlasInstanceOverflow = true;
+			Com_WPrintf( "vkpt: TLAS instance buffer overflow prevented at %u instances (max %u)\n", *num_instances, MAX_TLAS_INSTANCES );
+		}
+		return;
+	}
 	memcpy(instances + *num_instances, &instance, sizeof(instance));
 	vkpt_refdef.uniform_instance_buffer.tlas_instance_prim_offsets[*num_instances] = prim_offset;
 	vkpt_refdef.uniform_instance_buffer.tlas_instance_model_indices[*num_instances] = -1;
@@ -865,7 +906,13 @@ void vkpt_pt_instance_model_blas(const model_geometry_t* geom, const mat4 transf
 		.acceleration_structure = geom->blas_device_address,
 	};
 
-	assert(g_num_instances < MAX_TLAS_INSTANCES);
+	if ( g_num_instances >= MAX_TLAS_INSTANCES ) {
+		if ( !s_vkptWarnedTlasInstanceOverflow ) {
+			s_vkptWarnedTlasInstanceOverflow = true;
+			Com_WPrintf( "vkpt: TLAS instance buffer overflow prevented at %u instances (max %u)\n", g_num_instances, MAX_TLAS_INSTANCES );
+		}
+		return;
+	}
 	memcpy(g_instances + g_num_instances, &gpu_instance, sizeof(gpu_instance));
 	vkpt_refdef.uniform_instance_buffer.tlas_instance_prim_offsets[g_num_instances] = geom->prim_offsets[0];
 	vkpt_refdef.uniform_instance_buffer.tlas_instance_model_indices[g_num_instances] = model_instance_index;
@@ -875,6 +922,12 @@ void vkpt_pt_instance_model_blas(const model_geometry_t* geom, const mat4 transf
 static void
 build_tlas(VkCommandBuffer cmd_buf, accel_struct_t* as, VkDeviceAddress instance_data, uint32_t num_instances)
 {
+	//if (num_instances == 0)
+	//{
+	//	destroy_accel_struct(as);
+	//	return;
+	//}
+
 	// Build the TLAS
 	VkAccelerationStructureGeometryDataKHR geometry;
 	memset(&geometry, 0, sizeof(geometry));
@@ -1016,8 +1069,23 @@ vkpt_pt_create_toplevel(VkCommandBuffer cmd_buf, int idx, const EntityUploadInfo
 	instance_data = NULL;
 
 	scratch_buf_ptr = 0;
-	build_tlas(cmd_buf, &tlas_geometry[idx], buf_instances[idx].address, num_instances_geometry);
-	build_tlas(cmd_buf, &tlas_effects[idx], buf_instances[idx].address + num_instances_geometry * sizeof(QvkGeometryInstance_t), num_instances_effects);
+	if (num_instances_geometry > 0)
+	{
+		build_tlas(cmd_buf, &tlas_geometry[idx], buf_instances[idx].address, num_instances_geometry);
+	}
+	else
+	{
+		destroy_accel_struct(&tlas_geometry[idx]);
+	}
+
+	if (num_instances_effects > 0)
+	{
+		build_tlas(cmd_buf, &tlas_effects[idx], buf_instances[idx].address + num_instances_geometry * sizeof(QvkGeometryInstance_t), num_instances_effects);
+	}
+	else
+	{
+		destroy_accel_struct(&tlas_effects[idx]);
+	}
 
 	MEM_BARRIER_BUILD_ACCEL(cmd_buf); /* probably not needed here but doesn't matter */
 

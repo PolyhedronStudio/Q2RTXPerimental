@@ -7,25 +7,25 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "svgame/svg_signalio.h"
-#include "svgame/nav3/nav3_debug_draw.h"
-#include "svgame/nav3/nav3_runtime.h"
+//#include "svgame/nav3/nav3_debug_draw.h"
+//#include "svgame/nav3/nav3_runtime.h"
 
 #include <algorithm>
 #include <cstdarg>
 // Nav2.
-#include "svgame/nav2/nav2_bench.h"
-#include "svgame/nav2/nav2_connectors.h"
-#include "svgame/nav2/nav2_corridor.h"
-#include "svgame/nav2/nav2_debug_draw.h"
-#include "svgame/nav2/nav2_dynamic_overlay.h"
-#include "svgame/nav2/nav2_entity_semantics.h"
-#include "svgame/nav2/nav2_occupancy.h"
-#include "svgame/nav2/nav2_scheduler.h"
-#include "svgame/nav2/nav2_span_adjacency.h"
-#include "svgame/nav2/nav2_span_grid_build.h"
-#include "svgame/nav2/nav2_types.h"
-#include "svgame/nav2/nav2_save_load.h"
-#include "svgame/nav2/nav2_runtime.h"
+//#include "svgame/nav2/nav2_bench.h"
+//#include "svgame/nav2/nav2_connectors.h"
+//#include "svgame/nav2/nav2_corridor.h"
+//#include "svgame/nav2/nav2_debug_draw.h"
+//#include "svgame/nav2/nav2_dynamic_overlay.h"
+//#include "svgame/nav2/nav2_entity_semantics.h"
+//#include "svgame/nav2/nav2_occupancy.h"
+//#include "svgame/nav2/nav2_scheduler.h"
+//#include "svgame/nav2/nav2_span_adjacency.h"
+//#include "svgame/nav2/nav2_span_grid_build.h"
+//#include "svgame/nav2/nav2_types.h"
+//#include "svgame/nav2/nav2_save_load.h"
+//#include "svgame/nav2/nav2_runtime.h"
 
 // Monster types for AI debug introspection.
 //#include "svgame/entities/monster/svg_monster_testdummy_sfxfollow.h"
@@ -37,7 +37,7 @@ void ServerCommand_Test_f(void)
 {
     gi.cprintf(NULL, PRINT_HIGH, "ServerCommand_Test_f()\n");
 }
-
+#if 0
 /**
  * @brief Print one nav3 command line to both dedicated console and connected clients.
  * @param format Printf-style format string.
@@ -614,7 +614,7 @@ static void ServerCommand_Nav3Validate_f(void) {
         runtimeStatus.generated_span_count,
         runtimeStatus.generated_mesh_checksum);
 }
-
+#endif
 #if 0
 /**
 *	@brief	Rebuild and validate nav2 dynamic edge overlay modulation from active runtime data.
@@ -1927,6 +1927,7 @@ void SVG_ServerCommand(void) {
     cmd = gi.argv(1);
     if ( Q_stricmp( cmd, "test" ) == 0 )
         ServerCommand_Test_f();
+	#if 0
     else if ( Q_stricmp( cmd, "nav_generate" ) == 0 )
         ServerCommand_NavGenerate_f();
     else if ( Q_stricmp( cmd, "nav3_generate" ) == 0 )
@@ -1967,6 +1968,7 @@ void SVG_ServerCommand(void) {
         ServerCommand_Nav3PrintStage1Stub( "nav3_route_validate" );
     else if ( Q_stricmp( cmd, "nav3_query_stats" ) == 0 )
         ServerCommand_Nav3QueryStats_f();
+	#endif
 	#if 0
     else if ( Q_stricmp( cmd, "nav_generate" ) == 0 )
         ServerCommand_NavGenVoxelMesh_f();

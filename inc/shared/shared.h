@@ -31,7 +31,11 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "shared/stdlibs.h"
 //! Include Endianness utilities if not already included by another system header.
 #if HAVE_ENDIAN_H
-    #include <endian.h>
+	#ifndef __cplusplus    
+		#include <endian.h>
+	#else
+		#include <cendian>
+	#endif
 #endif
 //! Include shared platform specifics.
 #include "shared/platform.h"
@@ -148,17 +152,28 @@ typedef char configstring_t[ MAX_CS_STRING_LENGTH ];
 /**
 *   Reserved client numbers.
 **/
-//! Client number for 'none'.
+//! Client number for `none`.
 #define CLIENTNUM_NONE        (MAX_CLIENTS - 1)
 #define CLIENTNUM_RESERVED    (MAX_CLIENTS - 1)
 
 /**
 *   Reserved entity numbers.
 **/
-//! Entity number for 'none'.
+//! Entity number for `none`.
 #define ENTITYNUM_NONE      ( -1 )
-//! Entity number for 'World'.
+//! Entity number for `World`.
 #define ENTITYNUM_WORLD     ( 0 )
+
+/**
+*	Reserved brushID and hitboxBodyIDs.
+**/
+//! `0` == no brush, 
+//! `> 0` == a real brush of the BSP world and its inline-models, 
+//! `< 0` is an entity's hull brush.
+#define BRUSHID_NONE        ( 0 )
+//! `-1` == no hitbox body,
+//! `>= 0` == a real hitbox body of a model.
+#define HITBODYID_NONE		( -1 )
 
 /**
 *   Reserved model handle indices.
@@ -218,6 +233,8 @@ typedef char configstring_t[ MAX_CS_STRING_LENGTH ];
 
 /**
 *   @brief  Hunk allocation memory block, used for resource allocation.
+*	@note	Declaration of the memhunk_t struct is done here as it is used 
+*			across multiple subsystems.
 **/
 typedef struct {
     void *base;
@@ -265,10 +282,11 @@ typedef struct {
 // gi.BoxEdicts() can return a list of either solid or trigger entities
 // FIXME: eliminate AREA_ distinction?
 typedef enum sector_area_s {
+	//! Return all SOLID_* entities that are in the same area as the specified bounding box.
 	AREA_SOLID = 1,
+	//! Return all TRIGGER_* entities that are in the same area as the specified bounding box.
 	AREA_TRIGGERS = 2
 } sector_area_t;
-
 
 //!	Entity Flags.:
 #include "shared/entities/entity_flags.h"

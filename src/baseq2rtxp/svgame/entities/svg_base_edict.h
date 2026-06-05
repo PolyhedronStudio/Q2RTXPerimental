@@ -59,40 +59,14 @@ const svg_save_descriptor_funcptr_error_t SVG_Save_DebugValidateCallbackFuncPtr(
 #if 0
 #define IMPLEMENT_EDICT_RESET_BY_COPY_ASSIGNMENT( BaseType, SelfType, retainDictionary ) \
     do { \
-        /* Keep a copy of the base-class state so we can restore it */ \
-        BaseType baseCopy = *static_cast<BaseType *>( this ); \
-        SelfType selfCopy = *static_cast<SelfType *>( this ); \
-        /* Create value-initialized temporaries and assign them to this object. */ \
-        SelfType tempSelf = SelfType(); \
-        BaseType tempBase = BaseType(); \
-        /* Retain the dictionary if necessary */ \
-        if ( retainDictionary ) { \
-            tempBase.entityDictionary = this->entityDictionary; \
-            tempSelf.entityDictionary = this->entityDictionary; \
-		} \
-        /* Assign to this object. This resets all derived members using their normal copy-assignment semantics. */ \
-        *this = tempSelf; \
-        /* Now, restore base-class state produced by Base::Reset(...) */ \
-        *static_cast<BaseType *>( this ) = baseCopy; \
-        /* Finally, restore any derived-class state that needs to be restored. */ \
-        *static_cast<SelfType *>( this ) = selfCopy; \
+        /* Reset the base portion using its own non-virtual Reset implementation. */ \
+        BaseType::Reset( retainDictionary ); \
     } while ( 0 )
 #else
 #define IMPLEMENT_EDICT_RESET_BY_COPY_ASSIGNMENT( BaseType, SelfType, retainDictionary ) \
     do { \
-        /* Keep a copy of the base-class state so we can restore it */  \
-        BaseType baseCopy = *static_cast<BaseType *>( this );  \
-        SelfType selfCopy = *static_cast<SelfType *>( this );  \
-        /* Create value-initialized temporaries and assign them to this object. */  \
-        SelfType tempSelf = SelfType( ( retainDictionary ? this->entityDictionary : nullptr ) ); \
-        BaseType tempBase = BaseType( ( retainDictionary ? this->entityDictionary : nullptr ) ); \
-        /* Assign to this object. This resets all derived members using their normal copy-assignment semantics. */  \
-        *this = tempSelf;  \
-        *static_cast<BaseType *>( this ) = tempBase; \
-        /* Now, restore base-class state produced by Base::Reset(...) */ \
-        *static_cast<BaseType *>( this ) = baseCopy; \
-        /* Finally, restore any derived - class state that needs to be restored. */ \
-        *static_cast<SelfType *>( this ) = selfCopy; \
+        /* Reset the base portion using its own non-virtual Reset implementation. */ \
+        BaseType::Reset( retainDictionary ); \
     } while ( 0 ); \
 
 #endif

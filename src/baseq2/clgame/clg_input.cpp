@@ -261,6 +261,14 @@ static void CLG_ClampPitch( void ) {
 *           Doesn't touch command forward/side/upmove, these are filled by CL_FinalizeCommand.
 **/
 void PF_UpdateMoveCommand( const int64_t msec, client_movecmd_t *moveCommand, client_mouse_motion_t *mouseMotion ) {
+	// Need a valid move command.
+	if ( !moveCommand ) {
+		return;
+	}
+
+	// Initialize the command time immediately so downstream validation never sees an unset value.
+    moveCommand->cmd.msec = static_cast<int>( msec );
+
     // adjust viewangles
     CLG_AdjustAngles( msec );
 
@@ -316,6 +324,10 @@ void PF_UpdateMoveCommand( const int64_t msec, client_movecmd_t *moveCommand, cl
 void PF_FinalizeMoveCommand( client_movecmd_t *moveCommand ) {
     Vector3 move;
 
+	if ( !moveCommand ) {
+		return;
+	}
+
     //
     // figure button bits
     //
@@ -341,8 +353,18 @@ void PF_FinalizeMoveCommand( client_movecmd_t *moveCommand ) {
         moveCommand->cmd.buttons |= BUTTON_ANY;
     }
 
-    if ( moveCommand->cmd.msec > 75 ) { // Was: > 250
+    // Keep command time within the supported range.
+    if ( moveCommand->cmd.msec <= 0 ) {
+        // Recover gracefully from an unset or zero-length command.
+        #if USE_DEBUG
+        clgi.Print( PRINT_DEVELOPER, "%s: moveCommand->cmd.msec(%i) was invalid; using %i.\n", __func__, moveCommand->cmd.msec, BASE_FRAMERATE );
+        #endif
+        moveCommand->cmd.msec = BASE_FRAMERATE;
+    } else if ( moveCommand->cmd.msec > 75 ) { // Was: > 250
         // Time was unreasonable.
+        #if USE_DEBUG
+        clgi.Print( PRINT_DEVELOPER, "%s: moveCommand->cmd.msec(%i) was unreasonable(max is 75); using %i.\n", __func__, moveCommand->cmd.msec, BASE_FRAMERATE );
+        #endif
         moveCommand->cmd.msec = BASE_FRAMERATE; // Was: 100
     }
 
