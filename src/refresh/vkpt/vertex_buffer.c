@@ -210,12 +210,13 @@ static void build_model_blas(VkCommandBuffer cmd_buf, model_geometry_t* info, si
 		total_prims += info->prim_counts[index];
 	}
 
-	//if (total_prims == 0)
-	//{
-	//	qvkDestroyAccelerationStructureKHR(qvk.device, info->accel, NULL);
-	//	info->accel = VK_NULL_HANDLE;
-	//	return;
-	//}
+	// <Q2RTXP>: WID: We need this. It was commented out somehow.
+	if (total_prims == 0)
+	{
+		qvkDestroyAccelerationStructureKHR(qvk.device, info->accel, NULL);
+		info->accel = VK_NULL_HANDLE;
+		return;
+	}
 
 	VkAccelerationStructureBuildGeometryInfoKHR blasBuildinfo = {
 		.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,

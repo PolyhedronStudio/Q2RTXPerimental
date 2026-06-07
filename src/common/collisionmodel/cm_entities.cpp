@@ -128,8 +128,6 @@ static cm_entity_t *CM_ParseKeyValuePair( const char **entityString ) {
             break;
         }
 
-        // Mew pair.
-        cm_entity_t *pair = static_cast<cm_entity_t *>( Z_TagMallocz( sizeof( cm_entity_t ), TAG_CMODEL ) );
 
         // Key:
         const char *key = com_token;
@@ -147,6 +145,9 @@ static cm_entity_t *CM_ParseKeyValuePair( const char **entityString ) {
         if ( value[ 0 ] == '}' ) {
             Com_Error( ERR_DROP, "%s: closing brace without data", __func__ );
         }
+		// Mew pair.
+		cm_entity_t *pair = static_cast< cm_entity_t * >( Z_TagMallocz( sizeof( cm_entity_t ), TAG_CMODEL ) );
+
         // No parsing error occured, proceed and setup the key and string value representation.
         Q_strlcpy( pair->key, key, MAX_KEY );
         Q_strlcpy( pair->string, value, MAX_VALUE );
@@ -291,7 +292,7 @@ void CM_ParseEntityString( cm_t *cm ) {
 const int32_t CM_EntityNumber( const cm_t *cm, const cm_entity_t *entity ) {
     // This should technically never happen, but prevent crashing if it did.
     if ( !cm || !cm->cache ) {
-        return -1;
+        return ENTITYNUM_NONE;
     }
     // Iterate over number of entities until we find the one that matches to our entity pointer,
     // then return its index.
@@ -301,7 +302,7 @@ const int32_t CM_EntityNumber( const cm_t *cm, const cm_entity_t *entity ) {
         }
     }
 
-    return -1;
+    return ENTITYNUM_NONE;
 }
 
 /**

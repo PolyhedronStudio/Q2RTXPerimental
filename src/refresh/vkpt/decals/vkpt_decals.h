@@ -21,7 +21,7 @@ typedef enum vkpt_decal_render_mode_e {
 } vkpt_decal_render_mode_t;
 
 VkResult vkpt_decals_initialize( void );
-void vkpt_decals_shutdown( void );
+VkResult vkpt_decals_shutdown( void );
 void vkpt_decals_clear( void );
 void vkpt_decals_set_enabled( const qboolean enabled );
 void vkpt_decals_set_render_mode( const int32_t renderMode );

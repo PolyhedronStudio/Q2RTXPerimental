@@ -63,15 +63,15 @@ const int32_t svg_edict_pool_t::NumberForEdict( const svg_base_edict_t *edict ) 
 	//}
 	// Ensure edict is a valid ptr.
 	if ( !edict ) {
-		return -1;
+		return ENTITYNUM_NONE;
 	}
 	// Ensure edicts is a valid ptr.
 	if ( edicts == nullptr ) {
-		return -1;
+		return ENTITYNUM_NONE;
 	}
 	// Check if the edict is within range.
 	if ( edict->s.number < 0 || edict->s.number >= max_edicts ) {
-		return -1;
+		return ENTITYNUM_NONE;
 	}
 	//if ( edict < edicts || edict >= &edicts[ max_edicts ] ) {
 	//	return -1;
@@ -264,7 +264,7 @@ svg_base_edict_t **SVG_EdictPool_Release( svg_edict_pool_t *edictPool ) {
 
 
 		// Free any remainings.
-		gi.FreeTags( TAG_SVGAME_EDICTS );
+		//gi.FreeTags( TAG_SVGAME_EDICTS );
 		// Free up all SVGAME_LEVEL tag memory.
 		gi.FreeTags( TAG_SVGAME_LEVEL );
 

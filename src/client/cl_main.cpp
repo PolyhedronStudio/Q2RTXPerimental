@@ -556,16 +556,19 @@ void CL_ClearState(void) {
     OGG_Stop();
     SCR_StopCinematic();
 
+
+
     // Let the client game wipe state also.
     clge->ClearState();
     // Don't forget to clear the pose cache.
     SKM_PoseCache_ClearCache( cls.clientPoseCache );
+
 	// Clear renderer-retained state before the client structs are zeroed out.
 	// This prevents stale renderer caches from surviving reconnect/map-change teardown.
 	if ( R_ClearState ) {
 		R_ClearState();
 	}
-    // Unload the collision models.
+	// Unload the collision models.
     CM_FreeMap( &cl.collisionModel ); //BSP_Free(cl.bsp);
 
 	// Wipe local PVS.
@@ -573,6 +576,7 @@ void CL_ClearState(void) {
 	// Wipe the entire cl structure.
     std::memset(&cl, 0, sizeof(cl));
 	//std::fill_n( reinterpret_cast< std::byte * >( &cl ), sizeof( cl ), std::byte{ 0 } ); // level = {}; // Warning: Cc6262 function uses '65832' bytes of stack.
+
 
 	// If we are in a state higher than ca_connected, drop back to ca_connected.
 	// This can happen when we are in the middle of a map change, and the server 

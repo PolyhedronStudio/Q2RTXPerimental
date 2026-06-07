@@ -12,6 +12,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include "../../../client/cl_client.h"
 
 extern cvar_t *cvar_pt_draw_debug_3d_geometry;
 
@@ -382,6 +383,9 @@ static void vkpt_debug_draw_build_basis( const vec3_t direction, vec3_t right, v
 *	@return	True when `pt_draw_debug_3d_geometry != 0`.
 **/
 bool vkpt_debug_draw_enabled( void ) {
+	if ( cls.state < ca_active ) {
+		return false;
+	}
 	if ( cvar_pt_draw_debug_3d_geometry == NULL ) {
 		return false;
 	}

@@ -24,6 +24,7 @@ static uint32_t s_vkpt_decals_submitted = 0;
 *	@note	Used to confirm which GPU-backed decal resources are still live during map transitions.
 **/
 static void vkpt_decals_log_state( const char *reason ) {
+	#ifdef VKPT_DECALS_DEBUG_LOG_STATE
 	const char *tag = ( reason && reason[ 0 ] ) ? reason : "state";
 	Com_WPrintf(
 		"vkpt: decals %s init=%d enabled=%d mode=%d submitted=%u\n",
@@ -32,6 +33,9 @@ static void vkpt_decals_log_state( const char *reason ) {
 		s_vkpt_decals_enabled ? 1 : 0,
 		s_vkpt_decals_render_mode,
 		s_vkpt_decals_submitted );
+	#else
+	( void )reason;
+	#endif
 }
 
 /**
@@ -117,7 +121,7 @@ VkResult vkpt_decals_initialize( void ) {
 	return VK_SUCCESS;
 }
 
-void vkpt_decals_shutdown( void ) {
+VkResult vkpt_decals_shutdown( void ) {
 	vkpt_decals_log_state( "shutdown-before" );
 	vkpt_decals_screenspace_shutdown();
 	vkpt_decals_geometry_shutdown();
@@ -128,6 +132,8 @@ void vkpt_decals_shutdown( void ) {
 	s_vkpt_decals_submitted = 0;
 	cvar_pt_decals_enable = NULL;
 	vkpt_decals_log_state( "shutdown-after" );
+
+	return VK_SUCCESS;
 }
 
 void vkpt_decals_clear( void ) {

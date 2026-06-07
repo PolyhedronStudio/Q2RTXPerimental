@@ -31,7 +31,7 @@ void vkpt_decals_geometry_set_material_mapping( const uint32_t materialHash, con
 void vkpt_decals_geometry_dump_material_mappings( void );
 void vkpt_decals_geometry_submit_legacy( const decal_t *decal );
 void vkpt_decals_geometry_submit_mesh( const decal_mesh_vertex_t *vertices, int32_t vertexCount, const vec3_t albedo, float alpha, uint32_t materialHash, float lifeSeconds );
-void vkpt_decals_geometry_get_descriptor_buffer_info( VkDescriptorBufferInfo *outVertexBufferInfo );
+void vkpt_decals_geometry_get_descriptor_buffer_info( const int32_t frameIndex, VkDescriptorBufferInfo *outVertexBufferInfo );
 VkResult vkpt_decals_geometry_upload( const vkpt_decal_vertex_t *vertices, uint32_t vertexCount, const uint16_t *indices, uint32_t indexCount );
 VkResult vkpt_decals_geometry_build_blas( VkCommandBuffer cmd_buf, const int32_t frameIndex );
 void vkpt_decals_geometry_append_tlas_instance( const int32_t frameIndex );

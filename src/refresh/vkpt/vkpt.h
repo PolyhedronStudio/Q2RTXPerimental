@@ -683,6 +683,7 @@ VkResult vkpt_pt_trace_lighting(VkCommandBuffer cmd_buf, float num_bounce_rays);
 VkResult vkpt_pt_update_descripter_set_bindings(int idx);
 VkResult vkpt_pt_create_all_dynamic(VkCommandBuffer cmd_buf, int idx, const EntityUploadInfo* upload_info);
 VkResult vkpt_pt_create_decal_blas(VkCommandBuffer cmd_buf, int idx, BufferResource_t *vertex_buffer, uint64_t vertex_offset, uint32_t vertex_count, BufferResource_t *index_buffer, uint64_t index_offset, uint32_t index_count);
+void vkpt_pt_reuse_decal_blas(int idx);
 void vkpt_pt_append_decal_instance(int idx);
 
 VkResult vkpt_asvgf_initialize(void);

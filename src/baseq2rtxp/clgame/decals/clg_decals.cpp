@@ -12,6 +12,7 @@
 #include "clgame/decals/clg_decal_mesh.h"
 #include "clgame/clg_world.h"
 #include <cstdint>
+#include <cmath>
 
 //! Enables client decal processing.
 static cvar_t *clg_decals_enable = nullptr;
@@ -447,6 +448,61 @@ static const bool CLG_Decals_SubmitImpactPlaneMesh( const clg_decal_clip_context
     }
 
     clgi.R_AddDecalMesh( vertices, (int32_t)std::size( vertices ), albedo, alpha, materialHash, lifeSeconds );
+    return true;
+}
+
+/**
+*	@brief	Returns true when one clipped decal mesh is safe to hand to the renderer.
+*	@param	mesh Mesh to validate.
+**/
+static bool CLG_Decals_IsValidRendererMesh( const clg_decal_mesh_t &mesh ) {
+    if ( mesh.vertexCount < 3 || ( mesh.vertexCount % 3 ) != 0 ) {
+        return false;
+    }
+
+    if ( mesh.triangleCount <= 0 ) {
+        return false;
+    }
+
+    for ( int32_t i = 0; i < mesh.vertexCount; i++ ) {
+        const clg_decal_mesh_vertex_t &vertex = mesh.vertices[ i ];
+
+        for ( int32_t axis = 0; axis < 3; axis++ ) {
+            if ( !std::isfinite( vertex.position[ axis ] ) || !std::isfinite( vertex.normal[ axis ] ) ) {
+                return false;
+            }
+        }
+
+        for ( int32_t axis = 0; axis < 2; axis++ ) {
+            if ( !std::isfinite( vertex.uv[ axis ] ) ) {
+                return false;
+            }
+        }
+
+        const float normalLenSq = DotProduct( vertex.normal, vertex.normal );
+        if ( normalLenSq <= 0.0001f ) {
+            return false;
+        }
+    }
+
+    for ( int32_t i = 0; i + 2 < mesh.vertexCount; i += 3 ) {
+        vec3_t edge1 = {};
+        vec3_t edge2 = {};
+        vec3_t triNormal = {};
+
+        VectorSubtract( mesh.vertices[ i + 1 ].position, mesh.vertices[ i + 0 ].position, edge1 );
+        VectorSubtract( mesh.vertices[ i + 2 ].position, mesh.vertices[ i + 0 ].position, edge2 );
+        CrossProduct( edge1, edge2, triNormal );
+
+        if ( !std::isfinite( triNormal[ 0 ] ) || !std::isfinite( triNormal[ 1 ] ) || !std::isfinite( triNormal[ 2 ] ) ) {
+            return false;
+        }
+
+        if ( VectorLengthSquared( triNormal ) <= ( 0.001f * 0.001f ) ) {
+            return false;
+        }
+    }
+
     return true;
 }
 
@@ -1001,6 +1057,20 @@ static const bool CLG_Decals_SubmitClippedMesh( clg_decal_instance_t *instance, 
     *	does not rely on aliasing distinct struct types.
     **/
     CLG_Decals_CopyMeshToRendererVertices( mesh, submittedVertices, (int32_t)std::size( submittedVertices ) );
+
+    /**
+    *	Reject any mesh that still carries malformed values after clipping and cache
+    *	reconstruction. This keeps the renderer from ever seeing poison geometry.
+    **/
+    if ( !CLG_Decals_IsValidRendererMesh( mesh ) ) {
+        s_clgDecalLastCandidateCount = candidateCount;
+        s_clgDecalLastTriangleCount = 0;
+        if ( CLG_Decals_IsDebugLevel( 2 ) ) {
+            clgi.Print( PRINT_DEVELOPER, "[CLG Decals][MeshDbg] clipped-submit:rejected-invalid-mesh candidates:%d vertices:%d triangles:%d\n",
+                candidateCount, mesh.vertexCount, mesh.triangleCount );
+        }
+        return false;
+    }
 
     s_clgDecalLastCandidateCount = candidateCount;
     s_clgDecalLastTriangleCount = mesh.triangleCount;

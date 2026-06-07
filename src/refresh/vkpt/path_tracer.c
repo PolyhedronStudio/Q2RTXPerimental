@@ -338,7 +338,15 @@ vkpt_pt_update_descripter_set_bindings(int idx)
 	VkBufferView sprite_info_buffer_view = get_transparency_sprite_info_buffer_view();
 	VkBufferView beam_intersect_buffer_view = get_transparency_beam_intersect_buffer_view();
 	VkDescriptorBufferInfo decal_vertex_buffer_info = { 0 };
-	vkpt_decals_geometry_get_descriptor_buffer_info( &decal_vertex_buffer_info );
+	vkpt_decals_geometry_get_descriptor_buffer_info( idx, &decal_vertex_buffer_info );
+
+	// <Q2RTXP>: Prevent driver crash when decals are not initialized or cleared
+	if (decal_vertex_buffer_info.buffer == VK_NULL_HANDLE)
+	{
+		decal_vertex_buffer_info.buffer = qvk.buf_positions_instanced.buffer;
+		decal_vertex_buffer_info.offset = 0;
+		decal_vertex_buffer_info.range = VK_WHOLE_SIZE;
+	}
 
 	VkWriteDescriptorSet writes[] = {
 		{
@@ -440,17 +448,19 @@ vkpt_pt_create_decal_blas(
 {
 	if (!vertex_buffer)
 	{
+		#ifdef DEBUG_DECAL_BLAS_DESTROY_PATH
 		Com_WPrintf("vkpt: decal BLAS[%d] destroy path vertex_buffer=NULL present=%d accel=%p mem=%p size=%zu\n",
 			idx,
 			blas_decals[idx].present ? 1 : 0,
 			(void *)blas_decals[idx].accel,
 			(void *)blas_decals[idx].mem.buffer,
 			(size_t)blas_decals[idx].mem.size);
+		#endif
 		destroy_accel_struct(&blas_decals[idx]);
 		blas_decals[idx].present = false;
 		return VK_SUCCESS;
 	}
-
+	#ifdef DEBUG_DECAL_BLAS_BUILD_VERTEXBUFFER_PATH
 	Com_WPrintf("vkpt: decal BLAS[%d] build vertex_buffer=%p offset=%llu vcount=%u present=%d accel=%p mem=%p size=%zu\n",
 		idx,
 		(void *)vertex_buffer->buffer,
@@ -460,7 +470,7 @@ vkpt_pt_create_decal_blas(
 		(void *)blas_decals[idx].accel,
 		(void *)blas_decals[idx].mem.buffer,
 		(size_t)blas_decals[idx].mem.size);
-
+	#endif
 	vkpt_pt_create_accel_bottom(cmd_buf,
 		vertex_buffer,
 		vertex_offset,
@@ -474,6 +484,11 @@ vkpt_pt_create_decal_blas(
 		true);
 
 	return VK_SUCCESS;
+}
+
+void vkpt_pt_reuse_decal_blas(int idx)
+{
+	blas_decals[idx].present = true;
 }
 
 void vkpt_pt_append_decal_instance(int idx)
@@ -604,9 +619,11 @@ vkpt_pt_create_accel_bottom(
 			num_indices_to_allocate *= DYNAMIC_GEOMETRY_BLOAT_FACTOR;
 
 			max_primitive_count = max(num_vertices_to_allocate, num_indices_to_allocate) / 3;
+			geometry.geometry.triangles.maxVertex = max(num_vertices_to_allocate, 1) - 1;
 			memset(&sizeInfo, 0, sizeof(sizeInfo));
 			sizeInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
 			qvkGetAccelerationStructureBuildSizesKHR(qvk.device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &buildInfo, &max_primitive_count, &sizeInfo);
+			geometry.geometry.triangles.maxVertex = max(num_vertices, 1) - 1;
 		}
 
 		// Create acceleration structure
@@ -850,6 +867,9 @@ append_blas(QvkGeometryInstance_t *instances, uint32_t *num_instances, accel_str
 	if (!blas->present)
 		return;
 
+	if (!blas->accel)
+		return;
+
 	QvkGeometryInstance_t instance = {
 		.transform = {
 			1.0f, 0.0f, 0.0f, 0.0f,
@@ -922,6 +942,7 @@ void vkpt_pt_instance_model_blas(const model_geometry_t* geom, const mat4 transf
 static void
 build_tlas(VkCommandBuffer cmd_buf, accel_struct_t* as, VkDeviceAddress instance_data, uint32_t num_instances)
 {
+	// <Q2RTXP>: WID: Prevent decal blas issues.
 	//if (num_instances == 0)
 	//{
 	//	destroy_accel_struct(as);
@@ -1069,23 +1090,8 @@ vkpt_pt_create_toplevel(VkCommandBuffer cmd_buf, int idx, const EntityUploadInfo
 	instance_data = NULL;
 
 	scratch_buf_ptr = 0;
-	if (num_instances_geometry > 0)
-	{
-		build_tlas(cmd_buf, &tlas_geometry[idx], buf_instances[idx].address, num_instances_geometry);
-	}
-	else
-	{
-		destroy_accel_struct(&tlas_geometry[idx]);
-	}
-
-	if (num_instances_effects > 0)
-	{
-		build_tlas(cmd_buf, &tlas_effects[idx], buf_instances[idx].address + num_instances_geometry * sizeof(QvkGeometryInstance_t), num_instances_effects);
-	}
-	else
-	{
-		destroy_accel_struct(&tlas_effects[idx]);
-	}
+	build_tlas(cmd_buf, &tlas_geometry[idx], buf_instances[idx].address, num_instances_geometry);
+	build_tlas(cmd_buf, &tlas_effects[idx], buf_instances[idx].address + num_instances_geometry * sizeof(QvkGeometryInstance_t), num_instances_effects);
 
 	MEM_BARRIER_BUILD_ACCEL(cmd_buf); /* probably not needed here but doesn't matter */
 

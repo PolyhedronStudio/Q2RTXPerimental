@@ -1069,8 +1069,8 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_base_edict_t, onSpawn )( svg_base_edict_t *sel
 	SVG_Util_SetEntityAngles( self, self->currentAngles, true );
 	
 	// Make sure that absMin/absMax are set accordingly.
-	self->absMin = self->currentOrigin; // VectorCopy( self->s.origin, self->absMin );
-	self->absMax = self->currentOrigin; // VectorCopy( self->s.origin, self->absMax );
+	self->absMin = self->currentOrigin + ( self->mins ); // VectorCopy( self->s.origin, self->absMin );
+	self->absMax = self->currentOrigin + ( self->maxs ); // VectorCopy( self->s.origin, self->absMax );
 }
 /**
 *   @brief  PostSpawn Stub.

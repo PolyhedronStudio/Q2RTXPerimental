@@ -7,9 +7,30 @@
 ********************************************************************/
 #include "clgame/clg_local.h"
 #include "clgame/decals/clg_decal_mesh.h"
+#include <cmath>
 
 //! Small normal-space push used to keep clipped decal triangles from z-fighting the receiver.
 static constexpr float CLG_DECAL_MESH_NORMAL_BIAS = 0.10f;
+
+/**
+*	@brief	Returns true when one mesh vertex contains finite coordinates only.
+*	@param	vertex Vertex to validate.
+**/
+static bool CLG_DecalMesh_IsFiniteVertex( const clg_decal_mesh_vertex_t &vertex ) {
+    for ( int32_t i = 0; i < 3; i++ ) {
+        if ( !std::isfinite( vertex.position[ i ] ) || !std::isfinite( vertex.normal[ i ] ) ) {
+            return false;
+        }
+    }
+
+    for ( int32_t i = 0; i < 2; i++ ) {
+        if ( !std::isfinite( vertex.uv[ i ] ) ) {
+            return false;
+        }
+    }
+
+    return true;
+}
 
 void CLG_DecalMesh_Clear( clg_decal_mesh_t *mesh ) {
     if ( !mesh ) {
@@ -25,6 +46,23 @@ const bool CLG_DecalMesh_AppendPolygon( clg_decal_mesh_t *mesh, const clg_decal_
     }
 
     if ( polygon.vertexCount < 3 ) {
+        return false;
+    }
+
+    /**
+    *	Sanity-check the polygon before fan triangulation so malformed clip results never
+    *	leave the client game as renderer input.
+    **/
+    for ( int32_t i = 0; i < polygon.vertexCount; i++ ) {
+        if ( !std::isfinite( polygon.positions[ i ][ 0 ] ) || !std::isfinite( polygon.positions[ i ][ 1 ] ) || !std::isfinite( polygon.positions[ i ][ 2 ] ) ) {
+            return false;
+        }
+        if ( !std::isfinite( polygon.uv[ i ][ 0 ] ) || !std::isfinite( polygon.uv[ i ][ 1 ] ) ) {
+            return false;
+        }
+    }
+
+    if ( !std::isfinite( normal[ 0 ] ) || !std::isfinite( normal[ 1 ] ) || !std::isfinite( normal[ 2 ] ) ) {
         return false;
     }
 
@@ -70,6 +108,10 @@ const bool CLG_DecalMesh_AppendPolygon( clg_decal_mesh_t *mesh, const clg_decal_
         VectorCopy( normal, v2->normal );
         v2->uv[ 0 ] = polygon.uv[ i + 1 ][ 0 ];
         v2->uv[ 1 ] = polygon.uv[ i + 1 ][ 1 ];
+
+        if ( !CLG_DecalMesh_IsFiniteVertex( *v0 ) || !CLG_DecalMesh_IsFiniteVertex( *v1 ) || !CLG_DecalMesh_IsFiniteVertex( *v2 ) ) {
+            return false;
+        }
 
         // Keep winding consistent with surface normal so adjacent clipped surfaces do not flip triangles.
         if ( DotProduct( triNormal, normal ) < 0.0f ) {

@@ -273,15 +273,17 @@ void CLG_UI_AllocateContext() {
 	if ( s_gameui_ctx.atlas.textureCopy == nullptr ) {
 		s_gameui_ctx.atlas.textureCopy = ( byte * )clgi.Z_Malloc( CLG_UI_ATLAS_BYTE_COUNT );
 		// Copy the embedded atlas texture data to the renderer-owned buffer, so it can be safely passed to the renderer for uploading without risking use-after-free bugs if the renderer frees the buffer after upload.
-		memcpy( s_gameui_ctx.atlas.textureCopy, clg_ui_atlas_texture, CLG_UI_ATLAS_BYTE_COUNT );
+		std::memcpy( s_gameui_ctx.atlas.textureCopy, clg_ui_atlas_texture, CLG_UI_ATLAS_BYTE_COUNT );
 	}
 
 	// Check if the atlas texture has already been registered with the renderer, if not, register it now. This allows us to avoid re-registering the texture and uploading it multiple times if the client game reloads or if the renderer is re-initialized, since we keep a copy of the atlas data in memory and can re-upload it as needed.
 	if ( s_gameui_ctx.atlas.imageHandle == 0 ) {
 		// Upload the render owned atlas copy.
-		s_gameui_ctx.atlas.imageHandle = clgi.R_RegisterRawImage( "clg_ui_atlas", CLG_UI_ATLAS_WIDTH, CLG_UI_ATLAS_HEIGHT, s_gameui_ctx.atlas.textureCopy, IT_PIC, /*IF_PERMANENT |*/ IF_SCRAP | IF_SRGB );
+		// <Q2RTXP>: WID: TODO: Unsure if we oughta go for IF_PERMANENT.
+		s_gameui_ctx.atlas.imageHandle = clgi.R_RegisterRawImage( "clg_ui_atlas", CLG_UI_ATLAS_WIDTH, CLG_UI_ATLAS_HEIGHT, s_gameui_ctx.atlas.textureCopy, IT_PIC, IF_PERMANENT | IF_SCRAP | IF_SRGB );
 		// IMG_Load_RTX stores the pointer as image-owned pixel data, so transfer ownership here.
 		s_gameui_ctx.atlas.textureCopy = nullptr;
+		//clgi.Z_Free( s_gameui_ctx.atlas.textureCopy );
 	}
 	// Initialize the UI context defaults before binding callbacks because mu_init clears the function pointers.
 	mu_init( s_gameui_ctx.mu_ctx );

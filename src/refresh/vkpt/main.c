@@ -161,6 +161,7 @@ VkptInit_t vkpt_initialization[] = {
 	{ "vbo",      vkpt_vertex_buffer_create,           vkpt_vertex_buffer_destroy,           VKPT_INIT_DEFAULT,            0 },
 	{ "ubo",      vkpt_uniform_buffer_create,          vkpt_uniform_buffer_destroy,          VKPT_INIT_DEFAULT,            0 },
 	{ "textures", vkpt_textures_initialize,            vkpt_textures_destroy,                VKPT_INIT_DEFAULT,            0 },
+	{ "decals",   vkpt_decals_initialize,              vkpt_decals_shutdown,				 VKPT_INIT_DEFAULT,            0  },
 	{ "shadowmap", 	vkpt_shadow_map_initialize,        vkpt_shadow_map_destroy,              VKPT_INIT_DEFAULT,            0 },
 	{ "shadowmap|", vkpt_shadow_map_create_pipelines,  vkpt_shadow_map_destroy_pipelines,    VKPT_INIT_RELOAD_SHADER ,     0 },
 	{ "images",   vkpt_create_images,                  vkpt_destroy_images,                  VKPT_INIT_SWAPCHAIN_RECREATE, 0 },
@@ -173,6 +174,7 @@ VkptInit_t vkpt_initialization[] = {
 	{ "debug3d|", vkpt_debug_draw_create_pipelines,    vkpt_debug_draw_destroy_pipelines,    VKPT_INIT_SWAPCHAIN_RECREATE
 																					   | VKPT_INIT_RELOAD_SHADER,      0 },
 	{ "vbo|",     vkpt_vertex_buffer_create_pipelines, vkpt_vertex_buffer_destroy_pipelines, VKPT_INIT_RELOAD_SHADER,      0 },
+	
 	{ "asvgf",    vkpt_asvgf_initialize,               vkpt_asvgf_destroy,                   VKPT_INIT_DEFAULT,            0 },
 	{ "asvgf|",   vkpt_asvgf_create_pipelines,         vkpt_asvgf_destroy_pipelines,         VKPT_INIT_RELOAD_SHADER,      0 },
 	{ "bloom",    vkpt_bloom_initialize,               vkpt_bloom_destroy,                   VKPT_INIT_DEFAULT,            0 },
@@ -613,7 +615,7 @@ create_swapchain(void)
 
 	uint32_t num_formats = 0;
 	vkGetPhysicalDeviceSurfaceFormatsKHR(qvk.physical_device, qvk.surface, &num_formats, NULL);
-	VkSurfaceFormatKHR *avail_surface_formats = alloca(sizeof(VkSurfaceFormatKHR) * num_formats);
+	VkSurfaceFormatKHR *avail_surface_formats = malloc(sizeof(VkSurfaceFormatKHR) * num_formats);
 	vkGetPhysicalDeviceSurfaceFormatsKHR(qvk.physical_device, qvk.surface, &num_formats, avail_surface_formats);
 	/* Com_Printf("num surface formats: %d\n", num_formats);
 
@@ -638,6 +640,8 @@ create_swapchain(void)
 		// HDR disabled, or fallback to SDR
 		surface_format_found = pick_surface_format_sdr(&picked_format, avail_surface_formats, num_formats);
 	}
+	free(avail_surface_formats);
+	
 	if(!surface_format_found) {
 		Com_EPrintf("no acceptable surface format available!\n");
 		return 1;
@@ -646,7 +650,7 @@ create_swapchain(void)
 
 	uint32_t num_present_modes = 0;
 	vkGetPhysicalDeviceSurfacePresentModesKHR(qvk.physical_device, qvk.surface, &num_present_modes, NULL);
-	VkPresentModeKHR *avail_present_modes = alloca(sizeof(VkPresentModeKHR) * num_present_modes);
+	VkPresentModeKHR *avail_present_modes = malloc(sizeof(VkPresentModeKHR) * num_present_modes);
 	vkGetPhysicalDeviceSurfacePresentModesKHR(qvk.physical_device, qvk.surface, &num_present_modes, avail_present_modes);
 	bool immediate_mode_available = false;
 
@@ -656,6 +660,7 @@ create_swapchain(void)
 			break;
 		}
 	}
+	free(avail_present_modes);
 
 	qvk.surf_vsync = (cvar_vsync->integer != 0);
 
@@ -870,7 +875,7 @@ init_vulkan(void)
 	}
 
 	int num_inst_ext_combined = qvk.num_sdl2_extensions + LENGTH(vk_requested_instance_extensions);
-	char **ext = alloca(sizeof(char *) * num_inst_ext_combined);
+	char **ext = malloc(sizeof(char *) * num_inst_ext_combined);
 	memcpy(ext, qvk.sdl2_extensions, qvk.num_sdl2_extensions * sizeof(*qvk.sdl2_extensions));
 	memcpy(ext + qvk.num_sdl2_extensions, vk_requested_instance_extensions, sizeof(vk_requested_instance_extensions));
 
@@ -923,9 +928,11 @@ init_vulkan(void)
 
 	if (result != VK_SUCCESS)
 	{
+		free(ext);
 		Com_Error(ERR_FATAL, "Failed to initialize a Vulkan instance.\nError code: %s", qvk_result_to_string(result));
 		return false;
 	}
+	free(ext);
 
 #define VK_EXTENSION_DO(a) \
 		q##a = (PFN_##a) vkGetInstanceProcAddr(qvk.instance, #a); \
@@ -959,7 +966,7 @@ init_vulkan(void)
 	_VK(vkEnumeratePhysicalDevices(qvk.instance, &num_devices, NULL));
 	if(num_devices == 0)
 		return false;
-	VkPhysicalDevice *devices = alloca(sizeof(VkPhysicalDevice) *num_devices);
+	VkPhysicalDevice *devices = malloc(sizeof(VkPhysicalDevice) *num_devices);
 	_VK(vkEnumeratePhysicalDevices(qvk.instance, &num_devices, devices));
 
 #ifdef VKPT_DEVICE_GROUPS
@@ -1015,26 +1022,18 @@ init_vulkan(void)
 
 	for(int i = 0; i < num_devices; i++) 
 	{
-		VkPhysicalDeviceDriverProperties driver_properties = {
-			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES,
-			.pNext = NULL
-		};
-
-		VkPhysicalDeviceProperties2 dev_properties2 = {
-			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
-			.pNext = &driver_properties
-		};
-		vkGetPhysicalDeviceProperties2(devices[i], &dev_properties2);
+		VkPhysicalDeviceProperties dev_properties;
+		vkGetPhysicalDeviceProperties(devices[i], &dev_properties);
 
 		VkPhysicalDeviceFeatures dev_features;
 		vkGetPhysicalDeviceFeatures(devices[i], &dev_features);
 
-		Com_Printf("Physical device %d: %s\n", i, dev_properties2.properties.deviceName);
+		Com_Printf("Physical device %d: %s\n", i, dev_properties.deviceName);
 
 		uint32_t num_ext;
 		vkEnumerateDeviceExtensionProperties(devices[i], NULL, &num_ext, NULL);
 
-		VkExtensionProperties *ext_properties = alloca(sizeof(VkExtensionProperties) * num_ext);
+		VkExtensionProperties *ext_properties = malloc(sizeof(VkExtensionProperties) * num_ext);
 		vkEnumerateDeviceExtensionProperties(devices[i], NULL, &num_ext, ext_properties);
 
 		Com_Printf("Supported Vulkan device extensions:\n");
@@ -1055,10 +1054,11 @@ init_vulkan(void)
 				if (picked_device_with_ray_query < 0)
 				{
 					picked_device_with_ray_query = i;
-					picked_driver_ray_query = driver_properties.driverID;
+					picked_driver_ray_query = dev_properties.vendorID;
 				}
 			}
 		}
+		free(ext_properties);
 	}
 
 	int picked_device = -1;
@@ -1078,10 +1078,10 @@ init_vulkan(void)
 	{
 		if (Q_strcasecmp(cvar_ray_tracing_api->string, "auto"))
 		{
-			Com_WPrintf("Requested Ray Tracing API (%s) is not available, switching to automatic selection.\n", cvar_ray_tracing_api->string);
+			Com_Printf("Ray tracing API %s is not supported by the picked GPU, falling back to auto...\n", cvar_ray_tracing_api->string);
 		}
 
-		if (picked_driver_ray_query == VK_DRIVER_ID_NVIDIA_PROPRIETARY)
+		if (picked_driver_ray_query == 0x10de)
 		{
 			// Pick KHR_ray_query on NVIDIA drivers, if available.
 			qvk.use_ray_query = true;
@@ -1097,35 +1097,28 @@ init_vulkan(void)
 
 	if (picked_device < 0)
 	{
+		free(devices);
 		Com_Error(ERR_FATAL, "No ray tracing capable GPU found.");
 	}
 
 	qvk.physical_device = devices[picked_device];
+	free(devices);
 
 	{
-		VkPhysicalDeviceDriverProperties driver_properties = {
-			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES,
-			.pNext = NULL
-		};
-
-		VkPhysicalDeviceProperties2 dev_properties2 = {
-			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
-			.pNext = &driver_properties
-		};
-
-		vkGetPhysicalDeviceProperties2(devices[picked_device], &dev_properties2);
+		VkPhysicalDeviceProperties dev_properties;
+		vkGetPhysicalDeviceProperties(qvk.physical_device, &dev_properties);
 
 		// Store the timestamp period to get correct profiler results
-		qvk.timestampPeriod = dev_properties2.properties.limits.timestampPeriod;
+		qvk.timestampPeriod = dev_properties.limits.timestampPeriod;
 
-		Com_Printf("Picked physical device %d: %s\n", picked_device, dev_properties2.properties.deviceName);
+		Com_Printf("Picked physical device %d: %s\n", picked_device, dev_properties.deviceName);
 		Com_Printf("Using %s\n", (qvk.use_ray_query ? VK_KHR_RAY_QUERY_EXTENSION_NAME : VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME));
 
 #ifdef _WIN32
-		if (dev_properties2.properties.vendorID == 0x10de) // NVIDIA vendor ID
+		if (dev_properties.vendorID == 0x10de) // NVIDIA vendor ID
 		{
-			uint32_t driver_major = (dev_properties2.properties.driverVersion >> 22) & 0x3ff;
-			uint32_t driver_minor = (dev_properties2.properties.driverVersion >> 14) & 0xff;
+			uint32_t driver_major = (dev_properties.driverVersion >> 22) & 0x3ff;
+			uint32_t driver_minor = (dev_properties.driverVersion >> 14) & 0xff;
 
 			Com_Printf("NVIDIA GPU detected. Driver version: %u.%02u\n", driver_major, driver_minor);
 			
@@ -1139,29 +1132,6 @@ init_vulkan(void)
 					Com_Error(ERR_FATAL, "This game requires NVIDIA Graphics Driver version to be at least %u.%02u, "
 						"while the installed version is %u.%02u.\nPlease update the NVIDIA Graphics Driver.",
 						required_major, required_minor, driver_major, driver_minor);
-				}
-			}
-		}
-		else if (driver_properties.driverID == VK_DRIVER_ID_AMD_PROPRIETARY)
-		{
-			Com_Printf("AMD GPU detected. Driver version: %s\n", driver_properties.driverInfo);
-
-			uint32_t present_major = 0;
-			uint32_t present_minor = 0;
-			uint32_t present_patch = 0;
-			int nfields_present = sscanf(driver_properties.driverInfo, "%u.%u.%u", &present_major, &present_minor, &present_patch);
-
-			uint32_t required_major = 0;
-			uint32_t required_minor = 0;
-			uint32_t required_patch = 0;
-			int nfields_required = sscanf(cvar_min_driver_version_amd->string, "%u.%u.%u", &required_major, &required_minor, &required_patch);
-
-			if (nfields_present == 3 && nfields_required == 3)
-			{
-				if (present_major < required_major || present_major == required_major && present_minor < required_minor || present_major == required_major && present_minor == required_minor && present_patch < required_patch)
-				{
-					Com_Error(ERR_FATAL, "This game requires AMD Radeon Software version to be at least %s, while the installed version is %s.\nPlease update the AMD Radeon Software.",
-						cvar_min_driver_version_amd->string, driver_properties.driverInfo);
 				}
 			}
 		}
@@ -1191,7 +1161,7 @@ init_vulkan(void)
 	/* queue family and create physical device */
 	uint32_t num_queue_families = 0;
 	vkGetPhysicalDeviceQueueFamilyProperties(qvk.physical_device, &num_queue_families, NULL);
-	VkQueueFamilyProperties *queue_families = alloca(sizeof(VkQueueFamilyProperties) * num_queue_families);
+	VkQueueFamilyProperties *queue_families = malloc(sizeof(VkQueueFamilyProperties) * num_queue_families);
 	vkGetPhysicalDeviceQueueFamilyProperties(qvk.physical_device, &num_queue_families, queue_families);
 
 	// Com_Printf("num queue families: %d\n", num_queue_families);
@@ -1218,6 +1188,7 @@ init_vulkan(void)
 			qvk.queue_idx_transfer = i;
 		}
 	}
+	free(queue_families);
 
 	if(qvk.queue_idx_graphics < 0 || qvk.queue_idx_transfer < 0) {
 		Com_Error(ERR_FATAL, "Could not find a suitable Vulkan queue family!\n");
@@ -1355,7 +1326,7 @@ init_vulkan(void)
 	max_extension_count += max(LENGTH(vk_requested_device_extensions_ray_pipeline), LENGTH(vk_requested_device_extensions_ray_query));
 	max_extension_count += LENGTH(vk_requested_device_extensions_debug);
 
-	const char** device_extensions = alloca(sizeof(char*) * max_extension_count);
+	const char** device_extensions = malloc(sizeof(char*) * max_extension_count);
 	uint32_t device_extension_count = 0;
 
 	append_string_list(device_extensions, &device_extension_count, max_extension_count, 
@@ -1387,6 +1358,7 @@ init_vulkan(void)
 
 	/* create device and queue */
 	result = vkCreateDevice(qvk.physical_device, &dev_create_info, NULL, &qvk.device);
+	free(device_extensions);
 	if (result != VK_SUCCESS)
 	{
 		Com_Error(ERR_FATAL, "Failed to create a Vulkan device.\nError code: %s", qvk_result_to_string(result));
@@ -3240,12 +3212,15 @@ prepare_ubo(refdef_t *fd, mleaf_t* viewleaf, const reference_mode_t* ref_mode, c
 }
 
 
+
 /* renders the map ingame */
 void
 R_RenderFrame_RTX(refdef_t *fd)
 {
 	if (!qvk.swap_chain)
+	{
 		return;
+	}
 
 	vkpt_refdef.fd = fd;
 	bool render_world = (fd->rdflags & RDF_NOWORLDMODEL) == 0;
@@ -3383,7 +3358,7 @@ R_RenderFrame_RTX(refdef_t *fd)
 	VkPipelineStageFlags wait_stages[VKPT_MAX_GPUS];
 	uint32_t device_indices[VKPT_MAX_GPUS];
 	uint32_t all_device_mask = (1 << qvk.device_count) - 1;
-	bool* prev_trace_signaled = &qvk.semaphores[(qvk.current_frame_index - 1) % MAX_FRAMES_IN_FLIGHT][0].trace_signaled;
+	bool* prev_trace_signaled = &qvk.semaphores[(qvk.current_frame_index + MAX_FRAMES_IN_FLIGHT - 1) % MAX_FRAMES_IN_FLIGHT][0].trace_signaled;
 	bool* curr_trace_signaled = &qvk.semaphores[qvk.current_frame_index][0].trace_signaled;
 
 	{
@@ -3400,7 +3375,7 @@ R_RenderFrame_RTX(refdef_t *fd)
 			device_indices[gpu] = gpu;
 			transfer_semaphores[gpu] = qvk.semaphores[qvk.current_frame_index][gpu].transfer_finished;
 			trace_semaphores[gpu] = qvk.semaphores[qvk.current_frame_index][gpu].trace_finished;
-			prev_trace_semaphores[gpu] = qvk.semaphores[(qvk.current_frame_index - 1) % MAX_FRAMES_IN_FLIGHT][gpu].trace_finished;
+			prev_trace_semaphores[gpu] = qvk.semaphores[(qvk.current_frame_index + MAX_FRAMES_IN_FLIGHT - 1) % MAX_FRAMES_IN_FLIGHT][gpu].trace_finished;
 			wait_stages[gpu] = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 		}
 
@@ -3527,7 +3502,7 @@ R_RenderFrame_RTX(refdef_t *fd)
 			trace_cmd_buf,
 			qvk.queue_graphics,
 			all_device_mask,
-			0, 0, 0, 0,
+			0, NULL, NULL, NULL,
 			qvk.device_count, trace_semaphores, device_indices,
 			VK_NULL_HANDLE);
 
@@ -3898,9 +3873,28 @@ R_EndFrame_RTX(void)
 
 	vkpt_draw_submit_stretch_pics(cmd_buf);
 
-	VkSemaphore wait_semaphores[] = { qvk.semaphores[qvk.current_frame_index][0].image_available };
-	VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-	uint32_t wait_device_indices[] = { 0 };
+	VkSemaphore wait_semaphores[1 + VKPT_MAX_GPUS];
+	VkPipelineStageFlags wait_stages[1 + VKPT_MAX_GPUS];
+	uint32_t wait_device_indices[1 + VKPT_MAX_GPUS];
+	uint32_t wait_count = 0;
+
+	wait_semaphores[wait_count] = qvk.semaphores[qvk.current_frame_index][0].image_available;
+	wait_stages[wait_count] = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	wait_device_indices[wait_count] = 0;
+	wait_count++;
+
+	bool* prev_trace_signaled = &qvk.semaphores[(qvk.current_frame_index + MAX_FRAMES_IN_FLIGHT - 1) % MAX_FRAMES_IN_FLIGHT][0].trace_signaled;
+	if (*prev_trace_signaled)
+	{
+		for (int gpu = 0; gpu < qvk.device_count; gpu++)
+		{
+			wait_semaphores[wait_count] = qvk.semaphores[(qvk.current_frame_index + MAX_FRAMES_IN_FLIGHT - 1) % MAX_FRAMES_IN_FLIGHT][gpu].trace_finished;
+			wait_stages[wait_count] = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+			wait_device_indices[wait_count] = gpu;
+			wait_count++;
+		}
+		*prev_trace_signaled = false;
+	}
 
 	VkSemaphore signal_semaphores[VKPT_MAX_GPUS];
 	uint32_t signal_device_indices[VKPT_MAX_GPUS];
@@ -3914,7 +3908,7 @@ R_EndFrame_RTX(void)
 		cmd_buf,
 		qvk.queue_graphics,
 		(1 << qvk.device_count) - 1,
-		LENGTH(wait_semaphores), wait_semaphores, wait_stages, wait_device_indices,
+		wait_count, wait_semaphores, wait_stages, wait_device_indices,
 		qvk.device_count, signal_semaphores, signal_device_indices,
 		qvk.fences_frame_sync[qvk.current_frame_index]);
 
@@ -4250,6 +4244,7 @@ R_Shutdown_RTX(bool total)
 
 	if (vkpt_refdef.bsp_mesh_world_loaded)
 	{
+		vkpt_refdef.bsp_mesh_world_loaded = 0;
 		vkpt_vertex_buffer_cleanup_bsp_mesh(&vkpt_refdef.bsp_mesh_world);
 		bsp_mesh_destroy(&vkpt_refdef.bsp_mesh_world);
 	}
@@ -4591,13 +4586,25 @@ void R_AddDecalMesh_RTX(const decal_mesh_vertex_t *vertices, int32_t vertexCount
 
 void R_ClearDecals_RTX(void)
 {
-	vkDeviceWaitIdle( qvk.device );
 	vkpt_decals_clear();
 }
 
 void R_ClearState_RTX(void)
 {
 	vkDeviceWaitIdle(qvk.device);
+
+	// Explicitly reset the command pools to clear all validation layer and driver state
+	// tracking for objects recorded in these command buffers. This prevents use-after-free
+	// crashes in the validation layer (e.g., ImageLayoutRegistry) and Nvidia driver when
+	// the engine destroys old map resources (textures, geometry) before the command buffer
+	// is reset in the next frame.
+	if (qvk.cmd_buffers_graphics.command_pool) {
+		vkResetCommandPool(qvk.device, qvk.cmd_buffers_graphics.command_pool, VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT);
+	}
+	if (qvk.cmd_buffers_transfer.command_pool) {
+		vkResetCommandPool(qvk.device, qvk.cmd_buffers_transfer.command_pool, VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT);
+	}
+
 	vkpt_reset_entity_history();
 	vkpt_decals_clear();
 }

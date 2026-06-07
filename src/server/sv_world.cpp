@@ -351,43 +351,37 @@ void PF_UnlinkEdict(edict_ptr_t *ent)
 		return;
 	}
 
-    // Already unlinked or reset.
+	list_t *prev = ent->area.prev;
+	list_t *next = ent->area.next;
+
+	// Already unlinked, or reset entity that was never linked.
     if ( !ent->isLinked ) {
-        ent->area.prev = ent->area.next = nullptr;
 		return;
 	}
-
-    list_t *prev = ent->area.prev;
-    list_t *next = ent->area.next;
 
     // Partial or obviously corrupted link state.
     if ( !prev || !next ) {
         Com_WPrintf( "%s: entity %d has incomplete area links\n", __func__, NUMBER_OF_EDICT( ent ) );
-        ent->isLinked = false;
-        ent->area.prev = ent->area.next = nullptr;
         return;
     }
-
+	#if 0
     // Avoid dereferencing pointers that are not part of the known area list topology.
     if ( !SV_IsKnownAreaListNode( prev ) || !SV_IsKnownAreaListNode( next ) ) {
         Com_WPrintf( "%s: entity %d has corrupted area links prev=%p next=%p\n", __func__, NUMBER_OF_EDICT( ent ), (void *)prev, (void *)next );
-        ent->isLinked = false;
-        ent->area.prev = ent->area.next = nullptr;
         return;
     }
-
+	#endif
     // Sanity check the surrounding list topology before unlinking.
     if ( prev->next != &ent->area || next->prev != &ent->area ) {
         Com_WPrintf( "%s: entity %d area list integrity check failed\n", __func__, NUMBER_OF_EDICT( ent ) );
-        ent->isLinked = false;
-        ent->area.prev = ent->area.next = nullptr;
         return;
     }
 
 	// Mark linked status as false.
 	ent->isLinked = false;
 	// Remove from area.
-    List_Unlink( prev, next );
+	List_Remove( &ent->area ); 
+	//List_Unlink( prev, next );
 	// Clear area links.
     ent->area.prev = ent->area.next = nullptr;
 }
@@ -404,11 +398,6 @@ void PF_LinkEdict( edict_ptr_t *ent ) {
     if ( !ent ) {
         Com_Error( ERR_DROP, "%s: (nullptr) edict_t pointer\n", __func__ );
     }
-
-	// Can't link of no world has been precached yet.
-	if ( !sv.cm.cache ) {
-		return;
-	}
 
     // If it was ever linked, let the unlink path validate and clear any stale topology first.
     // This catches restored entities where `isLinked` survived but the serialized area list did not.
@@ -427,6 +416,10 @@ void PF_LinkEdict( edict_ptr_t *ent ) {
 		return;
 	}
 
+	// Can't link of no world has been precached yet.
+	if ( !sv.cm.cache ) {
+		return;
+	}
 
 	// Get entity number.
 	const int32_t entnum = NUMBER_OF_EDICT( ent );
@@ -486,7 +479,7 @@ void PF_LinkEdict( edict_ptr_t *ent ) {
     if ( ent->owner != nullptr ) {
         ent->s.ownerNumber = ent->owner->s.number;
     } else {
-        ent->s.ownerNumber = 0;
+        ent->s.ownerNumber = ENTITYNUM_NONE;
     }
 
     // Link edit in.
@@ -502,14 +495,15 @@ void PF_LinkEdict( edict_ptr_t *ent ) {
     // Increment link count.
     ent->linkCount++;
 
-	// Mark linked status as true.
-	ent->isLinked = true;// ( ent->area.prev != nullptr ? true : false );
-
     // Solid NOT won't have any contents either.
     if ( ent->solid == SOLID_NOT ) {
         ent->s.hullContents = CONTENTS_NONE;
+        ent->isLinked = false;
         return;
     }
+
+	// Mark linked status as true.
+	ent->isLinked = true;// ( ent->area.prev != nullptr ? true : false );
 
     // Find the first node that the ent's box crosses.
 	worldSector_t *node = sv_sectorNodes;

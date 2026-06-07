@@ -110,7 +110,7 @@ static inline void PlayerNoise_Setup( svg_base_edict_t *noise, svg_base_edict_t 
 	noise->svFlags = SVF_NOCLIENT;
 	noise->nextthink = level.time + SoundEntityLifetime;
 	noise->SetThinkCallback( PlayerNoise_onThink );
-	gi.linkentity( noise );
+	//gi.linkentity( noise );
 }
 
 /**
@@ -229,15 +229,16 @@ void SVG_PlayerNoise_MakeNoise( svg_base_edict_t *who, const Vector3 &where, int
 	if ( noise != nullptr ) {
 		// Add a small offset for the Z axis so it won't trip out path finding.
 		Vector3 whereOffsetOrigin = where;
-		#if 0
+		#if 1
 		// Find the normal to use for offsetting the origin by.
 		Vector3 offsetAngleNormal = QM_Vector3Normalize( where - who->currentOrigin );
 		// Add it.
-		whereOffsetOrigin += offsetAngleNormal * 0.3125;
+		whereOffsetOrigin += -offsetAngleNormal * 0.3125;
+		//gi.dprintf( "Noise origin offset by %f units in direction of %f %f %f\n", 0.3125, offsetAngleNormal.x, offsetAngleNormal.y, offsetAngleNormal.z );
 		#endif
 		// Set origin and absMaxs.
 		SVG_Util_SetEntityOrigin( noise, whereOffsetOrigin, true );//VectorCopy( where, noise->s.origin );
-		
+		//gi.dprintf( "Noise entity origin set to %f %f %f\n", noise->s.origin[ 0 ], noise->s.origin[ 1 ], noise->s.origin[ 2 ] );
 		VectorSubtract( whereOffsetOrigin, noise->maxs, noise->absMin );
 		VectorAdd( whereOffsetOrigin, noise->maxs, noise->absMax );
 

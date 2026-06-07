@@ -41,12 +41,6 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_info_player_deathmatch_t, onSpawn )( svg_info_
     VectorSet( self->maxs, 32, 32, -16 );
     gi.linkentity( self );
 	#endif
-
-
-	// Make it non-solid, and ensure it doesn't have any model or anything else that would cause it to be visible or interactable.
-	self->solid = SOLID_NOT;
-	// No model.
-	self->s.modelindex = 0;
 	// Link it. Bounding Box has been set by Super::onSpawn.
-	gi.linkentity( self );
+	//gi.linkentity( self );
 }
