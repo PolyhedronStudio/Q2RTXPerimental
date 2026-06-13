@@ -737,6 +737,8 @@ void SV_BuildClientFrame( client_t *client ) {
 		**/
 		if ( entityVisibleForFrame ) {
 			ent->lastCluster = ent->clusterNumbers[ 0 ];
+		} else {
+			ent->lastCluster = -1;
 		}
 
         /**

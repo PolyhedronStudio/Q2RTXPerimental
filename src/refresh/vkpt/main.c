@@ -394,7 +394,7 @@ vkpt_reload_shader(void)
 	vkpt_destroy_shader_modules();
 	vkpt_load_shader_modules();
 
-	vkpt_destroy_all(VKPT_INIT_RELOAD_SHADER);
+	_VK( vkpt_destroy_all( VKPT_INIT_RELOAD_SHADER ) );
 	vkpt_initialize_all(VKPT_INIT_RELOAD_SHADER);
 }
 
@@ -439,6 +439,7 @@ const char *vk_requested_instance_extensions[] = {
 
 const char *vk_requested_device_extensions_common[] = {
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+	VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME,
 #ifdef VKPT_DEVICE_GROUPS
 	VK_KHR_DEVICE_GROUP_EXTENSION_NAME,
 	VK_KHR_BIND_MEMORY_2_EXTENSION_NAME,
@@ -758,28 +759,7 @@ create_swapchain(void)
 		}
 	}
 
-	VkCommandBuffer cmd_buf = vkpt_begin_command_buffer(&qvk.cmd_buffers_graphics);
-
-	for (int image_index = 0; image_index < qvk.num_swap_chain_images; image_index++)
-	{
-		IMAGE_BARRIER(cmd_buf,
-			.image = qvk.swap_chain_images[image_index],
-			.subresourceRange = {
-				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-				.baseMipLevel = 0,
-				.levelCount = 1,
-				.baseArrayLayer = 0,
-				.layerCount = 1
-			},
-			.srcAccessMask = 0,
-			.dstAccessMask = 0,
-			.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-			.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-		);
-	}
-
-	vkpt_submit_command_buffer_simple(cmd_buf, qvk.queue_graphics, true);
-	vkpt_wait_idle(qvk.queue_graphics, &qvk.cmd_buffers_graphics);
+	// swapchain images are acquired before first use, so their initial transition happens then.
 
 	return VK_SUCCESS;
 }
@@ -798,6 +778,9 @@ create_command_pool_and_fences(void)
 	
 	cmd_pool_create_info.queueFamilyIndex = qvk.queue_idx_transfer;
 	_VK(vkCreateCommandPool(qvk.device, &cmd_pool_create_info, NULL, &qvk.cmd_buffers_transfer.command_pool));
+
+	cmd_pool_create_info.queueFamilyIndex = qvk.queue_idx_compute;
+	_VK(vkCreateCommandPool(qvk.device, &cmd_pool_create_info, NULL, &qvk.cmd_buffers_compute.command_pool));
 
 	/* fences and semaphores */
 	for (int frame = 0; frame < MAX_FRAMES_IN_FLIGHT; frame++)
@@ -820,6 +803,22 @@ create_command_pool_and_fences(void)
 
 			group->trace_signaled = false;
 		}
+
+	}
+
+	{
+		VkSemaphoreTypeCreateInfo timeline_create_info = {
+			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
+			.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
+			.initialValue = 0,
+		};
+		VkSemaphoreCreateInfo semaphore_info = {
+			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+			.pNext = &timeline_create_info,
+		};
+		_VK(vkCreateSemaphore(qvk.device, &semaphore_info, NULL, &qvk.timeline_sem));
+		ATTACH_LABEL_VARIABLE(qvk.timeline_sem, SEMAPHORE);
+		qvk.timeline_counter = 0;
 	}
 
 	VkFenceCreateInfo fence_info = {
@@ -830,6 +829,9 @@ create_command_pool_and_fences(void)
 	for(int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
 		_VK(vkCreateFence(qvk.device, &fence_info, NULL, qvk.fences_frame_sync + i));
 		ATTACH_LABEL_VARIABLE(qvk.fences_frame_sync[i], FENCE);
+
+		_VK(vkCreateFence(qvk.device, &fence_info, NULL, qvk.fences_compute_sync + i));
+		ATTACH_LABEL_VARIABLE(qvk.fences_compute_sync[i], FENCE);
 	}
 
 	return VK_SUCCESS;
@@ -1164,34 +1166,41 @@ init_vulkan(void)
 	VkQueueFamilyProperties *queue_families = malloc(sizeof(VkQueueFamilyProperties) * num_queue_families);
 	vkGetPhysicalDeviceQueueFamilyProperties(qvk.physical_device, &num_queue_families, queue_families);
 
-	// Com_Printf("num queue families: %d\n", num_queue_families);
-
 	qvk.queue_idx_graphics = -1;
+	qvk.queue_idx_compute = -1;
 	qvk.queue_idx_transfer = -1;
 
-	for(int i = 0; i < num_queue_families; i++) {
-		if(!queue_families[i].queueCount)
-			continue;
-		VkBool32 present_support = 0;
-		vkGetPhysicalDeviceSurfaceSupportKHR(qvk.physical_device, i, qvk.surface, &present_support);
-
+	for(uint32_t i = 0; i < num_queue_families; i++) {
 		const int supports_graphics = queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT;
 		const int supports_compute = queue_families[i].queueFlags & VK_QUEUE_COMPUTE_BIT;
 		const int supports_transfer = queue_families[i].queueFlags & VK_QUEUE_TRANSFER_BIT;
 
-		if(supports_graphics && supports_compute && qvk.queue_idx_graphics < 0) {
-			if(!present_support)
-				continue;
+		VkBool32 present_support = 0;
+		vkGetPhysicalDeviceSurfaceSupportKHR(qvk.physical_device, i, qvk.surface, &present_support);
+
+		if(supports_graphics && present_support && qvk.queue_idx_graphics < 0)
 			qvk.queue_idx_graphics = i;
-		}
-		if(supports_transfer && (qvk.queue_idx_transfer < 0 || qvk.queue_idx_graphics == qvk.queue_idx_transfer)) {
+		if(supports_compute && i != qvk.queue_idx_graphics && qvk.queue_idx_compute < 0)
+			qvk.queue_idx_compute = i;
+		if(supports_transfer && qvk.queue_idx_transfer < 0)
 			qvk.queue_idx_transfer = i;
+	}
+	
+	// If no dedicated compute queue was found, accept the graphics queue
+	if (qvk.queue_idx_compute < 0)
+	{
+		for(uint32_t i = 0; i < num_queue_families; i++) {
+			if (queue_families[i].queueFlags & VK_QUEUE_COMPUTE_BIT) {
+				qvk.queue_idx_compute = i;
+				break;
+			}
 		}
 	}
+
 	free(queue_families);
 
-	if(qvk.queue_idx_graphics < 0 || qvk.queue_idx_transfer < 0) {
-		Com_Error(ERR_FATAL, "Could not find a suitable Vulkan queue family!\n");
+	if(qvk.queue_idx_graphics < 0 || qvk.queue_idx_compute < 0 || qvk.queue_idx_transfer < 0) {
+		Com_Error(ERR_FATAL, "Could not find suitable Vulkan queue families!\n");
 		return false;
 	}
 	
@@ -1218,6 +1227,15 @@ init_vulkan(void)
 		};
 		queue_create_info[num_create_queues++] = q;
 	};
+	if(qvk.queue_idx_compute != qvk.queue_idx_graphics && qvk.queue_idx_compute != qvk.queue_idx_transfer) {
+		VkDeviceQueueCreateInfo q = {
+			.sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+			.queueCount       = 1,
+			.pQueuePriorities = &queue_priorities,
+			.queueFamilyIndex = qvk.queue_idx_compute,
+		};
+		queue_create_info[num_create_queues++] = q;
+	}
 
 #ifdef VKPT_DEVICE_GROUPS
 	if (qvk.device_count > 1) {
@@ -1245,6 +1263,7 @@ init_vulkan(void)
 
 	VkPhysicalDeviceVulkan12Features device_features_vk12 = {
 		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
+		.pNext = NULL,
 		.descriptorIndexing = VK_TRUE,
 		.shaderFloat16 = qvk.supports_fp16,
 		.shaderSampledImageArrayNonUniformIndexing = VK_TRUE,
@@ -1253,6 +1272,7 @@ init_vulkan(void)
 		.samplerFilterMinmax = VK_TRUE,
 		.bufferDeviceAddress = VK_TRUE,
 		.bufferDeviceAddressMultiDevice = qvk.device_count > 1 ? VK_TRUE : VK_FALSE,
+		.timelineSemaphore = VK_TRUE,
 	};
 	VkPhysicalDeviceFeatures2 device_features = {
 		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2_KHR,
@@ -1367,6 +1387,7 @@ init_vulkan(void)
 
 	vkGetDeviceQueue(qvk.device, qvk.queue_idx_graphics, 0, &qvk.queue_graphics);
 	vkGetDeviceQueue(qvk.device, qvk.queue_idx_transfer, 0, &qvk.queue_transfer);
+	vkGetDeviceQueue(qvk.device, qvk.queue_idx_compute,  0, &qvk.queue_compute);
 
 #define VK_EXTENSION_DO(a) \
 	q##a = (PFN_##a) vkGetDeviceProcAddr(qvk.device, #a); \
@@ -1500,38 +1521,56 @@ destroy_swapchain(void)
 
 	return VK_SUCCESS;
 }
-
-int
-destroy_vulkan(void)
-{
+/**
+*	@brief	Destroy the Vulkan instance, device and all associated resources. 
+**/
+int destroy_vulkan(void) {
+	// Wait for the device to be idle before destroying resources
 	vkDeviceWaitIdle(qvk.device);
 
-	destroy_swapchain();
-	vkDestroySurfaceKHR(qvk.instance, qvk.surface,    NULL);
+	// <Q2RTXP>: WID: Flush any pending delayed‑destruction resources.
+	vkpt_textures_flush_pending();
+	// <Q2RTXP>: WID: Clean up the transparency system.
+	destroy_transparency();
 
+	destroy_swapchain();
+	
+	// Destroy shader modules before the device is destroyed
+	vkDestroySurfaceKHR(qvk.instance, qvk.surface,    NULL);
+	// For semaphores and fences, we can destroy them after the device is idle, 
+	// but before destroying the device.
 	for (int frame = 0; frame < MAX_FRAMES_IN_FLIGHT; frame++)
 	{
 		for (int gpu = 0; gpu < qvk.device_count; gpu++)
 		{
+			// Destroy semaphores for this frame and GPU
 			semaphore_group_t* group = &qvk.semaphores[frame][gpu];
-
+			// Note: the order of destruction does not matter for semaphores, but we must destroy
 			vkDestroySemaphore(qvk.device, group->image_available, NULL);
 			vkDestroySemaphore(qvk.device, group->render_finished, NULL);
 			vkDestroySemaphore(qvk.device, group->transfer_finished, NULL);
 			vkDestroySemaphore(qvk.device, group->trace_finished, NULL);
 		}
 	}
+	// Destroy timeline semaphore after all GPU work is done, but before destroying the device
+	vkDestroySemaphore(qvk.device, qvk.timeline_sem, NULL);
 
+	// Destroy fences after the device is idle, but before destroying the device
 	for(int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
 		vkDestroyFence(qvk.device, qvk.fences_frame_sync[i], NULL);
+		vkDestroyFence(qvk.device, qvk.fences_compute_sync[i], NULL);
 	}
-
+	// Free command buffers and destroy command pools
 	vkpt_free_command_buffers(&qvk.cmd_buffers_graphics);
 	vkpt_free_command_buffers(&qvk.cmd_buffers_transfer);
+	vkpt_free_command_buffers(&qvk.cmd_buffers_compute);
 
+	// Command pools must be destroyed after command buffers that use them are freed, but before destroying the device
 	vkDestroyCommandPool(qvk.device, qvk.cmd_buffers_graphics.command_pool, NULL);
 	vkDestroyCommandPool(qvk.device, qvk.cmd_buffers_transfer.command_pool, NULL);
+	vkDestroyCommandPool(qvk.device, qvk.cmd_buffers_compute.command_pool, NULL);
 
+	// Destroy descriptor pool after all command buffers that may reference it are freed, but before destroying the device
 	vkDestroyDevice(qvk.device,   NULL);
 	_VK(qvkDestroyDebugUtilsMessengerEXT(qvk.instance, qvk.dbg_messenger, NULL));
 	vkDestroyInstance(qvk.instance, NULL);
@@ -2725,7 +2764,7 @@ copy_to_dump_texture(VkCommandBuffer cmd_buf, int src_image_index)
 
 VkDescriptorSet qvk_get_current_desc_set_textures()
 {
-	return (qvk.frame_counter & 1) ? qvk.desc_set_textures_odd : qvk.desc_set_textures_even;
+	return qvk.desc_set_textures[qvk.current_frame_index];
 }
 
 static void
@@ -3585,7 +3624,7 @@ static void
 recreate_swapchain(void)
 {
 	vkDeviceWaitIdle(qvk.device);
-	vkpt_destroy_all(VKPT_INIT_SWAPCHAIN_RECREATE);
+	_VK( vkpt_destroy_all( VKPT_INIT_SWAPCHAIN_RECREATE ) );
 	destroy_swapchain();
 	SDL_GetWindowSize(qvk.window, &qvk.win_width, &qvk.win_height);
 	create_swapchain();
@@ -3718,8 +3757,12 @@ R_BeginFrame_RTX(void)
 
 	qvk.current_frame_index = qvk.frame_counter % MAX_FRAMES_IN_FLIGHT;
 
-	VkResult res_fence = vkWaitForFences(qvk.device, 1, qvk.fences_frame_sync + qvk.current_frame_index, VK_TRUE, ~((uint64_t) 0));
-	
+	VkFence wait_fences[2] = {
+		qvk.fences_frame_sync[qvk.current_frame_index],
+		qvk.fences_compute_sync[qvk.current_frame_index]
+	};
+	VkResult res_fence = vkWaitForFences(qvk.device, 2, wait_fences, VK_TRUE, ~((uint64_t) 0));
+
 	if (res_fence == VK_ERROR_DEVICE_LOST)
 	{
 		// TODO implement a good error box or vid_restart or something
@@ -3789,10 +3832,36 @@ retry:;
 		qvk.wait_for_idle_frames--;
 	}
 
-	vkResetFences(qvk.device, 1, qvk.fences_frame_sync + qvk.current_frame_index);
+	vkResetFences(qvk.device, 2, wait_fences);
 
 	vkpt_reset_command_buffers(&qvk.cmd_buffers_graphics);
 	vkpt_reset_command_buffers(&qvk.cmd_buffers_transfer);
+	vkpt_reset_command_buffers(&qvk.cmd_buffers_compute);
+
+	// Dispatch decal compute work
+	{
+		VkCommandBuffer compute_cmd_buf = vkpt_begin_command_buffer(&qvk.cmd_buffers_compute);
+		vkpt_decals_compute_record(compute_cmd_buf);
+		_VK(vkEndCommandBuffer(compute_cmd_buf));
+
+		uint64_t wait_value = qvk.timeline_counter;
+		VkTimelineSemaphoreSubmitInfo timeline_info = {
+			.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
+			.waitSemaphoreValueCount = 1,
+			.pWaitSemaphoreValues = &wait_value,
+		};
+		VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT };
+		VkSubmitInfo compute_submit_info = {
+			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+			.pNext = &timeline_info,
+			.waitSemaphoreCount = 1,
+			.pWaitSemaphores = &qvk.timeline_sem,
+			.pWaitDstStageMask = wait_stages,
+			.commandBufferCount = 1,
+			.pCommandBuffers = &compute_cmd_buf,
+		};
+		_VK(vkQueueSubmit(qvk.queue_compute, 1, &compute_submit_info, qvk.fences_compute_sync[qvk.current_frame_index]));
+	}
 
 	// Process the profiler queries - always enabled to support DRS
 	{
@@ -3832,6 +3901,22 @@ R_EndFrame_RTX(void)
 		vkpt_tone_mapping_draw_debug();
 
 	VkCommandBuffer cmd_buf = vkpt_begin_command_buffer(&qvk.cmd_buffers_graphics);
+
+	VkImageMemoryBarrier swapchain_acquire_barrier = {
+		.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+		.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+		.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+		.image = qvk.swap_chain_images[qvk.current_swap_chain_image_index],
+		.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 },
+		.srcAccessMask = 0,
+		.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+		.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+		.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+	};
+	vkCmdPipelineBarrier(cmd_buf, 
+		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 
+		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 
+		0, 0, NULL, 0, NULL, 1, &swapchain_acquire_barrier);
 
 	if (frame_ready)
 	{
@@ -3911,6 +3996,22 @@ R_EndFrame_RTX(void)
 		wait_count, wait_semaphores, wait_stages, wait_device_indices,
 		qvk.device_count, signal_semaphores, signal_device_indices,
 		qvk.fences_frame_sync[qvk.current_frame_index]);
+
+	// Signal timeline semaphore for compute queue to wait on
+	qvk.timeline_counter++;
+	uint64_t timeline_signal_value = qvk.timeline_counter;
+	VkTimelineSemaphoreSubmitInfo timeline_info = {
+		.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
+		.signalSemaphoreValueCount = 1,
+		.pSignalSemaphoreValues = &timeline_signal_value,
+	};
+	VkSubmitInfo timeline_submit_info = {
+		.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+		.pNext = &timeline_info,
+		.signalSemaphoreCount = 1,
+		.pSignalSemaphores = &qvk.timeline_sem,
+	};
+	_VK(vkQueueSubmit(qvk.queue_graphics, 1, &timeline_submit_info, VK_NULL_HANDLE));
 
 
 #ifdef VKPT_IMAGE_DUMPS
@@ -4586,7 +4687,7 @@ void R_AddDecalMesh_RTX(const decal_mesh_vertex_t *vertices, int32_t vertexCount
 
 void R_ClearDecals_RTX(void)
 {
-	vkpt_decals_clear();
+	vkpt_decals_clear_transient();
 }
 
 void R_ClearState_RTX(void)

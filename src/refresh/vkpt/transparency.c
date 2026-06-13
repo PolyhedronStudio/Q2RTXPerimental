@@ -151,12 +151,33 @@ bool initialize_transparency()
 	return true;
 }
 
-void destroy_transparency()
-{
-	vkDestroyBufferView(qvk.device, transparency.particle_color_buffer_view, NULL);
-	vkDestroyBufferView(qvk.device, transparency.beam_color_buffer_view, NULL);
-	vkDestroyBufferView(qvk.device, transparency.sprite_info_buffer_view, NULL);
-	vkDestroyBufferView(qvk.device, transparency.beam_intersect_buffer_view, NULL);
+void destroy_transparency() {
+
+	if ( transparency.particle_color_buffer_view != VK_NULL_HANDLE ) {
+		vkDestroyBufferView( qvk.device,
+			transparency.particle_color_buffer_view,
+			NULL );
+		transparency.particle_color_buffer_view = VK_NULL_HANDLE;
+	}
+	if ( transparency.beam_color_buffer_view != VK_NULL_HANDLE ) {
+		vkDestroyBufferView( qvk.device,
+			transparency.beam_color_buffer_view,
+			NULL );
+		transparency.beam_color_buffer_view = VK_NULL_HANDLE;
+	}
+	if ( transparency.sprite_info_buffer_view != VK_NULL_HANDLE ) {
+		vkDestroyBufferView( qvk.device,
+			transparency.sprite_info_buffer_view,
+			NULL );
+		transparency.sprite_info_buffer_view = VK_NULL_HANDLE;
+	}
+	if ( transparency.beam_intersect_buffer_view != VK_NULL_HANDLE ) {
+		vkDestroyBufferView( qvk.device,
+			transparency.beam_intersect_buffer_view,
+			NULL );
+		transparency.beam_intersect_buffer_view = VK_NULL_HANDLE;
+	}
+
 	buffer_destroy(&transparency.vertex_buffer);
 	buffer_destroy(&transparency.index_buffer);
 	buffer_destroy(&transparency.beam_aabb_buffer);
@@ -164,13 +185,18 @@ void destroy_transparency()
 	buffer_destroy(&transparency.beam_color_buffer);
 	buffer_destroy(&transparency.sprite_info_buffer);
 	buffer_destroy(&transparency.beam_intersect_buffer);
-
-	vkDestroyBuffer(qvk.device, transparency.host_buffer, NULL);
-	vkFreeMemory(qvk.device, transparency.host_buffer_memory, NULL);
-
-	if (transparency.host_buffer_shadow)
-	{
-		Z_Freep((void**)&transparency.host_buffer_shadow);
+	
+	if ( transparency.host_buffer != VK_NULL_HANDLE ) {
+		vkDestroyBuffer( qvk.device, transparency.host_buffer, NULL );
+		transparency.host_buffer = VK_NULL_HANDLE;
+	}
+	if ( transparency.host_buffer_memory != VK_NULL_HANDLE ) {
+		vkFreeMemory( qvk.device, transparency.host_buffer_memory, NULL );
+		transparency.host_buffer_memory = VK_NULL_HANDLE;
+	}
+	if ( transparency.host_buffer_shadow ) {
+		Z_Freep( ( void ** )&transparency.host_buffer_shadow );
+		transparency.host_buffer_shadow = NULL;
 	}
 }
 

@@ -637,7 +637,7 @@ const cm_trace_t CM_BoxTrace( cm_t *cm,
 	//
 	// check for point special case
 	//
-	if ( VectorEmpty( mins ) && VectorEmpty( maxs ) ) {
+	if ( VectorEmpty( *mins ) && VectorEmpty( *maxs ) ) {
 		reantrantState.trIsPoint = true;
 		reantrantState.trExtents = {};
 	} else {

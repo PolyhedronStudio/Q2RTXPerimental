@@ -20,12 +20,15 @@
 
 
 namespace {
-    /**
-    *   @brief  Initialize the structural topology of a synthetic octagon hull.
-    *   @param  hull    Hull storage to initialize.
-    *   @note   This only wires up planes, nodes, and leaf/brush ownership. Per-trace distances and offsets are assigned later.
-    **/
-    static void CM_InitOctagonHullState( hull_octagonbox_t *hull ) {
+    static hull_octagonbox_t *CM_GetThreadLocalOctagonHull( void );
+}
+
+/**
+*   @brief  Initialize the structural topology of a synthetic octagon hull.
+*   @param  hull    Hull storage to initialize.
+*   @note   This only wires up planes, nodes, and leaf/brush ownership. Per-trace distances and offsets are assigned later.
+**/
+void CM_InitOctagonHullState( hull_octagonbox_t *hull ) {
         /**
         *   Sanity check: require destination storage before wiring the synthetic hull.
         **/
@@ -132,6 +135,7 @@ namespace {
         }
     }
 
+namespace {
     /**
     *   @brief  Retrieve the current thread's synthetic octagon hull storage.
     *   @return Pointer to reusable thread-local hull storage.
@@ -201,12 +205,18 @@ static inline const float CalculateOctagonPlaneDist( cm_plane_t &plane, const Ve
 *           The BSP trees' octagon box will match with the bounds(mins, maxs) and have appointed
 *           the specified contents. If contents == CONTENTS_NONE(0) then it'll default to CONTENTS_MONSTER.
 **/
-//mnode_t *CM_HeadnodeForOctagon( cm_t *cm, const vec3_t mins, const vec3_t maxs, const cm_contents_t contents ) {
-mnode_t *CM_HeadnodeForOctagon( cm_t *cm, const vec3_t mins, const vec3_t maxs, const cm_contents_t contents ) {
-    /**
-    *   Use thread-local synthetic hull storage so concurrent traces never race on the shared collision-model hull template.
-    **/
-    hull_octagonbox_t *hull = CM_GetThreadLocalOctagonHull();
+void CM_SetupOctagonBoxHull( hull_octagonbox_t *hull, const vec3_t mins, const vec3_t maxs, const cm_contents_t contents ) {
+    if ( !hull->headnode ) {
+        CM_InitOctagonHullState( hull );
+    } else {
+        // Optimization: if bounds and contents are identical to what's already setup, we don't need to recalculate planes.
+        const cm_contents_t targetContents = ( contents == CONTENTS_NONE ) ? CONTENTS_MONSTER : contents;
+        if ( VectorCompare( mins, hull->headnode->mins ) && 
+             VectorCompare( maxs, hull->headnode->maxs ) && 
+             hull->leaf.contents == targetContents ) {
+            return;
+        }
+    }
 
     // Setup to CONTENTS_MONSTER in case of no contents being passed in.
     if ( contents == CONTENTS_NONE ) {
@@ -230,7 +240,7 @@ mnode_t *CM_HeadnodeForOctagon( cm_t *cm, const vec3_t mins, const vec3_t maxs, 
 
     // Cylindrical offset.
     for ( int32_t i = 0; i < 3; i++ ) {
-        hull->cylinder_offset[ i ] = ( mins[ i ] + maxs[ i ] ) * 0.5;
+        hull->cylinder_offset[ i ] = ( mins[ i ] + maxs[ i ] ) * 0.5f;
     }
 
     // Calculate actual up to scale normals for the non axial planes.
@@ -324,8 +334,14 @@ mnode_t *CM_HeadnodeForOctagon( cm_t *cm, const vec3_t mins, const vec3_t maxs, 
         SetPlaneSignbits( plane );
         hull->planes[19].dist = CalculateOctagonPlaneDist( hull->planes[19], mins, maxs );
     }
+}
 
-    // Return octagonbox' headnode pointer.
+mnode_t *CM_HeadnodeForOctagon( cm_t *cm, const vec3_t mins, const vec3_t maxs, const cm_contents_t contents ) {
+    /**
+    *   Use thread-local synthetic hull storage so concurrent traces never race on the shared collision-model hull template.
+    **/
+    hull_octagonbox_t *hull = CM_GetThreadLocalOctagonHull();
+    CM_SetupOctagonBoxHull( hull, mins, maxs, contents );
     return hull->headnode;
 }
 
@@ -336,24 +352,7 @@ mnode_t *CM_HeadnodeForOctagon( cm_t *cm, const vec3_t mins, const vec3_t maxs, 
 *   @return True when the headnode belongs to either the shared compatibility hull or the current thread-local hull.
 **/
 const bool CM_IsOctagonBoxHullHeadnode( const cm_t *cm, const mnode_t *headnode ) {
-    /**
-    *   Reject null headnodes before touching any compatibility or thread-local hull storage.
-    **/
-    if ( !headnode ) {
-        return false;
-    }
-
-    /**
-    *   Accept the shared compatibility hull used during collision-model initialization.
-    **/
-    if ( cm && cm->hull_octagonbox && headnode == cm->hull_octagonbox->headnode ) {
-        return true;
-    }
-
-    /**
-    *   Accept the current thread's live synthetic hull as well.
-    **/
-    return headnode == CM_GetThreadLocalOctagonHull()->headnode;
+    return headnode && headnode->synthetic_hull_type == 2;
 }
 
 /**
@@ -363,27 +362,11 @@ const bool CM_IsOctagonBoxHullHeadnode( const cm_t *cm, const mnode_t *headnode 
 *   @return Pointer to the cylinder offset for the matching synthetic octagon hull, or nullptr when the headnode is unrelated.
 **/
 const vec3_t *CM_GetOctagonBoxHullCylinderOffset( const cm_t *cm, const mnode_t *headnode ) {
-    /**
-    *   Reject null headnodes before resolving compatibility or thread-local hull storage.
-    **/
-    if ( !headnode ) {
+    if ( !headnode || headnode->synthetic_hull_type != 2 ) {
         return nullptr;
     }
-
-    /**
-    *   Resolve the shared compatibility hull offset when callers still refer to that template.
-    **/
-    if ( cm && cm->hull_octagonbox && headnode == cm->hull_octagonbox->headnode ) {
-        return &cm->hull_octagonbox->cylinder_offset;
-    }
-
-    /**
-    *   Resolve the current thread's live synthetic octagon hull offset.
-    **/
-    hull_octagonbox_t *threadLocalHull = CM_GetThreadLocalOctagonHull();
-    if ( headnode == threadLocalHull->headnode ) {
-        return &threadLocalHull->cylinder_offset;
-    }
-
-    return nullptr;
+    const hull_octagonbox_t* hull = reinterpret_cast<const hull_octagonbox_t*>(
+        reinterpret_cast<const char*>(headnode) - offsetof(hull_octagonbox_t, nodes)
+    );
+    return &hull->cylinder_offset;
 }

@@ -319,140 +319,6 @@ IF( CONFIG_BUILD_SERVER_TARGET )
 	)
 ENDIF()#IF( CONFIG_BUILD_SERVER_TARGET )
 
-
-
-####
-##	Build Targets: "BaseQ2 Game":
-####
-IF( CONFIG_BUILD_GAME_BASEQ2_TARGETS )
-	# Server Game:
-	add_library(baseq2_svgame SHARED 
-		${SRC_BASEQ2_SVGAME} ${HEADERS_BASEQ2_SVGAME} 
-		${SRC_BASEQ2_SHAREDGAME} ${HEADERS_BASEQ2_SHAREDGAME} 
-		${SRC_SHARED} ${HEADERS_SHARED}
-	)
-	# Client Game:
-	add_library(baseq2_clgame SHARED 
-		${SRC_BASEQ2_CLGAME} ${HEADERS_BASEQ2_CLGAME} 
-		${SRC_BASEQ2_SHAREDGAME} ${HEADERS_BASEQ2_SHAREDGAME} 
-		${SRC_SHARED} ${HEADERS_SHARED}
-	)
-	if(CONFIG_ENABLE_UNITY_BUILDS)
-		set_target_properties(baseq2_svgame PROPERTIES UNITY_BUILD ON)
-		set_target_properties(baseq2_clgame PROPERTIES UNITY_BUILD ON)
-	endif()
-
-	IF( CMAKE_C_COMPILER_ID STREQUAL "GNU" )
-		# Workaround for GCC 10 linking shared libgcc by default
-		target_link_options(baseq2_clgame PRIVATE "-static-libgcc")
-		target_link_options(baseq2_svgame PRIVATE "-static-libgcc")
-	ENDIF() #IF( CMAKE_C_COMPILER_ID STREQUAL "GNU" )
-
-	# Add appropriate definition so the sharedgame code knows what binding it operates with.
-	target_compile_definitions(baseq2_clgame PRIVATE CLGAME_INCLUDE=1)
-	target_compile_definitions(baseq2_svgame PRIVATE SVGAME_INCLUDE=1)
-
-	# WIN32 Specifics:
-	IF( WIN32 )
-		target_include_directories(baseq2_svgame PRIVATE ../VC/inc)
-		target_include_directories(baseq2_clgame PRIVATE ../VC/inc)
-
-		target_sources(baseq2_svgame PRIVATE windows/res/baseq2_svgame.rc)
-		target_sources(baseq2_clgame PRIVATE windows/res/baseq2_clgame.rc)
-		# macro redefinition, deprecation
-		target_compile_options(baseq2_svgame PRIVATE /wd4996 )
-		target_compile_options(baseq2_svgame PRIVATE /wd4200 ) # To prevent: inc\format\bsp.h(79): warning C4200: nonstandard extension used: zero-sized array in struct/union note: This member will be ignored by a defaulted constructor or copy/move assignment operator
-		#target_compile_options(baseq2_svgame PRIVATE /wd4005 /wd4996)
-		target_compile_options(baseq2_clgame PRIVATE /wd4996 )
-		target_compile_options(baseq2_clgame PRIVATE /wd4200 ) # To prevent: inc\format\bsp.h(79): warning C4200: nonstandard extension used: zero-sized array in struct/union note: This member will be ignored by a defaulted constructor or copy/move assignment operator
-		#target_compile_options(baseq2_svgame PRIVATE /wd4005 /wd4996)
-	ENDIF() #IF( WIN32 ) 
-
-	target_include_directories(baseq2_svgame PRIVATE ../inc)
-	target_include_directories(baseq2_clgame PRIVATE ../inc)
-    target_link_libraries(baseq2_svgame zlibstatic)
-    target_link_libraries(baseq2_clgame microui)
-
-	# Specify both LIBRARY and RUNTIME because one works only on Windows,
-	# and another works only on Linux.
-	# "Server Game" Target Properties:
-	set_target_properties(baseq2_svgame
-		PROPERTIES
-		# Linux:
-		LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/baseq2"
-		LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/baseq2"
-		LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/baseq2"
-		LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_SOURCE_DIR}/baseq2"
-		LIBRARY_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}/baseq2"
-		# Windows:
-		RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/baseq2"
-		RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/baseq2"
-		RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/baseq2"
-		RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_SOURCE_DIR}/baseq2"
-		RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}/baseq2"
-		# No Prefixes.
-		PREFIX ""
-		DEBUG_POSTFIX "_d"
-	)
-	# "Client Game" Target Properties:
-	set_target_properties(baseq2_clgame
-		PROPERTIES
-		# Linux:
-		LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/baseq2"
-		LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/baseq2"
-		LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/baseq2"
-		LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_SOURCE_DIR}/baseq2"
-		LIBRARY_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}/baseq2"
-		# Windows:
-		RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/baseq2"
-		RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/baseq2"
-		RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/baseq2"
-		RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_SOURCE_DIR}/baseq2"
-		RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}/baseq2"
-		# No Prefixes.
-		PREFIX ""
-		DEBUG_POSTFIX "_d"
-	)
-
-	# Base binary output names on actual build architecture.
-	IF( CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64" )
-		SET_TARGET_PROPERTIES(baseq2_svgame
-			PROPERTIES
-			LIBRARY_OUTPUT_NAME "svgameaarch64"
-			RUNTIME_OUTPUT_NAME "svgameaarch64"
-		)
-		SET_TARGET_PROPERTIES(baseq2_clgame
-			PROPERTIES
-			LIBRARY_OUTPUT_NAME "clgameaarch64"
-			RUNTIME_OUTPUT_NAME "clgameaarch64"
-		)
-	ELSEIF( CMAKE_SYSTEM_PROCESSOR STREQUAL "ppc64le" )
-		SET_TARGET_PROPERTIES(baseq2_svgame
-			PROPERTIES
-			LIBRARY_OUTPUT_NAME "svgameppc64le"
-			RUNTIME_OUTPUT_NAME "svgameppc64le"
-		)
-		SET_TARGET_PROPERTIES(baseq2_clgame
-			PROPERTIES
-			LIBRARY_OUTPUT_NAME "clgameppc64le"
-			RUNTIME_OUTPUT_NAME "clgameppc64le"
-		)
-	ELSE()
-		SET_TARGET_PROPERTIES(baseq2_svgame
-			PROPERTIES
-			LIBRARY_OUTPUT_NAME "svgamex86_64"
-			RUNTIME_OUTPUT_NAME "svgamex86_64"
-		)
-		SET_TARGET_PROPERTIES(baseq2_clgame
-			PROPERTIES
-			LIBRARY_OUTPUT_NAME "clgamex86_64"
-			RUNTIME_OUTPUT_NAME "clgamex86_64"
-		)
-	ENDIF()
-ENDIF() #IF( CONFIG_BUILD_GAME_BASEQ2_TARGETS )
-
-
-
 ####
 ##	Build Targets: "BaseQ2RTXP Game":
 ####
@@ -728,15 +594,6 @@ ENDIF() #IF( CONFIG_BUILD_FTEQW_IQM_TOOL )
 ##	MSVC Source Groups support for CMake generated "Solutions":
 ####
 IF ( MSVC )
-	IF( CONFIG_BUILD_GAME_BASEQ2_TARGETS )
-		SOURCE_GROUP("baseq2\\sharedgame\\sources" FILES ${SRC_BASEQ2_SHAREDGAME})
-		SOURCE_GROUP("baseq2\\sharedgame\\headers" FILES ${HEADERS_BASEQ2_SHAREDGAME})
-		SOURCE_GROUP("baseq2\\clgame\\sources" FILES ${SRC_BASEQ2_CLGAME})
-		SOURCE_GROUP("baseq2\\clgame\\headers" FILES ${HEADERS_BASEQ2_CLGAME})
-		SOURCE_GROUP("baseq2\\svgame\\sources" FILES ${SRC_BASEQ2_SVGAME})
-		SOURCE_GROUP("baseq2\\svgame\\headers" FILES ${HEADERS_BASEQ2_SVGAME})
-	ENDIF() #IF( CONFIG_BUILD_GAME_BASEQ2_TARGETS )
-
 	IF( CONFIG_BUILD_GAME_BASEQ2RTXP_TARGETS )
 		SOURCE_GROUP("baseq2rtxp\\sharedgame\\sources" FILES ${SRC_BASEQ2RTXP_SHAREDGAME})
 		SOURCE_GROUP("baseq2rtxp\\sharedgame\\headers" FILES ${HEADERS_BASEQ2RTXP_SHAREDGAME})
@@ -744,7 +601,7 @@ IF ( MSVC )
 		SOURCE_GROUP("baseq2rtxp\\clgame\\headers" FILES ${HEADERS_BASEQ2RTXP_CLGAME})
 		SOURCE_GROUP("baseq2rtxp\\svgame\\sources" FILES ${SRC_BASEQ2RTXP_SVGAME})
 		SOURCE_GROUP("baseq2rtxp\\svgame\\headers" FILES ${HEADERS_BASEQ2RTXP_SVGAME})
-	ENDIF() #IF( CONFIG_BUILD_GAME_BASEQ2_TARGETS )
+	ENDIF() #IF( CONFIG_BUILD_GAME_BASEQ2RTXP_TARGETS )
 
 	SOURCE_GROUP("client\\sources" FILES ${SRC_CLIENT})
 	SOURCE_GROUP("client\\headers" FILES ${HEADERS_CLIENT})

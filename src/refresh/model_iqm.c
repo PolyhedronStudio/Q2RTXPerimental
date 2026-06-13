@@ -1136,8 +1136,11 @@ bool R_ComputePoseTransforms( const model_t *model, const entity_t *entity, floa
 				// Compute the local model space matrices from the lerped relative joints.
 				SKM_TransformBonePosesLocalSpace( model->skmData, lerpedBonePoses, entity->boneControllers, pose_matrices );
 			// Compute the local model space matrices from the provided pre-lerped relative joints:
-			} else {	
-				SKM_TransformBonePosesLocalSpace( model->skmData, entity->bonePoses, entity->boneControllers, pose_matrices );
+			//} else {	
+				//SKM_TransformBonePosesLocalSpace( model->skmData, entity->bonePoses, entity->boneControllers, pose_matrices );
+			} else {
+				// Lerp between.
+			//	SKM_LerpBonePoses( model, entity->bonePoses, entity->bonePoses, 1.0 - entity->backlerp, entity->backlerp, lerpedBonePoses, entity->rootMotionBoneID, entity->rootMotionFlags );
 			}
 		// No bone poses provided, so we derive them by lerping from oldframe to current frame poses instead:
 		} else {

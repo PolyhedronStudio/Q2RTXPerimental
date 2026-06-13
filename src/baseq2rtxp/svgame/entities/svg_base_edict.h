@@ -720,6 +720,10 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     *
     *
     **/
+    //! Persistent entity index that is guaranteed to never change for this object.
+    int32_t stableNumber = ENTITYNUM_NONE;
+    int32_t StableNumber() const { return stableNumber; }
+
     //! Used for projectile skip checks and in general for checking if the entity has happened to been respawned.
     int32_t spawn_count = 0;
     //! sv.time when the object was freed
@@ -736,6 +740,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
 
     //! [SpawnKey]: Entity classname key/value.
     svg_level_qstring_t classname = nullptr;
+    uint32_t classname_hash = 0; // hash of classname for verification
     //! [SpawnKey]: Path to model.
     svg_level_qstring_t model = nullptr;
     //! [SpawnKey]: Key Spawn Angle.

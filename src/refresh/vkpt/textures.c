@@ -167,6 +167,51 @@ void vkpt_textures_destroy_unused()
 	textures_destroy_unused_set((qvk.frame_counter) % DESTROY_LATENCY);
 }
 
+/**
+ * @brief Flush any still‑pending resources once at shutdown.
+ *
+ * This replaces the previous “destroy_all_pending” that was called
+ * arbitrarily from the main‑loop.
+ *
+ * The function walks through every latency bucket (DESTROY_LATENCY)
+ * and destroys any buffers, images, image views, and the associated
+ * device memory that are still alive.  After destruction the
+ * corresponding handles are nulled and the counters are reset.
+ */
+void vkpt_textures_flush_pending( void ) {
+	/* Iterate over all pending resource slots. */
+	for ( int i = 0; i < DESTROY_LATENCY; ++i ) {
+		UnusedResources *r = &texture_system.unused_resources[ i ];
+		/* ----- Buffers ----- */
+		for ( uint32_t b = 0; b < r->buffer_num; ++b ) {
+			if ( r->buffers[ b ] != VK_NULL_HANDLE )
+				vkDestroyBuffer( qvk.device, r->buffers[ b ], NULL );
+			if ( r->buffer_memory[ b ] != VK_NULL_HANDLE )
+				vkFreeMemory( qvk.device, r->buffer_memory[ b ], NULL );
+			r->buffers[ b ] = VK_NULL_HANDLE;
+			r->buffer_memory[ b ] = VK_NULL_HANDLE;
+		}
+		r->buffer_num = 0;
+		/* ----- Images ----- */
+		for ( uint32_t im = 0; im < r->image_num; ++im ) {
+			if ( r->image_views[ im ] != VK_NULL_HANDLE )
+				vkDestroyImageView( qvk.device, r->image_views[ im ], NULL );
+			if ( r->image_views_mip0[ im ] != VK_NULL_HANDLE )
+				vkDestroyImageView( qvk.device, r->image_views_mip0[ im ], NULL );
+			if ( r->images[ im ] != VK_NULL_HANDLE )
+				vkDestroyImage( qvk.device, r->images[ im ], NULL );
+			/* image_memory is a DeviceMemory struct – free its VkDeviceMemory */
+			if ( r->image_memory[ im ].memory != VK_NULL_HANDLE )
+				vkFreeMemory( qvk.device, r->image_memory[ im ].memory, NULL );
+			/* clear the struct entry */
+			r->images[ im ] = VK_NULL_HANDLE;
+			r->image_views[ im ] = VK_NULL_HANDLE;
+			r->image_views_mip0[ im ] = VK_NULL_HANDLE;
+			memset( &r->image_memory[ im ], 0, sizeof( r->image_memory[ im ] ) );
+		}
+		r->image_num = 0;
+	}
+}
 static void
 destroy_envmap(void)
 {
@@ -315,7 +360,6 @@ vkpt_textures_upload_envmap(int w, int h, byte *data)
 
 	VkWriteDescriptorSet s = {
 		.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-		.dstSet          = qvk.desc_set_textures_even,
 		.dstBinding      = BINDING_OFFSET_ENVMAP,
 		.dstArrayElement = 0,
 		.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
@@ -323,10 +367,10 @@ vkpt_textures_upload_envmap(int w, int h, byte *data)
 		.pImageInfo      = &desc_img_info,
 	};
 
-	vkUpdateDescriptorSets(qvk.device, 1, &s, 0, NULL);
-
-	s.dstSet = qvk.desc_set_textures_odd;
-	vkUpdateDescriptorSets(qvk.device, 1, &s, 0, NULL);
+	for(int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+		s.dstSet = qvk.desc_set_textures[i];
+		vkUpdateDescriptorSets(qvk.device, 1, &s, 0, NULL);
+	}
 	}
 
 	vkQueueWaitIdle(qvk.queue_graphics);
@@ -493,7 +537,6 @@ load_blue_noise(void)
 
 	VkWriteDescriptorSet s = {
 		.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-		.dstSet          = qvk.desc_set_textures_even,
 		.dstBinding      = BINDING_OFFSET_BLUE_NOISE,
 		.dstArrayElement = 0,
 		.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
@@ -501,10 +544,10 @@ load_blue_noise(void)
 		.pImageInfo      = &desc_img_info,
 	};
 
-	vkUpdateDescriptorSets(qvk.device, 1, &s, 0, NULL);
-
-	s.dstSet = qvk.desc_set_textures_odd;
-	vkUpdateDescriptorSets(qvk.device, 1, &s, 0, NULL);
+	for(int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+		s.dstSet = qvk.desc_set_textures[i];
+		vkUpdateDescriptorSets(qvk.device, 1, &s, 0, NULL);
+	}
 
 	vkQueueWaitIdle(qvk.queue_graphics);
 
@@ -1476,11 +1519,10 @@ vkpt_textures_initialize()
 		.pSetLayouts        = &qvk.desc_set_layout_textures,
 	};
 
-	_VK(vkAllocateDescriptorSets(qvk.device, &descriptor_set_alloc_info, &qvk.desc_set_textures_even));
-	_VK(vkAllocateDescriptorSets(qvk.device, &descriptor_set_alloc_info, &qvk.desc_set_textures_odd));
-
-	ATTACH_LABEL_VARIABLE(qvk.desc_set_textures_even, DESCRIPTOR_SET);
-	ATTACH_LABEL_VARIABLE(qvk.desc_set_textures_odd, DESCRIPTOR_SET);
+	for(int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+		_VK(vkAllocateDescriptorSets(qvk.device, &descriptor_set_alloc_info, &qvk.desc_set_textures[i]));
+		ATTACH_LABEL_VARIABLE(qvk.desc_set_textures[i], DESCRIPTOR_SET);
+	}
 	
 	normalize_init();
 
@@ -2281,13 +2323,14 @@ LIST_IMAGES_A_B
 
 	VkWriteDescriptorSet output_img_write[NUM_IMAGES * 2];
 
-	for (int even_odd = 0; even_odd < 2; even_odd++)
+
+	for (int frame_idx = 0; frame_idx < MAX_FRAMES_IN_FLIGHT; frame_idx++)
 	{
-		/* create information to update descriptor sets */
-#define IMG_DO(_name, _binding, ...) { \
+			/* create information to update descriptor sets */
+			#define IMG_DO(_name, _binding, ...) { \
 			VkWriteDescriptorSet elem_image = { \
 				.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, \
-				.dstSet          = even_odd ? qvk.desc_set_textures_odd : qvk.desc_set_textures_even, \
+				.dstSet          = qvk.desc_set_textures[frame_idx], \
 				.dstBinding      = BINDING_OFFSET_IMAGES + _binding, \
 				.dstArrayElement = 0, \
 				.descriptorCount = 1, \
@@ -2296,7 +2339,7 @@ LIST_IMAGES_A_B
 			}; \
 			VkWriteDescriptorSet elem_texture = { \
 				.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, \
-				.dstSet          = even_odd ? qvk.desc_set_textures_odd : qvk.desc_set_textures_even, \
+				.dstSet          = qvk.desc_set_textures[frame_idx], \
 				.dstBinding      = BINDING_OFFSET_TEXTURES + _binding, \
 				.dstArrayElement = 0, \
 				.descriptorCount = 1, \
@@ -2307,15 +2350,14 @@ LIST_IMAGES_A_B
 			output_img_write[VKPT_IMG_##_name + NUM_VKPT_IMAGES] = elem_texture; \
 		}
 		LIST_IMAGES;
-		if (even_odd)
-		{
+		/* replaced undefined even_odd with a deterministic toggle */
+		bool even_odd = (frame_idx % 2 == 0);
+		if (even_odd) {
 			LIST_IMAGES_B_A;
-		}
-		else
-		{
+		} else {
 			LIST_IMAGES_A_B;
 		}
-#undef IMG_DO
+		#undef IMG_DO
 
 		vkUpdateDescriptorSets(qvk.device, LENGTH(output_img_write), output_img_write, 0, NULL);
 	}

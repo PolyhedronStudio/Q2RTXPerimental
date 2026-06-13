@@ -178,9 +178,14 @@ const cm_entity_t *CM_EntityKeyValue( const cm_entity_t *entity, const char *key
 **/
 const int32_t CM_EntityNumber( const cm_t *cm, const cm_entity_t *entity );
 
-//
-// collisionmodel/cm_hull_boundingbox.cpp
-//
+/**
+*	@brief	Initializes the state of the box hull template, which is shared between all collision models,
+*			and is used for compatibility checks as well as initialization of thread-local box hulls.
+*	@param hull
+**/
+void CM_InitBoxHullState( hull_boundingbox_t *hull );
+void CM_SetupBoxHull( hull_boundingbox_t *hull, const vec3_t mins, const vec3_t maxs, const cm_contents_t contents );
+
 /**
 *   Set up the planes and nodes so that the six floats of a bounding box
 *   can just be stored out and get a proper BSP clipping hull structure.
@@ -204,9 +209,14 @@ const bool CM_IsBoundingBoxHullHeadnode( const cm_t *cm, const mnode_t *headnode
 
 
 
-//
-// collisionmodel/cm_hull_octagonbox.cpp
-//
+/**
+*	@brief	Initializes the state of the octagon hull template, which is shared between all collision models, 
+*			and is used for compatibility checks as well as initialization of thread-local octagon hulls.
+*	@param hull 
+**/
+void CM_InitOctagonHullState( hull_octagonbox_t *hull );
+void CM_SetupOctagonBoxHull( hull_octagonbox_t *hull, const vec3_t mins, const vec3_t maxs, const cm_contents_t contents );
+
 /**
 *   Set up the planes and nodes so that the ten floats of a Bounding 'Octagon' Box
 *   can just be stored out and get a proper BSP clipping hull structure.

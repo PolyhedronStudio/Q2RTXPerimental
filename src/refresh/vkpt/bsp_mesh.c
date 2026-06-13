@@ -559,25 +559,26 @@ static void merge_pvs_rows(bsp_t* bsp, byte* src, byte* dst)
 	}
 }
 
-#define FOREACH_BIT_BEGIN(SET,ROWSIZE,VAR) \
+#define FOREACH_BIT_BEGIN(SET,ROWSIZE,MAXBITS,VAR) \
 	for (int _byte_idx = 0; _byte_idx < (ROWSIZE); _byte_idx++) { \
 	if (SET[_byte_idx]) { \
 		for (int _bit_idx = 0; _bit_idx < 8; _bit_idx++) { \
 			if (SET[_byte_idx] & (1 << _bit_idx)) { \
-				int VAR = (_byte_idx << 3) | _bit_idx;
+				int VAR = (_byte_idx << 3) | _bit_idx; \
+				if (VAR >= (MAXBITS)) continue;
 
 #define FOREACH_BIT_END  } } } }
 
 static void connect_pvs(bsp_t* bsp, int cluster_a, byte* pvs_a, int cluster_b, byte* pvs_b)
 {
-	FOREACH_BIT_BEGIN(pvs_a, bsp->visrowsize, vis_cluster_a)
+	FOREACH_BIT_BEGIN(pvs_a, bsp->visrowsize, bsp->vis->numclusters, vis_cluster_a)
 		if (vis_cluster_a != cluster_a && vis_cluster_a != cluster_b)
 		{
 			merge_pvs_rows(bsp, pvs_b, BSP_GetPvs(bsp, vis_cluster_a));
 		}
 	FOREACH_BIT_END
 
-	FOREACH_BIT_BEGIN(pvs_b, bsp->visrowsize, vis_cluster_b)
+	FOREACH_BIT_BEGIN(pvs_b, bsp->visrowsize, bsp->vis->numclusters, vis_cluster_b)
 		if (vis_cluster_b != cluster_a && vis_cluster_b != cluster_b)
 		{
 			merge_pvs_rows(bsp, pvs_a, BSP_GetPvs(bsp, vis_cluster_b));
@@ -594,7 +595,7 @@ static void make_pvs_symmetric(bsp_t* bsp)
 	{
 		byte* pvs = BSP_GetPvs(bsp, cluster);
 
-		FOREACH_BIT_BEGIN(pvs, bsp->visrowsize, vis_cluster)
+		FOREACH_BIT_BEGIN(pvs, bsp->visrowsize, bsp->vis->numclusters, vis_cluster)
 			if (vis_cluster != cluster)
 			{
 				byte* vis_pvs = BSP_GetPvs(bsp, vis_cluster);
@@ -616,7 +617,7 @@ static void build_pvs2(bsp_t* bsp)
 		byte* dest_pvs = BSP_GetPvs2(bsp, cluster);
 		memcpy(dest_pvs, pvs, bsp->visrowsize);
 
-		FOREACH_BIT_BEGIN(pvs, bsp->visrowsize, vis_cluster)
+		FOREACH_BIT_BEGIN(pvs, bsp->visrowsize, bsp->vis->numclusters, vis_cluster)
 			byte* pvs2 = BSP_GetPvs(bsp, vis_cluster);
 			merge_pvs_rows(bsp, pvs2, dest_pvs);
 		FOREACH_BIT_END
@@ -1801,7 +1802,7 @@ collect_cluster_lights(bsp_mesh_t *wm, bsp_t *bsp)
 
 		const byte* pvs = (const byte*)BSP_GetPvs(bsp, light->cluster);
 
-		FOREACH_BIT_BEGIN(pvs, bsp->visrowsize, other_cluster)
+		FOREACH_BIT_BEGIN(pvs, bsp->visrowsize, wm->num_clusters, other_cluster)
 			aabb_t* cluster_aabb = wm->cluster_aabbs + other_cluster;
 			if (light_affects_cluster(light, cluster_aabb))
 			{

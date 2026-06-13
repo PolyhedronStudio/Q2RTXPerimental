@@ -211,7 +211,7 @@ vkpt_profiler_next_frame(VkCommandBuffer cmd_buf)
 			NUM_PROFILER_QUERIES_PER_FRAME,
 			sizeof(profiler_data.query_pool_results),
 			profiler_data.query_pool_results,
-			sizeof(profiler_data.query_pool_results[0]),
+			sizeof(profiler_data.query_pool_results[0]) * 2,
 			VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WITH_AVAILABILITY_BIT);
 
 		if (result != VK_SUCCESS && result != VK_NOT_READY)

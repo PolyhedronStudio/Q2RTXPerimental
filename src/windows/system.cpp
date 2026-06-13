@@ -20,6 +20,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/cvar.h"
 #include "common/field.h"
 #include "common/prompt.h"
+#include <stdio.h>
+//#include <sanitizer/asan_interface.h>
 
 #if USE_WINSVC
 #include <winsvc.h>
@@ -952,9 +954,15 @@ void Sys_Init(void)
     cvar_t *var = Cvar_Get("sys_disablecrashdump", "0", CVAR_NOSET);
     if (!var->integer)
         Sys_InstallExceptionFilter();
+
+	#ifdef __SANITIZE_ADDRESS__
+	puts( "AddressSanitizer is ENABLED" );
+	#else
+	puts( "AddressSanitizer is NOT enabled" );
+	#endif
+
 #endif
 }
-
 /*
 ========================================================================
 

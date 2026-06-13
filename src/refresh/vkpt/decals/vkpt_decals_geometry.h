@@ -9,6 +9,17 @@
 
 #include "refresh/vkpt/vkpt.h"
 
+//! Maximum retained dynamic decal submissions used for path-traced decal generation.
+#define VKPT_DECAL_GEOMETRY_DYNAMIC_MAX 512
+//! Maximum retained static decal submissions used for path-traced decal generation.
+#define VKPT_DECAL_GEOMETRY_STATIC_MAX 512
+//! Fallback lifetime for path-traced decal submissions.
+#define VKPT_DECAL_GEOMETRY_LIFE_MS 1600u
+//! Maximum amount of vertices retained for one submitted decal mesh.
+#define VKPT_DECAL_GEOMETRY_MAX_VERTICES_PER_ITEM 256u
+//! Maximum amount of vertices retained across all runtime decal submissions.
+#define VKPT_DECAL_GEOMETRY_MAX_VERTICES ( VKPT_DECAL_GEOMETRY_MAX_VERTICES_PER_ITEM * ( VKPT_DECAL_GEOMETRY_DYNAMIC_MAX + VKPT_DECAL_GEOMETRY_STATIC_MAX ) )
+
 typedef struct vkpt_decal_vertex_s {
 	float position[ 3 ];
 	float pad0;
@@ -25,6 +36,7 @@ typedef struct vkpt_decal_vertex_s {
 
 VkResult vkpt_decals_geometry_initialize( void );
 void vkpt_decals_geometry_shutdown( void );
+void vkpt_decals_geometry_clear_transient( void );
 void vkpt_decals_geometry_clear( void );
 void vkpt_decals_geometry_clear_material_mappings( void );
 void vkpt_decals_geometry_set_material_mapping( const uint32_t materialHash, const char *materialName );

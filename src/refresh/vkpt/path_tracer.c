@@ -488,14 +488,15 @@ vkpt_pt_create_decal_blas(
 
 void vkpt_pt_reuse_decal_blas(int idx)
 {
-	blas_decals[idx].present = true;
+	blas_decals[idx].present = (blas_decals[idx].accel != VK_NULL_HANDLE);
 }
 
 void vkpt_pt_append_decal_instance(int idx)
 {
-	append_blas(g_instances, &g_num_instances, &blas_decals[idx], VERTEX_BUFFER_INSTANCED, 0,
+	append_blas(g_instances, &g_num_instances, &blas_decals[idx], 0, 0,
 		AS_FLAG_DECALS, VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR, SBTO_DECAL);
 }
+
 
 static inline int accel_matches(accel_match_info_t *match,
 								int fast_build,
@@ -615,8 +616,18 @@ vkpt_pt_create_accel_bottom(
 		// Allocate more memory / larger BLAS for dynamic objects
 		if (is_dynamic)
 		{
-			num_vertices_to_allocate *= DYNAMIC_GEOMETRY_BLOAT_FACTOR;
-			num_indices_to_allocate *= DYNAMIC_GEOMETRY_BLOAT_FACTOR;
+			if (blas >= blas_decals && blas < blas_decals + MAX_FRAMES_IN_FLIGHT)
+			{
+				// Decals can spawn frequently during combat. Allocate the maximum possible 
+				// BLAS size to avoid stalling the pipeline with synchronous memory allocations.
+				num_vertices_to_allocate = VKPT_DECAL_GEOMETRY_MAX_VERTICES;
+				num_indices_to_allocate = 0;
+			}
+			else
+			{
+				num_vertices_to_allocate *= DYNAMIC_GEOMETRY_BLOAT_FACTOR;
+				num_indices_to_allocate *= DYNAMIC_GEOMETRY_BLOAT_FACTOR;
+			}
 
 			max_primitive_count = max(num_vertices_to_allocate, num_indices_to_allocate) / 3;
 			geometry.geometry.triangles.maxVertex = max(num_vertices_to_allocate, 1) - 1;

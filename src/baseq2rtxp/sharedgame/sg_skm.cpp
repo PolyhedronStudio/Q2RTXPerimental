@@ -809,9 +809,9 @@ void SG_SKM_LerpBonePoses( const model_t *model, const skm_transform_t *frameBon
             }
             #endif
 
-            VectorCopy( pose->translate, relativeJoint->translate );
-            QuatCopy( pose->rotate, relativeJoint->rotate );
-            VectorCopy( pose->scale, relativeJoint->scale );
+            //VectorCopy( pose->translate, relativeJoint->translate );
+            //QuatCopy( pose->rotate, relativeJoint->rotate );
+            //VectorCopy( pose->scale, relativeJoint->scale );
         }
         // Lerp the animation frame pose.
     } else {

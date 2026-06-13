@@ -286,8 +286,9 @@ DEFINE_MEMBER_CALLBACK_POSTSPAWN( svg_func_plat_trigger_t, onPostSpawn )( svg_fu
 *	@brief	Touched.
 **/
 DEFINE_MEMBER_CALLBACK_TOUCH( svg_func_plat_trigger_t, onTouch )( svg_func_plat_trigger_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) -> void {
-	
+	#if 0
 	gi.dprintf( "%s: Trigger touched by entity %i.\n", __func__, other->s.number );
+	#endif
 	// Only clients can activate plat triggers.
 	if ( !SVG_Entity_IsClient( other, true /*healthCheck*/) ) {
 		return;
@@ -618,12 +619,8 @@ void svg_func_plat_t::SpawnInsideTrigger( const bool isTop ) {
 	/**
 	*	Add it to the world.
 	**/
-	// Find type info for the trigger class by worldspawn classname.
-	EdictTypeInfo *typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "func_plat_trigger" );
-	// Allocate trigger instance via the type system.
-	svg_func_plat_trigger_t *triggerEdictInstance =	static_cast<svg_func_plat_trigger_t *>( typeInfo->allocateEdictInstanceCallback( nullptr ) );
-	// Insert into the global edict pool.
-	g_edict_pool.EmplaceNextFreeEdict( triggerEdictInstance );
+	// Allocate trigger instance via the type system, reusing an old entity if possible.
+	svg_func_plat_trigger_t *triggerEdictInstance = g_edict_pool.AllocateNextFreeEdict<svg_func_plat_trigger_t>();
 
 	// Mark as active; runtime-spawned edicts may not have this set by default.
 	triggerEdictInstance->inUse = true;	

@@ -93,6 +93,11 @@ typedef struct centity_s {
 	Vector3	mins, maxs;
 	//! Worldspace absolute Mins/Maxs/Size of Bounding Box.
 	Vector3	absMin, absMax, size;
+
+	//! The bounding box hull of this entity, used for collision detection and physics.
+	hull_boundingbox_t	hullBoundingBox;
+	//! The octagon hull of this entity, used for collision detection and physics.
+	hull_octagonbox_t	hullOctagonBox;
 	
 	/**
 	*	The game dll can add anything it wants after this point in the structure.

@@ -186,6 +186,12 @@ typedef struct QVK_s {
 	VkDevice                    device;
 	VkQueue                     queue_graphics;
 	VkQueue                     queue_transfer;
+	// New compute queue (may be same family as graphics)
+	VkQueue                     queue_compute;
+	int32_t                     queue_idx_compute;
+	// Timeline semaphore for raster->decal synchronization
+	VkSemaphore                 timeline_sem;
+	uint64_t                    timeline_counter;
 	int32_t                     queue_idx_graphics;
 	int32_t                     queue_idx_transfer;
 	VkSurfaceKHR                surface;
@@ -212,6 +218,7 @@ typedef struct QVK_s {
 
 	cmd_buf_group_t             cmd_buffers_graphics;
 	cmd_buf_group_t             cmd_buffers_transfer;
+	cmd_buf_group_t             cmd_buffers_compute;
 	semaphore_group_t           semaphores[MAX_FRAMES_IN_FLIGHT][VKPT_MAX_GPUS];
 
 	uint32_t                    num_extensions;
@@ -223,7 +230,7 @@ typedef struct QVK_s {
 	VkDebugUtilsMessengerEXT    dbg_messenger;
 
 	VkFence                     fences_frame_sync[MAX_FRAMES_IN_FLIGHT];
-
+	VkFence                     fences_compute_sync[MAX_FRAMES_IN_FLIGHT];
 
 	int                         win_width;
 	int                         win_height;
@@ -248,8 +255,7 @@ typedef struct QVK_s {
 	VkDescriptorSet             desc_set_ubo;
 
 	VkDescriptorSetLayout       desc_set_layout_textures;
-	VkDescriptorSet             desc_set_textures_even;
-	VkDescriptorSet             desc_set_textures_odd;
+	VkDescriptorSet             desc_set_textures[MAX_FRAMES_IN_FLIGHT];
 	VkImage                     images      [NUM_VKPT_IMAGES]; // todo: rename to make consistent
 	VkImageView                 images_views[NUM_VKPT_IMAGES]; // todo: rename to make consistent
 
@@ -558,6 +564,12 @@ VkResult vkpt_textures_destroy(void);
 VkResult vkpt_textures_end_registration(void);
 VkResult vkpt_textures_upload_envmap(int w, int h, byte *data);
 void vkpt_textures_destroy_unused(void);
+/**
+*	@brief	Flush any still‑pending resources *once* at shutdown.
+*			This replaces the previous “destroy_all_pending” that was called
+*			arbitrarily from the main‑loop.
+**/
+void vkpt_textures_flush_pending( void );
 void vkpt_textures_update_descriptor_set(void);
 image_t *vkpt_fake_emissive_texture(image_t *image, int bright_threshold_int);
 void vkpt_extract_emissive_texture_info(image_t *image);

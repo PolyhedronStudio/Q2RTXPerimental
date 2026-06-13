@@ -7,6 +7,7 @@
 ********************************************************************/
 #pragma once
 
+#include "shared/cmd/cmd_print.h"
 
 // Extern C
 QEXTERN_C_OPEN
@@ -14,7 +15,6 @@ QEXTERN_C_OPEN
 //
 // list.h
 //
-
 typedef struct list_s {
     struct list_s   *next; // head
     struct list_s   *prev; // tail
@@ -32,6 +32,7 @@ static inline void List_Link(list_t *prev,
 
 static inline void List_Unlink(list_t *prev, list_t *next)
 {
+    Q_assert(prev != NULL && next != NULL);
     prev->next = next;
     next->prev = prev;
 }

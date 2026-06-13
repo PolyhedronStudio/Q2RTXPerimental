@@ -63,15 +63,21 @@ vkpt_uniform_buffer_create()
 	buffer_create(&device_uniform_buffer, buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
 		device_memory_flags);
 
-	VkDescriptorPoolSize pool_size = {
-		.type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-		.descriptorCount = MAX_FRAMES_IN_FLIGHT,
+	VkDescriptorPoolSize pool_sizes[] = {
+		{
+			.type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			.descriptorCount = MAX_FRAMES_IN_FLIGHT,
+		},
+		{
+			.type            = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+			.descriptorCount = MAX_FRAMES_IN_FLIGHT,
+		}
 	};
 
 	VkDescriptorPoolCreateInfo pool_info = {
 		.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-		.poolSizeCount = 1,
-		.pPoolSizes    = &pool_size,
+		.poolSizeCount = LENGTH(pool_sizes),
+		.pPoolSizes    = pool_sizes,
 		.maxSets       = MAX_FRAMES_IN_FLIGHT,
 	};
 

@@ -58,7 +58,7 @@ typedef struct {
 //! The actual zone allocator chain.
 static list_t       z_chain;
 //! The actual stats for each tag type.
-static zstats_t     z_stats[18];
+static zstats_t     z_stats[TAG_MAX];
 
 /**
 *   @brief  The static memory allocation for the digits 0-9 and the null terminator.
@@ -89,12 +89,15 @@ static const char *const z_tagnames[ TAG_MAX ] = {
     "cmodel",
 
     "svgame",
+	"svgame_navmesh",
 	"svgame_level",
 	"svgame_edicts",
 	"svgame_lua",
 
 	"clgame",
-	"clgame_level"
+	"clgame_level",
+	"clgame_ui",
+	"clgame_micro_ui",
 };
 
 #define TAG_INDEX(tag)  ((tag) < TAG_MAX ? (tag) : TAG_FREE)
@@ -177,12 +180,12 @@ static bool Z_Validate( const zhead_t *z ) {
         return false;
     }
 
-    const bool shouldAssert = !(z->magic == Z_MAGIC && z->tag != TAG_FREE);
-    if (shouldAssert) {
-        int _varForBreakPoint = 1337; // h4x 4 br34kp01nt
-    }
-
-    Q_assert(z->magic == Z_MAGIC && z->tag != TAG_FREE);
+	// <Q2RTXP>: WID: Inlined so we can debug break and trace call stack
+    //Q_assert(z->magic == Z_MAGIC && z->tag != TAG_FREE);
+	do {
+		if ( !( z->magic == 0x1d0d && z->tag != TAG_FREE ) ) 
+			Com_Error( ERR_FATAL, "%s: assertion `%s' failed", __FUNCTION__, "z->magic == Z_MAGIC && z->tag != TAG_FREE" );
+	} while ( 0 );
     return true;
 }
 

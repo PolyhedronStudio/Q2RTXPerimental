@@ -560,7 +560,7 @@ const bool SVG_PushMover( svg_base_edict_t *pusher, const Vector3 &move, const V
     svg_base_edict_t *checkPtr = g_edict_pool.EdictForNumber( 1 );
     for ( int32_t e = 1; e < globals.edictPool->num_edicts; e++, checkPtr = g_edict_pool.EdictForNumber( e ) ) {
 		// Ensure it is in use.
-		if ( !checkPtr->inUse ) {
+		if ( !checkPtr || !checkPtr->inUse ) {
 			continue;
 		}
 		if ( checkPtr->movetype == MOVETYPE_PUSH

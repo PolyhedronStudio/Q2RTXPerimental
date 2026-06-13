@@ -206,7 +206,6 @@ initializeEnvTexture(int width, int height)
 
         VkWriteDescriptorSet s = {
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .dstSet = qvk.desc_set_textures_even,
             .dstBinding = BINDING_OFFSET_PHYSICAL_SKY,
             .dstArrayElement = 0,
             .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
@@ -214,10 +213,10 @@ initializeEnvTexture(int width, int height)
             .pImageInfo = &desc_img_info,
         };
 
-        vkUpdateDescriptorSets(qvk.device, 1, &s, 0, NULL);
-
-        s.dstSet = qvk.desc_set_textures_odd;
-        vkUpdateDescriptorSets(qvk.device, 1, &s, 0, NULL);
+	for(int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+		s.dstSet = qvk.desc_set_textures[i];
+		vkUpdateDescriptorSets(qvk.device, 1, &s, 0, NULL);
+	}
     }
 
     // image descriptor
@@ -227,20 +226,19 @@ initializeEnvTexture(int width, int height)
             .imageView = imv_envmap,
         };
 
-        VkWriteDescriptorSet s = {
-            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .dstSet = qvk.desc_set_textures_even,
-            .dstBinding = BINDING_OFFSET_PHYSICAL_SKY_IMG,
-            .dstArrayElement = 0,
-            .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-            .descriptorCount = 1,
-            .pImageInfo = &desc_img_info,
-        };
-
-        vkUpdateDescriptorSets(qvk.device, 1, &s, 0, NULL);
-
-        s.dstSet = qvk.desc_set_textures_odd;
-        vkUpdateDescriptorSets(qvk.device, 1, &s, 0, NULL);
+         VkWriteDescriptorSet s = {
+             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+             .dstBinding = BINDING_OFFSET_PHYSICAL_SKY_IMG,
+             .dstArrayElement = 0,
+             .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+             .descriptorCount = 1,
+             .pImageInfo = &desc_img_info,
+         };
+         // Update the sky image descriptor for each frame's texture descriptor set
+         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+             s.dstSet = qvk.desc_set_textures[i];
+             vkUpdateDescriptorSets(qvk.device, 1, &s, 0, NULL);
+         }
     }
     return VK_SUCCESS;
 }

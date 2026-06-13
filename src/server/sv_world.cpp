@@ -17,10 +17,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 // world.c -- world query functions
 
-#include <shared_mutex>
-
 #include "server/sv_server.h"
 #include "server/sv_world.h"
+
+#include "common/math.h"
 
 /*
 ===============================================================================
@@ -387,6 +387,126 @@ void PF_UnlinkEdict(edict_ptr_t *ent)
 }
 
 /**
+*   @brief  Initialize the structural topology of a synthetic bounding-box hull.
+*   @param  hull    Hull storage to initialize.
+*   @note   This only wires up planes, nodes, and leaf/brush ownership. Per-trace mins/maxs and plane distances are assigned later.
+**/
+static void InitBoxHullState( hull_boundingbox_t *hull ) {
+	/**
+	*   Sanity check: require destination storage before wiring the synthetic hull.
+	**/
+	if ( !hull ) {
+		return;
+	}
+
+	/**
+	*   Reset the hull storage so every plane, node, and leaf starts from a deterministic baseline.
+	**/
+	*hull = {};
+
+	/**
+	*   Initialize the root node, brush, and leaf ownership for the synthetic hull tree.
+	**/
+	hull->headnode = &hull->nodes[ 0 ];
+	hull->brush.numsides = 6;
+	hull->brush.firstbrushside = &hull->brushsides[ 0 ];
+	hull->brush.contents = CONTENTS_MONSTER;
+	hull->leaf.firstleafbrush = &hull->leafbrush;
+	hull->leaf.numleafbrushes = 1;
+	hull->leaf.contents = CONTENTS_MONSTER;
+	hull->leafbrush = &hull->brush;
+
+	/**
+	*   Wire the six axial brush sides and their clip nodes into one small BSP chain.
+	**/
+	for ( int32_t i = 0; i < 6; i++ ) {
+		// Determine which side of the split points at the empty leaf.
+		const int32_t side = i & 1;
+
+		// Bind the brush side to the corresponding plane and null texture info.
+		mbrushside_t *brushSide = &hull->brushsides[ i ];
+		brushSide->plane = &hull->planes[ i * 2 + side ];
+		brushSide->texinfo = &nulltexinfo;
+
+		// Chain clip nodes together until the final solid leaf is reached.
+		mnode_t *clipNode = &hull->nodes[ i ];
+		clipNode->plane = &hull->planes[ i * 2 ];
+		clipNode->children[ side ] = ( mnode_t * )&hull->emptyleaf;
+		if ( i != 5 ) {
+			clipNode->children[ side ^ 1 ] = &hull->nodes[ i + 1 ];
+		} else {
+			clipNode->children[ side ^ 1 ] = ( mnode_t * )&hull->leaf;
+		}
+
+		// Initialize the positive-facing axial plane for this axis.
+		cm_plane_t *plane = &hull->planes[ i * 2 ];
+		plane->normal[ 0 ] = 0.0f;
+		plane->normal[ 1 ] = 0.0f;
+		plane->normal[ 2 ] = 0.0f;
+		plane->normal[ i >> 1 ] = 1.0f;
+		SetPlaneType( plane );
+		SetPlaneSignbits( plane );
+
+		// Initialize the negative-facing companion axial plane for this axis.
+		plane = &hull->planes[ i * 2 + 1 ];
+		plane->normal[ 0 ] = 0.0f;
+		plane->normal[ 1 ] = 0.0f;
+		plane->normal[ 2 ] = 0.0f;
+		plane->normal[ i >> 1 ] = -1.0f;
+		SetPlaneType( plane );
+		SetPlaneSignbits( plane );
+	}
+}
+
+/**
+*   @brief  To keep everything totally uniform, bounding boxes are turned into small
+*           BSP trees instead of being compared directly.
+*
+*           The BSP trees' box will match with the bounds(mins, maxs) and have appointed
+*           the specified contents. If contents == CONTENTS_NONE(0) then it'll default to CONTENTS_MONSTER.
+**/
+static mnode_t *ResizeEntityHullForBox( cm_t *cm, hull_boundingbox_t *hull, const Vector3 &mins, const Vector3 &maxs, const cm_contents_t contents ) {
+	if ( !cm || !cm->cache ) {
+		return nullptr;
+	}
+
+	if ( !hull->headnode ) {
+		InitBoxHullState( hull );
+	}
+	
+	// Setup to CONTENTS_MONSTER in case of no contents being passed in.
+	if ( contents == CONTENTS_NONE ) {
+		hull->leaf.contents = hull->brush.contents = CONTENTS_MONSTER;
+	} else {
+		hull->leaf.contents = hull->brush.contents = contents;
+	}
+
+	// Setup its bounding boxes.
+	VectorCopy( mins, hull->headnode->mins );
+	VectorCopy( maxs, hull->headnode->maxs );
+	VectorCopy( mins, hull->leaf.mins );
+	VectorCopy( maxs, hull->leaf.maxs );
+
+	// Setup planes.
+	hull->planes[ 0 ].dist = maxs[ 0 ];
+	hull->planes[ 1 ].dist = -maxs[ 0 ];
+	hull->planes[ 2 ].dist = mins[ 0 ];
+	hull->planes[ 3 ].dist = -mins[ 0 ];
+	hull->planes[ 4 ].dist = maxs[ 1 ];
+	hull->planes[ 5 ].dist = -maxs[ 1 ];
+	hull->planes[ 6 ].dist = mins[ 1 ];
+	hull->planes[ 7 ].dist = -mins[ 1 ];
+	hull->planes[ 8 ].dist = maxs[ 2 ];
+	hull->planes[ 9 ].dist = -maxs[ 2 ];
+	hull->planes[ 10 ].dist = mins[ 2 ];
+	hull->planes[ 11 ].dist = -mins[ 2 ];
+
+	// Return boundingbox' headnode pointer.
+	return hull->headnode;
+}
+
+
+/**
 *   @brief  Needs to be called any time an entity changes origin, mins, maxs,
 *			clipMask, model, hullContents, owner, 
 *           or solid.  Automatically unlinks if needed.
@@ -480,6 +600,12 @@ void PF_LinkEdict( edict_ptr_t *ent ) {
         ent->s.ownerNumber = ent->owner->s.number;
     } else {
         ent->s.ownerNumber = ENTITYNUM_NONE;
+    }
+	// Setup the collision model bounds in a thread-safe lock-free manner during link
+    if ( ent->solid == SOLID_BOUNDS_OCTAGON ) {
+        CM_SetupOctagonBoxHull( &sent->hullOctagonBox, &ent->mins.x, &ent->maxs.x, ent->hullContents );
+    } else if ( ent->solid == SOLID_BOUNDS_BOX ) {
+        CM_SetupBoxHull( &sent->hullBoundingBox, &ent->mins.x, &ent->maxs.x, ent->hullContents );
     }
 
     // Link edit in.
@@ -665,11 +791,12 @@ static mnode_t *SV_HullForEntity( const sv_edict_t *ent, const bool includeSolid
         return sv.cm.cache->models[i].headnode;
     }
 
-    // Create a temp hull from entity bounds and contents clipMask for the specific type of 'solid'.
+    // Return the pre-computed temp hull from the entity which is thread-safely updated during SV_LinkEdict.
+	server_entity_t *sent = &sv.entities[ ent->s.number ];
     if ( ent->solid == SOLID_BOUNDS_OCTAGON ) {
-        return CM_HeadnodeForOctagon( &sv.cm, &ent->mins.x, &ent->maxs.x, ent->hullContents );
+        return sent->hullOctagonBox.headnode;
     } else {
-        return CM_HeadnodeForBox( &sv.cm, &ent->mins.x, &ent->maxs.x, ent->hullContents );
+        return sent->hullBoundingBox.headnode;
     }
 }
 

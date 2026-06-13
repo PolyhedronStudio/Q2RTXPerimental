@@ -334,6 +334,9 @@ void SVG_MoveWith_FindParentTargetEntities( void ) {
 	int32_t moveParents = 0;
 	int32_t i = 1;
 	for ( i = 1, ent = g_edict_pool.EdictForNumber( i ); i < globals.edictPool->num_edicts; i++, ent = g_edict_pool.EdictForNumber( i ) ) {
+		if ( !ent || !ent->inUse ) {
+			continue;
+		}
 		// Not having any parent.
 		if ( !ent->targetNames.movewith ) {
 			continue;
@@ -425,6 +428,9 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
 		game.mode = nullptr;
 	}
 
+	// Reset the count of move-with entities for this level.
+	game.num_movewithEntityStates = 0;
+
 	// Get the current gamemode type.
 	sg_gamemode_type_t requestedGameModeType = SG_GetRequestedGameModeType();
 	// Allocate a matching game mode object based on the gamemode type.
@@ -487,14 +493,15 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
 	const cm_entity_t *cm_entity = nullptr;
 	svg_base_edict_t *spawnEdict = nullptr;
 
+	// TypeInfo for this entity.
+	EdictTypeInfo *typeInfo = nullptr;
+
 	for ( size_t i = 0; i < numEntities; i++ ) {
         // Pointer to the worldspawn edict in first instance, after that the first free entity
         // we can acquire.
         //spawnEdict = ( !spawnEdict ? g_edict_pool.EdictForNumber( 0 ) /* worldspawn */ : g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>() );
 		svg_base_edict_t *spawnEdict = nullptr;
 
-        // TypeInfo for this entity.
-		EdictTypeInfo *typeInfo = nullptr;
 
         // Get the incremental index entity.
 		cm_entity = level.cm_entities[ i ];
@@ -522,6 +529,9 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
 		const cm_entity_t *classnameKv = cm_entity;
 
 		while ( classnameKv ) {
+			// Restore it to nullptr to prevent reallocating with same typeinfo.
+			typeInfo = nullptr;
+
             // If we have a matching key, then we can spawn the entity.
 			if ( strcmp( classnameKv->key, "classname" ) == 0 ) {
                 /**
@@ -563,15 +573,15 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
                 *   Allocate the entity for spawning.
                 **/
 				if ( typeInfo ) {
-                    // Allocate.
-					spawnEdict = typeInfo->allocateEdictInstanceCallback( topCmEntity );
+                    // Allocate from pool.
+					spawnEdict = g_edict_pool.AllocateNextFreeEdict( typeInfo, topCmEntity, classnameKv->string );
                     // Assign its item info pointer in case we spawned an item entity.
 					spawnEdict->item = item;
                     // This should never happen, but still.
                 // Or, error out.
 				} else {
 					spawnEdict = nullptr;
-					gi.dprintf( "Failed to find TypeInfo for \"svg_base_edict_t\", entity(% s)!\n", classnameKv->string );
+					gi.dprintf( "Failed to find TypeInfo for \"svg_base_edict_t\", entity(%s)!\n", classnameKv->string );
 				}
 				break;
 			}
@@ -616,9 +626,6 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
 			kv = kv->next;
 		}
 
-        // Emplace the spawned edict in the next avaible edict slot.
-        // Set the worldspawn entityID.
-		g_edict_pool.EmplaceNextFreeEdict( spawnEdict );
         // PGM - do this before calling the spawn function so it can be overridden.
 		spawnEdict->gravityVector = QM_Vector3Gravity();
         // PGM

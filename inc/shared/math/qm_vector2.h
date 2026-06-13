@@ -11,12 +11,12 @@
 *   Vector3 in:
 **/
 [[nodiscard]] inline Vector2::Vector2( Vector3 &v ) {
-    this->x = v.x;
-    this->y = v.y;
+    x = v.x;
+    y = v.y;
 }
 [[nodiscard]] inline Vector2::Vector2( const Vector3 &v ) {
-    this->x = v.x;
-    this->y = v.y;
+    x = v.x;
+    y = v.y;
 }
 
 // Vector with components value 0.0f

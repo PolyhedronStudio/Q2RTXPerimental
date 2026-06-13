@@ -183,10 +183,13 @@ mnode_t *CL_GetEntityHullNode( const centity_t *ent/*, const bool includeSolidTr
 	}
 
 	// Create a temp hull from entity bounds and contents clipMask for the specific type of 'solid'.
+	centity_t *mutable_ent = const_cast<centity_t*>(ent);
 	if ( ent->current.solid == SOLID_BOUNDS_OCTAGON ) {
-		return CM_HeadnodeForOctagon( &cl.collisionModel, &ent->mins.x, &ent->maxs.x, ent->current.hullContents );
+		CM_SetupOctagonBoxHull( &mutable_ent->hullOctagonBox, &ent->mins.x, &ent->maxs.x, ent->current.hullContents );
+		return mutable_ent->hullOctagonBox.headnode;
 	} else {
-		return CM_HeadnodeForBox( &cl.collisionModel, &ent->mins.x, &ent->maxs.x, ent->current.hullContents );
+		CM_SetupBoxHull( &mutable_ent->hullBoundingBox, &ent->mins.x, &ent->maxs.x, ent->current.hullContents );
+		return mutable_ent->hullBoundingBox.headnode;
 	}
 }
 

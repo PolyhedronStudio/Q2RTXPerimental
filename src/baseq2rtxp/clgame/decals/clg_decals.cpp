@@ -1580,7 +1580,15 @@ void CLG_Decals_EndFrame( void ) {
 }
 
 void CLG_Decals_Update( const QMTime now ) {
+    // Early exit if decals system not initialized or disabled.
     if ( !s_clgDecalsInitialized || !s_clgDecalPool.instances || s_clgDecalPool.capacity <= 0 ) {
+        return;
+    }
+    // Respect user cvar controls.
+    if ( clg_decals_enable && clg_decals_enable->integer == 0 ) {
+        return;
+    }
+    if ( clg_decals_mode && clg_decals_mode->integer == SG_DECAL_RENDER_DISABLED ) {
         return;
     }
 
@@ -1597,6 +1605,7 @@ void CLG_Decals_Update( const QMTime now ) {
         }
 
         const bool isStaticDecal = ( ( instance->spawnParams.flags & SG_DECAL_FLAG_STATIC ) != 0u );
+        // Expire non‑static decals.
         if ( !isStaticDecal && now >= instance->runtime.expireTime ) {
             memset( instance, 0, sizeof( *instance ) );
             s_clgDecalPool.activeCount = ( s_clgDecalPool.activeCount > 0 ) ? ( s_clgDecalPool.activeCount - 1 ) : 0;
@@ -1605,14 +1614,17 @@ void CLG_Decals_Update( const QMTime now ) {
 
         if ( isStaticDecal ) {
             s_clgDecalActiveStatic++;
+            // Static decals have infinite lifetime and no fade – skip further per‑frame work.
+            continue;
         } else {
             s_clgDecalActiveDynamic++;
         }
 
+        // Dynamic decal: compute age, normalized age and alpha.
         const QMTime ageTime = now - instance->runtime.spawnTime;
         const float lifeSeconds = ( instance->spawnParams.lifeSeconds > 0.0001f ) ? instance->spawnParams.lifeSeconds : 0.0001f;
         const float ageSeconds = (float)ageTime.Milliseconds() * 0.001f;
-        const float normalizedAge = isStaticDecal ? 0.0f : ( ageSeconds / lifeSeconds );
+        const float normalizedAge = ageSeconds / lifeSeconds;
 
         instance->runtime.normalizedAge = normalizedAge;
         if ( instance->runtime.normalizedAge < 0.0f ) {
@@ -1622,24 +1634,15 @@ void CLG_Decals_Update( const QMTime now ) {
         }
         instance->runtime.alpha = 1.0f;
 
+        // Fade‑in.
         if ( instance->spawnParams.fadeInSeconds > 0.0f && ageSeconds < instance->spawnParams.fadeInSeconds ) {
             instance->runtime.alpha = ageSeconds / instance->spawnParams.fadeInSeconds;
-            if ( instance->runtime.alpha < 0.0f ) {
-                instance->runtime.alpha = 0.0f;
-            } else if ( instance->runtime.alpha > 1.0f ) {
-                instance->runtime.alpha = 1.0f;
-            }
         }
 
+        // Fade‑out.
         const float secondsRemaining = (float)( instance->runtime.expireTime - now ).Milliseconds() * 0.001f;
-        if ( !isStaticDecal && instance->spawnParams.fadeOutSeconds > 0.0f && secondsRemaining < instance->spawnParams.fadeOutSeconds ) {
+        if ( instance->spawnParams.fadeOutSeconds > 0.0f && secondsRemaining < instance->spawnParams.fadeOutSeconds ) {
             float fadeOutAlpha = secondsRemaining / instance->spawnParams.fadeOutSeconds;
-            if ( fadeOutAlpha < 0.0f ) {
-                fadeOutAlpha = 0.0f;
-            } else if ( fadeOutAlpha > 1.0f ) {
-                fadeOutAlpha = 1.0f;
-            }
-
             if ( fadeOutAlpha < instance->runtime.alpha ) {
                 instance->runtime.alpha = fadeOutAlpha;
             }

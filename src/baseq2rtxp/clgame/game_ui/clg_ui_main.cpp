@@ -141,7 +141,7 @@ static struct clg_gameui_ctx {
 		//! Stores the byte data for the GameUI atlas texture, this is used to upload the atlas texture to the renderer when the client game initializes. We keep a copy of the atlas data in memory so we can re-upload it if needed, such as when the renderer is re-initialized or when the client game reloads.
 		byte *textureCopy = nullptr;
 	} atlas = {};
-} s_gameui_ctx;
+} s_gameui_ctx = {};
 
 #ifdef USE_R_DRAW_STRING_FONT
 	/**
@@ -282,7 +282,7 @@ void CLG_UI_AllocateContext() {
 		// <Q2RTXP>: WID: TODO: Unsure if we oughta go for IF_PERMANENT.
 		s_gameui_ctx.atlas.imageHandle = clgi.R_RegisterRawImage( "clg_ui_atlas", CLG_UI_ATLAS_WIDTH, CLG_UI_ATLAS_HEIGHT, s_gameui_ctx.atlas.textureCopy, IT_PIC, IF_PERMANENT | IF_SCRAP | IF_SRGB );
 		// IMG_Load_RTX stores the pointer as image-owned pixel data, so transfer ownership here.
-		s_gameui_ctx.atlas.textureCopy = nullptr;
+		//s_gameui_ctx.atlas.textureCopy = nullptr;
 		//clgi.Z_Free( s_gameui_ctx.atlas.textureCopy );
 	}
 	// Initialize the UI context defaults before binding callbacks because mu_init clears the function pointers.

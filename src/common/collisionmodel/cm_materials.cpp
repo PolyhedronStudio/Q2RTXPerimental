@@ -55,7 +55,7 @@ const int32_t CM_MaterialExists( cm_t *cm, const char *name ) {
     int32_t materialID = -1;
 
     // Stores the resulting materialID to return.
-    for ( int32_t i = 1; i < cm->num_materials + 1; i++ ) {
+    for ( int32_t i = 1; i < cm->num_materials; i++ ) {
         if ( strcmp( cm->materials[ i ].name, name ) == 0 ) {
             materialID = i;
             break;
@@ -105,8 +105,8 @@ const int32_t CM_LoadMaterialFromJSON( cm_t *cm, const char *name, const char *j
 		// Return 0 as we failed to parse the json.
 		return 0;
 	}
-    // Allocate new materialID instance.
-	const int32_t materialID = ( cm->num_materials++ ) + 1;
+	// Allocate new materialID instance.
+	const int32_t materialID = cm->num_materials++;
 	// Get materialID pointer.
 	cm_material_t *material = &cm->materials[ materialID ];
 	// Initialize defaults.

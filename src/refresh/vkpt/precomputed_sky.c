@@ -259,7 +259,6 @@ VkResult UploadImage(void* FirstPixel, size_t total_size, unsigned int Width, un
 
 	VkWriteDescriptorSet s = {
 		.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-		.dstSet = qvk.desc_set_textures_even,
 		.dstBinding = Binding,
 		.dstArrayElement = 0,
 		.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
@@ -267,10 +266,10 @@ VkResult UploadImage(void* FirstPixel, size_t total_size, unsigned int Width, un
 		.pImageInfo = &desc_img_info,
 	};
 
-	vkUpdateDescriptorSets(qvk.device, 1, &s, 0, NULL);
-
-	s.dstSet = qvk.desc_set_textures_odd;
-	vkUpdateDescriptorSets(qvk.device, 1, &s, 0, NULL);
+	for(int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+		s.dstSet = qvk.desc_set_textures[i];
+		vkUpdateDescriptorSets(qvk.device, 1, &s, 0, NULL);
+	}
 
 	vkQueueWaitIdle(qvk.queue_graphics);
 
@@ -923,7 +922,6 @@ void CreateShadowMap(struct Shadowmap* InOutShadowmap)
 
 	VkWriteDescriptorSet s = {
 		.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-		.dstSet = qvk.desc_set_textures_even,
 		.dstBinding = BINDING_OFFSET_TERRAIN_SHADOWMAP,
 		.dstArrayElement = 0,
 		.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
@@ -931,10 +929,10 @@ void CreateShadowMap(struct Shadowmap* InOutShadowmap)
 		.pImageInfo = &desc_img_info,
 	};
 
-	vkUpdateDescriptorSets(qvk.device, 1, &s, 0, NULL);
-
-	s.dstSet = qvk.desc_set_textures_odd;
-	vkUpdateDescriptorSets(qvk.device, 1, &s, 0, NULL);
+	for(int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+		s.dstSet = qvk.desc_set_textures[i];
+		vkUpdateDescriptorSets(qvk.device, 1, &s, 0, NULL);
+	}
 
 	VkSamplerCreateInfo sampler = 
 	{

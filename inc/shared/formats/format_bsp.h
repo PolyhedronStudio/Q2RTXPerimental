@@ -230,6 +230,10 @@ typedef struct mnode_s {
     int             numfaces;
     mface_t         *firstface;
     #endif
+
+    // Identifies if this node is the root of a synthetic collision hull.
+    // 0 = Normal BSP, 1 = Bounding Box Hull, 2 = Octagon Hull
+    uint8_t synthetic_hull_type; 
 } mnode_t;
 
 typedef struct {
@@ -272,6 +276,9 @@ typedef struct {
     mface_t     **firstleafface;
     int         numleaffaces;
     #endif
+	// Identifies if this node is the root of a synthetic collision hull.
+	// 0 = Normal BSP, 1 = Bounding Box Hull, 2 = Octagon Hull
+	uint8_t synthetic_hull_type;
 } mleaf_t;
 
 typedef struct {

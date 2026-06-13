@@ -22,6 +22,7 @@ typedef enum vkpt_decal_render_mode_e {
 
 VkResult vkpt_decals_initialize( void );
 VkResult vkpt_decals_shutdown( void );
+void vkpt_decals_clear_transient( void );
 void vkpt_decals_clear( void );
 void vkpt_decals_set_enabled( const qboolean enabled );
 void vkpt_decals_set_render_mode( const int32_t renderMode );
@@ -38,3 +39,6 @@ void vkpt_decals_screenspace_clear( void );
 void vkpt_decals_screenspace_submit_legacy( const decal_t *decal );
 VkResult vkpt_decals_screenspace_upload( const void *items, const int32_t count );
 VkResult vkpt_decals_screenspace_dispatch( VkCommandBuffer cmd_buf );
+
+void vkpt_decals_compute_record( VkCommandBuffer cmd_buf );
+void vkpt_decals_static_stub( void );

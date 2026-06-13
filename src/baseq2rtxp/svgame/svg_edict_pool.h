@@ -8,6 +8,7 @@
 ********************************************************************/
 #pragma once
 
+#include <vector>
 
 
 /**
@@ -38,13 +39,33 @@ struct svg_edict_pool_t : sv_edict_pool_i {
     virtual const int32_t NumberForEdict( const svg_base_edict_t *edict );
 
     /**
-    *   @brief  Either finds a free edict, or allocates a new one.
-    *   @remark This function tries to avoid reusing an entity that was recently freed, 
-    *           because it can cause the client to think the entity morphed into something 
-    *           else instead of being removed and recreated, which can cause interpolated
-    *           angles and bad trails.
+    *   @brief  Free list of edicts that can be reused.
     **/
-    svg_base_edict_t *EmplaceNextFreeEdict( svg_base_edict_t *ent );
+    std::vector<svg_base_edict_t *> freeEdicts;
+
+    /**
+    *   @brief  Pushes an edict to the free list.
+    **/
+    void PushFree( svg_base_edict_t *ed ) {
+        freeEdicts.push_back( ed );
+    }
+
+    /**
+    *   @brief  Pops an edict from the free list.
+    **/
+    svg_base_edict_t *PopFree() {
+        if ( freeEdicts.empty() ) {
+            return nullptr;
+        }
+        svg_base_edict_t *ed = freeEdicts.back();
+        freeEdicts.pop_back();
+        return ed;
+    }
+
+    /**
+    *   @brief  Either finds a free edict of the matching type, or allocates a new one.
+    **/
+    svg_base_edict_t *AllocateNextFreeEdict( EdictTypeInfo *typeInfo, const cm_entity_t *cm_entity = nullptr, const char *classnameOverRuler = nullptr );
     /**
     *   @brief  Either finds a free edict, or allocates a new one.
     *   @remark This function tries to avoid reusing an entity that was recently freed, 
@@ -55,50 +76,30 @@ struct svg_edict_pool_t : sv_edict_pool_i {
     **/
     template<typename EdictType>
     EdictType *AllocateNextFreeEdict( const char *classnameOverRuler = nullptr ) {
-        svg_base_edict_t *entity = nullptr;
-        EdictType *freedEntity = nullptr;
-
-        // Start after the client slots.
-        int32_t i = game.maxclients + 1;
-
-        entity = edicts[ i ];
-
-        // Iterate and seek.
-        for ( i; i < num_edicts; i++, entity = edicts[ i ] ) {
-
-            // the first couple seconds of server time can involve a lot of
-            // freeing and allocating, so relax the replacement policy
-            if ( entity != nullptr && !entity->inUse && ( entity->freetime < 2_sec || level.time - entity->freetime > 500_ms ) ) {
-                _InitEdict<EdictType>( static_cast<EdictType *>( entity ), i, classnameOverRuler );
-                return static_cast<EdictType *>( entity );
-            }
-
-            // this is going to be our second chance to spawn an entity in case all free
-            // entities have been freed only recently
-            if ( !freedEntity ) {
-                freedEntity = static_cast<EdictType *>( entity );
+        svg_base_edict_t *reusable = nullptr;
+        // Search free list for matching type
+        for ( auto it = freeEdicts.begin(); it != freeEdicts.end(); ++it ) {
+            if ( (*it)->GetTypeInfo() == &EdictType::ClassInfo ) {
+                reusable = *it;
+                freeEdicts.erase(it);
+                break;
             }
         }
-
-        // If we reached the maximum number of entities.
-        if ( i == max_edicts ) {
-            // If we have a freed entity, use it.
-            if ( freedEntity ) {
-                // Initialize it.
-                _InitEdict<EdictType>( freedEntity, i, classnameOverRuler );
-                // Return it.
-                return static_cast<EdictType *>( freedEntity );
+        
+        if ( !reusable ) {
+            // Allocate new
+            reusable = EdictType::ClassInfo.allocateEdictInstanceCallback(nullptr);
+            if ( num_edicts >= game.maxentities ) {
+                gi.error("SVG_AllocateEdict: no free edicts");
+                return nullptr;
             }
-            // If we don't have any free edicts, error out.
-            gi.error( "SVG_AllocateEdict: no free edicts" );
+            reusable->s.number = num_edicts++;
+            edicts[reusable->s.number] = reusable;
         }
 
-        // Initialize it.
-        _InitEdict<EdictType>( static_cast<EdictType *>( entity ), num_edicts, classnameOverRuler );
-        // If we have free edicts left to go, use those instead.
-        num_edicts++;
-
-        return static_cast<EdictType *>( entity );
+        EdictType *ent = static_cast<EdictType*>(reusable);
+        _InitEdict<EdictType>( ent, ent->s.number, classnameOverRuler );
+        return ent;
     }
 	/**
 	*   @brief  Marks the edict as free.

@@ -381,8 +381,8 @@ void SVG_ReadLevel(const char *filename)
                 if ( g_edict_pool.edicts[ i ]->entityDictionary ) {
                     cm_entity = g_edict_pool.edicts[ i ]->entityDictionary;
 				}
-                //g_edict_pool.edicts[ i ]->Reset( level.cm_entities[ i ] /*g_edict_pool.edicts[ i ]->entityDictionary*/ );
                 delete g_edict_pool.edicts[ i ];
+				g_edict_pool.edicts[ i ] = nullptr;
             }
 			// Allocate a new edict instance.
             if ( i == 0 ) {
@@ -398,21 +398,26 @@ void SVG_ReadLevel(const char *filename)
                 svg_player_edict_t *playerEdict = static_cast<svg_player_edict_t *>( g_edict_pool.edicts[ i ] = typeInfo->allocateEdictInstanceCallback( cm_entity ) );
 			    // Set the client pointer to the corresponding client.
                 playerEdict->client = &game.clients[ i - 1 ];
-                // Set the number to the current index.
-				playerEdict->s.number = i;
-            // If this is not worldspawn, and a non-player entity, allocate a generic base entity instead.
+            // If this is not worldspawn, and a non-player entity, we preallocate a generic base edict for legacy safety.
             } else {
-				// Get the typeinfo for base entities.
-                EdictTypeInfo *typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "svg_base_edict_t" );
-				// Allocate a new base entity.
-                g_edict_pool.edicts[ i ] = typeInfo->allocateEdictInstanceCallback( cm_entity );
-				// Set the spawn_count to the original spawn_count.
-                g_edict_pool.edicts[ i ]->spawn_count = spawn_count;
+				EdictTypeInfo *typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "svg_base_edict_t" );
+				svg_base_edict_t *spawnEdict = g_edict_pool.edicts[ i ] = typeInfo->allocateEdictInstanceCallback( cm_entity );
+				spawnEdict->s.number = i;
+				spawnEdict->classname = svg_level_qstring_t::from_char_str( "freed" );
+				spawnEdict->inUse = false;
+				spawnEdict->spawn_count = spawn_count;
             }
+
             // Set the number to the current index.
-            g_edict_pool.edicts[ i ]->s.number = i;
+			if ( g_edict_pool.edicts[ i ] ) {
+				g_edict_pool.edicts[ i ]->s.number = i;
+				g_edict_pool.edicts[ i ]->spawn_count = spawn_count;
+			}
         #endif
     }
+
+	// Also clear out the free list since its pointers are now dangling.
+	g_edict_pool.freeEdicts.clear();
 
     // Default num_edicts.
     g_edict_pool.num_edicts = maxclients->value + 1;
@@ -458,8 +463,17 @@ void SVG_ReadLevel(const char *filename)
         // For restoring the cm_entity_t.
         const cm_entity_t *cm_entity = level.cm_entities[ entnum ];//g_edict_pool.edicts[ entnum ]->entityDictionary;
 
-        // Worldspawn:
-        svg_base_edict_t *ent = g_edict_pool.edicts[ entnum ] = typeInfo->allocateEdictInstanceCallback( nullptr );
+        // Try to recycle existing entity if it matches the type
+		svg_base_edict_t *ent = g_edict_pool.edicts[ entnum ];
+		if ( ent ) {
+			if ( ent->GetTypeInfo() != typeInfo ) {
+				delete ent;
+				ent = g_edict_pool.edicts[ entnum ] = typeInfo->allocateEdictInstanceCallback( nullptr );
+			}
+		} else {
+			// Allocate replacement
+			ent = g_edict_pool.edicts[ entnum ] = typeInfo->allocateEdictInstanceCallback( nullptr );
+		}
         ent->classname = classname;
         // Enable the entity (unless it was a "freed" entity).
         if ( ent->classname == "freed" ) {

@@ -50,6 +50,10 @@ void SVG_Nav_DebugDraw( void ) {
 
 #include "svgame/svg_lua_api.h"
 
+//#include "svgame/entities/weapons/svg_weapon_utils.h"
+
+#include "svgame/nav/nav_debug.h"
+
 #include "svgame/entities/svg_entities_pushermove.h"
 
 #include "sharedgame/sg_gamemode.h"
@@ -57,10 +61,6 @@ void SVG_Nav_DebugDraw( void ) {
 #include "svgame/gamemodes/svg_gm_basemode.h"
 #include "svgame/svg_gamemode.h"
 
-#include "svgame/nav2/nav2_types.h"
-#include "svgame/nav2/nav2_runtime.h"
-#include "svgame/nav2/nav2_types.h"
-#include "svgame/nav2/nav2_runtime.h"
 
 /**
 *	General used Game Objects.
@@ -489,6 +489,10 @@ void SVG_InitGame( void ) {
     // Initialize the nav2 worker interface so scheduler slices can use async or inline fallback execution.
     SVG_Nav2_Worker_Init();
 	#endif
+
+    // NavMesh V6: Initialize the nav debugging CVARs.
+    Nav_DebugInit();
+
 	// <Q2RTXP>: WID: Happens in SVG_SpawnEntities now since we need the map's entities to initialize the nav system.
 
     /**
@@ -514,20 +518,6 @@ void SVG_ShutdownGame( void ) {
     // Notify of shutdown.
     gi.dprintf( "==== Initiating ServerGame Shutdown ====\n" );
 
-	//! Now Nav data, which may be used by the gamemode, is freed, so we can free the gamemode itself.
-
-	#if 0
-    // Shutdown navigation system.
-    SVG_Nav2_Runtime_Shutdown();
-  // Shutdown the nav2 worker interface before the scheduler runtime releases queued job state.
-    SVG_Nav2_Worker_Shutdown();
- // Shutdown the nav2 scheduler foundation after nav users have released their references.
-    SVG_Nav2_Scheduler_Shutdown();
-	#endif
-	// Shutdown nav3 runtime ownership after game-level users have been released.
-	//SVG_Nav3_Runtime_Shutdown();
-
-	
 	/**
 	*	NOTE: The gamemode should be freed before the Lua VM since the gamemode may have Lua data that needs to be freed in its shutdown.
 	**/
@@ -538,12 +528,9 @@ void SVG_ShutdownGame( void ) {
         // Release edict pool ownership in one place; this also frees TAG_SVGAME_LEVEL and TAG_SVGAME_EDICTS.
 		g_edicts = SVG_EdictPool_Release( &g_edict_pool );
 	}
-
 	g_edicts = nullptr;
-
 	//gi.FreeTags( TAG_SVGAME_EDICTS );
 	gi.FreeTags( TAG_SVGAME );
-
 
 	// Shutdown the Lua VM.
 	SVG_Lua_Shutdown();
@@ -787,6 +774,9 @@ void SVG_RunFrame(void) {
 	#if 0
 	SVG_Nav2_Scheduler_Service();
 	#endif
+
+    // NavMesh V6: Perform KD-Tree Debug Drawing.
+    Nav_DebugDraw();
 
     /**
 	*	WID: LUA: CallBack.

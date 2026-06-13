@@ -1,12 +1,14 @@
-#include <math.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <ctype.h>
-#include <stdarg.h>
-#include <limits.h>
-#include <assert.h>
-#include <float.h>
+
+#include <cmath>
+#include <cstring>
+#include <cstdio>
+#include <cstdlib>
+#include <cstdarg>
+#include <climits>
+#include <cassert>
+#include <cfloat>
+#include <cctype>
+
 #include "iqm.h"
 
 #define ASSERT(c) if(c) {}
@@ -52,10 +54,10 @@ inline void operator delete(void *p, size_t sz) { if(p) free(p); }
 inline void operator delete[](void *p, size_t sz) { if(p) free(p); }
 */
 #ifdef WIN32
-inline void *operator new(size_t, void *p) { return p; }
-inline void *operator new[](size_t, void *p) { return p; }
-inline void operator delete(void *, void *) {}
-inline void operator delete[](void *, void *) {}
+//inline void *operator new(size_t, void *p) { return p; }
+//inline void *operator new[](size_t, void *p) { return p; }
+//inline void operator delete(void *, void *) {}
+//inline void operator delete[](void *, void *) {}
 #endif
 
 #ifdef swap

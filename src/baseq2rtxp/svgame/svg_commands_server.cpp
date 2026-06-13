@@ -12,6 +12,9 @@
 
 #include <algorithm>
 #include <cstdarg>
+
+#include "svgame/nav/nav_generate.h"
+#include "svgame/nav/nav_persistence.h"
 // Nav2.
 //#include "svgame/nav2/nav2_bench.h"
 //#include "svgame/nav2/nav2_connectors.h"
@@ -1969,6 +1972,20 @@ void SVG_ServerCommand(void) {
     else if ( Q_stricmp( cmd, "nav3_query_stats" ) == 0 )
         ServerCommand_Nav3QueryStats_f();
 	#endif
+
+    else if ( Q_stricmp( cmd, "nav6_generate" ) == 0 )
+        Nav_GenerateCommand();
+    else if ( Q_stricmp( cmd, "nav6_save" ) == 0 ) {
+        if (gi.argc() > 2) Nav_Save(gi.argv(2));
+        else gi.dprintf("Usage: nav6_save <filename>\n");
+    }
+    else if ( Q_stricmp( cmd, "nav6_load" ) == 0 ) {
+        if (gi.argc() > 2) Nav_Load(gi.argv(2));
+        else gi.dprintf("Usage: nav6_load <filename>\n");
+    }
+    else if ( Q_stricmp( cmd, "nav6_clear" ) == 0 )
+        Nav_Clear();
+
 	#if 0
     else if ( Q_stricmp( cmd, "nav_generate" ) == 0 )
         ServerCommand_NavGenVoxelMesh_f();

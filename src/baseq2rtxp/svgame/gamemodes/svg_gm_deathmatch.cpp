@@ -17,7 +17,6 @@
 #include "svgame/player/svg_player_usetargets.h"
 #include "svgame/player/svg_player_view.h"
 
-
 #include "sharedgame/pmove/sg_pmove.h"
 
 #include "sharedgame/sg_entities.h"

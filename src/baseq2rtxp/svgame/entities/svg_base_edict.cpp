@@ -66,6 +66,7 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
 	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, owner, SD_FIELD_TYPE_EDICT ),
 
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, inUse, SD_FIELD_TYPE_BOOL ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, stableNumber, SD_FIELD_TYPE_INT32 ),
 	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, isLinked, SD_FIELD_TYPE_BOOL ),
 	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, linkCount, SD_FIELD_TYPE_INT32 ),
 	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, svFlags, SD_FIELD_TYPE_INT32 ),
@@ -561,6 +562,9 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     Base::Reset( retainDictionary );
     // Clear any stale area topology after the unlink has detached the entity from the world grid.
     area = { .next = nullptr, .prev = nullptr };
+
+    // Restore the stable number to the entity state.
+    s.number = stableNumber;
 
     // Reset the derived edict state that is not handled by the shared base class.
     entityDictionary = ( retainDictionary ? entityDictionary : nullptr );

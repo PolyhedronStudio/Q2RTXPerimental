@@ -276,6 +276,11 @@ typedef struct {
 typedef struct {
 	// WID: upgr-solid: Q2RE Approach.
     cm_solid_t	solid32;
+
+	//! The bounding box hull of this entity, used for collision detection and physics.
+	hull_boundingbox_t	hullBoundingBox;
+	//! The octagon hull of this entity, used for collision detection and physics.
+	hull_octagonbox_t	hullOctagonBox;
 } server_entity_t;
 
 /**
