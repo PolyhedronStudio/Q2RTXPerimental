@@ -514,10 +514,10 @@ void MOD_Init(void)
     cl_testmodel = Cvar_Get("cl_testmodel", "", 0);
 
     // Test model animation frames per second, can be adjusted at runtime
-    cl_testfps = Cvar_Get("cl_testfps", "10", 0);
+    cl_testfps = Cvar_Get("cl_testfps", "40", 0);
 
     // Test model alpha, 0-1
-    cl_testalpha = Cvar_Get("cl_testalpha", "1", 0);
+    cl_testalpha = Cvar_Get("cl_testalpha", "0", 0);
 }
 
 void MOD_Shutdown(void)

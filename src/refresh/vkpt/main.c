@@ -4365,7 +4365,8 @@ R_Shutdown_RTX(bool total)
 	}
 
 	IMG_Shutdown();
-	MOD_Shutdown(); // todo: currently leaks memory, need to clear submeshes
+	// <Q2RTXP>: WID: Resolve memory leak in MOD_Shutdown.
+	MOD_Shutdown(); // <Q2RTX>: todo: currently leaks memory, need to clear submeshes
 	vid.shutdown();
 }
 

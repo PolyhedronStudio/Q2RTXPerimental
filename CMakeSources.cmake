@@ -598,7 +598,6 @@ SET(SRC_SERVER
 	refresh/model_iqm.c
 
 	server/sv_commands.cpp
-    server/sv_entity_hulls.cpp
 	server/sv_entities.cpp
 	server/sv_init.cpp
 	server/sv_main.cpp
@@ -616,7 +615,6 @@ SET(HEADERS_SERVER
 	server/sv_server.h
 	server/sv_commands.h
 	server/sv_entities.h
-    server/sv_entity_hulls.h
 	server/sv_init.h
 	server/sv_main.h
 	server/sv_models.h

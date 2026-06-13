@@ -829,6 +829,7 @@ static void destroy_model_vbo(model_vbo_t* vbo)
 	vkpt_destroy_model_geometry(&vbo->geom_masked);
 
 	buffer_destroy(&vbo->buffer);
+	buffer_destroy(&vbo->staging_buffer);
 	
 	memset(vbo, 0, sizeof(model_vbo_t));
 }
