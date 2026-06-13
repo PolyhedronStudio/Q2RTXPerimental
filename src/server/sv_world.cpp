@@ -752,6 +752,31 @@ const int32_t SV_AreaEdicts(const Vector3 *mins, const Vector3 *maxs,
 
 //===========================================================================
 
+
+const mbrush_t *GetBrushByID( const int32_t brushID ) {
+	// Brushes with ID `0` are designated spoecifically as "no brush" in the protocol, 
+	// so we need to guard against that here to avoid indexing the brush array with an out-of-range ID.
+	if ( brushID == 0 ) {
+		return nullptr;
+	}
+
+	// For world-model and inline-brush based entities, the brush ID is a 1-based index into the brush array of the world model's BSP data, 
+	// so we need to subtract 1 to get the correct 0-based index.
+	if ( brushID > 0 ) {
+		// Brush IDs are 1-based indices into the brush array, so subtract 1 to get the correct 0-based index.
+		return (mbrush_t*)( sv.cm.cache->leafbrushes + ( brushID - 1 ) );
+	} else {
+		// For entity-based brushes, the brush ID is a negative value that is used to index into the entity's brush array.
+		// Return the pre-computed temp hull from the entity which is thread-safely updated during SV_LinkEdict.
+		server_entity_t *sent = &sv.entities[ abs( brushID - 1) ];
+		if ( sent->solid32 == SOLID_BOUNDS_OCTAGON ) {
+			return &sent->hullOctagonBox.brush;
+		} else {
+			return &sent->hullBoundingBox.brush;
+		}
+	}	
+}
+
 /**
 *	@return	A headNode that can be used for testing and/or clipping an
 *			object 'hull' of mins/maxs size for the entity's said 'solid'.
