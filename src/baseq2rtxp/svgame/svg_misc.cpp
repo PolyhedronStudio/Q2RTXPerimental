@@ -299,7 +299,7 @@ void SVG_Misc_ThrowDebris(svg_base_edict_t *self, const char *modelname, const f
 *   @brief	Spawns a temp entity explosion effect at the entity's origin, and optionally frees the entity.
 **/
 void SVG_Misc_BecomeExplosion( svg_base_edict_t *self, int type, const bool freeEntity ) {
-    gi.WriteUint8(svc_temp_entity);
+    SVG_TempEventEntity_PlainExplosion( self->s.origin );
     //if ( type == 1 ) {
     //    gi.WriteUint8( TE_EXPLOSION1 );
     //} else if ( type == 2 ) {

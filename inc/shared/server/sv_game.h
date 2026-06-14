@@ -347,6 +347,9 @@ typedef struct {
     void ( *unlinkentity )( edict_ptr_t *ent );
     //! Return all entities that are inside or touching the bounding box area into the list array.
     const int32_t( *BoxEdicts )( const Vector3 *mins, const Vector3 *maxs, edict_ptr_t **list, const int32_t maxcount, const int32_t areatype );
+	//! Returns a pointer to the designated brush ID for the given entity. Returns nullptr if the entity is not a brush model.
+	const mbrush_t *( *GetBrushByID )( const int32_t brushID );
+
 
 
     /**

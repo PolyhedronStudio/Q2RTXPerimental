@@ -262,6 +262,7 @@ static void CM_ClipBoxToBrush( const Vector3 &p1, const Vector3 &p2, cm_trace_re
 				// original Q2 didn't set these
 			reantrantState->trResult.fraction = 0;
 			reantrantState->trResult.contents = static_cast< cm_contents_t >( brush->contents );
+			reantrantState->trResult.brushID = brush->brushID;
 			reantrantState->trResult.material = nullptr;
 			//}
 		}
@@ -276,6 +277,7 @@ static void CM_ClipBoxToBrush( const Vector3 &p1, const Vector3 &p2, cm_trace_re
 			reantrantState->trResult.plane = *clipplane[ 0 ];
 			reantrantState->trResult.surface = &( leadside[ 0 ]->texinfo->c );
 			reantrantState->trResult.contents = static_cast< cm_contents_t >( brush->contents );
+			reantrantState->trResult.brushID = brush->brushID;
 			reantrantState->trResult.material = reantrantState->trResult.surface->material;
 
 			#ifdef SECOND_PLANE_TRACE
@@ -352,7 +354,7 @@ static void CM_TestBoxInBrush( const Vector3 &p1, cm_trace_reantrant_state_t *re
 *   @brief
 **/
 static void CM_TraceToLeaf( cm_t *cm, cm_trace_reantrant_state_t *reantrantState, mleaf_t *leaf, std::unordered_set<const mbrush_t *> *visitedBrushes ) {
- /**
+	/**
 	*   Unused for now: leaf brush iteration only needs the trace state and the caller-supplied visited set.
 	**/
 	( void )cm;
@@ -364,7 +366,7 @@ static void CM_TraceToLeaf( cm_t *cm, cm_trace_reantrant_state_t *reantrantState
 		return;
 	}
 
- /**
+	/**
 	*   Iterate each brush referenced by the leaf and test it at most once per trace.
 	**/
 	mbrush_t **leafbrush = leaf->firstleafbrush;
@@ -392,7 +394,7 @@ static void CM_TraceToLeaf( cm_t *cm, cm_trace_reantrant_state_t *reantrantState
 *   @brief
 **/
 static void CM_TestInLeaf( cm_t *cm, cm_trace_reantrant_state_t *reantrantState, mleaf_t *leaf, std::unordered_set<const mbrush_t *> *visitedBrushes ) {
-   /**
+	/**
 	*   Unused for now: leaf brush iteration only needs the trace state and the caller-supplied visited set.
 	**/
 	( void )cm;
@@ -590,14 +592,14 @@ const cm_trace_t CM_BoxTrace( cm_t *cm,
 		.material2 = &( cm_default_material ),
 	};
 
-  /**
+	/**
 	*   Bail out immediately when the caller did not provide a hull to trace against.
 	**/
 	if ( !headnode ) {
 		return reantrantState.trResult;
 	}
 
- /**
+	/**
 	*   Precompute the eight corner offsets used to expand brush planes for box traces.
 	**/
 	for ( i = 0; i < 8; i++ ) {
@@ -796,6 +798,7 @@ void CM_ClipEntity( cm_t *cm, cm_trace_t *dst, const cm_trace_t *src, const int3
 	if ( src->fraction < dst->fraction ) {
 		dst->fraction = src->fraction;
 		dst->entityNumber = entityNumber;
+		dst->brushID = src->brushID;
 		dst->endpos = src->endpos;
 
 		dst->plane = src->plane;

@@ -654,28 +654,17 @@ const qboolean PF_ParseServerMessage( const int32_t serverMessage ) {
         CLG_ParseDamage();
         return true;
     break;
-	case svc_inventory:
-		CLG_ParseInventory();
-		return true;
-	break;
 	case svc_game_ui_open:
 		CLG_ParseGameUI_OpenMenu();
 		return true;
+	break;
 	case svc_game_ui_close:
 		CLG_ParseGameUI_CloseMenu();
-		return true;
-	case svc_layout:
-		CLG_ParseLayout();
 		return true;
 	break;
     case svc_muzzleflash:
         CLG_ParseMuzzleFlashPacket( 0/*MZ_SILENCED*/ );
         CLG_MuzzleFlash();
-        return true;
-    break;
-    case svc_temp_entity:
-        CLG_ParseTEntPacket();
-        CLG_TemporaryEntities_Parse();
         return true;
     break;
 	default:
@@ -706,18 +695,6 @@ const qboolean PF_SeekDemoMessage( const int32_t serverMessage ) {
     break;
     case svc_damage:
         CLG_ParseDamage();
-        return true;
-    break;
-    case svc_inventory:
-        CLG_ParseInventory();
-        return true;
-    break;
-    case svc_layout:
-        CLG_ParseLayout();
-        return true;
-    break;
-    case svc_temp_entity:
-        CLG_ParseTEntPacket();
         return true;
     break;
     case svc_muzzleflash:

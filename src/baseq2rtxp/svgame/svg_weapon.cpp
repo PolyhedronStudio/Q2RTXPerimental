@@ -86,12 +86,19 @@ static bool SVG_TraceBullet_FindAnimatedEnvelopeCandidate( const Vector3 &start,
         }
     }
 
-    if ( !foundHit ) {
-        return false;
-    }
+	if ( !foundHit ) {
+		return false;
+	}
 
-    *outTrace = bestTrace;
-    return true;
+	// The animated-envelope fallback still resolves to an entity-backed hit, so keep the entity-linked
+	// brush ID when the skeletal refinement path did not supply one directly.
+	if ( bestTrace.brushID == BRUSHID_NONE && bestTrace.ent
+		&& ( bestTrace.ent->solid == SOLID_BOUNDS_BOX || bestTrace.ent->solid == SOLID_BOUNDS_OCTAGON ) ) {
+		bestTrace.brushID = -static_cast< int32_t >( bestTrace.ent->s.number + 1 );
+	}
+
+	*outTrace = bestTrace;
+	return true;
 }
 
 /**
@@ -145,17 +152,33 @@ static svg_trace_t SVG_TraceBullet( const Vector3 &start, const Vector3 &end, co
 
     svg_trace_t lastTrace = {};
 
+	// Normalize the trace identity so callers always get an entity number when a hit resolved through an entity.
+	auto NormalizeTraceIdentity = []( svg_trace_t &trace ) {
+		if ( trace.ent ) {
+			trace.entityNumber = trace.ent->s.number;
+			if ( trace.brushID == BRUSHID_NONE
+				&& ( trace.ent->solid == SOLID_BOUNDS_BOX || trace.ent->solid == SOLID_BOUNDS_OCTAGON ) ) {
+				trace.brushID = -static_cast< int32_t >( trace.ent->s.number + 1 );
+			}
+		}
+	};
+
     for ( int32_t coarseMissCount = 0; coarseMissCount <= maxCoarseMissSkips; coarseMissCount++ ) {
         lastTrace = SVG_Trace( currentStart, qm_vector3_null, qm_vector3_null, end, currentPass, contentMask );
+        NormalizeTraceIdentity( lastTrace );
 
         // Nothing hit or world-only result, no refinement work required.
         if ( lastTrace.fraction >= 1.0f || !lastTrace.ent ) {
             svg_trace_t animatedOnlyTrace = {};
             if ( SVG_TraceBullet_FindAnimatedEnvelopeCandidate( currentStart, end, originalPassEntity, lastTrace.fraction, &animatedOnlyTrace ) ) {
+                NormalizeTraceIdentity( animatedOnlyTrace );
                 if ( s_svg_skeletal_hitboxes_debug && s_svg_skeletal_hitboxes_debug->integer > 0 ) {
-                    gi.dprintf( "%s: skeletal candidate hit on ent(#%i)\n", __func__, animatedOnlyTrace.entityNumber );
+                    gi.dprintf( "%s: skeletal candidate hit on ent(#%i), brushID=%" PRId32 "\n", __func__, animatedOnlyTrace.entityNumber, animatedOnlyTrace.brushID );
                 }
                 return animatedOnlyTrace;
+            }
+            if ( lastTrace.fraction < 1.0f && s_svg_skeletal_hitboxes_debug && s_svg_skeletal_hitboxes_debug->integer > 0 ) {
+                gi.dprintf( "%s: world/BSP hit, brushID=%" PRId32 "\n", __func__, lastTrace.brushID );
             }
             return lastTrace;
         }
@@ -165,13 +188,18 @@ static svg_trace_t SVG_TraceBullet( const Vector3 &start, const Vector3 &end, co
             // Preserve legacy behavior for non-skeletal/static targets (md2/md3 or iqm without usable skeleton data).
             // Only retrace-through is allowed when this entity can actually be refined against skeletal hitboxes.
             if ( !SVG_SkeletalHitboxes_HasRefinableData( lastTrace.ent ) ) {
+                if ( s_svg_skeletal_hitboxes_debug && s_svg_skeletal_hitboxes_debug->integer > 0 ) {
+                    gi.dprintf( "%s: non-refinable hit on ent(#%i), brushID=%" PRId32 "\n", __func__, lastTrace.entityNumber, lastTrace.brushID );
+                }
                 return lastTrace;
             }
 
+            // Refine against skeletal hitboxes if data is available.
             svg_trace_t refinedTrace = lastTrace;
             if ( SVG_SkeletalHitboxes_RefinePointTrace( refinedTrace, currentStart, end, lastTrace.ent ) ) {
+                NormalizeTraceIdentity( refinedTrace );
                 if ( s_svg_skeletal_hitboxes_debug && s_svg_skeletal_hitboxes_debug->integer > 0 ) {
-                    gi.dprintf( "%s: refined hit on ent(#%i), hitBodyID=%" PRId32 "\n", __func__, refinedTrace.entityNumber, refinedTrace.hitBodyID );
+                    gi.dprintf( "%s: refined hit on ent(#%i), hitBodyID=%" PRId32 ", brushID=%" PRId32 "\n", __func__, refinedTrace.entityNumber, refinedTrace.hitBodyID, refinedTrace.brushID );
                 }
                 return refinedTrace;
             }
@@ -197,12 +225,16 @@ static svg_trace_t SVG_TraceBullet( const Vector3 &start, const Vector3 &end, co
         // For world/other non-damageable blockers, still allow an earlier animated candidate to win.
         svg_trace_t animatedOnlyTrace = {};
         if ( SVG_TraceBullet_FindAnimatedEnvelopeCandidate( currentStart, end, originalPassEntity, lastTrace.fraction, &animatedOnlyTrace ) ) {
+            NormalizeTraceIdentity( animatedOnlyTrace );
             if ( s_svg_skeletal_hitboxes_debug && s_svg_skeletal_hitboxes_debug->integer > 0 ) {
-                gi.dprintf( "%s: skeletal candidate hit on ent(#%i) before blocker\n", __func__, animatedOnlyTrace.entityNumber );
+                gi.dprintf( "%s: skeletal candidate hit on ent(#%i) before blocker, brushID=%" PRId32 "\n", __func__, animatedOnlyTrace.entityNumber, animatedOnlyTrace.brushID );
             }
             return animatedOnlyTrace;
         }
 
+        if ( s_svg_skeletal_hitboxes_debug && s_svg_skeletal_hitboxes_debug->integer > 0 ) {
+            gi.dprintf( "%s: world/BSP blocker hit on ent(#%i), brushID=%" PRId32 "\n", __func__, lastTrace.entityNumber, lastTrace.brushID );
+        }
         return lastTrace;
     }
 
@@ -472,7 +504,6 @@ static void fire_lead(svg_base_edict_t *self, const Vector3 &start, const Vector
 	// If we hit something, and it is not sky, then we can continue.
     if ( !( tr.fraction < 1.0f ) ) {
         // Calculate the direction of the bullet.
-        
         QM_Vector3ToAngles( aimdir, &dir.x );
 		// Get the forward, right, and up vectors.
         QM_AngleVectors(dir, &forward, &right, &up);
@@ -496,7 +527,7 @@ static void fire_lead(svg_base_edict_t *self, const Vector3 &start, const Vector
             content_mask = static_cast<cm_contents_t>( content_mask & ~CM_CONTENTMASK_LIQUID ); // content_mask &= ~CM_CONTENTMASK_LIQUID
         }
 
-		// Trace the bullet using the bullet-only refinement path.
+        // Trace the bullet using the bullet-only refinement path.
         tr = SVG_TraceBullet( start, end, self, content_mask );
 
         // See if we hit water.
@@ -559,14 +590,18 @@ static void fire_lead(svg_base_edict_t *self, const Vector3 &start, const Vector
                 //if ( strncmp( tr.surface->name, "sky", 3 ) != 0 ) {
 				//if ( ( tr.surface->flags & CM_SURFACE_FLAG_SKY ) != 0 ) {
                     svg_base_edict_t *tempEventEntity = SVG_TempEventEntity_GunShot( tr.endpos, tr.plane.normal, te_impact, 28, 40 );
-
-                    // Preserve the impacted brush-model entity so the client can resolve inline-model decals.
-                    if ( tempEventEntity && tr.ent && tr.ent->solid == SOLID_BSP && ( tr.ent->movetype == MOVETYPE_PUSH || tr.ent->movetype == MOVETYPE_STOP ) && tr.ent->s.number > ENTITYNUM_WORLD ) {
-                        tempEventEntity->s.otherEntityNumber = tr.ent->s.number;
-                        tempEventEntity->s.entityFlags |= EF_ENTITY_EVENT_TARGET_OTHER;
+                    // Preserve the impacted brush-model or skeletal hull entity so the client can resolve inline-model decals.
+                    if ( tempEventEntity && tr.ent && tr.ent->s.number > ENTITYNUM_WORLD ) {
+                        if ( tr.brushID < 0 ) {
+                            // Extract the entity number from the hull brushID.
+                            tempEventEntity->s.otherEntityNumber = -( tr.brushID + 1 );
+                            tempEventEntity->s.entityFlags |= EF_ENTITY_EVENT_TARGET_OTHER;
+                        } else if ( tr.ent->solid == SOLID_BSP && ( tr.ent->movetype == MOVETYPE_PUSH || tr.ent->movetype == MOVETYPE_STOP ) ) {
+                            tempEventEntity->s.otherEntityNumber = tr.ent->s.number;
+                            tempEventEntity->s.entityFlags |= EF_ENTITY_EVENT_TARGET_OTHER;
+                        }
                     }
 					//gi.WriteUint8( svc_temp_entity );
-                    //gi.WriteUint8( te_impact );
                     //gi.WritePosition( &tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
                     //const Vector3 planeNormal = tr.plane.normal;
                     //gi.WriteDir8( &planeNormal );
@@ -596,7 +631,6 @@ static void fire_lead(svg_base_edict_t *self, const Vector3 &start, const Vector
         VectorScale( pos, 0.5f, pos );
 
 		svg_base_edict_t *tempEventEntity = SVG_TempEventEntity_TrailParticles( water_start, tr.endpos, EV_FX_TRAIL_BUBBLES01 );
-
         //gi.WriteUint8( svc_temp_entity );
         //gi.WriteUint8( TE_BUBBLETRAIL );
         //gi.WritePosition( &water_start, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );

@@ -34,15 +34,15 @@ void CLG_ETPlayer_AllocatePoseCache( centity_t *packetEntity, entity_t *refreshE
             for ( int i = 0; i < SKM_BODY_MAX; i++ ) {
                 if ( packetEntity->bonePoseCache[i] == nullptr ) {
                     // Allocate bone pose space. ( Use SKM_MAX_BONES instead of entModel->skmConfig->numberOfBones because client models could change. )
-                    packetEntity->bonePoseCache[ i ] = clgi.SKM_PoseCache_AcquireCachedMemoryBlock( SKM_MAX_BONES /*entModel->skmConfig->numberOfBones*/ );
+                    packetEntity->bonePoseCache[ i ] = clgi.SKM_PoseCache_AcquireCachedMemoryBlock( entModel->skmConfig->numberOfBones );
                 }
                 if ( packetEntity->lastBonePoseCache[ i ] == nullptr ) {
                     // Allocate bone pose space. ( Use SKM_MAX_BONES instead of entModel->skmConfig->numberOfBones because client models could change. )
-                    packetEntity->lastBonePoseCache[ i ] = clgi.SKM_PoseCache_AcquireCachedMemoryBlock( SKM_MAX_BONES /*entModel->skmConfig->numberOfBones*/ );
+                    packetEntity->lastBonePoseCache[ i ] = clgi.SKM_PoseCache_AcquireCachedMemoryBlock( entModel->skmConfig->numberOfBones );
                 }
                 if ( packetEntity->eventBonePoseCache[ i ] == nullptr ) {
                     // Allocate bone pose space. ( Use SKM_MAX_BONES instead of entModel->skmConfig->numberOfBones because client models could change. )
-                    packetEntity->eventBonePoseCache[ i ] = clgi.SKM_PoseCache_AcquireCachedMemoryBlock( SKM_MAX_BONES /*entModel->skmConfig->numberOfBones*/ );
+                    packetEntity->eventBonePoseCache[ i ] = clgi.SKM_PoseCache_AcquireCachedMemoryBlock( entModel->skmConfig->numberOfBones );
                 }
             }
         }

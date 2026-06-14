@@ -1,90 +1,90 @@
 {
 	"version":2,
 	"frameCount":12,
-	"frames": [
-		{
-			"name": "sprites/explo02/00.tga",
-			"width": 512,
-			"height": 512,
-			"origin_x": 256,
-			"origin_y": 256
-		},
-		{
-			"name": "sprites/explo02/01.tga",
-			"width": 512,
-			"height": 512,
-			"origin_x": 256,
-			"origin_y": 256
-		},
-		{
-			"name": "sprites/explo02/02.tga",
-			"width": 512,
-			"height": 512,
-			"origin_x": 256,
-			"origin_y": 256
-		},
-		{
-			"name": "sprites/explo02/03.tga",
-			"width": 512,
-			"height": 512,
-			"origin_x": 256,
-			"origin_y": 256
-		},
-		{
-			"name": "sprites/explo02/04.tga",
-			"width": 512,
-			"height": 512,
-			"origin_x": 256,
-			"origin_y": 256
-		},
-		{
-			"name": "sprites/explo02/05.tga",
-			"width": 512,
-			"height": 512,
-			"origin_x": 256,
-			"origin_y": 256
-		},
-		{
-			"name": "sprites/explo02/03.tga",
-			"width": 512,
-			"height": 512,
-			"origin_x": 256,
-			"origin_y": 256
-		},
-		{
-			"name": "sprites/explo02/05.tga",
-			"width": 512,
-			"height": 512,
-			"origin_x": 256,
-			"origin_y": 256
-		},
-		{
-			"name": "sprites/explo02/04.tga",
-			"width": 512,
-			"height": 512,
-			"origin_x": 256,
-			"origin_y": 256
-		},
-		{
-			"name": "sprites/explo02/03.tga",
-			"width": 512,
-			"height": 512,
-			"origin_x": 256,
-			"origin_y": 256
-		},
-		{
-			"name": "sprites/explo02/05.tga",
-			"width": 512,
-			"height": 512,
-			"origin_x": 256,
-			"origin_y": 256
-		},
-		{
-			"name": "sprites/explo02/06.tga",
-			"width": 512,
-			"height": 512,
-			"origin_x": 256,
-			"origin_y": 256
-		}
-	]
+  "frames": [
+    {
+      "name": "sprites/explo02/00.tga",
+      "width": 128,
+      "height": 128,
+      "origin_x": 64,
+      "origin_y": 64
+    },
+    {
+      "name": "sprites/explo02/01.tga",
+      "width": 128,
+      "height": 128,
+      "origin_x": 64,
+      "origin_y": 64
+    },
+    {
+      "name": "sprites/explo02/02.tga",
+      "width": 128,
+      "height": 128,
+      "origin_x": 64,
+      "origin_y": 64
+    },
+    {
+      "name": "sprites/explo02/03.tga",
+      "width": 128,
+      "height": 128,
+      "origin_x": 64,
+      "origin_y": 64
+    },
+    {
+      "name": "sprites/explo02/04.tga",
+      "width": 128,
+      "height": 128,
+      "origin_x": 64,
+      "origin_y": 64
+    },
+    {
+      "name": "sprites/explo02/05.tga",
+      "width": 128,
+      "height": 128,
+      "origin_x": 64,
+      "origin_y": 64
+    },
+    {
+      "name": "sprites/explo02/04.tga",
+      "width": 128,
+      "height": 128,
+      "origin_x": 64,
+      "origin_y": 64
+    },
+    {
+      "name": "sprites/explo02/03.tga",
+      "width": 128,
+      "height": 128,
+      "origin_x": 64,
+      "origin_y": 64
+    },
+    {
+      "name": "sprites/explo02/04.tga",
+      "width": 128,
+      "height": 128,
+      "origin_x": 64,
+      "origin_y": 64
+    },
+    {
+      "name": "sprites/explo02/04.tga",
+      "width": 128,
+      "height": 128,
+      "origin_x": 64,
+      "origin_y": 64
+    },
+    {
+      "name": "sprites/explo02/05.tga",
+      "width": 128,
+      "height": 128,
+      "origin_x": 64,
+      "origin_y": 64
+    },
+    {
+      "name": "sprites/explo02/06.tga",
+      "width": 128,
+      "height": 128,
+      "origin_x": 64,
+      "origin_y": 64
+    }
+  ]
 }

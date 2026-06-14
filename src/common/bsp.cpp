@@ -281,7 +281,10 @@ LOAD( LeafBrushes ) {
             DEBUG( "bad brushnum" );
             return Q_ERR_INVALID_FORMAT;
         }
+		// We want to have the leafbrushes point to the actual brushes, so we can set the brushID in them, which is needed for BSPX BRUSHLIST loading.
         *out = bsp->brushes + brushnum;
+		// Store the brush ID in the brush itself, so we can identify it later when loading the BRUSHLIST from BSPX. (We can't use the brushnum directly as an index into the leafbrushes array, because not all brushes are necessarily used in leafbrushes, and also because some brushes may be used multiple times in different leafbrushes.)
+		(*out)->brushID = brushnum + 1; // <Q2RTXP>: Brush ID, we increment by `1` so we can use 0 as a special value for "no brush" in the BRUSHLIST.
     }
 
     return Q_ERR_SUCCESS;

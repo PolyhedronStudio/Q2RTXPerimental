@@ -261,7 +261,7 @@ static void PF_Unicast(edict_ptr_t *ent, bool reliable)
 		flags |= MSG_RELIABLE;
 	}
 
-	if ( cmd == svc_layout || ( cmd == svc_configstring && RL16( &msg_write.data[ 1 ] ) == CS_STATUSBAR ) ) {
+	if ( /*cmd == svc_layout ||*/ ( cmd == svc_configstring && RL16( &msg_write.data[ 1 ] ) == CS_STATUSBAR ) ) {
 		flags |= MSG_COMPRESS_AUTO;
 	}
 
@@ -1500,6 +1500,7 @@ void SV_InitGameProgs(void) {
     imports.FS_CreatePath = PF_FS_CreatePath;
 
     imports.BoxEdicts = SV_AreaEdicts;
+	imports.GetBrushByID = PF_GetBrushByID;
     imports.trace = PF_SV_Trace;
 	imports.clip = PF_SV_Clip;
     imports.pointcontents = SV_PointContents;

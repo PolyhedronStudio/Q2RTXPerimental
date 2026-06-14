@@ -707,9 +707,6 @@ const char *MSG_ServerCommandString( const int32_t cmd ) {
 
 				S( muzzleflash )
 
-				S( temp_entity )
-				S( layout )
-				S( inventory )
 				S( scoreboard )
 				S( svgame )
 			#undef S

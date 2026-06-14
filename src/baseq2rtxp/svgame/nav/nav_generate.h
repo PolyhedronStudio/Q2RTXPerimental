@@ -13,8 +13,17 @@ extern nav_vector_t<int32_t> g_nav_leaf_poly_ids;
 // Triggers the generation command from the console
 void Nav_GenerateCommand();
 
+/**
+*	@brief	Print the current standalone nav generation status to the server console.
+*	@note	This reports the active KD-tree build state without relying on nav2/nav3 runtime helpers.
+**/
+void Nav_StatusCommand( void );
+
 // Clears the current active navmesh from memory
 void Nav_Clear();
 
 // Starts the actual extraction (called by the async thread)
 void Nav_DoExtractionWork();
+
+// Builds the KD-Tree for spatial queries
+void Nav_BuildKDTree();

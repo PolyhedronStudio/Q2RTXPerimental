@@ -59,9 +59,9 @@ typedef enum {
 								// the server game explicitly opens it, or the client disconnects from the server.
 
     //svc_muzzleflash2, WID: Removed, monster muzzleflashes based on hard coded static array.
-    svc_temp_entity,
-    svc_layout,
-    svc_inventory,
+    //svc_temp_entity,
+    //svc_layout,
+    //svc_inventory,
     svc_scoreboard,
 
     // The server game is allowed to add custom commands after this. Max limit is a byte, 255.

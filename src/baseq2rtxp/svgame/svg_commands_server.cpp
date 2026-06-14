@@ -1930,7 +1930,11 @@ void SVG_ServerCommand(void) {
     cmd = gi.argv(1);
     if ( Q_stricmp( cmd, "test" ) == 0 )
         ServerCommand_Test_f();
-	#if 0
+    else if ( Q_stricmp( cmd, "nav_generate" ) == 0 )
+        Nav_GenerateCommand();
+    else if ( Q_stricmp( cmd, "nav_status" ) == 0 )
+        Nav_StatusCommand();
+    #if 0
     else if ( Q_stricmp( cmd, "nav_generate" ) == 0 )
         ServerCommand_NavGenerate_f();
     else if ( Q_stricmp( cmd, "nav3_generate" ) == 0 )
@@ -1973,17 +1977,15 @@ void SVG_ServerCommand(void) {
         ServerCommand_Nav3QueryStats_f();
 	#endif
 
-    else if ( Q_stricmp( cmd, "nav6_generate" ) == 0 )
-        Nav_GenerateCommand();
-    else if ( Q_stricmp( cmd, "nav6_save" ) == 0 ) {
+    else if ( Q_stricmp( cmd, "nav_save" ) == 0 ) {
         if (gi.argc() > 2) Nav_Save(gi.argv(2));
-        else gi.dprintf("Usage: nav6_save <filename>\n");
+        else gi.dprintf("Usage: nav_save <filename>\n");
     }
-    else if ( Q_stricmp( cmd, "nav6_load" ) == 0 ) {
+    else if ( Q_stricmp( cmd, "nav_load" ) == 0 ) {
         if (gi.argc() > 2) Nav_Load(gi.argv(2));
-        else gi.dprintf("Usage: nav6_load <filename>\n");
+        else gi.dprintf("Usage: nav_load <filename>\n");
     }
-    else if ( Q_stricmp( cmd, "nav6_clear" ) == 0 )
+    else if ( Q_stricmp( cmd, "nav_clear" ) == 0 )
         Nav_Clear();
 
 	#if 0

@@ -339,7 +339,7 @@ void SVG_Command_Drop_f(svg_base_edict_t *ent) {
     it->drop(ent, it);
 }
 
-
+#if 0
 /*
 =================
 SVG_Command_Inven_f
@@ -393,6 +393,7 @@ void SVG_Command_InvUseSelectedItem_f(svg_base_edict_t *ent)
     }
     it->use(ent, it);
 }
+#endif
 
 /*
 =================

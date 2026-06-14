@@ -36,18 +36,19 @@
 
 ## Version 0.0.6
 ### Technically:
-    - [ ] AreaPortal and func_door in Makkon map are buggy again? Wtf?
-        - [ ] On that note, crawl in the tunnel in func_rotating map, the rotators etc hide. Wtf?
+    - [-] AreaPortal and func_door in Makkon map are buggy again? Wtf?
+        - [ ] Check whether this map is fixed after the FatPVS fix.
     - [ ] REQUIRES ASSET/PIPELINE MODIFICATIONS:
         - [ ] Allow for setting hitbox capsules by hand in iqmtools.
 
 ---
 ### Core:
 #### CollisionModel:
-    - [ ] Add `brushID` trace support so we can identify the actual brush being hit.
+    - [X] Add `brushID` trace support so we can identify the actual brush being hit.
         - A `brushID` of `0` equals No Brush Hit.
         - A positive `brushID` equals for example `1` is BSP `brushList[brushID - 1]`. This might also be an inline-model BSP brush index belonging to the trace its entity.
         - A negative `brushID` equals for example `1` is Entity `GetEntityHull(entities[brushID - 1])`
+        [X] Working on implementation. Lacking the brushID assignment in the cm_trace etc code.
 #### Skeletal Models:
     - [ ] Add support for .skc files to define specific bone ID/name related features
     and hitboxing.
@@ -62,7 +63,7 @@
 ---
 ### Refresh(VKPT):
 #### Validation Layer:
-    - [ ] Fix the remaining validation error about resource leakage when shutting down the game.
+    - [ ] (Priority: Low) Fix the remaining validation error about resource leakage when shutting down the game.
 
 ---
 ### Server:

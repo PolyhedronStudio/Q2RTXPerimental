@@ -349,6 +349,10 @@ static const bool AddPacketEntity( centity_t *packetEntity, entity_state_t *next
 *           has a matching ID.
 **/
 void CLG_AddPacketEntities( void ) {
+	if ( clgi.GetConnectionState() < ca_active ) {
+		return;
+	}
+
     // Base entity flags.
     int32_t base_entity_flags = 0;
 
@@ -375,7 +379,7 @@ void CLG_AddPacketEntities( void ) {
         .bonePoses = bonePoses,
     };
     // Add the predicted client entity.
-    AddPacketEntity( &game.predictedEntity, &game.predictedEntity.current, base_entity_flags, autorotate );
+    //AddPacketEntity( &game.predictedEntity, &game.predictedEntity.current, base_entity_flags, autorotate );
 
     // Iterate over this frame's entity states.
     for ( int32_t frameEntityNumber = 0; frameEntityNumber < clgi.client->frame.numEntities; frameEntityNumber++ ) {

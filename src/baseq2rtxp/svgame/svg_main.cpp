@@ -24,6 +24,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/nav2/nav2_bench.h"
 #include "svgame/nav2/nav2_scheduler.h"
 #include "svgame/nav2/nav2_worker_iface.h"
+#include "svgame/nav/nav_thread.h"
 #include "svgame/nav3/nav3_debug_draw.h"
 #include "svgame/nav3/nav3_runtime.h"
 
@@ -740,9 +741,9 @@ void SVG_RunFrame(void) {
     // Begin nav3 debug draw frame bookkeeping.
     //SVG_Nav3_DebugDraw_BeginFrame();
 	#if 0
-	// Reset the nav2 scheduler frame budget and worker mode bookkeeping for this server frame.
+    // Reset the nav2 scheduler frame budget and worker mode bookkeeping for this server frame.
     SVG_Nav2_Scheduler_BeginFrame( level.frameNumber );
-	#endif
+    #endif
 
     #if 0
     // Exit intermissions.
@@ -929,4 +930,6 @@ void SVG_RunFrame(void) {
 
     // Flush nav3 debug draw stream after all subsystems have had a chance to submit primitives.
     SVG_Nav3_DebugDraw_FlushFrame();
+    // Service the legacy KD-tree nav generator once per frame so progress output appears while it runs.
+    Nav_UpdateAsyncGeneration();
 }

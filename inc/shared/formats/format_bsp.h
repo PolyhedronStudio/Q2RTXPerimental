@@ -248,6 +248,8 @@ typedef struct {
     vec3_t          absmins;
     vec3_t          absmaxs;
     #endif
+	// <Q2RTXP>: Brush ID.
+	int32_t        brushID;
     // </Q2RTXP>
     int             contents;
     int             numsides;

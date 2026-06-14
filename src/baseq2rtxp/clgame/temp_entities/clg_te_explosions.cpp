@@ -380,7 +380,9 @@ void CLG_AddExplosions( void ) {
 **/
 clg_explosion_t *CLG_PlainExplosion( const Vector3 &origin, const bool withSmoke ) {
 
-    qhandle_t spriteHandle = ( withSmoke ? precache.models.sprite_explo01 : precache.models.sprite_explo00 );
+	int32_t explo00_or_explo02 = brandom();
+
+    qhandle_t spriteHandle = ( withSmoke ? precache.models.sprite_explo01 : ( explo00_or_explo02 == 0 ? precache.models.sprite_explo00 : precache.models.sprite_explo02 ) );
     clg_explosion_t *ex = CLG_AllocateExplosion();
 	VectorCopy( origin, ex->ent.origin );//VectorCopy( level.parsedMessage.events.tempEntity.pos1, ex->ent.origin );
     ex->type = clg_explosion_t::ex_polygon_curvature; // WID: C++20: Was without clg_explosion_t::

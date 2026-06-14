@@ -25,6 +25,7 @@ struct nav_kdtree_node_t {
     Vector3 mins;
     Vector3 maxs;
     int32_t poly_id;      // -1 if it's an internal node, valid poly ID if it's a leaf node.
+    int32_t bsp_leaf_id;  // Corresponding BSP leaf for this node
     int32_t left_child;   // Index to left child node (-1 if none)
     int32_t right_child;  // Index to right child node (-1 if none)
     int32_t split_axis;

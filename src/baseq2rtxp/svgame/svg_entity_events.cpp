@@ -480,7 +480,32 @@ svg_base_edict_t *SVG_TempEventEntity_MoreBlood( const Vector3 &origin, const Ve
 *
 *
 *
+*
 **/
+/**
+*	@brief	Creates a temp entity event to let the client spawn a plain explosion at the given origin.
+*	@param	origin	        The origin to spawn the explosion at.
+*	@return A pointer to the created temp event entity. (For further modification if needed.)
+***/
+svg_base_edict_t *SVG_TempEventEntity_PlainExplosion( const Vector3 &origin ) {
+	// Create a temporary entity event for all clients.
+	svg_base_edict_t *tempEventEntity = CreateTempEntityForEvent( 
+		// Use the given origin.
+		origin, 
+		// Snap the origin.
+		true,
+		// Plain explosion event.
+		EV_PLAIN_EXPLOSION,
+		// No parms.
+		0, 0,
+		// Set a shorter duration for the event.
+		FRAME_TIME_MS
+	);
+	// Return the temp entity event pointer.
+	return tempEventEntity;
+}
+
+
 /**
 *	@brief	Creates a temp entity event to let the client spawn gunshot impact particles at the given origin.
 *	@param	origin	        The origin to spawn the particles at.
@@ -530,6 +555,45 @@ svg_base_edict_t *SVG_TempEventEntity_GunShot( const Vector3 &origin, const Vect
 		tempEventEntity->s.angles = QM_Vector3ToAngles( preciseNormal );
 	}
 	// Return the temp entity event pointer.
+	return tempEventEntity;
+}
+
+/**
+*	@brief	Creates a temp entity event to let the client spawn laser spark particles at the given origin.
+*	@param	origin	        The origin to spawn the particles at.
+*	@param	normal	        The normal vector of the impacted plane.
+*	@param	count	        The amount of particles to spawn.
+*	@param	colorSkinNum    The color skin number.
+*	@return A pointer to the created temp event entity. (For further modification if needed.)
+***/
+svg_base_edict_t *SVG_TempEventEntity_LaserSparks( const Vector3 &origin, const Vector3 &normal, const int32_t count, const int32_t colorSkinNum ) {
+	// Store the count of the amount of 'particle pixels' to spawn in the first parm.
+	// Pack colorSkinNum in upper 8 bits.
+	const int32_t eventParm0 = ( colorSkinNum << 8 ) | ( count & 255 );
+	// Plane normal stored in second parm, encoded to a byte.
+	const int32_t eventParm1 = DirToByte( normal );
+	// Create a temporary entity event for all clients.
+	svg_base_edict_t *tempEventEntity = CreateTempEntityForEvent(
+		// Use the given origin.
+		origin,
+		// Snap the origin.
+		true,
+		// Laser sparks event.
+		EV_FX_IMPACT_LASER_SPARKS,
+		// Parm 0
+		eventParm0, 
+        // Parm 1
+        eventParm1,
+		// Set a shorter duration for the event.
+		FRAME_TIME_MS
+	);
+	
+	// Ensure we preserve exact normals where possible, as the impact angles
+	// can sometimes lose precision due to how the net serializer packs entity_state_t::angles.
+	const Vector3 preciseNormal = QM_Vector3NormalizeDP( normal );
+	if ( QM_Vector3LengthSqrDP( preciseNormal ) > ( 0.001 * 0.001 ) ) {
+		tempEventEntity->s.angles = QM_Vector3ToAngles( preciseNormal );
+	}
 	return tempEventEntity;
 }
 

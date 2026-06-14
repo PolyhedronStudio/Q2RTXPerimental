@@ -151,6 +151,8 @@ void PF_PrecacheClientModels( void ) {
     clgi.SetSpriteModelVerticality( precache.models.sprite_explo00 );
     precache.models.sprite_explo01 = clgi.R_RegisterModel( "sprites/explo01/explo01.spj" );
     clgi.SetSpriteModelVerticality( precache.models.sprite_explo01 );
+	precache.models.sprite_explo02 = clgi.R_RegisterModel( "sprites/explo02/explo02.spj" );
+	clgi.SetSpriteModelVerticality( precache.models.sprite_explo02 );
 
     // Precaches all local 'model path' registered files.
     CLG_PrecacheLocalModels();

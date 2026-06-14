@@ -184,7 +184,16 @@ svg_base_edict_t *SVG_TempEventEntity_MoreBlood( const Vector3 &origin, const Ve
 *
 *
 *
+*
 **/
+/**
+*	@brief	Creates a temp entity event to let the client spawn a plain explosion at the given origin.
+*	@param	origin	        The origin to spawn the explosion at.
+*	@return A pointer to the created temp event entity. (For further modification if needed.)
+***/
+svg_base_edict_t *SVG_TempEventEntity_PlainExplosion( const Vector3 &origin );
+
+
 /**
 *	@brief	Creates a temp entity event to let the client spawn impact particles at the given origin.
 *	@param	origin	        The origin to spawn the particles at.
@@ -195,6 +204,17 @@ svg_base_edict_t *SVG_TempEventEntity_MoreBlood( const Vector3 &origin, const Ve
 *	@return A pointer to the created temp event entity. (For further modification if needed.)
 ***/
 svg_base_edict_t *SVG_TempEventEntity_GunShot( const Vector3 &origin, const Vector3 &normal, const int32_t impactType = EV_FX_IMPACT_GUNSHOT, const int32_t minCount = 28, const int32_t maxCount = 40 );
+
+/**
+*	@brief	Creates a temp entity event to let the client spawn laser spark particles at the given origin.
+*	@param	origin	        The origin to spawn the particles at.
+*	@param	normal	        The normal vector of the impacted plane.
+*	@param	count	        The amount of particles to spawn.
+*	@param	colorSkinNum    The color skin number.
+*	@return A pointer to the created temp event entity. (For further modification if needed.)
+***/
+svg_base_edict_t *SVG_TempEventEntity_LaserSparks( const Vector3 &origin, const Vector3 &normal, const int32_t count, const int32_t colorSkinNum );
+
 
 
 

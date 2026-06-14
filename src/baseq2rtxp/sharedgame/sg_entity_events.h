@@ -154,6 +154,7 @@ typedef enum sg_entity_events_e {
 	EV_FX_IMPACT_GUNSHOT,
 	EV_FX_IMPACT_SPARKS,
 	EV_FX_IMPACT_BULLET_SPARKS,
+	EV_FX_IMPACT_LASER_SPARKS,
 
     /**
     *   "Splash" Particle Events:
@@ -332,6 +333,7 @@ static constexpr const char *sg_event_string_names[ /*EV_GAME_MAX*/ ] = {
 	"EV_FX_IMPACT_GUNSHOT",
 	"EV_FX_IMPACT_SPARKS",
 	"EV_FX_IMPACT_BULLET_SPARKS",
+	"EV_FX_IMPACT_LASER_SPARKS",
 
 	/**
 	*   "Splash" Particle Events:

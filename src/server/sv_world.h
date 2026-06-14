@@ -40,6 +40,7 @@ void SV_LinkEdict( cm_t *cm, sv_edict_t *ent );
 void PF_LinkEdict( edict_ptr_t *ent );
 
 
+const mbrush_t *PF_GetBrushByID( const int32_t brushID );
 
 /**
 *

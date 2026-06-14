@@ -393,6 +393,12 @@ void SVG_Util_SetMoveDir( Vector3 &angles, Vector3 &movedir, const bool clearAng
 **/
 void SVG_Util_AddEvent( svg_base_edict_t *ent, const sg_entity_events_t event, const int32_t eventParm0, const int32_t eventParm1 ) {
 	// Sanity check.
+	if ( !ent ) {
+		gi.dprintf( "%s: no entity passed.\n", __func__ );
+		return;
+	}
+
+	// Sanity check.
     if ( !event ) {
 		// Debug about zero event.
         gi.dprintf( "%s: zero event added for entity(#%i), lastEventTime(%" PRId64 ")\n", __func__, ent->s.number, ent->eventTime );

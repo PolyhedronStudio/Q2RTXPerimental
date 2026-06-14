@@ -6,6 +6,7 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_entity_events.h"
 #include "svgame/svg_misc.h"
 #include "svgame/svg_trigger.h"
 #include "svgame/svg_utils.h"
@@ -175,14 +176,8 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_target_laser_t, onThink )( svg_target_laser_t 
         if ( !( tr.ent->svFlags & SVF_MONSTER ) && ( !tr.ent->client ) ) {
             if ( self->spawnflags & 0x80000000 ) {
                 self->spawnflags &= ~0x80000000;
-                gi.WriteUint8( svc_temp_entity );
-                gi.WriteUint8( TE_LASER_SPARKS );
-                gi.WriteUint8( count );
-                gi.WritePosition( &tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
 				const Vector3 planeNormal = tr.plane.normal;
-                gi.WriteDir8( &planeNormal );
-                gi.WriteUint8( self->s.skinnum );
-                gi.multicast( &tr.endpos, MULTICAST_PVS, false );
+				SVG_TempEventEntity_LaserSparks( tr.endpos, planeNormal, count, self->s.skinnum );
             }
             break;
         }

@@ -883,8 +883,8 @@ void CL_EmitDemoSnapshot(void)
     }
 
     // write layout
-    MSG_WriteUint8(svc_layout);
-    MSG_WriteString(cl.layout);
+    //MSG_WriteUint8(svc_layout);
+    //MSG_WriteString(cl.layout);
 
     snap = (demosnap_t*)Z_Malloc( sizeof( *snap ) + msg_write.cursize - 1 ); // WID: C++20: Was without a cast.
     snap->framenum = cls.demo.frames_read;
