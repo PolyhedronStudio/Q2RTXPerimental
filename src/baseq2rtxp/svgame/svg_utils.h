@@ -20,6 +20,42 @@ void SVG_DebugDrawLine_TE( const Vector3 &start, const Vector3 &end, const multi
 void SVG_DebugDrawBBox_TE( const Vector3 &mins, const Vector3 &maxs, const multicast_t multicastType = MULTICAST_ALL, const bool reliable = true );
 void SVG_DebugDrawCube_TE( const Vector3 &center, const float halfExtent, const multicast_t multicastType = MULTICAST_ALL, const bool reliable = true );
 
+inline static void SVG_DebugDraw_Box( const Vector3 &mins, const Vector3 &maxs, const uint32_t color ) {
+	if ( gi.R_DrawDebugBox ) {
+		gi.R_DrawDebugBox( &mins.x, &maxs.x, color );
+	}
+}
+
+inline static void SVG_DebugDraw_Line( const Vector3 &start, const Vector3 &end, const uint32_t color ) {
+	if ( gi.R_DrawDebugLine ) {
+		gi.R_DrawDebugLine( &start.x, &end.x, color );
+	}
+}
+
+inline static void SVG_DebugDraw_Arrow( const Vector3 &start, const Vector3 &end, const float headLength, const uint32_t color ) {
+	if ( gi.R_DrawDebugArrow ) {
+		gi.R_DrawDebugArrow( &start.x, &end.x, headLength, color );
+	}
+}
+
+inline static void SVG_DebugDraw_Sphere( const Vector3 &center, const float radius, const uint32_t color ) {
+	if ( gi.R_DrawDebugSphere ) {
+		gi.R_DrawDebugSphere( &center.x, radius, color );
+	}
+}
+
+inline static void SVG_DebugDraw_Capsule( const Vector3 &start, const Vector3 &end, const float radius, const uint32_t color ) {
+	if ( gi.R_DrawDebugCapsule ) {
+		gi.R_DrawDebugCapsule( &start.x, &end.x, radius, color );
+	}
+}
+
+inline static void SVG_DebugDraw_Cylinder( const Vector3 &start, const Vector3 &end, const float radius, const uint32_t color ) {
+	if ( gi.R_DrawDebugCylinder ) {
+		gi.R_DrawDebugCylinder( &start.x, &end.x, radius, color );
+	}
+}
+
 
 
 /**

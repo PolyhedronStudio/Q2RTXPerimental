@@ -8,7 +8,8 @@
 #include "svgame/svg_local.h"
 #include "svgame/svg_utils.h"
 
-#include "svgame/nav2/nav2_types.h"
+#include "svgame/nav/nav_path.h"
+
 #include "svg_mmove.h"
 #include "svg_mmove_slidemove.h"
 
@@ -71,9 +72,9 @@ static bool MMove_CheckStep( const mm_move_t *monsterMove, const svg_trace_t *tr
 	if ( !trace->allsolid ) {
 		// Get min step normal.
 		double minStepNormal = MM_MIN_STEP_NORMAL;
-		if ( monsterMove->navPolicy ) {
-			minStepNormal = monsterMove->navPolicy->min_step_normal;
-		}
+		//if ( monsterMove->navPolicy ) {
+		//	minStepNormal = monsterMove->navPolicy->min_step_normal;
+		//}
 		// If trace clipped to an entity and the plane we hit its normal is sane for stepping:
 		if ( trace->ent && trace->plane.normal[ 2 ] >= minStepNormal ) {
 			// We just traversed a step of sorts.
@@ -122,7 +123,7 @@ static void MMove_StepDown( mm_move_t *monsterMove, const svg_trace_t *trace ) {
 *   @return  Slide/step move result flags.
 *   @note    All drop/jump/step logic uses the policy struct for limits.
 **/
-const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, const nav2_path_policy_t &policy ) {
+const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, const nav_path_policy_t &policy ) {
 	svg_trace_t trace = {};
 	Vector3 startOrigin = monsterMove->state.previousOrigin = monsterMove->state.origin;
 	Vector3 startVelocity = monsterMove->state.previousVelocity = monsterMove->state.velocity;
@@ -208,7 +209,7 @@ const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, con
     if ( ( monsterMove->state.mm_flags & MMF_ON_GROUND ) && !( monsterMove->state.mm_flags & MMF_ON_LADDER ) &&
         ( monsterMove->liquid.level < cm_liquid_level_t::LIQUID_WAIST || ( /*!( pm->cmd.buttons & BUTTON_JUMP ) &&*/ monsterMove->state.velocity.z <= 0 ) ) ) {
         // Use policy for step height.
-		Vector3 downOffset = { 0., 0., policy.max_obstruction_jump_height };
+		Vector3 downOffset = { 0.f, 0.f, (float)policy.max_obstruction_jump_height };
         Vector3 down = QM_Vector3Subtract(monsterMove->state.origin, downOffset);
         trace = SVG_MMove_Trace( monsterMove->state.origin, monsterMove->mins, monsterMove->maxs, down, monsterMove->monster );
 

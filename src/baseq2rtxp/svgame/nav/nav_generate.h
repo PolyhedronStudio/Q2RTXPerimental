@@ -3,12 +3,17 @@
 #include "nav_core.h"
 #include "nav_types.h"
 #include "nav_containers.h"
+#include <vector>
 
 // Expose the global navmesh data for saving/loading and pathfinding
 extern nav_vector_t<nav_poly_t> g_nav_polys;
 extern nav_vector_t<nav_kdtree_node_t> g_nav_nodes;
 extern nav_vector_t<nav_leaf_link_t> g_nav_leaf_links;
 extern nav_vector_t<int32_t> g_nav_leaf_poly_ids;
+
+extern std::vector<Vector3> g_nav_vertices;
+extern std::vector<nav_halfedge_t> g_nav_halfedges;
+extern std::vector<nav_face_t> g_nav_faces;
 
 // Triggers the generation command from the console
 void Nav_GenerateCommand();
@@ -24,6 +29,9 @@ void Nav_Clear();
 
 // Starts the actual extraction (called by the async thread)
 void Nav_DoExtractionWork();
+
+// Builds the Half-Edge Mesh
+void Nav_BuildHalfEdgeMesh();
 
 // Builds the KD-Tree for spatial queries
 void Nav_BuildKDTree();

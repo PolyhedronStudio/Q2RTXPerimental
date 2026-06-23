@@ -81,7 +81,7 @@ cvar_t *clg_debug_entity_events = nullptr;
 cvar_t *clg_debug_pmove_changed_events = nullptr;
 cvar_t *clg_debug_draw_entity_bounds = nullptr;
 cvar_t *clg_debug_draw = nullptr;
-cvar_t *clg_skeletal_hitboxes_debug_draw = nullptr;
+cvar_t *clg_debug_draw_skeletal_hitboxes = nullptr;
 
 cvar_t *clg_kickangles = nullptr;
 cvar_t *clg_noskins = nullptr;
@@ -602,13 +602,13 @@ void PF_InitGame( void ) {
 	clg_debug_entity_events = clgi.CVar_Get( "clg_debug_entity_events", "0", 0 );
 	clg_debug_pmove_changed_events = clgi.CVar_Get( "clg_debug_pmove_changed_events", "1", 0 );
 	#ifdef _DEBUG
+		clg_debug_draw = clgi.CVar_Get( SG_SVC_DEBUG_DRAW_CLIENT_CVAR_NAME, "1", CVAR_USERINFO | CVAR_ARCHIVE );
 		clg_debug_draw_entity_bounds = clgi.CVar_Get( "clg_debug_draw_entity_bounds", "0", CVAR_ARCHIVE );
-		clg_debug_draw = clgi.CVar_Get( SG_SVC_DEBUG_DRAW_CLIENT_CVAR_NAME, "0", CVAR_USERINFO | CVAR_ARCHIVE );
-		clg_skeletal_hitboxes_debug_draw = clgi.CVar_Get( "clg_skeletal_hitboxes_debug_draw", "0", CVAR_ARCHIVE );
+		clg_debug_draw_skeletal_hitboxes = clgi.CVar_Get( "clg_debug_draw_skeletal_hitboxes", "0", CVAR_ARCHIVE );
 	#else
 		clg_debug_draw_entity_bounds = clgi.CVar_Get( "clg_debug_draw_entity_bounds", "0", CVAR_ARCHIVE );
 		clg_debug_draw = clgi.CVar_Get( SG_SVC_DEBUG_DRAW_CLIENT_CVAR_NAME, "0", CVAR_USERINFO | CVAR_ARCHIVE );
-		clg_skeletal_hitboxes_debug_draw = clgi.CVar_Get( "clg_skeletal_hitboxes_debug_draw", "0", CVAR_ARCHIVE );
+		clg_debug_draw_skeletal_hitboxes = clgi.CVar_Get( "clg_debug_draw_skeletal_hitboxes", "0", CVAR_ARCHIVE );
 	#endif
 
 	// Client effects.

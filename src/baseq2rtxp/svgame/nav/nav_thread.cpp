@@ -22,6 +22,9 @@ static void Nav_AsyncGenerationWork(void* arg) {
     s_gen_progress.current_time_ms = gi.GetRealTime();
     s_gen_progress.time_taken_ms = s_gen_progress.current_time_ms - start;
 
+    // Build Half-Edge Mesh
+    Nav_BuildHalfEdgeMesh();
+
     // Build KD-Tree
     Nav_BuildKDTree();
 
@@ -34,7 +37,8 @@ static void Nav_AsyncGenerationWork(void* arg) {
 static void Nav_AsyncGenerationDone(void* arg) {
     // This runs on the main thread after work_cb completes.
     s_gen_progress.is_generating = false;
-    gi.dprintf("NavMesh Generation Completed in %d ms.\n", s_gen_progress.time_taken_ms);
+    gi.dprintf("NavMesh Generation Completed in %d ms. (Faces: %d, Nodes: %d)\n", 
+        s_gen_progress.time_taken_ms, (int)g_nav_faces.size(), (int)g_nav_nodes.size());
 }
 
 void Nav_StartAsyncGeneration() {

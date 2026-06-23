@@ -43,7 +43,7 @@ static uint32_t CLG_DebugColorForMonsterHitbox( const uint32_t hitboxIndex, cons
 **/
 static void CLG_DebugDrawMonsterSkeletalHitboxes( const entity_t *refreshEntity, const model_t *model ) {
     // Sanity: require the debug toggle and the model/pose data needed to build the box corners.
-    if ( !clg_skeletal_hitboxes_debug_draw || !clg_skeletal_hitboxes_debug_draw->integer ) {
+    if ( !clg_debug_draw_skeletal_hitboxes || !clg_debug_draw_skeletal_hitboxes->integer ) {
         return;
     }
 
@@ -130,7 +130,7 @@ static void CLG_DebugDrawMonsterSkeletalHitboxes( const entity_t *refreshEntity,
 *\t@param\tpacketEntity\tMonster packet entity with decoded bounds and lerped origin.
 **/
 static void CLG_DebugDrawMonsterDefaultBounds( const centity_t *packetEntity ) {
-    if ( !clg_skeletal_hitboxes_debug_draw || !clg_skeletal_hitboxes_debug_draw->integer ) {
+    if ( !clg_debug_draw_skeletal_hitboxes || !clg_debug_draw_skeletal_hitboxes->integer ) {
         return;
     }
 

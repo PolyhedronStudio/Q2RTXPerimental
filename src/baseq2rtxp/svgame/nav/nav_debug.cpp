@@ -4,45 +4,15 @@
 #include "svgame/nav/nav_generate.h"
 #include "svgame/nav/nav_debug.h"
 
+#include "svgame/nav/nav_debug_draw.h"
 #include "svgame/svg_utils.h"
 
-cvar_t *s_nav6_debug_nodes = nullptr;
-cvar_t *s_nav6_debug_polys = nullptr;
+cvar_t *s_nav_debug_nodes = nullptr;
+cvar_t *s_nav_debug_polys = nullptr;
 
 void Nav_DebugInit() {
-    s_nav6_debug_nodes = gi.cvar("nav6_debug_nodes", "0", 0);
-    s_nav6_debug_polys = gi.cvar("nav6_debug_polys", "0", 0);
-}
-
-static void DebugDrawBox(const Vector3 &mins, const Vector3 &maxs) {
-    Vector3 corners[8] = {
-        {mins.x, mins.y, mins.z},
-        {maxs.x, mins.y, mins.z},
-        {maxs.x, maxs.y, mins.z},
-        {mins.x, maxs.y, mins.z},
-        {mins.x, mins.y, maxs.z},
-        {maxs.x, mins.y, maxs.z},
-        {maxs.x, maxs.y, maxs.z},
-        {mins.x, maxs.y, maxs.z}
-    };
-    
-    // Bottom
-    SVG_DebugDrawLine_TE(corners[0], corners[1], MULTICAST_ALL, false);
-    SVG_DebugDrawLine_TE(corners[1], corners[2], MULTICAST_ALL, false);
-    SVG_DebugDrawLine_TE(corners[2], corners[3], MULTICAST_ALL, false);
-    SVG_DebugDrawLine_TE(corners[3], corners[0], MULTICAST_ALL, false);
-    
-    // Top
-    SVG_DebugDrawLine_TE(corners[4], corners[5], MULTICAST_ALL, false);
-    SVG_DebugDrawLine_TE(corners[5], corners[6], MULTICAST_ALL, false);
-    SVG_DebugDrawLine_TE(corners[6], corners[7], MULTICAST_ALL, false);
-    SVG_DebugDrawLine_TE(corners[7], corners[4], MULTICAST_ALL, false);
-    
-    // Sides
-    SVG_DebugDrawLine_TE(corners[0], corners[4], MULTICAST_ALL, false);
-    SVG_DebugDrawLine_TE(corners[1], corners[5], MULTICAST_ALL, false);
-    SVG_DebugDrawLine_TE(corners[2], corners[6], MULTICAST_ALL, false);
-    SVG_DebugDrawLine_TE(corners[3], corners[7], MULTICAST_ALL, false);
+    s_nav_debug_nodes = gi.cvar("nav_debug_nodes", "0", 0);
+    s_nav_debug_polys = gi.cvar("nav_debug_polys", "0", 0);
 }
 
 static void RecursiveDrawNodes(int32_t nodeIndex, const Vector3 &playerPos, float radius) {
@@ -57,37 +27,49 @@ static void RecursiveDrawNodes(int32_t nodeIndex, const Vector3 &playerPos, floa
         return;
     }
 
-    if (s_nav6_debug_nodes && s_nav6_debug_nodes->value != 0) {
-        DebugDrawBox(node.mins, node.maxs);
+    if (s_nav_debug_nodes && s_nav_debug_nodes->value != 0) {
+        SVG_Nav_DebugDraw_AddAabb(node.mins, node.maxs, U32_CYAN);
     }
     
-    if (s_nav6_debug_polys && s_nav6_debug_polys->value != 0 && node.poly_id != -1) {
-        if (node.poly_id >= 0 && node.poly_id < g_nav_polys.size()) {
-            const nav_poly_t &poly = g_nav_polys[node.poly_id];
-            for (int32_t v = 0; v < poly.num_vertices; v++) {
-                Vector3 start = poly.vertices[v];
-                Vector3 end = poly.vertices[(v + 1) % poly.num_vertices];
-                SVG_DebugDrawLine_TE(start, end, MULTICAST_ALL, false);
-            }
-        }
-    }
+    // Draw polys by directly iterating over g_nav_polys later in Nav_DebugDraw.
     
     if (node.left_child != -1) RecursiveDrawNodes(node.left_child, playerPos, radius);
     if (node.right_child != -1) RecursiveDrawNodes(node.right_child, playerPos, radius);
 }
 
 void Nav_DebugDraw() {
-    if (!s_nav6_debug_nodes || !s_nav6_debug_polys) return;
-    if (s_nav6_debug_nodes->value == 0 && s_nav6_debug_polys->value == 0) return;
+    if (!s_nav_debug_nodes || !s_nav_debug_polys) return;
+    if (s_nav_debug_nodes->value == 0 && s_nav_debug_polys->value == 0) return;
     if (g_nav_nodes.size() == 0) return;
-
-    // Throttle drawing so we don't overflow the TE buffer
-    static QMTime nextDrawTime = 0_sec;
-    if (level.time < nextDrawTime) return;
-    nextDrawTime = level.time + QMTime::FromSeconds(0.1f);
 
     svg_base_edict_t *player = g_edict_pool.EdictForNumber(1);
     if (!player || !player->inUse) return;
 
-    RecursiveDrawNodes(0, player->currentOrigin, 512.0f);
+    RecursiveDrawNodes(0, player->currentOrigin, CM_MAX_WORLD_SIZE );
+
+    if (s_nav_debug_polys && s_nav_debug_polys->value != 0) {
+        for (int32_t i = 0; i < g_nav_faces.size(); i++) {
+            const nav_face_t &face = g_nav_faces[i];
+            
+            // Simple distance check
+            if (QM_Vector3DistanceSqr(face.center, player->currentOrigin) > ((float)CM_MAX_WORLD_SIZE * (float)CM_MAX_WORLD_SIZE)) {
+                continue;
+            }
+
+            for (int32_t e = 0; e < face.num_edges; e++) {
+                const nav_halfedge_t& he = g_nav_halfedges[face.first_edge_idx + e];
+                
+                Vector3 start = g_nav_vertices[he.vertex_idx];
+                Vector3 end = g_nav_vertices[g_nav_halfedges[he.next_idx].vertex_idx];
+
+                if (he.twin_idx != -1) {
+                    // Draw internal twinned edges in BLUE so we can see the mesh grid cells!
+                    SVG_Nav_DebugDraw_AddLine(start, end, U32_BLUE, SG_SVC_DEBUG_DRAW_STYLE_FLAG_DEPTH_TEST);
+                } else {
+                    // Draw boundary edges in YELLOW
+                    SVG_Nav_DebugDraw_AddLine(start, end, U32_YELLOW, SG_SVC_DEBUG_DRAW_STYLE_FLAG_DEPTH_TEST);
+                }
+            }
+        }
+    }
 }

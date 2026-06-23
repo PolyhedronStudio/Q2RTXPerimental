@@ -17,6 +17,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "server/sv_server.h"
+#include "server/sv_world.h"
+#include "server/sv_debug_draw_queue.h"
 #include "server/sv_commands.h"
 #include "server/sv_game.h"
 #include "server/sv_models.h"
@@ -1704,6 +1706,9 @@ static void SV_RunGameFrame(void)
         time_before_svgame = Sys_Milliseconds();
 #endif
 
+#if USE_CLIENT
+    SV_ClearDebugDrawQueues();
+#endif
     ge->RunFrame();
 
 #if USE_CLIENT

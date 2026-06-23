@@ -2,7 +2,7 @@
 #include "nav_generate.h"
 
 bool Nav_Save(const char* filepath) {
-    if (g_nav_polys.empty()) {
+    if (g_nav_faces.empty()) {
         gi.dprintf("NavMesh Save Error: No navmesh generated.\n");
         return false;
     }
@@ -14,28 +14,34 @@ bool Nav_Save(const char* filepath) {
     }
 
     nav_header_t header = {};
-    header.magic = NAV6_MAGIC;
-    header.version = NAV6_VERSION;
+    header.magic = NAV7_MAGIC;
+    header.version = NAV7_VERSION;
     // TODO: get actual map checksum from engine
     header.map_checksum = 0; 
     
-    header.num_polys = (int32_t)g_nav_polys.size();
+    header.num_vertices = (int32_t)g_nav_vertices.size();
+    header.num_halfedges = (int32_t)g_nav_halfedges.size();
+    header.num_faces = (int32_t)g_nav_faces.size();
     header.num_kdtree_nodes = (int32_t)g_nav_nodes.size();
     header.num_leaf_links = (int32_t)g_nav_leaf_links.size();
-    header.num_leaf_poly_ids = (int32_t)g_nav_leaf_poly_ids.size();
+    header.num_leaf_face_ids = (int32_t)g_nav_leaf_poly_ids.size();
 
     // Write header
     fwrite(&header, sizeof(nav_header_t), 1, f);
     
     // Write data blocks
-    if (header.num_polys > 0)
-        fwrite(g_nav_polys.get_data(), sizeof(nav_poly_t), header.num_polys, f);
+    if (header.num_vertices > 0)
+        fwrite(g_nav_vertices.data(), sizeof(Vector3), header.num_vertices, f);
+    if (header.num_halfedges > 0)
+        fwrite(g_nav_halfedges.data(), sizeof(nav_halfedge_t), header.num_halfedges, f);
+    if (header.num_faces > 0)
+        fwrite(g_nav_faces.data(), sizeof(nav_face_t), header.num_faces, f);
     if (header.num_kdtree_nodes > 0)
         fwrite(g_nav_nodes.get_data(), sizeof(nav_kdtree_node_t), header.num_kdtree_nodes, f);
     if (header.num_leaf_links > 0)
         fwrite(g_nav_leaf_links.get_data(), sizeof(nav_leaf_link_t), header.num_leaf_links, f);
-    if (header.num_leaf_poly_ids > 0)
-        fwrite(g_nav_leaf_poly_ids.get_data(), sizeof(int32_t), header.num_leaf_poly_ids, f);
+    if (header.num_leaf_face_ids > 0)
+        fwrite(g_nav_leaf_poly_ids.get_data(), sizeof(int32_t), header.num_leaf_face_ids, f);
 
     fclose(f);
     gi.dprintf("NavMesh Saved to %s successfully.\n", filepath);
@@ -56,7 +62,7 @@ bool Nav_Load(const char* filepath) {
         return false;
     }
 
-    if (header.magic != NAV6_MAGIC || header.version != NAV6_VERSION) {
+    if (header.magic != NAV7_MAGIC || header.version != NAV7_VERSION) {
         gi.dprintf("NavMesh Load Error: Invalid format or version mismatch.\n");
         fclose(f);
         return false;
@@ -66,11 +72,17 @@ bool Nav_Load(const char* filepath) {
     Nav_Clear();
 
     // Allocate and read blocks
-    for (int i = 0; i < header.num_polys; i++) {
-        nav_poly_t p;
-        fread(&p, sizeof(nav_poly_t), 1, f);
-        g_nav_polys.push_back(p);
-    }
+    g_nav_vertices.resize(header.num_vertices);
+    if (header.num_vertices > 0)
+        fread(g_nav_vertices.data(), sizeof(Vector3), header.num_vertices, f);
+        
+    g_nav_halfedges.resize(header.num_halfedges);
+    if (header.num_halfedges > 0)
+        fread(g_nav_halfedges.data(), sizeof(nav_halfedge_t), header.num_halfedges, f);
+        
+    g_nav_faces.resize(header.num_faces);
+    if (header.num_faces > 0)
+        fread(g_nav_faces.data(), sizeof(nav_face_t), header.num_faces, f);
     
     for (int i = 0; i < header.num_kdtree_nodes; i++) {
         nav_kdtree_node_t n;
@@ -84,14 +96,14 @@ bool Nav_Load(const char* filepath) {
         g_nav_leaf_links.push_back(l);
     }
     
-    for (int i = 0; i < header.num_leaf_poly_ids; i++) {
+    for (int i = 0; i < header.num_leaf_face_ids; i++) {
         int32_t id;
         fread(&id, sizeof(int32_t), 1, f);
         g_nav_leaf_poly_ids.push_back(id);
     }
 
     fclose(f);
-    gi.dprintf("NavMesh Loaded from %s successfully (Polys: %d, Nodes: %d).\n", 
-               filepath, header.num_polys, header.num_kdtree_nodes);
+    gi.dprintf("NavMesh Loaded from %s successfully (Faces: %d, Nodes: %d).\n", 
+               filepath, header.num_faces, header.num_kdtree_nodes);
     return true;
 }

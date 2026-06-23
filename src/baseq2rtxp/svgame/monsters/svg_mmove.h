@@ -10,7 +10,7 @@
 
 
 // Forward declarations.
-struct nav2_path_policy_t;
+struct nav_path_policy_t;
 
 
 /**
@@ -223,7 +223,7 @@ typedef struct mm_move_s {
     } step;
 
 	//! A pointer to the navigation movement policy being used for this move, if any.
-	nav2_path_policy_t *navPolicy = nullptr;
+	nav_path_policy_t *navPolicy = nullptr;
 } mm_move_t;
 
 
@@ -267,8 +267,8 @@ const svg_trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, co
 *   @return  Slide/step move result flags.
 *   @note    All drop/jump/step logic uses the policy struct for limits.
 **/
-struct nav2_path_policy_t;
-const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, const nav2_path_policy_t &policy );
+struct nav_path_policy_t;
+const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, const nav_path_policy_t &policy );
 
 /**
 *	@brief	Will move the yaw to its ideal position based on the yaw speed(per frame) value.

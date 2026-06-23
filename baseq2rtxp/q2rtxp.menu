@@ -73,6 +73,7 @@ begin developer_menu
     title "Developer (Test-)Maps"
     blank
     action --align --status "Deathmatch" "[MP] DeathMatch - It quacks like a duck thus.." "skill 0; gamemode 2; maxclients 8; map q2rtxp_dev_deathmatch force"
+    action --align --status "NavMesh" "[MP] NavMesh - For testing testdummy navigation techniques" "skill 0; gamemode 1; maxclients 8; map q2rtxp_dev_navmesh force"
     action --align --status "A simple moving target range level, utilizing Lua and Signal I/O" "[MP] Signal I/O - TargetRange" "skill 0; gamemode 2; maxclients 8; map q2rtxp_dev_sigio_targetrange force"
     blank
     action --align --status "A map with surfaces that have a different material friction applied to them." "[SP] CollisionModel - Friction Materials" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_cm_materials force"

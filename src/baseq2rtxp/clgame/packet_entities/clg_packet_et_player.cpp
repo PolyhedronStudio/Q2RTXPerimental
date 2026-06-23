@@ -607,7 +607,7 @@ static uint32_t CLG_DebugColorForPlayerHitbox( const uint32_t hitboxIndex, const
 *   @note   Uses the final posed `refreshEntity->bonePoses` so the overlay always matches rendered animation.
 **/
 static void CLG_DebugDrawPlayerSkeletalHitboxes( const entity_t *refreshEntity, const model_t *model ) {
-    if ( !clg_skeletal_hitboxes_debug_draw || !clg_skeletal_hitboxes_debug_draw->integer ) {
+    if ( !clg_debug_draw_skeletal_hitboxes || !clg_debug_draw_skeletal_hitboxes->integer ) {
         return;
     }
 

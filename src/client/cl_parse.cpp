@@ -1069,17 +1069,9 @@ void CL_ParseServerMessage(void)
 			CL_ParseSetAreaPortalBit();
 			continue;
 
-
 		case svc_scoreboard:
 			CL_ParseScoreboard();
 			continue;
-		//case svc_inventory:
-		//    CL_ParseInventory();
-		//    break;
-
-		//case svc_layout:
-		//    CL_ParseLayout();
-		//    break;
 
 		case svc_zpacket:
 			//if (cls.serverProtocol < PROTOCOL_VERSION_R1Q2) {

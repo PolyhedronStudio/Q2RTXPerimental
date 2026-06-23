@@ -38,11 +38,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/svg_gamemode.h"
 #include "svgame/gamemodes/svg_gm_basemode.h"
 
-// Nav2.
-#include "svgame/nav2/nav2_types.h"
-#include "svgame/nav2/nav2_save_load.h"
-
-
 
 /**
 *

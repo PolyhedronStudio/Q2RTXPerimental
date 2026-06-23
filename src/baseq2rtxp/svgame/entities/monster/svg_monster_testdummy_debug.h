@@ -12,13 +12,14 @@
 ********************************************************************/
 #pragma once
 
-// Nav2.
-#include "svgame/nav2/nav2_types.h"
 
 // Monster Move
 #include "svgame/monsters/svg_mmove.h"
 #include "svgame/monsters/svg_mmove_slidemove.h"
 //#include "svgame/entities/monster/svg_monster_testdummy.h"
+
+// Navigation
+#include "svgame/nav/nav_path.h"
 
 
 
@@ -199,10 +200,7 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	//! Determines the thinking state callback to fire for the frame.
 	AIThinkState thinkAIState = AIThinkState::IdleLookout;
 
-	/**
-	*	@brief	NPC Goal Z Blend Policy Adjustment Helper:
-	**/
-	void DetermineGoalZBlendPolicyState( const Vector3 &goalOrigin );
+
 
 	/**
 	*
@@ -288,28 +286,13 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	*	@param	policy	Path-follow policy tuning rebuild heuristics.
 	*	@param	agent_mins	Feet-origin agent bbox minimums.
 	*	@param	agent_maxs	Feet-origin agent bbox maximums.
-	*	@param	force	When true, bypass throttles/heuristics and rebuild immediately.
-	*	@return	True if the queue accepted the request or already had one pending.
-	*	@note	When this returns true the path process relies on the queued rebuild instead
-	*			of immediate synchronous execution so we do not spam blocking calls.
-	**/
-	const bool TryRebuildNavigationInQueue( const Vector3 &start_origin,
-		const Vector3 &goal_origin, const nav2_path_policy_t &policy, const Vector3 &agent_mins,
-		const Vector3 &agent_maxs, const bool force = false );
-	/**
 	*    @brief	Reset cached navigation path state for the test dummy.
 	*    @param	self	NPC whose path state should be cleared.
 	*    @note	Cancels any queued async request and clears cached path buffers.
 	**/
 	void ResetNavigationPath();
 
-	/**
-	*	@brief	Member wrapper that forwards to the TU-local AdjustGoalZBlendPolicy helper.
-	*	@param	goalOrigin	World-space feet-origin goal position used to bias layer selection.
-	*	@note	Called each think after `GenericThinkBegin()` to keep `pathNavigationState.policy`
-	*			tuned to current pursuit conditions (distance, vertical delta, failures, visibility).
-	**/
-	void AdjustGoalZBlendPolicy( const Vector3 &goalOrigin );
+
 
 
 	//=============================================================================================
@@ -328,37 +311,57 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	/**
 	*	
 	**/
+	/**
+	*	@brief	State for tracking navigation metrics.
+	**/
 	struct PathNavigationState_t {
-		//! Current state of the async nav path process, which is used by the A* pursuit thinkers and the generic think finish routine.
-		//nav2_path_process_t process = {};
-		//! Current policy settings for the async nav path process, which is used by the A* pursuit thinkers and the generic think finish routine.
-		//nav2_path_policy_t policy = {};
-
-		//! Rate limit for queue-status logging so we do not spam the console repeatedly.
-		QMTime nextQueueStatusLogTime = 0_ms;
-
-		/**
-		*	@brief	Last known valid navigation fallback point (entity feet-origin space).
-		*			Used as a conservative fallback when async A* hasn't produced a path yet,
-		*			so the monster can at least attempt to move toward the player instead of just standing still.
-		**/
-		struct lastNavigationFallbackPoint_t {
-			//! Last known valid navigation point in world space. 
-			//! Used as a conservative fallback when async A* hasn't produced a path yet.
-			Vector3 origin = { 0.0f, 0.0f, 0.0f };
-			//! Whether lastValidNavigationPointOrigin contains a meaningful value.
-			bool hasPoint = false;
-		} fallBackPathPoint = {};
-
 		struct goalNavigationState_t {
-		//! Tracks the last goal position used to validate cached navigation paths.
+			//! Tracks the last goal position used to validate cached navigation paths.
 			Vector3 origin = { 0.f, 0.f, 0.f };
 			//! Tracks whether last_nav_goal_origin holds valid data.
 			bool isValid = false;
 			//! Tracks whether the goal was visible when the last nav goal was recorded.
 			bool isVisible = false;
 		} lastGoal = {};
+		
+		//! The navigation policy to use for A* pathfinding.
+		nav_path_policy_t policy = {};
 	} pathNavigationState = {};
+
+	/**
+	*	@brief	Check if the path should be recalculated based on distance and time.
+	**/
+	const bool ShouldRecalcPath( const Vector3 &pos );
+
+	/**
+	*	@brief	Find the current KD-Tree polygon the entity is standing on.
+	**/
+	const int32_t FindCurrentPoly();
+
+	/**
+	*	@brief	Compute an A* path to the target origin.
+	**/
+	const bool ComputePathTo( const Vector3 &target );
+
+	/**
+	*    @brief    Get the next waypoint from the navigation path.
+	**/
+	const Vector3 NextWaypoint( const Vector3 &finalGoal );
+
+	//! KD-Tree caching
+	int32_t cachedLeaf = -1;
+	int32_t cachedPoly = -1;
+
+	/**
+	*	@brief	Checks for audible sounds and transitions to InvestigateSound if a fresh one is found.
+	*	@return	True if a sound was heard and state changed, false otherwise.
+	**/
+	bool CheckForAudibleSounds();
+
+	//! A* Path State
+	std::vector<int32_t> navPath;
+	size_t pathPos = 0;
+	QMTime lastPathCalcTime = 0_ms;
 
 
 

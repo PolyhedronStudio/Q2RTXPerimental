@@ -20,6 +20,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "cl_client.h"
 #include "common/collisionmodel.h"
+#include "server/sv_debug_draw_queue.h"
 #include "common/skeletalmodels/cm_skm_posecache.h"
 #include "client/ui/ui.h"
 
@@ -3186,6 +3187,8 @@ int64_t CL_Frame( uint64_t msec ) {
             time_before_ref = Sys_Milliseconds();
 
         SCR_UpdateScreen();
+
+        SV_SubmitDebugDrawQueues();
 
         if ( host_speeds->integer )
             time_after_ref = Sys_Milliseconds();

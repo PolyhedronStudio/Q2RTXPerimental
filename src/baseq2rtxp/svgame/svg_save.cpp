@@ -23,10 +23,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/svg_clients.h"
 #include "svgame/svg_edict_pool.h"
 
-
-#include "svgame/nav2/nav2_save_load.h"
-#include "svgame/nav2/nav2_persistence.h"
-
 #include "svgame/entities/svg_player_edict.h"
 #include "svgame/entities/svg_worldspawn_edict.h"
 

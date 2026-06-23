@@ -21,7 +21,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 
 #include "svgame/entities/svg_player_edict.h"
-//#include "svgame/entities/monster/svg_monster_testdummy_sfxfollow.h"
+#include "svgame/entities/monster/svg_monster_testdummy_debug.h"
 
 #include "svgame/player/svg_player_trail.h"
 
@@ -138,7 +138,7 @@ void PlayerTrail_New( const Vector3 &spot )
 *	@return	The chosen breadcrumb edict or nullptr if the trail system is
 *			not active.
 **/
-svg_base_edict_t *PlayerTrail_PickFirst( svg_monster_testdummy_sfxfollow_t *self )
+svg_base_edict_t *PlayerTrail_PickFirst( svg_monster_testdummy_debug_t *self )
 {
     int32_t marker = 0;
     int32_t n = 0;
@@ -149,7 +149,7 @@ svg_base_edict_t *PlayerTrail_PickFirst( svg_monster_testdummy_sfxfollow_t *self
     }
 
 		// <Q2RTXP>: WID: Re-enable later on.
-	#if 1
+	#if 0
 	return nullptr;
 	#else
     /**
@@ -166,14 +166,18 @@ svg_base_edict_t *PlayerTrail_PickFirst( svg_monster_testdummy_sfxfollow_t *self
     }
 
     // Prefer a visible breadcrumb if possible to improve robustness of picks.
-    if ( SVG_Entity_IsVisible( static_cast< svg_base_edict_t * >( self ), trail[ marker ] ) ) {
+    if ( trail[ marker ]->timestamp != 0_ms && SVG_Entity_IsVisible( static_cast< svg_base_edict_t * >( self ), trail[ marker ] ) ) {
         return trail[ marker ];
     }
-    if ( SVG_Entity_IsVisible( static_cast< svg_base_edict_t* >( self ), trail[ PREV( marker ) ] ) ) {
+    if ( trail[ PREV( marker ) ]->timestamp != 0_ms && SVG_Entity_IsVisible( static_cast< svg_base_edict_t* >( self ), trail[ PREV( marker ) ] ) ) {
         return trail[ PREV( marker ) ];
     }
 	#endif
 
+    // If the picked breadcrumb is uninitialized, the trail has no valid spots.
+    if ( trail[ marker ]->timestamp == 0_ms ) {
+        return nullptr;
+    }
     return trail[ marker ];
 }
 
@@ -184,7 +188,7 @@ svg_base_edict_t *PlayerTrail_PickFirst( svg_monster_testdummy_sfxfollow_t *self
 *	@return	The next breadcrumb edict or nullptr if the trail system is
 *			not active.
 **/
-svg_base_edict_t *PlayerTrail_PickNext( svg_monster_testdummy_sfxfollow_t *self )
+svg_base_edict_t *PlayerTrail_PickNext( svg_monster_testdummy_debug_t *self )
 {
     int32_t marker = 0;
     int32_t n = 0;
@@ -194,7 +198,7 @@ svg_base_edict_t *PlayerTrail_PickNext( svg_monster_testdummy_sfxfollow_t *self 
     }
 
 	// <Q2RTXP>: WID: Re-enable later on.
-	#if 1
+	#if 0
 		return nullptr;
 	#else
     // Find the first candidate as in PickFirst, then return it.
@@ -206,6 +210,10 @@ svg_base_edict_t *PlayerTrail_PickNext( svg_monster_testdummy_sfxfollow_t *self 
         }
     }
 	#endif
+    // If the picked breadcrumb is uninitialized, the trail has no valid spots.
+    if ( trail[ marker ]->timestamp == 0_ms ) {
+        return nullptr;
+    }
     return trail[ marker ];
 }
 	

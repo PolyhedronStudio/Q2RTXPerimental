@@ -18,15 +18,34 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "svgame/svg_local.h"
 #include "svgame/svg_combat.h"
+/*
+Copyright (C) 1997-2001 Id Software, Inc.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+*/
+
+#include "svgame/svg_local.h"
+#include "svgame/svg_combat.h"
 #include "svgame/svg_commands_server.h"
 #include "svgame/svg_edict_pool.h"
 #include "svgame/svg_clients.h"
-#include "svgame/nav2/nav2_bench.h"
-#include "svgame/nav2/nav2_scheduler.h"
-#include "svgame/nav2/nav2_worker_iface.h"
 #include "svgame/nav/nav_thread.h"
-#include "svgame/nav3/nav3_debug_draw.h"
-#include "svgame/nav3/nav3_runtime.h"
+#include "svgame/nav/nav_core.h"
+#include "svgame/nav/nav_debug.h"
+#include "svgame/nav/nav_debug_draw.h"
+
 
 
 /**
@@ -493,6 +512,7 @@ void SVG_InitGame( void ) {
 
     // NavMesh V6: Initialize the nav debugging CVARs.
     Nav_DebugInit();
+    SVG_Nav_DebugDraw_Init();
 
 	// <Q2RTXP>: WID: Happens in SVG_SpawnEntities now since we need the map's entities to initialize the nav system.
 
@@ -738,32 +758,14 @@ void SVG_RunFrame(void) {
     level.time += FRAME_TIME_MS;
     // Reseed the mersennery twister.
     mt_rand.seed( level.frameNumber );
+    // Begin nav debug draw frame bookkeeping.
+    SVG_Nav_DebugDraw_BeginFrame();
     // Begin nav3 debug draw frame bookkeeping.
     //SVG_Nav3_DebugDraw_BeginFrame();
 	#if 0
     // Reset the nav2 scheduler frame budget and worker mode bookkeeping for this server frame.
     SVG_Nav2_Scheduler_BeginFrame( level.frameNumber );
     #endif
-
-    #if 0
-    // Exit intermissions.
-    if ( level.exitintermission ) {
-        ExitLevel();
-        return;
-    }
-    #else
-	/**
-	*	Precheck whether we are about to change level or have another reason to
-	*	skip the rest of the frame processing.
-	**/
-	if ( game.mode->PreCheckGameRuleConditions() ) {
-        // Flush queued nav3 debug primitives before leaving the frame early.
-        //SVG_Nav3_DebugDraw_FlushFrame();
-		// We had a level change or something, so we exit this function.
-		return;
-	}
-    #endif
-
     /**
     *    Run one early async-navigation service pass before any entity think.
     *        `Com_CompleteAsyncWork()` has already fired before entering the server frame, so this early
@@ -929,7 +931,7 @@ void SVG_RunFrame(void) {
 	#endif
 
     // Flush nav3 debug draw stream after all subsystems have had a chance to submit primitives.
-    SVG_Nav3_DebugDraw_FlushFrame();
+    SVG_Nav_DebugDraw_FlushFrame();
     // Service the legacy KD-tree nav generator once per frame so progress output appears while it runs.
     Nav_UpdateAsyncGeneration();
 }

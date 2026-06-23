@@ -22,6 +22,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "server/sv_models.h"
 #include "server/sv_send.h"
 #include "server/sv_world.h"
+#include "server/sv_debug_draw_queue.h"
 
 #include "shared/cm/cm_entity.h"
 #include "common/async.h"
@@ -305,8 +306,8 @@ Archived in MVD stream.
 */
 static void PF_bprintf(int level, const char *fmt, ...)
 {
-    va_list     argptr;
-    char        string[MAX_STRING_CHARS];
+    va_list     thread_local argptr;
+    char        thread_local string[MAX_STRING_CHARS];
     client_t    *client;
     size_t      len;
     int         i;
@@ -361,8 +362,8 @@ Debug print to server console.
 */
 static void PF_dprintf(const char *fmt, ...)
 {
-    char        msg[MAXPRINTMSG];
-    va_list     argptr;
+    char        thread_local msg[MAXPRINTMSG];
+    va_list		thread_local argptr;
 
     va_start(argptr, fmt);
     Q_vsnprintf(msg, sizeof(msg), fmt, argptr);
@@ -382,8 +383,8 @@ Archived in MVD stream.
 */
 static void PF_cprintf(edict_ptr_t *ent, int level, const char *fmt, ...)
 {
-    char        msg[MAX_STRING_CHARS];
-    va_list     argptr;
+    char        thread_local msg[MAX_STRING_CHARS];
+    va_list     thread_local argptr;
     int         clientNum;
     size_t      len;
     client_t    *client;
@@ -434,8 +435,8 @@ Archived in MVD stream.
 */
 static void PF_centerprintf(edict_ptr_t *ent, const char *fmt, ...)
 {
-    char        msg[MAX_STRING_CHARS];
-    va_list     argptr;
+    char        thread_local msg[MAX_STRING_CHARS];
+    va_list     thread_local argptr;
     int         n;
     size_t      len;
 
@@ -473,8 +474,8 @@ Abort the server with a game error
 */
 static q_noreturn void PF_error(const char *fmt, ...)
 {
-    char        msg[MAXERRORMSG];
-    va_list     argptr;
+    char        thread_local msg[MAXERRORMSG];
+    va_list     thread_local argptr;
 
     va_start(argptr, fmt);
     Q_vsnprintf(msg, sizeof(msg), fmt, argptr);
@@ -539,7 +540,7 @@ static void PF_setmodel( edict_ptr_t *ent, const char *name ) {
 *           given box occupies in the data structure.
 **/
 static const int32_t PF_CM_BoxLeafs( const vec3_t mins, const vec3_t maxs, mleaf_t **list, const int32_t listsize, mnode_t **topnode ) {
-	cm_t *cm = &sv.cm;
+	thread_local cm_t *cm = &sv.cm;
 	return CM_BoxLeafs( cm, mins, maxs, list, listsize, topnode );
 }
 /**
@@ -548,7 +549,7 @@ static const int32_t PF_CM_BoxLeafs( const vec3_t mins, const vec3_t maxs, mleaf
 *           contains the box.
 **/
 static const int32_t PF_CM_BoxLeafs_headnode( const vec3_t mins, const vec3_t maxs, mleaf_t **list, const int32_t listsize, mnode_t *headnode, mnode_t **topnode ) {
-	cm_t *cm = &sv.cm;
+	thread_local cm_t *cm = &sv.cm;
 	return CM_BoxLeafs_headnode( cm, mins, maxs, list, listsize, headnode, topnode );
 }
 /**
@@ -584,7 +585,7 @@ static mnode_t *PF_CM_InlineModelHeadnode( const int32_t inlineIndex ) {
 *           given box occupies in the data structure.
 **/
 static const int32_t PF_CM_BoxContents( const vec3_t mins, const vec3_t maxs, cm_contents_t *contents, mleaf_t **list, const int32_t listsize, mnode_t **topnode ) {
-	cm_t *cm = &sv.cm;
+	thread_local cm_t *cm = &sv.cm;
 	return CM_BoxContents( cm, mins, maxs, contents, list, listsize, topnode );
 }
 /**
@@ -593,7 +594,7 @@ static const int32_t PF_CM_BoxContents( const vec3_t mins, const vec3_t maxs, cm
 *           contains the box.
 **/
 static const int32_t PF_CM_BoxContents_headnode( const vec3_t mins, const vec3_t maxs, cm_contents_t *contents, mleaf_t **list, const int32_t listsize, mnode_t *headnode, mnode_t **topnode ) {
-	cm_t *cm = &sv.cm;
+	thread_local cm_t *cm = &sv.cm;
 	return CM_BoxContents_headnode( cm, mins, maxs, contents, list, listsize, headnode, topnode );
 }
 /**
@@ -603,7 +604,7 @@ static const int32_t PF_CM_BoxContents_headnode( const vec3_t mins, const vec3_t
 static const bool PF_inVIS(const Vector3 *p1, const Vector3 *p2, const int32_t vis)
 {
     mleaf_t *leaf1, *leaf2;
-    byte mask[VIS_MAX_BYTES];
+    byte thread_local mask[VIS_MAX_BYTES];
     bsp_t *bsp = sv.cm.cache;
 
     if (!bsp) {
@@ -634,11 +635,11 @@ static const bool PF_inVIS(const Vector3 *p1, const Vector3 *p2, const int32_t v
 *			the leafs overlapped by the box and verifies cluster visibility + area connectivity.
 **/
 static const bool PF_inFatPVS( const vec3_t *p1, const vec3_t *mins, const vec3_t *maxs, const int32_t vis ) {
-	mleaf_t *leaf1;
-	mleaf_t *leaflist[ 1024 ];
+	mleaf_t thread_local *leaf1;
+	mleaf_t thread_local *leaflist[ 1024 ];
 	int32_t nleafs, i;
-	byte mask[ VIS_MAX_BYTES ];
-	bsp_t *bsp = sv.cm.cache;
+	byte thread_local mask[ VIS_MAX_BYTES ];
+	thread_local bsp_t *bsp = sv.cm.cache;
 
 	/**
 	*	Sanity: require a loaded BSP/collision model cache.
@@ -756,9 +757,11 @@ static void SV_StartSound( const Vector3 *origin, edict_ptr_t *edict,
                           float attenuation, float timeofs)
 {
 	int32_t ent = 0, vol = 0, att = 0, ofs = 0, flags = 0, sendchan = 0;
-    Vector3 origin_v = {};
+    Vector3 thread_local origin_v = {};
 	client_t *client = nullptr;
-    byte mask[ VIS_MAX_BYTES ] = {};
+    byte thread_local mask[ VIS_MAX_BYTES ] = {};
+	memset( &mask, 0, sizeof( mask ) );
+
 	mleaf_t *leaf1 = nullptr, *leaf2 = nullptr;
 	message_packet_t *msg = nullptr;
 	bool force_pos = false;
@@ -1051,7 +1054,7 @@ static bool PF_FS_EasyWriteFile(char *buf, size_t size, unsigned mode, const cha
  *  @brief  Wrapper to expose FS_FPrintf to game module.
  */
 static int PF_FS_FPrintf(qhandle_t f, const char *format, ...) {
-    va_list args;
+	thread_local va_list args;
     va_start(args, format);
     int ret = FS_FPrintf(f, format, args);
     va_end(args);
@@ -1597,6 +1600,22 @@ void SV_InitGameProgs(void) {
     imports.Q_ErrorNumber = Q_ErrorNumber;
     imports.Q_ErrorString = Q_ErrorString;
     imports.DebugGraph = PF_DebugGraph;
+
+#if USE_CLIENT
+    imports.R_DrawDebugBox = PF_SV_R_DrawDebugBox;
+    imports.R_DrawDebugLine = PF_SV_R_DrawDebugLine;
+    imports.R_DrawDebugArrow = PF_SV_R_DrawDebugArrow;
+    imports.R_DrawDebugSphere = PF_SV_R_DrawDebugSphere;
+    imports.R_DrawDebugCapsule = PF_SV_R_DrawDebugCapsule;
+    imports.R_DrawDebugCylinder = PF_SV_R_DrawDebugCylinder;
+#else
+    imports.R_DrawDebugBox = nullptr;
+    imports.R_DrawDebugLine = nullptr;
+    imports.R_DrawDebugArrow = nullptr;
+    imports.R_DrawDebugSphere = nullptr;
+    imports.R_DrawDebugCapsule = nullptr;
+    imports.R_DrawDebugCylinder = nullptr;
+#endif
 
     // Load up module, error out on failure.
     ge = entry(&imports);

@@ -1,4 +1,4 @@
-extern cvar_t *clg_skeletal_hitboxes_debug_draw;
+extern cvar_t *clg_debug_draw_skeletal_hitboxes;
 /********************************************************************
 *
 *

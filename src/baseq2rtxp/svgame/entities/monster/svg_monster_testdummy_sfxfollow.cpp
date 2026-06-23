@@ -1558,7 +1558,7 @@ const mm_slide_move_flags_t svg_monster_testdummy_sfxfollow_t::ProcessSlideMove(
    /**
 	*	Mirror the currently active nav2 policy fields into the legacy movement-policy shape that the older step-slide helper still consumes.
 	**/
-	nav2_path_policy_t pathPolicy = {};
+	nav_path_policy_t pathPolicy = {};
 	pathPolicy.min_step_normal = pathNavigationState.policy.min_step_normal;
 	pathPolicy.min_step_height = pathNavigationState.policy.min_step_height;
 	pathPolicy.max_step_height = pathNavigationState.policy.max_step_height;
