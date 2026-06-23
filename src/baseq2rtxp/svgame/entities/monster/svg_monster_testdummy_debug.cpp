@@ -46,7 +46,7 @@ extern cvar_t *s_nav_nav_async_log_stats;
 
 // Local debug toggle for noisy per-frame prints in this test monster.
 #ifndef DEBUG_PRINTS
-#define DEBUG_PRINTS 0
+//#define DEBUG_PRINTS 0
 #endif
 
      /**
@@ -1178,6 +1178,13 @@ const bool svg_monster_testdummy_debug_t::GenericThinkBegin() {
 	monsterMove.state.velocity = velocity;
 	monsterMove.ground = groundInfo;
 	monsterMove.liquid = liquidInfo;
+	
+	// Synchronize the physics engine's ground flag with the entity's ground information
+	if ( groundInfo.entityNumber != ENTITYNUM_NONE ) {
+	    monsterMove.state.mm_flags |= MMF_ON_GROUND;
+	} else {
+	    monsterMove.state.mm_flags &= ~MMF_ON_GROUND;
+	}
 
 	/**
 	*    Liveness check.
@@ -1427,7 +1434,109 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
         }
     };
 
-    if ( !ComputePathTo( goalOrigin ) ) {
+    // If we are airborne (jumping or falling), just maintain our ballistic trajectory and play the run animation.
+    // Do NOT steer or recalculate paths until we land.
+    if ( !(monsterMove.state.mm_flags & MMF_ON_GROUND) ) {
+        UpdateAnim( 4 ); // RUN
+        return true;
+    }
+
+    bool path_failed = !ComputePathTo( goalOrigin );
+    
+    // Dynamic Gap Jumping Check
+    if ( pathNavigationState.policy.allow_gap_jumping ) {
+        Vector3 myFeet = currentOrigin;
+        myFeet.z += this->mins.z;
+        Vector3 targetFeet = goalOrigin;
+        targetFeet.z += this->mins.z; // Approximate goal's feet assuming similar bounds
+
+        Vector3 delta = QM_Vector3Subtract( targetFeet, myFeet );
+        float delta_xy = std::sqrt( delta.x * delta.x + delta.y * delta.y );
+        
+        bool should_jump = false;
+        
+        if ( delta_xy >= pathNavigationState.policy.min_gap_width && delta_xy <= pathNavigationState.policy.max_jump_distance ) {
+            if ( path_failed ) {
+                should_jump = true; // Player jumped across a disconnected gap, follow them!
+            } else if ( navPath.size() > 1 ) {
+                // If there IS a path, check if it's a long detour compared to a direct jump
+                float path_length = 0.0f;
+                Vector3 last_pt = myFeet;
+                for ( size_t i = pathPos; i < navPath.size(); ++i ) {
+                    Vector3 pt = g_nav_faces[ navPath[i] ].center;
+                    path_length += QM_Vector3Distance( last_pt, pt );
+                    last_pt = pt;
+                }
+                path_length += QM_Vector3Distance( last_pt, targetFeet );
+                
+                if ( path_length > delta_xy * 1.5f ) {
+                    should_jump = true; // Direct jump is a significant shortcut
+                }
+            }
+            
+            // Only jump if there is an ACTUAL gap (i.e. we aren't just running on flat ground).
+            // Do a downward trace at the midpoint of the jump.
+            if ( should_jump ) {
+                Vector3 midpoint = QM_Vector3Add( myFeet, QM_Vector3Scale( delta, 0.5f ) );
+                midpoint.z += 16.0f; // Start slightly elevated to avoid flat terrain bumps
+                Vector3 downpoint = midpoint;
+                downpoint.z -= 128.0f;
+                
+                svg_trace_t tr = SVG_MMove_Trace( midpoint, Vector3{0,0,0}, Vector3{0,0,0}, downpoint, this, CONTENTS_SOLID | CONTENTS_PLAYERCLIP );
+                // If we hit solid ground near our level, it's not a gap, it's just floor!
+                if ( tr.fraction < 1.0f && tr.endpos.z >= std::min(myFeet.z, targetFeet.z) - 24.0f ) {
+                    should_jump = false;
+                }
+            }
+        }
+        
+        if ( should_jump ) {
+            // Standard Quake 2 gravity and jump velocity
+            float g = 800.0f;
+            float vz0 = 300.0f; 
+            float dz = delta.z;
+            
+            // Quadratic equation for projectile motion: -0.5*g*t^2 + vz0*t - dz = 0
+            float a = -0.5f * g;
+            float b = vz0;
+            float c = -dz;
+            float discriminant = b * b - 4 * a * c;
+            
+            if ( discriminant >= 0.0f ) {
+                // Pick the larger time so we land on the way down
+                float t = (-b - std::sqrt(discriminant)) / (2 * a);
+                if ( t <= 0.0f ) {
+                    t = (-b + std::sqrt(discriminant)) / (2 * a); // Fallback to way up if necessary
+                }
+                
+                if ( t > 0.0f ) {
+                    float vxy = delta_xy / t;
+                    // Ensure the required horizontal velocity isn't absurdly fast (cap at 600)
+                    if ( vxy <= 600.0f ) {
+                        // Apply jump velocities
+                        velocity.x = (delta.x / delta_xy) * vxy;
+                        velocity.y = (delta.y / delta_xy) * vxy;
+                        velocity.z = vz0;
+                        monsterMove.state.velocity = velocity;
+                        
+                        // Switch physics to flight mode
+                        monsterMove.state.gravity = g; // Ensure gravity is active
+                        monsterMove.state.mm_type = MM_NORMAL;
+                        monsterMove.state.mm_flags &= ~MMF_ON_GROUND;
+                        
+                        // Face the jump direction
+                        ideal_yaw = QM_Vector3ToYaw( velocity );
+                        SVG_MMove_FaceIdealYaw( this, ideal_yaw, 45.0f );
+                        
+                        UpdateAnim( 4 ); // RUN
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+
+    if ( path_failed ) {
         // Direct fallback removed. Halt!
         velocity.x = velocity.y = 0.0f;
         monsterMove.state.velocity.x = velocity.x;
@@ -1765,9 +1874,9 @@ const Vector3 svg_monster_testdummy_debug_t::NextWaypoint( const Vector3 &finalG
         if (expLen > 0.001f) {
             expectedDir = QM_Vector3Scale(expectedDir, 1.0f / expLen);
             // Cap the push distance to the distance to the next center to avoid pushing through far walls.
-            // BUGFIX: If we have NOT stepped up yet, limit the push distance so we don't steer into the 
-            // SECOND stair step too early and clip the corner!
-            float pushDist = hasSteppedUp ? std::min(32.0f, expLen) : std::min(12.0f, expLen);
+            // BUGFIX: If we have NOT stepped up yet, do NOT push the waypoint AT ALL. We want to steer
+            // EXACTLY to the portal midpoint so we don't accidentally yaw into the second step too early!
+            float pushDist = hasSteppedUp ? std::min(32.0f, expLen) : 0.0f;
             return QM_Vector3Add(portalMidpoint, QM_Vector3Scale(expectedDir, pushDist));
         }
     }

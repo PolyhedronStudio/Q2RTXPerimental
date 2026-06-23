@@ -38,6 +38,11 @@ struct nav_path_policy_t {
     // Visibility/visibility ignore flags.
     bool ignore_visibility = false;
     bool ignore_infront = false;
+    
+    // Gap jumping features.
+    bool allow_gap_jumping = true; // Enabled by default for testing as per request
+    float max_jump_distance = 256.0f;
+    float min_gap_width = 24.0f;
 };
 
 /**
