@@ -187,18 +187,6 @@ void CM_InitOctagonHull( cm_t *cm ) {
 }
 
 /**
-*   @brief  Utility function to complement CM_HeadnodeForOctagon with.
-**/
-static inline const float CalculateOctagonPlaneDist( cm_plane_t &plane, const Vector3 &mins, const Vector3 &maxs, const bool negate = false ) {
-    const Vector3 planeNormal = { plane.normal[ 0 ], plane.normal[ 1 ], plane.normal[ 2 ] };
-    if ( negate == true ) {
-        return QM_Vector3DotProduct( planeNormal, Vector3{ ( plane.signbits & 1 ) ? -mins[ 0 ] : -maxs[ 0 ], ( plane.signbits & 2 ) ? -mins[ 1 ] : -maxs[ 1 ], ( plane.signbits & 4 ) ? -mins[ 2 ] : -maxs[ 2 ] } );
-    } else {
-        return QM_Vector3DotProduct( planeNormal, Vector3{ ( plane.signbits & 1 ) ? mins[ 0 ] : maxs[ 0 ], ( plane.signbits & 2 ) ? mins[ 1 ] : maxs[ 1 ], ( plane.signbits & 4 ) ? mins[ 2 ] : maxs[ 2 ] } );
-    }
-}
-
-/**
 *   @brief  To keep everything totally uniform, Bounding 'Octagon' Boxes are turned into small
 *           BSP trees instead of being compared directly.
 *
@@ -231,30 +219,46 @@ void CM_SetupOctagonBoxHull( hull_octagonbox_t *hull, const vec3_t mins, const v
     VectorCopy( mins, hull->leaf.mins );
     VectorCopy( maxs, hull->leaf.maxs );
 
-    // Setup planes.
-    // Fix: compute axis-aligned plane distances from plane normals and the actual box corners.
-    // Use the helper to pick the correct corner for each plane based on signbits.
-    for ( int i = 0; i < 12; ++i ) {
-        hull->planes[ i ].dist = CalculateOctagonPlaneDist( hull->planes[ i ], mins, maxs );
-    }
+    // Setup axial planes (identical to standard bounding box hulls).
+    hull->planes[ 0 ].dist = maxs[ 0 ];
+    hull->planes[ 1 ].dist = -maxs[ 0 ];
+    hull->planes[ 2 ].dist = mins[ 0 ];
+    hull->planes[ 3 ].dist = -mins[ 0 ];
+    hull->planes[ 4 ].dist = maxs[ 1 ];
+    hull->planes[ 5 ].dist = -maxs[ 1 ];
+    hull->planes[ 6 ].dist = mins[ 1 ];
+    hull->planes[ 7 ].dist = -mins[ 1 ];
+    hull->planes[ 8 ].dist = maxs[ 2 ];
+    hull->planes[ 9 ].dist = -maxs[ 2 ];
+    hull->planes[ 10 ].dist = mins[ 2 ];
+    hull->planes[ 11 ].dist = -mins[ 2 ];
 
     // Cylindrical offset.
     for ( int32_t i = 0; i < 3; i++ ) {
         hull->cylinder_offset[ i ] = ( mins[ i ] + maxs[ i ] ) * 0.5f;
     }
 
-    // Calculate actual up to scale normals for the non axial planes.
-    // Fix: use half-sizes (extents) instead of raw maxs which assumed symmetric bounds.
+    // Calculate center, extents, and the diagonal plane offsets.
+    const float cx = hull->cylinder_offset[ 0 ];
+    const float cy = hull->cylinder_offset[ 1 ];
+
     const float a = ( maxs[ 0 ] - mins[ 0 ] ) * 0.5f;
     const float b = ( maxs[ 1 ] - mins[ 1 ] ) * 0.5f;
 
-    float dist = sqrtf( a * a + b * b ); // Hypothenuse
+    float dist = sqrtf( ( a * a ) + ( b * b ) ); // Hypothenuse
+    if ( dist < 0.001f ) {
+        dist = 0.001f;
+    }
 
-    float cosa = a / dist;
-    float sina = b / dist;
+    const float cosa = a / dist;
+    const float sina = b / dist;
 
-    // Assign normalized normals for octagon planes, then set signbits and distances.
-    // Plane 12: outer (cosa, sina, 0)
+    // Distance from center to the diagonal edges to form a perfectly proportioned octagon
+    // that circumscribes the inscribed ellipse (or circle for uniform bounding boxes).
+    const float d_center = sqrtf( ( a * a * a * a ) + ( b * b * b * b ) ) / dist;
+
+    // Corner 0: +X, +Y
+    // Node 6 (side 0) and Brushside 6 both use Plane 12 (Outward)
     {
         cm_plane_t *plane = &hull->planes[ 12 ];
         plane->normal[0] = cosa;
@@ -262,29 +266,21 @@ void CM_SetupOctagonBoxHull( hull_octagonbox_t *hull, const vec3_t mins, const v
         plane->normal[2] = 0.0f;
         SetPlaneType( plane );
         SetPlaneSignbits( plane );
-        hull->planes[12].dist = CalculateOctagonPlaneDist( hull->planes[12], mins, maxs );
+        plane->dist = ( cosa * cx ) + ( sina * cy ) + d_center;
     }
-    // Plane 13: inner negated (same normal, use negate flag)
-    {
-        cm_plane_t *plane = &hull->planes[ 13 ];
-        plane->normal[0] = cosa;
-        plane->normal[1] = sina;
-        plane->normal[2] = 0.0f;
-        SetPlaneType( plane );
-        SetPlaneSignbits( plane );
-        hull->planes[13].dist = CalculateOctagonPlaneDist( hull->planes[13], mins, maxs, true );
-    }
-    // Plane 14: outer (-cosa, sina, 0) (negated axis-x)
+
+    // Corner 1: -X, +Y
+    // Node 7 (side 1) uses Plane 14 (Inward).
     {
         cm_plane_t *plane = &hull->planes[ 14 ];
-        plane->normal[0] = -cosa;
-        plane->normal[1] = sina;
+        plane->normal[0] = cosa;
+        plane->normal[1] = -sina;
         plane->normal[2] = 0.0f;
         SetPlaneType( plane );
         SetPlaneSignbits( plane );
-        hull->planes[14].dist = CalculateOctagonPlaneDist( hull->planes[14], mins, maxs, true );
+        plane->dist = ( cosa * cx ) - ( sina * cy ) - d_center;
     }
-    // Plane 15: inner (-cosa, sina, 0)
+    // Brushside 7 uses Plane 15 (Outward).
     {
         cm_plane_t *plane = &hull->planes[ 15 ];
         plane->normal[0] = -cosa;
@@ -292,9 +288,11 @@ void CM_SetupOctagonBoxHull( hull_octagonbox_t *hull, const vec3_t mins, const v
         plane->normal[2] = 0.0f;
         SetPlaneType( plane );
         SetPlaneSignbits( plane );
-        hull->planes[15].dist = CalculateOctagonPlaneDist( hull->planes[15], mins, maxs );
+        plane->dist = ( -cosa * cx ) + ( sina * cy ) + d_center;
     }
-    // Plane 16: outer (-cosa, -sina, 0)
+
+    // Corner 2: -X, -Y
+    // Node 8 (side 0) and Brushside 8 both use Plane 16 (Outward).
     {
         cm_plane_t *plane = &hull->planes[ 16 ];
         plane->normal[0] = -cosa;
@@ -302,29 +300,21 @@ void CM_SetupOctagonBoxHull( hull_octagonbox_t *hull, const vec3_t mins, const v
         plane->normal[2] = 0.0f;
         SetPlaneType( plane );
         SetPlaneSignbits( plane );
-        hull->planes[16].dist = CalculateOctagonPlaneDist( hull->planes[16], mins, maxs );
+        plane->dist = ( -cosa * cx ) - ( sina * cy ) + d_center;
     }
-    // Plane 17: inner (-cosa, -sina, 0) negated
-    {
-        cm_plane_t *plane = &hull->planes[ 17 ];
-        plane->normal[0] = -cosa;
-        plane->normal[1] = -sina;
-        plane->normal[2] = 0.0f;
-        SetPlaneType( plane );
-        SetPlaneSignbits( plane );
-        hull->planes[17].dist = CalculateOctagonPlaneDist( hull->planes[17], mins, maxs, true );
-    }
-    // Plane 18: outer (cosa, -sina, 0)
+
+    // Corner 3: +X, -Y
+    // Node 9 (side 1) uses Plane 18 (Inward).
     {
         cm_plane_t *plane = &hull->planes[ 18 ];
-        plane->normal[0] = cosa;
-        plane->normal[1] = -sina;
+        plane->normal[0] = -cosa;
+        plane->normal[1] = sina;
         plane->normal[2] = 0.0f;
         SetPlaneType( plane );
         SetPlaneSignbits( plane );
-        hull->planes[18].dist = CalculateOctagonPlaneDist( hull->planes[18], mins, maxs, true );
+        plane->dist = ( -cosa * cx ) + ( sina * cy ) - d_center;
     }
-    // Plane 19: inner (cosa, -sina, 0)
+    // Brushside 9 uses Plane 19 (Outward).
     {
         cm_plane_t *plane = &hull->planes[ 19 ];
         plane->normal[0] = cosa;
@@ -332,7 +322,7 @@ void CM_SetupOctagonBoxHull( hull_octagonbox_t *hull, const vec3_t mins, const v
         plane->normal[2] = 0.0f;
         SetPlaneType( plane );
         SetPlaneSignbits( plane );
-        hull->planes[19].dist = CalculateOctagonPlaneDist( hull->planes[19], mins, maxs );
+        plane->dist = ( cosa * cx ) - ( sina * cy ) + d_center;
     }
 }
 

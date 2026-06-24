@@ -244,7 +244,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_monster_testdummy_debug_t, onSpawn )( svg_mons
 	**/
 	self->s.entityType = ET_MONSTER;
 
-	self->solid = SOLID_BOUNDS_BOX;
+	self->solid = SOLID_BOUNDS_OCTAGON;
 	self->movetype = MOVETYPE_WALK;
 
 
