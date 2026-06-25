@@ -1864,20 +1864,57 @@ const Vector3 svg_monster_testdummy_debug_t::NextWaypoint( const Vector3 &finalG
     
     // PUSH THE WAYPOINT:
     // If the monster targets the EXACT portal edge, it will oscillate or stop once it reaches the edge
-    // if it hasn't stepped up yet, preventing SV_WalkMove from initiating the step up.
-    // To fix this, we push the returned waypoint INTO the next polygon so it has a confident forward driving vector!
-    // Pushing towards the NEXT polygon's center (expectedDir) naturally steers the monster around L-turns seamlessly.
-    if ( foundPortal && pathPos + 1 < navPath.size() ) {
-        Vector3 expectedDir = QM_Vector3Subtract( g_nav_faces[ navPath[pathPos + 1] ].center, portalMidpoint );
-        expectedDir.z = 0.0f; // Keep the push horizontal
-        float expLen = QM_Vector3Length(expectedDir);
+    // if it hasn't stepped up yet, preventing SVG_MMove_WalkMove from initiating the step up.
+    // To fix this, we push the returned waypoint safely into the next polygon.
+    // Because faceB is strictly convex, the line from portalMidpoint to the NEXT portal's midpoint
+    // is mathematically guaranteed to stay inside the navmesh bounds, never cutting a wall corner!
+    if ( foundPortal ) {
+        Vector3 safeForwardPoint = finalGoal;
+        
+        if ( pathPos + 1 < static_cast<int32_t>( navPath.size() ) - 1 ) {
+            Vector3 nv0, nv1;
+            if ( Nav_GetPortalEndpoints( navPath[pathPos + 1], navPath[pathPos + 2], &nv0, &nv1 ) ) {
+                Vector3 nab = QM_Vector3Subtract( nv1, nv0 );
+                Vector3 nap = QM_Vector3Subtract( portalMidpoint, nv0 );
+                nab.z = 0.0f;
+                nap.z = 0.0f;
+                float nab_len2 = static_cast<float>(QM_Vector3DotProduct(nab, nab));
+                float nab_len = std::sqrt(nab_len2);
+                
+                if (nab_len > 0.0001f) {
+                    float t = static_cast<float>(QM_Vector3DotProduct(nap, nab)) / nab_len2;
+                    float clearance_t = 24.0f / nab_len;
+                    if (clearance_t * 2.0f >= 1.0f) {
+                        t = 0.5f;
+                    } else {
+                        t = QM_Clamp(t, clearance_t, 1.0f - clearance_t);
+                    }
+                    safeForwardPoint = QM_Vector3Add(nv0, QM_Vector3Scale(QM_Vector3Subtract(nv1, nv0), t));
+                } else {
+                    safeForwardPoint = nv0;
+                }
+            } else {
+                safeForwardPoint = g_nav_faces[ navPath[pathPos + 1] ].center;
+            }
+        }
+
+        Vector3 pushDir = QM_Vector3Subtract( safeForwardPoint, portalMidpoint );
+        pushDir.z = 0.0f; // Keep the push horizontal
+        float expLen = QM_Vector3Length(pushDir);
+        
         if (expLen > 0.001f) {
-            expectedDir = QM_Vector3Scale(expectedDir, 1.0f / expLen);
-            // Cap the push distance to the distance to the next center to avoid pushing through far walls.
-            // BUGFIX: If we have NOT stepped up yet, do NOT push the waypoint AT ALL. We want to steer
-            // EXACTLY to the portal midpoint so we don't accidentally yaw into the second step too early!
-            float pushDist = hasSteppedUp ? std::min(32.0f, expLen) : 0.0f;
-            return QM_Vector3Add(portalMidpoint, QM_Vector3Scale(expectedDir, pushDist));
+            pushDir = QM_Vector3Scale(pushDir, 1.0f / expLen);
+            
+            float pushDist = 0.0f;
+            if ( !hasSteppedUp ) {
+                // Keep the push distance small enough to ensure a step up, but not so far that it hits a wall.
+                pushDist = std::min(12.0f, expLen);
+            } else {
+                // On flat ground, push far enough to trigger the plane-crossing check.
+                pushDist = std::min(16.0f, expLen);
+            }
+
+            return QM_Vector3Add(portalMidpoint, QM_Vector3Scale(pushDir, pushDist));
         }
     }
 

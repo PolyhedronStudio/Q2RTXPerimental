@@ -1,7 +1,12 @@
 #include "nav_persistence.h"
 #include "nav_generate.h"
 
-bool Nav_Save(const char* filepath) {
+/**
+* @brief Save the current navmesh to a .nav7 file.
+* @param filepath Destination file path.
+* @return True when the navmesh was written successfully.
+**/
+bool Nav_Save( const char *filepath ) {
     if (g_nav_faces.empty()) {
         gi.dprintf("NavMesh Save Error: No navmesh generated.\n");
         return false;
@@ -48,7 +53,12 @@ bool Nav_Save(const char* filepath) {
     return true;
 }
 
-bool Nav_Load(const char* filepath) {
+/**
+* @brief Load a navmesh from a .nav7 file.
+* @param filepath Source file path.
+* @return True when the navmesh was loaded successfully.
+**/
+bool Nav_Load( const char *filepath ) {
     FILE* f = fopen(filepath, "rb");
     if (!f) {
         gi.dprintf("NavMesh Load Error: Could not open %s.\n", filepath);
@@ -84,19 +94,19 @@ bool Nav_Load(const char* filepath) {
     if (header.num_faces > 0)
         fread(g_nav_faces.data(), sizeof(nav_face_t), header.num_faces, f);
     
-    for (int i = 0; i < header.num_kdtree_nodes; i++) {
+    for (int32_t i = 0; i < header.num_kdtree_nodes; i++) {
         nav_kdtree_node_t n;
         fread(&n, sizeof(nav_kdtree_node_t), 1, f);
         g_nav_nodes.push_back(n);
     }
     
-    for (int i = 0; i < header.num_leaf_links; i++) {
+    for (int32_t i = 0; i < header.num_leaf_links; i++) {
         nav_leaf_link_t l;
         fread(&l, sizeof(nav_leaf_link_t), 1, f);
         g_nav_leaf_links.push_back(l);
     }
     
-    for (int i = 0; i < header.num_leaf_face_ids; i++) {
+    for (int32_t i = 0; i < header.num_leaf_face_ids; i++) {
         int32_t id;
         fread(&id, sizeof(int32_t), 1, f);
         g_nav_leaf_poly_ids.push_back(id);

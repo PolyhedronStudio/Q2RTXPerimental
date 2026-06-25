@@ -7,12 +7,17 @@
 #include "svgame/nav/nav_debug_draw.h"
 #include "svgame/svg_utils.h"
 
+//! Cvar that toggles KD-tree node overlay rendering.
 cvar_t *s_nav_debug_nodes = nullptr;
+//! Cvar that toggles polygon edge overlay rendering.
 cvar_t *s_nav_debug_polys = nullptr;
 
+/**
+* @brief Register nav debug cvars for the node and polygon overlays.
+**/
 void Nav_DebugInit() {
     s_nav_debug_nodes = gi.cvar("nav_debug_nodes", "0", 0);
-    s_nav_debug_polys = gi.cvar("nav_debug_polys", "0", 0);
+    s_nav_debug_polys = gi.cvar("nav_debug_polys", "1", 0);
 }
 
 static void RecursiveDrawNodes(int32_t nodeIndex, const Vector3 &playerPos, float radius) {
@@ -37,6 +42,9 @@ static void RecursiveDrawNodes(int32_t nodeIndex, const Vector3 &playerPos, floa
     if (node.right_child != -1) RecursiveDrawNodes(node.right_child, playerPos, radius);
 }
 
+/**
+* @brief Draw the nav KD-tree and polygon overlays for the current frame.
+**/
 void Nav_DebugDraw() {
     if (!s_nav_debug_nodes || !s_nav_debug_polys) return;
     if (s_nav_debug_nodes->value == 0 && s_nav_debug_polys->value == 0) return;

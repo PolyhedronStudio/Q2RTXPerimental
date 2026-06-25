@@ -3,92 +3,103 @@
 #include "svgame/nav/nav_types.h"
 #include <vector>
 
-// Height thresholds for vertical connections
-static constexpr float NAV_MAX_STEP_SIZE = 18.25f; // explicit navigation max step size (with epsilon to clear 18-unit physical steps)
-static constexpr float PM_DROPOFF_ALLOWED_SIZE = 128.0f; // safe drop-off distance
-static constexpr float PM_DROPOFF_MAX_SIZE = 196.0f; // max drop-off considered (above is lethal)
-
+//! Maximum legal step height for the path policy.
+static constexpr float NAV_MAX_STEP_SIZE = 18.25f;
+//! Maximum drop height that is still considered traversable.
+static constexpr float PM_DROPOFF_ALLOWED_SIZE = 128.0f;
+//! Absolute cap for drop height checks.
+static constexpr float PM_DROPOFF_MAX_SIZE = 196.0f;
+//! Squared epsilon used when comparing waypoints.
 static constexpr float WAYPOINT_EPS_SQR = 4.0f * 4.0f;
-static constexpr float PORTAL_EPS_SQR = 16.0f * 16.0f; // radius for portal crossing (16 to ensure monster center is near portal before steering next)
+//! Squared epsilon used for portal crossing checks.
+static constexpr float PORTAL_EPS_SQR = 16.0f * 16.0f;
 
 /**
-*   @brief Navigation path policy containing movement constraints.
-*   @note Fields are based on legacy nav2_path_policy_t used in older code.
-*/
+* @brief Path policy describing movement limits and traversal preferences.
+* @note These values are consumed by the nav pathfinder and the movement steering code.
+**/
 struct nav_path_policy_t {
-    // Step and drop heights (in world units).
-	float min_step_height = 0.0f;			// MM_STEP_MIN_SIZE
-	    float max_step_height = 18.25f;          // Updated from 18.0f to clear exact 18-unit physical steps
-    float max_drop_height = 128.0f;         // Increased allowable drop height
-    // Optional cap on drop height.
-    bool enable_max_drop_height_cap = true;
-    float max_drop_height_cap = PM_DROPOFF_MAX_SIZE;
-
-    // Waypoint and rebuild thresholds.
-    float waypoint_radius = 32.0f; // increased from 16 to match entity bbox width
-    float rebuild_goal_dist_2d = 32.0f;
-    float rebuild_goal_dist_3d = 32.0f;
-    int32_t rebuild_interval = 25; // milliseconds
-    // Obstruction jumping.
-    bool allow_small_obstruction_jump = true;
-    float max_obstruction_jump_height = 48.0f;
-    // Extra vertical clearance before attempting a step (helps avoid early stair entry).
-    float step_clearance = 4.0f; // Reduced from 16.0f to allow earlier stair entry.
-
-    // Visibility/visibility ignore flags.
-    bool ignore_visibility = false;
-    bool ignore_infront = false;
-    
-    // Gap jumping features.
-    bool allow_gap_jumping = true; // Enabled by default for testing as per request
-    float max_jump_distance = 256.0f;
-    float min_gap_width = 24.0f;
+	//! Minimum step height in world units.
+	float min_step_height = 0.0f;
+	//! Maximum step height in world units.
+	float max_step_height = NAV_MAX_STEP_SIZE;
+	//! Maximum drop height in world units.
+	float max_drop_height = PM_DROPOFF_ALLOWED_SIZE;
+	//! Enable the additional drop-height cap.
+	bool enable_max_drop_height_cap = true;
+	//! Additional cap applied when max drop height limiting is enabled.
+	float max_drop_height_cap = PM_DROPOFF_MAX_SIZE;
+	//! Radius used when deciding if the agent has reached a waypoint.
+	float waypoint_radius = 32.0f;
+	//! 2D distance threshold for rebuilding a path.
+	float rebuild_goal_dist_2d = 32.0f;
+	//! 3D distance threshold for rebuilding a path.
+	float rebuild_goal_dist_3d = 32.0f;
+	//! Milliseconds between rebuild attempts.
+	int32_t rebuild_interval = 25;
+	//! Allow small jumps over low obstructions.
+	bool allow_small_obstruction_jump = true;
+	//! Maximum obstruction height that may be jumped.
+	float max_obstruction_jump_height = 48.0f;
+	//! Additional clearance before attempting a step.
+	float step_clearance = 4.0f;
+	//! Ignore visibility checks when set.
+	bool ignore_visibility = false;
+	//! Ignore in-front tests when set.
+	bool ignore_infront = false;
+	//! Allow gap-jumping behavior.
+	bool allow_gap_jumping = true;
+	//! Maximum distance for gap jumps.
+	float max_jump_distance = 256.0f;
+	//! Minimum width for a gap to be considered jumpable.
+	float min_gap_width = 24.0f;
 };
 
 /**
-*   @brief  Walk the KD‑tree to locate the leaf node that contains @p point.
-*   @param  point   World‑space position to query.
-*   @return Index of the leaf node (-1 if the point lies outside the world bounds).
+* @brief Walk the KD-tree to locate the leaf node that contains a point.
+* @param point World-space position to query.
+* @return Index of the leaf node, or -1 when the point lies outside world bounds.
 **/
 int32_t Nav_FindLeafNode( const Vector3 &point );
 
 /**
-*   @brief  Check if a point lies within the 2D projection of a face.
-*   @param  point   World-space position.
-*   @param  face    Face to check against.
-*   @return True if the point is inside.
+* @brief Check if a point lies within the 2D projection of a face.
+* @param point World-space position.
+* @param face Face to test against.
+* @return True if the point is inside.
 **/
 bool Nav_PointInsideFace2D( const Vector3 &point, const nav_face_t &face );
 
 /**
-*   @brief  Return the nav face that actually contains @p point.
-*   @param  point   World‑space position.
-*   @return Index of the face, or -1 if none found.
+* @brief Return the nav face that actually contains a point.
+* @param point World-space position.
+* @return Index of the face, or -1 if none was found.
 **/
-int32_t Nav_FindPolyInLeaf( const Vector3 &point ); // Keeps same name so that usages don't break immediately, but can be updated later.
+int32_t Nav_FindPolyInLeaf( const Vector3 &point );
 
 /**
-*   @brief  Compute a path using A* from start to goal face.
-*   @param  startFace   Index of the starting face.
-*   @param  goalFace    Index of the goal face.
-*   @param  outPath     Output vector to store the sequence of face indices.
-*   @return True if a path was found.
+* @brief Compute a path using A* from the start face to the goal face.
+* @param startFace Index of the starting face.
+* @param goalFace Index of the goal face.
+* @param outPath Output vector that receives the face sequence.
+* @param policy Traversal policy used to bound vertical movement.
+* @return True when a valid path was found.
 **/
 bool Nav_FindPath( int32_t startFace, int32_t goalFace, std::vector<int32_t> &outPath, const nav_path_policy_t &policy );
 
 /**
-*   @brief  Fallback to find the absolutely closest face globally by 3D distance.
-*   @param  point   The 3D point to search from.
-*   @return The index of the closest face, or -1 if none exist.
+* @brief Fallback that finds the globally closest face by 3D distance.
+* @param point World-space position to search from.
+* @return Index of the closest face, or -1 if none exist.
 **/
-int32_t Nav_FindClosestPolyGlobal( const Vector3 &point ); // Keeping same name to limit API breakage right now.
+int32_t Nav_FindClosestPolyGlobal( const Vector3 &point );
 
 /**
- *   @brief  Calculate portal midpoint and edge vector between two adjacent nav faces.
- *   @param  faceA       Index of the first face.
- *   @param  faceB       Index of the second face.
- *   @param  outMidpoint Output vector receiving the portal midpoint.
- *   @param  outEdgeVec  Optional output vector receiving the edge direction (v1 - v0).
- *   @return True if a shared edge was identified (including stairs/drop-offs). Returns false on invalid indices.
- */
+* @brief Calculate portal endpoints between two adjacent nav faces.
+* @param faceA Index of the first face.
+* @param faceB Index of the second face.
+* @param outV0 Output receiving the first endpoint.
+* @param outV1 Output receiving the second endpoint.
+* @return True when a shared edge was identified.
+**/
 bool Nav_GetPortalEndpoints( int32_t faceA, int32_t faceB, Vector3 *outV0, Vector3 *outV1 );

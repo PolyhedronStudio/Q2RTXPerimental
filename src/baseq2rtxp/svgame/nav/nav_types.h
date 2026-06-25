@@ -5,76 +5,118 @@
 #pragma pack(push, 1)
 
 /**
- * A convex polygon extracted from a BSP walkable face.
- * Represents a single navigable floor surface.
- * For half-edge mesh, this is primarily used during generation to build the final nav_face_t.
- */
+* @brief Convex polygon extracted from a BSP walkable surface.
+* @note Used as the input shape for half-edge mesh construction.
+**/
 struct nav_poly_t {
-    int32_t poly_id;
-    int32_t num_vertices;
-    Vector3 vertices[1024]; // Max vertices per convex polygon (safely clamped during extraction)
-    Vector3 center;
-    Vector3 normal;
-    int32_t bsp_leaf_id; // Primary BSP leaf
+    //! Stable polygon identifier assigned during generation.
+    int32_t poly_id = 0;
+    //! Number of valid vertices stored in vertices.
+    int32_t num_vertices = 0;
+    //! Polygon vertices in winding order.
+    Vector3 vertices[ 1024 ] = {};
+    //! Polygon centroid used for partitioning and path queries.
+    Vector3 center = {};
+    //! Polygon plane normal.
+    Vector3 normal = {};
+    //! BSP leaf that originally contributed this polygon.
+    int32_t bsp_leaf_id = -1;
 };
 
+/**
+* @brief Half-edge record linking one polygon edge to its adjacent face.
+**/
 struct nav_halfedge_t {
-    int32_t vertex_idx; // Index into g_nav_vertices (origin of this half-edge)
-    int32_t twin_idx;   // Opposite half-edge index (-1 if boundary)
-    int32_t next_idx;   // Next half-edge in the face loop
-    int32_t face_idx;   // The face this half-edge belongs to
-    float   z_diff;     // Z-axis height difference to the twin's face.
+    //! Index into g_nav_vertices for the edge origin.
+    int32_t vertex_idx = -1;
+    //! Index of the opposite half-edge, or -1 for a boundary edge.
+    int32_t twin_idx = -1;
+    //! Index of the next half-edge in the face loop.
+    int32_t next_idx = -1;
+    //! Face that owns this half-edge.
+    int32_t face_idx = -1;
+    //! Vertical difference between this edge and its twin edge.
+    float z_diff = 0.0f;
 };
 
+/**
+* @brief Final nav face record used for spatial queries and pathfinding.
+**/
 struct nav_face_t {
-    int32_t face_id;
-    int32_t first_edge_idx; // Index to an arbitrary half-edge of this face
-    int32_t num_edges;
-    Vector3 center;
-    Vector3 normal;
-    float   clearance;      // Inscribed radius (max clearance) from center
-    int32_t bsp_leaf_id;
+    //! Stable face identifier assigned after KD-tree construction.
+    int32_t face_id = 0;
+    //! Index of the first half-edge belonging to this face.
+    int32_t first_edge_idx = 0;
+    //! Number of half-edges in the face loop.
+    int32_t num_edges = 0;
+    //! Face centroid.
+    Vector3 center = {};
+    //! Face plane normal.
+    Vector3 normal = {};
+    //! Approximate clearance radius measured from the centroid.
+    float clearance = 0.0f;
+    //! BSP leaf that contributed this face.
+    int32_t bsp_leaf_id = -1;
 };
 
 /**
- * KD-Tree Node used for O(log N) spatial localization of polygons.
- * Split axis: 0=X, 1=Y, 2=Z.
- */
+* @brief KD-tree node used for spatial localization of nav faces.
+* @note Split axis values map to X=0, Y=1, and Z=2.
+**/
 struct nav_kdtree_node_t {
-    Vector3 mins;
-    Vector3 maxs;
-    int32_t first_face_id; // -1 if it's an internal node, valid first face index if it's a leaf node.
-    int32_t num_faces;    // Number of faces in this leaf node (0 for internal nodes).
-    int32_t bsp_leaf_id;  // Corresponding BSP leaf for this node
-    int32_t left_child;   // Index to left child node (-1 if none)
-    int32_t right_child;  // Index to right child node (-1 if none)
-    int32_t split_axis;
+    //! Minimum bounds for this node.
+    Vector3 mins = {};
+    //! Maximum bounds for this node.
+    Vector3 maxs = {};
+    //! First face index for leaf nodes, or -1 for internal nodes.
+    int32_t first_face_id = -1;
+    //! Number of faces stored in this leaf node.
+    int32_t num_faces = 0;
+    //! BSP leaf represented by this node.
+    int32_t bsp_leaf_id = -1;
+    //! Left child node index, or -1 if none.
+    int32_t left_child = -1;
+    //! Right child node index, or -1 if none.
+    int32_t right_child = -1;
+    //! Split axis for internal nodes.
+    int32_t split_axis = 0;
 };
 
 /**
- * Lookup mapping linking a specific BSP Leaf ID to a continuous list of Face IDs.
- * Enables O(1) starting-node lookups simply by knowing the entity's current BSP leaf.
- */
+* @brief Mapping from a BSP leaf to a contiguous span of face IDs.
+* @note This allows fast lookup of candidate faces for leaf-local queries.
+**/
 struct nav_leaf_link_t {
-    int32_t bsp_leaf_id;
-    int32_t first_face_index; // Index into a continuous list of face IDs
-    int32_t num_faces;        // How many faces reside in this leaf
+    //! BSP leaf identifier.
+    int32_t bsp_leaf_id = -1;
+    //! Index into the flattened face-id array.
+    int32_t first_face_index = 0;
+    //! Number of face IDs in the flattened span.
+    int32_t num_faces = 0;
 };
 
 /**
- * Serialized file header for .nav7 format.
- */
+* @brief Serialized header for the nav7 file format.
+**/
 struct nav_header_t {
-    uint32_t magic;         // NAV7_MAGIC
-    uint32_t version;       // NAV7_VERSION
-    uint32_t map_checksum;  // BSP Checksum to ensure validity
-    
-    int32_t num_vertices;
-    int32_t num_halfedges;
-    int32_t num_faces;
-    int32_t num_kdtree_nodes;
-    int32_t num_leaf_links;
-    int32_t num_leaf_face_ids; // Length of the flat array containing face IDs referenced by leaf links
+    //! File signature, must equal NAV7_MAGIC.
+    uint32_t magic = 0;
+    //! File format version, must equal NAV7_VERSION.
+    uint32_t version = 0;
+    //! BSP checksum stored with the navmesh data.
+    uint32_t map_checksum = 0;
+    //! Number of serialized vertices.
+    int32_t num_vertices = 0;
+    //! Number of serialized half-edges.
+    int32_t num_halfedges = 0;
+    //! Number of serialized faces.
+    int32_t num_faces = 0;
+    //! Number of serialized KD-tree nodes.
+    int32_t num_kdtree_nodes = 0;
+    //! Number of serialized BSP leaf links.
+    int32_t num_leaf_links = 0;
+    //! Number of flattened face IDs referenced by leaf links.
+    int32_t num_leaf_face_ids = 0;
 };
 
 #pragma pack(pop)

@@ -1,9 +1,16 @@
 #pragma once
+
 #include "nav_core.h"
 #include "nav_types.h"
 
-// Initializes the nav debug cvars. Call from SVG_InitGame.
-void Nav_DebugInit();
+/**
+* @brief Register nav debug cvars and cached debug state.
+* @note Call during game initialization before any debug drawing is requested.
+**/
+void Nav_DebugInit( void );
 
-// Draws the KD-Tree nodes and polygons. Call from SVG_RunFrame.
-void Nav_DebugDraw();
+/**
+* @brief Draw the nav KD-tree and polygon overlays for the current frame.
+* @note This is intended for server-frame debug visualization.
+**/
+void Nav_DebugDraw( void );

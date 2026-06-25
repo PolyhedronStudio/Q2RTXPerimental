@@ -930,7 +930,7 @@ void SVG_RunFrame(void) {
 	SVG_Nav_DebugDraw();
 	#endif
 
-    // Flush nav3 debug draw stream after all subsystems have had a chance to submit primitives.
+    // Flush nav debug draw stream after all subsystems have had a chance to submit primitives.
     SVG_Nav_DebugDraw_FlushFrame();
     // Service the legacy KD-tree nav generator once per frame so progress output appears while it runs.
     Nav_UpdateAsyncGeneration();

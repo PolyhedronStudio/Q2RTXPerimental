@@ -2,8 +2,16 @@
 
 #include "nav_core.h"
 
-// Saves the current navmesh to a .nav6 file
-bool Nav_Save(const char* filepath);
+/**
+* @brief Save the current navmesh to disk.
+* @param filepath Absolute or map-relative path to the destination file.
+* @return True when the navmesh was written successfully.
+**/
+bool Nav_Save( const char *filepath );
 
-// Loads a navmesh from a .nav6 file
-bool Nav_Load(const char* filepath);
+/**
+* @brief Load a navmesh from disk.
+* @param filepath Absolute or map-relative path to the source file.
+* @return True when the navmesh was loaded successfully.
+**/
+bool Nav_Load( const char *filepath );

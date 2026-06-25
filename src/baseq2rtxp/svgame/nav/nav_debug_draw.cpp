@@ -62,7 +62,7 @@ static const bool Nav_DebugDraw_ClientIsOptedIn( const svg_base_edict_t *playerE
 	if ( !playerEntity || !playerEntity->client ) {
 		return false;
 	}
-	return true; // We don't require client userinfo opt-in for the base nav debug anymore!
+	return true; // Any connected client may receive the stream.
 }
 
 /**
@@ -195,10 +195,10 @@ static nav_debug_draw_primitive_t Nav_DebugDraw_MakePrimitiveBase(
 
 void SVG_Nav_DebugDraw_Init( void ) {
 	if ( !s_nav_debug_draw ) {
-		s_nav_debug_draw = gi.cvar( "nav_debug_draw", "0", 0 );
+		s_nav_debug_draw = gi.cvar( "nav_debug_draw", "1", 0 );
 	}
 	if ( !s_nav_debug_max_primitives ) {
-		s_nav_debug_max_primitives = gi.cvar( "nav_debug_max_primitives", "16384", 0 );
+		s_nav_debug_max_primitives = gi.cvar( "nav_debug_max_primitives", "65.536", 0 );
 	}
 	s_nav_debug_draw_queue_count = 0;
 	s_nav_debug_draw_dropped_count = 0;
