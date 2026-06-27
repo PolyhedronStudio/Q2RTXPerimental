@@ -87,26 +87,33 @@ const cm_trace_t PM_Clip( const Vector3 &start, const Vector3 &mins, const Vecto
 /**
 *	@brief	Determines the mask to use and returns a trace doing so. If spectating, it'll return clip instead.
 **/
-const cm_trace_t PM_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, cm_contents_t contentMask ) {
+const cm_trace_t PM_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const cm_contents_t contentMask ) {
 	// Spectators only clip against world, so use clip instead.
 	if ( pm->state->pmove.pm_type == PM_SPECTATOR ) {
 		return PM_Clip( start, mins, maxs, end, CM_CONTENTMASK_SOLID );
 	}
 
-	if ( contentMask == CONTENTS_NONE ) {
+	cm_contents_t actualMask = contentMask;
+	if ( actualMask == CONTENTS_NONE ) {
 		if ( pm->state->pmove.pm_type == PM_DEAD || pm->state->pmove.pm_type == PM_GIB ) {
-			contentMask = CM_CONTENTMASK_DEADSOLID;
+			actualMask = CM_CONTENTMASK_DEADSOLID;
 		} else if ( pm->state->pmove.pm_type == PM_SPECTATOR ) {
-			contentMask = CM_CONTENTMASK_SOLID;
+			actualMask = CM_CONTENTMASK_SOLID;
 		} else {
-			contentMask = CM_CONTENTMASK_PLAYERSOLID;
+			actualMask = CM_CONTENTMASK_PLAYERSOLID;
 		}
-
-		//if ( pm->s.pm_flags & PMF_IGNORE_PLAYER_COLLISION )
-		//	mask &= ~CONTENTS_PLAYER;
 	}
 
-	return pm->trace( start, &mins, &maxs, end, pm->playerEdict, contentMask );
+	// 1. Box trace first to determine if we hit the world or an entity
+	cm_trace_t trBox = pm->trace( start, &mins, &maxs, end, pm->playerEdict, actualMask );
+
+	if ( trBox.entityNumber != ENTITYNUM_NONE && trBox.entityNumber != 0 ) {
+		// Hit an entity, use Capsule to allow sliding
+		return PM_TraceCapsule( start, mins, maxs, end, actualMask );
+	}
+
+	// Hit the world or missed, use the precise AABB trace to prevent clipping corners or falling off ledges
+	return trBox;
 }
 
 /**
@@ -667,11 +674,15 @@ static void PM_GroundTraceMissed( void ) {
 *			on if any at all.
 **/
 static void PM_GroundTrace( void ) {
+	// Keep previous ground contact so we can detect true air->ground landing transitions.
+	const int32_t previousGroundEntity = pm->ground.entityNumber;
 	// Trace downwards to find ground.
 	Vector3 point = pm->state->pmove.origin - Vector3{ 0.f, 0.f, (float)PM_STEP_GROUND_DIST };
-	cm_trace_t trace = PM_Trace( pm->state->pmove.origin, pm->mins, pm->maxs, point );
-	// Assign the ground trace.
+	// Use cylinder for world-ground probing so slope/stair classification matches step-slide logic.
+	cm_trace_t trace = PM_TraceCylinder( pm->state->pmove.origin, pm->mins, pm->maxs, point );
 	pml.groundTrace = trace;
+
+
 
 	// Extra targeted logging for near-boundary cases.
 	#ifdef PMOVE_PRINT_GROUNDTRACE_DEBUGINFO_PML_TRACE
@@ -778,8 +789,9 @@ static void PM_GroundTrace( void ) {
 		return;
 	}
 
-	// slopes that are too steep and thus will not be considered onground
-	if ( trace.plane.normal[ 2 ] < PM_STEP_MIN_NORMAL ) {
+	// Slopes that are too steep are still a valid ground plane, but not walkable.
+	const bool isSteepSlope = ( trace.plane.normal[ 2 ] < PM_STEP_MIN_NORMAL );
+	if ( isSteepSlope ) {
 		#ifdef PMOVE_PRINT_GROUNDTRACE_DEBUGINFO
 		SG_DPrintf( "[" SG_GAME_MODULE_STR " (%" PRId64 ")]: %s : steep;\n", pm->simulationTime.Milliseconds(), __func__ );
 		#endif
@@ -787,16 +799,17 @@ static void PM_GroundTrace( void ) {
 		// <Q2RTXP>: This is what Q3 said anyhow.
 		// FIXME: if they can't slide down the slope, let them
 		// walk (sharp crevices)
-		pm->ground.entityNumber = ENTITYNUM_NONE;
+		// <Q2RTXP>: This is what Q3 said anyhow.
+		// FIXME: if they can't slide down the steep slope, let them
+		// walk (sharp crevices).
 		pml.hasGroundPlane = true;
 		pml.isWalking = false;
 		pml.isAerial = false;
-		return;
+	} else {
+		pml.hasGroundPlane = true;
+		pml.isWalking = true;
+		pml.isAerial = false;
 	}
-
-	pml.hasGroundPlane = true;
-	pml.isWalking = true;
-	pml.isAerial = false;
 
 	// Hitting solid ground will end a waterjump.
 	if ( pm->state->pmove.pm_flags & PMF_TIME_WATERJUMP ) {
@@ -804,7 +817,8 @@ static void PM_GroundTrace( void ) {
 		pm->state->pmove.pm_time = 0;
 	}
 
-	if ( pm->ground.entityNumber == ENTITYNUM_NONE ) {
+	// We only do landing impact handling when transitioning from air onto walkable ground.
+	if ( !isSteepSlope && previousGroundEntity == ENTITYNUM_NONE ) {
 		// just hit the ground
 		#ifdef PMOVE_PRINT_GROUNDTRACE_DEBUGINFO
 		SG_DPrintf( "[" SG_GAME_MODULE_STR " (%" PRId64 ")]: %s : Land;\n", pm->simulationTime.Milliseconds(), __func__ );
@@ -824,23 +838,12 @@ static void PM_GroundTrace( void ) {
 		}
 	}
 
-	// If we have an entity, or a ground plane, assign the remaining ground properties.
-	if ( pml.hasGroundPlane || pml.groundTrace.entityNumber != ENTITYNUM_NONE ) {
-		//if ( pml.hasGroundPlane ) {
-			pm->ground.plane = pml.groundTrace.plane;
-			// <Q2RTXP>: WID: This one is already zerod out at pmove preparation.
-		//} else {
-		//	pm->ground.plane = {};
-		//}
-		pm->ground.contents = pml.groundTrace.contents;
-		pm->ground.material = ( pml.groundTrace.material ? pml.groundTrace.material : nullptr );
-		pm->ground.surface = ( pml.groundTrace.surface ? *pml.groundTrace.surface : cm_surface_t() );
-	} else {
-		//pm->ground = { .entityNumber = ENTITYNUM_NONE };
-	}
-
-	// Always fetch the actual entity found by the ground trace.
-	pm->ground.entityNumber = pml.groundTrace.entityNumber;
+	// Commit finalized ground contact from the finalized trace.
+	pm->ground.entityNumber = trace.entityNumber; // world (0) or entity
+	pm->ground.plane = pml.groundTrace.plane;
+	pm->ground.contents = pml.groundTrace.contents;
+	pm->ground.material = ( pml.groundTrace.material ? pml.groundTrace.material : nullptr );
+	pm->ground.surface = ( pml.groundTrace.surface ? *pml.groundTrace.surface : cm_surface_t() );
 
 	// Don't reset the z velocity for slopes.
 //	pm->ps->velocity[2] = 0;
@@ -1025,7 +1028,7 @@ static void PM_CrashLand( void ) {
 	// and yields the final impact speed squared directly.
 	const double impactVelSq = zVelocity * zVelocity + 2.0 * acceleration * zDistance;
 	if ( impactVelSq < 0.0 ) {
-		// No valid real impact velocity (numerical or pathological case) — bail out.
+		// No valid real impact velocity (numerical or pathological case) â€” bail out.
 		return;
 	}
 
@@ -1953,6 +1956,9 @@ static void PM_AirMove( void ) {
 			pm->state->pmove.velocity, PM_OVERCLIP );
 	}
 
+	// Steep slopes keep a ground entity so we can slide along them without re-applying fall gravity.
+	const bool applyGravity = !( pml.hasGroundPlane && pm->ground.entityNumber != ENTITYNUM_NONE );
+
 	#if 0
 	//ZOID:  If we are on the grapple, try stair-stepping
 	//this allows a player to use the grapple to pull himself
@@ -1966,7 +1972,7 @@ static void PM_AirMove( void ) {
 	PM_StepSlideMove_Generic(
 		pm,
 		&pml,
-		true
+		applyGravity
 	);
 }
 
@@ -2479,4 +2485,200 @@ void SG_ConfigurePlayerMoveParameters( pmoveParams_t *pmp ) {
 	pmp->pm_friction = default_pmoveParams_t::pm_friction;
 	pmp->pm_water_friction = default_pmoveParams_t::pm_water_friction;
 	pmp->pm_fly_friction = default_pmoveParams_t::pm_fly_friction;
+}
+
+
+
+/**
+*	@brief	Trace a capsule-shaped PMove hull through the collision world.
+*	@param	start	World-space trace start position using bbox origin coordinates.
+*	@param	mins	Minimum hull extents relative to `start`.
+*	@param	maxs	Maximum hull extents relative to `start`.
+*	@param	end	World-space trace end position using bbox origin coordinates.
+*	@param	contentMask	Optional collision mask. If `CONTENTS_NONE`, a default mask is chosen from the current PMove state.
+*	@return	The resulting collision trace after converting the bbox hull into a center-based capsule query.
+*	@note		The Z offset is temporarily shifted into capsule center space before tracing, then shifted back onto `endpos` in the returned trace.
+**/
+const cm_trace_t PM_TraceCapsule( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const cm_contents_t contentMask ) {
+	/**
+	*	Resolve the effective collision mask when the caller did not provide one.
+	*	Use the current PMove type so dead, spectator, and active players collide with the expected world contents.
+	**/
+	cm_contents_t actualMask = contentMask;
+	if ( actualMask == CONTENTS_NONE ) {
+		if ( pm->state->pmove.pm_type == PM_DEAD || pm->state->pmove.pm_type == PM_GIB ) {
+			actualMask = CM_CONTENTMASK_DEADSOLID;
+		} else if ( pm->state->pmove.pm_type == PM_SPECTATOR ) {
+			actualMask = CM_CONTENTMASK_SOLID;
+		} else {
+			actualMask = CM_CONTENTMASK_PLAYERSOLID;
+		}
+	}
+
+	/**
+	*	Convert bbox-space extents into capsule parameters centered on the trace origin.
+	*	The horizontal radius is derived from the lateral bounds, while the vertical half-height
+	*	is reduced by the radius so the capsule reflects the player hull shape.
+	**/
+	const float actualRadius = std::min( std::abs( mins.x ), std::abs( maxs.x ) );
+	const float centerOffsetZ = ( mins.z + maxs.z ) * 0.5f;
+	const float halfHeight = std::max( 0.0f, ( std::abs( maxs.z - mins.z ) * 0.5f ) - actualRadius );
+
+	// Shift the start/end points into capsule-center space before tracing.
+	Vector3 centerStart = start;
+	centerStart.z += centerOffsetZ;
+	Vector3 centerEnd = end;
+	centerEnd.z += centerOffsetZ;
+
+	// Perform the capsule trace against the player hull using the resolved contents mask.
+	cm_trace_t result = pm->traceCapsule( centerStart, actualRadius, halfHeight, centerEnd, pm->playerEdict, actualMask );
+
+	// Restore the trace result back to bbox-origin space for callers.
+	result.endpos.z -= centerOffsetZ;
+	return result;
+}
+
+/**
+*	@brief	Trace a cylinder-shaped PMove hull through the collision world.
+*	@param	start	World-space trace start position using bbox origin coordinates.
+*	@param	mins	Minimum hull extents relative to `start`.
+*	@param	maxs	Maximum hull extents relative to `start`.
+*	@param	end	World-space trace end position using bbox origin coordinates.
+*	@param	contentMask	Optional collision mask. If `CONTENTS_NONE`, a default mask is chosen from the current PMove state.
+*	@return	The resulting collision trace after converting the bbox hull into a center-based cylinder query.
+*	@note		The Z offset is temporarily shifted into cylinder center space before tracing, then shifted back onto `endpos` in the returned trace.
+**/
+const cm_trace_t PM_TraceCylinder( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const cm_contents_t contentMask ) {
+	/**
+	*	Resolve the effective collision mask when the caller did not provide one.
+	*	Use the current PMove type so dead, spectator, and active players collide with the expected world contents.
+	**/
+	cm_contents_t actualMask = contentMask;
+	if ( actualMask == CONTENTS_NONE ) {
+		if ( pm->state->pmove.pm_type == PM_DEAD || pm->state->pmove.pm_type == PM_GIB ) {
+			actualMask = CM_CONTENTMASK_DEADSOLID;
+		} else if ( pm->state->pmove.pm_type == PM_SPECTATOR ) {
+			actualMask = CM_CONTENTMASK_SOLID;
+		} else {
+			actualMask = CM_CONTENTMASK_PLAYERSOLID;
+		}
+	}
+
+	/**
+	*	Convert bbox-space extents into cylinder parameters centered on the trace origin.
+	*	The radius is derived from the lateral bounds, and the half-height keeps the full Z span.
+	**/
+	const float actualRadius = std::min( std::abs( mins.x ), std::abs( maxs.x ) );
+	const float centerOffsetZ = ( mins.z + maxs.z ) * 0.5f;
+	const float halfHeight = std::abs( maxs.z - mins.z ) * 0.5f;
+
+	// Shift the start/end points into cylinder-center space before tracing.
+	Vector3 centerStart = start;
+	centerStart.z += centerOffsetZ;
+	Vector3 centerEnd = end;
+	centerEnd.z += centerOffsetZ;
+
+	// Perform the cylinder trace against the player hull using the resolved contents mask.
+	cm_trace_t result = pm->traceCylinder( centerStart, actualRadius, halfHeight, centerEnd, pm->playerEdict, actualMask );
+
+	// Restore the trace result back to bbox-origin space for callers.
+	result.endpos.z -= centerOffsetZ;
+	return result;
+}
+
+/**
+*	@brief	Clip a capsule-shaped PMove hull against the collision world.
+*	@param	start	World-space clip start position using bbox origin coordinates.
+*	@param	mins	Minimum hull extents relative to `start`.
+*	@param	maxs	Maximum hull extents relative to `start`.
+*	@param	end	World-space clip end position using bbox origin coordinates.
+*	@param	contentMask	Optional collision mask. If `CONTENTS_NONE`, a default mask is chosen from the current PMove state.
+*	@return	The resulting collision clip after converting the bbox hull into a center-based capsule query.
+*	@note		This uses the clip variant of the collision API so the query may apply clip-specific filtering rules.
+**/
+const cm_trace_t PM_ClipCapsule( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const cm_contents_t contentMask ) {
+	/**
+	*	Resolve the effective collision mask when the caller did not provide one.
+	*	Use the current PMove type so dead, spectator, and active players collide with the expected world contents.
+	**/
+	cm_contents_t actualMask = contentMask;
+	if ( actualMask == CONTENTS_NONE ) {
+		if ( pm->state->pmove.pm_type == PM_DEAD || pm->state->pmove.pm_type == PM_GIB ) {
+			actualMask = CM_CONTENTMASK_DEADSOLID;
+		} else if ( pm->state->pmove.pm_type == PM_SPECTATOR ) {
+			actualMask = CM_CONTENTMASK_SOLID;
+		} else {
+			actualMask = CM_CONTENTMASK_PLAYERSOLID;
+		}
+	}
+
+	/**
+	*	Convert bbox-space extents into capsule parameters centered on the trace origin.
+	*	The horizontal radius is derived from the lateral bounds, while the vertical half-height
+	*	is reduced by the radius so the capsule reflects the player hull shape.
+	**/
+	const float actualRadius = std::min( std::abs( mins.x ), std::abs( maxs.x ) );
+	const float centerOffsetZ = ( mins.z + maxs.z ) * 0.5f;
+	const float halfHeight = std::max( 0.0f, ( std::abs( maxs.z - mins.z ) * 0.5f ) - actualRadius );
+
+	// Shift the start/end points into capsule-center space before clipping.
+	Vector3 centerStart = start;
+	centerStart.z += centerOffsetZ;
+	Vector3 centerEnd = end;
+	centerEnd.z += centerOffsetZ;
+
+	// Perform the capsule clip against the player hull using the resolved contents mask.
+	cm_trace_t result = pm->clipCapsule( pm->playerEdict, centerStart, actualRadius, halfHeight, centerEnd, actualMask );
+
+	// Restore the clip result back to bbox-origin space for callers.
+	result.endpos.z -= centerOffsetZ;
+	return result;
+}
+
+/**
+*	@brief	Clip a cylinder-shaped PMove hull against the collision world.
+*	@param	start	World-space clip start position using bbox origin coordinates.
+*	@param	mins	Minimum hull extents relative to `start`.
+*	@param	maxs	Maximum hull extents relative to `start`.
+*	@param	end	World-space clip end position using bbox origin coordinates.
+*	@param	contentMask	Optional collision mask. If `CONTENTS_NONE`, a default mask is chosen from the current PMove state.
+*	@return	The resulting collision clip after converting the bbox hull into a center-based cylinder query.
+*	@note		This uses the clip variant of the collision API so the query may apply clip-specific filtering rules.
+**/
+const cm_trace_t PM_ClipCylinder( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const cm_contents_t contentMask ) {
+	/**
+	*	Resolve the effective collision mask when the caller did not provide one.
+	*	Use the current PMove type so dead, spectator, and active players collide with the expected world contents.
+	**/
+	cm_contents_t actualMask = contentMask;
+	if ( actualMask == CONTENTS_NONE ) {
+		if ( pm->state->pmove.pm_type == PM_DEAD || pm->state->pmove.pm_type == PM_GIB ) {
+			actualMask = CM_CONTENTMASK_DEADSOLID;
+		} else if ( pm->state->pmove.pm_type == PM_SPECTATOR ) {
+			actualMask = CM_CONTENTMASK_SOLID;
+		} else {
+			actualMask = CM_CONTENTMASK_PLAYERSOLID;
+		}
+	}
+
+	/**
+	*	Convert bbox-space extents into cylinder parameters centered on the trace origin.
+	*	The radius is derived from the lateral bounds, and the half-height keeps the full Z span.
+	**/
+	const float actualRadius = std::min( std::abs( mins.x ), std::abs( maxs.x ) );
+	const float centerOffsetZ = ( mins.z + maxs.z ) * 0.5f;
+	const float halfHeight = std::abs( maxs.z - mins.z ) * 0.5f;
+
+	// Shift the start/end points into cylinder-center space before clipping.
+	Vector3 centerStart = start;
+	centerStart.z += centerOffsetZ;
+	Vector3 centerEnd = end;
+	centerEnd.z += centerOffsetZ;
+
+	// Perform the cylinder clip against the player hull using the resolved contents mask.
+	cm_trace_t result = pm->clipCylinder( pm->playerEdict, centerStart, actualRadius, halfHeight, centerEnd, actualMask );
+
+	// Restore the clip result back to bbox-origin space for callers.
+	result.endpos.z -= centerOffsetZ;
+	return result;
 }

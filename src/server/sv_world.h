@@ -88,3 +88,102 @@ const cm_trace_t q_gameabi SV_Trace( const Vector3 &start, const Vector3 *mins,
 **/
 const cm_trace_t q_gameabi SV_Clip( const edict_ptr_t *clip, const Vector3 &start, const Vector3 *mins,
     const Vector3 *maxs, const Vector3 &end, const cm_contents_t contentmask );
+const cm_trace_t q_gameabi SV_ClipSphere( const edict_ptr_t *clip, const Vector3 &start, float radius, const Vector3 &end, const cm_contents_t contentmask );
+const cm_trace_t q_gameabi SV_ClipCapsule( const edict_ptr_t *clip, const Vector3 &start, float radius, float halfHeight, const Vector3 &end, const cm_contents_t contentmask );
+/*********************************************************************
+*
+*
+*	Server: World.
+*
+*
+********************************************************************/
+#pragma once
+
+
+/**
+* 
+* 
+* 
+*   high level object sorting to reduce interaction tests
+* 
+* 
+* 
+**/
+/**
+*   @brief  Called after the world model has been loaded, before linking any entities.
+**/
+void SV_ClearWorld( void );
+
+/**
+*   @brief  Call before removing an entity, and before trying to move one,
+*           so it doesn't clip against itself.
+**/
+void PF_UnlinkEdict( edict_ptr_t *ent );
+
+
+/**
+*   @brief  Needs to be called any time an entity changes origin, mins, maxs,
+*           or solid.  Automatically unlinks if needed.
+*           sets ent->v.absMin and ent->v.absMax
+*           sets ent->leafnums[] for pvs determination even if the entity.
+*           is not solid.
+**/
+void SV_LinkEdict( cm_t *cm, sv_edict_t *ent );
+void PF_LinkEdict( edict_ptr_t *ent );
+
+
+const mbrush_t *PF_GetBrushByID( const int32_t brushID );
+
+/**
+*
+*
+*
+*   Actual object "interaction" tests:
+*
+*
+*
+**/
+/**
+*   @brief  fills in a table of edict pointers with edicts that have bounding boxes
+*           that intersect the given area.  It is possible for a non-axial bmodel
+*           to be returned that doesn't actually intersect the area on an exact
+*           test.
+*   @todo: Does this always return the world?
+*   @return The number of pointers filled in.
+**/
+const int32_t SV_AreaEdicts( const Vector3 *mins, const Vector3 *maxs, sv_edict_t **list, const int32_t maxcount, const int32_t areatype );
+
+/**
+*	@return	The CONTENTS_* value from the world at the given point.
+*			Quake 2 extends this to also check entities, to allow moving liquids
+**/
+const cm_contents_t SV_PointContents( const Vector3 *p );
+
+/**
+*	@description	mins and maxs are relative
+*
+*					if the entire move stays in a solid volume, trace.allsolid will be set,
+*					trace.startsolid will be set, and trace.fraction will be 0
+*
+*					if the starting point is in a solid, it will be allowed to move out
+*					to an open area
+*
+*					passedict is explicitly excluded from clipping checks (normally NULL)
+**/
+const cm_trace_t q_gameabi SV_Trace( const Vector3 &start, const Vector3 *mins,
+    const Vector3 *maxs, const Vector3 &end,
+	const edict_ptr_t *passedict, const cm_contents_t contentmask );
+
+/**
+*	@brief	Like SV_Trace(), but clip to specified entity only.
+*			Can be used to clip to SOLID_TRIGGER by its BSP tree.
+**/
+const cm_trace_t q_gameabi SV_Clip( const edict_ptr_t *clip, const Vector3 &start, const Vector3 *mins,
+    const Vector3 *maxs, const Vector3 &end, const cm_contents_t contentmask );
+const cm_trace_t q_gameabi SV_ClipSphere( const edict_ptr_t *clip, const Vector3 &start, float radius, const Vector3 &end, const cm_contents_t contentmask );
+const cm_trace_t q_gameabi SV_ClipCapsule( const edict_ptr_t *clip, const Vector3 &start, float radius, float halfHeight, const Vector3 &end, const cm_contents_t contentmask );
+const cm_trace_t q_gameabi SV_ClipCylinder( const edict_ptr_t *clip, const Vector3 &start, float radius, float halfHeight, const Vector3 &end, const cm_contents_t contentmask );
+
+const cm_trace_t q_gameabi SV_TraceSphere( const Vector3 &start, float radius, const Vector3 &end, const edict_ptr_t *passEdict, const cm_contents_t contentmask );
+const cm_trace_t q_gameabi SV_TraceCapsule( const Vector3 &start, float radius, float halfHeight, const Vector3 &end, const edict_ptr_t *passEdict, const cm_contents_t contentmask );
+const cm_trace_t q_gameabi SV_TraceCylinder( const Vector3 &start, float radius, float halfHeight, const Vector3 &end, const edict_ptr_t *passEdict, const cm_contents_t contentmask );

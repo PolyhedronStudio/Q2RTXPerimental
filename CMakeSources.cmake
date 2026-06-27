@@ -562,6 +562,8 @@ SET(SRC_COMMON
 	common/collisionmodel/cm_plane.cpp
 	common/collisionmodel/cm_pointcontents.cpp
 	common/collisionmodel/cm_trace.cpp
+	common/collisionmodel/cm_shape_trace.cpp
+	common/collisionmodel/cm_bevels.cpp
 	common/collisionmodel.cpp
 	common/common.cpp
 	common/cvar.cpp

@@ -291,6 +291,11 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	*    @note	Cancels any queued async request and clears cached path buffers.
 	**/
 	void ResetNavigationPath();
+	/**
+	*	@brief	Update blocked/trapped recovery bookkeeping and force path refresh after sustained stalls.
+	*	@param	blockedMask	Slide move blocked flags for the current think frame.
+	**/
+	void UpdateBlockedNavigationRecovery( const int32_t blockedMask );
 
 
 
@@ -341,12 +346,19 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	/**
 	*	@brief	Compute an A* path to the target origin.
 	**/
-	const bool ComputePathTo( const Vector3 &target );
+	const bool ComputePathTo( const Vector3 &target, const bool force = false );
 
 	/**
 	*    @brief    Get the next waypoint from the navigation path.
 	**/
 	const Vector3 NextWaypoint( const Vector3 &finalGoal );
+	/**
+	*	@brief	Stabilize per-frame waypoint targets to avoid portal-side flip oscillation.
+	*	@param	candidateWaypoint	Raw waypoint candidate produced by portal logic.
+	*	@param	isFinalGoalWaypoint	True when candidateWaypoint is the final-goal fallback.
+	*	@return	A smoothed/sticky waypoint suitable for stable yaw and movement steering.
+	**/
+	const Vector3 StabilizeWaypointTarget( const Vector3 &candidateWaypoint, const bool isFinalGoalWaypoint );
 
 	//! KD-Tree caching
 	int32_t cachedLeaf = -1;
@@ -358,10 +370,47 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	**/
 	bool CheckForAudibleSounds();
 
-	//! A* Path State
+	/**
+	* 
+	* 
+	* 
+	*	A *Path State
+	* 
+	* 
+	* 
+	**/
+	//! Cached navigation path for the current A* pursuit.
 	std::vector<int32_t> navPath;
+	//! Current position in the navPath vector.
 	size_t pathPos = 0;
+	//! Last server time when the path was calculated.
 	QMTime lastPathCalcTime = 0_ms;
+	//! Counts consecutive blocked/trapped movement frames while actively navigating.
+	int32_t consecutiveBlockedFrames = 0;
+	//! Last server time when blocked/trapped movement was observed.
+	QMTime lastBlockedFrameTime = 0_ms;
+	//! Most recent wall-like contact normal captured from slide traces.
+	Vector3 recentWallBlockNormal = { 0.0f, 0.0f, 0.0f };
+	//! Whether recentWallBlockNormal contains a valid wall contact normal.
+	bool hasRecentWallBlockNormal = false;
+	//! Server time when recentWallBlockNormal was last updated.
+	QMTime lastWallBlockTime = 0_ms;
+	//! Last stable horizontal navigation move direction used for continuity smoothing.
+	Vector3 lastNavigationMoveDir = { 0.0f, 0.0f, 0.0f };
+	//! Whether lastNavigationMoveDir contains valid data.
+	bool hasLastNavigationMoveDir = false;
+	//! Last stable facing direction used to smooth yaw against rapid 180-degree target flips.
+	Vector3 lastFacingDirection = { 0.0f, 0.0f, 0.0f };
+	//! Whether lastFacingDirection contains valid data.
+	bool hasLastFacingDirection = false;
+	//! Last stabilized waypoint used for per-segment target hysteresis.
+	Vector3 lastWaypointTarget = { 0.0f, 0.0f, 0.0f };
+	//! Whether lastWaypointTarget contains valid data.
+	bool hasLastWaypointTarget = false;
+	//! Path segment index associated with lastWaypointTarget.
+	size_t lastWaypointPathPos = 0;
+	//! Server time when lastWaypointTarget was updated.
+	QMTime lastWaypointUpdateTime = 0_ms;
 
 
 

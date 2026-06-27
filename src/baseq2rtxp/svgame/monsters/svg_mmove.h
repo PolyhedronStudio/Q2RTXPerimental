@@ -238,7 +238,7 @@ typedef struct mm_move_s {
 /**
 *	@brief	Clips trace against world only.
 **/
-const svg_trace_t SVG_MMove_Clip( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const cm_contents_t contentMask );
+
 /**
 *	@brief	Determines the mask to use and returns a trace doing so. If spectating, it'll return clip instead.
 **/

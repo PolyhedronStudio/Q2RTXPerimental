@@ -14,6 +14,7 @@
 #include <cstdarg>
 
 #include "svgame/nav/nav_generate.h"
+#include "svgame/nav/nav_debug.h"
 #include "svgame/nav/nav_persistence.h"
 // Nav2.
 //#include "svgame/nav2/nav2_bench.h"
@@ -1934,6 +1935,12 @@ void SVG_ServerCommand(void) {
         Nav_GenerateCommand();
     else if ( Q_stricmp( cmd, "nav_status" ) == 0 )
         Nav_StatusCommand();
+    else if ( Q_stricmp( cmd, "nav_dbg_goal_a" ) == 0 )
+        Nav_DebugSetGoalACommand();
+    else if ( Q_stricmp( cmd, "nav_dbg_goal_b" ) == 0 )
+        Nav_DebugSetGoalBCommand();
+    else if ( Q_stricmp( cmd, "nav_dbg_test" ) == 0 )
+        Nav_DebugTestPathCommand();
     #if 0
     else if ( Q_stricmp( cmd, "nav_generate" ) == 0 )
         ServerCommand_NavGenerate_f();
@@ -2031,4 +2038,3 @@ void SVG_ServerCommand(void) {
     else
         gi.cprintf( NULL, PRINT_HIGH, "Unknown server command \"%s\"\n", cmd );
 }
-

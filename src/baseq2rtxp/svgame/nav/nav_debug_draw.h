@@ -43,3 +43,11 @@ void SVG_Nav_DebugDraw_AddAabb( const Vector3 &mins, const Vector3 &maxs, const 
 	const uint16_t styleFlags = SG_SVC_DEBUG_DRAW_STYLE_FLAG_DEPTH_TEST,
 	const float thicknessPx = 2.0f,
 	const float outlineThicknessPx = 0.0f );
+
+/**
+*	@brief	Queue one world-space sphere.
+**/
+void SVG_Nav_DebugDraw_AddSphere( const Vector3 &center, const float radius, const uint32_t color,
+	const uint16_t styleFlags = SG_SVC_DEBUG_DRAW_STYLE_FLAG_DEPTH_TEST,
+	const float thicknessPx = 2.0f,
+	const float outlineThicknessPx = 0.0f );

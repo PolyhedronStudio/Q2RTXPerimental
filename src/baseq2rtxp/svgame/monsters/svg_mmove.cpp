@@ -23,36 +23,107 @@
 /**
 *	@brief	Clips trace against world only.
 **/
-const svg_trace_t SVG_MMove_Clip( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const cm_contents_t contentMask ) {
-	//return pm->clip( QM_Vector3ToQFloatV( start ).v, QM_Vector3ToQFloatV( mins ).v, QM_Vector3ToQFloatV( maxs ).v, QM_Vector3ToQFloatV( end ).v, contentMask );
-	// Clip against world.
-	return SVG_Clip( g_edict_pool.EdictForNumber( 0 ) /* worldspawn */, start, mins, maxs, end, contentMask);
+static constexpr double DIST_EPSILON = 0.03125;
+
+/**
+*	@brief	Trace the monster bbox as a capsule using center-space parameters.
+**/
+static svg_trace_t SVG_MMove_TraceCapsuleForBBox( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, svg_base_edict_t *passEntity, cm_contents_t contentMask ) {
+	// Resolve default movement mask when not explicitly provided.
+	if ( contentMask == CONTENTS_NONE ) {
+		contentMask = CM_CONTENTMASK_MONSTERSOLID;
+	}
+
+	// Convert bbox-space endpoints to center-space capsule trace endpoints.
+	const float radius = std::min( std::abs( mins.x ), std::abs( maxs.x ) );
+	const float centerOffsetZ = ( mins.z + maxs.z ) * 0.5f;
+	const float halfHeight = std::max( 0.0f, ( std::abs( maxs.z - mins.z ) * 0.5f ) - radius );
+
+	Vector3 centerStart = start;
+	centerStart.z += centerOffsetZ;
+	Vector3 centerEnd = end;
+	centerEnd.z += centerOffsetZ;
+
+	// Perform capsule trace and map endpos back to bbox-space.
+	svg_trace_t trace = SVG_TraceCapsule( centerStart, radius, halfHeight, centerEnd, passEntity, contentMask );
+	trace.endpos.z -= centerOffsetZ;
+	return trace;
 }
+
+/**
+*	@brief	Trace the monster bbox as a cylinder using center-space parameters.
+**/
+static svg_trace_t SVG_MMove_TraceCylinderForBBox( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, svg_base_edict_t *passEntity, cm_contents_t contentMask ) {
+	// Resolve default movement mask when not explicitly provided.
+	if ( contentMask == CONTENTS_NONE ) {
+		contentMask = CM_CONTENTMASK_MONSTERSOLID;
+	}
+
+	// Convert bbox-space endpoints to center-space cylinder trace endpoints.
+	const float radius = std::min( std::abs( mins.x ), std::abs( maxs.x ) );
+	const float centerOffsetZ = ( mins.z + maxs.z ) * 0.5f;
+	const float halfHeight = std::abs( maxs.z - mins.z ) * 0.5f;
+
+	Vector3 centerStart = start;
+	centerStart.z += centerOffsetZ;
+	Vector3 centerEnd = end;
+	centerEnd.z += centerOffsetZ;
+
+	// Perform cylinder trace and map endpos back to bbox-space.
+	svg_trace_t trace = SVG_TraceCylinder( centerStart, radius, halfHeight, centerEnd, passEntity, contentMask );
+	trace.endpos.z -= centerOffsetZ;
+	return trace;
+}
+
 
 /**
 *	@brief	Determines the mask to use and returns a trace doing so.
 **/
 const svg_trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, svg_base_edict_t *passEntity, cm_contents_t contentMask ) {
-	//// Spectators only clip against world, so use clip instead.
-	//if ( pm->state->pmove.pm_type == PM_SPECTATOR ) {
-	//	return PM_Clip( start, mins, maxs, end, CM_CONTENTMASK_SOLID );
-	//}
-
 	if ( contentMask == CONTENTS_NONE ) {
-		//	if ( pm->state->pmove.pm_type == PM_DEAD || pm->state->pmove.pm_type == PM_GIB ) {
-		//		contentMask = CM_CONTENTMASK_DEADSOLID;
-		//	} else if ( pm->state->pmove.pm_type == PM_SPECTATOR ) {
-		//		contentMask = CM_CONTENTMASK_SOLID;
-		//	} else {
 		contentMask = CM_CONTENTMASK_MONSTERSOLID;
-		//	}
-
-		//	//if ( pm->s.pm_flags & PMF_IGNORE_PLAYER_COLLISION )
-		//	//	mask &= ~CONTENTS_PLAYER;
 	}
 
-	//return pm->trace( QM_Vector3ToQFloatV( start ).v, QM_Vector3ToQFloatV( mins ).v, QM_Vector3ToQFloatV( maxs ).v, QM_Vector3ToQFloatV( end ).v, pm->player, contentMask );
-	return SVG_Trace( start, mins, maxs, end, passEntity, contentMask );
+	// 1. AABB trace: Determine the entity hit.
+	// We trace an AABB first to identify whether we hit the world or another entity.
+	// No extra padding; the AABB matches the monster's mins/maxs exactly.
+	Vector3 boxMins = mins;
+	Vector3 boxMaxs = maxs;
+	svg_trace_t trBox = SVG_Trace( start, boxMins, boxMaxs, end, passEntity, contentMask );
+	
+	// We DO NOT early-out if the AABB trace is clear (fraction == 1.0f).
+	// The collision model adds 1.0f padding to the radius of Capsule and Cylinder shapes,
+	// making them mathematically larger than the AABB. Thus, the shapes might hit 
+	// something even if the AABB missed.
+
+	// Calculate dimensions for capsule/cylinder shapes.
+	const float radius = ( maxs.x - mins.x ) * 0.5f;
+	const float halfHeight = std::max( 0.0f, ( maxs.z - mins.z ) * 0.5f - radius );
+	const float zOffset = ( mins.z + maxs.z ) * 0.5f;
+
+	Vector3 capStart = start;
+	capStart.z += zOffset;
+	Vector3 capEnd = end;
+	capEnd.z += zOffset;
+
+	// Which shape is necessary?
+	// Cylinder for world, Capsule for entities.
+	if ( trBox.ent && trBox.ent != g_edict_pool.EdictForNumber( 0 ) ) {
+		// AABB hit an entity, so we trace Capsule (Capsule for entities)
+		// The collision model adds 1.0f to the Capsule's radius, which also extends its
+		// Z bounds by 1.0f top and bottom. We subtract 1.0f from halfHeight to compensate,
+		// ensuring its Z bounds perfectly match the AABB's Z bounds.
+		const float capsuleHalfHeight = std::max( 0.0f, halfHeight - 1.0f );
+		svg_trace_t trCapsule = SVG_TraceCapsule( capStart, radius, capsuleHalfHeight, capEnd, passEntity, contentMask );
+		trCapsule.endpos.z -= zOffset;
+		return trCapsule;
+	}
+
+	// AABB hit the world, so we trace Cylinder (Cylinder for world)
+	// The Cylinder expand correctly matches the AABB Z bounds naturally with halfHeight + radius.
+	svg_trace_t trCylinder = SVG_TraceCylinder( capStart, radius, halfHeight + radius, capEnd, passEntity, contentMask );
+	trCylinder.endpos.z -= zOffset;
+	return trCylinder;
 }
 
 
@@ -75,8 +146,8 @@ static bool MMove_CheckStep( const mm_move_t *monsterMove, const svg_trace_t *tr
 		//if ( monsterMove->navPolicy ) {
 		//	minStepNormal = monsterMove->navPolicy->min_step_normal;
 		//}
-		// If trace clipped to an entity and the plane we hit its normal is sane for stepping:
-		if ( trace->ent && trace->plane.normal[ 2 ] >= minStepNormal ) {
+		// If the plane we hit has a sufficient upward normal, it's a step (entity or world).
+		if ( trace->plane.normal[ 2 ] >= minStepNormal ) {
 			// We just traversed a step of sorts.
 			return true;
 		}
@@ -143,7 +214,8 @@ const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, con
 
 	// Perform 'up-trace' to see whether we can step up at all
 	Vector3 up = startOrigin + Vector3{ 0., 0., maxStepSize };
-	trace = SVG_MMove_Trace( startOrigin, monsterMove->mins, monsterMove->maxs, up, monsterMove->monster );
+	// Match player stair-step behavior: use capsule for the explicit step-up probe.
+	trace = SVG_MMove_TraceCapsuleForBBox( startOrigin, monsterMove->mins, monsterMove->maxs, up, monsterMove->monster, CONTENTS_NONE );
 	if ( trace.allsolid ) {
 		return blockedMask; // can't step up
 	}
@@ -169,10 +241,11 @@ const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, con
 		down.z = startOrigin.z - 1.f;
 	}
 
-	trace = SVG_MMove_Trace( monsterMove->state.origin, monsterMove->mins, monsterMove->maxs, down, monsterMove->monster );
+	// Match player push-down behavior: use cylinder for stable ramp handling.
+	trace = SVG_MMove_TraceCylinderForBBox( monsterMove->state.origin, monsterMove->mins, monsterMove->maxs, down, monsterMove->monster, CONTENTS_NONE );
 	if ( !trace.allsolid ) {
 		// [Paril-KEX] from above, do the proper trace now
-		svg_trace_t real_trace = SVG_MMove_Trace( monsterMove->state.origin, monsterMove->mins, monsterMove->maxs, original_down, monsterMove->monster );
+		svg_trace_t real_trace = SVG_MMove_TraceCylinderForBBox( monsterMove->state.origin, monsterMove->mins, monsterMove->maxs, original_down, monsterMove->monster, CONTENTS_NONE );
 		//monsterMove.origin = real_trace.endpos;
 		//monsterMove->state.origin = real_trace.endpos;
 
@@ -211,7 +284,8 @@ const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, con
         // Use policy for step height.
 		Vector3 downOffset = { 0.f, 0.f, (float)policy.max_obstruction_jump_height };
         Vector3 down = QM_Vector3Subtract(monsterMove->state.origin, downOffset);
-        trace = SVG_MMove_Trace( monsterMove->state.origin, monsterMove->mins, monsterMove->maxs, down, monsterMove->monster );
+		// Keep slope-follow/down-step probe on cylinder for ramp continuity and jump behavior.
+		trace = SVG_MMove_TraceCylinderForBBox( monsterMove->state.origin, monsterMove->mins, monsterMove->maxs, down, monsterMove->monster, CONTENTS_NONE );
 
 		// WID: Use proper stair step checking.
 		// Check for stairs:

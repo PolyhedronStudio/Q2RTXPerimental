@@ -32,12 +32,43 @@
 *   @brief  Player Move specific 'Trace' wrapper implementation.
 **/
 static const cm_trace_t CLG_PM_Trace( const Vector3 &start, const Vector3 *mins, const Vector3 *maxs, const Vector3 &end, const void *passEntity, const cm_contents_t contentMask ) {
-    return CLG_Trace( start, mins, maxs, end, (const centity_t *)passEntity, contentMask );
+    const centity_t *cent = (const centity_t *)passEntity;
+    if ( cent != nullptr ) {
+        if ( cent->current.solid == SOLID_CAPSULE ) {
+            const float radius = ( maxs->x - mins->x ) * 0.5f;
+            const float halfHeight = ( maxs->z - mins->z ) * 0.5f;
+            return CLG_TraceCapsule( start, radius, halfHeight, end, cent, contentMask );
+        } else if ( cent->current.solid == SOLID_CYLINDER ) {
+            const float radius = ( maxs->x - mins->x ) * 0.5f;
+            const float halfHeight = ( maxs->z - mins->z ) * 0.5f;
+            return CLG_TraceCylinder( start, radius, halfHeight, end, cent, contentMask );
+        } else if ( cent->current.solid == SOLID_SPHERE ) {
+            const float radius = ( maxs->x - mins->x ) * 0.5f;
+            return CLG_TraceSphere( start, radius, end, cent, contentMask );
+        }
+    }
+    return CLG_Trace( start, mins, maxs, end, cent, contentMask );
 }
 /**
 *   @brief  Player Move specific 'Clip' wrapper implementation. Clips to world only.
 **/
 static const cm_trace_t CLG_PM_Clip( const Vector3 &start, const Vector3 *mins, const Vector3 *maxs, const Vector3 &end, const cm_contents_t contentMask ) {
+    // For local PMove, we use the local player's entity state to determine shape.
+    const centity_t *cent = game.viewBoundEntity;
+    if ( cent != nullptr ) {
+        if ( cent->current.solid == SOLID_CAPSULE ) {
+            const float radius = ( maxs->x - mins->x ) * 0.5f;
+            const float halfHeight = ( maxs->z - mins->z ) * 0.5f;
+            return CLG_ClipCapsule( start, radius, halfHeight, end, nullptr, contentMask );
+        } else if ( cent->current.solid == SOLID_CYLINDER ) {
+            const float radius = ( maxs->x - mins->x ) * 0.5f;
+            const float halfHeight = ( maxs->z - mins->z ) * 0.5f;
+            return CLG_ClipCylinder( start, radius, halfHeight, end, nullptr, contentMask );
+        } else if ( cent->current.solid == SOLID_SPHERE ) {
+            const float radius = ( maxs->x - mins->x ) * 0.5f;
+            return CLG_ClipSphere( start, radius, end, nullptr, contentMask );
+        }
+    }
     return CLG_Clip( start, mins, maxs, end, nullptr, contentMask );
 }
 /**
@@ -45,6 +76,36 @@ static const cm_trace_t CLG_PM_Clip( const Vector3 &start, const Vector3 *mins, 
 **/
 static const cm_contents_t  CLG_PM_PointContents( const Vector3 &point ) {
     return CLG_PointContents( point );
+}
+
+static const cm_trace_t CLG_PM_TraceSphere( const Vector3 &start, float radius, const Vector3 &end, const void *passEntity, const cm_contents_t contentMask ) {
+    return CLG_TraceSphere( start, radius, end, (const centity_t *)passEntity, contentMask );
+}
+static const cm_trace_t CLG_PM_TraceCapsule( const Vector3 &start, float radius, float halfHeight, const Vector3 &end, const void *passEntity, const cm_contents_t contentMask ) {
+    return CLG_TraceCapsule( start, radius, halfHeight, end, (const centity_t *)passEntity, contentMask );
+}
+static const cm_trace_t CLG_PM_TraceCylinder( const Vector3 &start, float radius, float halfHeight, const Vector3 &end, const void *passEntity, const cm_contents_t contentMask ) {
+    return CLG_TraceCylinder( start, radius, halfHeight, end, (const centity_t *)passEntity, contentMask );
+}
+
+static const cm_trace_t CLG_PM_ClipSphere( const void *clipEntity, const Vector3 &start, float radius, const Vector3 &end, const cm_contents_t contentMask ) {
+    return CLG_ClipSphere( start, radius, end, (const centity_t *)clipEntity, contentMask );
+}
+static const cm_trace_t CLG_PM_ClipCapsule( const void *clipEntity, const Vector3 &start, float radius, float halfHeight, const Vector3 &end, const cm_contents_t contentMask ) {
+    return CLG_ClipCapsule( start, radius, halfHeight, end, (const centity_t *)clipEntity, contentMask );
+}
+static const cm_trace_t CLG_PM_ClipCylinder( const void *clipEntity, const Vector3 &start, float radius, float halfHeight, const Vector3 &end, const cm_contents_t contentMask ) {
+    return CLG_ClipCylinder( start, radius, halfHeight, end, (const centity_t *)clipEntity, contentMask );
+}
+
+static const cm_trace_t CLG_PM_TransformedTraceSphere( const Vector3 &start, const Vector3 &end, float radius, void *headnode, const cm_contents_t brushmask, const Vector3 &origin, const Vector3 &angles ) {
+    return clgi.CM_TransformedTraceSphere( &start, &end, radius, (mnode_t *)headnode, brushmask, &origin, &angles );
+}
+static const cm_trace_t CLG_PM_TransformedTraceCapsule( const Vector3 &start, const Vector3 &end, float radius, float halfHeight, void *headnode, const cm_contents_t brushmask, const Vector3 &origin, const Vector3 &angles ) {
+    return clgi.CM_TransformedTraceCapsule( &start, &end, radius, halfHeight, (mnode_t *)headnode, brushmask, &origin, &angles );
+}
+static const cm_trace_t CLG_PM_TransformedTraceCylinder( const Vector3 &start, const Vector3 &end, float radius, float halfHeight, void *headnode, const cm_contents_t brushmask, const Vector3 &origin, const Vector3 &angles ) {
+    return clgi.CM_TransformedTraceCylinder( &start, &end, radius, halfHeight, (mnode_t *)headnode, brushmask, &origin, &angles );
 }
 
 
@@ -468,6 +529,15 @@ void CLG_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curre
         // Trace callbacks.
         .trace = CLG_PM_Trace,
         .clip = CLG_PM_Clip,
+        .traceSphere = CLG_PM_TraceSphere,
+        .traceCapsule = CLG_PM_TraceCapsule,
+        .traceCylinder = CLG_PM_TraceCylinder,
+        .clipSphere = CLG_PM_ClipSphere,
+        .clipCapsule = CLG_PM_ClipCapsule,
+        .clipCylinder = CLG_PM_ClipCylinder,
+        .transformedTraceSphere = CLG_PM_TransformedTraceSphere,
+        .transformedTraceCapsule = CLG_PM_TransformedTraceCapsule,
+        .transformedTraceCylinder = CLG_PM_TransformedTraceCylinder,
         .pointcontents = CLG_PM_PointContents,
         // The pointer to the player state we're predicting for.
         .state = &predictedState->currentPs,

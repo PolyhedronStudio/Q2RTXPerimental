@@ -48,19 +48,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 
 
-/**
-*  @brief	Temporary recovery declaration for shared nav debug drawing.
-**/
-void SVG_Nav_DebugDraw( void );
-
-/**
-*\t@brief	Compatibility no-op placeholder for shared nav debug drawing.
-*\t@note	This keeps the server link surface intact while the debug draw path is restored elsewhere.
-**/
-void SVG_Nav_DebugDraw( void ) {
-    // Intentionally empty until the shared nav debug draw implementation is reinstated.
-}
-
 #include "svgame/svg_utils.h"
 
 #include "svgame/player/svg_player_client.h"
@@ -760,26 +747,8 @@ void SVG_RunFrame(void) {
     mt_rand.seed( level.frameNumber );
     // Begin nav debug draw frame bookkeeping.
     SVG_Nav_DebugDraw_BeginFrame();
-    // Begin nav3 debug draw frame bookkeeping.
-    //SVG_Nav3_DebugDraw_BeginFrame();
-	#if 0
-    // Reset the nav2 scheduler frame budget and worker mode bookkeeping for this server frame.
-    SVG_Nav2_Scheduler_BeginFrame( level.frameNumber );
-    #endif
-    /**
-    *    Run one early async-navigation service pass before any entity think.
-    *        `Com_CompleteAsyncWork()` has already fired before entering the server frame, so this early
-    *        tick can apply completed worker payloads and advance queued/running searches before monsters
-    *        decide whether they already have a usable path this frame.
-    **/
-    // <Q2RTXP? WID: OldNav: SVG_Nav_ProcessRequestQueue();
-    // Service the nav2 scheduler foundation early so completed worker slices are visible before entity think.
-	#if 0
-	SVG_Nav2_Scheduler_Service();
-	#endif
-
     // NavMesh V6: Perform KD-Tree Debug Drawing.
-    Nav_DebugDraw();
+    SVG_Nav_DebugDraw();
 
     /**
 	*	WID: LUA: CallBack.
@@ -918,18 +887,6 @@ void SVG_RunFrame(void) {
     *        The early-frame tick exposes completed worker results before entity think, while this
     *        second pass lets already-running incremental searches make extra progress before the frame ends.
     **/
-	// <Q2RTXP? WID: OldNav: if ( SVG_Nav_ShouldRunLateFrameQueueTick() ) {
-	// <Q2RTXP? WID: OldNav:    SVG_Nav_ProcessRequestQueue();
-	// <Q2RTXP? WID: OldNav: }
-    // Give the nav2 scheduler foundation one late-frame follow-up service pass.
-	#if 0
-	SVG_Nav2_Scheduler_Service();
-
-	// Navigation debug draw (runtime).
-	// Needs a built mesh (`nav_gen_voxelmesh`) and `nav_debug_draw 1`.
-	SVG_Nav_DebugDraw();
-	#endif
-
     // Flush nav debug draw stream after all subsystems have had a chance to submit primitives.
     SVG_Nav_DebugDraw_FlushFrame();
     // Service the legacy KD-tree nav generator once per frame so progress output appears while it runs.

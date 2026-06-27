@@ -40,11 +40,7 @@
 *   @brief  Player Move specific 'Trace' wrapper implementation.
 **/
 static const cm_trace_t q_gameabi SV_PM_Trace( const Vector3 &start, const Vector3 *mins, const Vector3 *maxs, const Vector3 &end, const void *passEntity, const cm_contents_t contentMask ) {
-    //if (pm_passent->health > 0)
-    //    return SVG_Trace(start, mins, maxs, end, pm_passent, CM_CONTENTMASK_PLAYERSOLID);
-    //else
-    //    return SVG_Trace(start, mins, maxs, end, pm_passent, CM_CONTENTMASK_DEADSOLID);
-    return gi.trace( &start, mins, maxs, &end, (svg_base_edict_t *)passEntity, contentMask );
+    return SVG_Trace( start, mins ? *mins : qm_vector3_null, maxs ? *maxs : qm_vector3_null, end, (svg_base_edict_t *)passEntity, contentMask );
 }
 /**
 *   @brief  Player Move specific 'Clip' wrapper implementation. Clips to world only.
@@ -57,6 +53,18 @@ static const cm_trace_t q_gameabi SV_PM_Clip( const Vector3 &start, const Vector
 **/
 static const cm_contents_t q_gameabi SV_PM_PointContents( const Vector3 &point ) {
     return gi.pointcontents( &point );
+}
+
+static const cm_trace_t q_gameabi SV_PM_TraceSphere( const Vector3 &start, const float radius, const Vector3 &end, const void *passEntity, const cm_contents_t contentMask ) {
+    return SVG_TraceSphere( start, radius, end, (svg_base_edict_t *)passEntity, contentMask );
+}
+
+static const cm_trace_t q_gameabi SV_PM_TraceCapsule( const Vector3 &start, const float radius, const float halfHeight, const Vector3 &end, const void *passEntity, const cm_contents_t contentMask ) {
+    return SVG_TraceCapsule( start, radius, halfHeight, end, (svg_base_edict_t *)passEntity, contentMask );
+}
+
+static const cm_trace_t q_gameabi SV_PM_TraceCylinder( const Vector3 &start, const float radius, const float halfHeight, const Vector3 &end, const void *passEntity, const cm_contents_t contentMask ) {
+    return SVG_TraceCylinder( start, radius, halfHeight, end, (svg_base_edict_t *)passEntity, contentMask );
 }
 
 
@@ -258,9 +266,12 @@ static void PMove_RunFrame( svg_player_edict_t *ent, svg_client_t *client, userc
     // Setup 'User Command'
     pm->cmd = *userCommand;
     // Assign a pointer to the game module's matching player client entity.
-    pm->playerEdict = reinterpret_cast<edict_ptr_t *>( ent );
+    pm->playerEdict = ent;
     // Prepare PMove specific trace wrapper function pointers.
     pm->trace = SV_PM_Trace;
+    pm->traceSphere = SV_PM_TraceSphere;
+    pm->traceCapsule = SV_PM_TraceCapsule;
+    pm->traceCylinder = SV_PM_TraceCylinder;
     pm->pointcontents = SV_PM_PointContents;
     pm->clip = SV_PM_Clip;
     // Let us not forget about the simulation time before the actual mode.

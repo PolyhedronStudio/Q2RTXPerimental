@@ -12,6 +12,75 @@
 #include <vector>
 
 /**
+* @brief Compute the true overlapping portal segment between two twinned edges.
+* @param he Edge on the current face.
+* @param twin Opposite edge on the neighbor face.
+* @param outV0 Optional output first overlap endpoint.
+* @param outV1 Optional output second overlap endpoint.
+* @param outWidth2D Optional output overlap width in XY.
+* @return True when a non-degenerate overlap segment was found.
+**/
+static bool Nav_ComputePortalOverlapSegment( const nav_halfedge_t &he, const nav_halfedge_t &twin, Vector3 *outV0, Vector3 *outV1, float *outWidth2D ) {
+	const Vector3 a0 = g_nav_vertices[ he.vertex_idx ];
+	const Vector3 a1 = g_nav_vertices[ g_nav_halfedges[ he.next_idx ].vertex_idx ];
+	const Vector3 b0 = g_nav_vertices[ twin.vertex_idx ];
+	const Vector3 b1 = g_nav_vertices[ g_nav_halfedges[ twin.next_idx ].vertex_idx ];
+
+	Vector3 aDir2D = QM_Vector3Subtract( a1, a0 );
+	aDir2D.z = 0.0f;
+	const float aLen = QM_Vector3Length( aDir2D );
+	if ( aLen <= 0.0001f ) {
+		return false;
+	}
+	aDir2D = QM_Vector3Scale( aDir2D, 1.0f / aLen );
+
+	auto projectOnA = [&]( const Vector3 &p ) -> float {
+		Vector3 ap = QM_Vector3Subtract( p, a0 );
+		ap.z = 0.0f;
+		return static_cast<float>( QM_Vector3DotProduct( ap, aDir2D ) );
+	};
+
+	const float u0 = projectOnA( b0 );
+	const float u1 = projectOnA( b1 );
+	const float bMin = std::min( u0, u1 );
+	const float bMax = std::max( u0, u1 );
+	const float overlapStart = std::max( 0.0f, bMin );
+	const float overlapEnd = std::min( aLen, bMax );
+	const float overlapLen = overlapEnd - overlapStart;
+	if ( overlapLen <= 0.1f ) {
+		return false;
+	}
+
+	const float t0 = QM_Clamp( overlapStart / aLen, 0.0f, 1.0f );
+	const float t1 = QM_Clamp( overlapEnd / aLen, 0.0f, 1.0f );
+	Vector3 seg0 = QM_Vector3Add( a0, QM_Vector3Scale( QM_Vector3Subtract( a1, a0 ), t0 ) );
+	Vector3 seg1 = QM_Vector3Add( a0, QM_Vector3Scale( QM_Vector3Subtract( a1, a0 ), t1 ) );
+
+	const Vector3 bMinPoint = ( u0 <= u1 ) ? b0 : b1;
+	const Vector3 bMaxPoint = ( u0 <= u1 ) ? b1 : b0;
+	const float bSpan = std::max( 0.0001f, bMax - bMin );
+	const float bt0 = QM_Clamp( ( overlapStart - bMin ) / bSpan, 0.0f, 1.0f );
+	const float bt1 = QM_Clamp( ( overlapEnd - bMin ) / bSpan, 0.0f, 1.0f );
+	const Vector3 bSeg0 = QM_Vector3Add( bMinPoint, QM_Vector3Scale( QM_Vector3Subtract( bMaxPoint, bMinPoint ), bt0 ) );
+	const Vector3 bSeg1 = QM_Vector3Add( bMinPoint, QM_Vector3Scale( QM_Vector3Subtract( bMaxPoint, bMinPoint ), bt1 ) );
+
+	const float maxZ = std::max( std::max( seg0.z, seg1.z ), std::max( bSeg0.z, bSeg1.z ) );
+	seg0.z = maxZ;
+	seg1.z = maxZ;
+
+	if ( outV0 ) {
+		*outV0 = seg0;
+	}
+	if ( outV1 ) {
+		*outV1 = seg1;
+	}
+	if ( outWidth2D ) {
+		*outWidth2D = overlapLen;
+	}
+	return true;
+}
+
+/**
 * @brief Legacy no-op placeholder for adjacency graph construction.
 * @note The half-edge mesh already stores adjacency during generation.
 **/
@@ -225,7 +294,12 @@ if ( twin.face_idx != faceB ) {
 continue;
 }
 
-// Capture the shared edge and lift it to the highest Z so stairs are treated consistently.
+// Use only the true overlap span so runtime steering matches twin-link topology.
+if ( Nav_ComputePortalOverlapSegment( he, twin, outV0, outV1, nullptr ) ) {
+return true;
+}
+
+// Fallback to legacy full-edge portal if overlap extraction fails due precision/skew.
 *outV0 = g_nav_vertices[ he.vertex_idx ];
 *outV1 = g_nav_vertices[ g_nav_halfedges[ he.next_idx ].vertex_idx ];
 float maxZ = std::max( outV0->z, outV1->z );
@@ -311,8 +385,21 @@ if ( he.twin_idx == -1 ) {
 continue;
 }
 
-const int32_t neighbor = g_nav_halfedges[ he.twin_idx ].face_idx;
+const nav_halfedge_t &twin = g_nav_halfedges[ he.twin_idx ];
+const int32_t neighbor = twin.face_idx;
 const nav_face_t &neighborFace = g_nav_faces[ neighbor ];
+
+// Enforce physical traversability (not just topological adjacency) for this edge transition.
+float portalWidth2D = 0.0f;
+if ( !Nav_ComputePortalOverlapSegment( he, twin, nullptr, nullptr, &portalWidth2D ) ) {
+	const Vector3 edgeStart = g_nav_vertices[ he.vertex_idx ];
+	const Vector3 edgeEnd = g_nav_vertices[ g_nav_halfedges[ he.next_idx ].vertex_idx ];
+	portalWidth2D = static_cast<float>( QM_Vector2Distance( edgeStart, edgeEnd ) );
+}
+const float minRequiredPortalWidth = 2.0f;
+if ( portalWidth2D < minRequiredPortalWidth ) {
+continue;
+}
 
 // Vertical clearance is limited so the path prefers walkable transitions.
 const float dz = he.z_diff;

@@ -244,7 +244,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_monster_testdummy_debug_t, onSpawn )( svg_mons
 	**/
 	self->s.entityType = ET_MONSTER;
 
-	self->solid = SOLID_BOUNDS_OCTAGON;
+	self->solid = SOLID_CAPSULE;
 	self->movetype = MOVETYPE_WALK;
 
 
@@ -763,10 +763,8 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarToPlay
     int32_t blockedMask = MM_SLIDEMOVEFLAG_NONE;
     self->GenericThinkFinish( true, blockedMask );
     SVG_Util_SetEntityAngles( self, self->currentAngles, true );
-
-    if ( ( blockedMask & ( MM_SLIDEMOVEFLAG_BLOCKED | MM_SLIDEMOVEFLAG_TRAPPED ) ) != 0 ) {
-        // We shouldn't clear navPath here because slide movement normally scrapes walls.
-    }
+	// Track blocked/trapped streaks and force a route refresh if we keep scraping the same corner.
+	self->UpdateBlockedNavigationRecovery( blockedMask );
     
     self->nextthink = level.time + FRAME_TIME_MS;
 }
@@ -832,14 +830,8 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarPursui
     int32_t blockedMask = MM_SLIDEMOVEFLAG_NONE;
     self->GenericThinkFinish( true, blockedMask );
     SVG_Util_SetEntityAngles( self, self->currentAngles, true );
-
-    if ( ( blockedMask & ( MM_SLIDEMOVEFLAG_BLOCKED | MM_SLIDEMOVEFLAG_TRAPPED ) ) != 0 ) {
-        // We shouldn't clear navPath here because slide movement normally scrapes walls.
-		// Set angles perpendicular to the wall facing normal
-		//const Vector3 wallNormal = QM_Vector3Normalize( self->currentAngles );
-		//const Vector3 perpendicularDirection = QM_Vector3CrossProduct( wallNormal, Vector3{ 0, 0, 1 } );
-		//SVG_Util_SetEntityAngles( self, QM_Vector3ToAngles( perpendicularDirection ), true );
-    }
+	// Track blocked/trapped streaks and force a route refresh if we keep scraping the same corner.
+	self->UpdateBlockedNavigationRecovery( blockedMask );
 
     self->nextthink = level.time + FRAME_TIME_MS;
 }
@@ -933,10 +925,8 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Investigate
 	// Ensure the authoritative yaw/angles are applied to the entity state after movement
 	// so rendering and networking see the updated orientation. Keep currentAngles authoritative.
 	SVG_Util_SetEntityAngles( self, self->currentAngles, true );
-	// If we are blocked or trapped, our path is no longer valid. Force an immediate rebuild so we can recover.
-	if ( ( blockedMask & ( MM_SLIDEMOVEFLAG_BLOCKED | MM_SLIDEMOVEFLAG_TRAPPED ) ) != 0 ) {
-		// Clear any pending async request since it is no longer relevant when we are blocked.
-	}
+	// Track blocked/trapped streaks and force a route refresh if we keep scraping the same corner.
+	self->UpdateBlockedNavigationRecovery( blockedMask );
 	// Schedule the next think.
 	self->nextthink = level.time + FRAME_TIME_MS;
 }
@@ -1308,6 +1298,11 @@ const int32_t svg_monster_testdummy_debug_t::ProcessSlideMove() {
 	pathPolicy.enable_max_drop_height_cap = true;
 	pathPolicy.max_drop_height_cap = PM_DROPOFF_ALLOWED_SIZE;
 	monsterMove.navPolicy = &pathPolicy;
+
+	/**
+	*	Reset per-frame touch traces so collision feedback reflects only this frame.
+	**/
+	monsterMove.touchTraces.numberOfTraces = 0;
 	// Perform the slide move and get the blocked mask describing the result of the movement attempt.
 	const int32_t blockedMask = SVG_MMove_StepSlideMove( &monsterMove, pathPolicy );
 
@@ -1405,12 +1400,33 @@ const bool svg_monster_testdummy_debug_t::GuardForNullNavMesh() {
 }
 
 static int32_t Dummy_FindClosestFaceInLeaf( const Vector3 &point ) {
-    // We bypass the KD-Tree here because the NavMesh KD-Tree generation groups faces strictly by their centroid.
-    // If a face crosses a KD-Tree splitting plane, it only exists in the leaf node matching its centroid.
-    // If the entity is standing on the face but on the opposite side of the splitting plane, 
-    // Nav_FindLeafNode returns a leaf that does NOT contain the face, causing the entity to lose its path!
-    // Since the navmesh is small, a global search is effectively instantaneous and much more robust.
-    return Nav_FindClosestPolyGlobal( point );
+	/**
+	*	Prefer local KD-tree face lookup for stable corner progression.
+	*	However, only keep that result when the query point is actually on/near
+	*	that face plane; otherwise fall back to global lookup for suspended/air cases.
+	**/
+	const int32_t leafFace = Nav_FindPolyInLeaf( point );
+	if ( leafFace >= 0 && static_cast<size_t>( leafFace ) < g_nav_faces.size() ) {
+		const nav_face_t &face = g_nav_faces[ leafFace ];
+
+		/**
+		*	Verify 2D containment and vertical proximity to avoid locking onto a
+		*	leaf-local fallback face that is not a valid standable target.
+		**/
+		if ( Nav_PointInsideFace2D( point, face ) ) {
+			const Vector3 v0 = g_nav_vertices[ g_nav_halfedges[ face.first_edge_idx ].vertex_idx ];
+			const float planeDist = static_cast<float>( QM_Vector3DotProduct( v0, face.normal ) );
+			const float verticalDist = std::fabs( static_cast<float>( QM_Vector3DotProduct( point, face.normal ) ) - planeDist );
+			if ( verticalDist <= 64.0f ) {
+				return leafFace;
+			}
+		}
+	}
+
+	/**
+	*	Fallback for edge cases where local leaf lookup picks a poor proxy.
+	**/
+	return Nav_FindClosestPolyGlobal( point );
 }
 
 /**
@@ -1441,7 +1457,7 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
         return true;
     }
 
-    bool path_failed = !ComputePathTo( goalOrigin );
+    bool path_failed = !ComputePathTo( goalOrigin, force );
     
     // Dynamic Gap Jumping Check
     if ( pathNavigationState.policy.allow_gap_jumping ) {
@@ -1548,7 +1564,27 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
         toGoal.z = 0.0f;
         if ( QM_Vector3LengthSqr( toGoal ) > 0.0001f ) {
             Vector3 moveDir = QM_Vector3Normalize( toGoal );
-            ideal_yaw = QM_Vector3ToYaw( moveDir );
+            /**
+            *	Decouple facing from raw movement direction so one-frame portal-side
+            *	noise cannot immediately snap yaw by ~180 degrees.
+            **/
+            Vector3 facingDir = moveDir;
+            if ( hasLastFacingDirection ) {
+            	const float facingContinuity = static_cast<float>( QM_Vector3DotProduct( facingDir, lastFacingDirection ) );
+            	if ( facingContinuity < -0.20f ) {
+            		const Vector3 blendedFacing = QM_Vector3Add( QM_Vector3Scale( lastFacingDirection, 0.85f ), QM_Vector3Scale( facingDir, 0.15f ) );
+            		if ( QM_Vector3LengthSqr( blendedFacing ) > 0.0001f ) {
+            			facingDir = QM_Vector3Normalize( blendedFacing );
+            		}
+            	} else if ( facingContinuity < 0.40f ) {
+            		const Vector3 blendedFacing = QM_Vector3Add( QM_Vector3Scale( lastFacingDirection, 0.65f ), QM_Vector3Scale( facingDir, 0.35f ) );
+            		if ( QM_Vector3LengthSqr( blendedFacing ) > 0.0001f ) {
+            			facingDir = QM_Vector3Normalize( blendedFacing );
+            		}
+            	}
+            }
+
+            ideal_yaw = QM_Vector3ToYaw( facingDir );
             const double currentYaw = QM_AngleMod( currentAngles[ YAW ] );
             const double yawDeltaAbs = std::fabs( QM_AngleDelta( ideal_yaw, currentYaw ) );
             yaw_speed = ( float )QM_Clamp( 16.0 + (yawDeltaAbs * 0.10), 10.0, 45.0 );
@@ -1561,7 +1597,8 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
     Vector3 nextWay = NextWaypoint( goalOrigin );
     Vector3 toGoal = QM_Vector3Subtract( nextWay, currentOrigin );
     toGoal.z = 0.0f;
-    if ( QM_Vector3LengthSqr( toGoal ) < 0.0001f ) {
+    const float toGoalLen2 = static_cast<float>( QM_Vector3DotProduct( toGoal, toGoal ) );
+    if ( toGoalLen2 < 0.0001f ) {
         velocity.x = velocity.y = 0.0f;
         monsterMove.state.velocity.x = velocity.x;
         monsterMove.state.velocity.y = velocity.y;
@@ -1570,17 +1607,135 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
     }
 
     Vector3 moveDir = QM_Vector3Normalize( toGoal );
-    ideal_yaw = QM_Vector3ToYaw( moveDir );
+
+    /**
+    *	If we just scraped a wall, bias movement along the wall tangent so we do
+    *	not keep issuing a head-on direction into the same corner.
+    **/
+    if ( hasRecentWallBlockNormal && ( ( level.time - lastWallBlockTime ) <= 300_ms ) ) {
+    	Vector3 wallNormal2D = recentWallBlockNormal;
+    	wallNormal2D.z = 0.0f;
+    	const float wallLen2 = ( wallNormal2D.x * wallNormal2D.x ) + ( wallNormal2D.y * wallNormal2D.y );
+    	if ( wallLen2 > ( 0.001f * 0.001f ) ) {
+    		wallNormal2D = QM_Vector3Normalize( wallNormal2D );
+    		const float wallHeadOn = static_cast<float>( QM_Vector3DotProduct( moveDir, wallNormal2D ) );
+    		const bool sustainedCornerBlock = ( consecutiveBlockedFrames >= 2 );
+    		if ( wallHeadOn < -0.05f || ( sustainedCornerBlock && wallHeadOn < 0.25f ) ) {
+    			Vector3 tangentA = { -wallNormal2D.y, wallNormal2D.x, 0.0f };
+    			Vector3 tangentB = { wallNormal2D.y, -wallNormal2D.x, 0.0f };
+    			const float alignA = static_cast<float>( QM_Vector3DotProduct( tangentA, moveDir ) );
+    			const float alignB = static_cast<float>( QM_Vector3DotProduct( tangentB, moveDir ) );
+    			const Vector3 chosenTangent = ( alignA >= alignB ) ? tangentA : tangentB;
+    			const float tangentWeight = sustainedCornerBlock ? 0.78f : 0.65f;
+    			const float forwardWeight = 1.0f - tangentWeight;
+    			const Vector3 blendedDir = QM_Vector3Add( QM_Vector3Scale( moveDir, forwardWeight ), QM_Vector3Scale( chosenTangent, tangentWeight ) );
+    			if ( QM_Vector3LengthSqr( blendedDir ) > 0.0001f ) {
+    				moveDir = QM_Vector3Normalize( blendedDir );
+    			}
+    		}
+    	}
+    }
+
+	/**
+	*	Apply continuity smoothing so waypoint plotting does not abruptly flip 180°
+	*	between frames when portal targeting jitters near boundaries.
+	**/
+	if ( hasLastNavigationMoveDir ) {
+		const float dirContinuity = static_cast<float>( QM_Vector3DotProduct( moveDir, lastNavigationMoveDir ) );
+		if ( dirContinuity < -0.15f ) {
+			// Strongly oppose hard reversal in a single frame.
+			const Vector3 blendedDir = QM_Vector3Add( QM_Vector3Scale( lastNavigationMoveDir, 0.80f ), QM_Vector3Scale( moveDir, 0.20f ) );
+			if ( QM_Vector3LengthSqr( blendedDir ) > 0.0001f ) {
+				moveDir = QM_Vector3Normalize( blendedDir );
+			}
+		} else if ( dirContinuity < 0.35f ) {
+			// Mildly smooth medium directional jumps.
+			const Vector3 blendedDir = QM_Vector3Add( QM_Vector3Scale( lastNavigationMoveDir, 0.55f ), QM_Vector3Scale( moveDir, 0.45f ) );
+			if ( QM_Vector3LengthSqr( blendedDir ) > 0.0001f ) {
+				moveDir = QM_Vector3Normalize( blendedDir );
+			}
+		}
+	}
+
+    /**
+    *	Decouple facing from raw movement direction so one-frame portal-side
+    *	noise cannot immediately snap yaw by ~180 degrees.
+    **/
+    const float toGoalDist2D = std::sqrt( toGoalLen2 );
+    Vector3 facingDir = moveDir;
+    if ( hasLastFacingDirection ) {
+    	const float facingContinuity = static_cast<float>( QM_Vector3DotProduct( facingDir, lastFacingDirection ) );
+    	/**
+    	*	Hard anti-flip guard: when a one-frame target update requests an almost
+    	*	opposite facing direction while still close to the current waypoint, hold
+    	*	the previous facing direction instead of accepting a 180-degree twist.
+    	**/
+    	if ( facingContinuity < -0.35f && toGoalDist2D < 196.0f && consecutiveBlockedFrames < 3 ) {
+    		facingDir = lastFacingDirection;
+    	} else if ( facingContinuity < -0.20f ) {
+    		const Vector3 blendedFacing = QM_Vector3Add( QM_Vector3Scale( lastFacingDirection, 0.88f ), QM_Vector3Scale( facingDir, 0.12f ) );
+    		if ( QM_Vector3LengthSqr( blendedFacing ) > 0.0001f ) {
+    			facingDir = QM_Vector3Normalize( blendedFacing );
+    		}
+    	} else if ( facingContinuity < 0.40f ) {
+    		const Vector3 blendedFacing = QM_Vector3Add( QM_Vector3Scale( lastFacingDirection, 0.65f ), QM_Vector3Scale( facingDir, 0.35f ) );
+    		if ( QM_Vector3LengthSqr( blendedFacing ) > 0.0001f ) {
+    			facingDir = QM_Vector3Normalize( blendedFacing );
+    		}
+    	}
+    }
+
+    /**
+    *	Apply an ideal-yaw slew-rate limit so even if desired facing jitters, the
+    *	commanded ideal yaw cannot jump by 180 degrees in one think.
+    **/
+    const double desiredIdealYaw = QM_Vector3ToYaw( facingDir );
+    double yawStepLimit = 24.0;
+    if ( toGoalDist2D < 64.0f ) {
+    	yawStepLimit = 10.0;
+    } else if ( toGoalDist2D < 128.0f ) {
+    	yawStepLimit = 14.0;
+    } else if ( toGoalDist2D < 224.0f ) {
+    	yawStepLimit = 18.0;
+    }
+    const double desiredIdealStep = QM_AngleDelta( desiredIdealYaw, ideal_yaw );
+    const double clampedIdealStep = QM_Clamp( desiredIdealStep, -yawStepLimit, yawStepLimit );
+    ideal_yaw = QM_AngleMod( ideal_yaw + clampedIdealStep );
+
     const double currentYaw = QM_AngleMod( currentAngles[ YAW ] );
     const double yawDeltaAbs = std::fabs( QM_AngleDelta( ideal_yaw, currentYaw ) );
-    yaw_speed = ( float )QM_Clamp( 16.0 + (yawDeltaAbs * 0.10), 10.0, 45.0 );
+    float yawSpeedMax = 45.0f;
+    if ( toGoalDist2D < 48.0f ) {
+    	yawSpeedMax = 28.0f;
+    } else if ( toGoalDist2D < 96.0f ) {
+    	yawSpeedMax = 34.0f;
+    }
+    yaw_speed = static_cast<float>( QM_Clamp( 12.0 + ( yawDeltaAbs * 0.08 ), 8.0, static_cast<double>( yawSpeedMax ) ) );
     SVG_MMove_FaceIdealYaw( this, ideal_yaw, yaw_speed );
 
-    constexpr double frameVelocity = 220.0;
+    /**
+    *	Reduce forward speed when we are facing far away from desired move direction
+    *	to prevent visible moonwalking/backpedal during rapid turn corrections.
+    **/
+    float facingScale = 1.0f;
+    if ( yawDeltaAbs >= 90.0 ) {
+    	facingScale = 0.0f;
+    } else if ( yawDeltaAbs > 35.0 ) {
+    	facingScale = static_cast<float>( ( 90.0 - yawDeltaAbs ) / 55.0 );
+    }
+
+    constexpr double baseFrameVelocity = 220.0;
+    const double frameVelocity = baseFrameVelocity * static_cast<double>( facingScale );
     velocity.x = ( float )( moveDir.x * frameVelocity );
     velocity.y = ( float )( moveDir.y * frameVelocity );
     monsterMove.state.velocity.x = velocity.x;
     monsterMove.state.velocity.y = velocity.y;
+    if ( frameVelocity > 0.01 ) {
+    	lastNavigationMoveDir = moveDir;
+    	hasLastNavigationMoveDir = true;
+    	lastFacingDirection = facingDir;
+    	hasLastFacingDirection = true;
+    }
     
     UpdateAnim( 4 ); // RUN
     
@@ -1610,6 +1765,87 @@ void svg_monster_testdummy_debug_t::ResetNavigationPath() {
     pathPos = 0;
     cachedLeaf = -1;
     cachedPoly = -1;
+	hasLastNavigationMoveDir = false;
+	hasLastFacingDirection = false;
+	hasLastWaypointTarget = false;
+	lastWaypointPathPos = 0;
+	lastWaypointUpdateTime = 0_ms;
+}
+
+/**
+*	@brief	Update blocked/trapped recovery bookkeeping and force path refresh after sustained stalls.
+*	@param	blockedMask	Slide move blocked flags for the current think frame.
+**/
+void svg_monster_testdummy_debug_t::UpdateBlockedNavigationRecovery( const int32_t blockedMask ) {
+	/**
+	*	Determine whether this frame indicates blocked/trapped movement.
+	**/
+	const bool isBlockedThisFrame = ( ( blockedMask & ( MM_SLIDEMOVEFLAG_BLOCKED | MM_SLIDEMOVEFLAG_TRAPPED ) ) != 0 );
+	const bool isHardBlockedThisFrame = ( ( blockedMask & ( MM_SLIDEMOVEFLAG_TRAPPED | MM_SLIDEMOVEFLAG_WALL_BLOCKED ) ) != 0 );
+
+	/**
+	*	Reset recovery counters and stale wall-contact steering once movement is no longer blocked.
+	**/
+	if ( !isBlockedThisFrame ) {
+		consecutiveBlockedFrames = 0;
+		hasRecentWallBlockNormal = false;
+		return;
+	}
+
+	/**
+	*	Capture a fresh wall normal from this frame's touch traces when available.
+	**/
+	hasRecentWallBlockNormal = false;
+	for ( uint32_t i = 0; i < monsterMove.touchTraces.numberOfTraces; i++ ) {
+		const svg_trace_t &touchTrace = monsterMove.touchTraces.traces[ i ];
+		if ( touchTrace.plane.normal[ 2 ] < MM_MIN_WALL_NORMAL_Z ) {
+			recentWallBlockNormal = touchTrace.plane.normal;
+			hasRecentWallBlockNormal = true;
+			lastWallBlockTime = level.time;
+			break;
+		}
+	}
+
+	/**
+	*	Hard block cases (wall-corner lock or trapped) should invalidate immediately.
+	**/
+	if ( isHardBlockedThisFrame ) {
+		// Clear stale path state so the next think computes a new route from current position.
+		ResetNavigationPath();
+		// Clear path-rebuild throttle so recomputation happens immediately.
+		lastPathCalcTime = 0_ms;
+		// Reset streak bookkeeping after forced invalidation.
+		consecutiveBlockedFrames = 0;
+		lastBlockedFrameTime = level.time;
+		return;
+	}
+
+	/**
+	*	Accumulate consecutive blocked frames only when samples are contiguous in time.
+	**/
+	const uint64_t nowMs = level.time.Milliseconds();
+	const uint64_t lastMs = lastBlockedFrameTime.Milliseconds();
+	const uint64_t maxGapMs = FRAME_TIME_MS.Milliseconds() * 2;
+	const bool isContiguousSample = ( lastMs > 0 && ( nowMs - lastMs ) <= maxGapMs );
+	if ( isContiguousSample ) {
+		consecutiveBlockedFrames++;
+	} else {
+		consecutiveBlockedFrames = 1;
+	}
+	lastBlockedFrameTime = level.time;
+
+	/**
+	*	If we are repeatedly blocked for several frames, force a fresh path build.
+	**/
+	static constexpr int32_t STUCK_RECOVER_BLOCKED_FRAMES = 8;
+	if ( consecutiveBlockedFrames >= STUCK_RECOVER_BLOCKED_FRAMES ) {
+		// Clear stale path state so the next think computes a new route from current position.
+		ResetNavigationPath();
+		// Clear path-rebuild throttle so recomputation happens immediately.
+		lastPathCalcTime = 0_ms;
+		// Reset stall counter after forcing recovery.
+		consecutiveBlockedFrames = 0;
+	}
 }
 
 /**
@@ -1650,16 +1886,19 @@ const bool svg_monster_testdummy_debug_t::ShouldRecalcPath( const Vector3 &pos )
 /**
 *    @brief    Compute an A* path to the target origin.
 **/
-const bool svg_monster_testdummy_debug_t::ComputePathTo( const Vector3 &target ) {
+const bool svg_monster_testdummy_debug_t::ComputePathTo( const Vector3 &target, const bool force ) {
     // Offset origins to feet level. The monster's center is 24-36 units in the air, which can cause
     // the system to mistakenly snap to a higher stair step if the monster is near a stair riser!
     Vector3 myFeet = currentOrigin;
     myFeet.z += this->mins.z;
     
-    // The target is also a center origin (e.g. player). Subtract 24 units as a solid 
-    // approximation of the distance from the bounding box center to the floor.
+    // Convert target to feet-origin using live target bounds when available.
     Vector3 targetFeet = target;
-    targetFeet.z -= 24.0f;
+    if ( this->goalentity ) {
+        targetFeet.z += this->goalentity->mins.z;
+    } else {
+        targetFeet.z += this->mins.z;
+    }
 
     int32_t startFace = Dummy_FindClosestFaceInLeaf( myFeet );
     int32_t goalFace = Dummy_FindClosestFaceInLeaf( targetFeet );
@@ -1668,26 +1907,29 @@ const bool svg_monster_testdummy_debug_t::ComputePathTo( const Vector3 &target )
         if ( DUMMY_NAV_DEBUG ) {
             gi.dprintf("ComputePathTo: failed to find face! startFace=%" PRId32 ", goalFace=%" PRId32 "\n", startFace, goalFace);
         }
-        navPath.clear();
+        ResetNavigationPath();
         lastPathCalcTime = level.time; // Debounce even on complete failure
         return false; // BUGFIX: Halt if we can't find a valid starting or goal face, to prevent blind suicide steering.
     }
 
-    if ( !navPath.empty() ) {
+    if ( !force && !navPath.empty() ) {
         // If we already have a path, see if it is still perfectly valid.
         // We consider it valid if the monster hasn't wandered completely off the path.
         bool stillOnPath = false;
         // Check if our current physical face is anywhere near us in the path (including slightly behind)
         // We must check slightly behind pathPos because NextWaypoint advances pathPos BEFORE the monster's 
         // physical center crosses the portal boundary (due to advanceDist).
-        size_t searchStart = std::max<size_t>( 0, pathPos - 3 );
-        for ( size_t i = searchStart; i < navPath.size(); ++i ) {
-            if ( navPath[i] == startFace ) {
+        const int32_t pathPosI = static_cast<int32_t>( pathPos );
+        const int32_t navSizeI = static_cast<int32_t>( navPath.size() );
+        const int32_t searchStart = std::max<int32_t>( 0, pathPosI - 3 );
+        const int32_t searchEnd = std::min<int32_t>( navSizeI - 1, pathPosI + 10 );
+        for ( int32_t i = searchStart; i <= searchEnd; i++ ) {
+            if ( navPath[ i ] == startFace ) {
                 stillOnPath = true;
                 // If we advanced faces physically, gently push pathPos forward so we don't backtrack!
                 // Notice we do NOT push it backward if we match a face behind pathPos.
-                if ( (int32_t)i > pathPos ) {
-                    pathPos = static_cast<int32_t>( i );
+                if ( i > pathPosI ) {
+                    pathPos = static_cast<size_t>( i );
                 }
                 break;
             }
@@ -1712,12 +1954,41 @@ const bool svg_monster_testdummy_debug_t::ComputePathTo( const Vector3 &target )
         }
     }
 
-    if ( !ShouldRecalcPath( currentOrigin ) ) {
+    if ( !force && !ShouldRecalcPath( currentOrigin ) ) {
         // Throttle rapid recalculations when the path is invalid or empty.
         return !navPath.empty(); 
     }
     
     if ( Nav_FindPath( startFace, goalFace, navPath, pathNavigationState.policy ) ) {
+		/**
+		*	Validate that each face transition has a real portal. If not, invalidate
+		*	the path immediately instead of steering blindly into non-adjacent faces.
+		**/
+		Vector3 pv0 = {};
+		Vector3 pv1 = {};
+		for ( size_t i = 0; i + 1 < navPath.size(); i++ ) {
+			if ( !Nav_GetPortalEndpoints( navPath[ i ], navPath[ i + 1 ], &pv0, &pv1 ) ) {
+				if ( DUMMY_NAV_DEBUG != 0 ) {
+					gi.dprintf( "[NAV DEBUG][PathValidate] invalid-segment idx=%d faceA=%d faceB=%d reason=no-portal\n",
+						static_cast<int32_t>( i ), navPath[ i ], navPath[ i + 1 ] );
+				}
+				ResetNavigationPath();
+				lastPathCalcTime = level.time;
+				return false;
+			}
+
+			const float width2D = static_cast<float>( QM_Vector2Distance( pv0, pv1 ) );
+			if ( width2D < 2.0f ) {
+				if ( DUMMY_NAV_DEBUG != 0 ) {
+					gi.dprintf( "[NAV DEBUG][PathValidate] invalid-segment idx=%d faceA=%d faceB=%d reason=tiny-portal width=%.3f\n",
+						static_cast<int32_t>( i ), navPath[ i ], navPath[ i + 1 ], width2D );
+				}
+				ResetNavigationPath();
+				lastPathCalcTime = level.time;
+				return false;
+			}
+		}
+
         if ( DUMMY_NAV_DEBUG ) {
             gi.dprintf("[NAV DEBUG] Path found: %zu nodes - ", navPath.size());
             for (int32_t idx : navPath) {
@@ -1733,7 +2004,7 @@ const bool svg_monster_testdummy_debug_t::ComputePathTo( const Vector3 &target )
     if ( DUMMY_NAV_DEBUG ) {
         gi.dprintf("ComputePathTo: Nav_FindPath failed from %d to %d\n", startFace, goalFace);
     }
-    navPath.clear();
+    ResetNavigationPath();
     lastPathCalcTime = level.time; // Prevent spamming failed paths every frame
     // BUGFIX: Return false when path completely fails so the monster halts instead of suiciding off a cliff!
     return false; 
@@ -1742,18 +2013,124 @@ const bool svg_monster_testdummy_debug_t::ComputePathTo( const Vector3 &target )
 /**
 *    @brief    Get the next waypoint from the navigation path, defaulting to finalGoal when finished.
 **/
+const Vector3 svg_monster_testdummy_debug_t::StabilizeWaypointTarget( const Vector3 &candidateWaypoint, const bool isFinalGoalWaypoint ) {
+	/**
+	*	Final-goal waypoints should not be sticky, otherwise we can lag behind
+	*	a moving target and introduce unnecessary steering latency.
+	**/
+	if ( isFinalGoalWaypoint ) {
+		hasLastWaypointTarget = false;
+		return candidateWaypoint;
+	}
+
+	/**
+	*	Reset the stickiness window when we switched path segment or when the
+	*	cached sample is too old to be meaningful.
+	**/
+	const bool switchedPathSegment = ( !hasLastWaypointTarget || lastWaypointPathPos != pathPos );
+	const bool expiredSample = ( hasLastWaypointTarget && ( level.time - lastWaypointUpdateTime ) > 350_ms );
+	if ( switchedPathSegment || expiredSample ) {
+		lastWaypointTarget = candidateWaypoint;
+		hasLastWaypointTarget = true;
+		lastWaypointPathPos = pathPos;
+		lastWaypointUpdateTime = level.time;
+		return candidateWaypoint;
+	}
+
+	/**
+	*	When the candidate only moved a little, accept it directly to keep
+	*	normal trajectory updates responsive.
+	**/
+	const float delta2D = static_cast<float>( QM_Vector2Distance( candidateWaypoint, lastWaypointTarget ) );
+	if ( delta2D <= 6.0f ) {
+		lastWaypointTarget = candidateWaypoint;
+		lastWaypointUpdateTime = level.time;
+		return candidateWaypoint;
+	}
+
+	/**
+	*	Estimate whether the new candidate is a side-flip relative to the cached
+	*	target by comparing direction vectors from the current actor position.
+	**/
+	Vector3 toCandidate = QM_Vector3Subtract( candidateWaypoint, currentOrigin );
+	Vector3 toCached = QM_Vector3Subtract( lastWaypointTarget, currentOrigin );
+	toCandidate.z = 0.0f;
+	toCached.z = 0.0f;
+
+	float candidateLen2 = static_cast<float>( QM_Vector3DotProduct( toCandidate, toCandidate ) );
+	float cachedLen2 = static_cast<float>( QM_Vector3DotProduct( toCached, toCached ) );
+	if ( candidateLen2 <= 0.0001f || cachedLen2 <= 0.0001f ) {
+		lastWaypointTarget = candidateWaypoint;
+		lastWaypointUpdateTime = level.time;
+		return candidateWaypoint;
+	}
+
+	toCandidate = QM_Vector3Normalize( toCandidate );
+	toCached = QM_Vector3Normalize( toCached );
+	const float dirDot = static_cast<float>( QM_Vector3DotProduct( toCandidate, toCached ) );
+
+	/**
+	*	Blend aggressively when the candidate jumped far and points away from the
+	*	cached steering direction; otherwise use a lighter blend.
+	**/
+	float cachedWeight = 0.55f;
+	float candidateWeight = 0.45f;
+	if ( delta2D >= 24.0f && dirDot < 0.25f ) {
+		cachedWeight = 0.85f;
+		candidateWeight = 0.15f;
+	} else if ( dirDot < 0.55f ) {
+		cachedWeight = 0.70f;
+		candidateWeight = 0.30f;
+	}
+
+	const Vector3 blendedWaypoint = QM_Vector3Add(
+		QM_Vector3Scale( lastWaypointTarget, cachedWeight ),
+		QM_Vector3Scale( candidateWaypoint, candidateWeight ) );
+
+	lastWaypointTarget = blendedWaypoint;
+	lastWaypointUpdateTime = level.time;
+	return blendedWaypoint;
+}
+
+/**
+*    @brief    Get the next waypoint from the navigation path, defaulting to finalGoal when finished.
+**/
 const Vector3 svg_monster_testdummy_debug_t::NextWaypoint( const Vector3 &finalGoal ) {
+    /**
+    *    First synchronize pathPos with the face we are physically standing on.
+    *    This makes portal crossing robust even when geometric side-tests are noisy at tight 90-degree corners.
+    **/
+    if ( !navPath.empty() ) {
+        Vector3 myFeet = currentOrigin;
+        myFeet.z += this->mins.z;
+        const int32_t currentFace = Dummy_FindClosestFaceInLeaf( myFeet );
+
+        // Search a small local window around pathPos so we can catch forward progress immediately.
+        if ( currentFace != -1 ) {
+            const int32_t localStart = std::max<int32_t>( 0, static_cast<int32_t>( pathPos ) - 2 );
+            const int32_t localEnd = std::min<int32_t>( static_cast<int32_t>( navPath.size() ) - 1, static_cast<int32_t>( pathPos ) + 6 );
+            for ( int32_t i = localStart; i <= localEnd; i++ ) {
+                if ( navPath[ i ] == currentFace ) {
+                    if ( i > static_cast<int32_t>( pathPos ) ) {
+                        pathPos = static_cast<size_t>( i );
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
     // If we have exhausted the path, head directly to the final goal.
     if ( pathPos >= navPath.size() )
-        return finalGoal;
+        return StabilizeWaypointTarget( finalGoal, true );
 
     // If we are on the last face, evaluate the final goal as the waypoint.
     if ( pathPos == static_cast<int32_t>( navPath.size() ) - 1 ) {
         if ( QM_Vector3DistanceSqr( currentOrigin, finalGoal ) < WAYPOINT_EPS_SQR ) {
             ++pathPos;
-            return finalGoal;
+            return StabilizeWaypointTarget( finalGoal, true );
         }
-        return finalGoal;
+        return StabilizeWaypointTarget( finalGoal, true );
     }
 
     // Determine TRUE portal midpoint between current and next face.
@@ -1764,8 +2141,13 @@ const Vector3 svg_monster_testdummy_debug_t::NextWaypoint( const Vector3 &finalG
     float portal_z_diff = 0.0f;
     
     if ( !Nav_GetPortalEndpoints( navPath[pathPos], navPath[pathPos + 1], &v0, &v1 ) ) {
-        // Fallback: use next face center.
-        portalMidpoint = g_nav_faces[ navPath[pathPos + 1] ].center;
+		/**
+		*	No valid portal means this cached path segment is inconsistent. Invalidate
+		*	and hold position so the next think recomputes from the live face.
+		**/
+		ResetNavigationPath();
+		lastPathCalcTime = 0_ms;
+		return currentOrigin;
     } else {
         foundPortal = true;
         
@@ -1794,11 +2176,9 @@ const Vector3 svg_monster_testdummy_debug_t::NextWaypoint( const Vector3 &finalG
             float t = static_cast<float>(QM_Vector3DotProduct(ap, ab)) / ab_len2;
             
             // Dynamic clearance for wall scraping:
-            // Ensure the steer point is at least 'clearance' units away from the actual corner/vertex
-            // so the bounding box doesn't scrape or clip into the physical wall corner.
-            // A 32x32 bounding box has a radius of 16, but we need extra padding to avoid scraping
-            // inner stair corners where the higher step might block the climb.
-            float clearance = 24.0f;
+            // keep portal target offset close to the monster hull radius plus a small safety margin.
+            const float hullRadius = std::max( std::abs( this->mins.x ), std::abs( this->maxs.x ) );
+            const float clearance = hullRadius + 8.0f;
             float clearance_t = clearance / ab_len;
             
             // If the portal itself is narrower than 2x clearance, just aim for the geometric center.
@@ -1831,11 +2211,9 @@ const Vector3 svg_monster_testdummy_debug_t::NextWaypoint( const Vector3 &finalG
     // Has the monster successfully completed the step up?
     bool hasSteppedUp = !needsStepUp || (feetOriginZ >= targetZ - 4.0f);
 
-    // If we haven't stepped up yet, we must wait until we physically climb it.
-    // Use a tight advance distance to ensure we don't cut corners on small landings (e.g., 32x32).
-    // The monster is physically driven through the portal by the 32-unit push, so we rely 
-    // heavily on the plane-crossing check above, or this tight distance fallback.
-    float advanceDist = 12.0f; 
+    // If we haven't stepped up yet, keep the advance gate tighter to prevent premature portal skips.
+    // Once we're on level ground, allow a wider advance distance for smoother transitions.
+    float advanceDist = ( needsStepUp ? 12.0f : 24.0f ); 
     
     if ( dist2DSqr < (advanceDist * advanceDist) ) {
         // Only advance if we have actually completed the vertical step, or if it's flat/downhill.
@@ -1845,20 +2223,18 @@ const Vector3 svg_monster_testdummy_debug_t::NextWaypoint( const Vector3 &finalG
         }
     }
 
-    // Secondary plane-crossing check using TRUE portal: if we have moved past the portal plane relative to the path direction.
-    // We only allow this if we don't have a pending physical vertical step up to perform.
+    // Secondary plane-crossing check using TRUE portal: if we have moved past the portal plane.
+    // The vector 'edgeVec' points from v0 to v1. Since Quake 2 faces are CW, the normal pointing
+    // OUT of faceA and INTO faceB is a 90-degree CCW rotation: (-y, x).
     if ( hasSteppedUp && (edgeVec.x != 0.0f || edgeVec.y != 0.0f || edgeVec.z != 0.0f) ) {
-        Vector3 toWaypoint = QM_Vector3Subtract( portalMidpoint, currentOrigin );
-        toWaypoint.z = 0.0f; // 2D approach vector
-        Vector3 expectedDir = QM_Vector3Subtract( g_nav_faces[ navPath[pathPos + 1] ].center, portalMidpoint );
-        expectedDir.z = 0.0f;
+        Vector3 portalNormal = { -edgeVec.y, edgeVec.x, 0.0f };
+        Vector3 fromPortal = QM_Vector3Subtract( currentOrigin, portalMidpoint );
+        fromPortal.z = 0.0f;
         
-        if ( QM_Vector3LengthSqr(expectedDir) > 0.001f && QM_Vector3LengthSqr(toWaypoint) > 0.001f ) {
-            float dot = QM_Vector3DotProduct( QM_Vector3Normalize(toWaypoint), QM_Vector3Normalize(expectedDir) );
-            if ( dot < 0.0f ) {
-                ++pathPos;
-                return NextWaypoint( finalGoal );
-            }
+        // If the dot product is positive, the agent's center has physically crossed the portal plane.
+        if ( QM_Vector3DotProduct( fromPortal, portalNormal ) > 0.0f ) {
+            ++pathPos;
+            return NextWaypoint( finalGoal );
         }
     }
     
@@ -1907,16 +2283,34 @@ const Vector3 svg_monster_testdummy_debug_t::NextWaypoint( const Vector3 &finalG
             
             float pushDist = 0.0f;
             if ( !hasSteppedUp ) {
-                // Keep the push distance small enough to ensure a step up, but not so far that it hits a wall.
-                pushDist = std::min(12.0f, expLen);
+                // Do not push into the next face before the step-up is physically completed.
+                pushDist = 0.0f;
             } else {
-                // On flat ground, push far enough to trigger the plane-crossing check.
-                pushDist = std::min(16.0f, expLen);
+                /**
+                *	On narrow stair/corner portals, aggressive push distances can force
+                *	off-edge steering on tiny 32x32-like supports. Limit push based on
+                *	portal width so we keep traversal stable on tight geometry.
+                **/
+                const float portalWidth2D = static_cast<float>( QM_Vector2Distance( v0, v1 ) );
+                float maxSafePush = 16.0f;
+                if ( portalWidth2D <= 48.0f ) {
+                	maxSafePush = 6.0f;
+                } else if ( portalWidth2D <= 72.0f ) {
+                	maxSafePush = 10.0f;
+                }
+                pushDist = std::min( maxSafePush, expLen );
             }
 
-            return QM_Vector3Add(portalMidpoint, QM_Vector3Scale(pushDir, pushDist));
+			const Vector3 pushedPoint = QM_Vector3Add( portalMidpoint, QM_Vector3Scale( pushDir, pushDist ) );
+			const Vector3 toPortal = QM_Vector3Subtract( portalMidpoint, currentOrigin );
+			const Vector3 toPushed = QM_Vector3Subtract( pushedPoint, currentOrigin );
+			// Guard against pathological push points that end up behind current progression direction.
+			if ( QM_Vector3DotProduct( toPortal, toPushed ) < 0.0f ) {
+				return StabilizeWaypointTarget( portalMidpoint, false );
+			}
+            return StabilizeWaypointTarget( pushedPoint, false );
         }
     }
 
-    return portalMidpoint;
+    return StabilizeWaypointTarget( portalMidpoint, false );
 }

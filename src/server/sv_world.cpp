@@ -575,6 +575,17 @@ void PF_LinkEdict( edict_ptr_t *ent ) {
         ent->s.solid = static_cast<cm_solid_t>(BOUNDS_BRUSHMODEL);      // a SOLID_BOUNDS_BOX will never create this value
         sent->solid32 = BOUNDS_BRUSHMODEL;                           // FIXME: use 255? NOTICE: We do now :-)
         break;
+    case SOLID_CAPSULE:
+    case SOLID_CYLINDER:
+    case SOLID_SPHERE:
+        if ( ( ent->svFlags & SVF_DEADENTITY ) || VectorCompare( ent->mins, ent->maxs ) ) {
+            ent->s.solid = SOLID_NOT;
+            sent->solid32 = SOLID_NOT;
+        } else {
+            ent->s.solid = static_cast<cm_solid_t>( sent->solid32 = ent->solid );
+            ent->s.bounds = static_cast<uint32_t>( _MSG_PackBoundsUint32( ent->mins, ent->maxs ).u );
+        }
+        break;
     default:
         ent->s.solid = SOLID_NOT;   // 0
         sent->solid32 = SOLID_NOT;  // 0
@@ -993,11 +1004,68 @@ static cm_trace_t SV_ClipMoveToEntities(const Vector3 &start, const Vector3 *min
             continue;
         }
 
-        // might intersect, so do an exact clip
-        etrace = CM_TransformedBoxTrace( &sv.cm, start, end, mins, maxs,
-                               SV_HullForEntity(touch), contentmask,
-                               &touch->currentOrigin.x, &touch->currentAngles.x);
+        cm_trace_shape_t touchShape = { .type = SHAPE_AABB };
+        if ( touch->solid == SOLID_SPHERE ) touchShape.type = SHAPE_SPHERE;
+        else if ( touch->solid == SOLID_CAPSULE ) touchShape.type = SHAPE_CAPSULE;
+        else if ( touch->solid == SOLID_CYLINDER ) touchShape.type = SHAPE_CYLINDER;
 
+        if ( touchShape.type != SHAPE_AABB ) {
+            cm_trace_shape_t shapeA = { .type = SHAPE_AABB };
+            Vector3 centerStart = start;
+            Vector3 centerEnd = end;
+            Vector3 offset = { 0.0f, 0.0f, 0.0f };
+
+            if ( mins->x == 0.0f && mins->y == 0.0f && mins->z == 0.0f &&
+                 maxs->x == 0.0f && maxs->y == 0.0f && maxs->z == 0.0f ) {
+                shapeA.type = SHAPE_POINT;
+                shapeA.radius = 0.0f;
+                shapeA.halfHeight = 0.0f;
+            } else {
+                shapeA.extents = Vector3( (maxs->x - mins->x) * 0.5f, (maxs->y - mins->y) * 0.5f, (maxs->z - mins->z) * 0.5f );
+                shapeA.radius = std::max(shapeA.extents.x, shapeA.extents.y);
+                shapeA.halfHeight = shapeA.extents.z;
+
+                offset.x = (mins->x + maxs->x) * 0.5f;
+                offset.y = (mins->y + maxs->y) * 0.5f;
+                offset.z = (mins->z + maxs->z) * 0.5f;
+
+                centerStart.x += offset.x; centerStart.y += offset.y; centerStart.z += offset.z;
+                centerEnd.x += offset.x; centerEnd.y += offset.y; centerEnd.z += offset.z;
+            }
+
+            touchShape.extents = Vector3( (touch->maxs.x - touch->mins.x) * 0.5f, (touch->maxs.y - touch->mins.y) * 0.5f, (touch->maxs.z - touch->mins.z) * 0.5f );
+            touchShape.radius = std::max(touchShape.extents.x, touchShape.extents.y);
+            touchShape.halfHeight = touchShape.extents.z;
+
+            // SV_AnalyticalShapeSweep expects `touch->currentOrigin` to be the center.
+            // We temporarily adjust it, or better yet, we should fix SV_AnalyticalShapeSweep.
+            // But since we can't easily change touch, we pass the adjusted touch center as a new argument?
+            // Wait, SV_AnalyticalShapeSweep reads `touch->currentOrigin`.
+            // We can just temporarily shift touch->currentOrigin!
+            Vector3 originalOrigin = touch->currentOrigin;
+            touch->currentOrigin.x += (touch->mins.x + touch->maxs.x) * 0.5f;
+            touch->currentOrigin.y += (touch->mins.y + touch->maxs.y) * 0.5f;
+            touch->currentOrigin.z += (touch->mins.z + touch->maxs.z) * 0.5f;
+
+            etrace = CM_AnalyticalShapeSweep( centerStart, shapeA, centerEnd, touch->currentOrigin, touchShape );
+            
+            touch->currentOrigin = originalOrigin;
+
+            // Recalculate endpos correctly
+            if ( etrace.fraction < 1.0f ) {
+                etrace.endpos.x = start.x + (end.x - start.x) * etrace.fraction;
+                etrace.endpos.y = start.y + (end.y - start.y) * etrace.fraction;
+                etrace.endpos.z = start.z + (end.z - start.z) * etrace.fraction;
+                etrace.contents = CONTENTS_SOLID;
+            } else {
+                etrace.endpos = end;
+            }
+        } else {
+            // might intersect, so do an exact clip
+            etrace = CM_TransformedBoxTrace( &sv.cm, start, end, mins, maxs,
+                                   SV_HullForEntity(touch), contentmask,
+                                   &touch->currentOrigin.x, &touch->currentAngles.x);
+        }
         //CM_ClipEntity( &sv.cm, dst, &trace, touch->s.number );
 
         if ( etrace.allsolid ) {
@@ -1022,6 +1090,401 @@ static cm_trace_t SV_ClipMoveToEntities(const Vector3 &start, const Vector3 *min
     }
 
 	return dst;
+}
+
+/**
+*	@brief	Clip a moving shape against nearby entities.
+*	@param	start		World-space sweep start.
+*	@param	shape		Moving shape at the sweep origin.
+*	@param	end			World-space sweep end.
+*	@param	moveMins	Expanded area-query mins.
+*	@param	moveMaxs	Expanded area-query maxs.
+*	@param	passedict	Entity to exclude from clipping.
+*	@param	contentmask	Brush contents mask to test against.
+*	@return	Best trace result against touched entities.
+*	@note	When both shapes are non-AABB, the function performs an analytical sweep
+*			in center-space and temporarily shifts the touched entity origin to match.
+**/
+static cm_trace_t SV_ClipMoveToEntitiesShape( const Vector3 &start, const cm_trace_shape_t &shape,
+	const Vector3 &end,
+	const Vector3 &moveMins, const Vector3 &moveMaxs,
+	const sv_edict_t *passedict, const cm_contents_t contentmask ) {
+	sv_edict_t *touch = nullptr;
+	cm_trace_t dst = {
+		.entityNumber = ENTITYNUM_NONE,
+		.fraction = 1.0f,
+		.endpos = end,
+		.plane = {
+			.normal = { 0.0f, 0.0f, 0.0f },
+			.dist = 0.0f,
+			.type = PLANE_NON_AXIAL,
+			.signbits = 0,
+		},
+		.surface = &nulltexinfo.c,
+		.material = &cm_default_material,
+		.plane2 = {
+			.normal = { 0.0f, 0.0f, 0.0f },
+			.dist = 0.0f,
+			.type = PLANE_NON_AXIAL,
+			.signbits = 0,
+		},
+	};
+
+	/**
+	*	Reuse a thread-local touch buffer so entity clipping does not allocate
+	*	on every trace and can safely collect the nearby solid entities.
+	**/
+	static thread_local sv_edict_t *touchlist[ MAX_EDICTS ] = {};
+	std::fill( std::begin( touchlist ), std::end( touchlist ), nullptr );
+
+	/**
+	*	Query the broadphase for all solid entities overlapping the swept bounds.
+	*	This reduces the expensive shape-vs-entity tests to only likely contacts.
+	**/
+	const int32_t num = SV_AreaEdicts( &moveMins, &moveMaxs, touchlist, MAX_EDICTS, AREA_SOLID );
+
+	/**
+	*	Test the moving shape against each touched entity and keep the earliest hit.
+	**/
+	for ( int32_t i = 0; i < num; i++ ) {
+		cm_trace_t etrace = {
+			.entityNumber = ENTITYNUM_NONE,
+			.fraction = 1.0,
+			.endpos = end,
+			.plane = {
+				.normal = { 0.0f, 0.0f, 0.0f },
+				.dist = 0.0f,
+				.type = PLANE_NON_AXIAL,
+				.signbits = 0,
+			},
+
+			.surface = &nulltexinfo.c,
+			.material = &cm_default_material,
+
+			.plane2 = {
+				.normal = { 0.0f, 0.0f, 0.0f },
+				.dist = 0.0f,
+				.type = PLANE_NON_AXIAL,
+				.signbits = 0,
+			},
+		};
+
+		/**
+		*	Once a guaranteed full-solid result is reached, no later entity can
+		*	produce a better trace, so return immediately.
+		**/
+		if ( dst.allsolid ) {
+			return dst;
+		}
+
+		// Fetch the current candidate from the broadphase touch list.
+		touch = touchlist[ i ];
+		// Skip invalid, non-solid, or explicitly excluded entities.
+		if ( touch == nullptr || touch->solid == SOLID_NOT || touch == passedict ) {
+			continue;
+		}
+
+		/**
+		*	Respect pass-through ownership relationships so self-owned entities do
+		*	not clip against each other during movement traces.
+		**/
+		if ( passedict ) {
+			if ( touch->owner == passedict )
+				continue;
+			if ( passedict->owner == touch )
+				continue;
+		}
+
+		/**
+		*	Filter special entity categories unless the caller explicitly asked
+		*	for them through the contents mask.
+		**/
+		if ( !( contentmask & CONTENTS_DEADMONSTER )
+			&& ( touch->svFlags & SVF_DEADENTITY ) ) {
+			continue;
+		}
+
+		if ( !( contentmask & CONTENTS_PROJECTILE )
+			&& ( touch->svFlags & SVF_PROJECTILE ) ) {
+			continue;
+		}
+		if ( !( contentmask & CONTENTS_PLAYER )
+			&& ( touch->svFlags & SVF_PLAYER ) ) {
+			continue;
+		}
+
+		/**
+		*	Build the touched entity's collision shape so we can choose the
+		*	appropriate sweep path for the entity's solid type.
+		**/
+		cm_trace_shape_t touchShape = { .type = SHAPE_AABB };
+		if ( touch->solid == SOLID_SPHERE ) touchShape.type = SHAPE_SPHERE;
+		else if ( touch->solid == SOLID_CAPSULE ) touchShape.type = SHAPE_CAPSULE;
+		else if ( touch->solid == SOLID_CYLINDER ) touchShape.type = SHAPE_CYLINDER;
+
+		/**
+		*	Non-AABB solids use the analytical sweep path so their center-space
+		*	shape parameters can be compared directly against the moving shape.
+		**/
+		if ( touchShape.type != SHAPE_AABB ) {
+			touchShape.extents = Vector3( ( touch->maxs.x - touch->mins.x ) * 0.5f, ( touch->maxs.y - touch->mins.y ) * 0.5f, ( touch->maxs.z - touch->mins.z ) * 0.5f );
+			touchShape.radius = std::max( touchShape.extents.x, touchShape.extents.y );
+			touchShape.halfHeight = touchShape.extents.z;
+
+			// Temporarily shift the entity origin to its brush/shape center for the sweep.
+			Vector3 originalOrigin = touch->currentOrigin;
+			touch->currentOrigin.x += ( touch->mins.x + touch->maxs.x ) * 0.5f;
+			touch->currentOrigin.y += ( touch->mins.y + touch->maxs.y ) * 0.5f;
+			touch->currentOrigin.z += ( touch->mins.z + touch->maxs.z ) * 0.5f;
+
+			// Sweep the moving shape against the analytical representation of the target.
+			etrace = CM_AnalyticalShapeSweep( start, shape, end, touch->currentOrigin, touchShape );
+
+			// Restore the original entity origin before continuing to the next candidate.
+			touch->currentOrigin = originalOrigin;
+
+			/**
+			*	Analytical sweeps may not fill all entity metadata, so normalize the
+			*	result here before it is compared against the current best trace.
+			**/
+			if ( etrace.fraction < 1.0f ) {
+				// Preserve the touched entity identity for downstream trace consumers.
+				etrace.entityNumber = touch->s.number;
+				etrace.brushID = -static_cast< int32_t >( touch->s.number + 1 );
+				etrace.endpos.x = start.x + ( end.x - start.x ) * etrace.fraction;
+				etrace.endpos.y = start.y + ( end.y - start.y ) * etrace.fraction;
+				etrace.endpos.z = start.z + ( end.z - start.z ) * etrace.fraction;
+				etrace.contents = CONTENTS_SOLID;
+			} else {
+				// Keep the canonical end position for a non-hit analytical sweep.
+				etrace.endpos = end;
+			}
+		} else {
+			/**
+			*	AABB entities can use the transformed hull trace directly because
+			*	their collision representation already matches the standard trace path.
+			**/
+			etrace = CM_TransformedShapeTrace( &sv.cm, start, end, shape,
+				SV_HullForEntity( touch ), contentmask,
+				&touch->currentOrigin.x, &touch->currentAngles.x );
+		}
+
+		/**
+		*	Propagate all-solid and start-solid state so the caller can react to
+		*	the strongest blocking condition encountered so far.
+		**/
+		if ( etrace.allsolid ) {
+			dst.allsolid = true;
+			etrace.entityNumber = touch->s.number;
+			dst.brushID = etrace.brushID;
+		} else if ( etrace.startsolid ) {
+			dst.startsolid = true;
+			etrace.entityNumber = touch->s.number;
+			dst.brushID = etrace.brushID;
+		}
+
+		/**
+		*	Keep the earliest collision fraction while preserving any prior
+		*	start-solid state that may have been accumulated from earlier hits.
+		**/
+		if ( etrace.fraction < dst.fraction ) {
+			const int32_t oldStartSolid = dst.startsolid;
+			etrace.entityNumber = touch->s.number;
+			dst = etrace;
+
+			const int32_t startsolid = ( int32_t )dst.startsolid | oldStartSolid;
+			dst.startsolid = ( bool )startsolid;
+		}
+	}
+
+	return dst;
+}
+
+/**
+*	@brief	Trace a moving convex shape against the world and active entities.
+*	@details	Performs the world trace first, then expands the move bounds and
+*			queries entity collisions for the same shape so the final trace can
+*			report the earliest blocking hit while preserving start-solid state.
+*	@param	start		World-space start position for the sweep.
+*	@param	shape		Shape definition to trace with.
+*	@param	end			World-space end position for the sweep.
+*	@param	passEdict	Optional entity to exclude from clipping checks.
+*	@param	contentmask	Contents mask used to filter collision candidates.
+*	@return	Combined collision trace against world geometry and entities.
+*	@note	Requires an active map; aborts with ERR_DROP if collision data is
+*			not loaded.
+**/
+static const cm_trace_t SV_ShapeTraceInternal( const Vector3 &start, const cm_trace_shape_t &shape,
+	const Vector3 &end,
+	const edict_ptr_t *passEdict, const cm_contents_t contentmask ) {
+/**
+*	Initialize the trace to a clean non-hit state so the world trace can
+*	populate collision details when a blocking surface is found.
+**/
+	cm_trace_t trace = {
+		.entityNumber = ENTITYNUM_NONE,
+		.fraction = 1.0,
+		.plane = {
+			.normal = { 0.0f, 0.0f, 0.0f },
+			.dist = 0.0f,
+			.type = PLANE_NON_AXIAL,
+			.signbits = 0,
+		},
+		.surface = &nulltexinfo.c,
+		.material = &cm_default_material,
+		.plane2 = {
+			.normal = { 0.0f, 0.0f, 0.0f },
+			.dist = 0.0f,
+			.type = PLANE_NON_AXIAL,
+			.signbits = 0,
+		},
+	};
+
+	/**
+	*	Sanity check: tracing without loaded collision data is a fatal map-state
+	*	error, so fail immediately.
+	**/
+	if ( !sv.cm.cache ) {
+		Com_Error( ERR_DROP, "%s: no map loaded", __func__ );
+	}
+
+	/**
+	*	Trace against the world first so the final result always includes the
+	*	static collision model before any entity-level refinement.
+	**/
+	trace = CM_ShapeTrace(
+		&sv.cm,
+		start, end, shape,
+		SV_WorldNodes(),
+		contentmask
+	);
+
+	/**
+	*	Mark whether the world trace actually touched world geometry.
+	**/
+	trace.entityNumber = trace.fraction != 1.0 ? ENTITYNUM_WORLD : ENTITYNUM_NONE;
+
+	/**
+	*	Build conservative move bounds for entity clipping from the traced shape
+	*	extents so nearby entities are considered even when the sweep is diagonal.
+	**/
+	Vector3 shapeExtents = { shape.radius, shape.radius, shape.halfHeight };
+	if ( shape.type == SHAPE_CAPSULE || shape.type == SHAPE_SPHERE ) {
+		// Spheres and capsules extend by radius above and below their center.
+		shapeExtents.z += shape.radius;
+	}
+
+	/**
+	*	Compute swept bounds between start and end so entity collision tests can
+	*	safely reject out-of-range candidates.
+	**/
+	Vector3 moveMins = {};
+	Vector3 moveMaxs = {};
+	for ( int32_t i = 0; i < 3; i++ ) {
+		if ( end[ i ] > start[ i ] ) {
+			moveMins[ i ] = start[ i ] - shapeExtents[ i ] - 1;
+			moveMaxs[ i ] = end[ i ] + shapeExtents[ i ] + 1;
+		} else {
+			moveMins[ i ] = end[ i ] - shapeExtents[ i ] - 1;
+			moveMaxs[ i ] = start[ i ] + shapeExtents[ i ] + 1;
+		}
+	}
+
+	/**
+	*	Trace the same shape against active entities using the conservative move
+	*	bounds computed above.
+	**/
+	const cm_trace_t entityTrace = SV_ClipMoveToEntitiesShape(
+		start, shape, end,
+		moveMins, moveMaxs,
+		passEdict,
+		contentmask
+	);
+
+	/**
+	*	Merge entity results into the world trace while preserving any prior
+	*	start-solid/all-solid state accumulated by the world pass.
+	**/
+	if ( entityTrace.allsolid || entityTrace.fraction < trace.fraction ) {
+		const int32_t oldStartSolid = trace.startsolid;
+		const int32_t oldAllSolid = trace.allsolid;
+		trace = entityTrace;
+		trace.startsolid = ( bool )( ( int32_t )trace.startsolid | oldStartSolid );
+		trace.allsolid = ( bool )( ( int32_t )trace.allsolid | oldAllSolid );
+	} else if ( entityTrace.startsolid ) {
+		// Preserve the start-solid condition even when the entity hit is later
+		// than the world hit, because the caller still needs that state.
+		trace.startsolid = true;
+		if ( entityTrace.allsolid ) {
+			trace.allsolid = true;
+		}
+	}
+
+	return trace;
+}
+
+/**
+*	@brief	Trace a sphere against the world and active entities.
+*	@param	start		World-space start position for the sweep.
+*	@param	radius		Sphere radius.
+*	@param	end			World-space end position for the sweep.
+*	@param	passEdict	Optional entity to exclude from clipping checks.
+*	@param	contentmask	Contents mask used to filter collision candidates.
+*	@return	Combined collision trace for the sphere sweep.
+**/
+const cm_trace_t q_gameabi SV_TraceSphere( const Vector3 &start, float radius, const Vector3 &end, const edict_ptr_t *passEdict, const cm_contents_t contentmask ) {
+	/**
+	*	Configure a sphere trace shape and forward to the shared shape tracing
+	*	implementation so world/entity handling stays centralized.
+	**/
+	cm_trace_shape_t shape = {};
+	shape.type = SHAPE_SPHERE;
+	shape.radius = radius;
+	return SV_ShapeTraceInternal( start, shape, end, passEdict, contentmask );
+}
+
+/**
+*	@brief	Trace a capsule against the world and active entities.
+*	@param	start		World-space start position for the sweep.
+*	@param	radius		Capsule radius.
+*	@param	halfHeight	Capsule half-height excluding the spherical ends.
+*	@param	end			World-space end position for the sweep.
+*	@param	passEdict	Optional entity to exclude from clipping checks.
+*	@param	contentmask	Contents mask used to filter collision candidates.
+*	@return	Combined collision trace for the capsule sweep.
+**/
+const cm_trace_t q_gameabi SV_TraceCapsule( const Vector3 &start, float radius, float halfHeight, const Vector3 &end, const edict_ptr_t *passEdict, const cm_contents_t contentmask ) {
+	/**
+	*	Configure a capsule trace shape and reuse the shared shape tracing path
+	*	so the wrapper stays thin and consistent.
+	**/
+	cm_trace_shape_t shape = {};
+	shape.type = SHAPE_CAPSULE;
+	shape.radius = radius;
+	shape.halfHeight = halfHeight;
+	return SV_ShapeTraceInternal( start, shape, end, passEdict, contentmask );
+}
+
+/**
+*	@brief	Trace a cylinder against the world and active entities.
+*	@param	start		World-space start position for the sweep.
+*	@param	radius		Cylinder radius.
+*	@param	halfHeight	Cylinder half-height.
+*	@param	end			World-space end position for the sweep.
+*	@param	passEdict	Optional entity to exclude from clipping checks.
+*	@param	contentmask	Contents mask used to filter collision candidates.
+*	@return	Combined collision trace for the cylinder sweep.
+**/
+const cm_trace_t q_gameabi SV_TraceCylinder( const Vector3 &start, float radius, float halfHeight, const Vector3 &end, const edict_ptr_t *passEdict, const cm_contents_t contentmask ) {
+	/**
+	*	Configure a cylinder trace shape and delegate to the shared helper so
+	*	all shape traces follow the same world/entity merge behavior.
+	**/
+	cm_trace_shape_t shape = {};
+	shape.type = SHAPE_CYLINDER;
+	shape.radius = radius;
+	shape.halfHeight = halfHeight;
+	return SV_ShapeTraceInternal( start, shape, end, passEdict, contentmask );
 }
 
 /**
@@ -1166,11 +1629,105 @@ const cm_trace_t q_gameabi SV_Clip( const edict_ptr_t *clipEntity, const Vector3
             trace = CM_BoxTrace( &sv.cm, start, end, mins, maxs, sv.cm.cache->nodes, contentmask );
             // Clip against clipEntity.
         } else {
-            mnode_t *headNode = SV_HullForEntity( clipEntity );
+            cm_trace_shape_t touchShape = { .type = SHAPE_AABB };
+            if ( clipEntity->solid == SOLID_SPHERE ) touchShape.type = SHAPE_SPHERE;
+            else if ( clipEntity->solid == SOLID_CAPSULE ) touchShape.type = SHAPE_CAPSULE;
+            else if ( clipEntity->solid == SOLID_CYLINDER ) touchShape.type = SHAPE_CYLINDER;
 
-            // Perform clip.
+            if ( touchShape.type != SHAPE_AABB ) {
+                cm_trace_shape_t shapeA = { .type = SHAPE_AABB };
+                Vector3 centerStart = start;
+                Vector3 centerEnd = end;
+                Vector3 offset = { 0.0f, 0.0f, 0.0f };
+
+                if ( mins->x == 0.0f && mins->y == 0.0f && mins->z == 0.0f &&
+                     maxs->x == 0.0f && maxs->y == 0.0f && maxs->z == 0.0f ) {
+                    shapeA.type = SHAPE_POINT;
+                    shapeA.radius = 0.0f;
+                    shapeA.halfHeight = 0.0f;
+                } else {
+                    shapeA.extents = Vector3( (maxs->x - mins->x) * 0.5f, (maxs->y - mins->y) * 0.5f, (maxs->z - mins->z) * 0.5f );
+                    shapeA.radius = std::max(shapeA.extents.x, shapeA.extents.y);
+                    shapeA.halfHeight = shapeA.extents.z;
+
+                    offset.x = (mins->x + maxs->x) * 0.5f;
+                    offset.y = (mins->y + maxs->y) * 0.5f;
+                    offset.z = (mins->z + maxs->z) * 0.5f;
+
+                    centerStart.x += offset.x; centerStart.y += offset.y; centerStart.z += offset.z;
+                    centerEnd.x += offset.x; centerEnd.y += offset.y; centerEnd.z += offset.z;
+                }
+
+                touchShape.extents = Vector3( (clipEntity->maxs.x - clipEntity->mins.x) * 0.5f, (clipEntity->maxs.y - clipEntity->mins.y) * 0.5f, (clipEntity->maxs.z - clipEntity->mins.z) * 0.5f );
+                touchShape.radius = std::max(touchShape.extents.x, touchShape.extents.y);
+                touchShape.halfHeight = touchShape.extents.z;
+
+                Vector3 originalOrigin = clipEntity->currentOrigin;
+                // const_cast because clipEntity is const edict_ptr_t*, but we're temporarily shifting it for math.
+                sv_edict_t *tempClip = const_cast<sv_edict_t*>( clipEntity );
+                tempClip->currentOrigin.x += (clipEntity->mins.x + clipEntity->maxs.x) * 0.5f;
+                tempClip->currentOrigin.y += (clipEntity->mins.y + clipEntity->maxs.y) * 0.5f;
+                tempClip->currentOrigin.z += (clipEntity->mins.z + clipEntity->maxs.z) * 0.5f;
+
+                trace = CM_AnalyticalShapeSweep( centerStart, shapeA, centerEnd, clipEntity->currentOrigin, touchShape );
+
+                tempClip->currentOrigin = originalOrigin;
+
+                if ( trace.fraction < 1.0f ) {
+                    trace.endpos.x = start.x + (end.x - start.x) * trace.fraction;
+                    trace.endpos.y = start.y + (end.y - start.y) * trace.fraction;
+                    trace.endpos.z = start.z + (end.z - start.z) * trace.fraction;
+                    trace.contents = CONTENTS_SOLID;
+                } else {
+                    trace.endpos = end;
+                }
+            } else {
+                mnode_t *headNode = SV_HullForEntity( clipEntity );
+
+                // Perform clip.
+                if ( headNode != nullptr ) {
+                    trace = CM_TransformedBoxTrace( &sv.cm, start, end, mins, maxs, headNode, contentmask,
+                        &clipEntity->currentOrigin.x, &clipEntity->currentAngles.x );
+
+                    if ( trace.fraction < 1.0f ) {
+                        trace.entityNumber = clipEntity->s.number;
+                    }
+                }
+            }
+        }
+    }
+	return trace;
+}
+
+static const cm_trace_t SV_ShapeClipInternal( const edict_ptr_t *clipEntity, const Vector3 &start, const cm_trace_shape_t &shape,
+                            const Vector3 &end,
+                            const cm_contents_t contentmask ) {
+    cm_trace_t trace = {
+        .entityNumber = ENTITYNUM_NONE,
+        .fraction = 1.0,
+        .plane = {
+            .normal = { 0.0f, 0.0f, 0.0f },
+            .dist = 0.0f,
+            .type = PLANE_NON_AXIAL,
+            .signbits = 0,
+        },
+        .surface = &nulltexinfo.c,
+        .material = &cm_default_material,
+        .plane2 = {
+            .normal = { 0.0f, 0.0f, 0.0f },
+            .dist = 0.0f,
+            .type = PLANE_NON_AXIAL,
+            .signbits = 0,
+        },
+    };
+
+    if ( sv.cm.cache ) {
+        if ( clipEntity == nullptr || ( clipEntity && clipEntity->s.number == ENTITYNUM_WORLD ) ) {
+            trace = CM_ShapeTrace( &sv.cm, start, end, shape, sv.cm.cache->nodes, contentmask );
+        } else {
+            mnode_t *headNode = SV_HullForEntity( clipEntity );
             if ( headNode != nullptr ) {
-                trace = CM_TransformedBoxTrace( &sv.cm, start, end, mins, maxs, headNode, contentmask,
+                trace = CM_TransformedShapeTrace( &sv.cm, start, end, shape, headNode, contentmask,
                     &clipEntity->currentOrigin.x, &clipEntity->currentAngles.x );
 
                 if ( trace.fraction < 1. ) {
@@ -1181,3 +1738,27 @@ const cm_trace_t q_gameabi SV_Clip( const edict_ptr_t *clipEntity, const Vector3
     }
 	return trace;
 }
+
+const cm_trace_t q_gameabi SV_ClipSphere( const edict_ptr_t *clip, const Vector3 &start, float radius, const Vector3 &end, const cm_contents_t contentmask ) {
+	cm_trace_shape_t shape = {};
+	shape.type = SHAPE_SPHERE;
+	shape.radius = radius;
+	return SV_ShapeClipInternal( clip, start, shape, end, contentmask );
+}
+
+const cm_trace_t q_gameabi SV_ClipCapsule( const edict_ptr_t *clip, const Vector3 &start, float radius, float halfHeight, const Vector3 &end, const cm_contents_t contentmask ) {
+	cm_trace_shape_t shape = {};
+	shape.type = SHAPE_CAPSULE;
+	shape.radius = radius;
+	shape.halfHeight = halfHeight;
+	return SV_ShapeClipInternal( clip, start, shape, end, contentmask );
+}
+
+const cm_trace_t q_gameabi SV_ClipCylinder( const edict_ptr_t *clip, const Vector3 &start, float radius, float halfHeight, const Vector3 &end, const cm_contents_t contentmask ) {
+	cm_trace_shape_t shape = {};
+	shape.type = SHAPE_CYLINDER;
+	shape.radius = radius;
+	shape.halfHeight = halfHeight;
+	return SV_ShapeClipInternal( clip, start, shape, end, contentmask );
+}
+

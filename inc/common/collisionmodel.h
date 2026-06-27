@@ -222,6 +222,11 @@ void CM_SetupOctagonBoxHull( hull_octagonbox_t *hull, const vec3_t mins, const v
 *   can just be stored out and get a proper BSP clipping hull structure.
 **/
 void CM_InitOctagonHull( cm_t *cm );
+
+/**
+*   @brief  Generates bevel planes for brushes on map load to fix capsule tracing.
+**/
+void CM_GenerateBrushBevels( cm_t *cm );
 /**
 *   @brief  To keep everything totally uniform, Bounding 'Octagon' Boxes are turned into small
 *           BSP trees instead of being compared directly.
@@ -278,6 +283,128 @@ const cm_contents_t CM_PointContents( cm_t *cm, const vec3_t p, mnode_t *headnod
 **/
 const cm_contents_t CM_TransformedPointContents( cm_t *cm, const vec3_t p, mnode_t *headnode,
                                                 const vec3_t origin, const vec3_t angles );
+
+
+
+
+/**
+*   @brief	Generalized shape trace
+**/
+const cm_trace_t CM_ShapeTrace( cm_t *cm,
+                        const Vector3 &start, const Vector3 &end,
+                        const cm_trace_shape_t &shape,
+                        mnode_t *headnode, const cm_contents_t brushmask );
+/**
+*	@brief	Generalized shape trace with world-to-model transform applied to the shape.
+*	@param cm	The collision model context used for BSP/brush traversal.
+*	@param start	The starting position of the trace in world space.
+*	@param end	The ending position of the trace in world space.
+*	@param shape The shape to be traced, defined by its type and dimensions.
+*	@param headnode The root node of the BSP tree used as the entry point for the trace.
+*	@param brushmask The contents mask used to filter collidable surfaces during the trace.
+*	@param origin The origin of the entity used for world-to-model transformation.
+*	@param angles The angles of the entity used for world-to-model transformation.
+*	@return The result of the trace, including hit fraction, plane, and contents data.
+**/
+const cm_trace_t CM_TransformedShapeTrace( cm_t *cm,
+	const Vector3 &start, const Vector3 &end,
+	const cm_trace_shape_t &shape,
+	mnode_t *headnode, const cm_contents_t brushmask,
+	const vec3_t origin, const vec3_t angles );
+/**
+*	@brief	Sweep a sphere from `start` to `end` against collision geometry.
+*	@param	cm				Collision-model context used for BSP/brush traversal.
+*	@param	start			Trace start position in world space.
+*	@param	end				Trace end position in world space.
+*	@param	radius			Sphere radius in world units.
+*	@param	headnode		Root node used as the trace entry point.
+*	@param	brushmask		Contents mask used to filter collidable surfaces.
+*	@return	Trace result containing hit fraction, plane, and contents data.
+*	@note	This is a convenience wrapper around the generalized shape trace path.
+**/
+const cm_trace_t CM_TraceSphere( cm_t *cm, const Vector3 &start, const Vector3 &end, float radius, mnode_t *headnode, const cm_contents_t brushmask );
+
+/**
+*	@brief	Sweep a capsule from `start` to `end` against collision geometry.
+*	@param	cm				Collision-model context used for BSP/brush traversal.
+*	@param	start			Trace start position in world space.
+*	@param	end				Trace end position in world space.
+*	@param	radius			Capsule radius (horizontal extent).
+*	@param	halfHeight		Half capsule height from center to cap center.
+*	@param	headnode		Root node used as the trace entry point.
+*	@param	brushmask		Contents mask used to filter collidable surfaces.
+*	@return	Trace result containing hit fraction, plane, and contents data.
+**/
+const cm_trace_t CM_TraceCapsule( cm_t *cm, const Vector3 &start, const Vector3 &end, float radius, float halfHeight, mnode_t *headnode, const cm_contents_t brushmask );
+
+/**
+*	@brief	Sweep a cylinder from `start` to `end` against collision geometry.
+*	@param	cm				Collision-model context used for BSP/brush traversal.
+*	@param	start			Trace start position in world space.
+*	@param	end				Trace end position in world space.
+*	@param	radius			Cylinder radius.
+*	@param	halfHeight		Half cylinder height from center to top/bottom.
+*	@param	headnode		Root node used as the trace entry point.
+*	@param	brushmask		Contents mask used to filter collidable surfaces.
+*	@return	Trace result containing hit fraction, plane, and contents data.
+**/
+const cm_trace_t CM_TraceCylinder( cm_t *cm, const Vector3 &start, const Vector3 &end, float radius, float halfHeight, mnode_t *headnode, const cm_contents_t brushmask );
+
+/**
+*	@brief	Trace a sphere in transformed model space.
+*	@param	cm				Collision-model context used for BSP/brush traversal.
+*	@param	start			Trace start position in world space.
+*	@param	end				Trace end position in world space.
+*	@param	radius			Sphere radius in world units.
+*	@param	headnode		Root node used as the trace entry point.
+*	@param	brushmask		Contents mask used to filter collidable surfaces.
+*	@param	origin			Entity origin used for world-to-model transform.
+*	@param	angles			Entity angles used for world-to-model transform.
+*	@return	Trace result converted back to world-space interpretation.
+**/
+const cm_trace_t CM_TransformedTraceSphere( cm_t *cm, const Vector3 &start, const Vector3 &end, float radius, mnode_t *headnode, const cm_contents_t brushmask, const vec3_t origin, const vec3_t angles );
+
+/**
+*	@brief	Trace a capsule in transformed model space.
+*	@param	cm				Collision-model context used for BSP/brush traversal.
+*	@param	start			Trace start position in world space.
+*	@param	end				Trace end position in world space.
+*	@param	radius			Capsule radius (horizontal extent).
+*	@param	halfHeight		Half capsule height from center to cap center.
+*	@param	headnode		Root node used as the trace entry point.
+*	@param	brushmask		Contents mask used to filter collidable surfaces.
+*	@param	origin			Entity origin used for world-to-model transform.
+*	@param	angles			Entity angles used for world-to-model transform.
+*	@return	Trace result converted back to world-space interpretation.
+**/
+const cm_trace_t CM_TransformedTraceCapsule( cm_t *cm, const Vector3 &start, const Vector3 &end, float radius, float halfHeight, mnode_t *headnode, const cm_contents_t brushmask, const vec3_t origin, const vec3_t angles );
+
+/**
+*	@brief	Trace a cylinder in transformed model space.
+*	@param	cm				Collision-model context used for BSP/brush traversal.
+*	@param	start			Trace start position in world space.
+*	@param	end				Trace end position in world space.
+*	@param	radius			Cylinder radius.
+*	@param	halfHeight		Half cylinder height from center to top/bottom.
+*	@param	headnode		Root node used as the trace entry point.
+*	@param	brushmask		Contents mask used to filter collidable surfaces.
+*	@param	origin			Entity origin used for world-to-model transform.
+*	@param	angles			Entity angles used for world-to-model transform.
+*	@return	Trace result converted back to world-space interpretation.
+**/
+const cm_trace_t CM_TransformedTraceCylinder( cm_t *cm, const Vector3 &start, const Vector3 &end, float radius, float halfHeight, mnode_t *headnode, const cm_contents_t brushmask, const vec3_t origin, const vec3_t angles );
+
+/**
+*	@brief	Compute an analytical swept intersection between two shape definitions.
+*	@param	start			Initial center of moving shape A.
+*	@param	shapeA			Moving shape descriptor.
+*	@param	end				Target center of moving shape A.
+*	@param	centerB			Center of static shape B.
+*	@param	shapeB			Static shape descriptor.
+*	@return	Trace-style result describing first contact along the sweep.
+*	@note	Intended for precise shape-vs-shape sweeps without BSP traversal.
+**/
+const cm_trace_t CM_AnalyticalShapeSweep( const Vector3 &start, const cm_trace_shape_t &shapeA, const Vector3 &end, const Vector3 &centerB, const cm_trace_shape_t &shapeB );
 
 
 

@@ -100,4 +100,8 @@ typedef struct cm_s {
     //! Material types, array index equals their typeID. The zero index(0) is used as the default material type.
     cm_material_t *materials;
     int32_t num_materials;
+
+    //! Bevel extensions for brushes.
+    cm_plane_t *bevel_planes;
+    mbrushside_t *bevel_brushsides;
 } cm_t;

@@ -306,8 +306,21 @@ typedef struct {
 
     //! Perform a trace through the world and its entities with a bbox from start to end point.
     const cm_trace_t( *trace )( const Vector3 *start, const Vector3 *mins, const Vector3 *maxs, const Vector3 *end, const edict_ptr_t *passent, const cm_contents_t contentmask );
-    //! Perform a trace clip to a single entity. Effectively skipping looping over many if you were using trace instead.
     const cm_trace_t( *clip )( const edict_ptr_t *entity, const Vector3 *start, const Vector3 *mins, const Vector3 *maxs, const Vector3 *end, const cm_contents_t contentmask );
+    const cm_trace_t( *clipSphere )( const edict_ptr_t *entity, const Vector3 *start, float radius, const Vector3 *end, const cm_contents_t contentmask );
+    const cm_trace_t( *clipCapsule )( const edict_ptr_t *entity, const Vector3 *start, float radius, float halfHeight, const Vector3 *end, const cm_contents_t contentmask );
+    const cm_trace_t( *clipCylinder )( const edict_ptr_t *entity, const Vector3 *start, float radius, float halfHeight, const Vector3 *end, const cm_contents_t contentmask );
+
+    const cm_trace_t( *traceSphere )( const Vector3 *start, float radius, const Vector3 *end, const edict_ptr_t *passent, const cm_contents_t contentmask );
+    const cm_trace_t( *traceCapsule )( const Vector3 *start, float radius, float halfHeight, const Vector3 *end, const edict_ptr_t *passent, const cm_contents_t contentmask );
+    const cm_trace_t( *traceCylinder )( const Vector3 *start, float radius, float halfHeight, const Vector3 *end, const edict_ptr_t *passent, const cm_contents_t contentmask );
+    
+    const cm_trace_t( *TransformedTraceSphere )( const Vector3 *start, const Vector3 *end, const float radius, struct mnode_s *headnode, const cm_contents_t brushmask, const Vector3 *origin, const Vector3 *angles );
+    const cm_trace_t( *TransformedTraceCapsule )( const Vector3 *start, const Vector3 *end, const float radius, const float halfHeight, struct mnode_s *headnode, const cm_contents_t brushmask, const Vector3 *origin, const Vector3 *angles );
+    const cm_trace_t( *TransformedTraceCylinder )( const Vector3 *start, const Vector3 *end, const float radius, const float halfHeight, struct mnode_s *headnode, const cm_contents_t brushmask, const Vector3 *origin, const Vector3 *angles );
+	
+	const cm_trace_t ( *CM_AnalyticalShapeSweep )( const Vector3 *start, const cm_trace_shape_t *shapeA, const Vector3 *end, const Vector3 *centerB, const cm_trace_shape_t *shapeB );
+
     //! Returns a cm_contents_t of the BSP 'solid' residing at point. SOLID_NONE if in open empty space.
     const cm_contents_t( *pointcontents )( const Vector3 *point );
     /**

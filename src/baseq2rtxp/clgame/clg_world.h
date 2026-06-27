@@ -22,11 +22,19 @@
 *   @brief  Performs a 'Clipping' trace against the world, and all the active in-frame solidEntities.
 **/
 const cm_trace_t CLG_Trace( const Vector3 &start, const Vector3 *mins, const Vector3 *maxs, const Vector3 &end, const centity_t *passEntity, const cm_contents_t contentMask );
+const cm_trace_t CLG_TraceCapsule( const Vector3 &start, const float radius, const float halfHeight, const Vector3 &end, const centity_t *passEntity, const cm_contents_t contentMask );
+const cm_trace_t CLG_TraceCylinder( const Vector3 &start, const float radius, const float halfHeight, const Vector3 &end, const centity_t *passEntity, const cm_contents_t contentMask );
+const cm_trace_t CLG_TraceSphere( const Vector3 &start, const float radius, const Vector3 &end, const centity_t *passEntity, const cm_contents_t contentMask );
+
 /**
 *   @brief  Will perform a clipping trace to the specified entity.
 *           If clipEntity == nullptr, it'll perform a clipping trace against the World.
 **/
 const cm_trace_t CLG_Clip( const Vector3 &start, const Vector3 *mins, const Vector3 *maxs, const Vector3 &end, const centity_t *clipEntity, const cm_contents_t contentMask );
+const cm_trace_t CLG_ClipCapsule( const Vector3 &start, const float radius, const float halfHeight, const Vector3 &end, const centity_t *clipEntity, const cm_contents_t contentMask );
+const cm_trace_t CLG_ClipCylinder( const Vector3 &start, const float radius, const float halfHeight, const Vector3 &end, const centity_t *clipEntity, const cm_contents_t contentMask );
+const cm_trace_t CLG_ClipSphere( const Vector3 &start, const float radius, const Vector3 &end, const centity_t *clipEntity, const cm_contents_t contentMask );
+
 /**
 *   @return The type of 'contents' at the given point.
 **/

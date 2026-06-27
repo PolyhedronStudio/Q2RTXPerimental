@@ -355,6 +355,39 @@ typedef struct {
 		const Vector3 *mins, const Vector3 *maxs,
 		mnode_t *headnode, const cm_contents_t brushMask,
 		const Vector3 *origin, const Vector3 *angles );
+
+	/**
+	*   @brief  Performs a 'Clipping' capsule trace against the world, and all the active in-frame solidEntities.
+	**/
+	const cm_trace_t( *CM_TraceCapsule )( const Vector3 *start, const Vector3 *end, const float radius, const float halfHeight, mnode_t *headnode, const cm_contents_t brushmask );
+	/**
+	*   @brief  Performs a 'Clipping' capsule trace against the world, and all the active in-frame solidEntities.
+	**/
+	const cm_trace_t( *CM_TransformedTraceCapsule )( const Vector3 *start, const Vector3 *end, const float radius, const float halfHeight, mnode_t *headnode, const cm_contents_t brushmask, const Vector3 *origin, const Vector3 *angles );
+
+	/**
+	*   @brief  Performs a 'Clipping' cylinder trace against the world, and all the active in-frame solidEntities.
+	**/
+	const cm_trace_t( *CM_TraceCylinder )( const Vector3 *start, const Vector3 *end, const float radius, const float halfHeight, mnode_t *headnode, const cm_contents_t brushmask );
+	/**
+	*   @brief  Performs a 'Clipping' cylinder trace against the world, and all the active in-frame solidEntities.
+	**/
+	const cm_trace_t( *CM_TransformedTraceCylinder )( const Vector3 *start, const Vector3 *end, const float radius, const float halfHeight, mnode_t *headnode, const cm_contents_t brushmask, const Vector3 *origin, const Vector3 *angles );
+
+	/**
+	*   @brief  Analytical sweep of two mathematical shapes against each other.
+	**/
+	const cm_trace_t( *CM_AnalyticalShapeSweep )( const Vector3 *start, const cm_trace_shape_t *shapeA, const Vector3 *end, const Vector3 *centerB, const cm_trace_shape_t *shapeB );
+
+	/**
+	*   @brief  Performs a 'Clipping' sphere trace against the world, and all the active in-frame solidEntities.
+	**/
+	const cm_trace_t( *CM_TraceSphere )( const Vector3 *start, const Vector3 *end, const float radius, mnode_t *headnode, const cm_contents_t brushmask );
+	/**
+	*   @brief  Performs a 'Clipping' sphere trace against the world, and all the active in-frame solidEntities.
+	**/
+	const cm_trace_t( *CM_TransformedTraceSphere )( const Vector3 *start, const Vector3 *end, const float radius, mnode_t *headnode, const cm_contents_t brushmask, const Vector3 *origin, const Vector3 *angles );
+
 	/**
 	*   @return The type of 'contents' at the given point.
 	**/

@@ -245,6 +245,147 @@ static const cm_trace_t PF_CM_TransformedBoxTrace(
 }
 
 /**
+*   @brief  Performs a 'Clipping' capsule trace against the world, and all the active in-frame solidEntities.
+**/
+static const cm_trace_t PF_CM_TraceCapsule( const Vector3 *start, const Vector3 *end, const float radius, const float halfHeight, mnode_t *headnode, const cm_contents_t brushmask ) {
+	cm_trace_t trace = {};
+	trace.surface = &nulltexinfo.c;
+	trace.material = &cm_default_material;
+	trace.surface2 = &nulltexinfo.c;
+	trace.material2 = &cm_default_material;
+
+	if ( !cl.collisionModel.cache ) {
+		return trace;
+	}
+
+	const Vector3 _start = *start;
+	const Vector3 _end = *end;
+	trace = CM_TraceCapsule( &cl.collisionModel, _start, _end, radius, halfHeight, headnode, brushmask );
+	return trace;
+}
+
+/**
+*   @brief  Performs a 'Clipping' capsule trace against the world, and all the active in-frame solidEntities.
+**/
+static const cm_trace_t PF_CM_TransformedTraceCapsule( const Vector3 *start, const Vector3 *end, const float radius, const float halfHeight, mnode_t *headnode, const cm_contents_t brushmask, const Vector3 *origin, const Vector3 *angles ) {
+	cm_trace_t trace = {};
+	trace.surface = &nulltexinfo.c;
+	trace.material = &cm_default_material;
+	trace.surface2 = &nulltexinfo.c;
+	trace.material2 = &cm_default_material;
+
+	if ( !cl.collisionModel.cache ) {
+		return trace;
+	}
+
+	const Vector3 _start = *start;
+	const Vector3 _end = *end;
+	const Vector3 _origin = *origin;
+	const Vector3 _angles = *angles;
+	trace = CM_TransformedTraceCapsule( &cl.collisionModel, _start, _end, radius, halfHeight, headnode, brushmask, &_origin.x, &_angles.x );
+	return trace;
+}
+
+/**
+*   @brief  Performs a 'Clipping' cylinder trace against the world, and all the active in-frame solidEntities.
+**/
+static const cm_trace_t PF_CM_TraceCylinder( const Vector3 *start, const Vector3 *end, const float radius, const float halfHeight, mnode_t *headnode, const cm_contents_t brushmask ) {
+	cm_trace_t trace = {};
+	trace.surface = &nulltexinfo.c;
+	trace.material = &cm_default_material;
+	trace.surface2 = &nulltexinfo.c;
+	trace.material2 = &cm_default_material;
+
+	if ( !cl.collisionModel.cache ) {
+		return trace;
+	}
+
+	const Vector3 _start = *start;
+	const Vector3 _end = *end;
+	trace = CM_TraceCylinder( &cl.collisionModel, _start, _end, radius, halfHeight, headnode, brushmask );
+	return trace;
+}
+
+/**
+*   @brief  Performs a 'Clipping' cylinder trace against the world, and all the active in-frame solidEntities.
+**/
+static const cm_trace_t PF_CM_TransformedTraceCylinder( const Vector3 *start, const Vector3 *end, const float radius, const float halfHeight, mnode_t *headnode, const cm_contents_t brushmask, const Vector3 *origin, const Vector3 *angles ) {
+	cm_trace_t trace = {};
+	trace.surface = &nulltexinfo.c;
+	trace.material = &cm_default_material;
+	trace.surface2 = &nulltexinfo.c;
+	trace.material2 = &cm_default_material;
+
+	if ( !cl.collisionModel.cache ) {
+		return trace;
+	}
+
+	const Vector3 _start = *start;
+	const Vector3 _end = *end;
+	const Vector3 _origin = *origin;
+	const Vector3 _angles = *angles;
+	trace = CM_TransformedTraceCylinder( &cl.collisionModel, _start, _end, radius, halfHeight, headnode, brushmask, &_origin.x, &_angles.x );
+	return trace;
+}
+
+/**
+*   @brief  Performs a 'Clipping' sphere trace against the world, and all the active in-frame solidEntities.
+**/
+static const cm_trace_t PF_CM_TraceSphere( const Vector3 *start, const Vector3 *end, const float radius, mnode_t *headnode, const cm_contents_t brushmask ) {
+	cm_trace_t trace = {};
+	trace.surface = &nulltexinfo.c;
+	trace.material = &cm_default_material;
+	trace.surface2 = &nulltexinfo.c;
+	trace.material2 = &cm_default_material;
+
+	if ( !cl.collisionModel.cache ) {
+		return trace;
+	}
+
+	const Vector3 _start = *start;
+	const Vector3 _end = *end;
+	trace = CM_TraceSphere( &cl.collisionModel, _start, _end, radius, headnode, brushmask );
+	return trace;
+}
+
+/**
+*   @brief  Performs a 'Clipping' sphere trace against the world, and all the active in-frame solidEntities.
+**/
+static const cm_trace_t PF_CM_AnalyticalShapeSweep( const Vector3 *start, const cm_trace_shape_t *shapeA, const Vector3 *end, const Vector3 *centerB, const cm_trace_shape_t *shapeB ) {
+	cm_trace_t trace = {};
+	trace.surface = &nulltexinfo.c;
+	trace.material = &cm_default_material;
+	trace.surface2 = &nulltexinfo.c;
+	trace.material2 = &cm_default_material;
+
+	if ( !cl.collisionModel.cache ) {
+		return trace;
+	}
+
+	return CM_AnalyticalShapeSweep( *start, *shapeA, *end, *centerB, *shapeB );
+}
+
+static const cm_trace_t PF_CM_TransformedTraceSphere( const Vector3 *start, const Vector3 *end, const float radius, mnode_t *headnode, const cm_contents_t brushmask, const Vector3 *origin, const Vector3 *angles ) {
+	cm_trace_t trace = {};
+	trace.surface = &nulltexinfo.c;
+	trace.material = &cm_default_material;
+	trace.surface2 = &nulltexinfo.c;
+	trace.material2 = &cm_default_material;
+
+	if ( !cl.collisionModel.cache ) {
+		return trace;
+	}
+
+	const Vector3 _start = *start;
+	const Vector3 _end = *end;
+	const Vector3 _origin = *origin;
+	const Vector3 _angles = *angles;
+	trace = CM_TransformedTraceSphere( &cl.collisionModel, _start, _end, radius, headnode, brushmask, &_origin.x, &_angles.x );
+	return trace;
+}
+
+
+/**
 *   @return The type of 'contents' at the given point.
 **/
 static const cm_contents_t PF_CM_PointContents( const Vector3 *point, mnode_t *headNode ) {
@@ -1136,6 +1277,16 @@ void CL_GM_LoadProgs( void ) {
 
 	imports.CM_BoxTrace = PF_CM_BoxTrace;
 	imports.CM_TransformedBoxTrace = PF_CM_TransformedBoxTrace;
+
+	imports.CM_TraceCapsule = PF_CM_TraceCapsule;
+	imports.CM_TransformedTraceCapsule = PF_CM_TransformedTraceCapsule;
+
+	imports.CM_TraceCylinder = PF_CM_TraceCylinder;
+	imports.CM_TransformedTraceCylinder = PF_CM_TransformedTraceCylinder;
+	imports.CM_AnalyticalShapeSweep = PF_CM_AnalyticalShapeSweep;
+
+	imports.CM_TraceSphere = PF_CM_TraceSphere;
+	imports.CM_TransformedTraceSphere = PF_CM_TransformedTraceSphere;
 
 	imports.CM_PointContents = PF_CM_PointContents;
 	imports.CM_TransformedPointContents = PF_CM_TransformedPointContents;

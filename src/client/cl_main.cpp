@@ -2894,7 +2894,7 @@ static int64_t ref_msec = 0, phys_msec = 0, main_msec = 0;
 static int64_t ref_extra = 0, phys_extra = 0, main_extra = 0;
 static sync_mode_t sync_mode;
 
-#define MIN_PHYS_HZ 40
+#define MIN_PHYS_HZ 60
 #define MAX_PHYS_HZ 125
 #define MIN_REF_HZ MIN_PHYS_HZ
 #define MAX_REF_HZ 1000
@@ -3056,6 +3056,7 @@ int64_t CL_Frame( uint64_t msec ) {
         ref_frame = false;
     // Fall through:
     case SYNC_SLEEP_60:
+		// We want to run at 60hz here, but we don't want to run physics or clientgame more than 125hz.
         // Run at limited fps if not active
         if ( main_extra < main_msec ) {
             return main_msec - main_extra;

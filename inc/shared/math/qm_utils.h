@@ -276,6 +276,9 @@ QM_API_CONSTEXPR T QM_Angle_Normalize180( const T &angle ) {
     T _angle = std::fmod<T>( ( angle ), static_cast<T>( 360.0 ) );
     if ( _angle > static_cast<T>( 180.0 ) ) {
         _angle -= static_cast<T>( 360.0 );
+	// <Q2RTXP>: WID: This seems to fix rotating yaw issues when the angle is exactly -180.0 degrees, which would otherwise not be normalized correctly.
+    } else if ( _angle <= static_cast<T>( -180.0 ) ) {
+        _angle += static_cast<T>( 360.0 );
     }
     return _angle;
 }

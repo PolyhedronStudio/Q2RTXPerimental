@@ -7,6 +7,7 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "nav_generate.h"
+#include "nav_path.h"
 #include "nav_thread.h"
 #include <algorithm>
 #include <unordered_map>
@@ -534,17 +535,24 @@ void Nav_DoExtractionWork() {
     g_nav_polys.clear();
     
     int32_t solid_brushes = 0;
+    int32_t playerclip_brushes = 0;
     int32_t walkable_sides = 0;
+    int32_t sliver_pruned_fragments = 0;
 
 	// Iterate through all brushes in the BSP to extract walkable polygons
 	for ( int32_t i = 0; i < bsp->numbrushes; i++ ) {
 		// Get the current brush
 		mbrush_t *b = &bsp->brushes[ i ];
-		// Skip brushes that are not solid or detail, as they cannot contribute to walkable surfaces.
-		if ( !( b->contents & ( CONTENTS_SOLID | CONTENTS_DETAIL ) ) ) {
+		// Skip brushes that are not walk-blocking contributors.
+		if ( !( b->contents & ( CONTENTS_SOLID | CONTENTS_DETAIL | CONTENTS_PLAYERCLIP ) ) ) {
 			continue;
 		}
-        solid_brushes++;
+		// Track brush class split for diagnostics.
+        if ( ( b->contents & CONTENTS_PLAYERCLIP ) != 0 && ( b->contents & ( CONTENTS_SOLID | CONTENTS_DETAIL ) ) == 0 ) {
+            playerclip_brushes++;
+        } else {
+            solid_brushes++;
+        }
 
 		//! Iterate through each side of the brush to find walkable surfaces
 		for ( int32_t j = 0; j < b->numsides; j++ ) {
@@ -586,7 +594,7 @@ void Nav_DoExtractionWork() {
 					}
 					
 					mbrush_t* other_b = &bsp->brushes[ other_idx ];
-					if ( !( other_b->contents & ( CONTENTS_SOLID | CONTENTS_DETAIL ) ) ) {
+					if ( !( other_b->contents & ( CONTENTS_SOLID | CONTENTS_DETAIL | CONTENTS_PLAYERCLIP ) ) ) {
 						continue; // Only subtract blocking geometry
 					}
 					
@@ -645,6 +653,7 @@ void Nav_DoExtractionWork() {
 						
 						// If the average width (area / longest edge) is less than 2 units, it's a useless sliver!
 						if ( area < 1.0f || ( longest > 0.001f && ( area / longest ) < 2.0f ) ) {
+							sliver_pruned_fragments++;
 							continue; // Prune sliver
 						}
 					}
@@ -679,8 +688,8 @@ void Nav_DoExtractionWork() {
 	}
 
 	// Print a summary of the extraction process to the server console for debugging and verification.
-    gi.dprintf("Nav_DoExtractionWork: Checked %d brushes. Found %d solid brushes, %d walkable sides. Extracted %d polys.\n",
-        bsp->numbrushes, solid_brushes, walkable_sides, (int)g_nav_polys.size());
+    gi.dprintf("Nav_DoExtractionWork: Checked %d brushes. Found %d solid/detail brushes, %d playerclip-only brushes, %d walkable sides. Extracted %d polys, pruned %d sliver fragments.\n",
+        bsp->numbrushes, solid_brushes, playerclip_brushes, walkable_sides, (int)g_nav_polys.size(), sliver_pruned_fragments);
 }
 
 /**
@@ -1299,6 +1308,8 @@ void Nav_BuildHalfEdgeMesh() {
 
 	// This is a spatial hash grid to deduplicate vertices and prevent T-junctions.
 	std::unordered_map<int64_t, std::vector<int32_t>> vertex_grid;
+	int32_t first_pass_twin_links = 0;
+	int32_t second_pass_twin_links = 0;
 
 	/**
 	*	@brief	Hash a vertex position into the deduplication grid.
@@ -1536,7 +1547,7 @@ void Nav_BuildHalfEdgeMesh() {
 
                     // Tolerate up to a 4 unit horizontal gap (16.0f squared) to handle BSP T-junctions
 					static constexpr float MAX_DIST_SQR = 16.0f; // 4 units squared
-					static constexpr float MAX_Z_DIFF = 24.0f; // 18 units vertical tolerance for stairs and ramps.
+					static constexpr float MAX_Z_DIFF = NAV_MAX_STEP_SIZE + 4.0f; // Keep twin linking aligned with default step + clearance policy.
                     if (dx1 * dx1 + dy1 * dy1 < MAX_DIST_SQR && dz1 <= MAX_Z_DIFF &&
                         dx2 * dx2 + dy2 * dy2 < MAX_DIST_SQR && dz2 <= MAX_Z_DIFF ) {
                         
@@ -1556,6 +1567,7 @@ void Nav_BuildHalfEdgeMesh() {
 			// Link the twin half-edges together by setting their twin indices.
             g_nav_halfedges[i].twin_idx = bestTwin;
             g_nav_halfedges[bestTwin].twin_idx = static_cast<int32_t>(i);
+			first_pass_twin_links++;
             
             // Use the actual Z height of the shared edge vertices, not the face centers!
             // Face centers are wildly inaccurate for long slopes or ramps.
@@ -1689,11 +1701,11 @@ void Nav_BuildHalfEdgeMesh() {
                     float overlapEnd = std::min(lenA, maxU);
                     float overlapLen = overlapEnd - overlapStart;
 
-					// If the overlap length is greater than 1.0f, check the Z difference between the two half-edges to ensure they are close enough vertically to be considered twins.
-                    if (overlapLen > 1.0f) {
+					// Require a minimally usable overlap so we do not link paper-thin portals that path traversal later rejects.
+                    if (overlapLen >= 2.0f) {
                         float dz = std::abs((a1.z + a2.z) * 0.5f - (b1.z + b2.z) * 0.5f);
                         // STRICT Z tolerance to prevent vertical scrambling!
-						static constexpr float MAX_Z_DIFF = 24.0f; // 18 units vertical tolerance for stairs and ramps.
+						static constexpr float MAX_Z_DIFF = NAV_MAX_STEP_SIZE + 4.0f; // Keep twin linking aligned with default step + clearance policy.
                         if ( dz <= MAX_Z_DIFF ) {
                             if (overlapLen > bestOverlap) {
                                 bestOverlap = overlapLen;
@@ -1708,6 +1720,7 @@ void Nav_BuildHalfEdgeMesh() {
         if (bestTwin != -1) {
             g_nav_halfedges[i].twin_idx = bestTwin;
             g_nav_halfedges[bestTwin].twin_idx = static_cast<int32_t>(i);
+			second_pass_twin_links++;
             
             // Use the actual Z height of the shared edge vertices, not the face centers!
             float z1 = (g_nav_vertices[g_nav_halfedges[i].vertex_idx].z + g_nav_vertices[g_nav_halfedges[g_nav_halfedges[i].next_idx].vertex_idx].z) * 0.5f;
@@ -1717,8 +1730,66 @@ void Nav_BuildHalfEdgeMesh() {
         }
     }
 
+	/**
+	*	Emit topology diagnostics so we can detect fragmented regions and weak links.
+	**/
+	auto Compute2DOverlapLen = [&]( const nav_halfedge_t &a, const nav_halfedge_t &b ) -> float {
+		const Vector3 a0 = g_nav_vertices[ a.vertex_idx ];
+		const Vector3 a1 = g_nav_vertices[ g_nav_halfedges[ a.next_idx ].vertex_idx ];
+		const Vector3 b0 = g_nav_vertices[ b.vertex_idx ];
+		const Vector3 b1 = g_nav_vertices[ g_nav_halfedges[ b.next_idx ].vertex_idx ];
+		Vector3 aDir = QM_Vector3Subtract( a1, a0 );
+		aDir.z = 0.0f;
+		const float aLen = QM_Vector3Length( aDir );
+		if ( aLen <= 0.0001f ) {
+			return 0.0f;
+		}
+		aDir = QM_Vector3Scale( aDir, 1.0f / aLen );
+		Vector3 a0b0 = QM_Vector3Subtract( b0, a0 );
+		Vector3 a0b1 = QM_Vector3Subtract( b1, a0 );
+		a0b0.z = 0.0f;
+		a0b1.z = 0.0f;
+		const float u0 = static_cast<float>( QM_Vector3DotProduct( a0b0, aDir ) );
+		const float u1 = static_cast<float>( QM_Vector3DotProduct( a0b1, aDir ) );
+		const float bMin = std::min( u0, u1 );
+		const float bMax = std::max( u0, u1 );
+		const float overlapStart = std::max( 0.0f, bMin );
+		const float overlapEnd = std::min( aLen, bMax );
+		return std::max( 0.0f, overlapEnd - overlapStart );
+	};
+
+	int32_t boundary_edges = 0;
+	int32_t twinned_edges = 0;
+	int32_t twin_reverse_mismatch = 0;
+	int32_t tiny_overlap_twins = 0;
+	int32_t short_boundary_edges = 0;
+	for ( size_t i = 0; i < g_nav_halfedges.size(); i++ ) {
+		const nav_halfedge_t &he = g_nav_halfedges[ i ];
+		const Vector3 e0 = g_nav_vertices[ he.vertex_idx ];
+		const Vector3 e1 = g_nav_vertices[ g_nav_halfedges[ he.next_idx ].vertex_idx ];
+		const float edgeLen2D = static_cast<float>( QM_Vector2Distance( e0, e1 ) );
+		if ( he.twin_idx == -1 ) {
+			boundary_edges++;
+			if ( edgeLen2D < 4.0f ) {
+				short_boundary_edges++;
+			}
+			continue;
+		}
+		twinned_edges++;
+		if ( static_cast<size_t>( he.twin_idx ) >= g_nav_halfedges.size() || g_nav_halfedges[ he.twin_idx ].twin_idx != static_cast<int32_t>( i ) ) {
+			twin_reverse_mismatch++;
+			continue;
+		}
+		const float overlapLen = Compute2DOverlapLen( he, g_nav_halfedges[ he.twin_idx ] );
+		if ( overlapLen < 2.0f ) {
+			tiny_overlap_twins++;
+		}
+	}
+
     gi.dprintf("NavMesh Half-Edge Generation Completed. %d vertices, %d half-edges, %d faces.\n", 
                g_nav_vertices.size(), g_nav_halfedges.size(), g_nav_faces.size());
+	gi.dprintf("NavMesh Topology Diagnostics: firstPassLinks=%d secondPassLinks=%d twinnedEdges=%d boundaryEdges=%d shortBoundaryEdges=%d twinReverseMismatch=%d tinyOverlapTwins=%d\n",
+		first_pass_twin_links, second_pass_twin_links, twinned_edges, boundary_edges, short_boundary_edges, twin_reverse_mismatch, tiny_overlap_twins );
 }
 
 /**

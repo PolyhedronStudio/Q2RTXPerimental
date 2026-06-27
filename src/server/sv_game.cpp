@@ -495,7 +495,22 @@ static q_noreturn void PF_error(const char *fmt, ...)
 *
 *
 **/
+/**
+*   @brief  Performs a 'Clipping' sphere trace against the world, and all the active in-frame solidEntities.
+**/
+static const cm_trace_t PF_CM_AnalyticalShapeSweep( const Vector3 *start, const cm_trace_shape_t *shapeA, const Vector3 *end, const Vector3 *centerB, const cm_trace_shape_t *shapeB ) {
+	cm_trace_t trace = {};
+	trace.surface = &nulltexinfo.c;
+	trace.material = &cm_default_material;
+	trace.surface2 = &nulltexinfo.c;
+	trace.material2 = &cm_default_material;
 
+	if ( !sv.cm.cache ) {
+		return trace;
+	}
+
+	return CM_AnalyticalShapeSweep( *start, *shapeA, *end, *centerB, *shapeB );
+}
 
 
 
@@ -717,17 +732,230 @@ static const bool PF_inPHS(const Vector3 *p1, const Vector3 *p2)
     return PF_inVIS(p1, p2, DVIS_PHS);
 }
 
-
+/**
+*	@brief		Trace a box through server collision data.
+*	@param		start		World-space trace start point.
+*	@param		mins		Mins of the traced box.
+*	@param		maxs		Maxs of the traced box.
+*	@param		end			World-space trace end point.
+*	@param		passEdict	Entity to ignore during the trace.
+*	@param		contentmask	Brush contents mask to test against.
+*	@return		Trace result from `SV_Trace`.
+*	@note		This is an ABI wrapper that forwards directly into the server trace helper.
+**/
 const cm_trace_t q_gameabi PF_SV_Trace( const Vector3 *start, const Vector3 *mins,
-    const Vector3 *maxs, const Vector3 *end,
+	const Vector3 *maxs, const Vector3 *end,
 	const edict_ptr_t *passEdict, const cm_contents_t contentmask ) {
-    return SV_Trace( *start, mins, maxs, *end, passEdict, contentmask );
+	return SV_Trace( *start, mins, maxs, *end, passEdict, contentmask );
 }
 
+/**
+*	@brief		Clip a box against a specific entity.
+*	@param		clip		Entity to clip against.
+*	@param		start		World-space trace start point.
+*	@param		mins		Mins of the traced box.
+*	@param		maxs		Maxs of the traced box.
+*	@param		end			World-space trace end point.
+*	@param		contentmask	Brush contents mask to test against.
+*	@return		Trace result from `SV_Clip`.
+*	@note		This wrapper performs no additional validation and forwards the call as-is.
+**/
 const cm_trace_t q_gameabi PF_SV_Clip( const edict_ptr_t *clip, const Vector3 *start, const Vector3 *mins,
-    const Vector3 *maxs, const Vector3 *end,
-    const cm_contents_t contentmask ) {
-    return SV_Clip( clip, *start, mins, maxs, *end, contentmask );
+	const Vector3 *maxs, const Vector3 *end,
+	const cm_contents_t contentmask ) {
+	return SV_Clip( clip, *start, mins, maxs, *end, contentmask );
+}
+
+/**
+*	@brief		Clip a sphere against a specific entity.
+*	@param		clip		Entity to clip against.
+*	@param		start		World-space trace start point.
+*	@param		radius		Sphere radius.
+*	@param		end			World-space trace end point.
+*	@param		contentmask	Brush contents mask to test against.
+*	@return		Trace result from `SV_ClipSphere`.
+**/
+const cm_trace_t q_gameabi PF_SV_ClipSphere( const edict_ptr_t *clip, const Vector3 *start, float radius, const Vector3 *end, const cm_contents_t contentmask ) {
+	return SV_ClipSphere( clip, *start, radius, *end, contentmask );
+}
+
+/**
+*	@brief		Clip a capsule against a specific entity.
+*	@param		clip		Entity to clip against.
+*	@param		start		World-space trace start point.
+*	@param		radius		Capsule radius.
+*	@param		halfHeight	Capsule half-height.
+*	@param		end			World-space trace end point.
+*	@param		contentmask	Brush contents mask to test against.
+*	@return		Trace result from `SV_ClipCapsule`.
+**/
+const cm_trace_t q_gameabi PF_SV_ClipCapsule( const edict_ptr_t *clip, const Vector3 *start, float radius, float halfHeight, const Vector3 *end, const cm_contents_t contentmask ) {
+	return SV_ClipCapsule( clip, *start, radius, halfHeight, *end, contentmask );
+}
+
+/**
+*	@brief		Clip a cylinder against a specific entity.
+*	@param		clip		Entity to clip against.
+*	@param		start		World-space trace start point.
+*	@param		radius		Cylinder radius.
+*	@param		halfHeight	Cylinder half-height.
+*	@param		end			World-space trace end point.
+*	@param		contentmask	Brush contents mask to test against.
+*	@return		Trace result from `SV_ClipCylinder`.
+**/
+const cm_trace_t q_gameabi PF_SV_ClipCylinder( const edict_ptr_t *clip, const Vector3 *start, float radius, float halfHeight, const Vector3 *end, const cm_contents_t contentmask ) {
+	return SV_ClipCylinder( clip, *start, radius, halfHeight, *end, contentmask );
+}
+
+/**
+*	@brief		Trace a sphere through server collision data.
+*	@param		start		World-space trace start point.
+*	@param		radius		Sphere radius.
+*	@param		end			World-space trace end point.
+*	@param		passent	Entity to ignore during the trace.
+*	@param		contentmask	Brush contents mask to test against.
+*	@return		Trace result from `SV_TraceSphere`.
+**/
+const cm_trace_t q_gameabi PF_SV_TraceSphere( const Vector3 *start, float radius, const Vector3 *end, const edict_ptr_t *passent, const cm_contents_t contentmask ) {
+	return SV_TraceSphere( *start, radius, *end, passent, contentmask );
+}
+
+/**
+*	@brief		Trace a capsule through server collision data.
+*	@param		start		World-space trace start point.
+*	@param		radius		Capsule radius.
+*	@param		halfHeight	Capsule half-height.
+*	@param		end			World-space trace end point.
+*	@param		passent	Entity to ignore during the trace.
+*	@param		contentmask	Brush contents mask to test against.
+*	@return		Trace result from `SV_TraceCapsule`.
+**/
+const cm_trace_t q_gameabi PF_SV_TraceCapsule( const Vector3 *start, float radius, float halfHeight, const Vector3 *end, const edict_ptr_t *passent, const cm_contents_t contentmask ) {
+	return SV_TraceCapsule( *start, radius, halfHeight, *end, passent, contentmask );
+}
+
+/**
+*	@brief		Trace a cylinder through server collision data.
+*	@param		start		World-space trace start point.
+*	@param		radius		Cylinder radius.
+*	@param		halfHeight	Cylinder half-height.
+*	@param		end			World-space trace end point.
+*	@param		passent	Entity to ignore during the trace.
+*	@param		contentmask	Brush contents mask to test against.
+*	@return		Trace result from `SV_TraceCylinder`.
+**/
+const cm_trace_t q_gameabi PF_SV_TraceCylinder( const Vector3 *start, float radius, float halfHeight, const Vector3 *end, const edict_ptr_t *passent, const cm_contents_t contentmask ) {
+	return SV_TraceCylinder( *start, radius, halfHeight, *end, passent, contentmask );
+}
+
+/**
+*	@brief		Trace a sphere through transformed collision space.
+*	@param		start		World-space trace start point.
+*	@param		end			World-space trace end point.
+*	@param		radius		Sphere radius.
+*	@param		headnode	Root node of the brush tree to test against.
+*	@param		brushmask	Brush contents mask to test against.
+*	@param		origin		Optional transform origin; defaults to zero when omitted.
+*	@param		angles		Optional transform angles; defaults to zero when omitted.
+*	@return		Trace result from `CM_TransformedTraceSphere`, or a safe empty trace when cache data is unavailable.
+*	@note		Null input pointers are treated as zero vectors before calling the collision helper.
+**/
+static const cm_trace_t q_gameabi PF_SV_TransformedTraceSphere( const Vector3 *start, const Vector3 *end, const float radius, mnode_t *headnode, const cm_contents_t brushmask, const Vector3 *origin, const Vector3 *angles ) {
+	// Initialize a safe default trace result in case collision data is unavailable.
+	cm_trace_t trace = {};
+	trace.surface = &nulltexinfo.c;
+	trace.material = &cm_default_material;
+	trace.surface2 = &nulltexinfo.c;
+	trace.material2 = &cm_default_material;
+
+	// Fail closed when the collision cache has not been initialized yet.
+	if ( !sv.cm.cache ) {
+		return trace;
+	}
+
+	// Normalize optional pointers into local vectors so the transform helper always receives valid addresses.
+	const Vector3 _start = ( start ) ? *start : Vector3{};
+	const Vector3 _end = ( end ) ? *end : Vector3{};
+	const Vector3 _origin = ( origin ) ? *origin : Vector3{};
+	const Vector3 _angles = ( angles ) ? *angles : Vector3{};
+
+	// Perform the actual transformed trace against the server collision model.
+	trace = CM_TransformedTraceSphere( &sv.cm, _start, _end, radius, headnode, brushmask, &_origin.x, &_angles.x );
+	return trace;
+}
+
+/**
+*	@brief		Trace a capsule through transformed collision space.
+*	@param		start		World-space trace start point.
+*	@param		end			World-space trace end point.
+*	@param		radius		Capsule radius.
+*	@param		halfHeight	Capsule half-height.
+*	@param		headnode	Root node of the brush tree to test against.
+*	@param		brushmask	Brush contents mask to test against.
+*	@param		origin		Optional transform origin; defaults to zero when omitted.
+*	@param		angles		Optional transform angles; defaults to zero when omitted.
+*	@return		Trace result from `CM_TransformedTraceCapsule`, or a safe empty trace when cache data is unavailable.
+*	@note		Null input pointers are treated as zero vectors before calling the collision helper.
+**/
+static const cm_trace_t q_gameabi PF_SV_TransformedTraceCapsule( const Vector3 *start, const Vector3 *end, const float radius, const float halfHeight, mnode_t *headnode, const cm_contents_t brushmask, const Vector3 *origin, const Vector3 *angles ) {
+	// Initialize a safe default trace result in case collision data is unavailable.
+	cm_trace_t trace = {};
+	trace.surface = &nulltexinfo.c;
+	trace.material = &cm_default_material;
+	trace.surface2 = &nulltexinfo.c;
+	trace.material2 = &cm_default_material;
+
+	// Fail closed when the collision cache has not been initialized yet.
+	if ( !sv.cm.cache ) {
+		return trace;
+	}
+
+	// Normalize optional pointers into local vectors so the transform helper always receives valid addresses.
+	const Vector3 _start = ( start ) ? *start : Vector3{};
+	const Vector3 _end = ( end ) ? *end : Vector3{};
+	const Vector3 _origin = ( origin ) ? *origin : Vector3{};
+	const Vector3 _angles = ( angles ) ? *angles : Vector3{};
+
+	// Perform the actual transformed trace against the server collision model.
+	trace = CM_TransformedTraceCapsule( &sv.cm, _start, _end, radius, halfHeight, headnode, brushmask, &_origin.x, &_angles.x );
+	return trace;
+}
+
+/**
+*	@brief		Trace a cylinder through transformed collision space.
+*	@param		start		World-space trace start point.
+*	@param		end			World-space trace end point.
+*	@param		radius		Cylinder radius.
+*	@param		halfHeight	Cylinder half-height.
+*	@param		headnode	Root node of the brush tree to test against.
+*	@param		brushmask	Brush contents mask to test against.
+*	@param		origin		Optional transform origin; defaults to zero when omitted.
+*	@param		angles		Optional transform angles; defaults to zero when omitted.
+*	@return		Trace result from `CM_TransformedTraceCylinder`, or a safe empty trace when cache data is unavailable.
+*	@note		Null input pointers are treated as zero vectors before calling the collision helper.
+**/
+static const cm_trace_t q_gameabi PF_SV_TransformedTraceCylinder( const Vector3 *start, const Vector3 *end, const float radius, const float halfHeight, mnode_t *headnode, const cm_contents_t brushmask, const Vector3 *origin, const Vector3 *angles ) {
+	// Initialize a safe default trace result in case collision data is unavailable.
+	cm_trace_t trace = {};
+	trace.surface = &nulltexinfo.c;
+	trace.material = &cm_default_material;
+	trace.surface2 = &nulltexinfo.c;
+	trace.material2 = &cm_default_material;
+
+	// Fail closed when the collision cache has not been initialized yet.
+	if ( !sv.cm.cache ) {
+		return trace;
+	}
+
+	// Normalize optional pointers into local vectors so the transform helper always receives valid addresses.
+	const Vector3 _start = ( start ) ? *start : Vector3{};
+	const Vector3 _end = ( end ) ? *end : Vector3{};
+	const Vector3 _origin = ( origin ) ? *origin : Vector3{};
+	const Vector3 _angles = ( angles ) ? *angles : Vector3{};
+
+	// Perform the actual transformed trace against the server collision model.
+	trace = CM_TransformedTraceCylinder( &sv.cm, _start, _end, radius, halfHeight, headnode, brushmask, &_origin.x, &_angles.x );
+	return trace;
 }
 
 /**
@@ -1506,6 +1734,17 @@ void SV_InitGameProgs(void) {
 	imports.GetBrushByID = PF_GetBrushByID;
     imports.trace = PF_SV_Trace;
 	imports.clip = PF_SV_Clip;
+	imports.clipSphere = PF_SV_ClipSphere;
+	imports.clipCapsule = PF_SV_ClipCapsule;
+	imports.clipCylinder = PF_SV_ClipCylinder;
+	imports.traceSphere = PF_SV_TraceSphere;
+	imports.traceCapsule = PF_SV_TraceCapsule;
+	imports.traceCylinder = PF_SV_TraceCylinder;
+	imports.CM_AnalyticalShapeSweep = PF_CM_AnalyticalShapeSweep;
+	imports.TransformedTraceSphere = PF_SV_TransformedTraceSphere;
+	imports.TransformedTraceCapsule = PF_SV_TransformedTraceCapsule;
+	imports.TransformedTraceCylinder = PF_SV_TransformedTraceCylinder;
+
     imports.pointcontents = SV_PointContents;
     imports.linkentity = PF_LinkEdict;
     imports.unlinkentity = PF_UnlinkEdict;

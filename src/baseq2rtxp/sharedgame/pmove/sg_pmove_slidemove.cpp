@@ -153,7 +153,7 @@ const pm_slidemove_flags_t PM_SlideMove_Generic(
 		// Calculate the end position in which we're trying to move to.
 		VectorMA( pm->state->pmove.origin, timeLeft, pm->state->pmove.velocity, end );
 		// See if we can trace up to it in one go.
-		trace = PM_Trace( pm->state->pmove.origin, pm->mins, pm->maxs, end );
+		trace = PM_TraceCapsule( pm->state->pmove.origin, pm->mins, pm->maxs, end );
 		// Entity is trapped in another solid, DON'T build up falling damage.
 		if ( trace.allsolid ) {
 			// Don't build up falling damage, but allow sliding.
@@ -353,7 +353,7 @@ const pm_slidemove_flags_t PM_StepSlideMove_Generic(
 	down = pm->state->pmove.origin;
 	down.z -= PM_STEP_GROUND_DIST;
 	//down.z -= stepSize + PM_STEP_GROUND_DIST;
-	trace = PM_Trace( pm->state->pmove.origin, pm->mins, pm->maxs, down );
+	trace = PM_TraceCylinder( pm->state->pmove.origin, pm->mins, pm->maxs, down );
 
 	// Never step up when you still have up velocity.
 	if ( QM_Vector3DotProductDP( trace.plane.normal, pm->state->pmove.velocity ) > 0.0 &&
@@ -368,7 +368,8 @@ const pm_slidemove_flags_t PM_StepSlideMove_Generic(
 	// Try and step up.
 	up = start_o;
 	up.z += PM_STEP_MAX_SIZE /*+ PM_STEP_GROUND_DIST*/;
-	trace = PM_Trace( start_o, pm->mins, pm->maxs, up );
+	// Use capsule for obstacle step-up probing so stair traversal follows the player hull.
+	trace = PM_TraceCapsule( start_o, pm->mins, pm->maxs, up );
 	if ( trace.allsolid ) {
 		// Can't step up.
 		return slideMoveFlags;
@@ -384,7 +385,8 @@ const pm_slidemove_flags_t PM_StepSlideMove_Generic(
 	// Push down the final amount.
 	down = pm->state->pmove.origin;
 	down.z -= stepSize + PM_STEP_GROUND_DIST;
-	trace = PM_Trace( pm->state->pmove.origin, pm->mins, pm->maxs, down );
+	// Use cylinder for step-over push-down so rapid ramp entry stays smooth and does not pop upward.
+	trace = PM_TraceCylinder( pm->state->pmove.origin, pm->mins, pm->maxs, down );
 
 	// Used below for down step.
 	if ( !trace.allsolid ) {
@@ -433,7 +435,7 @@ const pm_slidemove_flags_t PM_StepSlideMove_Generic(
 	) ) {
 		down = pm->state->pmove.origin;
 		down.z -= stepSize + PM_STEP_GROUND_DIST; // <Q2RTXP>: WID: -= stepSize + PM_STEP_GROUND_DIST.
-		trace = PM_Trace( pm->state->pmove.origin, pm->mins, pm->maxs, down );
+		trace = PM_TraceCylinder( pm->state->pmove.origin, pm->mins, pm->maxs, down );
 
 		if ( !trace.allsolid && trace.fraction < 1.0 ) {
 			// Assign new origin.
@@ -488,7 +490,7 @@ const pm_slidemove_flags_t PM_StepSlideMove_Generic(
 
 	#if 0
 	// if the down trace can trace back to the original position directly, don't step
-	trace = PM_Trace( pm->state->pmove.origin, pm->mins, pm->maxs, start_o );
+	trace = PM_TraceCylinder( pm->state->pmove.origin, pm->mins, pm->maxs, start_o );
 	if ( trace.fraction == 1.0 ) {
 		// use the original move
 		//pm->state->pmove.origin = down_o;

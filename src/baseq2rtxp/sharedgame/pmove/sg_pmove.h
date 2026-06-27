@@ -239,6 +239,11 @@ const cm_trace_t PM_Clip( const Vector3 &start, const Vector3 &mins, const Vecto
 *	@brief	Determines the mask to use and returns a trace doing so. If spectating, it'll return clip instead.
 **/
 const cm_trace_t PM_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const cm_contents_t contentMask = CONTENTS_NONE );
+const cm_trace_t PM_TraceCapsule( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const cm_contents_t contentMask = CONTENTS_NONE );
+const cm_trace_t PM_TraceCylinder( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const cm_contents_t contentMask = CONTENTS_NONE );
+const cm_trace_t PM_ClipCapsule( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const cm_contents_t contentMask = CONTENTS_NONE );
+const cm_trace_t PM_ClipCylinder( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const cm_contents_t contentMask = CONTENTS_NONE );
+
 const cm_trace_t PM_TraceCorrectSolid( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, cm_contents_t contentMask = CONTENTS_NONE );
 
 /**
@@ -277,6 +282,22 @@ typedef struct pmove_s {
     const cm_trace_t( *q_gameabi trace )( const Vector3 &start, const Vector3 *mins, const Vector3 *maxs, const Vector3 &end, const void *passEntity, const cm_contents_t contentMask );
     //! Clips to world only.
     const cm_trace_t( *q_gameabi clip )( const Vector3 &start, const Vector3 *mins, const Vector3 *maxs, const Vector3 &end, /*const void *clipEntity,*/ const cm_contents_t contentMask );
+    
+    // Regular tracing against everything
+    const cm_trace_t( *q_gameabi traceSphere )( const Vector3 &start, float radius, const Vector3 &end, const void *passEntity, const cm_contents_t contentMask );
+    const cm_trace_t( *q_gameabi traceCapsule )( const Vector3 &start, float radius, float halfHeight, const Vector3 &end, const void *passEntity, const cm_contents_t contentMask );
+    const cm_trace_t( *q_gameabi traceCylinder )( const Vector3 &start, float radius, float halfHeight, const Vector3 &end, const void *passEntity, const cm_contents_t contentMask );
+
+    // Tracing against a single entity (or world for pm->clip)
+    const cm_trace_t( *q_gameabi clipSphere )( const void *clipEntity, const Vector3 &start, float radius, const Vector3 &end, const cm_contents_t contentMask );
+    const cm_trace_t( *q_gameabi clipCapsule )( const void *clipEntity, const Vector3 &start, float radius, float halfHeight, const Vector3 &end, const cm_contents_t contentMask );
+    const cm_trace_t( *q_gameabi clipCylinder )( const void *clipEntity, const Vector3 &start, float radius, float halfHeight, const Vector3 &end, const cm_contents_t contentMask );
+
+    // Transformed tracing against a single headnode
+    const cm_trace_t( *q_gameabi transformedTraceSphere )( const Vector3 &start, const Vector3 &end, float radius, void *headnode, const cm_contents_t brushmask, const Vector3 &origin, const Vector3 &angles );
+    const cm_trace_t( *q_gameabi transformedTraceCapsule )( const Vector3 &start, const Vector3 &end, float radius, float halfHeight, void *headnode, const cm_contents_t brushmask, const Vector3 &origin, const Vector3 &angles );
+    const cm_trace_t( *q_gameabi transformedTraceCylinder )( const Vector3 &start, const Vector3 &end, float radius, float halfHeight, void *headnode, const cm_contents_t brushmask, const Vector3 &origin, const Vector3 &angles );
+
     //! PointContents.
     const cm_contents_t( *q_gameabi pointcontents )( const Vector3 &point );
 
@@ -290,7 +311,7 @@ typedef struct pmove_s {
     //! Set to 'true' if player state 's' has been changed outside of pmove.
     qboolean snapInitialPosition;
     //! Opaque pointer to the player entity.
-    struct edict_ptr_t *playerEdict;
+    void *playerEdict;
 
     /**
     *   (In/Out):

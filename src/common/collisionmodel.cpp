@@ -48,6 +48,9 @@ static void CM_InitCollisionModelHulls( cm_t *cm ) {
     // Initialize octagon hull for the specified collision model.
     CM_InitOctagonHull( cm );
 
+    // Generate BSP bevel planes for Option B capsule collision.
+    CM_GenerateBrushBevels( cm );
+
     // Set null leaf cluster to -1.
     cm->nullLeaf.cluster = -1;
 }
@@ -125,6 +128,10 @@ void CM_FreeMap( cm_t *cm ) {
     // Free hull type BSPs.
     Z_Free( cm->hull_boundingbox );
     Z_Free( cm->hull_octagonbox );
+
+    // Free bevel extensions.
+    Z_Free( cm->bevel_planes );
+    Z_Free( cm->bevel_brushsides );
 
     // Free BSP World and its Models.
     BSP_Free( cm->cache );

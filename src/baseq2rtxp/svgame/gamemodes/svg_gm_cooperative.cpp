@@ -310,7 +310,7 @@ void svg_gamemode_cooperative_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
     ent->classname = svg_level_qstring_t::from_char_str( "player" );
     ent->mass = 200;
     ent->gravity = 1.0f;
-    ent->solid = SOLID_BOUNDS_BOX;
+    ent->solid = SOLID_CAPSULE;
     ent->lifeStatus = LIFESTATUS_ALIVE;
     ent->airFinishedBreathTime = level.time + 12_sec;
     ent->clipMask = ( CM_CONTENTMASK_PLAYERSOLID );

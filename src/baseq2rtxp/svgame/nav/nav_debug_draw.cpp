@@ -268,3 +268,18 @@ void SVG_Nav_DebugDraw_AddAabb( const Vector3 &mins, const Vector3 &maxs, const 
 		Nav_DebugDraw_EnqueuePrimitive( primitive );
 	}
 }
+
+void SVG_Nav_DebugDraw_AddSphere( const Vector3 &center, const float radius, const uint32_t color, const uint16_t styleFlags, const float thicknessPx, const float outlineThicknessPx ) {
+	if ( !SVG_Nav_DebugDraw_IsEnabled() ) {
+		return;
+	}
+	if ( gi.R_DrawDebugSphere ) {
+		SVG_DebugDraw_Sphere( center, radius, color );
+	} else {
+		nav_debug_draw_primitive_t primitive = Nav_DebugDraw_MakePrimitiveBase(
+			sg_svc_debug_draw_primitive_type_t::Sphere, color, styleFlags, thicknessPx, outlineThicknessPx );
+		primitive.p0 = center;
+		primitive.radius = radius;
+		Nav_DebugDraw_EnqueuePrimitive( primitive );
+	}
+}

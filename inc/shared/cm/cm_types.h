@@ -10,14 +10,50 @@
 
 // edict->solid values
 /**
+*   @brief  The shape type of a trace for collision detection.
+**/
+typedef enum {
+	//! SHAPE_NONE = 0,
+	//! This is a point trace, which is the most basic and simplest form of collision detection. It checks for collisions at a single point in space.
+    SHAPE_POINT,
+	//! Used for axis-aligned bounding box (AABB) collision detection. It checks for collisions within a rectangular box defined by its minimum and maximum corners.
+    SHAPE_AABB,
+	//! Derived from mins, and maxs, this shape is used for capsule collision detection. It checks for collisions within a capsule defined by its two endpoints and radius.
+	SHAPE_CAPSULE_FROM_BOUNDS,
+	//! Used for sphere collision detection. It checks for collisions within a sphere defined by its center and radius.
+	SHAPE_SPHERE,
+	//! Used for cylinder collision detection. It checks for collisions within a cylinder defined by its base center, radius, and height.
+	SHAPE_CYLINDER,
+	//! Used for capsule collision detection. It checks for collisions within a capsule defined by its two endpoints and radius.
+	SHAPE_CAPSULE
+} cm_trace_shape_type_t;
+
+/**
+*   @brief  Struct for configuring a trace shape for collision detection. Depending on the type, different fields will be used.
+**/
+typedef struct {
+	//! The type of shape to be used for the trace. This determines which fields in the struct are relevant for collision detection.
+    cm_trace_shape_type_t type;
+	//! For AABB
+    Vector3 extents;
+	//! For Sphere, Cylinder, Capsule
+	float radius;
+	//! For Cylinder, Capsule
+    float halfHeight;
+} cm_trace_shape_t;
+
+/**
 *   @brief  The actual 'solid' type of an entity, determines how to behave when colliding with other objects.
 **/
 typedef enum {
     SOLID_NOT,          //! No interaction with other objects.
     SOLID_TRIGGER,      //! Only touch when inside, after moving. (Optional BSP Brush clip when SVF_HULL is set.)
-    SOLID_BOUNDS_BOX,         //! Touch on bounding box edge.
-    SOLID_BOUNDS_OCTAGON,   //! Touch on its 8 edges.
-    SOLID_BSP           //! BSP clip, touch on edge.
+    SOLID_BOUNDS_BOX,   //! Touch on bounding box edge.
+    SOLID_BOUNDS_OCTAGON, //! Touch on its 8 edges.
+    SOLID_BSP,          //! BSP clip, touch on edge.
+    SOLID_SPHERE,       //! True analytical sphere collision.
+    SOLID_CAPSULE,      //! True analytical capsule collision.
+    SOLID_CYLINDER      //! True analytical cylinder collision.
 } cm_solid_t;
 
 /**

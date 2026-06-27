@@ -185,6 +185,32 @@ static inline const svg_trace_t SVG_Clip( svg_base_edict_t *clipEdict, const Vec
 	return gi.clip( clipEdict, &start, _mins, _maxs, &end, contentMask );
 }
 
+static inline const svg_trace_t SVG_ClipSphere( svg_base_edict_t *clipEdict, const Vector3 &start, float radius, const Vector3 &end, const cm_contents_t contentMask ) {
+	return gi.clipSphere( clipEdict, &start, radius, &end, contentMask );
+}
+
+static inline const svg_trace_t SVG_ClipCapsule( svg_base_edict_t *clipEdict, const Vector3 &start, float radius, float halfHeight, const Vector3 &end, const cm_contents_t contentMask ) {
+	return gi.clipCapsule( clipEdict, &start, radius, halfHeight, &end, contentMask );
+}
+
+static inline const svg_trace_t SVG_ClipCylinder( svg_base_edict_t *clipEdict, const Vector3 &start, float radius, float halfHeight, const Vector3 &end, const cm_contents_t contentMask ) {
+	return gi.clipCylinder( clipEdict, &start, radius, halfHeight, &end, contentMask );
+}
+
+
+static inline const svg_trace_t SVG_TraceSphere( const Vector3 &start, float radius, const Vector3 &end, const svg_base_edict_t *passEdict, const cm_contents_t contentMask ) {
+	return gi.traceSphere( &start, radius, &end, passEdict, contentMask );
+}
+
+static inline const svg_trace_t SVG_TraceCapsule( const Vector3 &start, float radius, float halfHeight, const Vector3 &end, const svg_base_edict_t *passEdict, const cm_contents_t contentMask ) {
+	return gi.traceCapsule( &start, radius, halfHeight, &end, passEdict, contentMask );
+}
+
+static inline const svg_trace_t SVG_TraceCylinder( const Vector3 &start, float radius, float halfHeight, const Vector3 &end, const svg_base_edict_t *passEdict, const cm_contents_t contentMask ) {
+	return gi.traceCylinder( &start, radius, halfHeight, &end, passEdict, contentMask );
+}
+
+
 
 
 /**
