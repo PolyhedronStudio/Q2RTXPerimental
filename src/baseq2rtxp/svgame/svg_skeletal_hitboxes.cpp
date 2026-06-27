@@ -413,6 +413,7 @@ bool SVG_SkeletalHitboxes_RefinePointTrace( svg_trace_t &trace, const Vector3 &s
 	*   Commit the refined hit to the caller's trace.
 	**/
 	trace.entityNumber = target->s.number;
+	trace.brushID = -static_cast< int32_t >( target->s.number + 1 );
 	trace.hitBodyID = bestHitBodyID;
 	trace.fraction = bestHitT;
 	trace.endpos = shotStart + ( shotEnd - shotStart ) * static_cast<float>( bestHitT );

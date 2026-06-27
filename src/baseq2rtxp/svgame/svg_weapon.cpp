@@ -156,10 +156,19 @@ static svg_trace_t SVG_TraceBullet( const Vector3 &start, const Vector3 &end, co
 	auto NormalizeTraceIdentity = []( svg_trace_t &trace ) {
 		if ( trace.ent ) {
 			trace.entityNumber = trace.ent->s.number;
-			if ( trace.brushID == BRUSHID_NONE
-				&& ( trace.ent->solid == SOLID_BOUNDS_BOX || trace.ent->solid == SOLID_BOUNDS_OCTAGON ) ) {
-				trace.brushID = -static_cast< int32_t >( trace.ent->s.number + 1 );
-			}
+        }
+
+        // Preserve or derive an entity-linked brush identifier so impact code can
+        // distinguish world brushes from entity-backed hulls and skeletal hits.
+        if ( trace.brushID == BRUSHID_NONE && trace.entityNumber > ENTITYNUM_WORLD ) {
+            trace.brushID = -static_cast< int32_t >( trace.entityNumber + 1 );
+        }
+
+        if ( trace.brushID == BRUSHID_NONE && trace.ent
+            && ( trace.ent->solid == SOLID_BOUNDS_BOX || trace.ent->solid == SOLID_BOUNDS_OCTAGON 
+				|| trace.ent->solid == SOLID_SPHERE || trace.ent->solid == SOLID_CYLINDER
+				|| trace.ent->solid == SOLID_CAPSULE ) ) {
+            trace.brushID = -static_cast< int32_t >( trace.ent->s.number + 1 );
 		}
 	};
 

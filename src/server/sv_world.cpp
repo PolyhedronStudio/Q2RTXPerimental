@@ -1269,18 +1269,28 @@ static cm_trace_t SV_ClipMoveToEntitiesShape( const Vector3 &start, const cm_tra
 				&touch->currentOrigin.x, &touch->currentAngles.x );
 		}
 
+        /**
+        *	Stamp entity-backed traces with the touched entity identity so the
+        *	caller always sees which entity produced the hit, even when the trace
+        *	result is start-solid or all-solid rather than a closer fraction.
+        **/
+        if ( etrace.allsolid || etrace.startsolid || etrace.fraction < 1.0f ) {
+            etrace.entityNumber = touch->s.number;
+            etrace.brushID = -static_cast< int32_t >( touch->s.number + 1 );
+        }
+
 		/**
 		*	Propagate all-solid and start-solid state so the caller can react to
 		*	the strongest blocking condition encountered so far.
 		**/
 		if ( etrace.allsolid ) {
 			dst.allsolid = true;
-			etrace.entityNumber = touch->s.number;
-			dst.brushID = etrace.brushID;
+            dst.entityNumber = etrace.entityNumber;
+            dst.brushID = etrace.brushID;
 		} else if ( etrace.startsolid ) {
 			dst.startsolid = true;
-			etrace.entityNumber = touch->s.number;
-			dst.brushID = etrace.brushID;
+            dst.entityNumber = etrace.entityNumber;
+            dst.brushID = etrace.brushID;
 		}
 
 		/**
