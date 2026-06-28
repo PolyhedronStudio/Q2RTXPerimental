@@ -7,6 +7,7 @@ extern cvar_t *clg_debug_draw_skeletal_hitboxes;
 *
 ********************************************************************/
 #include "shared/shared.h"
+#include "shared/shared_cpp.h"
 #include "shared/util/util_list.h"
 
 // Should already have been defined by CMake for this ClientGame target.
@@ -35,12 +36,9 @@ extern clgame_export_t globals;
 // For forward declarations:
 #include "sharedgame/sg_shared_fwd.h"
 // Needed.
-#include "sharedgame/pmove/sg_pmove.h"
-// Needed.
 #include "sharedgame/sg_skm.h"
 // SharedGame includes:
 #include "sharedgame/sg_shared.h"
-#include "clgame/decals/clg_decals.h"
 
 
 

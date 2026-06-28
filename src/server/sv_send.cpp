@@ -727,7 +727,7 @@ finish:
 static void write_pending_download(client_t *client)
 {
     sizebuf_t   *buf = &client->netchan.message;
-    int         chunk;
+	int32_t		chunk;
 
     if (!client->download)
         return;
@@ -741,7 +741,7 @@ static void write_pending_download(client_t *client)
     if (buf->cursize >= client->netchan.maxpacketlen - 4)
         return;
 
-    chunk = std::min((uint64_t)client->downloadsize - client->downloadcount,
+    chunk = std::min<int32_t>(/*(uint64_t)*/client->downloadsize - client->downloadcount,
                 client->netchan.maxpacketlen - buf->cursize - 4);
 
     client->downloadpending = false;

@@ -11,6 +11,8 @@
 #include "clgame/clg_world.h"
 #include "clgame/effects/clg_fx_footsteps.h"
 
+#include "sharedgame/pmove/sg_pmove.h"
+
 #define _DEBUG_PRINT_LOCAL_CLIENT_FOOTSTEPS 1
 #define _DEBUG_PRINT_ENTITY_FOOTSTEPS 1
 

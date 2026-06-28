@@ -193,8 +193,11 @@ public:
 	/**
 	*	Array Indexing Operators:
 	**/
-	constexpr std::add_lvalue_reference_t<T> operator[]( const size_t index ) { return ptr[ index ]; }
-	constexpr const std::add_lvalue_reference_t<T> operator[]( const size_t index ) const { return ptr[ index ]; }
+	template <typename IndexType, std::enable_if_t<std::is_integral_v<IndexType>, int> = 0>
+	constexpr std::add_lvalue_reference_t<T> operator[]( const IndexType index ) { return ptr[ index ]; }
+	
+	template <typename IndexType, std::enable_if_t<std::is_integral_v<IndexType>, int> = 0>
+	constexpr const std::add_lvalue_reference_t<T> operator[]( const IndexType index ) const { return ptr[ index ]; }
 
 	/**
 	*	Bool Equation Operator:

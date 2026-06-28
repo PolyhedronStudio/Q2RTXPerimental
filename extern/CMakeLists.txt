@@ -4,11 +4,11 @@
 #if (NOT CONFIG_LINUX_STEAM_RUNTIME_SUPPORT)
 add_subdirectory(zlib)
 target_include_directories(zlibstatic PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/zlib> $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/zlib>)
-
+set_target_properties(zlib PROPERTIES EXCLUDE_FROM_ALL TRUE)
 set_target_properties(zlib PROPERTIES FOLDER extern)
 set_target_properties(zlibstatic PROPERTIES FOLDER extern POSITION_INDEPENDENT_CODE ON)
-set_target_properties(minigzip PROPERTIES FOLDER extern)
-set_target_properties(example PROPERTIES FOLDER extern)
+set_target_properties(minigzip PROPERTIES FOLDER extern EXCLUDE_FROM_ALL TRUE)
+set_target_properties(example PROPERTIES FOLDER extern EXCLUDE_FROM_ALL TRUE)
 #endif()
 
 ####
@@ -19,6 +19,8 @@ target_include_directories(liblua-5.4.7 PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT
 set_target_properties( liblua-5.4.7 PROPERTIES FOLDER extern)
 set_target_properties( lua PROPERTIES FOLDER extern)
 set_target_properties( luac PROPERTIES FOLDER extern)
+set_target_properties( lua PROPERTIES EXCLUDE_FROM_ALL TRUE)
+set_target_properties( luac PROPERTIES EXCLUDE_FROM_ALL TRUE)
 
 ####
 ##  BitPacker: https://github.com/mas-bandwidth/serialize
@@ -75,6 +77,7 @@ if( CONFIG_BUILD_CLIENT_TARGET )
     set_target_properties(SDL2-static PROPERTIES FOLDER extern)
     set_target_properties(uninstall PROPERTIES FOLDER extern)
     set_target_properties(sdl_headers_copy PROPERTIES FOLDER extern)
+
 ENDIF() #IF ( CONFIG_BUILD_CLIENT_TARGET )
 
 #
@@ -118,7 +121,7 @@ IF ( CONFIG_BUILD_CLIENT_TARGET )
 
 
     set(LIBTYPE STATIC)
-    option(FORCE_STATIC_VCRT "" ON)
+    option(FORCE_STATIC_VCRT "" OFF)
     option(ALSOFT_UTILS "" OFF)
     option(ALSOFT_EXAMPLES "" OFF)
     option(ALSOFT_UPDATE_BUILD_VERSION "" OFF)
@@ -129,12 +132,6 @@ IF ( CONFIG_BUILD_CLIENT_TARGET )
     option(ALSOFT_INSTALL_EXAMPLES "" OFF)
     option(ALSOFT_INSTALL_UTILS "" OFF)
     add_subdirectory(openal-soft)
-    if(MSVC)
-        set( BACKUP_CMAKE_CXX_FLAGS_DEBUG ${CMAKE_CXX_FLAGS_DEBUG} )
-        set_property( TARGET OpenAL PROPERTY CMAKE_CXX_FLAGS_DEBUG "/MTd" )
-        set_property( TARGET common PROPERTY CMAKE_CXX_FLAGS_DEBUG "/MTd" )
-        set_property( TARGET ex-common PROPERTY CMAKE_CXX_FLAGS_DEBUG "/MTd" )
-    endif()
     set_target_properties(OpenAL PROPERTIES FOLDER extern/openal-soft)
     set_target_properties(common PROPERTIES FOLDER extern/openal-soft)
     set_target_properties(ex-common PROPERTIES FOLDER extern/openal-soft)

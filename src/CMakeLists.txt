@@ -206,7 +206,10 @@ IF( CONFIG_BUILD_CLIENT_TARGET )
 	if(MSVC OR CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
 	  # Create precompiled header
 	  target_precompile_headers(client PRIVATE
+		<shared/stdlibs_cpp.h>
 		<shared/shared.h>
+		<shared/shared_cpp.h>
+		<shared/pch_additions.h>
 	  )
 	endif()
 
@@ -298,7 +301,10 @@ IF( CONFIG_BUILD_SERVER_TARGET )
 	if(MSVC OR CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
 	  # Create precompiled header
 	  target_precompile_headers(server PRIVATE
+		<shared/stdlibs_cpp.h>
 		<shared/shared.h>
+		<shared/shared_cpp.h>
+		<shared/pch_additions.h>
 	  )
 	endif()
 
@@ -395,19 +401,27 @@ IF( CONFIG_BUILD_GAME_BASEQ2RTXP_TARGETS )
 	if(MSVC OR CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
 	  # Create precompiled header
 	  target_precompile_headers(baseq2rtxp_clgame PRIVATE
+		<shared/stdlibs_cpp.h>
 		<shared/shared.h>
+		<shared/shared_cpp.h>
+		<shared/pch_additions.h>
 	  )
 	  target_precompile_headers(baseq2rtxp_svgame PRIVATE
+		<shared/stdlibs_cpp.h>
 		<shared/shared.h>
+		<shared/shared_cpp.h>
+		<shared/pch_additions.h>
+		<lua.hpp>
+		<sol/sol.hpp>
 	  )
 	endif()
 
 	# Unity Build Settings.
 	if( CONFIG_ENABLE_UNITY_BUILDS )
 		set_target_properties(baseq2rtxp_clgame PROPERTIES UNITY_BUILD ON)
-		set_target_properties(baseq2rtxp_clgame PROPERTIES UNITY_BUILD_BATCH_SIZE 12)
+		#set_target_properties(baseq2rtxp_clgame PROPERTIES UNITY_BUILD_BATCH_SIZE 12)
 		set_target_properties(baseq2rtxp_svgame PROPERTIES UNITY_BUILD ON)
-		set_target_properties(baseq2rtxp_svgame PROPERTIES UNITY_BUILD_BATCH_SIZE 12)
+		#set_target_properties(baseq2rtxp_svgame PROPERTIES UNITY_BUILD_BATCH_SIZE 12)
 	endif()
 
 	# Specify both LIBRARY and RUNTIME because one works only on Windows,

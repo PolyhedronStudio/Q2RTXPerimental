@@ -14,6 +14,8 @@
 #include "clgame/clg_view_state_transition.h"
 #include "clgame/clg_view_weapon.h"
 
+#include "sharedgame/pmove/sg_pmove.h"
+
 
 
 /**

@@ -26,6 +26,7 @@
 #include "clgame/clg_input.h"
 #include "clgame/game_ui/clg_ui_main.h"
 #include "sharedgame/sg_game_ui.h"
+#include "sharedgame/pmove/sg_pmove.h"
 
 
 

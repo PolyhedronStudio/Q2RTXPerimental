@@ -13,6 +13,7 @@
 #include "sharedgame/sg_entities.h"
 #include "sharedgame/sg_entity_flags.h"
 #include "sharedgame/sg_misc.h"
+#include "sharedgame/pmove/sg_pmove.h"
 
 
 /**

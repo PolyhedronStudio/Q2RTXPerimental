@@ -20,6 +20,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 
 #include "shared/shared.h"
+#include "shared/shared_cpp.h"
 #include "shared/util/util_list.h"
 #include "shared/server/sv_game.h"
 

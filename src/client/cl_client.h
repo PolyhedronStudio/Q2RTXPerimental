@@ -16,8 +16,14 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
+#pragma once
+
 // client.h -- primary header for client
 #include "shared/shared.h"
+#ifdef __cplusplus
+#include "shared/shared_cpp.h"
+#endif
+
 #include "shared/util/util_list.h"
 #include "shared/client/cl_game.h"
 

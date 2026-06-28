@@ -14,6 +14,7 @@
 
 
 #include "sharedgame/sg_entities.h"
+#include "sharedgame/pmove/sg_pmove.h"
 // For PM_STEP_MIN_NORMAL
 #include "sharedgame/pmove/sg_pmove_slidemove.h"
 

@@ -9,6 +9,9 @@
 
 //! Include all shared codebase func/type defs..
 #include "shared/shared.h"
+	// Include our 'shared_cpp.h' header.
+#include "shared/shared_cpp.h"
+
 //! Include list data structure functionality.
 #include "shared/util/util_list.h"
 

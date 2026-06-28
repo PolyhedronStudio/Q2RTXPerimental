@@ -56,25 +56,13 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 *   Typedef certain types based on the translation unit's source language.
 **/
 #ifdef __cplusplus
-    // Byte type remains the same, just included here as well as in the else statement for consistency.
-    typedef uint8_t byte;
-    // QBoolean support(treat it as an int to remain compatible with the C code parts).
-    typedef int32_t qboolean;
-    //! Support qtrue for legacy code.
-    static constexpr int32_t qtrue = true;
-    //! Support qfalse for legacy code.
-    static constexpr int32_t qfalse = false;
-    // qhandle_t
-    typedef int32_t qhandle_t;
-
-	// Include our 'shared_cpp.h' header.
-	#include "shared_cpp.h"
+	#include "shared/shared_cpp.h"
 #else // __cplusplus
 	typedef uint8_t byte;
 	typedef enum { qfalse, qtrue } qboolean;    // ABI compat only, don't use: will be int32_t on x86-64 systems.
 	typedef int32_t qhandle_t;
 	#ifndef NULL
-	#define NULL ((void *)0)
+		#define NULL ((void *)0)
 	#endif
     // No implementation needed in C translation units.
     #define QENUM_BIT_FLAGS(...)

@@ -8,15 +8,14 @@ SET(SRC_BASEQ2RTXP_SHAREDGAME
 	baseq2rtxp/sharedgame/sg_entities.cpp
 	baseq2rtxp/sharedgame/sg_gamemode.cpp
 	baseq2rtxp/sharedgame/sg_misc.cpp
-	baseq2rtxp/sharedgame/pmove/sg_pmove.cpp
-	baseq2rtxp/sharedgame/pmove/sg_pmove_slidemove.cpp
-	#baseq2rtxp/sharedgame/sg_pmove.cpp
-	#baseq2rtxp/sharedgame/sg_pmove_slidemove.cpp
 	baseq2rtxp/sharedgame/sg_skm.cpp
 	baseq2rtxp/sharedgame/sg_skm_rootmotion.cpp
 	baseq2rtxp/sharedgame/sg_usetarget_hints.cpp
 
     baseq2rtxp/sharedgame/math/sg_math_velocity.cpp
+
+	baseq2rtxp/sharedgame/pmove/sg_pmove.cpp
+	baseq2rtxp/sharedgame/pmove/sg_pmove_slidemove.cpp
 )
 SET(HEADERS_BASEQ2RTXP_SHAREDGAME
 	baseq2rtxp/sharedgame/sg_decal_shared.h
@@ -26,8 +25,6 @@ SET(HEADERS_BASEQ2RTXP_SHAREDGAME
 	baseq2rtxp/sharedgame/sg_local.h
 	baseq2rtxp/sharedgame/sg_misc.h
 	baseq2rtxp/sharedgame/sg_muzzleflashes.h
-	baseq2rtxp/sharedgame/pmove/sg_pmove.h
-	baseq2rtxp/sharedgame/pmove/sg_pmove_slidemove.h
 	baseq2rtxp/sharedgame/sg_qtag_memory.hpp
 	baseq2rtxp/sharedgame/sg_qtag_string.hpp
 	baseq2rtxp/sharedgame/sg_shared.h
@@ -41,6 +38,9 @@ SET(HEADERS_BASEQ2RTXP_SHAREDGAME
     baseq2rtxp/sharedgame/sg_game_ui.h
 
     baseq2rtxp/sharedgame/math/sg_math_velocity.h
+
+	baseq2rtxp/sharedgame/pmove/sg_pmove.h
+	baseq2rtxp/sharedgame/pmove/sg_pmove_slidemove.h
 )
 #	BaseQ2RTXP ClientGame
 SET(SRC_BASEQ2RTXP_CLGAME

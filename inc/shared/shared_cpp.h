@@ -8,14 +8,20 @@
 ********************************************************************/
 #pragma once
 
-#include <iterator>
-#include <random>
-#include <type_traits>
-#include <vector>
-#include <mutex>
-#include <shared_mutex>
-#include <thread>
+#ifdef __cplusplus
+// Include this for the precompiled header, which includes all the necessary C++ standard headers and defines the QEXTERN_C macros for C++ translation units.
+#include "shared/stdlibs_cpp.h"
 
+// Byte type remains the same, just included here as well as in the else statement for consistency.
+typedef uint8_t byte;
+// QBoolean support(treat it as an int to remain compatible with the C code parts).
+typedef int32_t qboolean;
+//! Support qtrue for legacy code.
+static constexpr int32_t qtrue = true;
+//! Support qfalse for legacy code.
+static constexpr int32_t qfalse = false;
+// qhandle_t
+typedef int32_t qhandle_t;
 
 /****
 *
@@ -437,3 +443,4 @@ template<typename T>
 [[nodiscard]] inline bool brandom() {
     return irandom( 2 ) == 0;
 }
+#endif
