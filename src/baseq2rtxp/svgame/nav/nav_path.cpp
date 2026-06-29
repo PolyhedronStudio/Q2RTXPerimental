@@ -26,16 +26,16 @@ static bool Nav_ComputePortalOverlapSegment( const nav_halfedge_t &he, const nav
 	const Vector3 b0 = g_nav_vertices[ twin.vertex_idx ];
 	const Vector3 b1 = g_nav_vertices[ g_nav_halfedges[ twin.next_idx ].vertex_idx ];
 
-	Vector3 aDir2D = QM_Vector3Subtract( a1, a0 );
+	Vector3 aDir2D = a1 - a0;
 	aDir2D.z = 0.0f;
 	const float aLen = QM_Vector3Length( aDir2D );
 	if ( aLen <= 0.0001f ) {
 		return false;
 	}
-	aDir2D = QM_Vector3Scale( aDir2D, 1.0f / aLen );
+	aDir2D = aDir2D * ( 1.0f / aLen );
 
 	auto projectOnA = [&]( const Vector3 &p ) -> float {
-		Vector3 ap = QM_Vector3Subtract( p, a0 );
+		Vector3 ap = p - a0;
 		ap.z = 0.0f;
 		return static_cast<float>( QM_Vector3DotProduct( ap, aDir2D ) );
 	};
@@ -53,16 +53,16 @@ static bool Nav_ComputePortalOverlapSegment( const nav_halfedge_t &he, const nav
 
 	const float t0 = QM_Clamp( overlapStart / aLen, 0.0f, 1.0f );
 	const float t1 = QM_Clamp( overlapEnd / aLen, 0.0f, 1.0f );
-	Vector3 seg0 = QM_Vector3Add( a0, QM_Vector3Scale( QM_Vector3Subtract( a1, a0 ), t0 ) );
-	Vector3 seg1 = QM_Vector3Add( a0, QM_Vector3Scale( QM_Vector3Subtract( a1, a0 ), t1 ) );
+	Vector3 seg0 = QM_Vector3MultiplyAdd( a0, t0, ( a1 - a0 ) );
+	Vector3 seg1 = QM_Vector3MultiplyAdd( a0, t1, ( a1 - a0 ) );
 
 	const Vector3 bMinPoint = ( u0 <= u1 ) ? b0 : b1;
 	const Vector3 bMaxPoint = ( u0 <= u1 ) ? b1 : b0;
 	const float bSpan = std::max( 0.0001f, bMax - bMin );
 	const float bt0 = QM_Clamp( ( overlapStart - bMin ) / bSpan, 0.0f, 1.0f );
 	const float bt1 = QM_Clamp( ( overlapEnd - bMin ) / bSpan, 0.0f, 1.0f );
-	const Vector3 bSeg0 = QM_Vector3Add( bMinPoint, QM_Vector3Scale( QM_Vector3Subtract( bMaxPoint, bMinPoint ), bt0 ) );
-	const Vector3 bSeg1 = QM_Vector3Add( bMinPoint, QM_Vector3Scale( QM_Vector3Subtract( bMaxPoint, bMinPoint ), bt1 ) );
+	const Vector3 bSeg0 = QM_Vector3MultiplyAdd( bMinPoint, bt0, ( bMaxPoint - bMinPoint ) );
+	const Vector3 bSeg1 = QM_Vector3MultiplyAdd( bMinPoint, bt1, ( bMaxPoint - bMinPoint ) );
 
 	const float maxZ = std::max( std::max( seg0.z, seg1.z ), std::max( bSeg0.z, bSeg1.z ) );
 	seg0.z = maxZ;
@@ -148,8 +148,8 @@ const Vector3 a = g_nav_vertices[ he.vertex_idx ];
 const Vector3 b = g_nav_vertices[ g_nav_halfedges[ he.next_idx ].vertex_idx ];
 
 // Compare the point against the edge in XY space.
-const Vector3 edge = QM_Vector3Subtract( b, a );
-const Vector3 toPoint = QM_Vector3Subtract( point, a );
+const Vector3 edge = b - a;
+const Vector3 toPoint = point - a;
 const float cross2d = edge.x * toPoint.y - edge.y * toPoint.x;
 
 // Keep a tolerance so small wall-adjacent offsets still count as inside.

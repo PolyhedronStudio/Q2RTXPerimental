@@ -432,7 +432,7 @@ const cm_trace_t CM_TransformedBoxTrace( cm_t *cm,
 //
 //  common/collisionmodel/cm_plane.cpp
 //
-const BBox3 CM_CalculateBrushBounds( mbrush_t *brush );
+const BBox3 CM_CalculateBrushBounds( const mbrush_t *brush );
 /**
 *	@return The PLANE_ type for the given normal vector.
 **/

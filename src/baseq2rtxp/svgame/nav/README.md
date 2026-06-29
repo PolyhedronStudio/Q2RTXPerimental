@@ -12,7 +12,7 @@ The NavMesh generation is an asynchronous process designed to extract walkable f
 
 ### B. BSP Geometry Extraction (`Nav_DoExtractionWork`)
 *   **Collision Model**: The generator accesses the global collision model (`cm_t`) and its BSP cache.
-*   **Brush Filtering**: It iterates through all BSP brushes, strictly filtering for `CONTENTS_SOLID`, `CONTENTS_DETAIL`, and `CONTENTS_PLAYERCLIP` brushes.
+*   **Brush Filtering**: It iterates through all BSP brushes, strictly filtering for `CONTENTS_SOLID`, `CONTENTS_DETAIL`, and `CONTENTS_MONSTERCLIP` brushes.
 *   **Walkable Surface Filtering**: For every brush side, it checks the surface normal. Only planes with a Z normal >= `NAV_MIN_WALKABLE_Z` (0.65) are considered walkable floors.
 *   **Winding Construction**: It constructs a base polygon (winding) for the walkable plane and chops it against all other sides of the parent brush to ensure the polygon perfectly fits the brush's convex volume.
 *   **Boolean Subtraction**: Polygons are clipped against other intersecting solid brushes to remove overlapping areas (e.g., pillars resting on the floor). The resulting convex fragments become raw `nav_poly_t` structures.

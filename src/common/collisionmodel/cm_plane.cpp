@@ -11,7 +11,7 @@
 #include "common/common.h"
 
 #if 0
-const BBox3 CM_CalculateBrushBounds( mbrush_t *brush ) {
+const BBox3 CM_CalculateBrushBounds( const mbrush_t *brush ) {
 	if ( !brush->firstbrushside ) {
 		return QM_BBox3Zero();
 	}

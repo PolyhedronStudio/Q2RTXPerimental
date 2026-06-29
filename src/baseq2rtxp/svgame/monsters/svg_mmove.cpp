@@ -231,24 +231,13 @@ const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, con
 	blockedMask |= SVG_MMove_SlideMove( monsterMove->state.origin, monsterMove->state.velocity, monsterMove->frameTime, monsterMove->mins, monsterMove->maxs, monsterMove->monster, monsterMove->touchTraces, false /* monsterMove->hasTime */ );
 
 	// Push down the final amount.
-	Vector3 down = monsterMove->state.origin - Vector3{ 0.f, 0.f, stepSize };
-
-	// [Paril-KEX] jitspoe suggestion for stair clip fix; store
-	// the old down position, and pick a better spot for downwards
-	// trace if the start origin's Z position is lower than the down end pt.
-	Vector3 original_down = down;
-	if ( startOrigin.z < down.z ) {
-		down.z = startOrigin.z - 1.f;
-	}
+	// Push down the final amount.
+	Vector3 down = monsterMove->state.origin;
+	down.z -= stepSize + (float)MM_STEP_GROUND_DIST;
 
 	// Match player push-down behavior: use cylinder for stable ramp handling.
 	trace = SVG_MMove_TraceCylinderForBBox( monsterMove->state.origin, monsterMove->mins, monsterMove->maxs, down, monsterMove->monster, CONTENTS_NONE );
 	if ( !trace.allsolid ) {
-		// [Paril-KEX] from above, do the proper trace now
-		svg_trace_t real_trace = SVG_MMove_TraceCylinderForBBox( monsterMove->state.origin, monsterMove->mins, monsterMove->maxs, original_down, monsterMove->monster, CONTENTS_NONE );
-		//monsterMove.origin = real_trace.endpos;
-		//monsterMove->state.origin = real_trace.endpos;
-
 		// WID: Use proper stair step checking.
 		if ( MMove_CheckStep( monsterMove, &trace ) ) {
 			// Only an upwards jump is a stair clip.
@@ -256,7 +245,7 @@ const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, con
 				monsterMove->step.clipped = true;
 			}
 			// Step down to the new found ground.
-			MMove_StepDown( monsterMove, &real_trace );
+			MMove_StepDown( monsterMove, &trace );
 		}
 	}
 

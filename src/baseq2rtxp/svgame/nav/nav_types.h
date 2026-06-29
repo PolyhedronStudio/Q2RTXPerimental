@@ -37,6 +37,8 @@ struct nav_halfedge_t {
     int32_t face_idx = -1;
     //! Vertical difference between this edge and its twin edge.
     float z_diff = 0.0f;
+    //! If this edge is a boundary, how much was it pushed inward from the original geometry (metadata for runtime inspections).
+    float wall_offset = 0.0f;
 };
 
 /**

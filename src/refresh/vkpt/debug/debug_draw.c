@@ -60,7 +60,7 @@ enum {
 
 enum {
 	//! Maximum number of queued debug instances per frame.
-	VKPT_DEBUG_DRAW_MAX_INSTANCES = 4096,
+	VKPT_DEBUG_DRAW_MAX_INSTANCES = 524288,
 	//! Number of cross-section steps for cylinder wireframes.
 	VKPT_DEBUG_DRAW_CYLINDER_STEPS = 12,
 	//! Maximum vertex count: 6 verts (2 triangles) per instance.

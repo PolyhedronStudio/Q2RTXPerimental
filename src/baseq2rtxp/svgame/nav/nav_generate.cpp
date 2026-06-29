@@ -338,26 +338,50 @@ static void SplitWinding( const winding_t *in, const cm_plane_t *split, float ep
 }
 
 /**
+* @brief Computes the maximum Z height of a brush based on its upward facing planes.
+* @param b The brush to analyze.
+* @return The maximum Z height of the brush, or 999999.0f if it has no top boundary.
+**/
+static float GetBrushMaxZ( const mbrush_t *b ) {
+	float max_z = 999999.0f;
+	for ( int32_t i = 0; i < b->numsides; i++ ) {
+		// In Quake 2, stairs are typically axis-aligned boxes.
+		// A plane with normal.z == 1.0f defines the exact top Z boundary.
+		if ( b->firstbrushside[ i ].plane->normal[ 2 ] > 0.99f ) {
+			if ( b->firstbrushside[ i ].plane->dist < max_z ) {
+				max_z = b->firstbrushside[ i ].plane->dist;
+			}
+		}
+	}
+	return max_z;
+}
+
+/**
 * @brief Check whether a fragment is completely outside one brush.
 * @param frag Candidate polygon fragment.
 * @param b Brush to test against.
 * @return True when the fragment can be kept without further clipping.
 **/
-static bool IsFragmentCompletelyOutsideBrush( const winding_t *frag, const mbrush_t *b ) {
+static bool IsFragmentCompletelyOutsideBrush( const winding_t *frag, const mbrush_t *b, float expansion_radius ) {
 	for (int32_t j = 0; j < b->numsides; j++) {
 		mbrushside_t* side = &b->firstbrushside[j];
+		
+		// Push the plane out horizontally for Minkowski Expansion
+		float horizontal_len = std::sqrt(side->plane->normal[0] * side->plane->normal[0] + side->plane->normal[1] * side->plane->normal[1]);
+		float expanded_dist = side->plane->dist + horizontal_len * expansion_radius;
+		
 		bool strictly_in_front = true;
 		for (int32_t p = 0; p < frag->num_points; p++) {
 			float dot = frag->points[p].x * side->plane->normal[0] + 
 						frag->points[p].y * side->plane->normal[1] + 
 						frag->points[p].z * side->plane->normal[2];
-			if (dot - side->plane->dist <= 0.1f) {
+			if (dot - expanded_dist <= 0.1f) {
 				strictly_in_front = false;
 				break;
 			}
 		}
 		if (strictly_in_front) {
-			return true; // The fragment is entirely in front of or on this plane, so it doesn't intersect the brush volume
+			return true; // The fragment is entirely in front of or on this plane, so it doesn't intersect the expanded brush volume
 		}
 	}
 	return false;
@@ -372,13 +396,13 @@ static bool IsFragmentCompletelyOutsideBrush( const winding_t *frag, const mbrus
 * @param b Blocking brush to subtract.
 * @param poly_normal Original polygon normal used for coplanar tests.
 **/
-static void SubtractBrushFromWindings( std::vector<winding_t> &fragments, const mbrush_t *b, const Vector3 &poly_normal ) {
+static void SubtractBrushFromWindings( std::vector<winding_t> &fragments, const mbrush_t *b, const Vector3 &poly_normal, float expansion_radius ) {
 	std::vector<winding_t> next_fragments;
 	
 	for ( const winding_t& frag : fragments ) {
 		// Optimization: If the fragment is entirely in front of any plane of the brush, it is completely outside the brush.
 		// We can skip splitting it entirely, saving massive amounts of fragmentation!
-		if (IsFragmentCompletelyOutsideBrush(&frag, b)) {
+		if (IsFragmentCompletelyOutsideBrush(&frag, b, expansion_radius)) {
 			next_fragments.push_back(frag);
 			continue;
 		}
@@ -390,12 +414,17 @@ static void SubtractBrushFromWindings( std::vector<winding_t> &fragments, const 
 		for (int32_t j = 0; j < b->numsides; j++) {
 			mbrushside_t* side = &b->firstbrushside[j];
 			
+			// Push the plane out horizontally for Minkowski Expansion
+			cm_plane_t expanded_plane = *side->plane;
+			float horizontal_len = std::sqrt(expanded_plane.normal[0] * expanded_plane.normal[0] + expanded_plane.normal[1] * expanded_plane.normal[1]);
+			expanded_plane.dist += horizontal_len * expansion_radius;
+			
 			// Split with all planes, including sloped ones, so that overlapping brushes
 			// correctly form intersection edges that can be Twin Linked later.
 			
 			winding_t front = {};
 			winding_t back = {};
-			SplitWinding(&inside_part, side->plane, 0.1f, poly_normal, &front, &back);
+			SplitWinding(&inside_part, &expanded_plane, 0.1f, poly_normal, &front, &back);
 			
 			// Anything in front of an outward-facing plane is strictly OUTSIDE the brush. We save it.
 			if (front.num_points >= 3) {
@@ -473,8 +502,8 @@ static bool TryMergeWindings( const winding_t *w1, const winding_t *w2, const Ve
         Vector3 curr = out->points[i];
         Vector3 next = out->points[(i + 1) % out->num_points];
 
-        Vector3 d1 = QM_Vector3Subtract(curr, prev);
-        Vector3 d2 = QM_Vector3Subtract(next, curr);
+        Vector3 d1 = curr - prev;
+        Vector3 d2 = next - curr;
         
         // Ensure non-zero length to avoid normalization issues
         if (QM_Vector3DotProduct(d1, d1) < 0.001f || QM_Vector3DotProduct(d2, d2) < 0.001f) {
@@ -493,7 +522,13 @@ static bool TryMergeWindings( const winding_t *w1, const winding_t *w2, const Ve
         // dot > 0.01f is concave (interior angle > 180).
         if (dot > 0.01f) return false; // Concave
 
-        simple.points[simple.num_points++] = curr; // Keep all convex and collinear points
+        // If the points are practically collinear, skip adding this point to simplify the edge.
+        // This prevents T-junction vertices from piling up during multiple merges.
+        if (std::abs(dot) <= 0.01f) {
+            continue;
+        }
+
+        simple.points[simple.num_points++] = curr; // Keep all strictly convex points
     }
     
     if (simple.num_points < 3 || simple.num_points > MAX_WINDING_POINTS) return false; // Too complex or invalid
@@ -544,20 +579,39 @@ void Nav_DoExtractionWork() {
 		// Get the current brush
 		mbrush_t *b = &bsp->brushes[ i ];
 		// Skip brushes that are not walk-blocking contributors.
-		if ( !( b->contents & ( CONTENTS_SOLID | CONTENTS_DETAIL | CONTENTS_PLAYERCLIP ) ) ) {
+		if ( !( b->contents & ( CONTENTS_SOLID | CONTENTS_DETAIL | CONTENTS_MONSTERCLIP ) ) ) {
 			continue;
 		}
 		// Track brush class split for diagnostics.
-        if ( ( b->contents & CONTENTS_PLAYERCLIP ) != 0 && ( b->contents & ( CONTENTS_SOLID | CONTENTS_DETAIL ) ) == 0 ) {
+        if ( ( b->contents & CONTENTS_MONSTERCLIP ) != 0 && ( b->contents & ( CONTENTS_SOLID | CONTENTS_DETAIL ) ) == 0 ) {
             playerclip_brushes++;
         } else {
             solid_brushes++;
         }
 
+		// Discard brushes that belong to the sky
+		bool is_sky_brush = false;
+		for ( int32_t j = 0; j < b->numsides; j++ ) {
+			mbrushside_t *side = &b->firstbrushside[ j ];
+			if ( side->texinfo && ( side->texinfo->c.flags & CM_SURFACE_FLAG_SKY ) ) {
+				is_sky_brush = true;
+				break;
+			}
+		}
+		if ( is_sky_brush ) {
+			continue;
+		}
+
 		//! Iterate through each side of the brush to find walkable surfaces
 		for ( int32_t j = 0; j < b->numsides; j++ ) {
 			// Get the current brush side
 			mbrushside_t *side = &b->firstbrushside[ j ];
+			
+			// Discard sides that belong to sky surfaces (we don't want to walk on the skybox).
+			if ( side->texinfo && ( side->texinfo->c.flags & CM_SURFACE_FLAG_SKY ) ) {
+				continue;
+			}
+			
 			// Discard sides that are not walkable based on their normal's Z component
 			if ( side->plane->normal[ 2 ] < NAV_MIN_WALKABLE_Z ) {
 				continue;
@@ -586,6 +640,14 @@ void Nav_DoExtractionWork() {
 				std::vector<winding_t> fragments;
 				fragments.push_back(w);
 				
+				// Calculate the highest Z of the floor polygon we are currently subtracting from
+				float floor_max_z = -999999.0f;
+				for ( int32_t p = 0; p < w.num_points; p++ ) {
+					if ( w.points[ p ].z > floor_max_z ) {
+						floor_max_z = w.points[ p ].z;
+					}
+				}
+
 				// Subtract all other solid brushes from this walkable surface
 				Vector3 normal(side->plane->normal[0], side->plane->normal[1], side->plane->normal[2]);
 				for ( int32_t other_idx = 0; other_idx < bsp->numbrushes; other_idx++ ) {
@@ -594,18 +656,29 @@ void Nav_DoExtractionWork() {
 					}
 					
 					mbrush_t* other_b = &bsp->brushes[ other_idx ];
-					if ( !( other_b->contents & ( CONTENTS_SOLID | CONTENTS_DETAIL | CONTENTS_PLAYERCLIP ) ) ) {
+					if ( !( other_b->contents & ( CONTENTS_SOLID | CONTENTS_DETAIL | CONTENTS_MONSTERCLIP ) ) ) {
 						continue; // Only subtract blocking geometry
 					}
 					
-					SubtractBrushFromWindings(fragments, other_b, normal);
+					// Determine if other_b is a stair step that the agent can walk onto.
+					// If the obstacle is <= NAV_MAX_STEP_SIZE above the floor, it's a step.
+					// We must NOT expand steps horizontally, otherwise the navmesh will not reach them!
+					float other_max_z = GetBrushMaxZ( other_b );
+					float expansion_radius = 16.0f;
+					
+					// NAV_MAX_STEP_SIZE is typically 18.25f. 
+					if ( other_max_z <= floor_max_z + 18.25f ) {
+						expansion_radius = 0.0f;
+					}
+					
+					SubtractBrushFromWindings(fragments, other_b, normal, expansion_radius);
 					
 					if ( fragments.empty() ) {
 						break; // Entire surface was swallowed by other brushes
 					}
 				}
 				// Merge fragments to reduce unnecessary fragmentation and keep polygon counts low
-#if 0
+#if 1
 				bool merged = true;
 				while (merged) {
 					merged = false;
@@ -651,8 +724,9 @@ void Nav_DoExtractionWork() {
 						float dy = maxs.y - mins.y;
 						float longest = std::max( dx, dy );
 						
-						// If the average width (area / longest edge) is less than 2 units, it's a useless sliver!
-						if ( area < 1.0f || ( longest > 0.001f && ( area / longest ) < 2.0f ) ) {
+						// If the average width (area / longest edge) is less than 12 units, it's a useless sliver!
+						// This perfectly culls "rotten pizza slices" (triangles with tiny base) without culling stairs (which are rectangles with width 16+).
+						if ( area < 1.0f || ( longest > 0.001f && ( area / longest ) < 12.0f ) ) {
 							sliver_pruned_fragments++;
 							continue; // Prune sliver
 						}
@@ -922,32 +996,62 @@ static void PartitionPolygonsRecursive( PolyContainer &polys, const Vector3 &min
     }
     
     Vector3 extents = maxs - mins;
-    if (extents.x <= 256.0f && extents.y <= 256.0f) {
-        // Grid cell is small enough in 2D dimensions, stop subdividing.
-        return;
-    }
     
     // Pick the longest axis to split (only X or Y for 2.5D NavMesh!)
-    int32_t split_axis = 0;
-    if (extents.y > extents.x) split_axis = 1;
-    
-    float split_dist = mins[split_axis] + extents[split_axis] * 0.5f;
+    int32_t primary_axis = (extents.y > extents.x) ? 1 : 0;
+    int32_t secondary_axis = 1 - primary_axis;
     
     // "Obstacle-Aware KD-Tree Splitting"
     // Find the polygon vertex coordinate along the split axis that is closest to the geometric center.
-    // This perfectly aligns the split plane with the edges of crates/stairs instead of arbitrary halfway points.
-    float best_diff = extents[split_axis];
+    // This perfectly aligns the split plane with the edges of crates/stairs.
+    int32_t split_axis = -1;
+    float split_dist = 0.0f;
+    
+    // Try the primary (longest) axis first
+    float best_diff = extents[primary_axis];
     for (const auto& poly : polys) {
         for (int32_t i = 0; i < poly.num_vertices; i++) {
-            float v = poly.vertices[i][split_axis];
-            // Only consider vertices that are not on the absolute boundary of the bounding box
-            if (v > mins[split_axis] + 1.0f && v < maxs[split_axis] - 1.0f) {
-                float diff = std::abs(v - (mins[split_axis] + extents[split_axis] * 0.5f));
+            float v = poly.vertices[i][primary_axis];
+            // Enforce a KD-Node size limit to prevent tiny sliver polygons
+            if (v > mins[primary_axis] + NAV_MAX_STEP_SIZE && v < maxs[primary_axis] - NAV_MAX_STEP_SIZE) {
+                float diff = std::abs(v - (mins[primary_axis] + extents[primary_axis] * 0.5f));
                 if (diff < best_diff) {
                     best_diff = diff;
                     split_dist = v;
+                    split_axis = primary_axis;
                 }
             }
+        }
+    }
+    
+    // If no internal vertex found on primary axis, try secondary axis
+    if (split_axis == -1) {
+        best_diff = extents[secondary_axis];
+        for (const auto& poly : polys) {
+            for (int32_t i = 0; i < poly.num_vertices; i++) {
+                float v = poly.vertices[i][secondary_axis];
+                // Enforce a KD-Node size limit to prevent tiny sliver polygons
+                if (v > mins[secondary_axis] + NAV_MAX_STEP_SIZE && v < maxs[secondary_axis] - NAV_MAX_STEP_SIZE) {
+                    float diff = std::abs(v - (mins[secondary_axis] + extents[secondary_axis] * 0.5f));
+                    if (diff < best_diff) {
+                        best_diff = diff;
+                        split_dist = v;
+                        split_axis = secondary_axis;
+                    }
+                }
+            }
+        }
+    }
+    
+    // If still no internal vertex, the region is perfectly empty of obstacles. 
+    if (split_axis == -1) {
+        // Enforce a maximum cell size to ensure a "few more extra and proper splits" 
+        // to prevent gigantic polygons, but only if they are truly massive.
+        if (extents.x > 256.0f || extents.y > 256.0f) {
+            split_axis = primary_axis;
+            split_dist = mins[split_axis] + extents[split_axis] * 0.5f;
+        } else {
+            return; // Cell is empty and reasonably sized, stop subdividing.
         }
     }
     
@@ -959,6 +1063,26 @@ static void PartitionPolygonsRecursive( PolyContainer &polys, const Vector3 &min
     std::vector<nav_poly_t> back_polys;
     
     for (const auto& poly : polys) {
+        float poly_min = 99999.0f;
+        float poly_max = -99999.0f;
+        for (int32_t i = 0; i < poly.num_vertices; i++) {
+            poly_min = std::min(poly_min, poly.vertices[i][split_axis]);
+            poly_max = std::max(poly_max, poly.vertices[i][split_axis]);
+        }
+        
+        // Skip splitting if the split plane would slice off a piece smaller than 32 units.
+        // This prevents creating narrow slivers, ensuring every new piece is at least agent-sized.
+        if (split_dist - poly_min < 32.0f || poly_max - split_dist < 32.0f) {
+            // Polygon would be split too close to its edge (or is completely on one side).
+            // Just push it to whichever side its center is on.
+            if (poly.center[split_axis] >= split_dist) {
+                front_polys.push_back(poly);
+            } else {
+                back_polys.push_back(poly);
+            }
+            continue;
+        }
+
         winding_t w = {};
         w.num_points = poly.num_vertices;
         for (int32_t i = 0; i < poly.num_vertices; i++) {
@@ -1109,14 +1233,14 @@ static void Nav_ResolveTJunctionsByEdgeSplicing() {
             Vector3 pA = g_nav_polys[i].vertices[e];
             Vector3 pB = g_nav_polys[i].vertices[(e + 1) % g_nav_polys[i].num_vertices];
             
-            Vector3 edgeVec = QM_Vector3Subtract(pB, pA);
+            Vector3 edgeVec = pB - pA;
             float edgeLenSqr = QM_Vector3LengthSqr(edgeVec);
             
             if (edgeLenSqr < 1.0f) continue;
             
             Vector3 pA_2d = { pA.x, pA.y, 0.0f };
             Vector3 pB_2d = { pB.x, pB.y, 0.0f };
-            Vector3 edgeVec_2d = QM_Vector3Subtract(pB_2d, pA_2d);
+            Vector3 edgeVec_2d = pB_2d - pA_2d;
             float edgeLenSqr_2d = QM_Vector3LengthSqr(edgeVec_2d);
             
             if (edgeLenSqr_2d < 0.001f) continue;
@@ -1158,14 +1282,14 @@ static void Nav_ResolveTJunctionsByEdgeSplicing() {
                                 Vector3 vC = g_nav_polys[j].vertices[vj];
                                 Vector3 vC_2d = { vC.x, vC.y, 0.0f };
                                 
-                                Vector3 toC_2d = QM_Vector3Subtract(vC_2d, pA_2d);
+                                Vector3 toC_2d = vC_2d - pA_2d;
                                 float t = QM_Vector3DotProduct(toC_2d, edgeVec_2d) / edgeLenSqr_2d;
                                 
                                 if (t > 0.0f && t < 1.0f) {
-                                    Vector3 projC_2d = QM_Vector3Add(pA_2d, QM_Vector3Scale(edgeVec_2d, t));
+                                    Vector3 projC_2d = QM_Vector3MultiplyAdd( pA_2d, t, edgeVec_2d );
                                     
                                     if (QM_Vector3DistanceSqr(vC_2d, projC_2d) < 16.0f) { 
-                                        Vector3 projC_3d = QM_Vector3Add(pA, QM_Vector3Scale(edgeVec, t));
+                                        Vector3 projC_3d = QM_Vector3MultiplyAdd( pA, t, edgeVec );
                                         float dz = std::abs(vC.z - projC_3d.z);
                                         
                                         if (dz <= zHeight) {
@@ -1415,8 +1539,8 @@ void Nav_BuildHalfEdgeMesh() {
             Vector3 b = poly.vertices[(v + 1) % poly.num_vertices];
             
             // distance from center to line segment a-b
-            Vector3 edge = QM_Vector3Subtract(b, a);
-            Vector3 toCenter = QM_Vector3Subtract(face.center, a);
+            Vector3 edge = b - a;
+            Vector3 toCenter = face.center - a;
 			// Compute the squared length of the edge to avoid unnecessary square root calculations.
             float edgeLenSq = QM_Vector3LengthSqr(edge);
 			// Default distance is 0.0f, will be updated if edge length is significant.
@@ -1428,7 +1552,7 @@ void Nav_BuildHalfEdgeMesh() {
 				// Clamp t to the range [0, 1] to ensure the projection lies on the edge segment.
                 t = std::max(0.0f, std::min(1.0f, t));
 				// Compute the projected point on the edge using the clamped t value.
-                Vector3 proj = QM_Vector3MultiplyAdd(a, t, edge);
+                Vector3 proj = QM_Vector3MultiplyAdd( a, t, edge );
 				// Compute the distance from the face center to the projected point on the edge.
                 dist = QM_Vector3Distance(face.center, proj);
 			// If the edge length is too small, fall back to the distance from the center to one of the edge vertices.
@@ -1450,16 +1574,15 @@ void Nav_BuildHalfEdgeMesh() {
         for (int32_t v = 0; v < poly.num_vertices; v++) {
 			// Get the current and next vertex indices for the half-edge
             int32_t curr_v = v_indices[v];
-            int32_t next_v = v_indices[(v + 1) % poly.num_vertices];
 
 			// Create a new half-edge structure
             nav_halfedge_t he = {};
             he.vertex_idx = curr_v;
             he.face_idx = face.face_id;
             he.twin_idx = -1; // Default to boundary
+			he.wall_offset = 16.0f; // Metadata for runtime inspection: boundary edges were expanded by 16.0f during CSG.
 
 			// The next half-edge index is the next edge in the polygon, wrapping around to the first edge.
-            int32_t he_idx = g_nav_halfedges.size();
             he.next_idx = face.first_edge_idx + ((v + 1) % poly.num_vertices);
             
 			// Add the half-edge to the global half-edge list
@@ -1522,7 +1645,7 @@ void Nav_BuildHalfEdgeMesh() {
                 if (it == twin_grid.end()) continue;
                 
                 for (int32_t j : it->second) {
-					if ( i == j ) {
+					if ( i == (size_t)j ) {
 						continue; // Don't twin with self!
 					}
 					if ( g_nav_halfedges[ j ].twin_idx != -1 ) {
@@ -1567,6 +1690,11 @@ void Nav_BuildHalfEdgeMesh() {
 			// Link the twin half-edges together by setting their twin indices.
             g_nav_halfedges[i].twin_idx = bestTwin;
             g_nav_halfedges[bestTwin].twin_idx = static_cast<int32_t>(i);
+			
+			// Clear wall offset metadata since this is now an internal connected edge
+			g_nav_halfedges[i].wall_offset = 0.0f;
+			g_nav_halfedges[bestTwin].wall_offset = 0.0f;
+
 			first_pass_twin_links++;
             
             // Use the actual Z height of the shared edge vertices, not the face centers!
@@ -1593,7 +1721,7 @@ void Nav_BuildHalfEdgeMesh() {
         Vector3 b1 = g_nav_vertices[heB.vertex_idx];
         Vector3 b2 = g_nav_vertices[g_nav_halfedges[heB.next_idx].vertex_idx];
 		// Compute the center point of the half-edge in 3D space.
-        Vector3 center = QM_Vector3Scale(QM_Vector3Add(b1, b2), 0.5f);
+        Vector3 center = ( b1 + b2 ) * 0.5f;
         
 		// Compute the grid cell coordinates for the center point, using a 128-unit grid size to group nearby edges together.
 		static constexpr float GRID_SIZE = 128.0f;
@@ -1621,18 +1749,18 @@ void Nav_BuildHalfEdgeMesh() {
         Vector3 a2 = g_nav_vertices[g_nav_halfedges[heA.next_idx].vertex_idx];
 
 		// Compute the direction vector of the half-edge in 2D (ignoring Z) and its length.
-        Vector3 dA = QM_Vector3Subtract(a2, a1);
+        Vector3 dA = a2 - a1;
         dA.z = 0.0f;
         float lenA = QM_Vector3Length(dA);
         if (lenA < 0.1f) continue;
-        Vector3 dirA = QM_Vector3Scale(dA, 1.0f / lenA);
+        Vector3 dirA = dA * ( 1.0f / lenA );
 
         // Initialize variables to track the best overlapping twin candidate based on overlap length.
         float bestOverlap = -1.0f;
         int32_t bestTwin = -1;
 
 		// Compute the center point of the half-edge to use for spatial hashing in the overlap grid.
-        Vector3 centerA = QM_Vector3Scale(QM_Vector3Add(a1, a2), 0.5f);
+        Vector3 centerA = ( a1 + a2 ) * 0.5f;
 		static constexpr float GRID_SIZE = 128.0f;
         int64_t cx = (int64_t)std::floor(centerA.x / GRID_SIZE );
         int64_t cy = (int64_t)std::floor(centerA.y / GRID_SIZE );
@@ -1663,24 +1791,24 @@ void Nav_BuildHalfEdgeMesh() {
                     Vector3 b2 = g_nav_vertices[g_nav_halfedges[heB.next_idx].vertex_idx];
 
 					// Compute the direction vector of the candidate half-edge in 2D (ignoring Z) and its length.
-                    Vector3 dB = QM_Vector3Subtract(b2, b1);
+                    Vector3 dB = b2 - b1;
                     dB.z = 0.0f;
                     float lenB = QM_Vector3Length(dB);
 					// Skip candidate half-edges that are too short to be considered for twin linking.
 					if ( lenB < 0.1f ) {
 						continue;
 					}
-                    Vector3 dirB = QM_Vector3Scale(dB, 1.0f / lenB);
+                    Vector3 dirB = dB * ( 1.0f / lenB );
 					// Check if the two half-edges are nearly parallel in 2D by computing the dot product of their direction vectors.
 					if ( QM_Vector3DotProduct( dirA, dirB ) > -0.95f ) {
 						continue;
 					}
 
 					// Project the candidate half-edge's first vertex onto the current half-edge's direction to find the closest point and check for overlap.
-                    Vector3 a1_to_b1 = QM_Vector3Subtract(b1, a1);
+                    Vector3 a1_to_b1 = b1 - a1;
                     a1_to_b1.z = 0.0f;
                     float proj = QM_Vector3DotProduct(a1_to_b1, dirA);
-                    Vector3 closestPt = QM_Vector3Add(a1, QM_Vector3Scale(dirA, proj));
+                    Vector3 closestPt = QM_Vector3MultiplyAdd( a1, proj, dirA );
                     closestPt.z = 0.0f;
                     Vector3 b1_2d = b1; b1_2d.z = 0.0f;
 					// If the closest point is more than 4 units away from b1 in 2D, skip this candidate half-edge.
@@ -1690,7 +1818,7 @@ void Nav_BuildHalfEdgeMesh() {
 
 					// Compute the projection of the candidate half-edge's second vertex onto the current half-edge's direction to find the overlap range.
                     float u1 = proj;
-                    Vector3 a1_to_b2 = QM_Vector3Subtract(b2, a1);
+                    Vector3 a1_to_b2 = b2 - a1;
                     a1_to_b2.z = 0.0f;
                     float u2 = QM_Vector3DotProduct(a1_to_b2, dirA);
 
@@ -1720,6 +1848,11 @@ void Nav_BuildHalfEdgeMesh() {
         if (bestTwin != -1) {
             g_nav_halfedges[i].twin_idx = bestTwin;
             g_nav_halfedges[bestTwin].twin_idx = static_cast<int32_t>(i);
+			
+			// Clear wall offset metadata since this is now an internal connected edge
+			g_nav_halfedges[i].wall_offset = 0.0f;
+			g_nav_halfedges[bestTwin].wall_offset = 0.0f;
+
 			second_pass_twin_links++;
             
             // Use the actual Z height of the shared edge vertices, not the face centers!
@@ -1738,15 +1871,15 @@ void Nav_BuildHalfEdgeMesh() {
 		const Vector3 a1 = g_nav_vertices[ g_nav_halfedges[ a.next_idx ].vertex_idx ];
 		const Vector3 b0 = g_nav_vertices[ b.vertex_idx ];
 		const Vector3 b1 = g_nav_vertices[ g_nav_halfedges[ b.next_idx ].vertex_idx ];
-		Vector3 aDir = QM_Vector3Subtract( a1, a0 );
+        Vector3 aDir = a1 - a0;
 		aDir.z = 0.0f;
 		const float aLen = QM_Vector3Length( aDir );
 		if ( aLen <= 0.0001f ) {
 			return 0.0f;
 		}
-		aDir = QM_Vector3Scale( aDir, 1.0f / aLen );
-		Vector3 a0b0 = QM_Vector3Subtract( b0, a0 );
-		Vector3 a0b1 = QM_Vector3Subtract( b1, a0 );
+        aDir = aDir * ( 1.0f / aLen );
+        Vector3 a0b0 = b0 - a0;
+        Vector3 a0b1 = b1 - a0;
 		a0b0.z = 0.0f;
 		a0b1.z = 0.0f;
 		const float u0 = static_cast<float>( QM_Vector3DotProduct( a0b0, aDir ) );

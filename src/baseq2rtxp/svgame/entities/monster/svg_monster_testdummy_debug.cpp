@@ -741,7 +741,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarToPlay
         self->monsterMove.state.velocity.x = 0;
         self->monsterMove.state.velocity.y = 0;
         
-        Vector3 dir = QM_Vector3Subtract( self->activator->currentOrigin, self->currentOrigin );
+		Vector3 dir = self->activator->currentOrigin - self->currentOrigin;
         dir.z = 0;
         if ( QM_Vector3LengthSqr(dir) > 0.001f ) {
             self->ideal_yaw = QM_Vector3ToYaw( dir );
@@ -1466,7 +1466,7 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
         Vector3 targetFeet = goalOrigin;
         targetFeet.z += this->mins.z; // Approximate goal's feet assuming similar bounds
 
-        Vector3 delta = QM_Vector3Subtract( targetFeet, myFeet );
+		Vector3 delta = targetFeet - myFeet;
         float delta_xy = std::sqrt( delta.x * delta.x + delta.y * delta.y );
         
         bool should_jump = false;
@@ -1493,7 +1493,7 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
             // Only jump if there is an ACTUAL gap (i.e. we aren't just running on flat ground).
             // Do a downward trace at the midpoint of the jump.
             if ( should_jump ) {
-                Vector3 midpoint = QM_Vector3Add( myFeet, QM_Vector3Scale( delta, 0.5f ) );
+				Vector3 midpoint = QM_Vector3MultiplyAdd( myFeet, 0.5f, delta );
                 midpoint.z += 16.0f; // Start slightly elevated to avoid flat terrain bumps
                 Vector3 downpoint = midpoint;
                 downpoint.z -= 128.0f;
@@ -1560,7 +1560,7 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
         UpdateAnim( 1 ); // IDLE
 
         // Face the goal even if pathing failed
-        Vector3 toGoal = QM_Vector3Subtract( goalOrigin, currentOrigin );
+		Vector3 toGoal = goalOrigin - currentOrigin;
         toGoal.z = 0.0f;
         if ( QM_Vector3LengthSqr( toGoal ) > 0.0001f ) {
             Vector3 moveDir = QM_Vector3Normalize( toGoal );
@@ -1572,12 +1572,12 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
             if ( hasLastFacingDirection ) {
             	const float facingContinuity = static_cast<float>( QM_Vector3DotProduct( facingDir, lastFacingDirection ) );
             	if ( facingContinuity < -0.20f ) {
-            		const Vector3 blendedFacing = QM_Vector3Add( QM_Vector3Scale( lastFacingDirection, 0.85f ), QM_Vector3Scale( facingDir, 0.15f ) );
+					const Vector3 blendedFacing = ( lastFacingDirection * 0.85f ) + ( facingDir * 0.15f );
             		if ( QM_Vector3LengthSqr( blendedFacing ) > 0.0001f ) {
             			facingDir = QM_Vector3Normalize( blendedFacing );
             		}
             	} else if ( facingContinuity < 0.40f ) {
-            		const Vector3 blendedFacing = QM_Vector3Add( QM_Vector3Scale( lastFacingDirection, 0.65f ), QM_Vector3Scale( facingDir, 0.35f ) );
+					const Vector3 blendedFacing = ( lastFacingDirection * 0.65f ) + ( facingDir * 0.35f );
             		if ( QM_Vector3LengthSqr( blendedFacing ) > 0.0001f ) {
             			facingDir = QM_Vector3Normalize( blendedFacing );
             		}
@@ -1595,7 +1595,7 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
     }
 
     Vector3 nextWay = NextWaypoint( goalOrigin );
-    Vector3 toGoal = QM_Vector3Subtract( nextWay, currentOrigin );
+	Vector3 toGoal = nextWay - currentOrigin;
     toGoal.z = 0.0f;
     const float toGoalLen2 = static_cast<float>( QM_Vector3DotProduct( toGoal, toGoal ) );
     if ( toGoalLen2 < 0.0001f ) {
@@ -1628,7 +1628,7 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
     			const Vector3 chosenTangent = ( alignA >= alignB ) ? tangentA : tangentB;
     			const float tangentWeight = sustainedCornerBlock ? 0.78f : 0.65f;
     			const float forwardWeight = 1.0f - tangentWeight;
-    			const Vector3 blendedDir = QM_Vector3Add( QM_Vector3Scale( moveDir, forwardWeight ), QM_Vector3Scale( chosenTangent, tangentWeight ) );
+				const Vector3 blendedDir = ( moveDir * forwardWeight ) + ( chosenTangent * tangentWeight );
     			if ( QM_Vector3LengthSqr( blendedDir ) > 0.0001f ) {
     				moveDir = QM_Vector3Normalize( blendedDir );
     			}
@@ -1644,13 +1644,13 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
 		const float dirContinuity = static_cast<float>( QM_Vector3DotProduct( moveDir, lastNavigationMoveDir ) );
 		if ( dirContinuity < -0.15f ) {
 			// Strongly oppose hard reversal in a single frame.
-			const Vector3 blendedDir = QM_Vector3Add( QM_Vector3Scale( lastNavigationMoveDir, 0.80f ), QM_Vector3Scale( moveDir, 0.20f ) );
+			const Vector3 blendedDir = ( lastNavigationMoveDir * 0.80f ) + ( moveDir * 0.20f );
 			if ( QM_Vector3LengthSqr( blendedDir ) > 0.0001f ) {
 				moveDir = QM_Vector3Normalize( blendedDir );
 			}
 		} else if ( dirContinuity < 0.35f ) {
 			// Mildly smooth medium directional jumps.
-			const Vector3 blendedDir = QM_Vector3Add( QM_Vector3Scale( lastNavigationMoveDir, 0.55f ), QM_Vector3Scale( moveDir, 0.45f ) );
+			const Vector3 blendedDir = ( lastNavigationMoveDir * 0.55f ) + ( moveDir * 0.45f );
 			if ( QM_Vector3LengthSqr( blendedDir ) > 0.0001f ) {
 				moveDir = QM_Vector3Normalize( blendedDir );
 			}
@@ -1666,19 +1666,22 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
     if ( hasLastFacingDirection ) {
     	const float facingContinuity = static_cast<float>( QM_Vector3DotProduct( facingDir, lastFacingDirection ) );
     	/**
-    	*	Hard anti-flip guard: when a one-frame target update requests an almost
-    	*	opposite facing direction while still close to the current waypoint, hold
-    	*	the previous facing direction instead of accepting a 180-degree twist.
+    	*	Smooth facing direction without ever hard-locking it, avoiding the moonwalk trap.
     	**/
-    	if ( facingContinuity < -0.35f && toGoalDist2D < 196.0f && consecutiveBlockedFrames < 3 ) {
-    		facingDir = lastFacingDirection;
-    	} else if ( facingContinuity < -0.20f ) {
-    		const Vector3 blendedFacing = QM_Vector3Add( QM_Vector3Scale( lastFacingDirection, 0.88f ), QM_Vector3Scale( facingDir, 0.12f ) );
+    	if ( facingContinuity < -0.98f ) {
+            // Break collinearity trap so Slerp or blends don't get stuck in dead-center opposite directions
+            facingDir.x += 0.01f;
+            facingDir.y -= 0.01f;
+            facingDir = QM_Vector3Normalize( facingDir );
+        }
+        
+    	if ( facingContinuity < -0.20f ) {
+			const Vector3 blendedFacing = SlerpDirectionVector3( lastFacingDirection, facingDir, 0.15f );
     		if ( QM_Vector3LengthSqr( blendedFacing ) > 0.0001f ) {
     			facingDir = QM_Vector3Normalize( blendedFacing );
     		}
     	} else if ( facingContinuity < 0.40f ) {
-    		const Vector3 blendedFacing = QM_Vector3Add( QM_Vector3Scale( lastFacingDirection, 0.65f ), QM_Vector3Scale( facingDir, 0.35f ) );
+			const Vector3 blendedFacing = SlerpDirectionVector3( lastFacingDirection, facingDir, 0.35f );
     		if ( QM_Vector3LengthSqr( blendedFacing ) > 0.0001f ) {
     			facingDir = QM_Vector3Normalize( blendedFacing );
     		}
@@ -2052,8 +2055,8 @@ const Vector3 svg_monster_testdummy_debug_t::StabilizeWaypointTarget( const Vect
 	*	Estimate whether the new candidate is a side-flip relative to the cached
 	*	target by comparing direction vectors from the current actor position.
 	**/
-	Vector3 toCandidate = QM_Vector3Subtract( candidateWaypoint, currentOrigin );
-	Vector3 toCached = QM_Vector3Subtract( lastWaypointTarget, currentOrigin );
+	Vector3 toCandidate = candidateWaypoint - currentOrigin;
+	Vector3 toCached = lastWaypointTarget - currentOrigin;
 	toCandidate.z = 0.0f;
 	toCached.z = 0.0f;
 
@@ -2083,9 +2086,9 @@ const Vector3 svg_monster_testdummy_debug_t::StabilizeWaypointTarget( const Vect
 		candidateWeight = 0.30f;
 	}
 
-	const Vector3 blendedWaypoint = QM_Vector3Add(
-		QM_Vector3Scale( lastWaypointTarget, cachedWeight ),
-		QM_Vector3Scale( candidateWaypoint, candidateWeight ) );
+	const Vector3 blendedWaypoint =
+		( lastWaypointTarget * cachedWeight ) +
+		( candidateWaypoint * candidateWeight );
 
 	lastWaypointTarget = blendedWaypoint;
 	lastWaypointUpdateTime = level.time;
@@ -2161,11 +2164,11 @@ const Vector3 svg_monster_testdummy_debug_t::NextWaypoint( const Vector3 &finalG
             }
         }
         
-        edgeVec = QM_Vector3Subtract( v1, v0 );
+		edgeVec = v1 - v0;
         
         // Closest point on segment
         Vector3 ab = edgeVec;
-        Vector3 ap = QM_Vector3Subtract( currentOrigin, v0 );
+		Vector3 ap = currentOrigin - v0;
         
         ab.z = 0.0f;
         ap.z = 0.0f;
@@ -2188,7 +2191,7 @@ const Vector3 svg_monster_testdummy_debug_t::NextWaypoint( const Vector3 &finalG
                 t = QM_Clamp(t, clearance_t, 1.0f - clearance_t);
             }
             
-            portalMidpoint = QM_Vector3Add(v0, QM_Vector3Scale(QM_Vector3Subtract(v1, v0), t));
+			portalMidpoint = QM_Vector3MultiplyAdd( v0, t, ( v1 - v0 ) );
         } else {
             portalMidpoint = v0;
         }
@@ -2212,8 +2215,11 @@ const Vector3 svg_monster_testdummy_debug_t::NextWaypoint( const Vector3 &finalG
     bool hasSteppedUp = !needsStepUp || (feetOriginZ >= targetZ - 4.0f);
 
     // If we haven't stepped up yet, keep the advance gate tighter to prevent premature portal skips.
-    // Once we're on level ground, allow a wider advance distance for smoother transitions.
-    float advanceDist = ( needsStepUp ? 12.0f : 24.0f ); 
+    // Once we're on level ground, we STILL want a tight advance distance to PREVENT CORNER CUTTING!
+    // Corner cutting occurs when the waypoint advances prematurely and the agent aims at the next portal,
+    // sending its bounding box into the inner corner of the turn.
+    // The secondary plane-crossing check below will cleanly advance us once we pass the portal.
+    float advanceDist = ( needsStepUp ? 12.0f : 4.0f ); 
     
     if ( dist2DSqr < (advanceDist * advanceDist) ) {
         // Only advance if we have actually completed the vertical step, or if it's flat/downhill.
@@ -2228,7 +2234,7 @@ const Vector3 svg_monster_testdummy_debug_t::NextWaypoint( const Vector3 &finalG
     // OUT of faceA and INTO faceB is a 90-degree CCW rotation: (-y, x).
     if ( hasSteppedUp && (edgeVec.x != 0.0f || edgeVec.y != 0.0f || edgeVec.z != 0.0f) ) {
         Vector3 portalNormal = { -edgeVec.y, edgeVec.x, 0.0f };
-        Vector3 fromPortal = QM_Vector3Subtract( currentOrigin, portalMidpoint );
+		Vector3 fromPortal = currentOrigin - portalMidpoint;
         fromPortal.z = 0.0f;
         
         // If the dot product is positive, the agent's center has physically crossed the portal plane.
@@ -2250,8 +2256,8 @@ const Vector3 svg_monster_testdummy_debug_t::NextWaypoint( const Vector3 &finalG
         if ( pathPos + 1 < static_cast<int32_t>( navPath.size() ) - 1 ) {
             Vector3 nv0, nv1;
             if ( Nav_GetPortalEndpoints( navPath[pathPos + 1], navPath[pathPos + 2], &nv0, &nv1 ) ) {
-                Vector3 nab = QM_Vector3Subtract( nv1, nv0 );
-                Vector3 nap = QM_Vector3Subtract( portalMidpoint, nv0 );
+				Vector3 nab = nv1 - nv0;
+				Vector3 nap = portalMidpoint - nv0;
                 nab.z = 0.0f;
                 nap.z = 0.0f;
                 float nab_len2 = static_cast<float>(QM_Vector3DotProduct(nab, nab));
@@ -2265,7 +2271,7 @@ const Vector3 svg_monster_testdummy_debug_t::NextWaypoint( const Vector3 &finalG
                     } else {
                         t = QM_Clamp(t, clearance_t, 1.0f - clearance_t);
                     }
-                    safeForwardPoint = QM_Vector3Add(nv0, QM_Vector3Scale(QM_Vector3Subtract(nv1, nv0), t));
+					safeForwardPoint = QM_Vector3MultiplyAdd( nv0, t, ( nv1 - nv0 ) );
                 } else {
                     safeForwardPoint = nv0;
                 }
@@ -2274,12 +2280,12 @@ const Vector3 svg_monster_testdummy_debug_t::NextWaypoint( const Vector3 &finalG
             }
         }
 
-        Vector3 pushDir = QM_Vector3Subtract( safeForwardPoint, portalMidpoint );
+		Vector3 pushDir = safeForwardPoint - portalMidpoint;
         pushDir.z = 0.0f; // Keep the push horizontal
         float expLen = QM_Vector3Length(pushDir);
         
         if (expLen > 0.001f) {
-            pushDir = QM_Vector3Scale(pushDir, 1.0f / expLen);
+			pushDir = pushDir * ( 1.0f / expLen );
             
             float pushDist = 0.0f;
             if ( !hasSteppedUp ) {
@@ -2301,9 +2307,9 @@ const Vector3 svg_monster_testdummy_debug_t::NextWaypoint( const Vector3 &finalG
                 pushDist = std::min( maxSafePush, expLen );
             }
 
-			const Vector3 pushedPoint = QM_Vector3Add( portalMidpoint, QM_Vector3Scale( pushDir, pushDist ) );
-			const Vector3 toPortal = QM_Vector3Subtract( portalMidpoint, currentOrigin );
-			const Vector3 toPushed = QM_Vector3Subtract( pushedPoint, currentOrigin );
+			const Vector3 pushedPoint = QM_Vector3MultiplyAdd( portalMidpoint, pushDist, pushDir );
+			const Vector3 toPortal = portalMidpoint - currentOrigin;
+			const Vector3 toPushed = pushedPoint - currentOrigin;
 			// Guard against pathological push points that end up behind current progression direction.
 			if ( QM_Vector3DotProduct( toPortal, toPushed ) < 0.0f ) {
 				return StabilizeWaypointTarget( portalMidpoint, false );

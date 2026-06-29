@@ -8,12 +8,12 @@
 /**
 *	Constants & Structures
 **/
-#define MAX_SV_DEBUG_BOXES    ( 8192 * 4 )
+#define MAX_SV_DEBUG_BOXES    ( 131072 * 4 )
 #define MAX_SV_DEBUG_LINES    ( 131072 * 4 )
-#define MAX_SV_DEBUG_ARROWS   1024
-#define MAX_SV_DEBUG_SPHERES  1024
-#define MAX_SV_DEBUG_CAPSULES 1024
-#define MAX_SV_DEBUG_CYLINDERS 1024
+#define MAX_SV_DEBUG_ARROWS   ( 131072 )
+#define MAX_SV_DEBUG_SPHERES  ( 131072 )
+#define MAX_SV_DEBUG_CAPSULES ( 131072 )
+#define MAX_SV_DEBUG_CYLINDERS ( 131072 )
 
 struct sv_debug_box_t {
 	vec3_t mins;

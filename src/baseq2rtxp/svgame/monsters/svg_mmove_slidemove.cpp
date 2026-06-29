@@ -231,11 +231,14 @@ const mm_slide_move_flags_t SVG_MMove_SlideMove( Vector3 &origin, Vector3 &veloc
 		//
 		int32_t i = 0;
 		int32_t j = 0;
+		Vector3 original_velocity = velocity;
+		Vector3 clipVelocity = {};
+
 		for ( i = 0; i < numplanes; i++ ) {
-			SVG_MMove_ClipVelocity( velocity, planes[ i ], velocity, 1.01f );
+			SVG_MMove_ClipVelocity( original_velocity, planes[ i ], clipVelocity, 1.01f );
 			for ( j = 0; j < numplanes; j++ ) {
 				if ( j != i ) {
-					if ( QM_Vector3DotProduct( velocity, planes[ j ] ) < 0 ) {
+					if ( QM_Vector3DotProduct( clipVelocity, planes[ j ] ) < 0 ) {
 						break;  // not ok
 					}
 				}
@@ -247,6 +250,7 @@ const mm_slide_move_flags_t SVG_MMove_SlideMove( Vector3 &origin, Vector3 &veloc
 
 		if ( i != numplanes ) {
 			// go along this plane
+			velocity = clipVelocity;
 		} else {
 			// go along the crease
 			if ( numplanes != 2 ) {
@@ -254,7 +258,7 @@ const mm_slide_move_flags_t SVG_MMove_SlideMove( Vector3 &origin, Vector3 &veloc
 				break;
 			}
 			dir = QM_Vector3CrossProduct( planes[ 0 ], planes[ 1 ] );
-			d = QM_Vector3DotProduct( dir, velocity );
+			d = QM_Vector3DotProduct( dir, original_velocity );
 			velocity = QM_Vector3Scale( dir, d );
 		}
 
