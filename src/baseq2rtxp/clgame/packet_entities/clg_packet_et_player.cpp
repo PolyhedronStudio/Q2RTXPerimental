@@ -684,7 +684,7 @@ static void CLG_DebugDrawPlayerSkeletalHitboxes( const entity_t *refreshEntity, 
         }
 
         for ( int32_t edgeIndex = 0; edgeIndex < 12; edgeIndex++ ) {
-            clgi.R_DrawDebugLine( &worldCorners[ edgePairs[ edgeIndex ][ 0 ] ].x, &worldCorners[ edgePairs[ edgeIndex ][ 1 ] ].x, hitboxColor );
+            clgi.R_DrawDebugLine( &worldCorners[ edgePairs[ edgeIndex ][ 0 ] ].x, &worldCorners[ edgePairs[ edgeIndex ][ 1 ] ].x, hitboxColor, 1.0f, 0.0f, 0 );
         }
     }
 }

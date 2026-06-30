@@ -381,8 +381,12 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	**/
 	//! Cached navigation path for the current A* pursuit.
 	std::vector<int32_t> navPath;
+	//! Cached string-pulled path.
+	std::vector<Vector3> stringPulledPath;
 	//! Current position in the navPath vector.
 	size_t pathPos = 0;
+	//! Current position in the stringPulledPath vector.
+	size_t stringPathPos = 0;
 	//! Last server time when the path was calculated.
 	QMTime lastPathCalcTime = 0_ms;
 	//! Counts consecutive blocked/trapped movement frames while actively navigating.

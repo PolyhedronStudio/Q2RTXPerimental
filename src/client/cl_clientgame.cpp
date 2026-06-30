@@ -812,23 +812,23 @@ void PF_R_DrawFill8f( float x, float y, float w, float h, int32_t c ) {
 void PF_R_DrawFill32f( float x, float y, float w, float h, uint32_t color ) {
 	R_DrawFill32f( x, y, w, h, color );
 }
-void PF_R_DrawDebugBox( const vec3_t mins, const vec3_t maxs, uint32_t color ) {
-	R_DrawDebugBox( mins, maxs, color );
+void PF_R_DrawDebugBox( const vec3_t mins, const vec3_t maxs, uint32_t color, const float thickness, const float outline_thickness, const uint16_t style_flags ) {
+	R_DrawDebugBox( mins, maxs, color, thickness, outline_thickness, style_flags );
 }
-void PF_R_DrawDebugLine( const vec3_t start, const vec3_t end, uint32_t color ) {
-	R_DrawDebugLine( start, end, color );
+void PF_R_DrawDebugLine( const vec3_t start, const vec3_t end, uint32_t color, const float thickness, const float outline_thickness, const uint16_t style_flags ) {
+	R_DrawDebugLine( start, end, color, thickness, outline_thickness, style_flags );
 }
-void PF_R_DrawDebugArrow( const vec3_t start, const vec3_t end, float head_length, uint32_t color ) {
-	R_DrawDebugArrow( start, end, head_length, color );
+void PF_R_DrawDebugArrow( const vec3_t start, const vec3_t end, float head_length, uint32_t color, const float thickness, const float outline_thickness, const uint16_t style_flags ) {
+	R_DrawDebugArrow( start, end, head_length, color, thickness, outline_thickness, style_flags );
 }
-void PF_R_DrawDebugSphere( const vec3_t center, float radius, uint32_t color ) {
-	R_DrawDebugSphere( center, radius, color );
+void PF_R_DrawDebugSphere( const vec3_t center, float radius, uint32_t color, const float thickness, const float outline_thickness, const uint16_t style_flags ) {
+	R_DrawDebugSphere( center, radius, color, thickness, outline_thickness, style_flags );
 }
-void PF_R_DrawDebugCapsule( const vec3_t start, const vec3_t end, float radius, uint32_t color ) {
-	R_DrawDebugCapsule( start, end, radius, color );
+void PF_R_DrawDebugCapsule( const vec3_t start, const vec3_t end, float radius, uint32_t color, const float thickness, const float outline_thickness, const uint16_t style_flags ) {
+	R_DrawDebugCapsule( start, end, radius, color, thickness, outline_thickness, style_flags );
 }
-void PF_R_DrawDebugCylinder( const vec3_t start, const vec3_t end, float radius, uint32_t color ) {
-	R_DrawDebugCylinder( start, end, radius, color );
+void PF_R_DrawDebugCylinder( const vec3_t start, const vec3_t end, float radius, uint32_t color, const float thickness, const float outline_thickness, const uint16_t style_flags ) {
+	R_DrawDebugCylinder( start, end, radius, color, thickness, outline_thickness, style_flags );
 }
 //!
 void PF_R_DiscardRawPic( void ) {

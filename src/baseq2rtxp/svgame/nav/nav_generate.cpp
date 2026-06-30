@@ -15,6 +15,11 @@
 #include "shared/cm/cm_model.h"
 #include "shared/formats/format_bsp.h"
 
+// Entity includes for IsSubClassType checking
+#include "svgame/entities/func/svg_func_door.h"
+#include "svgame/entities/func/svg_func_door_rotating.h"
+#include "svgame/entities/func/svg_func_wall.h"
+
 
 
 /**
@@ -53,6 +58,8 @@ struct winding_t {
 	int32_t num_points = 0;
 	//! The array of points that define the winding (polygon). The maximum number of points is defined by MAX_WINDING_POINTS.
 	Vector3 points[ MAX_WINDING_POINTS ] = {};
+	//! Entity ID this polygon belongs to (e.g. for doors), or ENTITYNUM_NONE if world.
+	int32_t entity_id = ENTITYNUM_NONE;
 };
 
 
@@ -338,53 +345,108 @@ static void SplitWinding( const winding_t *in, const cm_plane_t *split, float ep
 }
 
 /**
-* @brief Computes the maximum Z height of a brush based on its upward facing planes.
-* @param b The brush to analyze.
-* @return The maximum Z height of the brush, or 999999.0f if it has no top boundary.
+* @brief Shifts a plane by a given 3D offset.
 **/
-static float GetBrushMaxZ( const mbrush_t *b ) {
-	float max_z = 999999.0f;
+static cm_plane_t GetShiftedPlane(const cm_plane_t* plane, const Vector3& offset) {
+    cm_plane_t p = *plane;
+    p.dist += QM_Vector3DotProduct(Vector3(p.normal[0], p.normal[1], p.normal[2]), offset);
+    return p;
+}
+
+/**
+* @brief Computes the maximum Z height of a brush by physically building its geometry.
+* @param b The brush to analyze.
+* @param offset The world offset to apply to the brush's planes.
+* @return The maximum Z height of the brush, or 999999.0f if the brush could not be constructed.
+**/
+static float GetBrushMaxZ( const mbrush_t *b, const Vector3& offset ) {
+	float max_z = -999999.0f;
+	
+    // Try to build a face for every plane of the brush
 	for ( int32_t i = 0; i < b->numsides; i++ ) {
-		// In Quake 2, stairs are typically axis-aligned boxes.
-		// A plane with normal.z == 1.0f defines the exact top Z boundary.
-		if ( b->firstbrushside[ i ].plane->normal[ 2 ] > 0.99f ) {
-			if ( b->firstbrushside[ i ].plane->dist < max_z ) {
-				max_z = b->firstbrushside[ i ].plane->dist;
-			}
-		}
+        mbrushside_t* side = &b->firstbrushside[i];
+        cm_plane_t p = GetShiftedPlane(side->plane, offset);
+        
+        winding_t w = BaseWindingForPlane( &p );
+        bool valid = true;
+        
+        for ( int32_t j = 0; j < b->numsides && valid; j++ ) {
+            if ( i == j ) continue;
+            cm_plane_t clip = GetShiftedPlane(b->firstbrushside[j].plane, offset);
+            if ( !ChopWindingInPlace( &w, &clip, 0.1f ) ) {
+                valid = false;
+            }
+        }
+        
+        // If this face is valid, check its vertices for the maximum Z coordinate.
+        if ( valid ) {
+            for ( int32_t pt = 0; pt < w.num_points; pt++ ) {
+                if ( w.points[pt].z > max_z ) {
+                    max_z = w.points[pt].z;
+                }
+            }
+        }
 	}
-	return max_z;
+    
+    // If the brush geometry could not be constructed for some reason, return a high Z value to treat it as a wall.
+	return (max_z == -999999.0f) ? 999999.0f : max_z;
+}
+
+/**
+* @brief Computes which planes of a brush are actually part of its physical surface (not redundant).
+**/
+static std::vector<bool> GetBrushActivePlanes( const mbrush_t *b, const Vector3& offset ) {
+    std::vector<bool> active(b->numsides, false);
+    for ( int32_t i = 0; i < b->numsides; i++ ) {
+        cm_plane_t p = GetShiftedPlane(b->firstbrushside[i].plane, offset);
+        winding_t w = BaseWindingForPlane( &p );
+        bool valid = true;
+        for ( int32_t j = 0; j < b->numsides && valid; j++ ) {
+            if ( i == j ) continue;
+            cm_plane_t clip = GetShiftedPlane(b->firstbrushside[j].plane, offset);
+            if ( !ChopWindingInPlace( &w, &clip, 0.1f ) ) {
+                valid = false;
+            }
+        }
+        if ( valid && w.num_points >= 3 ) {
+            active[i] = true;
+        }
+    }
+    return active;
 }
 
 /**
 * @brief Check whether a fragment is completely outside one brush.
 * @param frag Candidate polygon fragment.
 * @param b Brush to test against.
+* @param offset The world offset to apply to the brush's planes.
+* @param plane_active Precomputed boolean array of which planes are non-redundant.
 * @return True when the fragment can be kept without further clipping.
 **/
-static bool IsFragmentCompletelyOutsideBrush( const winding_t *frag, const mbrush_t *b, float expansion_radius ) {
-	for (int32_t j = 0; j < b->numsides; j++) {
-		mbrushside_t* side = &b->firstbrushside[j];
-		
-		// Push the plane out horizontally for Minkowski Expansion
-		float horizontal_len = std::sqrt(side->plane->normal[0] * side->plane->normal[0] + side->plane->normal[1] * side->plane->normal[1]);
-		float expanded_dist = side->plane->dist + horizontal_len * expansion_radius;
-		
-		bool strictly_in_front = true;
-		for (int32_t p = 0; p < frag->num_points; p++) {
-			float dot = frag->points[p].x * side->plane->normal[0] + 
-						frag->points[p].y * side->plane->normal[1] + 
-						frag->points[p].z * side->plane->normal[2];
-			if (dot - expanded_dist <= 0.1f) {
-				strictly_in_front = false;
-				break;
-			}
-		}
-		if (strictly_in_front) {
-			return true; // The fragment is entirely in front of or on this plane, so it doesn't intersect the expanded brush volume
-		}
-	}
-	return false;
+static bool IsFragmentCompletelyOutsideBrush(const winding_t* frag, const mbrush_t* b, const Vector3& offset, const std::vector<bool>& plane_active, float expand = 0.0f) {
+    for (int32_t j = 0; j < b->numsides; j++) {
+        if (!plane_active[j]) continue;
+
+        mbrushside_t* side = &b->firstbrushside[j];
+        cm_plane_t p = GetShiftedPlane(side->plane, offset);
+        p.dist += expand;
+        
+        // If all points of the fragment are strictly in front of this plane,
+        // the entire fragment is outside the convex brush.
+        bool completely_outside = true;
+        for (int32_t i = 0; i < frag->num_points; i++) {
+            float d = QM_Vector3DotProduct(frag->points[i], Vector3(p.normal[0], p.normal[1], p.normal[2])) - p.dist;
+            // 0.1f tolerance to account for floating point inaccuracies
+            if (d <= 0.1f) {
+                completely_outside = false;
+                break;
+            }
+        }
+        if (completely_outside) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /**
@@ -394,15 +456,17 @@ static bool IsFragmentCompletelyOutsideBrush( const winding_t *frag, const mbrus
 * @brief Subtract one blocking brush from a set of polygon fragments.
 * @param fragments Fragments that will be clipped in place.
 * @param b Blocking brush to subtract.
+* @param offset The world offset to apply to the brush's planes.
 * @param poly_normal Original polygon normal used for coplanar tests.
 **/
-static void SubtractBrushFromWindings( std::vector<winding_t> &fragments, const mbrush_t *b, const Vector3 &poly_normal, float expansion_radius ) {
+static void SubtractBrushFromWindings( std::vector<winding_t> &fragments, const mbrush_t *b, const Vector3& offset, const Vector3 &poly_normal ) {
 	std::vector<winding_t> next_fragments;
+	std::vector<bool> plane_active = GetBrushActivePlanes(b, offset);
 	
 	for ( const winding_t& frag : fragments ) {
 		// Optimization: If the fragment is entirely in front of any plane of the brush, it is completely outside the brush.
 		// We can skip splitting it entirely, saving massive amounts of fragmentation!
-		if (IsFragmentCompletelyOutsideBrush(&frag, b, expansion_radius)) {
+		if (IsFragmentCompletelyOutsideBrush(&frag, b, offset, plane_active, 0.0f)) {
 			next_fragments.push_back(frag);
 			continue;
 		}
@@ -411,20 +475,15 @@ static void SubtractBrushFromWindings( std::vector<winding_t> &fragments, const 
 		bool entirely_inside = true;
 		
 		// Slicing against every plane of the brush
-		for (int32_t j = 0; j < b->numsides; j++) {
+		for ( int32_t j = 0; j < b->numsides; j++ ) {
+			if (!plane_active[j]) continue;
+			
 			mbrushside_t* side = &b->firstbrushside[j];
-			
-			// Push the plane out horizontally for Minkowski Expansion
-			cm_plane_t expanded_plane = *side->plane;
-			float horizontal_len = std::sqrt(expanded_plane.normal[0] * expanded_plane.normal[0] + expanded_plane.normal[1] * expanded_plane.normal[1]);
-			expanded_plane.dist += horizontal_len * expansion_radius;
-			
-			// Split with all planes, including sloped ones, so that overlapping brushes
-			// correctly form intersection edges that can be Twin Linked later.
+			cm_plane_t p = GetShiftedPlane(side->plane, offset);
 			
 			winding_t front = {};
 			winding_t back = {};
-			SplitWinding(&inside_part, &expanded_plane, 0.1f, poly_normal, &front, &back);
+			SplitWinding(&inside_part, &p, 0.1f, poly_normal, &front, &back);
 			
 			// Anything in front of an outward-facing plane is strictly OUTSIDE the brush. We save it.
 			if (front.num_points >= 3) {
@@ -458,8 +517,14 @@ static void SubtractBrushFromWindings( std::vector<winding_t> &fragments, const 
 * @param out Output merged winding.
 * @return True when a valid merged polygon could be produced.
 **/
-static bool TryMergeWindings( const winding_t *w1, const winding_t *w2, const Vector3 &normal, winding_t *out ) {
-    // 1. Find shared edge
+static bool TryMergeWindings(const winding_t* w1, const winding_t* w2, const Vector3& normal, winding_t* out) {
+    if (!w1 || !w2 || !out) return false;
+    
+    // Do not merge polygons that belong to different entities!
+    // This preserves the special door boundary edges for the nav graph.
+    if (w1->entity_id != w2->entity_id) {
+        return false;
+    }
     int32_t match_i1 = -1, match_i2 = -1;
     for (int32_t i1 = 0; i1 < w1->num_points; i1++) {
         Vector3 a1 = w1->points[i1];
@@ -495,40 +560,27 @@ static bool TryMergeWindings( const winding_t *w1, const winding_t *w2, const Ve
 
     // 3. Check convexity and simplify
     winding_t simple = *out;
-    simple.num_points = 0;
-
-    for (int32_t i = 0; i < out->num_points; i++) {
-        Vector3 prev = out->points[(i - 1 + out->num_points) % out->num_points];
-        Vector3 curr = out->points[i];
-        Vector3 next = out->points[(i + 1) % out->num_points];
-
-        Vector3 d1 = curr - prev;
-        Vector3 d2 = next - curr;
+    for (int32_t j = 0; j < simple.num_points; j++) {
+        Vector3 p1 = simple.points[j];
+        Vector3 p2 = simple.points[(j + 1) % simple.num_points];
+        Vector3 p3 = simple.points[(j + 2) % simple.num_points];
+        Vector3 dir1 = QM_Vector3Subtract(p2, p1);
+        Vector3 dir2 = QM_Vector3Subtract(p3, p2);
         
-        // Ensure non-zero length to avoid normalization issues
-        if (QM_Vector3DotProduct(d1, d1) < 0.001f || QM_Vector3DotProduct(d2, d2) < 0.001f) {
-            continue; // Skip very close points
-        }
-        
-        d1 = QM_Vector3Normalize(d1);
-        d2 = QM_Vector3Normalize(d2);
-        
-        Vector3 cross = QM_Vector3CrossProduct(d1, d2);
+        Vector3 cross = QM_Vector3CrossProduct(dir1, dir2);
         float dot = QM_Vector3DotProduct(cross, normal);
 
-        // Quake base windings are clockwise relative to the normal.
-        // This means for a convex corner, the cross product of (d1 x d2) points OPPOSITE to the normal.
-        // So dot < -0.01f is strictly convex.
-        // dot > 0.01f is concave (interior angle > 180).
-        if (dot > 0.01f) return false; // Concave
-
-        // If the points are practically collinear, skip adding this point to simplify the edge.
-        // This prevents T-junction vertices from piling up during multiple merges.
-        if (std::abs(dot) <= 0.01f) {
-            continue;
+        if (dot < -0.01f) {
+            return false; // Concave, cannot merge
         }
-
-        simple.points[simple.num_points++] = curr; // Keep all strictly convex points
+        if (std::abs(dot) < 0.01f) {
+            // Collinear points, remove the middle one
+            for (int32_t k = j + 1; k < simple.num_points - 1; k++) {
+                simple.points[k] = simple.points[k + 1];
+            }
+            simple.num_points--;
+            j--;
+        }
     }
     
     if (simple.num_points < 3 || simple.num_points > MAX_WINDING_POINTS) return false; // Too complex or invalid
@@ -537,17 +589,102 @@ static bool TryMergeWindings( const winding_t *w1, const winding_t *w2, const Ve
     return true;
 }
 
-
+/**
+* @brief Checks whether the given node pointer securely falls within the loaded bsp nodes or leafs boundaries.
+**/
+static bool IsNodeValid(const bsp_t* bsp, const mnode_t* node) {
+    if (!node || !bsp) return false;
+    
+    // Check if it safely falls within the bsp->nodes array.
+    if (node >= bsp->nodes && node < bsp->nodes + bsp->numnodes) {
+        return true;
+    }
+    
+    // Check if it safely falls within the bsp->leafs array.
+    const mleaf_t* leaf = reinterpret_cast<const mleaf_t*>(node);
+    if (leaf >= bsp->leafs && leaf < bsp->leafs + bsp->numleafs) {
+        return true;
+    }
+    
+    // Likely uninitialized memory, or synthetic hulls. We don't process these here.
+    return false;
+}
 
 /**
-*
-*
-*
-*	Generate the navmesh polygons from the current map's collision model:
-*
-*
-*
+* @brief Recursively traverse a BSP tree node and collect all brush indices that belong to it.
 **/
+static void CollectModelBrushes(bsp_t* bsp, mnode_t* node, int32_t entity_id, const Vector3& offset, std::vector<int32_t>& brush_entity_ids, std::vector<Vector3>& brush_offsets) {
+    /**
+    *   Sanity check to prevent out-of-bounds pointer reads if a map happens to have corrupted inline trees
+    *   or synthetic engine hulls that point outside normal geometry pools.
+    **/
+    if (!IsNodeValid(bsp, node)) {
+        return;
+    }
+    
+    if (node->plane == nullptr) {
+        // It's a leaf!
+        mleaf_t* leaf = (mleaf_t*)node;
+        for (int i = 0; i < leaf->numleafbrushes; i++) {
+            mbrush_t* b = leaf->firstleafbrush[i];
+            int32_t brush_idx = b - bsp->brushes;
+            if (brush_idx >= 0 && brush_idx < bsp->numbrushes) {
+                brush_entity_ids[brush_idx] = entity_id;
+                brush_offsets[brush_idx] = offset;
+            }
+        }
+        return;
+    }
+    
+    // Recurse into children.
+    CollectModelBrushes(bsp, node->children[0], entity_id, offset, brush_entity_ids, brush_offsets);
+    CollectModelBrushes(bsp, node->children[1], entity_id, offset, brush_entity_ids, brush_offsets);
+}
+
+/**
+* @brief Split fragments against a door brush. Keeps the outside parts (unchanged) and the inside part (updated to the door's entity ID).
+**/
+static void SplitWindingsByEntityBrush(std::vector<winding_t>& fragments, const mbrush_t* b, int32_t entity_id, const Vector3& offset, float expand = 4.0f) {
+    std::vector<winding_t> next_fragments;
+    std::vector<bool> plane_active = GetBrushActivePlanes(b, offset);
+    
+    for (const winding_t& frag : fragments) {
+        if (IsFragmentCompletelyOutsideBrush(&frag, b, offset, plane_active, expand)) {
+            next_fragments.push_back(frag);
+            continue;
+        }
+
+        winding_t inside_part = frag;
+        bool entirely_inside = true;
+        
+        for (int32_t j = 0; j < b->numsides; j++) {
+            if (!plane_active[j]) continue;
+            
+            mbrushside_t* side = &b->firstbrushside[j];
+            cm_plane_t plane = GetShiftedPlane(side->plane, offset);
+            plane.dist += expand; // Expand splitting planes outwards by a small amount to prevent slivers
+            
+            winding_t front = {};
+            winding_t back = {};
+            SplitWinding(&inside_part, &plane, 0.1f, Vector3(0,0,1) /* not used */, &front, &back);
+            
+            if (front.num_points >= 3) {
+                next_fragments.push_back(front); // This part is outside, it keeps its original entity_id
+                entirely_inside = false;
+            }
+            inside_part = back; // The back part is inside this plane, keep checking it against other planes
+        }
+        
+        // Whatever is left in inside_part after checking all planes is completely inside the brush!
+        if (inside_part.num_points >= 3) {
+            inside_part.entity_id = entity_id;
+            next_fragments.push_back(inside_part);
+        }
+    }
+    
+    fragments = next_fragments;
+}
+
 /**
 *	@brief Extract walkable polygons from the current map's collision model and store them in g_nav_polys.
 **/
@@ -568,6 +705,44 @@ void Nav_DoExtractionWork() {
 
 	// Now we can safely clear the global navmesh polygon container before starting the extraction process.
     g_nav_polys.clear();
+	// Clear all entity IDs from the brush_entity_ids vector, initializing them to ENTITYNUM_NONE.
+
+    
+    // Parse the runtime edicts to find func_door, func_door_rotating, and func_wall entities,
+    // and map their brushes to their runtime entity IDs.
+    std::vector<int32_t> brush_entity_ids(bsp->numbrushes, ENTITYNUM_NONE);
+    std::vector<Vector3> brush_offsets(bsp->numbrushes, Vector3(0.0f, 0.0f, 0.0f));
+    
+    // Populate brush_offsets for all brushes belonging to bmodels
+    for (int32_t m = 1; m < bsp->nummodels; m++) {
+        mmodel_t* model = &bsp->models[m];
+        if (model->headnode != nullptr) {
+            Vector3 offset(model->origin[0], model->origin[1], model->origin[2]);
+            CollectModelBrushes(bsp, model->headnode, ENTITYNUM_NONE, offset, brush_entity_ids, brush_offsets);
+        }
+    }
+    
+    for (int32_t i = 1; i < g_edict_pool.num_edicts; i++) {
+        svg_base_edict_t* edict = g_edicts[i];
+        if ( !SVG_Entity_IsActive( edict ) ) {
+            continue;
+        }
+
+        if (edict->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ||
+            edict->GetTypeInfo()->IsSubClassType<svg_func_door_rotating_t>() ||
+            edict->GetTypeInfo()->IsSubClassType<svg_func_wall_t>()) {
+            
+            if (edict->model.ptr != nullptr && edict->model.size() >= 2 && edict->model[ 0 ] == '*' ) {
+                int32_t model_num = gi.modelindex(edict->model.ptr);
+                if (model_num > 0 && model_num < bsp->nummodels && bsp->models != nullptr) {
+                    if (bsp->models[model_num].headnode != nullptr) {
+                        Vector3 offset = Vector3(edict->s.origin[0], edict->s.origin[1], edict->s.origin[2]);
+                        CollectModelBrushes(bsp, bsp->models[model_num].headnode, i, offset, brush_entity_ids, brush_offsets);
+                    }
+                }
+            }
+        }
+    }
     
     int32_t solid_brushes = 0;
     int32_t playerclip_brushes = 0;
@@ -619,7 +794,8 @@ void Nav_DoExtractionWork() {
             walkable_sides++;
 
 			// Create a base winding (polygon) for the current brush side's plane
-			winding_t w = BaseWindingForPlane( side->plane );
+            cm_plane_t shifted_plane = GetShiftedPlane(side->plane, brush_offsets[i]);
+			winding_t w = BaseWindingForPlane( &shifted_plane );
 			// Store a flag to track if the winding remains valid after clipping against other brush sides
 			bool valid = true;
 			//! Clip the winding against all other sides of the brush to ensure it fits within the brush's volume
@@ -630,14 +806,19 @@ void Nav_DoExtractionWork() {
 				}
 				// Get the brush side to clip against
 				mbrushside_t *clip = &b->firstbrushside[ k ];
+                cm_plane_t clip_plane = GetShiftedPlane(clip->plane, brush_offsets[i]);
 				// Clip the winding in place against the plane. If it fails, mark the winding as invalid.
-				if ( !ChopWindingInPlace( &w, clip->plane, 0.1f ) ) {
+				if ( !ChopWindingInPlace( &w, &clip_plane, 0.1f ) ) {
 					valid = false;
 				}
 			}
 			// If the winding is still valid and has at least 3 points, create a nav_poly_t and add it to the global navmesh polygon container.
-			if ( valid && w.num_points >= 3 ) {
-				std::vector<winding_t> fragments;
+			if ( !valid || w.num_points < 3 ) {
+				continue;
+			}
+            w.entity_id = brush_entity_ids[i];
+
+			std::vector<winding_t> fragments;
 				fragments.push_back(w);
 				
 				// Calculate the highest Z of the floor polygon we are currently subtracting from
@@ -649,7 +830,7 @@ void Nav_DoExtractionWork() {
 				}
 
 				// Subtract all other solid brushes from this walkable surface
-				Vector3 normal(side->plane->normal[0], side->plane->normal[1], side->plane->normal[2]);
+				Vector3 normal(shifted_plane.normal[0], shifted_plane.normal[1], shifted_plane.normal[2]);
 				for ( int32_t other_idx = 0; other_idx < bsp->numbrushes; other_idx++ ) {
 					if ( other_idx == i ) {
 						continue; // Skip self
@@ -661,17 +842,24 @@ void Nav_DoExtractionWork() {
 					}
 					
 					// Determine if other_b is a stair step that the agent can walk onto.
-					// If the obstacle is <= NAV_MAX_STEP_SIZE above the floor, it's a step.
-					// We must NOT expand steps horizontally, otherwise the navmesh will not reach them!
-					float other_max_z = GetBrushMaxZ( other_b );
-					float expansion_radius = 16.0f;
+					// We must not subtract steps from the walkable surface if they are low enough.
+					float other_max_z = GetBrushMaxZ( other_b, brush_offsets[other_idx] );
 					
 					// NAV_MAX_STEP_SIZE is typically 18.25f. 
 					if ( other_max_z <= floor_max_z + 18.25f ) {
-						expansion_radius = 0.0f;
+						// Skip subtracting step heights so agent can path onto them
 					}
 					
-					SubtractBrushFromWindings(fragments, other_b, normal, expansion_radius);
+                    int32_t other_ent_id = brush_entity_ids[other_idx];
+                    if (other_ent_id != ENTITYNUM_NONE) {
+                        // This is a door brush! We DO NOT subtract it to block movement.
+                        // Instead, we split the fragments with 0 expansion, and any fragment 
+                        // that falls INSIDE the door gets its entity_id updated!
+                        SplitWindingsByEntityBrush(fragments, other_b, other_ent_id, brush_offsets[other_idx]);
+                    } else {
+                        // Normal solid obstacle subtraction
+					    SubtractBrushFromWindings(fragments, other_b, brush_offsets[other_idx], normal);
+                    }
 					
 					if ( fragments.empty() ) {
 						break; // Entire surface was swallowed by other brushes
@@ -724,9 +912,9 @@ void Nav_DoExtractionWork() {
 						float dy = maxs.y - mins.y;
 						float longest = std::max( dx, dy );
 						
-						// If the average width (area / longest edge) is less than 12 units, it's a useless sliver!
-						// This perfectly culls "rotten pizza slices" (triangles with tiny base) without culling stairs (which are rectangles with width 16+).
-						if ( area < 1.0f || ( longest > 0.001f && ( area / longest ) < 12.0f ) ) {
+						// If the average width (area / longest edge) is less than 2 units, it's a useless sliver!
+						// This perfectly culls floating-point errors without destroying valid narrow pathways or creating false insets.
+						if ( area < 1.0f || ( longest > 0.001f && ( area / longest ) < 2.0f ) ) {
 							sliver_pruned_fragments++;
 							continue; // Prune sliver
 						}
@@ -746,20 +934,20 @@ void Nav_DoExtractionWork() {
 						// Copy the vertex position from the winding to the polygon.
 						poly.vertices[ v ] = frag.points[ v ];
 						// Accumulate the vertex positions to compute the center.
-						center = center + frag.points[ v ];
+						center = center + poly.vertices[ v ];
 					}
-					// Finalize the center by dividing by the number of vertices.
-					poly.center = center / ( float )poly.num_vertices;
-					// Set the normal of the polygon to match the plane normal of the brush side.
-					poly.normal.x = side->plane->normal[ 0 ];
-					poly.normal.y = side->plane->normal[ 1 ];
-					poly.normal.z = side->plane->normal[ 2 ];
+					// Average the accumulated vertex positions to find the center of the polygon.
+					poly.center = center / static_cast<float>( poly.num_vertices );
+					// Store the normal of the polygon plane, derived from the original brush side.
+					poly.normal = normal;
+                    poly.entity_id = frag.entity_id;
+					// Save the ID of the BSP leaf that contributed this polygon (used for leaf-local pathfinding lookups).
+					poly.bsp_leaf_id = 0;
 					// Submit the polygon to the global navmesh polygon container.
 					g_nav_polys.push_back( poly );
 				}
 			}
 		}
-	}
 
 	// Print a summary of the extraction process to the server console for debugging and verification.
     gi.dprintf("Nav_DoExtractionWork: Checked %d brushes. Found %d solid/detail brushes, %d playerclip-only brushes, %d walkable sides. Extracted %d polys, pruned %d sliver fragments.\n",
@@ -999,61 +1187,15 @@ static void PartitionPolygonsRecursive( PolyContainer &polys, const Vector3 &min
     
     // Pick the longest axis to split (only X or Y for 2.5D NavMesh!)
     int32_t primary_axis = (extents.y > extents.x) ? 1 : 0;
-    int32_t secondary_axis = 1 - primary_axis;
     
-    // "Obstacle-Aware KD-Tree Splitting"
-    // Find the polygon vertex coordinate along the split axis that is closest to the geometric center.
-    // This perfectly aligns the split plane with the edges of crates/stairs.
-    int32_t split_axis = -1;
-    float split_dist = 0.0f;
-    
-    // Try the primary (longest) axis first
-    float best_diff = extents[primary_axis];
-    for (const auto& poly : polys) {
-        for (int32_t i = 0; i < poly.num_vertices; i++) {
-            float v = poly.vertices[i][primary_axis];
-            // Enforce a KD-Node size limit to prevent tiny sliver polygons
-            if (v > mins[primary_axis] + NAV_MAX_STEP_SIZE && v < maxs[primary_axis] - NAV_MAX_STEP_SIZE) {
-                float diff = std::abs(v - (mins[primary_axis] + extents[primary_axis] * 0.5f));
-                if (diff < best_diff) {
-                    best_diff = diff;
-                    split_dist = v;
-                    split_axis = primary_axis;
-                }
-            }
-        }
+    // Enforce a maximum cell size to ensure a "few more extra and proper splits" 
+    // to prevent gigantic polygons, but only if they are truly massive.
+    if (extents.x <= 256.0f && extents.y <= 256.0f) {
+        return; // Cell is reasonably sized, stop subdividing.
     }
     
-    // If no internal vertex found on primary axis, try secondary axis
-    if (split_axis == -1) {
-        best_diff = extents[secondary_axis];
-        for (const auto& poly : polys) {
-            for (int32_t i = 0; i < poly.num_vertices; i++) {
-                float v = poly.vertices[i][secondary_axis];
-                // Enforce a KD-Node size limit to prevent tiny sliver polygons
-                if (v > mins[secondary_axis] + NAV_MAX_STEP_SIZE && v < maxs[secondary_axis] - NAV_MAX_STEP_SIZE) {
-                    float diff = std::abs(v - (mins[secondary_axis] + extents[secondary_axis] * 0.5f));
-                    if (diff < best_diff) {
-                        best_diff = diff;
-                        split_dist = v;
-                        split_axis = secondary_axis;
-                    }
-                }
-            }
-        }
-    }
-    
-    // If still no internal vertex, the region is perfectly empty of obstacles. 
-    if (split_axis == -1) {
-        // Enforce a maximum cell size to ensure a "few more extra and proper splits" 
-        // to prevent gigantic polygons, but only if they are truly massive.
-        if (extents.x > 256.0f || extents.y > 256.0f) {
-            split_axis = primary_axis;
-            split_dist = mins[split_axis] + extents[split_axis] * 0.5f;
-        } else {
-            return; // Cell is empty and reasonably sized, stop subdividing.
-        }
-    }
+    int32_t split_axis = primary_axis;
+    float split_dist = mins[split_axis] + extents[split_axis] * 0.5f;
     
     cm_plane_t plane = {};
     plane.normal[split_axis] = 1.0f;
@@ -1513,6 +1655,7 @@ void Nav_BuildHalfEdgeMesh() {
         face.num_edges = poly.num_vertices;
         face.center = poly.center;
         face.normal = poly.normal;
+        face.entity_id = poly.entity_id;
         face.bsp_leaf_id = poly.bsp_leaf_id;
 		// Store the index of the first half-edge for this face
         face.first_edge_idx = g_nav_halfedges.size();
@@ -1580,6 +1723,7 @@ void Nav_BuildHalfEdgeMesh() {
             he.vertex_idx = curr_v;
             he.face_idx = face.face_id;
             he.twin_idx = -1; // Default to boundary
+			he.edge_entity_id = ENTITYNUM_NONE; // Default to no entity
 			he.wall_offset = 16.0f; // Metadata for runtime inspection: boundary edges were expanded by 16.0f during CSG.
 
 			// The next half-edge index is the next edge in the polygon, wrapping around to the first edge.
@@ -1703,6 +1847,18 @@ void Nav_BuildHalfEdgeMesh() {
             float z2 = (g_nav_vertices[g_nav_halfedges[bestTwin].vertex_idx].z + g_nav_vertices[g_nav_halfedges[g_nav_halfedges[bestTwin].next_idx].vertex_idx].z) * 0.5f;
             g_nav_halfedges[i].z_diff = z2 - z1;
             g_nav_halfedges[bestTwin].z_diff = z1 - z2;
+            
+            // --- DOOR METADATA ASSIGNMENT ---
+            int32_t ent_a = g_nav_faces[g_nav_halfedges[i].face_idx].entity_id;
+            int32_t ent_b = g_nav_faces[g_nav_halfedges[bestTwin].face_idx].entity_id;
+
+            if (ent_a != ent_b) {
+                g_nav_halfedges[i].edge_entity_id = ent_b;
+                g_nav_halfedges[bestTwin].edge_entity_id = ent_a;
+            } else {
+                g_nav_halfedges[i].edge_entity_id = ENTITYNUM_NONE;
+                g_nav_halfedges[bestTwin].edge_entity_id = ENTITYNUM_NONE;
+            }
         }
     }
 
@@ -1860,6 +2016,18 @@ void Nav_BuildHalfEdgeMesh() {
             float z2 = (g_nav_vertices[g_nav_halfedges[bestTwin].vertex_idx].z + g_nav_vertices[g_nav_halfedges[g_nav_halfedges[bestTwin].next_idx].vertex_idx].z) * 0.5f;
             g_nav_halfedges[i].z_diff = z2 - z1;
             g_nav_halfedges[bestTwin].z_diff = z1 - z2;
+
+            // --- DOOR METADATA ASSIGNMENT ---
+            int32_t ent_a = g_nav_faces[g_nav_halfedges[i].face_idx].entity_id;
+            int32_t ent_b = g_nav_faces[g_nav_halfedges[bestTwin].face_idx].entity_id;
+
+            if (ent_a != ent_b) {
+                g_nav_halfedges[i].edge_entity_id = ent_b;
+                g_nav_halfedges[bestTwin].edge_entity_id = ent_a;
+            } else {
+                g_nav_halfedges[i].edge_entity_id = ENTITYNUM_NONE;
+                g_nav_halfedges[bestTwin].edge_entity_id = ENTITYNUM_NONE;
+            }
         }
     }
 

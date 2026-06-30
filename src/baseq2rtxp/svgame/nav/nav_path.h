@@ -103,3 +103,14 @@ int32_t Nav_FindClosestPolyGlobal( const Vector3 &point );
 * @return True when a shared edge was identified.
 **/
 bool Nav_GetPortalEndpoints( int32_t faceA, int32_t faceB, Vector3 *outV0, Vector3 *outV1 );
+
+/**
+* @brief Build a smoothed string-pulled path using the Funnel algorithm.
+* @param path The sequence of face IDs to traverse.
+* @param startPos The exact starting position (e.g. agent's current position).
+* @param goalPos The exact ending position.
+* @param agentRadius The collision radius to steer clear of walls.
+* @param outWaypoints Output sequence of 3D points.
+* @return True if a valid corridor and string-pull could be generated.
+**/
+bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3 &startPos, const Vector3 &goalPos, float agentRadius, std::vector<Vector3> &outWaypoints );

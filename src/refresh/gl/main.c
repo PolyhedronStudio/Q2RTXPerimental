@@ -1028,12 +1028,12 @@ void R_SetDecalMaterialMapping_GL(uint32_t materialHash, const char *materialNam
 void R_SetDecalRenderMode_GL(int32_t renderMode) {}
 void R_DumpDecalMaterialMappings_GL(void) {}
 bool R_InterceptKey_GL(unsigned key, bool down) { return false; }
-void R_DrawDebugBox_GL( const vec3_t mins, const vec3_t maxs, uint32_t color ) {}
-void R_DrawDebugLine_GL( const vec3_t start, const vec3_t end, uint32_t color ) {}
-void R_DrawDebugArrow_GL( const vec3_t start, const vec3_t end, float head_length, uint32_t color ) {}
-void R_DrawDebugSphere_GL( const vec3_t center, float radius, uint32_t color ) {}
-void R_DrawDebugCapsule_GL( const vec3_t start, const vec3_t end, float radius, uint32_t color ) {}
-void R_DrawDebugCylinder_GL( const vec3_t start, const vec3_t end, float radius, uint32_t color ) {}
+void R_DrawDebugBox_GL( const vec3_t mins, const vec3_t maxs, uint32_t color, const float thickness, const float outline_thickness, const uint16_t style_flags ) {}
+void R_DrawDebugLine_GL( const vec3_t start, const vec3_t end, uint32_t color, const float thickness, const float outline_thickness, const uint16_t style_flags ) {}
+void R_DrawDebugArrow_GL( const vec3_t start, const vec3_t end, float head_length, uint32_t color, const float thickness, const float outline_thickness, const uint16_t style_flags ) {}
+void R_DrawDebugSphere_GL( const vec3_t center, float radius, uint32_t color, const float thickness, const float outline_thickness, const uint16_t style_flags ) {}
+void R_DrawDebugCapsule_GL( const vec3_t start, const vec3_t end, float radius, uint32_t color, const float thickness, const float outline_thickness, const uint16_t style_flags ) {}
+void R_DrawDebugCylinder_GL( const vec3_t start, const vec3_t end, float radius, uint32_t color, const float thickness, const float outline_thickness, const uint16_t style_flags ) {}
 
 void R_RegisterFunctionsGL()
 {

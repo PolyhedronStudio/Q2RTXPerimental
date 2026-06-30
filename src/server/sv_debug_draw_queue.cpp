@@ -19,12 +19,18 @@ struct sv_debug_box_t {
 	vec3_t mins;
 	vec3_t maxs;
 	uint32_t color;
+	float thickness;
+	float outline_thickness;
+	uint16_t style_flags;
 };
 
 struct sv_debug_line_t {
 	vec3_t start;
 	vec3_t end;
 	uint32_t color;
+	float thickness;
+	float outline_thickness;
+	uint16_t style_flags;
 };
 
 struct sv_debug_arrow_t {
@@ -32,12 +38,18 @@ struct sv_debug_arrow_t {
 	vec3_t end;
 	float head_length;
 	uint32_t color;
+	float thickness;
+	float outline_thickness;
+	uint16_t style_flags;
 };
 
 struct sv_debug_sphere_t {
 	vec3_t center;
 	float radius;
 	uint32_t color;
+	float thickness;
+	float outline_thickness;
+	uint16_t style_flags;
 };
 
 struct sv_debug_capsule_t {
@@ -45,6 +57,9 @@ struct sv_debug_capsule_t {
 	vec3_t end;
 	float radius;
 	uint32_t color;
+	float thickness;
+	float outline_thickness;
+	uint16_t style_flags;
 };
 
 struct sv_debug_cylinder_t {
@@ -52,6 +67,9 @@ struct sv_debug_cylinder_t {
 	vec3_t end;
 	float radius;
 	uint32_t color;
+	float thickness;
+	float outline_thickness;
+	uint16_t style_flags;
 };
 
 /**
@@ -81,12 +99,12 @@ static int32_t s_sv_debug_num_cylinders = 0;
 *	External Client Imports (Populated via cl_refresh or cl_clientgame)
 **/
 extern "C" {
-	extern void( *R_DrawDebugBox )( const vec3_t mins, const vec3_t maxs, uint32_t color );
-	extern void( *R_DrawDebugLine )( const vec3_t start, const vec3_t end, uint32_t color );
-	extern void( *R_DrawDebugArrow )( const vec3_t start, const vec3_t end, float head_length, uint32_t color );
-	extern void( *R_DrawDebugSphere )( const vec3_t center, float radius, uint32_t color );
-	extern void( *R_DrawDebugCapsule )( const vec3_t start, const vec3_t end, float radius, uint32_t color );
-	extern void( *R_DrawDebugCylinder )( const vec3_t start, const vec3_t end, float radius, uint32_t color );
+	extern void( *R_DrawDebugBox )( const vec3_t mins, const vec3_t maxs, uint32_t color, const float thickness, const float outline_thickness, const uint16_t style_flags );
+	extern void( *R_DrawDebugLine )( const vec3_t start, const vec3_t end, uint32_t color, const float thickness, const float outline_thickness, const uint16_t style_flags );
+	extern void( *R_DrawDebugArrow )( const vec3_t start, const vec3_t end, float head_length, uint32_t color, const float thickness, const float outline_thickness, const uint16_t style_flags );
+	extern void( *R_DrawDebugSphere )( const vec3_t center, float radius, uint32_t color, const float thickness, const float outline_thickness, const uint16_t style_flags );
+	extern void( *R_DrawDebugCapsule )( const vec3_t start, const vec3_t end, float radius, uint32_t color, const float thickness, const float outline_thickness, const uint16_t style_flags );
+	extern void( *R_DrawDebugCylinder )( const vec3_t start, const vec3_t end, float radius, uint32_t color, const float thickness, const float outline_thickness, const uint16_t style_flags );
 };
 
 /**
@@ -110,37 +128,37 @@ void SV_SubmitDebugDrawQueues( void ) {
 
 	if ( R_DrawDebugBox ) {
 		for ( int32_t i = 0; i < s_sv_debug_num_boxes; i++ ) {
-			R_DrawDebugBox( s_sv_debug_boxes[ i ].mins, s_sv_debug_boxes[ i ].maxs, s_sv_debug_boxes[ i ].color );
+			R_DrawDebugBox( s_sv_debug_boxes[ i ].mins, s_sv_debug_boxes[ i ].maxs, s_sv_debug_boxes[ i ].color, s_sv_debug_boxes[ i ].thickness, s_sv_debug_boxes[ i ].outline_thickness, s_sv_debug_boxes[ i ].style_flags );
 		}
 	}
 
 	if ( R_DrawDebugLine ) {
 		for ( int32_t i = 0; i < s_sv_debug_num_lines; i++ ) {
-			R_DrawDebugLine( s_sv_debug_lines[ i ].start, s_sv_debug_lines[ i ].end, s_sv_debug_lines[ i ].color );
+			R_DrawDebugLine( s_sv_debug_lines[ i ].start, s_sv_debug_lines[ i ].end, s_sv_debug_lines[ i ].color, s_sv_debug_lines[ i ].thickness, s_sv_debug_lines[ i ].outline_thickness, s_sv_debug_lines[ i ].style_flags );
 		}
 	}
 
 	if ( R_DrawDebugArrow ) {
 		for ( int32_t i = 0; i < s_sv_debug_num_arrows; i++ ) {
-			R_DrawDebugArrow( s_sv_debug_arrows[ i ].start, s_sv_debug_arrows[ i ].end, s_sv_debug_arrows[ i ].head_length, s_sv_debug_arrows[ i ].color );
+			R_DrawDebugArrow( s_sv_debug_arrows[ i ].start, s_sv_debug_arrows[ i ].end, s_sv_debug_arrows[ i ].head_length, s_sv_debug_arrows[ i ].color, s_sv_debug_arrows[ i ].thickness, s_sv_debug_arrows[ i ].outline_thickness, s_sv_debug_arrows[ i ].style_flags );
 		}
 	}
 
 	if ( R_DrawDebugSphere ) {
 		for ( int32_t i = 0; i < s_sv_debug_num_spheres; i++ ) {
-			R_DrawDebugSphere( s_sv_debug_spheres[ i ].center, s_sv_debug_spheres[ i ].radius, s_sv_debug_spheres[ i ].color );
+			R_DrawDebugSphere( s_sv_debug_spheres[ i ].center, s_sv_debug_spheres[ i ].radius, s_sv_debug_spheres[ i ].color, s_sv_debug_spheres[ i ].thickness, s_sv_debug_spheres[ i ].outline_thickness, s_sv_debug_spheres[ i ].style_flags );
 		}
 	}
 
 	if ( R_DrawDebugCapsule ) {
 		for ( int32_t i = 0; i < s_sv_debug_num_capsules; i++ ) {
-			R_DrawDebugCapsule( s_sv_debug_capsules[ i ].start, s_sv_debug_capsules[ i ].end, s_sv_debug_capsules[ i ].radius, s_sv_debug_capsules[ i ].color );
+			R_DrawDebugCapsule( s_sv_debug_capsules[ i ].start, s_sv_debug_capsules[ i ].end, s_sv_debug_capsules[ i ].radius, s_sv_debug_capsules[ i ].color, s_sv_debug_capsules[ i ].thickness, s_sv_debug_capsules[ i ].outline_thickness, s_sv_debug_capsules[ i ].style_flags );
 		}
 	}
 
 	if ( R_DrawDebugCylinder ) {
 		for ( int32_t i = 0; i < s_sv_debug_num_cylinders; i++ ) {
-			R_DrawDebugCylinder( s_sv_debug_cylinders[ i ].start, s_sv_debug_cylinders[ i ].end, s_sv_debug_cylinders[ i ].radius, s_sv_debug_cylinders[ i ].color );
+			R_DrawDebugCylinder( s_sv_debug_cylinders[ i ].start, s_sv_debug_cylinders[ i ].end, s_sv_debug_cylinders[ i ].radius, s_sv_debug_cylinders[ i ].color, s_sv_debug_cylinders[ i ].thickness, s_sv_debug_cylinders[ i ].outline_thickness, s_sv_debug_cylinders[ i ].style_flags );
 		}
 	}
 }
@@ -149,7 +167,7 @@ void SV_SubmitDebugDrawQueues( void ) {
 *	@brief	Engine-wrapped game import implementations that push primitives
 *			into the thread-safe persistent debug queues.
 **/
-void PF_SV_R_DrawDebugBox( const vec3_t mins, const vec3_t maxs, uint32_t color ) {
+void PF_SV_R_DrawDebugBox( const vec3_t mins, const vec3_t maxs, uint32_t color, const float thickness, const float outline_thickness, const uint16_t style_flags ) {
 	std::lock_guard<std::mutex> lock( s_sv_debug_draw_mutex );
 	if ( s_sv_debug_num_boxes >= MAX_SV_DEBUG_BOXES ) {
 		return;
@@ -158,9 +176,12 @@ void PF_SV_R_DrawDebugBox( const vec3_t mins, const vec3_t maxs, uint32_t color 
 	VectorCopy( mins, box->mins );
 	VectorCopy( maxs, box->maxs );
 	box->color = color;
+	box->thickness = thickness;
+	box->outline_thickness = outline_thickness;
+	box->style_flags = style_flags;
 }
 
-void PF_SV_R_DrawDebugLine( const vec3_t start, const vec3_t end, uint32_t color ) {
+void PF_SV_R_DrawDebugLine( const vec3_t start, const vec3_t end, uint32_t color, const float thickness, const float outline_thickness, const uint16_t style_flags ) {
 	std::lock_guard<std::mutex> lock( s_sv_debug_draw_mutex );
 	if ( s_sv_debug_num_lines >= MAX_SV_DEBUG_LINES ) {
 		return;
@@ -169,9 +190,12 @@ void PF_SV_R_DrawDebugLine( const vec3_t start, const vec3_t end, uint32_t color
 	VectorCopy( start, line->start );
 	VectorCopy( end, line->end );
 	line->color = color;
+	line->thickness = thickness;
+	line->outline_thickness = outline_thickness;
+	line->style_flags = style_flags;
 }
 
-void PF_SV_R_DrawDebugArrow( const vec3_t start, const vec3_t end, float head_length, uint32_t color ) {
+void PF_SV_R_DrawDebugArrow( const vec3_t start, const vec3_t end, float head_length, uint32_t color, const float thickness, const float outline_thickness, const uint16_t style_flags ) {
 	std::lock_guard<std::mutex> lock( s_sv_debug_draw_mutex );
 	if ( s_sv_debug_num_arrows >= MAX_SV_DEBUG_ARROWS ) {
 		return;
@@ -181,9 +205,12 @@ void PF_SV_R_DrawDebugArrow( const vec3_t start, const vec3_t end, float head_le
 	VectorCopy( end, arrow->end );
 	arrow->head_length = head_length;
 	arrow->color = color;
+	arrow->thickness = thickness;
+	arrow->outline_thickness = outline_thickness;
+	arrow->style_flags = style_flags;
 }
 
-void PF_SV_R_DrawDebugSphere( const vec3_t center, float radius, uint32_t color ) {
+void PF_SV_R_DrawDebugSphere( const vec3_t center, float radius, uint32_t color, const float thickness, const float outline_thickness, const uint16_t style_flags ) {
 	std::lock_guard<std::mutex> lock( s_sv_debug_draw_mutex );
 	if ( s_sv_debug_num_spheres >= MAX_SV_DEBUG_SPHERES ) {
 		return;
@@ -192,9 +219,12 @@ void PF_SV_R_DrawDebugSphere( const vec3_t center, float radius, uint32_t color 
 	VectorCopy( center, sphere->center );
 	sphere->radius = radius;
 	sphere->color = color;
+	sphere->thickness = thickness;
+	sphere->outline_thickness = outline_thickness;
+	sphere->style_flags = style_flags;
 }
 
-void PF_SV_R_DrawDebugCapsule( const vec3_t start, const vec3_t end, float radius, uint32_t color ) {
+void PF_SV_R_DrawDebugCapsule( const vec3_t start, const vec3_t end, float radius, uint32_t color, const float thickness, const float outline_thickness, const uint16_t style_flags ) {
 	std::lock_guard<std::mutex> lock( s_sv_debug_draw_mutex );
 	if ( s_sv_debug_num_capsules >= MAX_SV_DEBUG_CAPSULES ) {
 		return;
@@ -204,9 +234,12 @@ void PF_SV_R_DrawDebugCapsule( const vec3_t start, const vec3_t end, float radiu
 	VectorCopy( end, capsule->end );
 	capsule->radius = radius;
 	capsule->color = color;
+	capsule->thickness = thickness;
+	capsule->outline_thickness = outline_thickness;
+	capsule->style_flags = style_flags;
 }
 
-void PF_SV_R_DrawDebugCylinder( const vec3_t start, const vec3_t end, float radius, uint32_t color ) {
+void PF_SV_R_DrawDebugCylinder( const vec3_t start, const vec3_t end, float radius, uint32_t color, const float thickness, const float outline_thickness, const uint16_t style_flags ) {
 	std::lock_guard<std::mutex> lock( s_sv_debug_draw_mutex );
 	if ( s_sv_debug_num_cylinders >= MAX_SV_DEBUG_CYLINDERS ) {
 		return;
@@ -216,6 +249,9 @@ void PF_SV_R_DrawDebugCylinder( const vec3_t start, const vec3_t end, float radi
 	VectorCopy( end, cylinder->end );
 	cylinder->radius = radius;
 	cylinder->color = color;
+	cylinder->thickness = thickness;
+	cylinder->outline_thickness = outline_thickness;
+	cylinder->style_flags = style_flags;
 }
 
 #endif // USE_CLIENT

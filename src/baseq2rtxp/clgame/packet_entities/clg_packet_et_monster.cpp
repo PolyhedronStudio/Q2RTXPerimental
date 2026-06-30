@@ -120,7 +120,7 @@ static void CLG_DebugDrawMonsterSkeletalHitboxes( const entity_t *refreshEntity,
         }
 
         for ( int32_t edgeIndex = 0; edgeIndex < 12; edgeIndex++ ) {
-            clgi.R_DrawDebugLine( &worldCorners[ edgePairs[ edgeIndex ][ 0 ] ].x, &worldCorners[ edgePairs[ edgeIndex ][ 1 ] ].x, hitboxColor );
+            clgi.R_DrawDebugLine( &worldCorners[ edgePairs[ edgeIndex ][ 0 ] ].x, &worldCorners[ edgePairs[ edgeIndex ][ 1 ] ].x, hitboxColor, 1.0f, 0.0f, 0 );
         }
     }
 }
@@ -157,15 +157,15 @@ static void CLG_DebugDrawMonsterDefaultBounds( const centity_t *packetEntity ) {
     worldMaxs[ 2 ] = packetEntity->lerpOrigin.z + packetEntity->maxs.z;
 
     // Default gameplay collision box in high-contrast yellow.
-    clgi.R_DrawDebugBox( worldMins, worldMaxs, U32_YELLOW );
+    clgi.R_DrawDebugBox( worldMins, worldMaxs, U32_YELLOW, 1.0f, 0.0f, 0 );
 
-    // Add two face diagonals so default bounds remain visually distinct from skeletal wireframes.
+    // Draw some simple "X" mark over top of the bounding box to make monster standing positions clearer.
     const Vector3 topDiagStart = { worldMins[ 0 ], worldMins[ 1 ], worldMaxs[ 2 ] };
     const Vector3 topDiagEnd = { worldMaxs[ 0 ], worldMaxs[ 1 ], worldMaxs[ 2 ] };
-    const Vector3 topDiagStart2 = { worldMins[ 0 ], worldMaxs[ 1 ], worldMaxs[ 2 ] };
-    const Vector3 topDiagEnd2 = { worldMaxs[ 0 ], worldMins[ 1 ], worldMaxs[ 2 ] };
-    clgi.R_DrawDebugLine( &topDiagStart.x, &topDiagEnd.x, U32_YELLOW );
-    clgi.R_DrawDebugLine( &topDiagStart2.x, &topDiagEnd2.x, U32_YELLOW );
+    const Vector3 topDiagStart2 = { worldMaxs[ 0 ], worldMins[ 1 ], worldMaxs[ 2 ] };
+    const Vector3 topDiagEnd2 = { worldMins[ 0 ], worldMaxs[ 1 ], worldMaxs[ 2 ] };
+    clgi.R_DrawDebugLine( &topDiagStart.x, &topDiagEnd.x, U32_YELLOW, 1.0f, 0.0f, 0 );
+    clgi.R_DrawDebugLine( &topDiagStart2.x, &topDiagEnd2.x, U32_YELLOW, 1.0f, 0.0f, 0 );
 }
 
 

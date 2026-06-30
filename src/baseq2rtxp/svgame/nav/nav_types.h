@@ -21,6 +21,8 @@ struct nav_poly_t {
     Vector3 normal = {};
     //! BSP leaf that originally contributed this polygon.
     int32_t bsp_leaf_id = -1;
+    //! Entity ID this polygon belongs to (e.g. for doors), or ENTITYNUM_NONE if world.
+    int32_t entity_id = ENTITYNUM_NONE;
 };
 
 /**
@@ -39,6 +41,8 @@ struct nav_halfedge_t {
     float z_diff = 0.0f;
     //! If this edge is a boundary, how much was it pushed inward from the original geometry (metadata for runtime inspections).
     float wall_offset = 0.0f;
+    //! Entity ID of the door this edge transitions into, or ENTITYNUM_NONE.
+    int32_t edge_entity_id = ENTITYNUM_NONE;
 };
 
 /**
@@ -59,6 +63,8 @@ struct nav_face_t {
     float clearance = 0.0f;
     //! BSP leaf that contributed this face.
     int32_t bsp_leaf_id = -1;
+    //! Entity ID this face belongs to (e.g. for doors), or ENTITYNUM_NONE if world.
+    int32_t entity_id = ENTITYNUM_NONE;
 };
 
 /**

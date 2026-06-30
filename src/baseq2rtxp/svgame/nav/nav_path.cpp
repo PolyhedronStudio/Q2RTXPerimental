@@ -430,3 +430,171 @@ openSet.push( { neighbor, tentative_gScore + h } );
 outPath.clear();
 return false;
 }
+
+/**
+*	@brief	Build a smoothed string-pulled path using the Funnel algorithm.
+*	@param	path		The sequence of face IDs to traverse.
+*	@param	startPos	The exact starting position (e.g. agent's current position).
+*	@param	goalPos		The exact ending position.
+*	@param	agentRadius	The collision radius to steer clear of walls.
+*	@param	outWaypoints	Output sequence of 3D points.
+*	@return	True if a valid corridor and string-pull could be generated.
+**/
+inline float Nav_TriArea2D( const Vector3 &a, const Vector3 &b, const Vector3 &c ) {
+	const float ax = b.x - a.x;
+	const float ay = b.y - a.y;
+	const float bx = c.x - a.x;
+	const float by = c.y - a.y;
+	return bx * ay - ax * by;
+}
+
+bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3 &startPos, const Vector3 &goalPos, float agentRadius, std::vector<Vector3> &outWaypoints ) {
+	outWaypoints.clear();
+	if ( path.empty() ) {
+		return false;
+	}
+
+	if ( path.size() == 1 ) {
+		outWaypoints.push_back( startPos );
+		outWaypoints.push_back( goalPos );
+		return true;
+	}
+
+	outWaypoints.push_back( startPos );
+
+	/**
+	*	Organic Traversal (from nav2)
+	**/
+	for ( size_t i = 1; i < path.size() - 1; ++i ) {
+		const int32_t face_idx = path[ i ];
+		const nav_face_t &face = g_nav_faces[ face_idx ];
+		Vector3 center = face.center;
+
+		// 1. Calculate safe randomization radius
+		float min_wall_dist = 9999.0f;
+		for ( int32_t edge_idx = face.first_edge_idx; edge_idx != -1; ) {
+			const nav_halfedge_t &he = g_nav_halfedges[ edge_idx ];
+			if ( he.twin_idx == -1 ) {
+				Vector3 v0 = g_nav_vertices[ he.vertex_idx ];
+				Vector3 v1 = g_nav_vertices[ g_nav_halfedges[ he.next_idx ].vertex_idx ];
+				Vector3 edgeDir = v1 - v0;
+				edgeDir.z = 0.0f;
+				float edgeLen = QM_Vector3Length( edgeDir );
+				if ( edgeLen > 0.0001f ) {
+					edgeDir = edgeDir * ( 1.0f / edgeLen );
+					Vector3 toCenter = center - v0;
+					toCenter.z = 0.0f;
+					float dot = QM_Clamp( static_cast<float>( QM_Vector3DotProduct( toCenter, edgeDir ) ), 0.0f, edgeLen );
+					Vector3 proj = v0 + ( edgeDir * dot );
+					float distToEdge = static_cast<float>( QM_Vector3Distance( center, proj ) );
+					if ( distToEdge < min_wall_dist ) {
+						min_wall_dist = distToEdge;
+					}
+				}
+			}
+			edge_idx = he.next_idx;
+			if ( edge_idx == face.first_edge_idx ) break;
+		}
+
+		float safe_radius = std::max( 0.0f, min_wall_dist - agentRadius - 2.0f );
+		safe_radius = std::min( safe_radius, 8.0f );
+
+		if ( safe_radius > 0.0f ) {
+			float randX = ( ( ( face_idx * 137 ) % 100 ) / 100.0f ) * 2.0f - 1.0f;
+			float randY = ( ( ( face_idx * 271 ) % 100 ) / 100.0f ) * 2.0f - 1.0f;
+			center.x += randX * safe_radius;
+			center.y += randY * safe_radius;
+		}
+
+		// 2. Stair Approach Alignment (from nav2 exactly)
+		if ( i + 1 < path.size() ) {
+			const nav_face_t &nextFace = g_nav_faces[ path[ i + 1 ] ];
+			if ( std::abs( nextFace.center.z - face.center.z ) > 4.0f ) {
+				Vector3 left, right;
+				if ( Nav_GetPortalEndpoints( face_idx, path[ i + 1 ], &left, &right ) ) {
+					Vector3 portalMid = ( left + right ) * 0.5f;
+					Vector3 edgeDir = QM_Vector3Normalize( right - left );
+					Vector3 approachDir = { edgeDir.y, -edgeDir.x, 0.0f }; // Perpendicular
+					
+					Vector3 centerToPortal = portalMid - center;
+					centerToPortal.z = 0.0f;
+					if ( QM_Vector3DotProduct( approachDir, centerToPortal ) > 0.0f ) {
+						approachDir = approachDir * -1.0f;
+					}
+
+					// Project the center point back from the portal by agentRadius + 16.0f
+					center = portalMid + ( approachDir * ( agentRadius + 16.0f ) );
+					center.z = face.center.z;
+				}
+			}
+		}
+
+		// 3. Boundary Safety Push (from nav2 exactly, with 0-distance fallback)
+		for ( int32_t edge_idx = face.first_edge_idx; edge_idx != -1; ) {
+			const nav_halfedge_t &he = g_nav_halfedges[ edge_idx ];
+			if ( he.twin_idx == -1 ) {
+				Vector3 v0 = g_nav_vertices[ he.vertex_idx ];
+				Vector3 v1 = g_nav_vertices[ g_nav_halfedges[ he.next_idx ].vertex_idx ];
+
+				Vector3 edgeDir = v1 - v0;
+				edgeDir.z = 0.0f;
+				const float edgeLen = QM_Vector3Length( edgeDir );
+				if ( edgeLen > 0.0001f ) {
+					edgeDir = edgeDir * ( 1.0f / edgeLen );
+					Vector3 toCenter = center - v0;
+					toCenter.z = 0.0f;
+					float dot = QM_Clamp( static_cast<float>( QM_Vector3DotProduct( toCenter, edgeDir ) ), 0.0f, edgeLen );
+
+					Vector3 proj = v0 + ( edgeDir * dot );
+					proj.z = center.z;
+
+					float distToEdge = static_cast<float>( QM_Vector3Distance( center, proj ) );
+					const float requiredDist = agentRadius + 4.0f; 
+					
+					if ( distToEdge < requiredDist ) {
+						Vector3 pushDir;
+						if ( distToEdge > 0.001f ) {
+							pushDir = center - proj;
+						} else {
+							// 0-distance L-turn fallback: push towards face center
+							pushDir = face.center - proj;
+						}
+						pushDir.z = 0.0f;
+						
+						if ( QM_Vector3LengthSqr( pushDir ) > 0.0001f ) {
+							pushDir = QM_Vector3Normalize( pushDir );
+							center = center + pushDir * ( requiredDist - distToEdge );
+						}
+					}
+				}
+			}
+			edge_idx = he.next_idx;
+			if ( edge_idx == face.first_edge_idx ) break;
+		}
+
+		outWaypoints.push_back( center );
+	}
+
+	outWaypoints.push_back( goalPos );
+
+	/**
+	*	Remove extremely dense redundant waypoints (from nav2 exactly)
+	**/
+	if ( outWaypoints.size() > 2 ) {
+		std::vector<Vector3> simplified;
+		simplified.push_back( outWaypoints.front() );
+		for ( size_t i = 1; i < outWaypoints.size() - 1; ++i ) {
+			const Vector3 &prev = simplified.back();
+			const Vector3 &curr = outWaypoints[ i ];
+			
+			if ( QM_Vector2DistanceSqr( prev, curr ) > ( 24.0f * 24.0f ) ) {
+				simplified.push_back( curr );
+			}
+		}
+		simplified.push_back( outWaypoints.back() );
+		outWaypoints = std::move( simplified );
+	}
+
+	return true;
+}
+

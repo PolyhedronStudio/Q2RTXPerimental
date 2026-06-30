@@ -282,7 +282,7 @@ static void CLG_DebugDraw_DrawObb(
         { 0, 4 }, { 1, 5 }, { 2, 6 }, { 3, 7 },
     };
     for ( int32_t i = 0; i < 12; i++ ) {
-        clgi.R_DrawDebugLine( corners[ edgePairs[ i ][ 0 ] ], corners[ edgePairs[ i ][ 1 ] ], color );
+        clgi.R_DrawDebugLine( corners[ edgePairs[ i ][ 0 ] ], corners[ edgePairs[ i ][ 1 ] ], color, 1.0f, 0.0f, 0 );
     }
 }
 
@@ -331,7 +331,7 @@ static void CLG_ParseDebugDraw( const bool shouldRender ) {
             CLG_DebugDraw_ReadVec3( end );
 
             if ( renderPrimitives ) {
-                clgi.R_DrawDebugLine( start, end, color );
+                clgi.R_DrawDebugLine( start, end, color, 1.0f, 0.0f, 0 );
             }
             break;
         }
@@ -342,7 +342,7 @@ static void CLG_ParseDebugDraw( const bool shouldRender ) {
             CLG_DebugDraw_ReadVec3( maxs );
 
             if ( renderPrimitives ) {
-                clgi.R_DrawDebugBox( mins, maxs, color );
+                clgi.R_DrawDebugBox( mins, maxs, color, 1.0f, 0.0f, 0 );
             }
             break;
         }
@@ -369,7 +369,7 @@ static void CLG_ParseDebugDraw( const bool shouldRender ) {
             const float radius = clgi.MSG_ReadFloat();
 
             if ( renderPrimitives ) {
-                clgi.R_DrawDebugSphere( center, radius, color );
+                clgi.R_DrawDebugSphere( center, radius, color, 1.0f, 0.0f, 0 );
             }
             break;
         }
@@ -381,7 +381,7 @@ static void CLG_ParseDebugDraw( const bool shouldRender ) {
             const float headLength = clgi.MSG_ReadFloat();
 
             if ( renderPrimitives ) {
-                clgi.R_DrawDebugArrow( start, end, headLength, color );
+                clgi.R_DrawDebugArrow( start, end, headLength, color, 1.0f, 0.0f, 0 );
             }
             break;
         }
@@ -394,7 +394,7 @@ static void CLG_ParseDebugDraw( const bool shouldRender ) {
             if ( renderPrimitives ) {
                 // Until world-space text rendering is exposed, render a small label anchor marker.
                 vec3_t markerTop = { origin[ 0 ], origin[ 1 ], origin[ 2 ] + 12.0f };
-                clgi.R_DrawDebugArrow( origin, markerTop, 4.0f, color );
+                clgi.R_DrawDebugArrow( origin, markerTop, 4.0f, color, 1.0f, 0.0f, 0 );
             }
             break;
         }

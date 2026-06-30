@@ -25,6 +25,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/nav/nav_core.h"
 #include "svgame/nav/nav_debug.h"
 #include "svgame/nav/nav_debug_draw.h"
+#include "svgame/nav/nav_generate.h"
 
 
 
@@ -505,6 +506,9 @@ void SVG_InitGame( void ) {
 void SVG_ShutdownGame( void ) {
     // Notify of shutdown.
     gi.dprintf( "==== Initiating ServerGame Shutdown ====\n" );
+
+	// Clear navmesh data
+	Nav_Clear();
 
 	/**
 	*	NOTE: The gamemode should be freed before the Lua VM since the gamemode may have Lua data that needs to be freed in its shutdown.

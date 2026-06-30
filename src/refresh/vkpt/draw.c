@@ -1208,18 +1208,13 @@ R_DrawFill32f_RTX( float x, float y, float w, float h, uint32_t color ) {
 		color, TEXNUM_WHITE );
 }
 
-/**
-*	@brief	Build a style from packed RGBA color using the standard overlay flags (no depth test).
-*	@param	color	Packed RGBA color (R in byte 0, G in byte 1, B in byte 2, A in byte 3).
-*	@param	style	[out] Populated style.
-**/
-static void vkpt_debug_make_overlay_style( uint32_t color, vkpt_debug_draw_style_t *style ) {
+static void vkpt_debug_make_style_from_packed( uint32_t color, float thickness, float outline_thickness, uint16_t style_flags, vkpt_debug_draw_style_t *style ) {
 	vkpt_debug_draw_make_style( style,
 		( ( color >> 0 ) & 0xFF ) / 255.0f,
 		( ( color >> 8 ) & 0xFF ) / 255.0f,
 		( ( color >> 16 ) & 0xFF ) / 255.0f,
 		( ( color >> 24 ) & 0xFF ) / 255.0f,
-		2.0f, 0.0f, VKPT_DEBUG_DRAW_FLAG_NONE );
+		thickness, outline_thickness, style_flags );
 }
 
 /**
@@ -1229,7 +1224,7 @@ static void vkpt_debug_make_overlay_style( uint32_t color, vkpt_debug_draw_style
 *	@param	color	Packed RGBA color used by the debug primitive.
 *	@note	This remains isolated in the vkpt debug module and no-ops when the debug cvar gate is disabled.
 **/
-void R_DrawDebugBox_RTX( const vec3_t mins, const vec3_t maxs, uint32_t color ) {
+void R_DrawDebugBox_RTX( const vec3_t mins, const vec3_t maxs, uint32_t color, const float thickness, const float outline_thickness, const uint16_t style_flags ) {
 	/**
 	*	Early out when the global vkpt debug draw cvar gate is disabled.
 	**/
@@ -1237,14 +1232,8 @@ void R_DrawDebugBox_RTX( const vec3_t mins, const vec3_t maxs, uint32_t color ) 
 		return;
 	}
 
-	/**
-	*	Entity bounds should remain readable even when the enclosed model sits directly
-	*	behind the wireframe edge. Using scene-depth testing here makes cylindrical and
-	*	irregular meshes punch camera-dependent holes into the AABB, which looks like
-	*	broken line rendering rather than useful bounds visualization.
-	**/
 	vkpt_debug_draw_style_t style;
-	vkpt_debug_make_overlay_style( color, &style );
+	vkpt_debug_make_style_from_packed( color, thickness, outline_thickness, style_flags, &style );
 
 	/**
 	*	Queue the world-space AABB primitive in the isolated debug draw module.
@@ -1258,12 +1247,12 @@ void R_DrawDebugBox_RTX( const vec3_t mins, const vec3_t maxs, uint32_t color ) 
 *	@param	end		World-space end point.
 *	@param	color	Packed RGBA color.
 **/
-void R_DrawDebugLine_RTX( const vec3_t start, const vec3_t end, uint32_t color ) {
+void R_DrawDebugLine_RTX( const vec3_t start, const vec3_t end, uint32_t color, const float thickness, const float outline_thickness, const uint16_t style_flags ) {
 	if ( !vkpt_debug_draw_enabled() ) {
 		return;
 	}
 	vkpt_debug_draw_style_t style;
-	vkpt_debug_make_overlay_style( color, &style );
+	vkpt_debug_make_style_from_packed( color, thickness, outline_thickness, style_flags, &style );
 	vkpt_debug_draw_add_line( start, end, &style );
 }
 
@@ -1274,12 +1263,12 @@ void R_DrawDebugLine_RTX( const vec3_t start, const vec3_t end, uint32_t color )
 *	@param	head_length	Length of the arrow head in world units.
 *	@param	color		Packed RGBA color.
 **/
-void R_DrawDebugArrow_RTX( const vec3_t start, const vec3_t end, float head_length, uint32_t color ) {
+void R_DrawDebugArrow_RTX( const vec3_t start, const vec3_t end, float head_length, uint32_t color, const float thickness, const float outline_thickness, const uint16_t style_flags ) {
 	if ( !vkpt_debug_draw_enabled() ) {
 		return;
 	}
 	vkpt_debug_draw_style_t style;
-	vkpt_debug_make_overlay_style( color, &style );
+	vkpt_debug_make_style_from_packed( color, thickness, outline_thickness, style_flags, &style );
 	vkpt_debug_draw_add_arrow( start, end, head_length, &style );
 }
 
@@ -1289,12 +1278,12 @@ void R_DrawDebugArrow_RTX( const vec3_t start, const vec3_t end, float head_leng
 *	@param	radius	Sphere radius in world units.
 *	@param	color	Packed RGBA color.
 **/
-void R_DrawDebugSphere_RTX( const vec3_t center, float radius, uint32_t color ) {
+void R_DrawDebugSphere_RTX( const vec3_t center, float radius, uint32_t color, const float thickness, const float outline_thickness, const uint16_t style_flags ) {
 	if ( !vkpt_debug_draw_enabled() ) {
 		return;
 	}
 	vkpt_debug_draw_style_t style;
-	vkpt_debug_make_overlay_style( color, &style );
+	vkpt_debug_make_style_from_packed( color, thickness, outline_thickness, style_flags, &style );
 	vkpt_debug_draw_add_sphere( center, radius, &style );
 }
 
@@ -1305,12 +1294,12 @@ void R_DrawDebugSphere_RTX( const vec3_t center, float radius, uint32_t color ) 
 *	@param	radius	Capsule radius in world units.
 *	@param	color	Packed RGBA color.
 **/
-void R_DrawDebugCapsule_RTX( const vec3_t start, const vec3_t end, float radius, uint32_t color ) {
+void R_DrawDebugCapsule_RTX( const vec3_t start, const vec3_t end, float radius, uint32_t color, const float thickness, const float outline_thickness, const uint16_t style_flags ) {
 	if ( !vkpt_debug_draw_enabled() ) {
 		return;
 	}
 	vkpt_debug_draw_style_t style;
-	vkpt_debug_make_overlay_style( color, &style );
+	vkpt_debug_make_style_from_packed( color, thickness, outline_thickness, style_flags, &style );
 	vkpt_debug_draw_add_capsule( start, end, radius, &style );
 }
 
@@ -1321,12 +1310,12 @@ void R_DrawDebugCapsule_RTX( const vec3_t start, const vec3_t end, float radius,
 *	@param	radius	Cylinder radius in world units.
 *	@param	color	Packed RGBA color.
 **/
-void R_DrawDebugCylinder_RTX( const vec3_t start, const vec3_t end, float radius, uint32_t color ) {
+void R_DrawDebugCylinder_RTX( const vec3_t start, const vec3_t end, float radius, uint32_t color, const float thickness, const float outline_thickness, const uint16_t style_flags ) {
 	if ( !vkpt_debug_draw_enabled() ) {
 		return;
 	}
 	vkpt_debug_draw_style_t style;
-	vkpt_debug_make_overlay_style( color, &style );
+	vkpt_debug_make_style_from_packed( color, thickness, outline_thickness, style_flags, &style );
 	vkpt_debug_draw_add_cylinder( start, end, radius, &style );
 }
 

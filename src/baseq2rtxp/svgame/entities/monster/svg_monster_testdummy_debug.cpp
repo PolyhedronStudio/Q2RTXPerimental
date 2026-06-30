@@ -1707,13 +1707,16 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
 
     const double currentYaw = QM_AngleMod( currentAngles[ YAW ] );
     const double yawDeltaAbs = std::fabs( QM_AngleDelta( ideal_yaw, currentYaw ) );
+    
+    const double trueYawDeltaAbs = std::fabs( QM_AngleDelta( desiredIdealYaw, currentYaw ) );
+
     float yawSpeedMax = 45.0f;
     if ( toGoalDist2D < 48.0f ) {
     	yawSpeedMax = 28.0f;
     } else if ( toGoalDist2D < 96.0f ) {
     	yawSpeedMax = 34.0f;
     }
-    yaw_speed = static_cast<float>( QM_Clamp( 12.0 + ( yawDeltaAbs * 0.08 ), 8.0, static_cast<double>( yawSpeedMax ) ) );
+    yaw_speed = static_cast<float>( QM_Clamp( 12.0 + ( trueYawDeltaAbs * 0.08 ), 8.0, static_cast<double>( yawSpeedMax ) ) );
     SVG_MMove_FaceIdealYaw( this, ideal_yaw, yaw_speed );
 
     /**
@@ -1721,10 +1724,10 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
     *	to prevent visible moonwalking/backpedal during rapid turn corrections.
     **/
     float facingScale = 1.0f;
-    if ( yawDeltaAbs >= 90.0 ) {
+    if ( trueYawDeltaAbs >= 90.0 ) {
     	facingScale = 0.0f;
-    } else if ( yawDeltaAbs > 35.0 ) {
-    	facingScale = static_cast<float>( ( 90.0 - yawDeltaAbs ) / 55.0 );
+    } else if ( trueYawDeltaAbs > 35.0 ) {
+    	facingScale = static_cast<float>( ( 90.0 - trueYawDeltaAbs ) / 55.0 );
     }
 
     constexpr double baseFrameVelocity = 220.0;
@@ -1765,7 +1768,9 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
 **/
 void svg_monster_testdummy_debug_t::ResetNavigationPath() {
     navPath.clear();
+    stringPulledPath.clear();
     pathPos = 0;
+    stringPathPos = 0;
     cachedLeaf = -1;
     cachedPoly = -1;
 	hasLastNavigationMoveDir = false;
@@ -2000,6 +2005,15 @@ const bool svg_monster_testdummy_debug_t::ComputePathTo( const Vector3 &target, 
             gi.dprintf("\n");
         }
         pathPos = 0;
+        stringPathPos = 1; // start steering towards waypoint 1 (0 is currentOrigin)
+        
+        const float agentRadius = std::max( std::abs( this->mins.x ), std::abs( this->maxs.x ) );
+        if ( !Nav_StringPull( navPath, myFeet, targetFeet, agentRadius, stringPulledPath ) ) {
+        	ResetNavigationPath();
+        	lastPathCalcTime = level.time;
+        	return false;
+        }
+
         lastPathCalcTime = level.time;
         return true;
     }
@@ -2099,16 +2113,20 @@ const Vector3 svg_monster_testdummy_debug_t::StabilizeWaypointTarget( const Vect
 *    @brief    Get the next waypoint from the navigation path, defaulting to finalGoal when finished.
 **/
 const Vector3 svg_monster_testdummy_debug_t::NextWaypoint( const Vector3 &finalGoal ) {
-    /**
-    *    First synchronize pathPos with the face we are physically standing on.
-    *    This makes portal crossing robust even when geometric side-tests are noisy at tight 90-degree corners.
-    **/
+    if ( stringPulledPath.empty() ) {
+        return StabilizeWaypointTarget( finalGoal, true );
+    }
+
+    if ( stringPathPos >= stringPulledPath.size() ) {
+        return StabilizeWaypointTarget( finalGoal, true );
+    }
+
+    // Synchronize navPath pathPos with physical face for "stillOnPath" checks.
     if ( !navPath.empty() ) {
         Vector3 myFeet = currentOrigin;
         myFeet.z += this->mins.z;
         const int32_t currentFace = Dummy_FindClosestFaceInLeaf( myFeet );
 
-        // Search a small local window around pathPos so we can catch forward progress immediately.
         if ( currentFace != -1 ) {
             const int32_t localStart = std::max<int32_t>( 0, static_cast<int32_t>( pathPos ) - 2 );
             const int32_t localEnd = std::min<int32_t>( static_cast<int32_t>( navPath.size() ) - 1, static_cast<int32_t>( pathPos ) + 6 );
@@ -2123,200 +2141,91 @@ const Vector3 svg_monster_testdummy_debug_t::NextWaypoint( const Vector3 &finalG
         }
     }
 
-    // If we have exhausted the path, head directly to the final goal.
-    if ( pathPos >= navPath.size() )
-        return StabilizeWaypointTarget( finalGoal, true );
+    Vector3 portalMidpoint = stringPulledPath[stringPathPos];
 
-    // If we are on the last face, evaluate the final goal as the waypoint.
-    if ( pathPos == static_cast<int32_t>( navPath.size() ) - 1 ) {
-        if ( QM_Vector3DistanceSqr( currentOrigin, finalGoal ) < WAYPOINT_EPS_SQR ) {
-            ++pathPos;
+    // Are we at the final goal?
+    if ( stringPathPos == stringPulledPath.size() - 1 ) {
+        if ( QM_Vector3DistanceSqr( currentOrigin, portalMidpoint ) < WAYPOINT_EPS_SQR ) {
+            ++stringPathPos;
             return StabilizeWaypointTarget( finalGoal, true );
         }
-        return StabilizeWaypointTarget( finalGoal, true );
+        return StabilizeWaypointTarget( portalMidpoint, true );
     }
 
-    // Determine TRUE portal midpoint between current and next face.
-    Vector3 portalMidpoint;
-    Vector3 edgeVec = { 0.0f, 0.0f, 0.0f };
-    Vector3 v0, v1;
-    bool foundPortal = false;
-    float portal_z_diff = 0.0f;
-    
-    if ( !Nav_GetPortalEndpoints( navPath[pathPos], navPath[pathPos + 1], &v0, &v1 ) ) {
-		/**
-		*	No valid portal means this cached path segment is inconsistent. Invalidate
-		*	and hold position so the next think recomputes from the live face.
-		**/
-		ResetNavigationPath();
-		lastPathCalcTime = 0_ms;
-		return currentOrigin;
-    } else {
-        foundPortal = true;
+    /**
+    *   Dynamic Look-Ahead Smoothing
+    *   Skip unnecessary waypoints if we have a completely unobstructed straight-line path
+    *   to the NEXT waypoint. We use an INFLATED physics AABB to guarantee we only skip 
+    *   if we are in a wide open area, completely avoiding tight corners. This prevents
+    *   zig-zagging across open grid faces while forcing the agent to use the safe, dynamically
+    *   offset face-centers when navigating around tight corners.
+    **/
+    if ( stringPathPos + 1 < stringPulledPath.size() ) {
+        Vector3 nextPortal = stringPulledPath[ stringPathPos + 1 ];
         
-        // Extract z_diff to know the true height of the step if we are approaching a stair
-        const nav_face_t &faceA = g_nav_faces[ navPath[pathPos] ];
-        for ( int e = 0; e < faceA.num_edges; e++ ) {
-            const nav_halfedge_t &he = g_nav_halfedges[ faceA.first_edge_idx + e ];
-            if ( he.twin_idx != -1 && g_nav_halfedges[ he.twin_idx ].face_idx == navPath[pathPos + 1] ) {
-                portal_z_diff = he.z_diff;
-                break;
+        // Ensure we only skip waypoints that are on the same vertical level.
+        // We MUST NOT skip stair approach nodes, otherwise the agent will hit the stair lip!
+        if ( std::abs( nextPortal.z - portalMidpoint.z ) <= 4.0f ) {
+            // Trace slightly off the ground to avoid micro-bumps
+            Vector3 traceStart = currentOrigin;
+            traceStart.z += this->mins.z + 8.0f;
+            Vector3 traceEnd = nextPortal;
+            traceEnd.z += this->mins.z + 8.0f;
+
+            // Inflate the bounding box by 8 units horizontally. This ensures the trace 
+            // will FAIL if the straight line passes too close to a corner. By failing,
+            // the agent safely falls back to the dynamically offset face-centers!
+            Vector3 traceMins = this->mins;
+            traceMins.x -= 8.0f;
+            traceMins.y -= 8.0f;
+            
+            Vector3 traceMaxs = this->maxs;
+            traceMaxs.x += 8.0f;
+            traceMaxs.y += 8.0f;
+
+            svg_trace_t tr = SVG_MMove_Trace( traceStart, traceMins, traceMaxs, traceEnd, this, CONTENTS_SOLID | CONTENTS_PLAYERCLIP );
+            
+            // If the trace is perfectly clear, skip the current waypoint and recursively check the next!
+            if ( tr.fraction == 1.0f && !tr.startsolid && !tr.allsolid ) {
+                ++stringPathPos;
+                return NextWaypoint( finalGoal );
             }
-        }
-        
-		edgeVec = v1 - v0;
-        
-        // Closest point on segment
-        Vector3 ab = edgeVec;
-		Vector3 ap = currentOrigin - v0;
-        
-        ab.z = 0.0f;
-        ap.z = 0.0f;
-        
-        float ab_len2 = static_cast<float>(QM_Vector3DotProduct(ab, ab));
-        float ab_len = std::sqrt(ab_len2);
-        if (ab_len > 0.0001f) {
-            float t = static_cast<float>(QM_Vector3DotProduct(ap, ab)) / ab_len2;
-            
-            // Dynamic clearance for wall scraping:
-            // keep portal target offset close to the monster hull radius plus a small safety margin.
-            const float hullRadius = std::max( std::abs( this->mins.x ), std::abs( this->maxs.x ) );
-            const float clearance = hullRadius + 8.0f;
-            float clearance_t = clearance / ab_len;
-            
-            // If the portal itself is narrower than 2x clearance, just aim for the geometric center.
-            if (clearance_t * 2.0f >= 1.0f) {
-                t = 0.5f;
-            } else {
-                t = QM_Clamp(t, clearance_t, 1.0f - clearance_t);
-            }
-            
-			portalMidpoint = QM_Vector3MultiplyAdd( v0, t, ( v1 - v0 ) );
-        } else {
-            portalMidpoint = v0;
         }
     }
 
-    // Advance to next polygon once we are sufficiently close to the TRUE portal.
-    const float dist2DSqr = QM_Vector2DistanceSqr( currentOrigin, portalMidpoint );
-    
-    // Calculate the physical feet origin of the monster (since currentOrigin is the center of the bounding box).
+    // Determine if we need to step up
     float feetOriginZ = currentOrigin.z + this->mins.z;
-
-    // Determine if the monster needs to step up to reach the next polygon.
-    // We MUST use the portal's physical Z height (the lip of the step).
-    // Note: Nav_GetPortalEndpoints already sets portalMidpoint.z to the maxZ of the two faces,
-    // so we don't need to add portal_z_diff again (which would double the height and cause moonwalking!).
     float targetZ = portalMidpoint.z;
-    
     bool needsStepUp = (targetZ - feetOriginZ) > 8.0f;
-    
-    // Has the monster successfully completed the step up?
     bool hasSteppedUp = !needsStepUp || (feetOriginZ >= targetZ - 4.0f);
 
-    // If we haven't stepped up yet, keep the advance gate tighter to prevent premature portal skips.
-    // Once we're on level ground, we STILL want a tight advance distance to PREVENT CORNER CUTTING!
-    // Corner cutting occurs when the waypoint advances prematurely and the agent aims at the next portal,
-    // sending its bounding box into the inner corner of the turn.
-    // The secondary plane-crossing check below will cleanly advance us once we pass the portal.
     float advanceDist = ( needsStepUp ? 12.0f : 4.0f ); 
-    
+    const float dist2DSqr = QM_Vector2DistanceSqr( currentOrigin, portalMidpoint );
+
     if ( dist2DSqr < (advanceDist * advanceDist) ) {
-        // Only advance if we have actually completed the vertical step, or if it's flat/downhill.
         if ( hasSteppedUp || (feetOriginZ > portalMidpoint.z + NAV_MAX_STEP_SIZE) ) {
-            ++pathPos;
+            ++stringPathPos;
             return NextWaypoint( finalGoal );
         }
     }
 
-    // Secondary plane-crossing check using TRUE portal: if we have moved past the portal plane.
-    // The vector 'edgeVec' points from v0 to v1. Since Quake 2 faces are CW, the normal pointing
-    // OUT of faceA and INTO faceB is a 90-degree CCW rotation: (-y, x).
-    if ( hasSteppedUp && (edgeVec.x != 0.0f || edgeVec.y != 0.0f || edgeVec.z != 0.0f) ) {
-        Vector3 portalNormal = { -edgeVec.y, edgeVec.x, 0.0f };
-		Vector3 fromPortal = currentOrigin - portalMidpoint;
-        fromPortal.z = 0.0f;
-        
-        // If the dot product is positive, the agent's center has physically crossed the portal plane.
-        if ( QM_Vector3DotProduct( fromPortal, portalNormal ) > 0.0f ) {
-            ++pathPos;
-            return NextWaypoint( finalGoal );
+    // Secondary plane-crossing check: if we have moved past the waypoint plane.
+    if ( hasSteppedUp ) {
+        Vector3 prevWaypoint = stringPulledPath[stringPathPos - 1];
+        Vector3 edgeVec = portalMidpoint - prevWaypoint;
+        if ( edgeVec.x != 0.0f || edgeVec.y != 0.0f ) {
+            Vector3 portalNormal = edgeVec; 
+            portalNormal.z = 0.0f;
+            Vector3 fromPortal = currentOrigin - portalMidpoint;
+            fromPortal.z = 0.0f;
+            
+            // If the dot product is positive, the agent's center has physically crossed the waypoint plane.
+            if ( QM_Vector3DotProduct( fromPortal, portalNormal ) > 0.0f ) {
+                ++stringPathPos;
+                return NextWaypoint( finalGoal );
+            }
         }
     }
     
-    // PUSH THE WAYPOINT:
-    // If the monster targets the EXACT portal edge, it will oscillate or stop once it reaches the edge
-    // if it hasn't stepped up yet, preventing SVG_MMove_WalkMove from initiating the step up.
-    // To fix this, we push the returned waypoint safely into the next polygon.
-    // Because faceB is strictly convex, the line from portalMidpoint to the NEXT portal's midpoint
-    // is mathematically guaranteed to stay inside the navmesh bounds, never cutting a wall corner!
-    if ( foundPortal ) {
-        Vector3 safeForwardPoint = finalGoal;
-        
-        if ( pathPos + 1 < static_cast<int32_t>( navPath.size() ) - 1 ) {
-            Vector3 nv0, nv1;
-            if ( Nav_GetPortalEndpoints( navPath[pathPos + 1], navPath[pathPos + 2], &nv0, &nv1 ) ) {
-				Vector3 nab = nv1 - nv0;
-				Vector3 nap = portalMidpoint - nv0;
-                nab.z = 0.0f;
-                nap.z = 0.0f;
-                float nab_len2 = static_cast<float>(QM_Vector3DotProduct(nab, nab));
-                float nab_len = std::sqrt(nab_len2);
-                
-                if (nab_len > 0.0001f) {
-                    float t = static_cast<float>(QM_Vector3DotProduct(nap, nab)) / nab_len2;
-                    float clearance_t = 24.0f / nab_len;
-                    if (clearance_t * 2.0f >= 1.0f) {
-                        t = 0.5f;
-                    } else {
-                        t = QM_Clamp(t, clearance_t, 1.0f - clearance_t);
-                    }
-					safeForwardPoint = QM_Vector3MultiplyAdd( nv0, t, ( nv1 - nv0 ) );
-                } else {
-                    safeForwardPoint = nv0;
-                }
-            } else {
-                safeForwardPoint = g_nav_faces[ navPath[pathPos + 1] ].center;
-            }
-        }
-
-		Vector3 pushDir = safeForwardPoint - portalMidpoint;
-        pushDir.z = 0.0f; // Keep the push horizontal
-        float expLen = QM_Vector3Length(pushDir);
-        
-        if (expLen > 0.001f) {
-			pushDir = pushDir * ( 1.0f / expLen );
-            
-            float pushDist = 0.0f;
-            if ( !hasSteppedUp ) {
-                // Do not push into the next face before the step-up is physically completed.
-                pushDist = 0.0f;
-            } else {
-                /**
-                *	On narrow stair/corner portals, aggressive push distances can force
-                *	off-edge steering on tiny 32x32-like supports. Limit push based on
-                *	portal width so we keep traversal stable on tight geometry.
-                **/
-                const float portalWidth2D = static_cast<float>( QM_Vector2Distance( v0, v1 ) );
-                float maxSafePush = 16.0f;
-                if ( portalWidth2D <= 48.0f ) {
-                	maxSafePush = 6.0f;
-                } else if ( portalWidth2D <= 72.0f ) {
-                	maxSafePush = 10.0f;
-                }
-                pushDist = std::min( maxSafePush, expLen );
-            }
-
-			const Vector3 pushedPoint = QM_Vector3MultiplyAdd( portalMidpoint, pushDist, pushDir );
-			const Vector3 toPortal = portalMidpoint - currentOrigin;
-			const Vector3 toPushed = pushedPoint - currentOrigin;
-			// Guard against pathological push points that end up behind current progression direction.
-			if ( QM_Vector3DotProduct( toPortal, toPushed ) < 0.0f ) {
-				return StabilizeWaypointTarget( portalMidpoint, false );
-			}
-            return StabilizeWaypointTarget( pushedPoint, false );
-        }
-    }
-
     return StabilizeWaypointTarget( portalMidpoint, false );
 }

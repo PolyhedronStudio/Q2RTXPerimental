@@ -1420,9 +1420,9 @@ static void CLG_Decals_DebugClipTest_f( void ) {
     if ( clgi.Cmd_Argc() > 1 && atoi( clgi.Cmd_Argv( 1 ) ) != 0 ) {
         const uint32_t triColor = U32_CYAN;
         for ( int32_t i = 0; i + 2 < mesh.vertexCount; i += 3 ) {
-            clgi.R_DrawDebugLine( mesh.vertices[ i + 0 ].position, mesh.vertices[ i + 1 ].position, triColor );
-            clgi.R_DrawDebugLine( mesh.vertices[ i + 1 ].position, mesh.vertices[ i + 2 ].position, triColor );
-            clgi.R_DrawDebugLine( mesh.vertices[ i + 2 ].position, mesh.vertices[ i + 0 ].position, triColor );
+            clgi.R_DrawDebugLine( mesh.vertices[ i + 0 ].position, mesh.vertices[ i + 1 ].position, triColor, 1.0f, 0.0f, 0 );
+            clgi.R_DrawDebugLine( mesh.vertices[ i + 1 ].position, mesh.vertices[ i + 2 ].position, triColor, 1.0f, 0.0f, 0 );
+            clgi.R_DrawDebugLine( mesh.vertices[ i + 2 ].position, mesh.vertices[ i + 0 ].position, triColor, 1.0f, 0.0f, 0 );
         }
     }
 }

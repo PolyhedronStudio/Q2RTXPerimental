@@ -80,7 +80,7 @@ static void CLG_DebugDrawPacketEntityBounds( const centity_t *packetEntity ) {
     *	Queue the bounds via renderer-facing debug API.
     **/
 	if ( clg_debug_draw_entity_bounds->integer == 1 ) {
-		clgi.R_DrawDebugBox( world_mins, world_maxs, U32_RED );
+		clgi.R_DrawDebugBox( world_mins, world_maxs, U32_RED, 1.0f, 0.0f, 0 );
 	}
 
 	/**
@@ -88,7 +88,7 @@ static void CLG_DebugDrawPacketEntityBounds( const centity_t *packetEntity ) {
 	**/
 	if ( clg_debug_draw_entity_bounds->integer == 2 ) {
 		const Vector3 center = QM_BBox3Center( { world_mins, world_maxs } );
-		clgi.R_DrawDebugSphere( &center.x, QM_BBox3Radius( { world_mins, world_maxs } ), U32_RED );
+		clgi.R_DrawDebugSphere( &center.x, QM_BBox3Radius( { world_mins, world_maxs } ), U32_RED, 1.0f, 0.0f, 0 );
 	}
 
 	/**
@@ -112,7 +112,7 @@ static void CLG_DebugDrawPacketEntityBounds( const centity_t *packetEntity ) {
 		// Use the largest horizontal half-extent so the cylinder encloses the AABB in XY.
 
 		const float cylinder_radius = ( half_size_x > half_size_y ) ? half_size_x : half_size_y;
-		clgi.R_DrawDebugCylinder( cylinder_start, cylinder_end, cylinder_radius, U32_RED );
+		clgi.R_DrawDebugCylinder( cylinder_start, cylinder_end, cylinder_radius, U32_RED, 1.0f, 0.0f, 0 );
 	}
 
     /**
@@ -136,7 +136,7 @@ static void CLG_DebugDrawPacketEntityBounds( const centity_t *packetEntity ) {
 			center_y,
 			center_z + half_segment
 		};
-		clgi.R_DrawDebugCapsule( capsule_start, capsule_end, capsule_radius, U32_RED );
+		clgi.R_DrawDebugCapsule( capsule_start, capsule_end, capsule_radius, U32_RED, 1.0f, 0.0f, 0 );
 	}
 
 	if ( clg_debug_draw_entity_bounds->integer == 5 ) {
@@ -159,9 +159,9 @@ static void CLG_DebugDrawPacketEntityBounds( const centity_t *packetEntity ) {
         };
 
         // Draw both a line and an arrow to make direction and heading immediately obvious.
-        clgi.R_DrawDebugLine( &center.x, &facingTarget.x, U32_RED );
-        const float arrow_head_length = ( facing_length * 0.25f > 8.0f ) ? ( facing_length * 0.25f ) : 8.0f;
-        clgi.R_DrawDebugArrow( &center.x, &facingTarget.x, arrow_head_length, U32_RED );
+        clgi.R_DrawDebugLine( &center.x, &facingTarget.x, U32_RED, 1.0f, 0.0f, 0 );
+        // And an arrow for the facing ideal yaw!
+        clgi.R_DrawDebugArrow( &center.x, &facingTarget.x, facing_length, U32_RED, 1.0f, 0.0f, 0 );
 	}
 }
 

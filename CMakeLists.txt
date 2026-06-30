@@ -70,7 +70,7 @@ OPTION(CONFIG_USE_CURL "Use CURL for HTTP support" ON)
 OPTION(CONFIG_BUILD_FTEQW_IQM_TOOL "Build the fteqw-iqmtool target" OFF)
 OPTION(CONFIG_BUILD_DEV_MATHS_VERIFIER "Build a verifier for the 4x4 mat maths" OFF)
 if (MSVC)
-    OPTION(CONFIG_BUILD_WITH_EDIT_AND_CONTINUE "Build with Edit and Continue support (MSVC only)" OFF)
+    OPTION(CONFIG_BUILD_WITH_EDIT_AND_CONTINUE "Build with Edit and Continue support (MSVC only)" ON)
 endif()
 
 # WIN32: Expect it to be installed by developer instead.

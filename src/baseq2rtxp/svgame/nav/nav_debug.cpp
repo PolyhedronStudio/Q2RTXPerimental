@@ -12,6 +12,14 @@
 cvar_t *s_nav_debug_nodes = nullptr;
 //! Cvar that toggles polygon edge overlay rendering.
 cvar_t *s_nav_debug_polys = nullptr;
+//! Cvar that toggles triangle edge debug rendering.
+cvar_t *s_nav_debug_tris = nullptr;
+//! Custom color for KD-Tree debug overlay (hex #d27d2ccc)
+static const uint32_t POLY_NO_TWIN_EDGE_FACE_COLOR = MakeColor( 255, 0, 0, 255 );
+static const uint32_t POLY_TWIN_FACE_COLOR = MakeColor( 190, 180, 0, 255 );
+static const uint32_t POLY_FACE_COLOR = MakeColor( 190, 180, 0, 255 );
+static const uint32_t KDTREE_COLOR    = MakeColor( 210, 125, 44, 204 );
+static const uint32_t TRIS_COLOR      = MakeColor( 190,   0, 120, 255 );
 
 //! Cached goal A world position for nav debug path testing.
 static Vector3 s_nav_dbg_goal_a_origin = {};
@@ -36,6 +44,7 @@ static bool s_nav_dbg_has_test_path = false;
 void Nav_DebugInit() {
     s_nav_debug_nodes = gi.cvar("nav_debug_nodes", "0", 0);
     s_nav_debug_polys = gi.cvar("nav_debug_polys", "1", 0);
+    s_nav_debug_tris = gi.cvar("nav_debug_tris", "0", 0);
 }
 
 /**
@@ -94,10 +103,10 @@ static void Nav_DebugDrawTestRoute() {
 	}
 
 	if ( s_nav_dbg_has_goal_a ) {
-		SVG_Nav_DebugDraw_AddSphere( s_nav_dbg_goal_a_origin, 6.0f, U32_GREEN, SG_SVC_DEBUG_DRAW_STYLE_FLAG_DEPTH_TEST );
+		SVG_Nav_DebugDraw_AddSphere( s_nav_dbg_goal_a_origin, 6.0f, U32_GREEN, SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE );
 	}
 	if ( s_nav_dbg_has_goal_b ) {
-		SVG_Nav_DebugDraw_AddSphere( s_nav_dbg_goal_b_origin, 6.0f, U32_RED, SG_SVC_DEBUG_DRAW_STYLE_FLAG_DEPTH_TEST );
+		SVG_Nav_DebugDraw_AddSphere( s_nav_dbg_goal_b_origin, 6.0f, U32_RED, SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE );
 	}
 
 	if ( !s_nav_dbg_has_test_path || s_nav_dbg_test_path.empty() ) {
@@ -115,8 +124,8 @@ static void Nav_DebugDrawTestRoute() {
 			continue;
 		}
 		const Vector3 point = g_nav_faces[ faceIdx ].center;
-		SVG_Nav_DebugDraw_AddSphere( point, 4.0f, U32_CYAN, SG_SVC_DEBUG_DRAW_STYLE_FLAG_DEPTH_TEST );
-		SVG_Nav_DebugDraw_AddLine( prev, point, U32_MAGENTA, SG_SVC_DEBUG_DRAW_STYLE_FLAG_DEPTH_TEST );
+		SVG_Nav_DebugDraw_AddSphere( point, 4.0f, POLY_FACE_COLOR, SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE );
+		SVG_Nav_DebugDraw_AddLine( prev, point, U32_MAGENTA, SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE );
 		prev = point;
 	}
 
@@ -124,7 +133,7 @@ static void Nav_DebugDrawTestRoute() {
 	if ( s_nav_dbg_goal_b_face >= 0 && static_cast<size_t>( s_nav_dbg_goal_b_face ) < g_nav_faces.size() ) {
 		endPoint = g_nav_faces[ s_nav_dbg_goal_b_face ].center;
 	}
-	SVG_Nav_DebugDraw_AddLine( prev, endPoint, U32_MAGENTA, SG_SVC_DEBUG_DRAW_STYLE_FLAG_DEPTH_TEST );
+	SVG_Nav_DebugDraw_AddLine( prev, endPoint, U32_MAGENTA, SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE );
 }
 
 void Nav_DebugSetGoalACommand( void ) {
@@ -200,7 +209,10 @@ static void RecursiveDrawNodes(int32_t nodeIndex, const Vector3 &playerPos, floa
     }
 
     if (s_nav_debug_nodes && s_nav_debug_nodes->value != 0) {
-        SVG_Nav_DebugDraw_AddAabb(node.mins, node.maxs, U32_CYAN);
+        // Only draw leaf nodes to avoid overlapping AABB slivers from parent volumes
+        if (node.left_child == -1 && node.right_child == -1) {
+            SVG_Nav_DebugDraw_AddAabb(node.mins, node.maxs, KDTREE_COLOR);
+        }
     }
     
     // Draw polys by directly iterating over g_nav_polys later in SVG_Nav_DebugDraw.
@@ -220,29 +232,43 @@ void SVG_Nav_DebugDraw() {
     svg_base_edict_t *player = g_edict_pool.EdictForNumber(1);
     if (!player || !player->inUse) return;
 
-    RecursiveDrawNodes(0, player->currentOrigin, CM_MAX_WORLD_SIZE );
+    RecursiveDrawNodes(0, player->currentOrigin, 2048.0f );
 
     if (s_nav_debug_polys && s_nav_debug_polys->value != 0) {
         for (int32_t i = 0; i < g_nav_faces.size(); i++) {
             const nav_face_t &face = g_nav_faces[i];
             
             // Simple distance check
-            if (QM_Vector3DistanceSqr(face.center, player->currentOrigin) > ((float)CM_MAX_WORLD_SIZE * (float)CM_MAX_WORLD_SIZE)) {
+            if (QM_Vector3DistanceSqr(face.center, player->currentOrigin) > (2048.0f * 2048.0f)) {
                 continue;
             }
+						// Render triangle edges if enabled.
+			if ( s_nav_debug_tris && s_nav_debug_tris->value != 0 && face.num_edges >= 3 ) {
+				// Triangulate the face as a fan from the first vertex (v0)
+				const Vector3 v0 = g_nav_vertices[ g_nav_halfedges[ face.first_edge_idx ].vertex_idx ];
+				for ( int32_t e = 1; e < face.num_edges - 1; e++ ) {
+					const nav_halfedge_t &he = g_nav_halfedges[ face.first_edge_idx + e ];
+					const Vector3 v1 = g_nav_vertices[ he.vertex_idx ];
+					const Vector3 v2 = g_nav_vertices[ g_nav_halfedges[ he.next_idx ].vertex_idx ];
+
+					SVG_Nav_DebugDraw_AddLine( v0, v1, TRIS_COLOR, SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE, 2, 1 );
+					SVG_Nav_DebugDraw_AddLine( v1, v2, TRIS_COLOR, SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE, 2, 1 );
+					SVG_Nav_DebugDraw_AddLine( v2, v0, TRIS_COLOR, SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE, 2, 1 );
+				}
+			}
 
             for (int32_t e = 0; e < face.num_edges; e++) {
                 const nav_halfedge_t& he = g_nav_halfedges[face.first_edge_idx + e];
                 
                 Vector3 start = g_nav_vertices[he.vertex_idx];
                 Vector3 end = g_nav_vertices[g_nav_halfedges[he.next_idx].vertex_idx];
-
+                
                 if (he.twin_idx != -1) {
-                    // Draw internal twinned edges in BLUE so we can see the mesh grid cells!
-                    SVG_Nav_DebugDraw_AddLine(start, end, U32_BLUE, SG_SVC_DEBUG_DRAW_STYLE_FLAG_DEPTH_TEST);
+					// Draw edges with twins using the polygon face debug color.
+                    SVG_Nav_DebugDraw_AddLine(start, end, POLY_FACE_COLOR, SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE, 2, 1 );
                 } else {
-                    // Draw boundary edges in YELLOW
-                    SVG_Nav_DebugDraw_AddLine(start, end, U32_YELLOW, SG_SVC_DEBUG_DRAW_STYLE_FLAG_DEPTH_TEST);
+					// Draw edges without twins (boundary edges) using a distinct color.
+                    SVG_Nav_DebugDraw_AddLine(start, end, POLY_NO_TWIN_EDGE_FACE_COLOR, SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE, 4, 1 );
                 }
             }
 
