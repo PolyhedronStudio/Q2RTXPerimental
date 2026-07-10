@@ -382,34 +382,26 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     /**
     *
     *
+	* 
     *   Core:
     *
+	* 
     *
     **/
-    /**
-    *   Reconstructs the object, zero-ing out its members, and optionally
-    *   retaining the entityDictionary.
-    *
-    *   Sometimes we want to keep the entityDictionary intact so we can
-    *   spawn from it. (This is used for saving/loading.)
-    **/
+	/**
+	*	@brief	Inspects the entity for still being valid and passable as a `navigation portal` (i.e. an `N-gon` its `edge` that is not blocked by a solid entity or something else).
+	*	@return	True if the entity is still valid and passable as a navigation portal, false otherwise.
+	**/
+	virtual const bool IsValidPathNavigationPortal( svg_base_edict_t *edgePortalEntity, const uint32_t &halfEdgeIndex, const uint32_t &halfEdgeIndexTwin );
 
+    /**
+    *   @details	Reconstructs the object, zero-ing out its members, and optionally
+    *				retaining the entityDictionary.
+    *
+    *				Sometimes we want to keep the entityDictionary intact so we can
+    *				spawn from it. (This is used for saving/loading.)
+    **/
     virtual void Reset( const bool retainDictionary = false ) override;
-
-    /**
-    *   @brief  Used for savegaming the entity. Each derived entity type
-    *           that needs to be saved should implement this function.
-    *
-    *   @note   Make sure to call the base parent class' Save() function.
-    **/
-    virtual void Save( struct game_write_context_t *ctx );
-    /**
-    *   @brief  Used for loadgaming the entity. Each derived entity type
-    *           that needs to be loaded should implement this function.
-    *
-    *   @note   Make sure to call the base parent class' Restore() function.
-    **/
-    virtual void Restore( struct game_read_context_t *ctx );
 
     /**
     *   @brief  Called for each cm_entity_t key/value pair for this entity.
@@ -665,13 +657,32 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     **/
     virtual svg_save_descriptor_field_t *GetSaveDescriptorField( const char *name );
 
+	/**
+	*   @brief  Used for savegaming the entity. Each derived entity type
+	*           that needs to be saved should implement this function.
+	*
+	*   @note   Make sure to call the base parent class' Save() function.
+	**/
+	virtual void Save( struct game_write_context_t *ctx );
+	/**
+	*   @brief  Used for loadgaming the entity. Each derived entity type
+	*           that needs to be loaded should implement this function.
+	*
+	*   @note   Make sure to call the base parent class' Restore() function.
+	**/
+	virtual void Restore( struct game_read_context_t *ctx );
+
 
 
 
     /**
+	* 
+	* 
     *
     *   Callbacks(defaults):
     *
+	* 
+	* 
     **/
     /**
     *   @brief  A default spawn implementation function.

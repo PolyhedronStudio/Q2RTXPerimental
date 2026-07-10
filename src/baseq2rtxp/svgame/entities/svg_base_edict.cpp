@@ -12,11 +12,18 @@
 #include "sharedgame/sg_means_of_death.h"
 
 // Needed.
+#include "svgame/nav/nav_path.h"
 #include "svgame/entities/svg_base_edict.h"
 
 
 /**
+* 
+* 
+* 
 *   @brief  Save descriptor array definition for all the members of svg_base_edict_t.
+* 
+* 
+* 
 **/
 SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     /**
@@ -434,13 +441,40 @@ svg_save_descriptor_field_t *svg_base_edict_t::GetSaveDescriptorField( const cha
     return nullptr;
 }
 
+/**
+*   @brief  Used for savegaming the entity. Each derived entity type
+*           that needs to be saved should implement this function.
+*
+*   @note   Make sure to call the base parent class' Save() function.
+**/
+void svg_base_edict_t::Save( struct game_write_context_t *ctx ) {
+	// Call upon the base class.
+	//sv_shared_edict_t<svg_base_edict_t, svg_client_t>::Save( ctx );
+	// Save all the members of this entity type.
+	ctx->write_fields( svg_base_edict_t::saveDescriptorFields, this );
+}
+/**
+*   @brief  Used for loadgaming the entity. Each derived entity type
+*           that needs to be loaded should implement this function.
+*
+*   @note   Make sure to call the base parent class' Restore() function.
+**/
+void svg_base_edict_t::Restore( struct game_read_context_t *ctx ) {
+	// Call upon the base class.
+	//sv_shared_edict_t<svg_base_edict_t, svg_client_t>::Restore( ctx );
+	// Read all the members of this entity type.
+	ctx->read_fields( svg_base_edict_t::saveDescriptorFields, this );
+}
+
 
 
 /**
 *
+* 
 *
 *   Callback Dispatching:
 *
+* 
 *
 **/
 /**
@@ -542,6 +576,30 @@ void svg_base_edict_t::DispatchDieCallback( svg_base_edict_t *inflictor, svg_bas
 *
 *
 **/
+/**
+*	@brief	Inspects the entity for still being valid and passable as a `navigation portal` (i.e. an `N-gon` its `edge` that is not blocked by a solid entity or something else).
+*	@return	True if the entity is still valid and passable as a navigation portal, false otherwise.
+**/
+const bool svg_base_edict_t::IsValidPathNavigationPortal( svg_base_edict_t *edgePortalEntity, const uint32_t &halfEdgeIndex, const uint32_t &halfEdgeIndexTwin ) {
+	// Lookup a reference to the half-edge for faceA.
+	const nav_halfedge_t &halfEdge = g_nav_halfedges[ halfEdgeIndex ];
+	// Found the connecting edge. Check if either half-edge is disabled.
+	const nav_halfedge_t &twinEdge = g_nav_halfedges[ halfEdgeIndexTwin ];
+
+	// By default inspect the edges of the portal to see if they are still valid and passable as a navigation portal.
+	if ( ( halfEdge.flags & NAV_EDGE_DISABLED ) != 0 || ( twinEdge.flags & NAV_EDGE_DISABLED ) != 0 ) {
+		return false;
+	}
+	
+	// <Q2RTXP>: WID: TODO: Implement a more robust check for whether the entity is still valid and passable as a navigation portal.
+	// Only validate the path if the disabled entity (e.g. door) is actually visible and in front of the monster.
+	if ( SVG_Entity_IsVisible( this, edgePortalEntity ) && SVG_Entity_IsInFrontOf( this, edgePortalEntity ) ) {
+		return true;
+	}
+
+	return false;
+}
+
 /**
 *   Reconstructs the object, optionally retaining the entityDictionary.
 **/
@@ -769,30 +827,6 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     **/
     move_origin = QM_Vector3Zero();
     move_angles = QM_Vector3Zero();
-}
-/**
-*   @brief  Used for savegaming the entity. Each derived entity type
-*           that needs to be saved should implement this function.
-*
-*   @note   Make sure to call the base parent class' Save() function.
-**/
-void svg_base_edict_t::Save( struct game_write_context_t *ctx ) {
-	// Call upon the base class.
-	//sv_shared_edict_t<svg_base_edict_t, svg_client_t>::Save( ctx );
-	// Save all the members of this entity type.
-	ctx->write_fields( svg_base_edict_t::saveDescriptorFields, this );
-}
-/**
-*   @brief  Used for loadgaming the entity. Each derived entity type
-*           that needs to be loaded should implement this function.
-*
-*   @note   Make sure to call the base parent class' Restore() function.
-**/
-void svg_base_edict_t::Restore( struct game_read_context_t *ctx ) {
-    // Call upon the base class.
-	//sv_shared_edict_t<svg_base_edict_t, svg_client_t>::Restore( ctx );
-    // Read all the members of this entity type.
-    ctx->read_fields( svg_base_edict_t::saveDescriptorFields, this );
 }
 
 /**

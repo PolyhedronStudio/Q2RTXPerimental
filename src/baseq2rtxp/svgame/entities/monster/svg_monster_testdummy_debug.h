@@ -413,6 +413,8 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	bool hasLastWaypointTarget = false;
 	//! Path segment index associated with lastWaypointTarget.
 	size_t lastWaypointPathPos = 0;
+	//! Funnel waypoint index associated with lastWaypointTarget.
+	size_t lastWaypointStringPathPos = 0;
 	//! Server time when lastWaypointTarget was updated.
 	QMTime lastWaypointUpdateTime = 0_ms;
 

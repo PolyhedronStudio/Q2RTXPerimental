@@ -239,10 +239,16 @@ typedef struct mm_move_s {
 *	@brief	Clips trace against world only.
 **/
 
+enum mm_trace_shape_t {
+	MM_SHAPE_AUTO = 0,
+	MM_SHAPE_CAPSULE = 1,
+	MM_SHAPE_CYLINDER = 2
+};
+
 /**
 *	@brief	Determines the mask to use and returns a trace doing so. If spectating, it'll return clip instead.
 **/
-const svg_trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, svg_base_edict_t *passEntity, cm_contents_t contentMask = CONTENTS_NONE );
+const svg_trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, svg_base_edict_t *passEntity, cm_contents_t contentMask = CONTENTS_NONE, mm_trace_shape_t shape = MM_SHAPE_AUTO );
 
 
 

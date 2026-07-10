@@ -127,17 +127,24 @@ const int32_t SVG_Physics_ClipVelocity( Vector3 &in, vec3_t normal, Vector3 &out
 	}
 
 	// Backoff factor.
-	const double backOff = QM_Vector3DotProduct( in, normal ) * overbounce;
-	// Calculate and apply change.
-	for ( int32_t i = 0; i < 3; i++ ) {
-		// Calculate change for axis.
-		const float change = normal[ i ] * backOff;
-		// Apply velocity change.
-		out[ i ] = in[ i ] - change;
-		// Halt if we're past epsilon.
-		if ( out[ i ] > -CLIPVELOCITY_STOP_EPSILON && out[ i ] < CLIPVELOCITY_STOP_EPSILON ) {
-			out[ i ] = 0;
+	const double backOff = QM_Vector3DotProduct( in, normal );
+
+	if ( backOff < 0. ) {
+		const double clipBackOff = backOff * overbounce;
+		// Calculate and apply change.
+		for ( int32_t i = 0; i < 3; i++ ) {
+			// Calculate change for axis.
+			const float change = normal[ i ] * clipBackOff;
+			// Apply velocity change.
+			out[ i ] = in[ i ] - change;
+			// Halt if we're past epsilon.
+			if ( out[ i ] > -CLIPVELOCITY_STOP_EPSILON && out[ i ] < CLIPVELOCITY_STOP_EPSILON ) {
+				out[ i ] = 0;
+			}
 		}
+	} else {
+		// If velocity is moving away from the plane, do not clip it.
+		out = in;
 	}
 	return blocked;
 }
@@ -200,7 +207,7 @@ svg_base_edict_t *SVG_TestEntityPosition( const svg_base_edict_t *ent ) {
 	// Get the clip mask for this entity.
 	const cm_contents_t clipMask = SVG_GetClipMask( ent );
 	// Perform a trace to test for obstructions.
-	const svg_trace_t trace = SVG_Trace( ent->currentOrigin, ent->mins, ent->maxs, ent->currentOrigin, ent, clipMask );
+	const svg_trace_t trace = SVG_TraceEntityShape( ent->currentOrigin, ent->currentOrigin, ent, ent, clipMask );
 
 	// Return the 'world' entity in case of being stuck inside of anything..
 	// <Q2RTXP>: Note: This is a change from the original Quake 2 behavior,
@@ -328,7 +335,7 @@ static const int32_t SVG_SlideBox( svg_base_edict_t *ent, const double time, con
 			end[ i ] = ent->currentOrigin[ i ] + time_left * ent->velocity[ i ];
 		}
 
-		trace = SVG_Trace( ent->currentOrigin, ent->mins, ent->maxs, end, ent, mask );
+		trace = SVG_TraceEntityShape( ent->currentOrigin, end, ent, ent, mask );
 
 		if ( trace.allsolid ) {
 			// entity is trapped in another solid
@@ -458,7 +465,7 @@ retry:
     //    mask = CM_CONTENTMASK_SOLID;
 
 	// Perform the trace.
-	trace = SVG_Trace( start, ent->mins, ent->maxs, end, ent, SVG_GetClipMask( ent ) );
+	trace = SVG_TraceEntityShape( start, end, ent, ent, SVG_GetClipMask( ent ) );
 
 	SVG_Util_SetEntityOrigin( ent, trace.endpos, true ); // VectorCopy(trace.endpos, ent->s.origin);
 	gi.linkentity( ent );
@@ -1487,7 +1494,7 @@ void SVG_RunEntity(svg_base_edict_t *ent) {
     if ( isMoveStepper ) {
         // if we moved, check and fix origin if needed
         if ( !VectorCompare( ent->currentOrigin, previousOrigin ) ) {
-            svg_trace_t trace = SVG_Trace( ent->currentOrigin, ent->mins, ent->maxs, &previousOrigin.x, ent, SVG_GetClipMask( ent ) );
+            svg_trace_t trace = SVG_TraceEntityShape( ent->currentOrigin, previousOrigin, ent, ent, SVG_GetClipMask( ent ) );
 			if ( trace.allsolid || trace.startsolid ) {
 				SVG_Util_SetEntityOrigin( ent, previousOrigin, true ); // VectorCopy( previousOrigin, ent->s.origin ); // = previous_origin;		
 			}

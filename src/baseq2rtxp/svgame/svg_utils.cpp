@@ -618,7 +618,7 @@ void SVG_Util_TouchProjectiles( svg_base_edict_t *ent, const Vector3 &previous_o
     static std::vector<skipped_projectile> skipped;
 
     while ( true ) {
-        svg_trace_t tr = SVG_Trace( previous_origin, ent->mins, ent->maxs, ent->s.origin, ent, ( ent->clipMask | CONTENTS_PROJECTILE ) );
+        svg_trace_t tr = SVG_TraceEntityShape( previous_origin, ent->s.origin, ent, ent, ( ent->clipMask | CONTENTS_PROJECTILE ) );
 
         if ( tr.fraction == 1.0f ) {
             break;

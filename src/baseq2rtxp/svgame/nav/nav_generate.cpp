@@ -34,6 +34,8 @@ std::vector<Vector3> g_nav_vertices;
 std::vector<nav_halfedge_t> g_nav_halfedges;
 //! Half-edge mesh global faces data
 std::vector<nav_face_t> g_nav_faces;
+//! Entity graph traversal edge sets
+std::vector<std::vector<int32_t>> g_nav_entity_edges;
 
 //! Global navmesh kdtree node data.
 nav_vector_t<nav_kdtree_node_t> g_nav_nodes;
@@ -613,7 +615,7 @@ static bool IsNodeValid(const bsp_t* bsp, const mnode_t* node) {
 /**
 * @brief Recursively traverse a BSP tree node and collect all brush indices that belong to it.
 **/
-static void CollectModelBrushes(bsp_t* bsp, mnode_t* node, int32_t entity_id, const Vector3& offset, std::vector<int32_t>& brush_entity_ids, std::vector<Vector3>& brush_offsets) {
+static void CollectModelBrushes(bsp_t* bsp, mnode_t* node, int32_t entity_id, const Vector3& offset, std::vector<int32_t>& brush_entity_ids, std::vector<Vector3>& brush_offsets, std::vector<bool>* brush_is_active = nullptr) {
     /**
     *   Sanity check to prevent out-of-bounds pointer reads if a map happens to have corrupted inline trees
     *   or synthetic engine hulls that point outside normal geometry pools.
@@ -622,23 +624,29 @@ static void CollectModelBrushes(bsp_t* bsp, mnode_t* node, int32_t entity_id, co
         return;
     }
     
+    // If it's a leaf, process its brushes
     if (node->plane == nullptr) {
-        // It's a leaf!
         mleaf_t* leaf = (mleaf_t*)node;
-        for (int i = 0; i < leaf->numleafbrushes; i++) {
+        
+        // For each leaf, process its brushes
+        for (int32_t i = 0; i < leaf->numleafbrushes; i++) {
             mbrush_t* b = leaf->firstleafbrush[i];
-            int32_t brush_idx = b - bsp->brushes;
-            if (brush_idx >= 0 && brush_idx < bsp->numbrushes) {
-                brush_entity_ids[brush_idx] = entity_id;
-                brush_offsets[brush_idx] = offset;
+            int32_t brush_num = b - bsp->brushes;
+            
+            if (brush_num >= 0 && brush_num < bsp->numbrushes) {
+                brush_entity_ids[brush_num] = entity_id;
+                brush_offsets[brush_num] = offset;
+                if (brush_is_active != nullptr) {
+                    (*brush_is_active)[brush_num] = true;
+                }
             }
         }
         return;
     }
     
     // Recurse into children.
-    CollectModelBrushes(bsp, node->children[0], entity_id, offset, brush_entity_ids, brush_offsets);
-    CollectModelBrushes(bsp, node->children[1], entity_id, offset, brush_entity_ids, brush_offsets);
+    CollectModelBrushes(bsp, node->children[0], entity_id, offset, brush_entity_ids, brush_offsets, brush_is_active);
+    CollectModelBrushes(bsp, node->children[1], entity_id, offset, brush_entity_ids, brush_offsets, brush_is_active);
 }
 
 /**
@@ -705,21 +713,17 @@ void Nav_DoExtractionWork() {
 
 	// Now we can safely clear the global navmesh polygon container before starting the extraction process.
     g_nav_polys.clear();
-	// Clear all entity IDs from the brush_entity_ids vector, initializing them to ENTITYNUM_NONE.
 
     
-    // Parse the runtime edicts to find func_door, func_door_rotating, and func_wall entities,
-    // and map their brushes to their runtime entity IDs.
+    // Parse the runtime edicts to find active bmodels.
+    // We maintain a boolean array to ONLY extract brushes that are actively instantiated!
     std::vector<int32_t> brush_entity_ids(bsp->numbrushes, ENTITYNUM_NONE);
     std::vector<Vector3> brush_offsets(bsp->numbrushes, Vector3(0.0f, 0.0f, 0.0f));
+    std::vector<bool> brush_is_active(bsp->numbrushes, false);
     
-    // Populate brush_offsets for all brushes belonging to bmodels
-    for (int32_t m = 1; m < bsp->nummodels; m++) {
-        mmodel_t* model = &bsp->models[m];
-        if (model->headnode != nullptr) {
-            Vector3 offset(model->origin[0], model->origin[1], model->origin[2]);
-            CollectModelBrushes(bsp, model->headnode, ENTITYNUM_NONE, offset, brush_entity_ids, brush_offsets);
-        }
+    // World geometry is always active, and has no offset.
+    if (bsp->models != nullptr && bsp->nummodels > 0 && bsp->models[0].headnode != nullptr) {
+        CollectModelBrushes(bsp, bsp->models[0].headnode, ENTITYNUM_NONE, Vector3(0.0f, 0.0f, 0.0f), brush_entity_ids, brush_offsets, &brush_is_active);
     }
     
     for (int32_t i = 1; i < g_edict_pool.num_edicts; i++) {
@@ -728,17 +732,20 @@ void Nav_DoExtractionWork() {
             continue;
         }
 
-        if (edict->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ||
-            edict->GetTypeInfo()->IsSubClassType<svg_func_door_rotating_t>() ||
-            edict->GetTypeInfo()->IsSubClassType<svg_func_wall_t>()) {
-            
-            if (edict->model.ptr != nullptr && edict->model.size() >= 2 && edict->model[ 0 ] == '*' ) {
-                int32_t model_num = gi.modelindex(edict->model.ptr);
-                if (model_num > 0 && model_num < bsp->nummodels && bsp->models != nullptr) {
-                    if (bsp->models[model_num].headnode != nullptr) {
-                        Vector3 offset = Vector3(edict->s.origin[0], edict->s.origin[1], edict->s.origin[2]);
-                        CollectModelBrushes(bsp, bsp->models[model_num].headnode, i, offset, brush_entity_ids, brush_offsets);
+        if (edict->model.ptr != nullptr && edict->model.size() >= 2 && edict->model[ 0 ] == '*' ) {
+            int32_t model_num = gi.modelindex(edict->model.ptr);
+            if (model_num > 0 && model_num < bsp->nummodels && bsp->models != nullptr) {
+                if (bsp->models[model_num].headnode != nullptr) {
+                    Vector3 offset = Vector3(edict->s.origin[0], edict->s.origin[1], edict->s.origin[2]);
+                    
+                    int32_t assigned_ent_id = ENTITYNUM_NONE;
+                    if (edict->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ||
+                        edict->GetTypeInfo()->IsSubClassType<svg_func_door_rotating_t>() ||
+                        edict->GetTypeInfo()->IsSubClassType<svg_func_wall_t>()) {
+                        assigned_ent_id = i;
                     }
+                    
+                    CollectModelBrushes(bsp, bsp->models[model_num].headnode, assigned_ent_id, offset, brush_entity_ids, brush_offsets, &brush_is_active);
                 }
             }
         }
@@ -751,6 +758,11 @@ void Nav_DoExtractionWork() {
 
 	// Iterate through all brushes in the BSP to extract walkable polygons
 	for ( int32_t i = 0; i < bsp->numbrushes; i++ ) {
+        // Skip brushes that are part of an unused bmodel
+        if (!brush_is_active[i]) {
+            continue;
+        }
+        
 		// Get the current brush
 		mbrush_t *b = &bsp->brushes[ i ];
 		// Skip brushes that are not walk-blocking contributors.
@@ -835,6 +847,10 @@ void Nav_DoExtractionWork() {
 					if ( other_idx == i ) {
 						continue; // Skip self
 					}
+                    
+                    if ( !brush_is_active[other_idx] ) {
+                        continue; // Skip unused/inactive brushes
+                    }
 					
 					mbrush_t* other_b = &bsp->brushes[ other_idx ];
 					if ( !( other_b->contents & ( CONTENTS_SOLID | CONTENTS_DETAIL | CONTENTS_MONSTERCLIP ) ) ) {
@@ -846,12 +862,14 @@ void Nav_DoExtractionWork() {
 					float other_max_z = GetBrushMaxZ( other_b, brush_offsets[other_idx] );
 					
 					// NAV_MAX_STEP_SIZE is typically 18.25f. 
-					if ( other_max_z <= floor_max_z + 18.25f ) {
-						// Skip subtracting step heights so agent can path onto them
+                    const bool isLowAscendingStep = other_max_z > floor_max_z && other_max_z <= floor_max_z + 18.25f;
+                    if ( isLowAscendingStep ) {
+                        // Skip subtracting step heights so agent can path onto them
+                        continue;
 					}
 					
                     int32_t other_ent_id = brush_entity_ids[other_idx];
-                    if (other_ent_id != ENTITYNUM_NONE) {
+                    if ( other_ent_id != ENTITYNUM_NONE ) {
                         // This is a door brush! We DO NOT subtract it to block movement.
                         // Instead, we split the fragments with 0 expansion, and any fragment 
                         // that falls INSIDE the door gets its entity_id updated!
@@ -1188,14 +1206,57 @@ static void PartitionPolygonsRecursive( PolyContainer &polys, const Vector3 &min
     // Pick the longest axis to split (only X or Y for 2.5D NavMesh!)
     int32_t primary_axis = (extents.y > extents.x) ? 1 : 0;
     
-    // Enforce a maximum cell size to ensure a "few more extra and proper splits" 
-    // to prevent gigantic polygons, but only if they are truly massive.
-    if (extents.x <= 256.0f && extents.y <= 256.0f) {
-        return; // Cell is reasonably sized, stop subdividing.
+    // "Obstacle-Aware KD-Tree Splitting"
+    // Find the polygon vertex coordinate along the split axis that is closest to the geometric center.
+    // This perfectly aligns the split plane with the edges of crates/stairs.
+    int32_t split_axis = -1;
+    float split_dist = 0.0f;
+    
+    // Try the primary (longest) axis first
+    std::vector<float> candidates;
+    for (const auto& poly : polys) {
+        for (int32_t i = 0; i < poly.num_vertices; i++) {
+            float v = poly.vertices[i][primary_axis];
+            // Enforce a KD-Node size limit to prevent tiny sliver polygons, but allow splitting stairs!
+            if (v > mins[primary_axis] + 1.0f && v < maxs[primary_axis] - 1.0f) {
+                candidates.push_back(v);
+            }
+        }
     }
     
-    int32_t split_axis = primary_axis;
-    float split_dist = mins[split_axis] + extents[split_axis] * 0.5f;
+    if (!candidates.empty()) {
+        std::sort(candidates.begin(), candidates.end());
+        split_dist = candidates[candidates.size() / 2];
+        split_axis = primary_axis;
+    } else {
+        // Try secondary axis
+        int32_t secondary_axis = 1 - primary_axis;
+        for (const auto& poly : polys) {
+            for (int32_t i = 0; i < poly.num_vertices; i++) {
+                float v = poly.vertices[i][secondary_axis];
+                if (v > mins[secondary_axis] + 1.0f && v < maxs[secondary_axis] - 1.0f) {
+                    candidates.push_back(v);
+                }
+            }
+        }
+        if (!candidates.empty()) {
+            std::sort(candidates.begin(), candidates.end());
+            split_dist = candidates[candidates.size() / 2];
+            split_axis = secondary_axis;
+        }
+    }
+    
+    // If still no internal vertex, the region is perfectly empty of obstacles. 
+    if (split_axis == -1) {
+        // Enforce a maximum cell size to ensure a "few more extra and proper splits" 
+        // to prevent gigantic polygons, but only if they are truly massive.
+        if (extents.x > 256.0f || extents.y > 256.0f) {
+            split_axis = primary_axis;
+            split_dist = mins[split_axis] + extents[split_axis] * 0.5f;
+        } else {
+            return; // Cell is empty and reasonably sized, stop subdividing.
+        }
+    }
     
     cm_plane_t plane = {};
     plane.normal[split_axis] = 1.0f;
@@ -1212,19 +1273,9 @@ static void PartitionPolygonsRecursive( PolyContainer &polys, const Vector3 &min
             poly_max = std::max(poly_max, poly.vertices[i][split_axis]);
         }
         
-        // Skip splitting if the split plane would slice off a piece smaller than 32 units.
-        // This prevents creating narrow slivers, ensuring every new piece is at least agent-sized.
-        if (split_dist - poly_min < 32.0f || poly_max - split_dist < 32.0f) {
-            // Polygon would be split too close to its edge (or is completely on one side).
-            // Just push it to whichever side its center is on.
-            if (poly.center[split_axis] >= split_dist) {
-                front_polys.push_back(poly);
-            } else {
-                back_polys.push_back(poly);
-            }
-            continue;
-        }
-
+        // We no longer skip splitting based on 32.0f slivers.
+        // Doing so breaks stair steps which are often 16 or 24 units wide!
+        
         winding_t w = {};
         w.num_points = poly.num_vertices;
         for (int32_t i = 0; i < poly.num_vertices; i++) {
@@ -1770,7 +1821,6 @@ void Nav_BuildHalfEdgeMesh() {
         nav_halfedge_t& heA = g_nav_halfedges[i];
         Vector3 a1 = g_nav_vertices[heA.vertex_idx];
         Vector3 a2 = g_nav_vertices[g_nav_halfedges[heA.next_idx].vertex_idx];
-
 		// Initialize variables to track the best twin candidate based on Z difference.
         float bestZ = 99999.0f;
         int64_t bestTwin = -1;
@@ -1798,10 +1848,40 @@ void Nav_BuildHalfEdgeMesh() {
 
 					// Get the candidate half-edge and its vertices for comparison.
                     nav_halfedge_t& heB = g_nav_halfedges[j];
-
+                    if ( heA.face_idx == heB.face_idx ) {
+                        continue;
+                    }
 					// Get the vertices of the candidate half-edge.
                     Vector3 b1 = g_nav_vertices[heB.vertex_idx];
                     Vector3 b2 = g_nav_vertices[g_nav_halfedges[heB.next_idx].vertex_idx];
+
+                    /**
+                    * Endpoint proximity alone is not sufficient for a portal.  Adjacent
+                    * stair risers can have reversed endpoints within the T-junction
+                    * tolerance while being laterally separated from the actual shared
+                    * edge.  Require opposing, collinear spans before accepting a twin.
+                    **/
+                    Vector3 edgeA2D = a2 - a1;
+                    edgeA2D.z = 0.0f;
+                    Vector3 edgeB2D = b2 - b1;
+                    edgeB2D.z = 0.0f;
+                    const float edgeALen = QM_Vector3Length( edgeA2D );
+                    const float edgeBLen = QM_Vector3Length( edgeB2D );
+                    if ( edgeALen <= 0.1f || edgeBLen <= 0.1f ) {
+                        continue;
+                    }
+                    edgeA2D = edgeA2D * ( 1.0f / edgeALen );
+                    edgeB2D = edgeB2D * ( 1.0f / edgeBLen );
+                    if ( QM_Vector3DotProduct( edgeA2D, edgeB2D ) > -0.95f ) {
+                        continue;
+                    }
+
+                    const float lateralB1 = std::fabs( edgeA2D.x * ( b1.y - a1.y ) - edgeA2D.y * ( b1.x - a1.x ) );
+                    const float lateralB2 = std::fabs( edgeA2D.x * ( b2.y - a1.y ) - edgeA2D.y * ( b2.x - a1.x ) );
+                    static constexpr float MAX_TWIN_LATERAL_SEPARATION = 0.5f;
+                    if ( lateralB1 > MAX_TWIN_LATERAL_SEPARATION || lateralB2 > MAX_TWIN_LATERAL_SEPARATION ) {
+                        continue;
+                    }
 
 					// Compute the horizontal (X, Y) and vertical (Z) differences between the half-edges to determine if they are close enough to be considered twins.
                     float dx1 = a1.x - b2.x;
@@ -1813,11 +1893,10 @@ void Nav_BuildHalfEdgeMesh() {
                     float dz2 = std::abs(a2.z - b1.z);
 
                     // Tolerate up to a 4 unit horizontal gap (16.0f squared) to handle BSP T-junctions
-					static constexpr float MAX_DIST_SQR = 16.0f; // 4 units squared
+                    static constexpr float MAX_DIST_SQR = 16.0f; // 4 units squared
 					static constexpr float MAX_Z_DIFF = NAV_MAX_STEP_SIZE + 4.0f; // Keep twin linking aligned with default step + clearance policy.
                     if (dx1 * dx1 + dy1 * dy1 < MAX_DIST_SQR && dz1 <= MAX_Z_DIFF &&
                         dx2 * dx2 + dy2 * dy2 < MAX_DIST_SQR && dz2 <= MAX_Z_DIFF ) {
-                        
                         // If there are multiple overlapping edges, pick the one with the closest Z match.
                         float totalZ = dz1 + dz2;
                         if (totalZ < bestZ) {
@@ -1943,6 +2022,9 @@ void Nav_BuildHalfEdgeMesh() {
 
 					// Get the candidate half-edge and its vertices for comparison.
                     nav_halfedge_t& heB = g_nav_halfedges[j];
+                    if ( heA.face_idx == heB.face_idx ) {
+                        continue;
+                    }
                     Vector3 b1 = g_nav_vertices[heB.vertex_idx];
                     Vector3 b2 = g_nav_vertices[g_nav_halfedges[heB.next_idx].vertex_idx];
 
@@ -1959,6 +2041,17 @@ void Nav_BuildHalfEdgeMesh() {
 					if ( QM_Vector3DotProduct( dirA, dirB ) > -0.95f ) {
 						continue;
 					}
+
+                    // Endpoint projection alone is insufficient: two parallel stair
+                    // edges on adjacent risers can project onto one another while
+                    // remaining several units apart.  Such a false twin creates a
+                    // traversable-looking L-turn portal that the capsule cannot cross.
+                    const float lateralSeparation = std::fabs(
+                        dirA.x * ( b1.y - a1.y ) - dirA.y * ( b1.x - a1.x ) );
+                    static constexpr float MAX_LATERAL_SEPARATION = 0.5f;
+                    if ( lateralSeparation > MAX_LATERAL_SEPARATION ) {
+                        continue;
+                    }
 
 					// Project the candidate half-edge's first vertex onto the current half-edge's direction to find the closest point and check for overlap.
                     Vector3 a1_to_b1 = b1 - a1;

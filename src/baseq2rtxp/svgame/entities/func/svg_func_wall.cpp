@@ -18,6 +18,7 @@
 
 #include "sharedgame/sg_entity_flags.h"
 #include "sharedgame/sg_means_of_death.h"
+#include "svgame/nav/nav_path.h"
 
 
 
@@ -44,6 +45,8 @@ void svg_func_wall_t::TurnOn() {
 	SVG_Util_KillBox( this, true, sg_means_of_death_t::MEANS_OF_DEATH_TELEFRAGGED );
     // Relink the entity.
     gi.linkentity( this );
+    // Update navmesh edge properties to represent the now solid wall.
+    Nav_SetEntityEdgesState( this->s.number, NAV_EDGE_DISABLED, true );
 }
 
 /**
@@ -56,6 +59,8 @@ void svg_func_wall_t::TurnOff( ) {
 	svFlags |= SVF_NOCLIENT;
 	// Relink the entity.
 	gi.linkentity( this );
+    // Update navmesh edge properties to represent the now hidden wall.
+    Nav_SetEntityEdgesState( this->s.number, NAV_EDGE_DISABLED, false );
 }
 /**
 *   @brief  Will toggle the wall's state between on and off.

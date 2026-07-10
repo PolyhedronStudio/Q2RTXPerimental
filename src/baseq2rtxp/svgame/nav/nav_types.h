@@ -1,6 +1,7 @@
 #pragma once
 
 #include "nav_core.h"
+#include "nav_containers.h"
 
 #pragma pack(push, 1)
 
@@ -43,6 +44,17 @@ struct nav_halfedge_t {
     float wall_offset = 0.0f;
     //! Entity ID of the door this edge transitions into, or ENTITYNUM_NONE.
     int32_t edge_entity_id = ENTITYNUM_NONE;
+    //! Bitmask for dynamic states (e.g., NAV_EDGE_DISABLED).
+    uint32_t flags = 0;
+};
+
+/**
+* @brief Bitmask flags for half-edges to control runtime traversal.
+**/
+enum nav_edge_flags_t : uint32_t {
+    NAV_EDGE_NONE = 0,
+    //! This edge is temporarily blocked (e.g. a closed door) and cannot be traversed.
+    NAV_EDGE_DISABLED = 1 << 0
 };
 
 /**

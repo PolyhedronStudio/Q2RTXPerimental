@@ -33,12 +33,17 @@ static bool Nav_ComputePortalOverlapSegment( const nav_halfedge_t &he, const nav
 		return false;
 	}
 	aDir2D = aDir2D * ( 1.0f / aLen );
+	const float lateral0 = std::fabs( aDir2D.x * ( b0.y - a0.y ) - aDir2D.y * ( b0.x - a0.x ) );
+	const float lateral1 = std::fabs( aDir2D.x * ( b1.y - a0.y ) - aDir2D.y * ( b1.x - a0.x ) );
+	if ( lateral0 > 0.5f || lateral1 > 0.5f ) {
+		return false;
+	}
 
 	auto projectOnA = [&]( const Vector3 &p ) -> float {
 		Vector3 ap = p - a0;
 		ap.z = 0.0f;
-		return static_cast<float>( QM_Vector3DotProduct( ap, aDir2D ) );
-	};
+		return static_cast< float >( QM_Vector3DotProduct( ap, aDir2D ) );
+		};
 
 	const float u0 = projectOnA( b0 );
 	const float u1 = projectOnA( b1 );
@@ -64,9 +69,11 @@ static bool Nav_ComputePortalOverlapSegment( const nav_halfedge_t &he, const nav
 	const Vector3 bSeg0 = QM_Vector3MultiplyAdd( bMinPoint, bt0, ( bMaxPoint - bMinPoint ) );
 	const Vector3 bSeg1 = QM_Vector3MultiplyAdd( bMinPoint, bt1, ( bMaxPoint - bMinPoint ) );
 
-	const float maxZ = std::max( std::max( seg0.z, seg1.z ), std::max( bSeg0.z, bSeg1.z ) );
-	seg0.z = maxZ;
-	seg1.z = maxZ;
+	// Portal queries are directional.  Use the destination edge's height so
+	// stair transitions steer toward the receiving walk surface instead of
+	// flattening the portal to the highest adjacent vertex.
+	seg0.z = bSeg0.z;
+	seg1.z = bSeg1.z;
 
 	if ( outV0 ) {
 		*outV0 = seg0;
@@ -95,38 +102,38 @@ void Nav_BuildAdjacencyGraph() {
 **/
 int32_t Nav_FindLeafNode( const Vector3 &point ) {
 // Reject empty trees immediately.
-if ( g_nav_nodes.empty() ) {
-return -1;
-}
+	if ( g_nav_nodes.empty() ) {
+		return -1;
+	}
 
-// Start at the root and descend until a leaf is found.
-int32_t nodeIdx = 0;
-while ( true ) {
-const nav_kdtree_node_t &node = g_nav_nodes[ nodeIdx ];
+	// Start at the root and descend until a leaf is found.
+	int32_t nodeIdx = 0;
+	while ( true ) {
+		const nav_kdtree_node_t &node = g_nav_nodes[ nodeIdx ];
 
-// Leaf nodes have no children, so the current index is the answer.
-if ( node.left_child == -1 && node.right_child == -1 ) {
-return nodeIdx;
-}
+		// Leaf nodes have no children, so the current index is the answer.
+		if ( node.left_child == -1 && node.right_child == -1 ) {
+			return nodeIdx;
+		}
 
-// Choose the child that contains the query point on the split axis.
-bool leftSide = false;
-if ( node.left_child != -1 ) {
-const nav_kdtree_node_t &leftChild = g_nav_nodes[ node.left_child ];
-if ( node.split_axis == 0 ) {
-leftSide = ( point.x <= leftChild.maxs.x );
-} else if ( node.split_axis == 1 ) {
-leftSide = ( point.y <= leftChild.maxs.y );
-} else if ( node.split_axis == 2 ) {
-leftSide = ( point.z <= leftChild.maxs.z );
-}
-}
+		// Choose the child that contains the query point on the split axis.
+		bool leftSide = false;
+		if ( node.left_child != -1 ) {
+			const nav_kdtree_node_t &leftChild = g_nav_nodes[ node.left_child ];
+			if ( node.split_axis == 0 ) {
+				leftSide = ( point.x <= leftChild.maxs.x );
+			} else if ( node.split_axis == 1 ) {
+				leftSide = ( point.y <= leftChild.maxs.y );
+			} else if ( node.split_axis == 2 ) {
+				leftSide = ( point.z <= leftChild.maxs.z );
+			}
+		}
 
-nodeIdx = leftSide ? node.left_child : node.right_child;
-if ( nodeIdx == -1 ) {
-return -1;
-}
-}
+		nodeIdx = leftSide ? node.left_child : node.right_child;
+		if ( nodeIdx == -1 ) {
+			return -1;
+		}
+	}
 }
 
 /**
@@ -137,29 +144,38 @@ return -1;
 **/
 bool Nav_PointInsideFace2D( const Vector3 &point, const nav_face_t &face ) {
 // Faces need at least three edges before they can contain a point.
-if ( face.num_edges < 3 ) {
-return false;
-}
+	if ( face.num_edges < 3 ) {
+		return false;
+	}
 
-// Check every edge in the face winding using a 2D cross-product test.
-for ( int32_t e = 0; e < face.num_edges; e++ ) {
-const nav_halfedge_t &he = g_nav_halfedges[ face.first_edge_idx + e ];
-const Vector3 a = g_nav_vertices[ he.vertex_idx ];
-const Vector3 b = g_nav_vertices[ g_nav_halfedges[ he.next_idx ].vertex_idx ];
+		// Check every edge in the face winding using a winding-independent 2D
+		// cross-product test.  Extracted windings can be reversed by CSG clipping;
+		// assuming one winding direction makes one stair orientation unqueryable.
+	float windingSign = 0.0f;
+	for ( int32_t e = 0; e < face.num_edges; e++ ) {
+		const nav_halfedge_t &he = g_nav_halfedges[ face.first_edge_idx + e ];
+		const Vector3 a = g_nav_vertices[ he.vertex_idx ];
+		const Vector3 b = g_nav_vertices[ g_nav_halfedges[ he.next_idx ].vertex_idx ];
 
-// Compare the point against the edge in XY space.
-const Vector3 edge = b - a;
-const Vector3 toPoint = point - a;
-const float cross2d = edge.x * toPoint.y - edge.y * toPoint.x;
+		// Compare the point against the edge in XY space.
+		const Vector3 edge = b - a;
+		const Vector3 toPoint = point - a;
+		const float cross2d = edge.x * toPoint.y - edge.y * toPoint.x;
 
-// Keep a tolerance so small wall-adjacent offsets still count as inside.
-const float edgeLen = std::sqrt( edge.x * edge.x + edge.y * edge.y );
-if ( cross2d > 24.0f * edgeLen ) {
-return false;
-}
-}
+		// Keep a tolerance so small wall-adjacent offsets still count as inside.
+		const float edgeLen = std::sqrt( edge.x * edge.x + edge.y * edge.y );
+		if ( std::fabs( cross2d ) <= 24.0f * edgeLen ) {
+			continue;
+		}
+		const float edgeSign = ( cross2d > 0.0f ) ? 1.0f : -1.0f;
+		if ( windingSign == 0.0f ) {
+			windingSign = edgeSign;
+		} else if ( edgeSign != windingSign ) {
+			return false;
+		}
+	}
 
-return true;
+	return true;
 }
 
 /**
@@ -169,42 +185,42 @@ return true;
 **/
 int32_t Nav_FindClosestPolyGlobal( const Vector3 &point ) {
 // Track the best face that actually contains the point in 2D.
-int32_t bestInsideFace = -1;
-float bestInsideDist = 64.0f;
+	int32_t bestInsideFace = -1;
+	float bestInsideDist = 64.0f;
 
-// Track the nearest face as a fallback when no face contains the point.
-int32_t bestFallbackFace = -1;
-float bestFallbackDist = 999999.0f;
+	// Track the nearest face as a fallback when no face contains the point.
+	int32_t bestFallbackFace = -1;
+	float bestFallbackDist = 999999.0f;
 
-// Scan every face because this is the final catch-all lookup.
-for ( size_t i = 0; i < g_nav_faces.size(); ++i ) {
-const nav_face_t &face = g_nav_faces[ i ];
+	// Scan every face because this is the final catch-all lookup.
+	for ( size_t i = 0; i < g_nav_faces.size(); ++i ) {
+		const nav_face_t &face = g_nav_faces[ i ];
 
-// Measure vertical distance to the face plane for the inside test.
-const Vector3 v0 = g_nav_vertices[ g_nav_halfedges[ face.first_edge_idx ].vertex_idx ];
-const float plane_dist = static_cast<float>( QM_Vector3DotProduct( v0, face.normal ) );
-const float d = std::fabs( static_cast<float>( QM_Vector3DotProduct( point, face.normal ) ) - plane_dist );
+		// Measure vertical distance to the face plane for the inside test.
+		const Vector3 v0 = g_nav_vertices[ g_nav_halfedges[ face.first_edge_idx ].vertex_idx ];
+		const float plane_dist = static_cast< float >( QM_Vector3DotProduct( v0, face.normal ) );
+		const float d = std::fabs( static_cast< float >( QM_Vector3DotProduct( point, face.normal ) ) - plane_dist );
 
-if ( d < bestInsideDist && Nav_PointInsideFace2D( point, face ) ) {
-bestInsideDist = d;
-bestInsideFace = static_cast<int32_t>( i );
-}
+		if ( d < bestInsideDist && Nav_PointInsideFace2D( point, face ) ) {
+			bestInsideDist = d;
+			bestInsideFace = static_cast< int32_t >( i );
+		}
 
-// Also track the nearest face center as a fallback.
-const float dx = point.x - face.center.x;
-const float dy = point.y - face.center.y;
-const float dz = point.z - face.center.z;
-const float centerDist = std::sqrt( dx * dx + dy * dy + dz * dz );
-if ( centerDist < bestFallbackDist ) {
-bestFallbackDist = centerDist;
-bestFallbackFace = static_cast<int32_t>( i );
-}
-}
+		// Also track the nearest face center as a fallback.
+		const float dx = point.x - face.center.x;
+		const float dy = point.y - face.center.y;
+		const float dz = point.z - face.center.z;
+		const float centerDist = std::sqrt( dx * dx + dy * dy + dz * dz );
+		if ( centerDist < bestFallbackDist ) {
+			bestFallbackDist = centerDist;
+			bestFallbackFace = static_cast< int32_t >( i );
+		}
+	}
 
-if ( bestInsideFace != -1 ) {
-return bestInsideFace;
-}
-return bestFallbackFace;
+	if ( bestInsideFace != -1 ) {
+		return bestInsideFace;
+	}
+	return bestFallbackFace;
 }
 
 /**
@@ -214,56 +230,56 @@ return bestFallbackFace;
 **/
 int32_t Nav_FindPolyInLeaf( const Vector3 &point ) {
 // Find the leaf first so we can prefer local faces over a global scan.
-const int32_t leafIdx = Nav_FindLeafNode( point );
-if ( leafIdx < 0 ) {
-return Nav_FindClosestPolyGlobal( point );
-}
+	const int32_t leafIdx = Nav_FindLeafNode( point );
+	if ( leafIdx < 0 ) {
+		return Nav_FindClosestPolyGlobal( point );
+	}
 
-const nav_kdtree_node_t &leaf = g_nav_nodes[ leafIdx ];
-const int32_t firstFaceIdx = leaf.first_face_id;
-if ( firstFaceIdx == -1 || firstFaceIdx >= static_cast<int32_t>( g_nav_faces.size() ) ) {
-return Nav_FindClosestPolyGlobal( point );
-}
+	const nav_kdtree_node_t &leaf = g_nav_nodes[ leafIdx ];
+	const int32_t firstFaceIdx = leaf.first_face_id;
+	if ( firstFaceIdx == -1 || firstFaceIdx >= static_cast< int32_t >( g_nav_faces.size() ) ) {
+		return Nav_FindClosestPolyGlobal( point );
+	}
 
-// Search only the candidate faces in this leaf first.
-int32_t bestInsideFace = -1;
-float bestInsideDist = 64.0f;
-int32_t bestFallbackFace = -1;
-float bestFallbackDist = 999999.0f;
+	// Search only the candidate faces in this leaf first.
+	int32_t bestInsideFace = -1;
+	float bestInsideDist = 64.0f;
+	int32_t bestFallbackFace = -1;
+	float bestFallbackDist = 999999.0f;
 
-for ( int32_t i = 0; i < leaf.num_faces; ++i ) {
-const int32_t faceIdx = firstFaceIdx + i;
-if ( faceIdx >= static_cast<int32_t>( g_nav_faces.size() ) ) {
-break;
-}
+	for ( int32_t i = 0; i < leaf.num_faces; ++i ) {
+		const int32_t faceIdx = firstFaceIdx + i;
+		if ( faceIdx >= static_cast< int32_t >( g_nav_faces.size() ) ) {
+			break;
+		}
 
-const nav_face_t &face = g_nav_faces[ faceIdx ];
-const Vector3 v0 = g_nav_vertices[ g_nav_halfedges[ face.first_edge_idx ].vertex_idx ];
-const float plane_dist = static_cast<float>( QM_Vector3DotProduct( v0, face.normal ) );
-const float d = std::fabs( static_cast<float>( QM_Vector3DotProduct( point, face.normal ) ) - plane_dist );
+		const nav_face_t &face = g_nav_faces[ faceIdx ];
+		const Vector3 v0 = g_nav_vertices[ g_nav_halfedges[ face.first_edge_idx ].vertex_idx ];
+		const float plane_dist = static_cast< float >( QM_Vector3DotProduct( v0, face.normal ) );
+		const float d = std::fabs( static_cast< float >( QM_Vector3DotProduct( point, face.normal ) ) - plane_dist );
 
-if ( d < bestInsideDist && Nav_PointInsideFace2D( point, face ) ) {
-bestInsideDist = d;
-bestInsideFace = faceIdx;
-}
+		if ( d < bestInsideDist && Nav_PointInsideFace2D( point, face ) ) {
+			bestInsideDist = d;
+			bestInsideFace = faceIdx;
+		}
 
-const float dx = point.x - face.center.x;
-const float dy = point.y - face.center.y;
-const float dz = point.z - face.center.z;
-const float centerDist = std::sqrt( dx * dx + dy * dy + dz * dz );
-if ( centerDist < bestFallbackDist ) {
-bestFallbackDist = centerDist;
-bestFallbackFace = faceIdx;
-}
-}
+		const float dx = point.x - face.center.x;
+		const float dy = point.y - face.center.y;
+		const float dz = point.z - face.center.z;
+		const float centerDist = std::sqrt( dx * dx + dy * dy + dz * dz );
+		if ( centerDist < bestFallbackDist ) {
+			bestFallbackDist = centerDist;
+			bestFallbackFace = faceIdx;
+		}
+	}
 
-if ( bestInsideFace != -1 ) {
-return bestInsideFace;
-}
-if ( bestFallbackFace == -1 ) {
-return Nav_FindClosestPolyGlobal( point );
-}
-return bestFallbackFace;
+	if ( bestInsideFace != -1 ) {
+		return bestInsideFace;
+	}
+	if ( bestFallbackFace == -1 ) {
+		return Nav_FindClosestPolyGlobal( point );
+	}
+	return bestFallbackFace;
 }
 
 /**
@@ -276,54 +292,48 @@ return bestFallbackFace;
 **/
 bool Nav_GetPortalEndpoints( int32_t faceA, int32_t faceB, Vector3 *outV0, Vector3 *outV1 ) {
 // Validate inputs before touching the mesh arrays.
-if ( outV0 == nullptr || outV1 == nullptr || faceA < 0 || faceB < 0 ||
-static_cast<size_t>( faceA ) >= g_nav_faces.size() ||
-static_cast<size_t>( faceB ) >= g_nav_faces.size() ) {
-return false;
-}
+	if ( outV0 == nullptr || outV1 == nullptr || faceA < 0 || faceB < 0 ||
+		static_cast< size_t >( faceA ) >= g_nav_faces.size() ||
+		static_cast< size_t >( faceB ) >= g_nav_faces.size() ) {
+		return false;
+	}
 
-const nav_face_t &fA = g_nav_faces[ faceA ];
-for ( int32_t e = 0; e < fA.num_edges; ++e ) {
-const nav_halfedge_t &he = g_nav_halfedges[ fA.first_edge_idx + e ];
-if ( he.twin_idx == -1 ) {
-continue;
-}
+	const nav_face_t &fA = g_nav_faces[ faceA ];
+	for ( int32_t e = 0; e < fA.num_edges; ++e ) {
+		const nav_halfedge_t &he = g_nav_halfedges[ fA.first_edge_idx + e ];
+		if ( he.twin_idx == -1 ) {
+			continue;
+		}
 
-const nav_halfedge_t &twin = g_nav_halfedges[ he.twin_idx ];
-if ( twin.face_idx != faceB ) {
-continue;
-}
+		const nav_halfedge_t &twin = g_nav_halfedges[ he.twin_idx ];
+		if ( twin.face_idx != faceB ) {
+			continue;
+		}
 
-// Use only the true overlap span so runtime steering matches twin-link topology.
-if ( Nav_ComputePortalOverlapSegment( he, twin, outV0, outV1, nullptr ) ) {
-return true;
-}
+		// Use only the true overlap span so runtime steering matches twin-link topology.
+		if ( Nav_ComputePortalOverlapSegment( he, twin, outV0, outV1, nullptr ) ) {
+			return true;
+		}
 
-// Fallback to legacy full-edge portal if overlap extraction fails due precision/skew.
-*outV0 = g_nav_vertices[ he.vertex_idx ];
-*outV1 = g_nav_vertices[ g_nav_halfedges[ he.next_idx ].vertex_idx ];
-float maxZ = std::max( outV0->z, outV1->z );
-const Vector3 tv0 = g_nav_vertices[ twin.vertex_idx ];
-const Vector3 tv1 = g_nav_vertices[ g_nav_halfedges[ twin.next_idx ].vertex_idx ];
-maxZ = std::max( std::max( maxZ, tv0.z ), tv1.z );
-outV0->z = maxZ;
-outV1->z = maxZ;
-return true;
-}
+		// A portal is usable only when the two half-edges have a real overlap.
+		// Returning the full source edge here makes path width and steering disagree
+		// with the twin topology, especially on fragmented stair edges.
+		return false;
+	}
 
-return false;
+	return false;
 }
 
 /**
 * @brief A* node entry used by Nav_FindPath.
 **/
 struct AStarNode {
-int32_t polyIdx = -1;
-float fScore = 0.0f;
+	int32_t polyIdx = -1;
+	float fScore = 0.0f;
 
-bool operator>( const AStarNode &other ) const {
-return fScore > other.fScore;
-}
+	bool operator>( const AStarNode &other ) const {
+		return fScore > other.fScore;
+	}
 };
 
 /**
@@ -336,85 +346,92 @@ return fScore > other.fScore;
 **/
 bool Nav_FindPath( int32_t startFace, int32_t goalFace, std::vector<int32_t> &outPath, const nav_path_policy_t &policy ) {
 // Start with a clean output path.
-outPath.clear();
+	outPath.clear();
 
-// Reject invalid indices up front.
-if ( startFace < 0 || goalFace < 0 || startFace >= static_cast<int32_t>( g_nav_faces.size() ) || goalFace >= static_cast<int32_t>( g_nav_faces.size() ) ) {
-return false;
-}
+	// Reject invalid indices up front.
+	if ( startFace < 0 || goalFace < 0 || startFace >= static_cast< int32_t >( g_nav_faces.size() ) || goalFace >= static_cast< int32_t >( g_nav_faces.size() ) ) {
+		return false;
+	}
 
-// A zero-length path is valid when the start already matches the goal.
-if ( startFace == goalFace ) {
-outPath.push_back( startFace );
-return true;
-}
+	// A zero-length path is valid when the start already matches the goal.
+	if ( startFace == goalFace ) {
+		outPath.push_back( startFace );
+		return true;
+	}
 
-// Open set ordered by estimated total cost.
-std::priority_queue<AStarNode, std::vector<AStarNode>, std::greater<AStarNode>> openSet;
-std::unordered_map<int32_t, int32_t> cameFrom;
-std::unordered_map<int32_t, float> gScore;
+	// Open set ordered by estimated total cost.
+	std::priority_queue<AStarNode, std::vector<AStarNode>, std::greater<AStarNode>> openSet;
+	std::unordered_map<int32_t, int32_t> cameFrom;
+	std::unordered_map<int32_t, float> gScore;
 
-// Seed the search from the start face.
-gScore[ startFace ] = 0.0f;
-auto Heuristic = []( int32_t a, int32_t b ) {
-return static_cast<float>( QM_Vector3Distance( g_nav_faces[ a ].center, g_nav_faces[ b ].center ) );
-};
-openSet.push( { startFace, Heuristic( startFace, goalFace ) } );
+	// Seed the search from the start face.
+	gScore[ startFace ] = 0.0f;
+	auto Heuristic = []( int32_t a, int32_t b ) {
+		return static_cast< float >( QM_Vector3Distance( g_nav_faces[ a ].center, g_nav_faces[ b ].center ) );
+		};
+	openSet.push( { startFace, Heuristic( startFace, goalFace ) } );
 
-// Explore the graph until the open set is exhausted or the goal is found.
-while ( !openSet.empty() ) {
-const int32_t current = openSet.top().polyIdx;
-openSet.pop();
+	// Explore the graph until the open set is exhausted or the goal is found.
+	while ( !openSet.empty() ) {
+		const int32_t current = openSet.top().polyIdx;
+		openSet.pop();
 
-if ( current == goalFace ) {
-// Reconstruct the path by walking the predecessor map backwards.
-int32_t curr = current;
-while ( curr != startFace ) {
-outPath.push_back( curr );
-curr = cameFrom[ curr ];
-}
-outPath.push_back( startFace );
-std::reverse( outPath.begin(), outPath.end() );
-return true;
-}
+		if ( current == goalFace ) {
+		// Reconstruct the path by walking the predecessor map backwards.
+			int32_t curr = current;
+			while ( curr != startFace ) {
+				outPath.push_back( curr );
+				curr = cameFrom[ curr ];
+			}
+			outPath.push_back( startFace );
+			std::reverse( outPath.begin(), outPath.end() );
+			return true;
+		}
 
-const nav_face_t &face = g_nav_faces[ current ];
-for ( int32_t e = 0; e < face.num_edges; ++e ) {
-const nav_halfedge_t &he = g_nav_halfedges[ face.first_edge_idx + e ];
-if ( he.twin_idx == -1 ) {
-continue;
-}
+		const nav_face_t &face = g_nav_faces[ current ];
+		for ( int32_t e = 0; e < face.num_edges; ++e ) {
+			const nav_halfedge_t &he = g_nav_halfedges[ face.first_edge_idx + e ];
+			if ( he.twin_idx == -1 ) {
+				continue;
+			}
 
-const nav_halfedge_t &twin = g_nav_halfedges[ he.twin_idx ];
-const int32_t neighbor = twin.face_idx;
-const nav_face_t &neighborFace = g_nav_faces[ neighbor ];
+			const nav_halfedge_t &twin = g_nav_halfedges[ he.twin_idx ];
+			const int32_t neighbor = twin.face_idx;
 
-// Enforce physical traversability (not just topological adjacency) for this edge transition.
-float portalWidth2D = 0.0f;
-if ( !Nav_ComputePortalOverlapSegment( he, twin, nullptr, nullptr, &portalWidth2D ) ) {
-	const Vector3 edgeStart = g_nav_vertices[ he.vertex_idx ];
-	const Vector3 edgeEnd = g_nav_vertices[ g_nav_halfedges[ he.next_idx ].vertex_idx ];
-	portalWidth2D = static_cast<float>( QM_Vector2Distance( edgeStart, edgeEnd ) );
-}
-const float minRequiredPortalWidth = 2.0f;
-if ( portalWidth2D < minRequiredPortalWidth ) {
-continue;
-}
+			const nav_face_t &neighborFace = g_nav_faces[ neighbor ];
+
+			// Enforce physical traversability (not just topological adjacency) for this edge transition.
+			float portalWidth2D = 0.0f;
+			if ( !Nav_ComputePortalOverlapSegment( he, twin, nullptr, nullptr, &portalWidth2D ) ) {
+				continue;
+			}
+			const float minRequiredPortalWidth = policy.min_portal_width;
+			if ( portalWidth2D < minRequiredPortalWidth ) {
+				if ( portalWidth2D < 0.1f ) {
+					// Degenerate narrow portal – allow transition.
+					// No action needed.
+				} else {
+					gi.dprintf( "[NAV DEBUG] Edge rejected: width %.2f < %.2f (face %d -> %d)\n", portalWidth2D, minRequiredPortalWidth, current, neighbor );
+					continue;
+				}
+			}
 
 // Vertical clearance is limited so the path prefers walkable transitions.
 const float dz = he.z_diff;
 const float allowedStep = policy.max_step_height + policy.step_clearance;
 if ( dz > allowedStep ) {
-continue;
+	gi.dprintf("[NAV DEBUG] Edge rejected: dz %.2f > allowed %.2f (face %d -> %d)\n", dz, allowedStep, current, neighbor);
+	continue;
 }
 if ( dz < -policy.max_drop_height ) {
-continue;
+	gi.dprintf("[NAV DEBUG] Edge rejected: drop %.2f > max_drop %.2f (face %d -> %d)\n", -dz, policy.max_drop_height, current, neighbor);
+	continue;
 }
 
 // Penalize vertical motion so flat routes stay preferred when they are reasonable.
 const float dist2D = static_cast<float>( QM_Vector2Distance( face.center, neighborFace.center ) );
 const float distZ = std::abs( face.center.z - neighborFace.center.z );
-const float tentative_gScore = gScore[ current ] + dist2D + ( distZ * 5.0f );
+	const float tentative_gScore = gScore[ current ] + dist2D + distZ;
 
 const auto it = gScore.find( neighbor );
 if ( it == gScore.end() || tentative_gScore < it->second ) {
@@ -448,6 +465,13 @@ inline float Nav_TriArea2D( const Vector3 &a, const Vector3 &b, const Vector3 &c
 	return bx * ay - ax * by;
 }
 
+/**
+*	@brief	Calculate 2D cross product of 3 vectors, ignoring Z component
+**/
+static float QM_Vector2CrossProduct( const Vector3 &a, const Vector3 &b, const Vector3 &c ) {
+	return ( b.x - a.x ) * ( c.y - a.y ) - ( c.x - a.x ) * ( b.y - a.y );
+}
+
 bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3 &startPos, const Vector3 &goalPos, float agentRadius, std::vector<Vector3> &outWaypoints ) {
 	outWaypoints.clear();
 	if ( path.empty() ) {
@@ -463,14 +487,13 @@ bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3 &startPos, 
 	outWaypoints.push_back( startPos );
 
 	/**
-	*	Organic Traversal (from nav2)
+	*\tOrganic Traversal (from nav2)
 	**/
 	for ( size_t i = 1; i < path.size() - 1; ++i ) {
 		const int32_t face_idx = path[ i ];
 		const nav_face_t &face = g_nav_faces[ face_idx ];
 		Vector3 center = face.center;
 
-		// 1. Calculate safe randomization radius
 		float min_wall_dist = 9999.0f;
 		for ( int32_t edge_idx = face.first_edge_idx; edge_idx != -1; ) {
 			const nav_halfedge_t &he = g_nav_halfedges[ edge_idx ];
@@ -496,17 +519,6 @@ bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3 &startPos, 
 			if ( edge_idx == face.first_edge_idx ) break;
 		}
 
-		float safe_radius = std::max( 0.0f, min_wall_dist - agentRadius - 2.0f );
-		safe_radius = std::min( safe_radius, 8.0f );
-
-		if ( safe_radius > 0.0f ) {
-			float randX = ( ( ( face_idx * 137 ) % 100 ) / 100.0f ) * 2.0f - 1.0f;
-			float randY = ( ( ( face_idx * 271 ) % 100 ) / 100.0f ) * 2.0f - 1.0f;
-			center.x += randX * safe_radius;
-			center.y += randY * safe_radius;
-		}
-
-		// 2. Stair Approach Alignment (from nav2 exactly)
 		if ( i + 1 < path.size() ) {
 			const nav_face_t &nextFace = g_nav_faces[ path[ i + 1 ] ];
 			if ( std::abs( nextFace.center.z - face.center.z ) > 4.0f ) {
@@ -514,28 +526,23 @@ bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3 &startPos, 
 				if ( Nav_GetPortalEndpoints( face_idx, path[ i + 1 ], &left, &right ) ) {
 					Vector3 portalMid = ( left + right ) * 0.5f;
 					Vector3 edgeDir = QM_Vector3Normalize( right - left );
-					Vector3 approachDir = { edgeDir.y, -edgeDir.x, 0.0f }; // Perpendicular
-					
+					Vector3 approachDir = { edgeDir.y, -edgeDir.x, 0.0f };
 					Vector3 centerToPortal = portalMid - center;
 					centerToPortal.z = 0.0f;
 					if ( QM_Vector3DotProduct( approachDir, centerToPortal ) > 0.0f ) {
 						approachDir = approachDir * -1.0f;
 					}
-
-					// Project the center point back from the portal by agentRadius + 16.0f
 					center = portalMid + ( approachDir * ( agentRadius + 16.0f ) );
 					center.z = face.center.z;
 				}
 			}
 		}
 
-		// 3. Boundary Safety Push (from nav2 exactly, with 0-distance fallback)
 		for ( int32_t edge_idx = face.first_edge_idx; edge_idx != -1; ) {
 			const nav_halfedge_t &he = g_nav_halfedges[ edge_idx ];
 			if ( he.twin_idx == -1 ) {
 				Vector3 v0 = g_nav_vertices[ he.vertex_idx ];
 				Vector3 v1 = g_nav_vertices[ g_nav_halfedges[ he.next_idx ].vertex_idx ];
-
 				Vector3 edgeDir = v1 - v0;
 				edgeDir.z = 0.0f;
 				const float edgeLen = QM_Vector3Length( edgeDir );
@@ -544,23 +551,13 @@ bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3 &startPos, 
 					Vector3 toCenter = center - v0;
 					toCenter.z = 0.0f;
 					float dot = QM_Clamp( static_cast<float>( QM_Vector3DotProduct( toCenter, edgeDir ) ), 0.0f, edgeLen );
-
 					Vector3 proj = v0 + ( edgeDir * dot );
 					proj.z = center.z;
-
 					float distToEdge = static_cast<float>( QM_Vector3Distance( center, proj ) );
-					const float requiredDist = agentRadius + 4.0f; 
-					
+					const float requiredDist = agentRadius + 4.0f;
 					if ( distToEdge < requiredDist ) {
-						Vector3 pushDir;
-						if ( distToEdge > 0.001f ) {
-							pushDir = center - proj;
-						} else {
-							// 0-distance L-turn fallback: push towards face center
-							pushDir = face.center - proj;
-						}
+						Vector3 pushDir = distToEdge > 0.001f ? center - proj : face.center - proj;
 						pushDir.z = 0.0f;
-						
 						if ( QM_Vector3LengthSqr( pushDir ) > 0.0001f ) {
 							pushDir = QM_Vector3Normalize( pushDir );
 							center = center + pushDir * ( requiredDist - distToEdge );
@@ -577,16 +574,12 @@ bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3 &startPos, 
 
 	outWaypoints.push_back( goalPos );
 
-	/**
-	*	Remove extremely dense redundant waypoints (from nav2 exactly)
-	**/
 	if ( outWaypoints.size() > 2 ) {
 		std::vector<Vector3> simplified;
 		simplified.push_back( outWaypoints.front() );
 		for ( size_t i = 1; i < outWaypoints.size() - 1; ++i ) {
 			const Vector3 &prev = simplified.back();
 			const Vector3 &curr = outWaypoints[ i ];
-			
 			if ( QM_Vector2DistanceSqr( prev, curr ) > ( 24.0f * 24.0f ) ) {
 				simplified.push_back( curr );
 			}
@@ -598,3 +591,25 @@ bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3 &startPos, 
 	return true;
 }
 
+/**
+*	@brief	Globally enables or disables all nav mesh edges associated with a specific entity ID.
+**/
+void Nav_SetEntityEdgesState( int32_t entity_id, uint32_t flags, bool enable ) {
+	if ( entity_id <= 0 ) {
+		return;
+	}
+
+	if ( g_nav_entity_edges.empty() || entity_id >= static_cast<int32_t>( g_nav_entity_edges.size() ) ) {
+		return;
+	}
+
+	const std::vector<int32_t> &edges = g_nav_entity_edges[ entity_id ];
+	for ( size_t i = 0; i < edges.size(); ++i ) {
+		const int32_t edge_idx = edges[ i ];
+		if ( enable ) {
+			g_nav_halfedges[ edge_idx ].flags |= flags;
+		} else {
+			g_nav_halfedges[ edge_idx ].flags &= ~flags;
+		}
+	}
+}

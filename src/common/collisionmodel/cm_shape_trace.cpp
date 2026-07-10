@@ -6,6 +6,8 @@
 #include "shared/shared.h"
 #include "common/collisionmodel.h"
 
+#include "common/collisionmodel/cm_shape_trace_sweep.h"
+
 #include <mutex>
 #include <unordered_set>
 
@@ -154,6 +156,63 @@ static void CM_ClipShapeToBrush( const Vector3 &p1, const Vector3 &p2, cm_trace_
 		return;
 
 	/**
+	/*	Attempt analytic continuous collision detection for shapes sweeping against axial boxes.
+	/*	This avoids snagging caused by bevel approximations when brushing over stair corners.
+	**/
+	if ( reantrantState->trShape.type == SHAPE_SPHERE || 
+		 reantrantState->trShape.type == SHAPE_CAPSULE || 
+		 reantrantState->trShape.type == SHAPE_CYLINDER ) 
+	{
+		Vector3 boxMins, boxMaxs;
+		if ( reantrantState->trShape.type != SHAPE_AABB && CM_IsBrushAxialBox( brush, boxMins, boxMaxs ) ) {
+			float tHit = 1.0f;
+			Vector3 nHit;
+			bool startsolid = false;
+			
+			if ( CM_SweepShapeVsAxialBox( p1, p2, reantrantState->trShape.radius, reantrantState->trShape.halfHeight, 
+										  reantrantState->trShape.type, boxMins, boxMaxs, tHit, nHit, startsolid ) ) {
+				
+				if ( startsolid ) {
+					reantrantState->trResult.startsolid = true;
+					if ( tHit == 0.0f ) {
+						reantrantState->trResult.allsolid = true;
+						reantrantState->trResult.fraction = 0.0f;
+						reantrantState->trResult.contents = static_cast< cm_contents_t >( brush->contents );
+						reantrantState->trResult.brushID = brush->brushID;
+						reantrantState->trResult.material = nullptr;
+					}
+				} else {
+					if ( tHit > -1.0f && tHit < 1.0f ) {
+						Vector3 V = QM_Vector3Subtract( p2, p1 );
+						float dot = QM_Vector3DotProduct( V, nHit );
+						float t_adjusted = tHit;
+						if ( dot < 0.0f ) {
+							float dist_back = SWEEP_DIST_EPSILON / -dot;
+							t_adjusted -= dist_back;
+						}
+						if ( t_adjusted < 0.0f ) {
+							t_adjusted = 0.0f;
+						}
+
+						if ( t_adjusted < reantrantState->trResult.fraction ) {
+							reantrantState->trResult.fraction = t_adjusted;
+							reantrantState->trResult.plane.normal[0] = nHit.x;
+							reantrantState->trResult.plane.normal[1] = nHit.y;
+							reantrantState->trResult.plane.normal[2] = nHit.z;
+							reantrantState->trResult.plane.dist = QM_Vector3DotProduct( p1 + (p2 - p1) * tHit, nHit );
+							reantrantState->trResult.plane.type = 3;
+							reantrantState->trResult.surface = &( brush->firstbrushside[0].texinfo->c );
+							reantrantState->trResult.contents = static_cast< cm_contents_t >( brush->contents );
+							reantrantState->trResult.brushID = brush->brushID;
+						}
+					}
+				}
+			}
+			return; // Handled analytically, no need for the generic loop.
+		}
+	}
+
+	/**
 	/*	Working storage reused while comparing the segment against each brush plane.
 	**/
 	cm_plane_t *plane = nullptr;
@@ -213,7 +272,7 @@ static void CM_ClipShapeToBrush( const Vector3 &p1, const Vector3 &p2, cm_trace_
 				expand = -reantrantState->trShape.radius;
 				break;
 			case SHAPE_CYLINDER:
-				expand = -((reantrantState->trShape.radius * std::sqrt(plane->normal[0] * plane->normal[0] + plane->normal[1] * plane->normal[1])) +
+				expand = -( ( reantrantState->trShape.radius * std::sqrt( plane->normal[0] * plane->normal[0] + plane->normal[1] * plane->normal[1] ) ) +
 						 (reantrantState->trShape.halfHeight * std::abs(plane->normal[2])));
 				break;
 			case SHAPE_CAPSULE:
@@ -371,7 +430,7 @@ static void CM_TestShapeInBrush( const Vector3 &p1, cm_trace_reantrant_state_t *
 				expand = -(reantrantState->trShape.radius);
 				break;
 			case SHAPE_CYLINDER:
-				expand = -((reantrantState->trShape.radius * std::sqrt(plane->normal[0] * plane->normal[0] + plane->normal[1] * plane->normal[1])) +
+				expand = -( ( reantrantState->trShape.radius * std::sqrt( plane->normal[0] * plane->normal[0] + plane->normal[1] * plane->normal[1] ) ) +
 						 (reantrantState->trShape.halfHeight * std::abs(plane->normal[2])));
 				break;
 			case SHAPE_CAPSULE:
@@ -673,7 +732,7 @@ const cm_trace_t CM_ShapeTrace( cm_t *cm,
 		.hitBodyID = HITBODYID_NONE,
 
 		.fraction = 1.0,
-		.endpos = { 0.0f, 0.0f, 0.0f },
+		.endpos = end,
 
 		.plane = {
 			.normal = { 0.0f, 0.0f, 0.0f },
@@ -707,8 +766,8 @@ const cm_trace_t CM_ShapeTrace( cm_t *cm,
 	/*	This covers both box-like shapes and the swept capsule path used by this model.
 	**/
 	const Vector3 bounds[ 2 ] = {
-		( -shape.extents ),
-		( shape.extents )
+		( -reantrantState.trExtents ),
+		( reantrantState.trExtents )
 	};
 	for ( i = 0; i < 8; i++ ) {
 		for ( j = 0; j < 3; j++ ) {
@@ -882,7 +941,7 @@ const cm_trace_t CM_TransformedShapeTrace( cm_t *cm,
 		.brushID = BRUSHID_NONE,
 		.hitBodyID = HITBODYID_NONE,
 		.fraction = 1.0,
-		.endpos = { 0.0f, 0.0f, 0.0f },
+		.endpos = end,
 		.plane = {
 			.normal = { 0.0f, 0.0f, 0.0f },
 			.dist = 0.0f,
@@ -1004,8 +1063,10 @@ const cm_trace_t CM_AnalyticalShapeSweep(
 	trace.allsolid = false;
 	trace.startsolid = false;
 
+	bool pureCylinder = ( shapeA.type == SHAPE_CYLINDER && shapeB.type == SHAPE_CYLINDER );
+
 	/**
-	/*	Reduce both shapes into a combined capsule-style volume using Minkowski sum extents.
+	/*	Reduce both shapes into a combined volume using Minkowski sum extents.
 	**/
 	float rA = shapeA.radius;
 	float hA = shapeA.halfHeight;
@@ -1031,19 +1092,30 @@ const cm_trace_t CM_AnalyticalShapeSweep(
 	/**
 	/*	Detect whether the sweep starts already inside the combined volume.
 	**/
+	float R_shrunk = std::max( 0.0f, R - ( float )DIST_EPSILON );
+	float H_shrunk = std::max( 0.0f, H - ( float )DIST_EPSILON );
+
 	float distSqXY = P0_local.x * P0_local.x + P0_local.y * P0_local.y;
-	bool insideCylinder = distSqXY <= R * R && P0_local.z >= -H && P0_local.z <= H;
+	bool insideCylinder = distSqXY <= R_shrunk * R_shrunk && P0_local.z >= -H_shrunk && P0_local.z <= H_shrunk;
 
 	bool insideTopHemisphere = false;
-	if ( P0_local.z > H ) {
-		float dz = P0_local.z - H;
-		insideTopHemisphere = ( distSqXY + dz * dz <= R * R );
+	if ( P0_local.z > H_shrunk ) {
+		float dz = P0_local.z - H_shrunk;
+		if ( pureCylinder ) {
+			insideTopHemisphere = ( distSqXY <= R_shrunk * R_shrunk && dz <= 0.0f );
+		} else {
+			insideTopHemisphere = ( distSqXY + dz * dz <= R_shrunk * R_shrunk );
+		}
 	}
 
 	bool insideBotHemisphere = false;
-	if ( P0_local.z < -H ) {
-		float dz = P0_local.z - ( -H );
-		insideBotHemisphere = ( distSqXY + dz * dz <= R * R );
+	if ( P0_local.z < -H_shrunk ) {
+		float dz = P0_local.z - ( -H_shrunk );
+		if ( pureCylinder ) {
+			insideBotHemisphere = ( distSqXY <= R_shrunk * R_shrunk && dz >= 0.0f );
+		} else {
+			insideBotHemisphere = ( distSqXY + dz * dz <= R_shrunk * R_shrunk );
+		}
 	}
 
 	if ( insideCylinder || insideBotHemisphere || insideTopHemisphere ) {
@@ -1062,9 +1134,12 @@ const cm_trace_t CM_AnalyticalShapeSweep(
 	**/
 	float a = V.x * V.x + V.y * V.y;
 	float b = 2.0f * ( P0_local.x * V.x + P0_local.y * V.y );
-	float c = distSqXY - R * R;
+	float c = P0_local.x * P0_local.x + P0_local.y * P0_local.y - R * R;
 
-	if ( a > 0.0001f ) {
+	float r_shrunk = std::max( 0.0f, R - ( float )DIST_EPSILON );
+	float c_tol = r_shrunk * r_shrunk - R * R;
+
+	if ( a > 0.0001f && !( c >= c_tol && b >= 0.0f ) ) {
 		float discriminant = b * b - 4.0f * a * c;
 		if ( discriminant >= 0.0f ) {
 			float sqrtD = std::sqrt( discriminant );
@@ -1075,7 +1150,7 @@ const cm_trace_t CM_AnalyticalShapeSweep(
 				if ( zHit >= -H && zHit <= H ) {
 					tHit = t1;
 					hit = true;
-					normal = Vector3( P0_local.x + V.x * t1, P0_local.y + V.y * t1, 0.0f );
+					normal = Vector3{ P0_local.x + V.x * t1, P0_local.y + V.y * t1, 0.0f };
 					float nLen = std::sqrt( normal.x * normal.x + normal.y * normal.y );
 					if ( nLen > 0.0001f ) {
 						normal.x /= nLen;
@@ -1086,61 +1161,104 @@ const cm_trace_t CM_AnalyticalShapeSweep(
 		}
 	}
 
-	/**
-	/*	Test the top hemisphere when the cylinder did not already produce the closest hit.
-	**/
-	Vector3 topCenter( 0.0f, 0.0f, H );
-	Vector3 P0_top = P0_local - topCenter;
-	float a_sph = V.x * V.x + V.y * V.y + V.z * V.z;
-	float b_sph = 2.0f * ( P0_top.x * V.x + P0_top.y * V.y + P0_top.z * V.z );
-	float c_sph = P0_top.x * P0_top.x + P0_top.y * P0_top.y + P0_top.z * P0_top.z - R * R;
-
-	if ( a_sph > 0.0001f ) {
-		float disc = b_sph * b_sph - 4.0f * a_sph * c_sph;
-		if ( disc >= 0.0f ) {
-			float sqrtD = std::sqrt( disc );
-			float t1 = ( -b_sph - sqrtD ) / ( 2.0f * a_sph );
+	if ( pureCylinder ) {
+		/**
+		/*	Test the top flat face of the cylinder.
+		**/
+		if ( V.z < 0.0f && P0_local.z > H ) {
+			float t1 = ( H - P0_local.z ) / V.z;
 			if ( t1 >= 0.0f && t1 < tHit ) {
-				float zHitLocal = P0_top.z + V.z * t1;
-				if ( zHitLocal >= 0.0f ) {
+				float xHit = P0_local.x + V.x * t1;
+				float yHit = P0_local.y + V.y * t1;
+				if ( xHit * xHit + yHit * yHit <= R * R ) {
 					tHit = t1;
 					hit = true;
-					normal = P0_top + V * t1;
-					float nLen = std::sqrt( normal.x * normal.x + normal.y * normal.y + normal.z * normal.z );
-					if ( nLen > 0.0001f ) {
-						normal.x /= nLen;
-						normal.y /= nLen;
-						normal.z /= nLen;
+					normal = Vector3{ 0.0f, 0.0f, 1.0f };
+				}
+			}
+		}
+	} else {
+		/**
+		/*	Test the top hemisphere when the cylinder did not already produce the closest hit.
+		**/
+		Vector3 topCenter{ 0.0f, 0.0f, H };
+		Vector3 P0_top = P0_local - topCenter;
+		float a_sph = V.x * V.x + V.y * V.y + V.z * V.z;
+		float b_sph = 2.0f * ( P0_top.x * V.x + P0_top.y * V.y + P0_top.z * V.z );
+		float c_sph = P0_top.x * P0_top.x + P0_top.y * P0_top.y + P0_top.z * P0_top.z - R * R;
+
+		float r_shrunk = std::max( 0.0f, R - ( float )DIST_EPSILON );
+		float c_tol = r_shrunk * r_shrunk - R * R;
+
+		if ( a_sph > 0.0001f && !( c_sph >= c_tol && b_sph >= 0.0f ) ) {
+			float disc = b_sph * b_sph - 4.0f * a_sph * c_sph;
+			if ( disc >= 0.0f ) {
+				float sqrtD = std::sqrt( disc );
+				float t1 = ( -b_sph - sqrtD ) / ( 2.0f * a_sph );
+				if ( t1 >= 0.0f && t1 < tHit ) {
+					float zHitLocal = P0_top.z + V.z * t1;
+					if ( zHitLocal >= 0.0f ) {
+						tHit = t1;
+						hit = true;
+						normal = P0_top + V * t1;
+						float nLen = std::sqrt( normal.x * normal.x + normal.y * normal.y + normal.z * normal.z );
+						if ( nLen > 0.0001f ) {
+							normal.x /= nLen;
+							normal.y /= nLen;
+							normal.z /= nLen;
+						}
 					}
 				}
 			}
 		}
 	}
 
-	/**
-	/*	Test the bottom hemisphere using the same local-space sphere intersection logic.
-	**/
-	Vector3 botCenter( 0.0f, 0.0f, -H );
-	Vector3 P0_bot = P0_local - botCenter;
-	b_sph = 2.0f * ( P0_bot.x * V.x + P0_bot.y * V.y + P0_bot.z * V.z );
-	c_sph = P0_bot.x * P0_bot.x + P0_bot.y * P0_bot.y + P0_bot.z * P0_bot.z - R * R;
-
-	if ( a_sph > 0.0001f ) {
-		float disc = b_sph * b_sph - 4.0f * a_sph * c_sph;
-		if ( disc >= 0.0f ) {
-			float sqrtD = std::sqrt( disc );
-			float t1 = ( -b_sph - sqrtD ) / ( 2.0f * a_sph );
+	if ( pureCylinder ) {
+		/**
+		/*	Test the bottom flat face of the cylinder.
+		**/
+		if ( V.z > 0.0f && P0_local.z < -H ) {
+			float t1 = ( -H - P0_local.z ) / V.z;
 			if ( t1 >= 0.0f && t1 < tHit ) {
-				float zHitLocal = P0_bot.z + V.z * t1;
-				if ( zHitLocal <= 0.0f ) {
+				float xHit = P0_local.x + V.x * t1;
+				float yHit = P0_local.y + V.y * t1;
+				if ( xHit * xHit + yHit * yHit <= R * R ) {
 					tHit = t1;
 					hit = true;
-					normal = P0_bot + V * t1;
-					float nLen = std::sqrt( normal.x * normal.x + normal.y * normal.y + normal.z * normal.z );
-					if ( nLen > 0.0001f ) {
-						normal.x /= nLen;
-						normal.y /= nLen;
-						normal.z /= nLen;
+					normal = Vector3{ 0.0f, 0.0f, -1.0f };
+				}
+			}
+		}
+	} else {
+		/**
+		/*	Test the bottom hemisphere using the same local-space sphere intersection logic.
+		**/
+		Vector3 botCenter{ 0.0f, 0.0f, -H };
+		Vector3 P0_bot = P0_local - botCenter;
+		float a_sph = V.x * V.x + V.y * V.y + V.z * V.z;
+		float b_sph = 2.0f * ( P0_bot.x * V.x + P0_bot.y * V.y + P0_bot.z * V.z );
+		float c_sph = P0_bot.x * P0_bot.x + P0_bot.y * P0_bot.y + P0_bot.z * P0_bot.z - R * R;
+
+		float r_shrunk = std::max( 0.0f, R - ( float )DIST_EPSILON );
+		float c_tol = r_shrunk * r_shrunk - R * R;
+
+		if ( a_sph > 0.0001f && !( c_sph >= c_tol && b_sph >= 0.0f ) ) {
+			float disc = b_sph * b_sph - 4.0f * a_sph * c_sph;
+			if ( disc >= 0.0f ) {
+				float sqrtD = std::sqrt( disc );
+				float t1 = ( -b_sph - sqrtD ) / ( 2.0f * a_sph );
+				if ( t1 >= 0.0f && t1 < tHit ) {
+					float zHitLocal = P0_bot.z + V.z * t1;
+					if ( zHitLocal <= 0.0f ) {
+						tHit = t1;
+						hit = true;
+						normal = P0_bot + V * t1;
+						float nLen = std::sqrt( normal.x * normal.x + normal.y * normal.y + normal.z * normal.z );
+						if ( nLen > 0.0001f ) {
+							normal.x /= nLen;
+							normal.y /= nLen;
+							normal.z /= nLen;
+						}
 					}
 				}
 			}

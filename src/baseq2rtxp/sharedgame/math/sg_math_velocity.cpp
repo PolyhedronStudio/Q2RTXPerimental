@@ -76,12 +76,12 @@ const SGVelocityClipFlags SG_BounceClipVelocity( const Vector3 &in, const Vector
 	// Amplifies reverse direction for bounce:
 	if ( backOff < 0. ) {
 		backOff *= overbounce;
-	// Reduces along-surface movement:
+		// Reflect the velocity along the normal.
+		out = in - ( normal * backOff );
 	} else {
-		backOff /= overbounce;
+		// If velocity is moving away from the plane, do not clip it.
+		out = in;
 	}
-	// Reflect the velocity along the normal.
-	out = in - ( normal * backOff );
 
 	#ifdef SG_SLIDEMOVE_BOUNCEVELOCITY_CLAMPING
 	{
@@ -132,7 +132,12 @@ const SGVelocityClipFlags SG_SlideClipVelocity( const Vector3 &in, const Vector3
 
 	// Determine how far to slide based on the incoming direction and project velocity onto plane.
 	const double backOff = QM_Vector3DotProductDP( in, normal );
-	out = in - ( normal * backOff );
+	if ( backOff < 0. ) {
+		out = in - ( normal * backOff );
+	} else {
+		// If velocity is moving away from the plane, do not clip it.
+		out = in;
+	}
 
 #ifdef SG_SLIDEMOVE_CLIPVELOCITY_CLAMPING
 	{

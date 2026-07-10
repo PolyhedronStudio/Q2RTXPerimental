@@ -18,6 +18,8 @@ extern nav_vector_t<nav_poly_t> g_nav_polys;
 extern std::vector<Vector3> g_nav_vertices;
 //! Packed half-edge array used by the half-edge mesh.
 extern std::vector<nav_halfedge_t> g_nav_halfedges;
+//! Entity to half-edge mapping table for O(1) dynamic edge updates.
+extern std::vector<std::vector<int32_t>> g_nav_entity_edges;
 //! Packed face array used by the half-edge mesh.
 extern std::vector<nav_face_t> g_nav_faces;
 

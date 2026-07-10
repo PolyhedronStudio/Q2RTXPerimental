@@ -182,7 +182,7 @@ typedef struct mface_s {
     int             lm_width;
     int             lm_height;
 
-    #if USE_REF == REF_GL
+    #if USE_REF
         int             texnum[ 2 ];
         int             statebits;
         int             firstvert;
@@ -310,7 +310,7 @@ typedef struct mmodel_s {
     int         numfaces;
     mface_t     *firstface;
 
-        #if USE_REF == REF_GL
+        #if USE_REF
         unsigned    drawframe;
         #endif
     //#endif

@@ -72,8 +72,8 @@ const int32_t SVG_MMove_ClipVelocity( const Vector3 &in, const Vector3 &normal, 
 	if ( normal.z > 0 /*PM_MIN_WALL_NORMAL_Z*/ && normal.z != 1 ) {
 		blocked |= MM_VELOCITY_CLIPPED_FLOOR;
 	}
-	// If the plane has no Z, it is vertical Wall/Step:
-	if ( normal.z == 1 /*PM_MIN_WALL_NORMAL_Z*/ ) {
+	// A plane with no upward support is vertical Wall/Step:
+	if ( normal.z == 0.0f ) {
 		blocked |= MM_VELOCITY_CLIPPED_WALL_OR_STEP;
 	}
 	// Determine how far to slide based on the incoming direction.
@@ -95,7 +95,7 @@ const int32_t SVG_MMove_ClipVelocity( const Vector3 &in, const Vector3 &normal, 
 /**
 *	@brief	Attempts to trace clip into velocity direction for the current frametime.
 **/
-const mm_slide_move_flags_t SVG_MMove_SlideMove( Vector3 &origin, Vector3 &velocity, const float frametime, const Vector3 &mins, const Vector3 &maxs, svg_base_edict_t *passEntity, mm_touch_trace_list_t &touch_traces, const bool has_time ) {
+const mm_slide_move_flags_t SVG_MMove_SlideMove( Vector3 &origin, Vector3 &velocity, const float frametime, const Vector3 &mins, const Vector3 &maxs, svg_base_edict_t *passEntity, mm_touch_trace_list_t &touch_traces, const bool has_time, mm_trace_shape_t override_shape ) {
 	Vector3 dir = {};
 
 	Vector3 planes[ MM_MAX_CLIP_PLANES ] = {};
@@ -122,7 +122,7 @@ const mm_slide_move_flags_t SVG_MMove_SlideMove( Vector3 &origin, Vector3 &veloc
 		VectorMA( origin, time_left, velocity, end );
 		//for ( i = 0; i < 3; i++ )
 		//	end[ i ] = origin[ i ] + time_left * velocity[ i ];
-		trace = SVG_MMove_Trace( origin, mins, maxs, end, passEntity );
+		trace = SVG_MMove_Trace( origin, mins, maxs, end, passEntity, CONTENTS_NONE, override_shape );
 
 		if ( trace.allsolid ) {
 			// Entity is trapped in another solid, DON'T build up falling damage.

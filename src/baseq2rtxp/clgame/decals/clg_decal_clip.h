@@ -10,7 +10,14 @@
 #include <cstdint>
 
 #include "sharedgame/sg_decal_shared.h"
+#ifndef USE_REF
+#define USE_REF_HEADER_HACK
+#define USE_REF 1
+#endif
 #include "shared/formats/format_bsp.h"
+#ifdef USE_REF_HEADER_HACK
+#undef USE_REF
+#endif
 
 //! Maximum temporary polygon vertex count used while expanding and clipping BSP face windings.
 static constexpr int32_t CLG_DECAL_CLIP_POLYGON_MAX_VERTICES = 256;

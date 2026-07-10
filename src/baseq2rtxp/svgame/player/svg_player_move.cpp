@@ -29,6 +29,32 @@
 #include "svgame/svg_gamemode.h"
 #include "svgame/gamemodes/svg_gm_basemode.h"
 
+#ifndef SVG_DEBUG_STAIR_TRACES
+#define SVG_DEBUG_STAIR_TRACES 0
+#endif
+
+#if defined( SVG_DEBUG_STAIR_TRACES )
+static inline void SVG_PM_DebugTrace( const char *shape, const Vector3 &start, const Vector3 &end, const cm_trace_t &trace, const float radius = 0.0f, const float halfHeight = 0.0f ) {
+    if ( trace.fraction >= 1.0 && !trace.startsolid && !trace.allsolid ) {
+        return;
+    }
+
+    gi.dprintf( "[STAIR TRACE][Player][%s] start=(%.2f %.2f %.2f) end=(%.2f %.2f %.2f) frac=%.5f startsolid=%d allsolid=%d ent=%d brush=%d radius=%.2f halfheight=%.2f endpos=(%.2f %.2f %.2f) normal=(%.4f %.4f %.4f)\n",
+        shape,
+        start.x, start.y, start.z,
+        end.x, end.y, end.z,
+        trace.fraction,
+        trace.startsolid ? 1 : 0,
+        trace.allsolid ? 1 : 0,
+        trace.entityNumber,
+        trace.brushID,
+        radius,
+        halfHeight,
+        trace.endpos.x, trace.endpos.y, trace.endpos.z,
+        trace.plane.normal[ 0 ], trace.plane.normal[ 1 ], trace.plane.normal[ 2 ]);
+}
+#endif
+
 /**
 *
 *
@@ -40,7 +66,11 @@
 *   @brief  Player Move specific 'Trace' wrapper implementation.
 **/
 static const cm_trace_t q_gameabi SV_PM_Trace( const Vector3 &start, const Vector3 *mins, const Vector3 *maxs, const Vector3 &end, const void *passEntity, const cm_contents_t contentMask ) {
-    return SVG_Trace( start, mins ? *mins : qm_vector3_null, maxs ? *maxs : qm_vector3_null, end, (svg_base_edict_t *)passEntity, contentMask );
+    const cm_trace_t trace = SVG_Trace( start, mins ? *mins : qm_vector3_null, maxs ? *maxs : qm_vector3_null, end, (svg_base_edict_t *)passEntity, contentMask );
+#if defined( SVG_DEBUG_STAIR_TRACES )
+    SVG_PM_DebugTrace( "AABB", start, end, trace );
+#endif
+    return trace;
 }
 /**
 *   @brief  Player Move specific 'Clip' wrapper implementation. Clips to world only.
@@ -60,11 +90,19 @@ static const cm_trace_t q_gameabi SV_PM_TraceSphere( const Vector3 &start, const
 }
 
 static const cm_trace_t q_gameabi SV_PM_TraceCapsule( const Vector3 &start, const float radius, const float halfHeight, const Vector3 &end, const void *passEntity, const cm_contents_t contentMask ) {
-    return SVG_TraceCapsule( start, radius, halfHeight, end, (svg_base_edict_t *)passEntity, contentMask );
+    const cm_trace_t trace = SVG_TraceCapsule( start, radius, halfHeight, end, (svg_base_edict_t *)passEntity, contentMask );
+#if defined( SVG_DEBUG_STAIR_TRACES )
+    SVG_PM_DebugTrace( "Capsule", start, end, trace, radius, halfHeight );
+#endif
+    return trace;
 }
 
 static const cm_trace_t q_gameabi SV_PM_TraceCylinder( const Vector3 &start, const float radius, const float halfHeight, const Vector3 &end, const void *passEntity, const cm_contents_t contentMask ) {
-    return SVG_TraceCylinder( start, radius, halfHeight, end, (svg_base_edict_t *)passEntity, contentMask );
+    const cm_trace_t trace = SVG_TraceCylinder( start, radius, halfHeight, end, (svg_base_edict_t *)passEntity, contentMask );
+#if defined( SVG_DEBUG_STAIR_TRACES )
+    SVG_PM_DebugTrace( "Cylinder", start, end, trace, radius, halfHeight );
+#endif
+    return trace;
 }
 
 

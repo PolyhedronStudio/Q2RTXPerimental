@@ -1294,9 +1294,9 @@ const int32_t svg_monster_testdummy_debug_t::ProcessSlideMove() {
 	// For storing the results of the slide move.
 	nav_path_policy_t pathPolicy = {};
 	pathPolicy.max_step_height = NAV_MAX_STEP_SIZE;
-	pathPolicy.max_drop_height = PM_DROPOFF_MAX_SIZE;
+	pathPolicy.max_drop_height = NAV_DROPOFF_MAX_SIZE;
 	pathPolicy.enable_max_drop_height_cap = true;
-	pathPolicy.max_drop_height_cap = PM_DROPOFF_ALLOWED_SIZE;
+	pathPolicy.max_drop_height_cap = NAV_DROPOFF_ALLOWED_SIZE;
 	monsterMove.navPolicy = &pathPolicy;
 
 	/**
@@ -1474,20 +1474,14 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
         if ( delta_xy >= pathNavigationState.policy.min_gap_width && delta_xy <= pathNavigationState.policy.max_jump_distance ) {
             if ( path_failed ) {
                 should_jump = true; // Player jumped across a disconnected gap, follow them!
-            } else if ( navPath.size() > 1 ) {
-                // If there IS a path, check if it's a long detour compared to a direct jump
-                float path_length = 0.0f;
-                Vector3 last_pt = myFeet;
-                for ( size_t i = pathPos; i < navPath.size(); ++i ) {
-                    Vector3 pt = g_nav_faces[ navPath[i] ].center;
-                    path_length += QM_Vector3Distance( last_pt, pt );
-                    last_pt = pt;
-                }
-                path_length += QM_Vector3Distance( last_pt, targetFeet );
-                
-                if ( path_length > delta_xy * 1.5f ) {
-                    should_jump = true; // Direct jump is a significant shortcut
-                }
+			} else if ( navPath.size() > 1 ) {
+				/**
+				* Keep a valid navigation route authoritative.  The route may contain
+				* short stair rises that are invisible when comparing face centers, so
+				* planar/elevation classification is not safe for shortcut jumping.
+				* Gap jumps remain available when no route can be found.
+				**/
+				should_jump = false;
             }
             
             // Only jump if there is an ACTUAL gap (i.e. we aren't just running on flat ground).
@@ -1608,34 +1602,6 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
 
     Vector3 moveDir = QM_Vector3Normalize( toGoal );
 
-    /**
-    *	If we just scraped a wall, bias movement along the wall tangent so we do
-    *	not keep issuing a head-on direction into the same corner.
-    **/
-    if ( hasRecentWallBlockNormal && ( ( level.time - lastWallBlockTime ) <= 300_ms ) ) {
-    	Vector3 wallNormal2D = recentWallBlockNormal;
-    	wallNormal2D.z = 0.0f;
-    	const float wallLen2 = ( wallNormal2D.x * wallNormal2D.x ) + ( wallNormal2D.y * wallNormal2D.y );
-    	if ( wallLen2 > ( 0.001f * 0.001f ) ) {
-    		wallNormal2D = QM_Vector3Normalize( wallNormal2D );
-    		const float wallHeadOn = static_cast<float>( QM_Vector3DotProduct( moveDir, wallNormal2D ) );
-    		const bool sustainedCornerBlock = ( consecutiveBlockedFrames >= 2 );
-    		if ( wallHeadOn < -0.05f || ( sustainedCornerBlock && wallHeadOn < 0.25f ) ) {
-    			Vector3 tangentA = { -wallNormal2D.y, wallNormal2D.x, 0.0f };
-    			Vector3 tangentB = { wallNormal2D.y, -wallNormal2D.x, 0.0f };
-    			const float alignA = static_cast<float>( QM_Vector3DotProduct( tangentA, moveDir ) );
-    			const float alignB = static_cast<float>( QM_Vector3DotProduct( tangentB, moveDir ) );
-    			const Vector3 chosenTangent = ( alignA >= alignB ) ? tangentA : tangentB;
-    			const float tangentWeight = sustainedCornerBlock ? 0.78f : 0.65f;
-    			const float forwardWeight = 1.0f - tangentWeight;
-				const Vector3 blendedDir = ( moveDir * forwardWeight ) + ( chosenTangent * tangentWeight );
-    			if ( QM_Vector3LengthSqr( blendedDir ) > 0.0001f ) {
-    				moveDir = QM_Vector3Normalize( blendedDir );
-    			}
-    		}
-    	}
-    }
-
 	/**
 	*	Apply continuity smoothing so waypoint plotting does not abruptly flip 180°
 	*	between frames when portal targeting jitters near boundaries.
@@ -1725,7 +1691,10 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
     **/
     float facingScale = 1.0f;
     if ( trueYawDeltaAbs >= 90.0 ) {
-    	facingScale = 0.0f;
+		// Keep a small amount of lateral progress during a hard turn.  Stopping
+		// completely at 90 degrees can deadlock the actor against an L-turn
+		// corner because it cannot move far enough to clear the incoming wall.
+		facingScale = 0.20f;
     } else if ( trueYawDeltaAbs > 35.0 ) {
     	facingScale = static_cast<float>( ( 90.0 - trueYawDeltaAbs ) / 55.0 );
     }
@@ -2045,11 +2014,13 @@ const Vector3 svg_monster_testdummy_debug_t::StabilizeWaypointTarget( const Vect
 	*	cached sample is too old to be meaningful.
 	**/
 	const bool switchedPathSegment = ( !hasLastWaypointTarget || lastWaypointPathPos != pathPos );
+	const bool switchedFunnelWaypoint = ( !hasLastWaypointTarget || lastWaypointStringPathPos != stringPathPos );
 	const bool expiredSample = ( hasLastWaypointTarget && ( level.time - lastWaypointUpdateTime ) > 350_ms );
-	if ( switchedPathSegment || expiredSample ) {
+	if ( switchedPathSegment || switchedFunnelWaypoint || expiredSample ) {
 		lastWaypointTarget = candidateWaypoint;
 		hasLastWaypointTarget = true;
 		lastWaypointPathPos = pathPos;
+		lastWaypointStringPathPos = stringPathPos;
 		lastWaypointUpdateTime = level.time;
 		return candidateWaypoint;
 	}
@@ -2141,7 +2112,7 @@ const Vector3 svg_monster_testdummy_debug_t::NextWaypoint( const Vector3 &finalG
         }
     }
 
-    Vector3 portalMidpoint = stringPulledPath[stringPathPos];
+	Vector3 portalMidpoint = stringPulledPath[stringPathPos];
 
     // Are we at the final goal?
     if ( stringPathPos == stringPulledPath.size() - 1 ) {
@@ -2150,47 +2121,6 @@ const Vector3 svg_monster_testdummy_debug_t::NextWaypoint( const Vector3 &finalG
             return StabilizeWaypointTarget( finalGoal, true );
         }
         return StabilizeWaypointTarget( portalMidpoint, true );
-    }
-
-    /**
-    *   Dynamic Look-Ahead Smoothing
-    *   Skip unnecessary waypoints if we have a completely unobstructed straight-line path
-    *   to the NEXT waypoint. We use an INFLATED physics AABB to guarantee we only skip 
-    *   if we are in a wide open area, completely avoiding tight corners. This prevents
-    *   zig-zagging across open grid faces while forcing the agent to use the safe, dynamically
-    *   offset face-centers when navigating around tight corners.
-    **/
-    if ( stringPathPos + 1 < stringPulledPath.size() ) {
-        Vector3 nextPortal = stringPulledPath[ stringPathPos + 1 ];
-        
-        // Ensure we only skip waypoints that are on the same vertical level.
-        // We MUST NOT skip stair approach nodes, otherwise the agent will hit the stair lip!
-        if ( std::abs( nextPortal.z - portalMidpoint.z ) <= 4.0f ) {
-            // Trace slightly off the ground to avoid micro-bumps
-            Vector3 traceStart = currentOrigin;
-            traceStart.z += this->mins.z + 8.0f;
-            Vector3 traceEnd = nextPortal;
-            traceEnd.z += this->mins.z + 8.0f;
-
-            // Inflate the bounding box by 8 units horizontally. This ensures the trace 
-            // will FAIL if the straight line passes too close to a corner. By failing,
-            // the agent safely falls back to the dynamically offset face-centers!
-            Vector3 traceMins = this->mins;
-            traceMins.x -= 8.0f;
-            traceMins.y -= 8.0f;
-            
-            Vector3 traceMaxs = this->maxs;
-            traceMaxs.x += 8.0f;
-            traceMaxs.y += 8.0f;
-
-            svg_trace_t tr = SVG_MMove_Trace( traceStart, traceMins, traceMaxs, traceEnd, this, CONTENTS_SOLID | CONTENTS_PLAYERCLIP );
-            
-            // If the trace is perfectly clear, skip the current waypoint and recursively check the next!
-            if ( tr.fraction == 1.0f && !tr.startsolid && !tr.allsolid ) {
-                ++stringPathPos;
-                return NextWaypoint( finalGoal );
-            }
-        }
     }
 
     // Determine if we need to step up
@@ -2209,20 +2139,49 @@ const Vector3 svg_monster_testdummy_debug_t::NextWaypoint( const Vector3 &finalG
         }
     }
 
-    // Secondary plane-crossing check: if we have moved past the waypoint plane.
-    if ( hasSteppedUp ) {
-        Vector3 prevWaypoint = stringPulledPath[stringPathPos - 1];
-        Vector3 edgeVec = portalMidpoint - prevWaypoint;
-        if ( edgeVec.x != 0.0f || edgeVec.y != 0.0f ) {
-            Vector3 portalNormal = edgeVec; 
-            portalNormal.z = 0.0f;
-            Vector3 fromPortal = currentOrigin - portalMidpoint;
-            fromPortal.z = 0.0f;
+	/**
+	* Keep the current funnel corner active until the actor reaches its distance
+	* threshold.  Crossing the waypoint's perpendicular plane is not sufficient:
+	* at a tight L-turn the actor can cross that plane while its collision volume
+	* is still on the incoming side of the portal.  Advancing there switches the
+	* desired direction to the outgoing segment too early and causes the actor to
+	* face the next route while remaining wedged against the corner.
+	**/
+	/**
+	*    Push only an upward-step waypoint toward the following path point.
+	*
+	*    The offset exists to keep the actor from aiming at the exact edge of a
+	*    riser before the step trace can start.  Applying that same offset to a
+	*    level portal moves the target beyond an L-turn corner and can make the
+	*    collision trace enter the riser or adjacent wall instead of traversing
+	*    the portal.  Flat funnel waypoints must therefore remain unmodified.
+	**/
+	if ( needsStepUp && !hasSteppedUp && stringPathPos < stringPulledPath.size() ) {
+        Vector3 pushDir;
+        if ( stringPathPos + 1 < stringPulledPath.size() ) {
+            pushDir = stringPulledPath[stringPathPos + 1] - portalMidpoint;
+        } else {
+            pushDir = finalGoal - portalMidpoint;
+        }
+        pushDir.z = 0.0f;
+        const float pushLen2 = static_cast<float>(QM_Vector3LengthSqr(pushDir));
+        if ( pushLen2 > 0.0001f ) {
+            const float pushLen = std::sqrt(pushLen2);
+            pushDir = pushDir / pushLen;
             
-            // If the dot product is positive, the agent's center has physically crossed the waypoint plane.
-            if ( QM_Vector3DotProduct( fromPortal, portalNormal ) > 0.0f ) {
-                ++stringPathPos;
-                return NextWaypoint( finalGoal );
+			// Push the step target toward the next path node so the actor enters
+			// the elevated surface instead of stopping at the riser edge.
+            float pushDist = 24.0f;
+            
+            Vector3 pushedPoint = portalMidpoint + (pushDir * pushDist);
+            pushedPoint.z = portalMidpoint.z;
+            
+            Vector3 toPortal = portalMidpoint - currentOrigin;
+            Vector3 toPushed = pushedPoint - currentOrigin;
+            toPortal.z = 0.0f;
+            toPushed.z = 0.0f;
+            if ( QM_Vector3DotProduct( toPortal, toPushed ) >= 0.0f ) {
+                return StabilizeWaypointTarget( pushedPoint, false );
             }
         }
     }

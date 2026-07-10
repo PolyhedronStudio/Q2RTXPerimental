@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cstdarg>
+#include <cstdlib>
 
 #include "svgame/nav/nav_generate.h"
 #include "svgame/nav/nav_debug.h"
@@ -25,6 +26,46 @@
 void ServerCommand_Test_f(void)
 {
     gi.cprintf(NULL, PRINT_HIGH, "ServerCommand_Test_f()\n");
+}
+
+/**
+ *   @brief  Prints the collision-model geometry associated with one or more brush IDs.
+ **/
+static void ServerCommand_BrushInfo_f(void) {
+    if ( gi.argc() < 3 ) {
+        gi.dprintf( "Usage: brush_info <brushID> [brushID ...]\n" );
+        return;
+    }
+
+    for ( int32_t argument = 2; argument < gi.argc(); argument++ ) {
+        const int32_t brushID = static_cast< int32_t >( std::strtol( gi.argv( argument ), nullptr, 10 ) );
+        const mbrush_t *brush = gi.GetBrushByID( brushID );
+        if ( !brush ) {
+            gi.dprintf( "[BRUSH INFO] id=%d not found or not a world brush\n", brushID );
+            continue;
+        }
+
+        gi.dprintf( "[BRUSH INFO] id=%d contents=0x%08x sides=%d\n",
+            brushID, brush->contents, brush->numsides );
+
+        for ( int32_t side = 0; side < brush->numsides; side++ ) {
+            const mbrushside_t &brushSide = brush->firstbrushside[ side ];
+            if ( !brushSide.plane ) {
+                gi.dprintf( "[BRUSH INFO] id=%d side=%d plane=null texture=<none>\n", brushID, side );
+                continue;
+            }
+
+            const char *textureName = brushSide.texinfo ? brushSide.texinfo->name : "<none>";
+            gi.dprintf( "[BRUSH INFO] id=%d side=%d normal=(%.6f %.6f %.6f) dist=%.6f texture=%s\n",
+                brushID,
+                side,
+                brushSide.plane->normal[ 0 ],
+                brushSide.plane->normal[ 1 ],
+                brushSide.plane->normal[ 2 ],
+                brushSide.plane->dist,
+                textureName );
+        }
+    }
 }
 
 
@@ -289,6 +330,8 @@ void SVG_ServerCommand(void) {
     cmd = gi.argv(1);
     if ( Q_stricmp( cmd, "test" ) == 0 )
         ServerCommand_Test_f();
+    else if ( Q_stricmp( cmd, "brush_info" ) == 0 )
+        ServerCommand_BrushInfo_f();
     else if ( Q_stricmp( cmd, "nav_generate" ) == 0 )
         Nav_GenerateCommand();
     else if ( Q_stricmp( cmd, "nav_status" ) == 0 )

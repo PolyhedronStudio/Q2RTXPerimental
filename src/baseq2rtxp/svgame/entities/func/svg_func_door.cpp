@@ -23,6 +23,7 @@
 #include "sharedgame/sg_entity_flags.h"
 #include "sharedgame/sg_means_of_death.h"
 #include "sharedgame/sg_usetarget_hints.h"
+#include "svgame/nav/nav_path.h"
 
 
 /*
@@ -577,6 +578,9 @@ DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_door_t, onCloseEndMove )( svg_
     // Dispatch a lua signal.
     SVG_SignalOut( self, self->other, self->activator, "OnClosed" );
 
+    // Dynamically set the nav edges disabled flag as soon as the door finishes closing.
+    Nav_SetEntityEdgesState( self->s.number, NAV_EDGE_DISABLED, true );
+
     // Canonical areaportal: release only when fully closed (team master only),
     // and only if this door team previously acquired a ref.
     if ( !( self->flags & FL_TEAMSLAVE ) ) {
@@ -651,6 +655,9 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_func_door_t, onThink_OpenMove )( svg_func_door
         self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_OPENED_STATE;
         self->CalculateDirectionalMove( self->pushMoveInfo.endOrigin, reinterpret_cast<svg_pushmove_endcallback>( &svg_func_door_t::onOpenEndMove ) );
     }
+
+    // Dynamically clear the nav edges disabled flag as soon as the door begins to open.
+    Nav_SetEntityEdgesState( self->s.number, NAV_EDGE_DISABLED, false );
 
     door_usetarget_update_hint( self );
 

@@ -210,6 +210,10 @@ const pm_slidemove_flags_t PM_SlideMove_Generic(
 		for ( i = 0; i < numPlanes; i++ ) {
 			if ( QM_Vector3DotProductDP( trace.plane.normal, planes[ i ] ) > DblEpsilon ) {
 				pm->state->pmove.velocity += trace.plane.normal;
+				//// Add a microscopic nudge to the origin to prevent epsilon starvation loops where fraction == 0.0
+				//pm->state->pmove.origin.x += trace.plane.normal[ 0 ] * 0.015625;
+				//pm->state->pmove.origin.y += trace.plane.normal[ 1 ] * 0.015625;
+				//pm->state->pmove.origin.z += trace.plane.normal[ 2 ] * 0.015625;
 				break;
 			}
 		}

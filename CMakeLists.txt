@@ -56,7 +56,7 @@ execute_process(
 # ---------- Build Options: ------------------------------------
 #
 OPTION(CONFIG_BUILD_CLIENT_TARGET "Build the Client target" ON)
-OPTION(CONFIG_BUILD_SERVER_TARGET "Build the Dedicated Server target" ON)
+OPTION(CONFIG_BUILD_SERVER_TARGET "Build the Dedicated Server target" OFF)
 # WID: This one is unmaintained, but could be updated by someone if desired. For now it is OFF, disabled, does not build anyway.
 OPTION(CONFIG_BUILD_GAME_BASEQ2_TARGETS "Build the BaseQ2 Game Module targets( Project is out of dated so, not supported )" OFF)
 OPTION(CONFIG_BUILD_GAME_BASEQ2RTXP_TARGETS "Build the BaseQ2RTXP Game Module targets" ON)

@@ -570,7 +570,7 @@ const cm_trace_t CM_BoxTrace( cm_t *cm,
 		.hitBodyID = HITBODYID_NONE,
 
 		.fraction = 1.0,
-		.endpos = { 0.0f, 0.0f, 0.0f },
+		.endpos = end,
 
 		.plane = {
 			.normal = { 0.0f, 0.0f, 0.0f },
@@ -728,7 +728,7 @@ const cm_trace_t CM_TransformedBoxTrace( cm_t *cm,
 		.hitBodyID = HITBODYID_NONE,
 
 		.fraction = 1.0,
-		.endpos = { 0.0f, 0.0f, 0.0f },
+		.endpos = end,
 
 		.plane = {
 			.normal = { 0.0f, 0.0f, 0.0f },
