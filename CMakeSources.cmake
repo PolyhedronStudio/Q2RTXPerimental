@@ -695,6 +695,7 @@ SET(SRC_SHARED
 	shared/math.cpp
 	shared/shared.cpp
 	shared/string_utilities.cpp
+	shared/util_parser.cpp
 )
 if (MSVC)
 	# MSVC specific
