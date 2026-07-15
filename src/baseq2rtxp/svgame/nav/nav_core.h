@@ -7,7 +7,7 @@
 * @note These values are shared by the generator, pathfinder, and persistence layers.
 **/
 #define NAV7_MAGIC 'NAV7'
-#define NAV7_VERSION 2
+#define NAV7_VERSION 3
 
 //! Upper bound for the number of generated nav faces kept in memory.
 constexpr int32_t MAX_NAV_FACES = 262144;
@@ -21,6 +21,6 @@ constexpr int32_t MAX_NAV_KDTREE_NODES = 524288;
 constexpr int32_t MAX_NAV_LEAF_LINKS = 16384;
 
 //! Maximum step height in Quake units that AI may step up without extra logic.
-constexpr float NAV_MAX_STEP_HEIGHT = 16.0f;
+constexpr float NAV_MAX_STEP_HEIGHT = PHYS_STEP_MAX_SIZE + PHYS_STEP_GROUND_DIST;
 //! Minimum surface normal Z value required for a face to count as walkable.
 constexpr float NAV_MIN_WALKABLE_Z = 0.65f;

@@ -280,15 +280,19 @@ static void Nav_DebugDraw_TriangleFanForFace( const nav_face_t &face ) {
 		return;
 	}
 
+	// Determine whether to draw with depth testing.
+	const bool depthTest = ( s_nav_debug_tris && s_nav_debug_tris->value >= 2 );
+	sg_svc_debug_draw_style_flags_t styleFlags = ( depthTest ? SG_SVC_DEBUG_DRAW_STYLE_FLAG_DEPTH_TEST : SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE );
+
 	// Triangulate the face as a fan from the first vertex (v0)
 	const Vector3 v0 = g_nav_vertices[ g_nav_halfedges[ face.first_edge_idx ].vertex_idx ];
 	for ( int32_t e = 1; e < face.num_edges - 1; e++ ) {
 		const nav_halfedge_t &he = g_nav_halfedges[ face.first_edge_idx + e ];
 		const Vector3 v1 = g_nav_vertices[ he.vertex_idx ];
 		const Vector3 v2 = g_nav_vertices[ g_nav_halfedges[ he.next_idx ].vertex_idx ];
-		SVG_Nav_DebugDraw_AddLine( v0, v1, TRIS_COLOR, SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE, 2, 0 );
-		SVG_Nav_DebugDraw_AddLine( v1, v2, TRIS_COLOR, SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE, 2, 0 );
-		SVG_Nav_DebugDraw_AddLine( v2, v0, TRIS_COLOR, SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE, 2, 0 );
+		SVG_Nav_DebugDraw_AddLine( v0, v1, TRIS_COLOR, styleFlags, 2, 0 );
+		SVG_Nav_DebugDraw_AddLine( v1, v2, TRIS_COLOR, styleFlags, 2, 0 );
+		SVG_Nav_DebugDraw_AddLine( v2, v0, TRIS_COLOR, styleFlags, 2, 0 );
 	}
 }
 #else
@@ -473,30 +477,26 @@ void SVG_Nav_DebugDraw() {
 				Vector3 start = g_nav_vertices[ he.vertex_idx ];
 				Vector3 end = g_nav_vertices[ g_nav_halfedges[ he.next_idx ].vertex_idx ];
 
+					// Determine whether to draw with depth testing.
+				const bool depthTest = ( s_nav_debug_tris && s_nav_debug_tris->value >= 2 );
+				sg_svc_debug_draw_style_flags_t styleFlags = ( depthTest ? SG_SVC_DEBUG_DRAW_STYLE_FLAG_DEPTH_TEST : SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE );
+
 				/**
 				*	Matching twin edge found, so we draw it with the polygon face debug color.
 				**/
-				if ( he.twin_idx != -1 ) {
-					// Do distinct rendering if the half-edge has an entityID as it might be a door or other dynamic edge.
-					if ( he.edge_entity_id != ENTITYNUM_NONE ) {
-						// See whether the edge is enabled or disabled (e.g., for doors) and choose the color accordingly.
-						if ( ( he.flags & NAV_EDGE_DISABLED ) != 0 ) {
-							// Draw edges with disabled color.
-							SVG_Nav_DebugDraw_AddLine( start, end, EDGE_DISABLED_COLOR, SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE, 2, 0 );
-						} else {
-							// Draw edges with enabled color.
-							SVG_Nav_DebugDraw_AddLine( start, end, EDGE_ENABLED_COLOR, SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE, 2, 0 );
-						}
-					} else {
-						// Draw edges with twins using the polygon face debug color.
-						SVG_Nav_DebugDraw_AddLine( start, end, EDGE_TWIN_COLOR, SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE, 2, 0 );
-					}
+				if ( he.edge_entity_id != ENTITYNUM_NONE ) {
+					// Dynamic transition edges retain their state color whether or not a matching twin was found.
+					const uint32_t edgeColor = ( he.flags & NAV_EDGE_DISABLED ) != 0 ? EDGE_DISABLED_COLOR : EDGE_ENABLED_COLOR;
+					SVG_Nav_DebugDraw_AddLine( start, end, edgeColor, styleFlags, 2, 0 );
+				} else if ( he.twin_idx != -1 ) {
+					// Draw ordinary twinned edges using the polygon face debug color.
+					SVG_Nav_DebugDraw_AddLine( start, end, EDGE_TWIN_COLOR, styleFlags, 2, 0 );
 				/**
 				*	No matching twin edge means this is a boundary edge, so we draw it with a distinct color.
 				**/
 				} else {
 					// Draw edges without twins (boundary edges) using a distinct color.
-					SVG_Nav_DebugDraw_AddLine( start, end, EDGE_NO_TWIN_COLOR, SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE, 4, 0 );
+					SVG_Nav_DebugDraw_AddLine( start, end, EDGE_NO_TWIN_COLOR, styleFlags, 4, 0 );
 				}
 			}
 

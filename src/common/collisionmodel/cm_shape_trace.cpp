@@ -159,19 +159,18 @@ static void CM_ClipShapeToBrush( const Vector3 &p1, const Vector3 &p2, cm_trace_
 	/*	Attempt analytic continuous collision detection for shapes sweeping against axial boxes.
 	/*	This avoids snagging caused by bevel approximations when brushing over stair corners.
 	**/
-	if ( reantrantState->trShape.type == SHAPE_SPHERE || 
-		 reantrantState->trShape.type == SHAPE_CAPSULE || 
-		 reantrantState->trShape.type == SHAPE_CYLINDER ) 
-	{
+	if ( reantrantState->trShape.type == SHAPE_SPHERE ||
+		reantrantState->trShape.type == SHAPE_CAPSULE ||
+		reantrantState->trShape.type == SHAPE_CYLINDER ) {
 		Vector3 boxMins, boxMaxs;
 		if ( reantrantState->trShape.type != SHAPE_AABB && CM_IsBrushAxialBox( brush, boxMins, boxMaxs ) ) {
 			float tHit = 1.0f;
 			Vector3 nHit;
 			bool startsolid = false;
-			
-			if ( CM_SweepShapeVsAxialBox( p1, p2, reantrantState->trShape.radius, reantrantState->trShape.halfHeight, 
-										  reantrantState->trShape.type, boxMins, boxMaxs, tHit, nHit, startsolid ) ) {
-				
+
+			if ( CM_SweepShapeVsAxialBox( p1, p2, reantrantState->trShape.radius, reantrantState->trShape.halfHeight,
+				reantrantState->trShape.type, boxMins, boxMaxs, tHit, nHit, startsolid ) ) {
+
 				if ( startsolid ) {
 					reantrantState->trResult.startsolid = true;
 					if ( tHit == 0.0f ) {
@@ -187,7 +186,11 @@ static void CM_ClipShapeToBrush( const Vector3 &p1, const Vector3 &p2, cm_trace_
 						float dot = QM_Vector3DotProduct( V, nHit );
 						float t_adjusted = tHit;
 						if ( dot < 0.0f ) {
-							float dist_back = SWEEP_DIST_EPSILON / -dot;
+							// Use the larger separation only for lateral contacts; floor and ceiling traces must not bounce.
+							const float separation = ( std::fabs( nHit.z ) < 0.5f )
+								? SWEEP_ROUNDED_SHAPE_EPSILON
+								: SWEEP_DIST_EPSILON;
+							float dist_back = separation / -dot;
 							t_adjusted -= dist_back;
 						}
 						if ( t_adjusted < 0.0f ) {
@@ -196,12 +199,12 @@ static void CM_ClipShapeToBrush( const Vector3 &p1, const Vector3 &p2, cm_trace_
 
 						if ( t_adjusted < reantrantState->trResult.fraction ) {
 							reantrantState->trResult.fraction = t_adjusted;
-							reantrantState->trResult.plane.normal[0] = nHit.x;
-							reantrantState->trResult.plane.normal[1] = nHit.y;
-							reantrantState->trResult.plane.normal[2] = nHit.z;
-							reantrantState->trResult.plane.dist = QM_Vector3DotProduct( p1 + (p2 - p1) * tHit, nHit );
+							reantrantState->trResult.plane.normal[ 0 ] = nHit.x;
+							reantrantState->trResult.plane.normal[ 1 ] = nHit.y;
+							reantrantState->trResult.plane.normal[ 2 ] = nHit.z;
+							reantrantState->trResult.plane.dist = QM_Vector3DotProduct( p1 + ( p2 - p1 ) * tHit, nHit );
 							reantrantState->trResult.plane.type = 3;
-							reantrantState->trResult.surface = &( brush->firstbrushside[0].texinfo->c );
+							reantrantState->trResult.surface = &( brush->firstbrushside[ 0 ].texinfo->c );
 							reantrantState->trResult.contents = static_cast< cm_contents_t >( brush->contents );
 							reantrantState->trResult.brushID = brush->brushID;
 						}
@@ -256,29 +259,29 @@ static void CM_ClipShapeToBrush( const Vector3 &p1, const Vector3 &p2, cm_trace_
 		**/
 		float expand = 0.0f;
 		switch ( reantrantState->trShape.type ) {
-			case SHAPE_POINT:
-				expand = 0.0f;
-				break;
-			case SHAPE_AABB:
-				if ( plane->type < 3 ) {
-					const double off = reantrantState->trOffsets[ plane->signbits ][ plane->type ];
-					expand = (float)(off * plane->normal[ plane->type ]);
-				} else {
-					expand = (float)DotProductDP( reantrantState->trOffsets[ plane->signbits ], plane->normal );
-				}
-				break;
-			case SHAPE_SPHERE:
-				// Use the exact sphere radius so floor contact matches the true geometric bounds.
-				expand = -reantrantState->trShape.radius;
-				break;
-			case SHAPE_CYLINDER:
-				expand = -( ( reantrantState->trShape.radius * std::sqrt( plane->normal[0] * plane->normal[0] + plane->normal[1] * plane->normal[1] ) ) +
-						 (reantrantState->trShape.halfHeight * std::abs(plane->normal[2])));
-				break;
-			case SHAPE_CAPSULE:
-				// Keep capsule expansion exact so the trace does not hover above or sink into floors.
-				expand = -(reantrantState->trShape.radius + (reantrantState->trShape.halfHeight * std::abs(plane->normal[2])));
-				break;
+		case SHAPE_POINT:
+			expand = 0.0f;
+			break;
+		case SHAPE_AABB:
+			if ( plane->type < 3 ) {
+				const double off = reantrantState->trOffsets[ plane->signbits ][ plane->type ];
+				expand = ( float )( off * plane->normal[ plane->type ] );
+			} else {
+				expand = ( float )DotProductDP( reantrantState->trOffsets[ plane->signbits ], plane->normal );
+			}
+			break;
+		case SHAPE_SPHERE:
+			// Use the exact sphere radius so floor contact matches the true geometric bounds.
+			expand = -reantrantState->trShape.radius;
+			break;
+		case SHAPE_CYLINDER:
+			expand = -( ( reantrantState->trShape.radius * std::sqrt( plane->normal[ 0 ] * plane->normal[ 0 ] + plane->normal[ 1 ] * plane->normal[ 1 ] ) ) +
+				( reantrantState->trShape.halfHeight * std::abs( plane->normal[ 2 ] ) ) );
+			break;
+		case SHAPE_CAPSULE:
+			// Keep capsule expansion exact so the trace does not hover above or sink into floors.
+			expand = -( reantrantState->trShape.radius + ( reantrantState->trShape.halfHeight * std::abs( plane->normal[ 2 ] ) ) );
+			break;
 		}
 		dist = plane->dist - expand;
 
@@ -415,27 +418,27 @@ static void CM_TestShapeInBrush( const Vector3 &p1, cm_trace_reantrant_state_t *
 
 		float expand = 0.0f;
 		switch ( reantrantState->trShape.type ) {
-			case SHAPE_POINT:
-				expand = 0.0f;
-				break;
-			case SHAPE_AABB:
-				if ( plane->type < 3 ) {
-					const double off = reantrantState->trOffsets[ plane->signbits ][ plane->type ];
-					expand = (float)(off * plane->normal[ plane->type ]);
-				} else {
-					expand = (float)DotProductDP( reantrantState->trOffsets[ plane->signbits ], plane->normal );
-				}
-				break;
-			case SHAPE_SPHERE:
-				expand = -(reantrantState->trShape.radius);
-				break;
-			case SHAPE_CYLINDER:
-				expand = -( ( reantrantState->trShape.radius * std::sqrt( plane->normal[0] * plane->normal[0] + plane->normal[1] * plane->normal[1] ) ) +
-						 (reantrantState->trShape.halfHeight * std::abs(plane->normal[2])));
-				break;
-			case SHAPE_CAPSULE:
-				expand = -(reantrantState->trShape.radius + (reantrantState->trShape.halfHeight * std::abs(plane->normal[2])));
-				break;
+		case SHAPE_POINT:
+			expand = 0.0f;
+			break;
+		case SHAPE_AABB:
+			if ( plane->type < 3 ) {
+				const double off = reantrantState->trOffsets[ plane->signbits ][ plane->type ];
+				expand = ( float )( off * plane->normal[ plane->type ] );
+			} else {
+				expand = ( float )DotProductDP( reantrantState->trOffsets[ plane->signbits ], plane->normal );
+			}
+			break;
+		case SHAPE_SPHERE:
+			expand = -( reantrantState->trShape.radius );
+			break;
+		case SHAPE_CYLINDER:
+			expand = -( ( reantrantState->trShape.radius * std::sqrt( plane->normal[ 0 ] * plane->normal[ 0 ] + plane->normal[ 1 ] * plane->normal[ 1 ] ) ) +
+				( reantrantState->trShape.halfHeight * std::abs( plane->normal[ 2 ] ) ) );
+			break;
+		case SHAPE_CAPSULE:
+			expand = -( reantrantState->trShape.radius + ( reantrantState->trShape.halfHeight * std::abs( plane->normal[ 2 ] ) ) );
+			break;
 		}
 		dist = plane->dist - expand;
 
@@ -725,7 +728,7 @@ const cm_trace_t CM_ShapeTrace( cm_t *cm,
 	}
 	reantrantState.trIsPoint = ( reantrantState.trExtents.x == 0.0f && reantrantState.trExtents.y == 0.0f && reantrantState.trExtents.z == 0.0f );
 
-	
+
 	reantrantState.trResult = {
 		.entityNumber = ENTITYNUM_NONE,
 		.brushID = BRUSHID_NONE,
@@ -793,7 +796,7 @@ const cm_trace_t CM_ShapeTrace( cm_t *cm,
 			extentY = shape.radius;
 			extentZ = shape.type == SHAPE_SPHERE ? shape.radius : shape.radius + shape.halfHeight;
 		}
-		
+
 		c1.x -= extentX; c1.y -= extentY; c1.z -= extentZ;
 		c2.x += extentX; c2.y += extentY; c2.z += extentZ;
 
@@ -1053,8 +1056,7 @@ const cm_trace_t CM_TransformedTraceCylinder( cm_t *cm, const Vector3 &start, co
 **/
 const cm_trace_t CM_AnalyticalShapeSweep(
 	const Vector3 &start, const cm_trace_shape_t &shapeA, const Vector3 &end,
-	const Vector3 &centerB, const cm_trace_shape_t &shapeB)
-{
+	const Vector3 &centerB, const cm_trace_shape_t &shapeB ) {
 	/**
 	*	Initialize the trace result to a no-hit state.
 	**/

@@ -113,18 +113,26 @@ const svg_trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, co
 *	@return True if the trace yielded a step, false otherwise.
 **/
 static bool MMove_CheckStep( const mm_move_t *monsterMove, const svg_trace_t *trace ) {
-	// If not solid:
-	if ( !trace->allsolid ) {
-		// Get min step normal.
-		double minStepNormal = MM_MIN_STEP_NORMAL;
-		//if ( monsterMove->navPolicy ) {
-		//	minStepNormal = monsterMove->navPolicy->min_step_normal;
-		//}
-		// If the plane we hit has a sufficient upward normal, it's a step (entity or world).
-		if ( trace->plane.normal[ 2 ] >= minStepNormal ) {
-			// We just traversed a step of sorts.
-			return true;
-		}
+	/**
+	* 	Check whether the landing trace is walkable enough to count as a stair step.
+	**/
+	if ( trace->allsolid ) {
+		// A solid trace cannot represent a valid step landing.
+		return false;
+	}
+
+	/**
+	* 	Use the active nav policy threshold when available so the pathing policy and
+	* 	monster step acceptance stay aligned on the same surface steepness rule.
+	**/
+	const double minStepNormal = monsterMove->navPolicy ? monsterMove->navPolicy->min_step_normal : MM_MIN_STEP_NORMAL;
+
+	/**
+	* 	Accept the trace only when the contacted surface still behaves like a step-up
+	* 	rather than a wall or a too-steep landing.
+	**/
+	if ( trace->plane.normal[ 2 ] >= minStepNormal ) {
+		return true;
 	}
 
 	// It wasn't a step, return false.
@@ -204,7 +212,8 @@ const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, con
 	monsterMove->state.velocity = startVelocity;
 
 	// Perform an actual 'Step Slide'. Use the native shape so we don't startsolid if wedged in a corner.
-	blockedMask |= SVG_MMove_SlideMove( monsterMove->state.origin, monsterMove->state.velocity, monsterMove->frameTime, monsterMove->mins, monsterMove->maxs, monsterMove->monster, monsterMove->touchTraces, false /* monsterMove->hasTime */, MM_SHAPE_AUTO );
+	const mm_slide_move_flags_t elevatedBlockedMask = SVG_MMove_SlideMove( monsterMove->state.origin, monsterMove->state.velocity, monsterMove->frameTime, monsterMove->mins, monsterMove->maxs, monsterMove->monster, monsterMove->touchTraces, false /* monsterMove->hasTime */, MM_SHAPE_AUTO );
+	blockedMask |= elevatedBlockedMask;
 
 	// Push down the final amount.
 	Vector3 down = monsterMove->state.origin;
@@ -233,7 +242,8 @@ const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, con
 	// The elevated candidate is valid only when the downward probe found a
 	// walkable landing surface. A missed/all-solid probe must restore the
 	// original slide result; otherwise the temporary step-up becomes a jump.
-	const bool hasWalkableLanding = !trace.allsolid && trace.fraction < 1.f && trace.plane.normal[ 2 ] >= MM_MIN_STEP_NORMAL;
+	const float minStepNormal = monsterMove->navPolicy ? monsterMove->navPolicy->min_step_normal : MM_MIN_STEP_NORMAL;
+	const bool hasWalkableLanding = !trace.allsolid && trace.fraction < 1.f && trace.plane.normal[ 2 ] >= minStepNormal;
 	if ( down_dist > up_dist || !hasWalkableLanding ) {
 		monsterMove->state.origin = downOrigin;
 		monsterMove->state.velocity = downVelocity;
@@ -242,6 +252,9 @@ const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, con
 	// thanks to Jitspoe for pointing this one out.
 	else {// if (ps->pmove.pm_flags & PMF_ON_GROUND)
 		acceptedStepUp = true;
+		// A valid elevated landing supersedes transient trap flags from the
+		// boundary probe; the landing trace is the authoritative candidate check.
+		blockedMask &= ~MM_SLIDEMOVEFLAG_TRAPPED;
 		//!! Special case
 		// if we were walking along a plane, then we need to copy the Z over
 		monsterMove->state.velocity.z = downVelocity.z;

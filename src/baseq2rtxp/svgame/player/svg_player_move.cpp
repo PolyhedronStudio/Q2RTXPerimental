@@ -30,7 +30,7 @@
 #include "svgame/gamemodes/svg_gm_basemode.h"
 
 #ifndef SVG_DEBUG_STAIR_TRACES
-#define SVG_DEBUG_STAIR_TRACES 0
+//#define SVG_DEBUG_STAIR_TRACES 1
 #endif
 
 #if defined( SVG_DEBUG_STAIR_TRACES )

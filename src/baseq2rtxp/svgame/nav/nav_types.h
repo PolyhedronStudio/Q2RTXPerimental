@@ -24,6 +24,8 @@ struct nav_poly_t {
     int32_t bsp_leaf_id = -1;
     //! Entity ID this polygon belongs to (e.g. for doors), or ENTITYNUM_NONE if world.
     int32_t entity_id = ENTITYNUM_NONE;
+    //! Door entity that produced this polygon as a transition boundary, or ENTITYNUM_NONE if unrelated to a door split.
+    int32_t transition_entity_id = ENTITYNUM_NONE;
 };
 
 /**

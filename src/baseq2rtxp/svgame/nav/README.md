@@ -28,6 +28,7 @@ The NavMesh generation is an asynchronous process designed to extract walkable f
 
 ### E. Persistence (`nav_persistence.cpp`)
 *   **Saving**: The compiled navigation data is serialized and saved to disk as a `.nav7` file format containing a magic header (`NAV7_MAGIC`), the map's BSP checksum, and flat arrays of vertices, half-edges, faces, and KD-Tree nodes.
+*   **Versioning**: `NAV7_VERSION` is bumped whenever nav extraction semantics change so stale cache files are rejected and regenerated.
 
 ---
 
@@ -102,4 +103,3 @@ if ( success && facePath.size() > 1 ) {
         // ... apply moveDir to entity velocity ...
     }
 }
-```

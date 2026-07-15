@@ -111,7 +111,7 @@ struct svg_func_door_rotating_t : public svg_func_door_t {
     *   @brief  Spawn.
     **/
     DECLARE_MEMBER_CALLBACK_SPAWN( svg_func_door_rotating_t, onSpawn );
- 
+
     #if 0
     /**
     *   @brief  Post-Spawn.
@@ -153,13 +153,13 @@ struct svg_func_door_rotating_t : public svg_func_door_t {
     *   @brief  Signal Receiving:
     **/
     DECLARE_MEMBER_CALLBACK_ON_SIGNALIN( svg_func_door_rotating_t, onSignalIn );
+    #endif
 
     /**
     *   PushMoveInfo EndMoves:
     **/
-    DECLARE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_base_edict_t, onCloseEndMove );
-    DECLARE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_base_edict_t, onOpenEndMove );
-    #endif
+    DECLARE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_door_rotating_t, onCloseEndMove );
+    DECLARE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_door_rotating_t, onOpenEndMove );
 
 
     /**

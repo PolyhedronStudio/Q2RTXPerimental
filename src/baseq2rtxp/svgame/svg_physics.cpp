@@ -547,6 +547,9 @@ const bool SVG_PushMover( svg_base_edict_t *pusher, const Vector3 &move, const V
 
 // save the pusher's original position
     pushedState.pushedPtr->ent = pusher;
+	// Preserve the pusher transform so a blocked move can be rolled back without using zero-initialized state.
+	pushedState.pushedPtr->origin = pusher->currentOrigin;
+	pushedState.pushedPtr->angles = pusher->currentAngles;
 	SVG_Util_SetEntityOrigin( pushedState.pushedPtr->ent, pusher->currentOrigin, true ); // VectorCopy(pusher->s.origin, pushed_p->origin);
 	SVG_Util_SetEntityAngles( pushedState.pushedPtr->ent, pusher->currentAngles, true ); // VectorCopy(pusher->s.angles, pushed_p->angles);
     //#if USE_SMOOTH_DELTA_ANGLES

@@ -21,6 +21,27 @@
 * @return True when a non-degenerate overlap segment was found.
 **/
 static bool Nav_ComputePortalOverlapSegment( const nav_halfedge_t &he, const nav_halfedge_t &twin, Vector3 *outV0, Vector3 *outV1, float *outWidth2D ) {
+	/**
+	* Reject topological twins whose owning faces cannot be a physical floor portal.
+	**/
+	const nav_face_t &face = g_nav_faces[ he.face_idx ];
+	const nav_face_t &neighbor_face = g_nav_faces[ twin.face_idx ];
+	if ( face.entity_id != neighbor_face.entity_id && face.entity_id != ENTITYNUM_NONE && neighbor_face.entity_id != ENTITYNUM_NONE ) {
+		// Keep unrelated dynamic fragments from acting like a real traversable portal.
+		return false;
+	}
+	const float face_normal_length = QM_Vector3Length( face.normal );
+	const float neighbor_normal_length = QM_Vector3Length( neighbor_face.normal );
+	if ( face.normal.z < NAV_MIN_WALKABLE_Z || neighbor_face.normal.z < NAV_MIN_WALKABLE_Z ||
+		face_normal_length <= 0.001f || neighbor_normal_length <= 0.001f ) {
+		return false;
+	}
+	const float normal_alignment = QM_Vector3DotProduct( face.normal, neighbor_face.normal ) /
+		( face_normal_length * neighbor_normal_length );
+	if ( normal_alignment < 0.0f ) {
+		return false;
+	}
+
 	const Vector3 a0 = g_nav_vertices[ he.vertex_idx ];
 	const Vector3 a1 = g_nav_vertices[ g_nav_halfedges[ he.next_idx ].vertex_idx ];
 	const Vector3 b0 = g_nav_vertices[ twin.vertex_idx ];
@@ -39,6 +60,18 @@ static bool Nav_ComputePortalOverlapSegment( const nav_halfedge_t &he, const nav
 		return false;
 	}
 
+	Vector3 bDir2D = b1 - b0;
+	bDir2D.z = 0.0f;
+	const float bLen = QM_Vector3Length( bDir2D );
+	if ( bLen <= 0.0001f ) {
+		return false;
+	}
+	bDir2D = bDir2D * ( 1.0f / bLen );
+	const float edge_direction_alignment = QM_Vector3DotProduct( aDir2D, bDir2D );
+	if ( std::fabs( edge_direction_alignment ) < 0.95f ) {
+		return false;
+	}
+
 	auto projectOnA = [&]( const Vector3 &p ) -> float {
 		Vector3 ap = p - a0;
 		ap.z = 0.0f;
@@ -52,7 +85,7 @@ static bool Nav_ComputePortalOverlapSegment( const nav_halfedge_t &he, const nav
 	const float overlapStart = std::max( 0.0f, bMin );
 	const float overlapEnd = std::min( aLen, bMax );
 	const float overlapLen = overlapEnd - overlapStart;
-	if ( overlapLen <= 0.1f ) {
+	if ( overlapLen < 0.1f ) {
 		return false;
 	}
 
@@ -398,6 +431,15 @@ bool Nav_FindPath( int32_t startFace, int32_t goalFace, std::vector<int32_t> &ou
 			const nav_halfedge_t &twin = g_nav_halfedges[ he.twin_idx ];
 			const int32_t neighbor = twin.face_idx;
 
+		/**
+		*	Door state is stored symmetrically on both directed portal edges. Reject the
+		*	transition before width or vertical checks when either side is disabled.
+		*	Ordinary world, slope, and stair portals retain zero flags and are unaffected.
+		**/
+		if ( ( he.flags & NAV_EDGE_DISABLED ) != 0 || ( twin.flags & NAV_EDGE_DISABLED ) != 0 ) {
+			continue;
+		}
+
 			const nav_face_t &neighborFace = g_nav_faces[ neighbor ];
 
 			// Enforce physical traversability (not just topological adjacency) for this edge transition.
@@ -487,7 +529,7 @@ bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3 &startPos, 
 	outWaypoints.push_back( startPos );
 
 	/**
-	*\tOrganic Traversal (from nav2)
+	*	Organic Traversal (from nav2)
 	**/
 	for ( size_t i = 1; i < path.size() - 1; ++i ) {
 		const int32_t face_idx = path[ i ];
@@ -606,6 +648,10 @@ void Nav_SetEntityEdgesState( int32_t entity_id, uint32_t flags, bool enable ) {
 	const std::vector<int32_t> &edges = g_nav_entity_edges[ entity_id ];
 	for ( size_t i = 0; i < edges.size(); ++i ) {
 		const int32_t edge_idx = edges[ i ];
+		// Ignore stale or corrupt registrations instead of indexing outside the current half-edge array.
+		if ( edge_idx < 0 || edge_idx >= static_cast<int32_t>( g_nav_halfedges.size() ) ) {
+			continue;
+		}
 		if ( enable ) {
 			g_nav_halfedges[ edge_idx ].flags |= flags;
 		} else {

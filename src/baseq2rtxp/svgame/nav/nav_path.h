@@ -19,6 +19,8 @@ static constexpr float PORTAL_EPS_SQR = 16.0f * 16.0f;
 struct nav_path_policy_t {
 	//! Radius of the navigating agent (used for clearance and portal checks).
 	float agent_radius = 16.0f;
+	//! Minimum upward surface normal required to treat a landing as a step.
+	float min_step_normal = 0.7f;
 	//! Minimum step height in world units.
 	float min_step_height = 0.0f;
 	//! Maximum step height in world units.

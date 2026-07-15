@@ -102,8 +102,8 @@ static void ClipTraceMoveToEntities( cm_trace_t *tr, const Vector3 &start, const
             Vector3 centerEnd = end;
             Vector3 offset = { 0.0f, 0.0f, 0.0f };
 
-            if ( mins->x == 0.0f && mins->y == 0.0f && mins->z == 0.0f &&
-                 maxs->x == 0.0f && maxs->y == 0.0f && maxs->z == 0.0f ) {
+            if ( (!mins && !maxs) || ( mins->x == 0.0f && mins->y == 0.0f && mins->z == 0.0f &&
+                 maxs->x == 0.0f && maxs->y == 0.0f && maxs->z == 0.0f ) ) {
                  // point
             } else {
                 shapeA.extents = QM_Vector3Scale( QM_Vector3Subtract( *maxs, *mins ), 0.5f );

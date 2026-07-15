@@ -2,7 +2,11 @@
 
 #include <algorithm>
 
+//! Small backoff used by ordinary brush traces.
 static constexpr float SWEEP_DIST_EPSILON = 0.03125f;
+
+//! Separation used for rounded shape traces to prevent tangent corner contacts from re-sticking.
+static constexpr float SWEEP_ROUNDED_SHAPE_EPSILON = 1.0f;
 
 
 inline bool CM_IsBrushAxialBox( const mbrush_t *brush, Vector3 &mins, Vector3 &maxs ) {
@@ -124,7 +128,8 @@ static bool CM_SweepShapeVsAxialBox( const Vector3& p1, const Vector3& p2,
         std::max(bMins.z, std::min(p1.z, bMaxs.z))
     };
     
-    float r_shrunk = std::max(0.0f, R - SWEEP_DIST_EPSILON);
+    // Leave a one-unit separation for rounded hulls so tangent corners do not remain in contact.
+    float r_shrunk = std::max(0.0f, R - SWEEP_ROUNDED_SHAPE_EPSILON);
     float r_shrunk_sq = r_shrunk * r_shrunk;
 
     const auto IsInside = [&]( const Vector3 &point ) {
@@ -138,8 +143,8 @@ static bool CM_SweepShapeVsAxialBox( const Vector3& p1, const Vector3& p2,
             const float dx = point.x - pointClosest.x;
             const float dy = point.y - pointClosest.y;
             return dx * dx + dy * dy < r_shrunk_sq &&
-                point.z > bMins.z + SWEEP_DIST_EPSILON &&
-                point.z < bMaxs.z - SWEEP_DIST_EPSILON;
+                point.z > bMins.z + SWEEP_ROUNDED_SHAPE_EPSILON &&
+                point.z < bMaxs.z - SWEEP_ROUNDED_SHAPE_EPSILON;
         }
 
         const Vector3 delta = point - pointClosest;

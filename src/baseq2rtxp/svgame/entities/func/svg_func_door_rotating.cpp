@@ -298,3 +298,19 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_door_rotating_t, onSpawn )( svg_func_door
 	//}
 	//#endif
 }
+
+/**
+*   @brief  Rotating door finished closing.
+**/
+DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_door_rotating_t, onCloseEndMove )( svg_func_door_rotating_t *self ) -> void {
+	// Reuse the shared door close-end logic so nav edge state and areaportal state stay consistent.
+	svg_func_door_t::onCloseEndMove( self );
+}
+
+/**
+*   @brief  Rotating door finished opening.
+**/
+DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_door_rotating_t, onOpenEndMove )( svg_func_door_rotating_t *self ) -> void {
+	// Reuse the shared door open-end logic so nav edge state and areaportal state stay consistent.
+	svg_func_door_t::onOpenEndMove( self );
+}

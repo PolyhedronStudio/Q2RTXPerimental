@@ -11,6 +11,7 @@ bool Nav_Save( const char *filepath );
 
 /**
 * @brief Load a navmesh from disk.
+* @note The loader rejects stale caches when the format version changes.
 * @param filepath Absolute or map-relative path to the source file.
 * @return True when the navmesh was loaded successfully.
 **/
