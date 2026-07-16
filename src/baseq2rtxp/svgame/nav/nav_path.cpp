@@ -3,7 +3,12 @@
 #include "svgame/nav/nav_core.h"
 #include "svgame/nav/nav_generate.h" // For g_nav_nodes and g_nav_polys.
 #include "svgame/svg_utils.h"
+#include "svgame/entities/func/svg_func_door.h"
+#include "svgame/entities/func/svg_func_door_rotating.h"
+#include "svgame/entities/func/svg_func_wall.h"
+#include "svgame/entities/func/svg_func_areaportal.h"
 #include "shared/math/qm_vector3.h"
+#include "svgame/monsters/svg_mmove.h"
 
 #include <algorithm>
 #include <cmath>
@@ -166,6 +171,42 @@ int32_t Nav_FindLeafNode( const Vector3 &point ) {
 		if ( nodeIdx == -1 ) {
 			return -1;
 		}
+	}
+}
+
+/**
+* 	@brief	Reapply runtime door/wall nav edge state after the navmesh is regenerated.
+* 	@note	The nav generator clears and rebuilds the edge registry, so current mover state must be pushed back in.
+**/
+void Nav_ResyncDynamicEntityEdges() {
+	for ( int32_t i = 1; i < g_edict_pool.num_edicts; ++i ) {
+		svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i );
+		if ( !ent || !SVG_Entity_IsActive( ent ) || !ent->GetTypeInfo() ) {
+			continue;
+		}
+
+		bool disableEdges = false;
+		bool isDynamicNavEntity = false;
+
+		if ( ent->GetTypeInfo()->IsSubClassType<svg_func_door_t>() || ent->GetTypeInfo()->IsSubClassType<svg_func_door_rotating_t>() ) {
+			const svg_func_door_t *door = static_cast<const svg_func_door_t *>( ent );
+			isDynamicNavEntity = true;
+			disableEdges = ( door->pushMoveInfo.state == svg_func_door_t::DOOR_STATE_CLOSED || door->pushMoveInfo.state == svg_func_door_t::DOOR_STATE_MOVING_TO_CLOSED_STATE );
+		} else if ( ent->GetTypeInfo()->IsSubClassType<svg_func_wall_t>() ) {
+			const svg_func_wall_t *wall = static_cast<const svg_func_wall_t *>( ent );
+			isDynamicNavEntity = true;
+			disableEdges = ( wall->solid == SOLID_BSP );
+		} else if ( ent->GetTypeInfo()->IsSubClassType<svg_func_areaportal_t>() ) {
+			const svg_func_areaportal_t *areaportal = static_cast<const svg_func_areaportal_t *>( ent );
+			isDynamicNavEntity = true;
+			disableEdges = ( areaportal->count <= 0 );
+		}
+
+		if ( !isDynamicNavEntity ) {
+			continue;
+		}
+
+		Nav_SetEntityEdgesState( ent->s.number, NAV_EDGE_DISABLED, disableEdges );
 	}
 }
 
@@ -436,8 +477,10 @@ bool Nav_FindPath( int32_t startFace, int32_t goalFace, std::vector<int32_t> &ou
 		*	transition before width or vertical checks when either side is disabled.
 		*	Ordinary world, slope, and stair portals retain zero flags and are unaffected.
 		**/
-		if ( ( he.flags & NAV_EDGE_DISABLED ) != 0 || ( twin.flags & NAV_EDGE_DISABLED ) != 0 ) {
-			continue;
+		if ( !policy.ignore_disabled_edges ) {
+			if ( ( he.flags & NAV_EDGE_DISABLED ) != 0 || ( twin.flags & NAV_EDGE_DISABLED ) != 0 ) {
+				continue;
+			}
 		}
 
 			const nav_face_t &neighborFace = g_nav_faces[ neighbor ];
@@ -526,109 +569,156 @@ bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3 &startPos, 
 		return true;
 	}
 
-	outWaypoints.push_back( startPos );
+	struct funnel_portal_t {
+		Vector3 left, right;
+	};
+	std::vector<funnel_portal_t> portals;
 
-	/**
-	*	Organic Traversal (from nav2)
-	**/
-	for ( size_t i = 1; i < path.size() - 1; ++i ) {
+	for ( size_t i = 0; i + 1 < path.size(); ++i ) {
 		const int32_t face_idx = path[ i ];
-		const nav_face_t &face = g_nav_faces[ face_idx ];
-		Vector3 center = face.center;
-
-		float min_wall_dist = 9999.0f;
-		for ( int32_t edge_idx = face.first_edge_idx; edge_idx != -1; ) {
-			const nav_halfedge_t &he = g_nav_halfedges[ edge_idx ];
-			if ( he.twin_idx == -1 ) {
-				Vector3 v0 = g_nav_vertices[ he.vertex_idx ];
-				Vector3 v1 = g_nav_vertices[ g_nav_halfedges[ he.next_idx ].vertex_idx ];
-				Vector3 edgeDir = v1 - v0;
-				edgeDir.z = 0.0f;
-				float edgeLen = QM_Vector3Length( edgeDir );
-				if ( edgeLen > 0.0001f ) {
-					edgeDir = edgeDir * ( 1.0f / edgeLen );
-					Vector3 toCenter = center - v0;
-					toCenter.z = 0.0f;
-					float dot = QM_Clamp( static_cast<float>( QM_Vector3DotProduct( toCenter, edgeDir ) ), 0.0f, edgeLen );
-					Vector3 proj = v0 + ( edgeDir * dot );
-					float distToEdge = static_cast<float>( QM_Vector3Distance( center, proj ) );
-					if ( distToEdge < min_wall_dist ) {
-						min_wall_dist = distToEdge;
+		const int32_t next_face_idx = path[ i + 1 ];
+		
+		Vector3 right, left;
+		// Nav_GetPortalEndpoints returns the right endpoint in the first out param, left in the second.
+		if ( Nav_GetPortalEndpoints( face_idx, next_face_idx, &right, &left ) ) {
+			
+			// Determine if this portal belongs to a physical door
+			bool isDoor = false;
+			int32_t door_entity_id = ENTITYNUM_NONE;
+			const nav_face_t &face = g_nav_faces[ face_idx ];
+			for ( int32_t e = 0; e < face.num_edges; e++ ) {
+				const nav_halfedge_t &he = g_nav_halfedges[ face.first_edge_idx + e ];
+				if ( he.twin_idx != -1 && g_nav_halfedges[ he.twin_idx ].face_idx == next_face_idx ) {
+					if ( he.edge_entity_id != ENTITYNUM_NONE ) {
+						isDoor = true;
+						door_entity_id = he.edge_entity_id;
 					}
+					break;
 				}
 			}
-			edge_idx = he.next_idx;
-			if ( edge_idx == face.first_edge_idx ) break;
-		}
 
-		if ( i + 1 < path.size() ) {
-			const nav_face_t &nextFace = g_nav_faces[ path[ i + 1 ] ];
-			if ( std::abs( nextFace.center.z - face.center.z ) > 4.0f ) {
-				Vector3 left, right;
-				if ( Nav_GetPortalEndpoints( face_idx, path[ i + 1 ], &left, &right ) ) {
-					Vector3 portalMid = ( left + right ) * 0.5f;
-					Vector3 edgeDir = QM_Vector3Normalize( right - left );
-					Vector3 approachDir = { edgeDir.y, -edgeDir.x, 0.0f };
-					Vector3 centerToPortal = portalMid - center;
-					centerToPortal.z = 0.0f;
-					if ( QM_Vector3DotProduct( approachDir, centerToPortal ) > 0.0f ) {
-						approachDir = approachDir * -1.0f;
-					}
-					center = portalMid + ( approachDir * ( agentRadius + 16.0f ) );
-					center.z = face.center.z;
-				}
-			}
-		}
-
-		for ( int32_t edge_idx = face.first_edge_idx; edge_idx != -1; ) {
-			const nav_halfedge_t &he = g_nav_halfedges[ edge_idx ];
-			if ( he.twin_idx == -1 ) {
-				Vector3 v0 = g_nav_vertices[ he.vertex_idx ];
-				Vector3 v1 = g_nav_vertices[ g_nav_halfedges[ he.next_idx ].vertex_idx ];
-				Vector3 edgeDir = v1 - v0;
-				edgeDir.z = 0.0f;
-				const float edgeLen = QM_Vector3Length( edgeDir );
-				if ( edgeLen > 0.0001f ) {
-					edgeDir = edgeDir * ( 1.0f / edgeLen );
-					Vector3 toCenter = center - v0;
-					toCenter.z = 0.0f;
-					float dot = QM_Clamp( static_cast<float>( QM_Vector3DotProduct( toCenter, edgeDir ) ), 0.0f, edgeLen );
-					Vector3 proj = v0 + ( edgeDir * dot );
-					proj.z = center.z;
-					float distToEdge = static_cast<float>( QM_Vector3Distance( center, proj ) );
-					const float requiredDist = agentRadius + 4.0f;
-					if ( distToEdge < requiredDist ) {
-						Vector3 pushDir = distToEdge > 0.001f ? center - proj : face.center - proj;
-						pushDir.z = 0.0f;
-						if ( QM_Vector3LengthSqr( pushDir ) > 0.0001f ) {
-							pushDir = QM_Vector3Normalize( pushDir );
-							center = center + pushDir * ( requiredDist - distToEdge );
+			// Natively expand door portals to their full physical BSP width
+			if ( isDoor && door_entity_id > 0 && door_entity_id < g_edict_pool.num_edicts ) {
+				svg_base_edict_t *door = g_edicts[ door_entity_id ];
+				if ( door ) {
+					// Reconstruct the original, unrotated generation-time bounding box.
+					// We use pos1 (closed origin) if available, otherwise fallback to s.origin.
+					// Wait, pushmovers use pos1 for the closed position. 
+					// s.origin updates dynamically, pos1 is static.
+					Vector3 closedMin = QM_Vector3Add( door->pos1, door->mins );
+					Vector3 closedMax = QM_Vector3Add( door->pos1, door->maxs );
+					
+					Vector3 edgeDir = QM_Vector3Subtract( left, right );
+					edgeDir.z = 0.0f;
+					
+					if ( std::abs( edgeDir.x ) > std::abs( edgeDir.y ) ) {
+						// Portal runs along the X axis
+						if ( edgeDir.x > 0.0f ) {
+							left.x = closedMax.x;
+							right.x = closedMin.x;
+						} else {
+							left.x = closedMin.x;
+							right.x = closedMax.x;
+						}
+					} else {
+						// Portal runs along the Y axis
+						if ( edgeDir.y > 0.0f ) {
+							left.y = closedMax.y;
+							right.y = closedMin.y;
+						} else {
+							left.y = closedMin.y;
+							right.y = closedMax.y;
 						}
 					}
 				}
 			}
-			edge_idx = he.next_idx;
-			if ( edge_idx == face.first_edge_idx ) break;
+
+			// Shrink the portal by the agent radius so the agent doesn't graze the wall.
+			Vector3 edgeDir = QM_Vector3Subtract( left, right );
+			edgeDir.z = 0.0f;
+			const float edgeLen = QM_Vector3Length( edgeDir );
+			if ( edgeLen > 0.001f ) {
+				edgeDir = edgeDir * ( 1.0f / edgeLen );
+				
+				// Provide a 2.0f unit padding to prevent floating point/step grazing
+				float shrinkDist = std::min( agentRadius + 2.0f, edgeLen * 0.5f );
+				
+				right = QM_Vector3Add( right, edgeDir * shrinkDist );
+				left = QM_Vector3Subtract( left, edgeDir * shrinkDist );
+			}
+			portals.push_back( { left, right } );
+		} else {
+			// Fallback: If no portal connects them, use the face center.
+			const Vector3 center = g_nav_faces[ face_idx ].center;
+			portals.push_back( { center, center } );
+		}
+	}
+
+	// Add the goal as the final portal.
+	portals.push_back( { goalPos, goalPos } );
+
+	outWaypoints.push_back( startPos );
+
+	Vector3 portalApex = startPos;
+	Vector3 portalLeft = startPos;
+	Vector3 portalRight = startPos;
+
+	int32_t apexIndex = 0;
+	int32_t leftIndex = 0;
+	int32_t rightIndex = 0;
+
+	for ( int32_t i = 0; i < ( int32_t )portals.size(); ++i ) {
+		const Vector3 &left = portals[ i ].left;
+		const Vector3 &right = portals[ i ].right;
+
+		// Update the right bound.
+		if ( Nav_TriArea2D( portalApex, portalRight, right ) <= 0.0f ) {
+			float distSqRight = ( portalApex.x - portalRight.x ) * ( portalApex.x - portalRight.x ) + ( portalApex.y - portalRight.y ) * ( portalApex.y - portalRight.y );
+			if ( distSqRight < 0.001f || Nav_TriArea2D( portalApex, portalLeft, right ) > 0.0f ) {
+				// Tighten the funnel.
+				portalRight = right;
+				rightIndex = i;
+			} else {
+				// Right crossed left, so the left bound is a corner.
+				outWaypoints.push_back( portalLeft );
+				portalApex = portalLeft;
+				apexIndex = leftIndex;
+				// Reset funnel bounds.
+				portalLeft = portalApex;
+				portalRight = portalApex;
+				leftIndex = apexIndex;
+				rightIndex = apexIndex;
+				// Restart the scan.
+				i = apexIndex;
+				continue;
+			}
 		}
 
-		outWaypoints.push_back( center );
+		// Update the left bound.
+		if ( Nav_TriArea2D( portalApex, portalLeft, left ) >= 0.0f ) {
+			float distSqLeft = ( portalApex.x - portalLeft.x ) * ( portalApex.x - portalLeft.x ) + ( portalApex.y - portalLeft.y ) * ( portalApex.y - portalLeft.y );
+			if ( distSqLeft < 0.001f || Nav_TriArea2D( portalApex, portalRight, left ) < 0.0f ) {
+				// Tighten the funnel.
+				portalLeft = left;
+				leftIndex = i;
+			} else {
+				// Left crossed right, so the right bound is a corner.
+				outWaypoints.push_back( portalRight );
+				portalApex = portalRight;
+				apexIndex = rightIndex;
+				// Reset funnel bounds.
+				portalLeft = portalApex;
+				portalRight = portalApex;
+				leftIndex = apexIndex;
+				rightIndex = apexIndex;
+				// Restart the scan.
+				i = apexIndex;
+				continue;
+			}
+		}
 	}
 
 	outWaypoints.push_back( goalPos );
-
-	if ( outWaypoints.size() > 2 ) {
-		std::vector<Vector3> simplified;
-		simplified.push_back( outWaypoints.front() );
-		for ( size_t i = 1; i < outWaypoints.size() - 1; ++i ) {
-			const Vector3 &prev = simplified.back();
-			const Vector3 &curr = outWaypoints[ i ];
-			if ( QM_Vector2DistanceSqr( prev, curr ) > ( 24.0f * 24.0f ) ) {
-				simplified.push_back( curr );
-			}
-		}
-		simplified.push_back( outWaypoints.back() );
-		outWaypoints = std::move( simplified );
-	}
 
 	return true;
 }
@@ -641,21 +731,43 @@ void Nav_SetEntityEdgesState( int32_t entity_id, uint32_t flags, bool enable ) {
 		return;
 	}
 
+	bool applied_any = false;
 	if ( g_nav_entity_edges.empty() || entity_id >= static_cast<int32_t>( g_nav_entity_edges.size() ) ) {
-		return;
+		// Fall through to the full scan below.
+	} else {
+		const std::vector<int32_t> &edges = g_nav_entity_edges[ entity_id ];
+		for ( size_t i = 0; i < edges.size(); ++i ) {
+			const int32_t edge_idx = edges[ i ];
+			// Ignore stale or corrupt registrations instead of indexing outside the current half-edge array.
+			if ( edge_idx < 0 || edge_idx >= static_cast<int32_t>( g_nav_halfedges.size() ) ) {
+				continue;
+			}
+			if ( enable ) {
+				g_nav_halfedges[ edge_idx ].flags |= flags;
+			} else {
+				g_nav_halfedges[ edge_idx ].flags &= ~flags;
+			}
+			applied_any = true;
+		}
 	}
 
-	const std::vector<int32_t> &edges = g_nav_entity_edges[ entity_id ];
-	for ( size_t i = 0; i < edges.size(); ++i ) {
-		const int32_t edge_idx = edges[ i ];
-		// Ignore stale or corrupt registrations instead of indexing outside the current half-edge array.
-		if ( edge_idx < 0 || edge_idx >= static_cast<int32_t>( g_nav_halfedges.size() ) ) {
-			continue;
+	// Defensive fallback: if the entity registry missed some edges, update by face/edge ownership too.
+	for ( size_t edge_idx = 0; edge_idx < g_nav_halfedges.size(); ++edge_idx ) {
+		nav_halfedge_t &halfedge = g_nav_halfedges[ edge_idx ];
+		if ( halfedge.edge_entity_id != entity_id ) {
+			const nav_face_t &face = g_nav_faces[ halfedge.face_idx ];
+			if ( face.entity_id != entity_id && face.transition_entity_id != entity_id ) {
+				continue;
+			}
 		}
+
 		if ( enable ) {
-			g_nav_halfedges[ edge_idx ].flags |= flags;
+			halfedge.flags |= flags;
 		} else {
-			g_nav_halfedges[ edge_idx ].flags &= ~flags;
+			halfedge.flags &= ~flags;
 		}
+		applied_any = true;
 	}
+
+	(void)applied_any;
 }

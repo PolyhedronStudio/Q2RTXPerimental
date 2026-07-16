@@ -57,6 +57,8 @@ struct nav_path_policy_t {
 	float max_jump_distance = 256.0f;
 	//! Minimum width for a gap to be considered jumpable.
 	float min_gap_width = 24.0f;
+	//! Ignore disabled edges to allow generating paths through closed doors.
+	bool ignore_disabled_edges = false;
 };
 /**
 *	@brief	Walk the KD-tree to locate the leaf node that contains a point.
@@ -117,6 +119,12 @@ bool Nav_GetPortalEndpoints( int32_t faceA, int32_t faceB, Vector3 *outV0, Vecto
 *	@return	True if a valid corridor and string-pull could be generated.
 **/
 bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3 &startPos, const Vector3 &goalPos, float agentRadius, std::vector<Vector3> &outWaypoints );
+
+/**
+* 	@brief	Reapply dynamic nav edge state from the current runtime entity states.
+* 	@note	This is needed after runtime navmesh regeneration clears and rebuilds the edge registry.
+**/
+void Nav_ResyncDynamicEntityEdges();
 
 /**
 *	@brief	Globally enables or disables all nav mesh edges associated with a specific entity ID.

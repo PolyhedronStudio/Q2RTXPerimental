@@ -22,6 +22,7 @@
 #include "svgame/entities/func/svg_func_door.h"
 #include "svgame/entities/func/svg_func_door_rotating.h"
 #include "svgame/entities/func/svg_func_wall.h"
+#include "svgame/entities/func/svg_func_areaportal.h"
 
 
 
@@ -815,11 +816,25 @@ static bool IsDynamicTransitionEntityBlockingNavigation( const int32_t entity_id
             door->pushMoveInfo.state == svg_func_door_t::DOOR_STATE_MOVING_TO_CLOSED_STATE;
     }
 
+    if ( entity->GetTypeInfo()->IsSubClassType<svg_func_areaportal_t>() ) {
+        const svg_func_areaportal_t *areaportal = static_cast<const svg_func_areaportal_t *>( entity );
+        return areaportal->count <= 0;
+    }
+
     if ( entity->GetTypeInfo()->IsSubClassType<svg_func_wall_t>() ) {
         return entity->solid == SOLID_BSP;
     }
 
     return false;
+}
+
+/**
+* @brief Resolve one face's runtime ownership entity for transition-edge metadata and debug state.
+* @param face Face whose ownership metadata is being queried.
+* @return Runtime entity id, or ENTITYNUM_NONE for world-owned geometry.
+**/
+static int32_t GetNavFaceOwningEntityId( const nav_face_t &face ) {
+    return face.entity_id != ENTITYNUM_NONE ? face.entity_id : face.transition_entity_id;
 }
 
 /**
@@ -832,8 +847,10 @@ static void AssignNavEntityEdgeMetadata( const int32_t edge_a, const int32_t edg
     /**
     * Read the owning faces so the edge classification is based on adjacency rather than fragment ownership alone.
     **/
-    const int32_t entity_a = g_nav_faces[ g_nav_halfedges[ edge_a ].face_idx ].entity_id;
-    const int32_t entity_b = g_nav_faces[ g_nav_halfedges[ edge_b ].face_idx ].entity_id;
+    const nav_face_t &face_a = g_nav_faces[ g_nav_halfedges[ edge_a ].face_idx ];
+    const nav_face_t &face_b = g_nav_faces[ g_nav_halfedges[ edge_b ].face_idx ];
+    const int32_t entity_a = GetNavFaceOwningEntityId( face_a );
+    const int32_t entity_b = GetNavFaceOwningEntityId( face_b );
 
     /**
     * Only one side may be dynamic. Two dynamic faces are not a world-to-door transition,
@@ -850,24 +867,26 @@ static void AssignNavEntityEdgeMetadata( const int32_t edge_a, const int32_t edg
     /**
     * Mark both directed sides of the portal so rendering and runtime state updates remain symmetric.
     **/
-    const int32_t transition_entity_id = aIsDynamic ? entity_a : entity_b;
-    g_nav_halfedges[ edge_a ].edge_entity_id = transition_entity_id;
-    g_nav_halfedges[ edge_b ].edge_entity_id = transition_entity_id;
-    RegisterNavEntityEdge( transition_entity_id, edge_a );
-    RegisterNavEntityEdge( transition_entity_id, edge_b );
+    const int32_t transition_entity_id = aIsDynamic ? entity_a : entity_b;    // By default, the transition entity is just the one that is dynamic.
+    int32_t final_entity_id = transition_entity_id;
+
+    g_nav_halfedges[ edge_a ].edge_entity_id = final_entity_id;
+    g_nav_halfedges[ edge_b ].edge_entity_id = final_entity_id;
+    RegisterNavEntityEdge( final_entity_id, edge_a );
+    RegisterNavEntityEdge( final_entity_id, edge_b );
 
     /**
     *   Match freshly generated transition state to the current mover state. This is
     *   required when generation occurs after the owner closed, because its close
     *   callback could not disable portal edges that had not been constructed yet.
     **/
-    if ( IsDynamicTransitionEntityBlockingNavigation( transition_entity_id ) ) {
+    if ( IsDynamicTransitionEntityBlockingNavigation( final_entity_id ) ) {
         g_nav_halfedges[ edge_a ].flags |= NAV_EDGE_DISABLED;
         g_nav_halfedges[ edge_b ].flags |= NAV_EDGE_DISABLED;
     }
 
     s_nav_generation_diagnostics.dynamic_transition_portals++;
-    s_nav_generation_diagnostics.transition_portals_by_entity[ transition_entity_id ]++;
+    s_nav_generation_diagnostics.transition_portals_by_entity[ final_entity_id ]++;
 }
 
 /**
@@ -911,7 +930,22 @@ static bool AreHalfEdgesInCompatibleNavigationDomains( const int32_t edge_a, con
         return true;
     }
 
-    return entity_a == entity_b;
+    if ( entity_a == entity_b ) {
+        return true;
+    }
+
+    // Double doors are different entities but form a single physical surface.
+    // Allow them to connect if they are part of the same team.
+    svg_base_edict_t *edict_a = g_edicts[ entity_a ];
+    svg_base_edict_t *edict_b = g_edicts[ entity_b ];
+    if ( edict_a && edict_b && edict_a->teammaster && edict_a->teammaster == edict_b->teammaster ) {
+        return true;
+    }
+
+    // Allow doors and their linked areaportals to connect natively.
+    // (Areaportals are now ignored entirely during navmesh generation, so this hack is no longer needed.)
+
+    return false;
 }
 
 /**
@@ -1602,6 +1636,12 @@ void Nav_DoExtractionWork() {
         }
 
         if ( edict->model.ptr != nullptr && edict->model.size() >= 2 && edict->model[ 0 ] == '*' ) {
+            if ( edict->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ||
+                 edict->GetTypeInfo()->IsSubClassType<svg_func_door_rotating_t>() ) {
+                // Ignore physical door geometry so it doesn't carve a 3D footprint into the floor,
+                // which would result in multiple redundant portals. We will tag the natural BSP edge later.
+                continue;
+            }
             /**
             *	Resolve the network model handle to the zero-based BSP submodel index.
             *
@@ -1619,9 +1659,7 @@ void Nav_DoExtractionWork() {
                     const Vector3 offset = edict->currentOrigin;
                     
                     int32_t assigned_ent_id = ENTITYNUM_NONE;
-                    if (edict->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ||
-                        edict->GetTypeInfo()->IsSubClassType<svg_func_door_rotating_t>() ||
-                        edict->GetTypeInfo()->IsSubClassType<svg_func_wall_t>()) {
+                    if (edict->GetTypeInfo()->IsSubClassType<svg_func_wall_t>()) {
                         assigned_ent_id = i;
                     }
                     
@@ -3088,6 +3126,7 @@ void Nav_BuildHalfEdgeMesh() {
         face.center = poly.center;
         face.normal = poly.normal;
         face.entity_id = poly.entity_id;
+        face.transition_entity_id = poly.transition_entity_id;
         face.bsp_leaf_id = poly.bsp_leaf_id;
 		// Store the index of the first half-edge for this face
         face.first_edge_idx = g_nav_halfedges.size();
@@ -3699,11 +3738,75 @@ void Nav_BuildHalfEdgeMesh() {
 
     }
 
-    // Ensure only true portal pairs retain dynamic edge ownership and disabled-state flags.
-    for ( nav_halfedge_t &halfedge : g_nav_halfedges ) {
-        if ( halfedge.twin_idx == -1 ) {
+    // Preserve boundary edges that belong to transition-owned faces so the debug overlay
+    // can show door open/closed state directly on the navmesh itself.
+    for ( size_t edge_index = 0; edge_index < g_nav_halfedges.size(); ++edge_index ) {
+        nav_halfedge_t &halfedge = g_nav_halfedges[ edge_index ];
+        if ( halfedge.twin_idx != -1 ) {
+            continue;
+        }
+
+        const nav_face_t &face = g_nav_faces[ halfedge.face_idx ];
+        const int32_t face_entity_id = GetNavFaceOwningEntityId( face );
+        if ( face_entity_id != ENTITYNUM_NONE ) {
+            halfedge.edge_entity_id = face_entity_id;
+            RegisterNavEntityEdge( face_entity_id, static_cast<int32_t>( edge_index ) );
+            if ( IsDynamicTransitionEntityBlockingNavigation( face_entity_id ) ) {
+                halfedge.flags |= NAV_EDGE_DISABLED;
+            } else {
+                halfedge.flags &= ~NAV_EDGE_DISABLED;
+            }
+        } else {
             halfedge.edge_entity_id = ENTITYNUM_NONE;
             halfedge.flags &= ~NAV_EDGE_DISABLED;
+        }
+    }
+
+    /**
+    *   Find natural BSP twin edges that lie beneath functional doors and assign them as dynamic portal edges.
+    *   This provides a single clean edge for doors without extracting their 3D physical bounds.
+    **/
+    for ( int32_t i = 1; i < g_edict_pool.num_edicts; ++i ) {
+        svg_base_edict_t *edict = g_edicts[ i ];
+        if ( !edict || !SVG_Entity_IsActive( edict ) ) continue;
+
+        if ( edict->GetTypeInfo()->IsSubClassType<svg_func_door_t>() || edict->GetTypeInfo()->IsSubClassType<svg_func_door_rotating_t>() ) {
+            const int32_t entity_id = edict->teammaster ? edict->teammaster->s.number : i;
+            
+            // Expand the bounding box slightly to capture the underlying floor edge,
+            // taking into account that vertical rotating doors might have angled boxes.
+            Vector3 absMin = edict->absMin;
+            Vector3 absMax = edict->absMax;
+            absMin.x -= 4.0f; absMin.y -= 4.0f; absMin.z -= 8.0f;
+            absMax.x += 4.0f; absMax.y += 4.0f; absMax.z += 8.0f;
+            
+            for ( size_t edge_index = 0; edge_index < g_nav_halfedges.size(); ++edge_index ) {
+                nav_halfedge_t &halfedge = g_nav_halfedges[ edge_index ];
+                if ( halfedge.twin_idx == -1 ) continue;
+                if ( halfedge.edge_entity_id != ENTITYNUM_NONE ) continue;
+                
+                const Vector3 &v1 = g_nav_vertices[ halfedge.vertex_idx ];
+                const Vector3 &v2 = g_nav_vertices[ g_nav_halfedges[ halfedge.next_idx ].vertex_idx ];
+                
+                if ( v1.x >= absMin.x && v1.x <= absMax.x &&
+                     v1.y >= absMin.y && v1.y <= absMax.y &&
+                     v1.z >= absMin.z && v1.z <= absMax.z &&
+                     v2.x >= absMin.x && v2.x <= absMax.x &&
+                     v2.y >= absMin.y && v2.y <= absMax.y &&
+                     v2.z >= absMin.z && v2.z <= absMax.z ) {
+                    
+                    halfedge.edge_entity_id = entity_id;
+                    g_nav_halfedges[ halfedge.twin_idx ].edge_entity_id = entity_id;
+                    
+                    RegisterNavEntityEdge( entity_id, static_cast<int32_t>( edge_index ) );
+                    RegisterNavEntityEdge( entity_id, halfedge.twin_idx );
+                    
+                    if ( IsDynamicTransitionEntityBlockingNavigation( entity_id ) ) {
+                        halfedge.flags |= NAV_EDGE_DISABLED;
+                        g_nav_halfedges[ halfedge.twin_idx ].flags |= NAV_EDGE_DISABLED;
+                    }
+                }
+            }
         }
     }
 

@@ -537,6 +537,8 @@ DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_door_t, onOpenEndMove )( svg_f
 
     // Apply state.
     self->pushMoveInfo.state = DOOR_STATE_OPENED;
+    // If the door has its own nav edges, we clear them when it is open.
+    Nav_SetEntityEdgesState( self->s.number, NAV_EDGE_DISABLED, false );
     // Dispatch a lua signal.
     SVG_SignalOut( self, self->other, self->activator, "OnOpened" );
 
@@ -608,7 +610,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_func_door_t, onThink_CloseMove )( svg_func_doo
 	self->StartSoundPlayback();
 
     // The rotating door type is higher up the hierachy, so test for that first.
-    if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_t>( true ) ) {
+    if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_rotating_t>() ) {
         self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_CLOSED_STATE;
         self->CalculateAngularMove( reinterpret_cast<svg_pushmove_endcallback>( &svg_func_door_rotating_t::onCloseEndMove ) );
     } else if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
@@ -648,7 +650,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_func_door_t, onThink_OpenMove )( svg_func_door
         }
     }
 
-    if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_t>( true ) ) {
+    if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_rotating_t>() ) {
         self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_OPENED_STATE;
         self->CalculateAngularMove( reinterpret_cast<svg_pushmove_endcallback>( &svg_func_door_rotating_t::onOpenEndMove ) );
     } else if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
@@ -656,7 +658,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_func_door_t, onThink_OpenMove )( svg_func_door
         self->CalculateDirectionalMove( self->pushMoveInfo.endOrigin, reinterpret_cast<svg_pushmove_endcallback>( &svg_func_door_t::onOpenEndMove ) );
     }
 
-    // Dynamically clear the nav edges disabled flag as soon as the door begins to open.
+    // If the door has its own nav edges, we clear them when it starts opening.
     Nav_SetEntityEdgesState( self->s.number, NAV_EDGE_DISABLED, false );
 
     door_usetarget_update_hint( self );

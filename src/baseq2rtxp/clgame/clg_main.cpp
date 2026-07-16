@@ -603,7 +603,7 @@ void PF_InitGame( void ) {
 	clg_debug_pmove_changed_events = clgi.CVar_Get( "clg_debug_pmove_changed_events", "1", 0 );
 	#ifdef _DEBUG
 		clg_debug_draw = clgi.CVar_Get( SG_SVC_DEBUG_DRAW_CLIENT_CVAR_NAME, "1", CVAR_USERINFO | CVAR_ARCHIVE );
-		clg_debug_draw_entity_bounds = clgi.CVar_Get( "clg_debug_draw_entity_bounds", "0", CVAR_ARCHIVE );
+		clg_debug_draw_entity_bounds = clgi.CVar_Get( "clg_debug_draw_entity_bounds", "4", CVAR_ARCHIVE );
 		clg_debug_draw_skeletal_hitboxes = clgi.CVar_Get( "clg_debug_draw_skeletal_hitboxes", "0", CVAR_ARCHIVE );
 	#else
 		clg_debug_draw_entity_bounds = clgi.CVar_Get( "clg_debug_draw_entity_bounds", "0", CVAR_ARCHIVE );

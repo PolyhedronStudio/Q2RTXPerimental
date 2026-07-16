@@ -79,6 +79,8 @@ struct nav_face_t {
     int32_t bsp_leaf_id = -1;
     //! Entity ID this face belongs to (e.g. for doors), or ENTITYNUM_NONE if world.
     int32_t entity_id = ENTITYNUM_NONE;
+    //! Door entity that produced this face as a transition boundary, or ENTITYNUM_NONE if unrelated.
+    int32_t transition_entity_id = ENTITYNUM_NONE;
 };
 
 /**

@@ -33,11 +33,16 @@
 
 // TestDummy Monster
 #include "svgame/entities/monster/svg_monster_testdummy_debug.h"
+#include "svgame/entities/svg_pushmove_edict.h"
+#include "svgame/entities/func/svg_func_door.h"
+#include "svgame/entities/func/svg_func_door_rotating.h"
+#include "svgame/entities/func/svg_func_wall.h"
+#include "svgame/entities/func/svg_func_areaportal.h"
 
 // Navigation
 #include "svgame/nav/nav_path.h"
 
-static constexpr QMTime PATH_RECALC_INTERVAL_MS = 250_ms;
+static constexpr QMTime PATH_RECALC_INTERVAL_MS = 100_ms;
 
 
 
@@ -394,6 +399,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_monster_testdummy_debug_t, onSpawn )( svg_mons
 
 	// Clear any pending async navigation state so we start clean when spawned/activated.
 	self->ResetNavigationPath( );
+	//self->pathNavigationState.policy.include_water = false;
 }
 
 /**
@@ -625,6 +631,7 @@ DEFINE_MEMBER_CALLBACK_PAIN( svg_monster_testdummy_debug_t, onPain )( svg_monste
 
 
 /**
+*
 *
 *
 *
@@ -992,7 +999,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Idle )( svg
 	/**
 	*	Always look for the player(activator) so we can react immediately when they appear,
 	*   or pursue them continuously if we are activated.
-	**/
+**/
     if ( self->activator ) {
 		// Immediate action.
 		self->goalentity = self->activator;
@@ -1138,6 +1145,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Dead )( svg
 
 
 /**
+*
 *
 *
 *
@@ -1457,7 +1465,8 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
         return true;
     }
 
-    bool path_failed = !ComputePathTo( goalOrigin, force );
+    const PathComputeResult pathResult = ComputePathTo( goalOrigin, force );
+    bool path_failed = ( pathResult == PathComputeResult::Failed );
     
     // Dynamic Gap Jumping Check
     if ( pathNavigationState.policy.allow_gap_jumping ) {
@@ -1556,7 +1565,7 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
         // Face the goal even if pathing failed
 		Vector3 toGoal = goalOrigin - currentOrigin;
         toGoal.z = 0.0f;
-        if ( QM_Vector3LengthSqr( toGoal ) > 0.0001f ) {
+        if ( QM_Vector3LengthSqr( toGoal ) > 0.001f ) {
             Vector3 moveDir = QM_Vector3Normalize( toGoal );
             /**
             *	Decouple facing from raw movement direction so one-frame portal-side
@@ -1863,7 +1872,7 @@ const bool svg_monster_testdummy_debug_t::ShouldRecalcPath( const Vector3 &pos )
 /**
 *    @brief    Compute an A* path to the target origin.
 **/
-const bool svg_monster_testdummy_debug_t::ComputePathTo( const Vector3 &target, const bool force ) {
+svg_monster_testdummy_debug_t::PathComputeResult svg_monster_testdummy_debug_t::ComputePathTo( const Vector3 &target, const bool force ) {
     // Offset origins to feet level. The monster's center is 24-36 units in the air, which can cause
     // the system to mistakenly snap to a higher stair step if the monster is near a stair riser!
     Vector3 myFeet = currentOrigin;
@@ -1886,7 +1895,7 @@ const bool svg_monster_testdummy_debug_t::ComputePathTo( const Vector3 &target, 
         }
         ResetNavigationPath();
         lastPathCalcTime = level.time; // Debounce even on complete failure
-        return false; // BUGFIX: Halt if we can't find a valid starting or goal face, to prevent blind suicide steering.
+        return PathComputeResult::Failed; // BUGFIX: Halt if we can't find a valid starting or goal face, to prevent blind suicide steering.
     }
 
     if ( !force && !navPath.empty() ) {
@@ -1919,13 +1928,13 @@ const bool svg_monster_testdummy_debug_t::ComputePathTo( const Vector3 &target, 
             if ( goalFace == navPath.back() ) {
                 // Goal is in the exact same destination face. Hold path for up to 2 seconds.
                 if ( now - lastPathCalcTime.Milliseconds() < 2000 ) {
-                    return true;
+                    return PathComputeResult::ReusedCached;
                 }
             } else {
                 // Goal has moved to a different face. Hold path for up to 1 second
                 // to prevent twitching when the player just crosses a boundary.
                 if ( now - lastPathCalcTime.Milliseconds() < 1000 ) {
-                    return true;
+                    return PathComputeResult::ReusedCached;
                 }
             }
         }
@@ -1933,7 +1942,7 @@ const bool svg_monster_testdummy_debug_t::ComputePathTo( const Vector3 &target, 
 
     if ( !force && !ShouldRecalcPath( currentOrigin ) ) {
         // Throttle rapid recalculations when the path is invalid or empty.
-        return !navPath.empty(); 
+        return navPath.empty() ? PathComputeResult::Failed : PathComputeResult::ReusedCached; 
     }
     
     if ( Nav_FindPath( startFace, goalFace, navPath, pathNavigationState.policy ) ) {
@@ -1951,7 +1960,7 @@ const bool svg_monster_testdummy_debug_t::ComputePathTo( const Vector3 &target, 
 				}
 				ResetNavigationPath();
 				lastPathCalcTime = level.time;
-				return false;
+				return PathComputeResult::Failed;
 			}
 
 			const float width2D = static_cast<float>( QM_Vector2Distance( pv0, pv1 ) );
@@ -1962,7 +1971,7 @@ const bool svg_monster_testdummy_debug_t::ComputePathTo( const Vector3 &target, 
 				}
 				ResetNavigationPath();
 				lastPathCalcTime = level.time;
-				return false;
+				return PathComputeResult::Failed;
 			}
 		}
 
@@ -1980,11 +1989,11 @@ const bool svg_monster_testdummy_debug_t::ComputePathTo( const Vector3 &target, 
         if ( !Nav_StringPull( navPath, myFeet, targetFeet, agentRadius, stringPulledPath ) ) {
         	ResetNavigationPath();
         	lastPathCalcTime = level.time;
-        	return false;
+        	return PathComputeResult::Failed;
         }
 
         lastPathCalcTime = level.time;
-        return true;
+        return PathComputeResult::NewPathGenerated;
     }
     
     if ( DUMMY_NAV_DEBUG ) {
@@ -1993,7 +2002,7 @@ const bool svg_monster_testdummy_debug_t::ComputePathTo( const Vector3 &target, 
     ResetNavigationPath();
     lastPathCalcTime = level.time; // Prevent spamming failed paths every frame
     // BUGFIX: Return false when path completely fails so the monster halts instead of suiciding off a cliff!
-    return false; 
+    return PathComputeResult::Failed; 
 }
 
 /**

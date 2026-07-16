@@ -344,9 +344,18 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	const int32_t FindCurrentPoly();
 
 	/**
+	*   @brief  Path evaluation result states.
+	**/
+	enum class PathComputeResult {
+		Failed,                 // Path generation failed completely
+		ReusedCached,           // Reused the existing valid path (debounced)
+		NewPathGenerated        // Generated a brand new path successfully
+	};
+
+	/**
 	*	@brief	Compute an A* path to the target origin.
 	**/
-	const bool ComputePathTo( const Vector3 &target, const bool force = false );
+	PathComputeResult ComputePathTo( const Vector3 &target, const bool force = false );
 
 	/**
 	*    @brief    Get the next waypoint from the navigation path.

@@ -136,7 +136,29 @@ static void CLG_DebugDrawPacketEntityBounds( const centity_t *packetEntity ) {
 			center_y,
 			center_z + half_segment
 		};
-		clgi.R_DrawDebugCapsule( capsule_start, capsule_end, capsule_radius, U32_RED, 1.0f, 0.0f, 0 );
+		clgi.R_DrawDebugCapsule( capsule_start, capsule_end, capsule_radius, MakeColor( 255, 150, 100, 75 ), 2.0f, 2.0f, 0 );
+
+		// Use render-time lerped angles so the debug facing matches the visual orientation.
+		Vector3 facingForward = QM_Vector3Zero();
+		QM_AngleVectors( packetEntity->lerpAngles, &facingForward, nullptr, nullptr );
+
+		// Determine a robust origin near the entity center and a readable direction length.
+		const Vector3 center = QM_BBox3Center( { world_mins, world_maxs } );
+		const float max_half_size_xy = ( half_size_x > half_size_y ) ? half_size_x : half_size_y;
+		const float max_half_size_xyz = ( max_half_size_xy > half_size_z ) ? max_half_size_xy : half_size_z;
+		const float facing_length = ( ( max_half_size_xyz * 2.0f > 8.0f ) ? ( max_half_size_xyz * 2.0f ) : 8.0f ) / 2.0f;
+
+		// Build a world-space endpoint in the current facing direction.
+		const Vector3 facingTarget = {
+			center.x + ( facingForward.x * facing_length ),
+			center.y + ( facingForward.y * facing_length ),
+			center.z + ( facingForward.z * facing_length )
+		};
+
+		// Draw both a line and an arrow to make direction and heading immediately obvious.
+		clgi.R_DrawDebugLine( &center.x, &facingTarget.x, U32_WHITE, 1.0f, 2.0f, 0 );
+		// And an arrow for the facing ideal yaw!
+		clgi.R_DrawDebugArrow( &center.x, &facingTarget.x, facing_length / 4.0, U32_WHITE, 2.0f, 2.0f, 0 );
 	}
 
 	if ( clg_debug_draw_entity_bounds->integer == 5 ) {

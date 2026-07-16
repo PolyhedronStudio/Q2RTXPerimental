@@ -1,5 +1,6 @@
 #include "nav_thread.h"
 #include "nav_generate.h"
+#include "nav_path.h"
 
 //! Shared progress snapshot updated by the async generation worker.
 static nav_gen_progress_t s_gen_progress = {};
@@ -48,6 +49,9 @@ static void Nav_AsyncGenerationWork( void *arg ) {
 **/
 static void Nav_AsyncGenerationDone( void *arg ) {
 	(void)arg;
+
+	// Reapply mover/wall state after the mesh registry has been rebuilt.
+	Nav_ResyncDynamicEntityEdges();
 
 	// The worker is finished, so the progress snapshot can be marked idle.
 	s_gen_progress.is_generating = false;

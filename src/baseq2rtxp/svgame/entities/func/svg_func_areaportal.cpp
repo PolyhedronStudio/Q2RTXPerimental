@@ -9,6 +9,9 @@
 
 #include "svgame/entities/func/svg_func_entities.h"
 #include "svgame/entities/func/svg_func_areaportal.h"
+#include "svgame/entities/func/svg_func_door.h"
+#include "svgame/entities/func/svg_func_door_rotating.h"
+#include "svgame/nav/nav_path.h"
 
 
 
@@ -61,6 +64,19 @@ DEFINE_MEMBER_CALLBACK_USE( svg_func_areaportal_t, onUse )( svg_func_areaportal_
 	// Push derived boolean state into collision model.
 	gi.SetAreaPortalState( self->style, ( self->count > 0 ? 1 : 0 ) );
 
+	// Update navigation mesh edge states for the areaportal itself.
+	Nav_SetEntityEdgesState( self->s.number, NAV_EDGE_DISABLED, ( self->count <= 0 ) );
+
+    // Update navigation mesh edge states for any doors that target this areaportal.
+    if ( self->targetname ) {
+        svg_base_edict_t *door = nullptr;
+        while ( ( door = SVG_Entities_Find( door, q_offsetof( svg_base_edict_t, targetNames.target ), ( const char * )self->targetname ) ) ) {
+            if ( door->GetTypeInfo()->IsSubClassType<svg_func_door_t>() || door->GetTypeInfo()->IsSubClassType<svg_func_door_rotating_t>() ) {
+                Nav_SetEntityEdgesState( door->s.number, NAV_EDGE_DISABLED, ( self->count <= 0 ) );
+            }
+        }
+    }
+
 	// Re-link entity so server/client snapshots reflect the change.
 	gi.linkentity( self );
 }
@@ -71,6 +87,15 @@ DEFINE_MEMBER_CALLBACK_POSTSPAWN( svg_func_areaportal_t, onPostSpawn )( svg_func
 
 	// Apply initial refcount to collision model (boolean open/closed).
 	gi.SetAreaPortalState( self->style, ( self->count > 0 ? 1 : 0 ) );
+	Nav_SetEntityEdgesState( self->s.number, NAV_EDGE_DISABLED, ( self->count <= 0 ) );
+    if ( self->targetname ) {
+        svg_base_edict_t *door = nullptr;
+        while ( ( door = SVG_Entities_Find( door, q_offsetof( svg_base_edict_t, targetNames.target ), ( const char * )self->targetname ) ) ) {
+            if ( door->GetTypeInfo()->IsSubClassType<svg_func_door_t>() || door->GetTypeInfo()->IsSubClassType<svg_func_door_rotating_t>() ) {
+                Nav_SetEntityEdgesState( door->s.number, NAV_EDGE_DISABLED, ( self->count <= 0 ) );
+            }
+        }
+    }
 	gi.linkentity( self );
 
 	if ( svg_debug_areaportals->integer ) {

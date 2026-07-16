@@ -280,9 +280,8 @@ static void Nav_DebugDraw_TriangleFanForFace( const nav_face_t &face ) {
 		return;
 	}
 
-	// Determine whether to draw with depth testing.
-	const bool depthTest = ( s_nav_debug_tris && s_nav_debug_tris->value >= 2 );
-	sg_svc_debug_draw_style_flags_t styleFlags = ( depthTest ? SG_SVC_DEBUG_DRAW_STYLE_FLAG_DEPTH_TEST : SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE );
+	// Keep nav edge overlays visible even when they overlap world geometry.
+	sg_svc_debug_draw_style_flags_t styleFlags = SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE;
 
 	// Triangulate the face as a fan from the first vertex (v0)
 	const Vector3 v0 = g_nav_vertices[ g_nav_halfedges[ face.first_edge_idx ].vertex_idx ];
@@ -290,9 +289,9 @@ static void Nav_DebugDraw_TriangleFanForFace( const nav_face_t &face ) {
 		const nav_halfedge_t &he = g_nav_halfedges[ face.first_edge_idx + e ];
 		const Vector3 v1 = g_nav_vertices[ he.vertex_idx ];
 		const Vector3 v2 = g_nav_vertices[ g_nav_halfedges[ he.next_idx ].vertex_idx ];
-		SVG_Nav_DebugDraw_AddLine( v0, v1, TRIS_COLOR, styleFlags, 2, 0 );
-		SVG_Nav_DebugDraw_AddLine( v1, v2, TRIS_COLOR, styleFlags, 2, 0 );
-		SVG_Nav_DebugDraw_AddLine( v2, v0, TRIS_COLOR, styleFlags, 2, 0 );
+		SVG_Nav_DebugDraw_AddLine( v0, v1, TRIS_COLOR, styleFlags, 1, 1 );
+		SVG_Nav_DebugDraw_AddLine( v1, v2, TRIS_COLOR, styleFlags, 1, 1 );
+		SVG_Nav_DebugDraw_AddLine( v2, v0, TRIS_COLOR, styleFlags, 1, 1 );
 	}
 }
 #else
@@ -477,14 +476,15 @@ void SVG_Nav_DebugDraw() {
 				Vector3 start = g_nav_vertices[ he.vertex_idx ];
 				Vector3 end = g_nav_vertices[ g_nav_halfedges[ he.next_idx ].vertex_idx ];
 
-					// Determine whether to draw with depth testing.
-				const bool depthTest = ( s_nav_debug_tris && s_nav_debug_tris->value >= 2 );
-				sg_svc_debug_draw_style_flags_t styleFlags = ( depthTest ? SG_SVC_DEBUG_DRAW_STYLE_FLAG_DEPTH_TEST : SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE );
+				// Determine whether to draw with depth testing.
+				//const bool depthTest = ( s_nav_debug_tris && s_nav_debug_tris->value >= 2 );
+				sg_svc_debug_draw_style_flags_t styleFlags = SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE;//( depthTest ? SG_SVC_DEBUG_DRAW_STYLE_FLAG_DEPTH_TEST : SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE );
 
 				/**
-				*	Matching twin edge found, so we draw it with the polygon face debug color.
+				*	Matching transition-owned edge found via direct edge ownership or face transition ownership,
+				*	so we draw it with the door state color.
 				**/
-				if ( he.edge_entity_id != ENTITYNUM_NONE ) {
+				if ( he.edge_entity_id != ENTITYNUM_NONE || face.entity_id != ENTITYNUM_NONE || face.transition_entity_id != ENTITYNUM_NONE ) {
 					// Dynamic transition edges retain their state color whether or not a matching twin was found.
 					const uint32_t edgeColor = ( he.flags & NAV_EDGE_DISABLED ) != 0 ? EDGE_DISABLED_COLOR : EDGE_ENABLED_COLOR;
 					SVG_Nav_DebugDraw_AddLine( start, end, edgeColor, styleFlags, 2, 0 );

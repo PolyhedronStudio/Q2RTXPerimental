@@ -18,6 +18,7 @@
 #include "svgame/entities/svg_entities_pushermove.h"
 #include "svgame/entities/func/svg_func_door.h"
 #include "svgame/entities/func/svg_func_door_rotating.h"
+#include "svgame/nav/nav_path.h"
 
 
 
