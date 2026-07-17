@@ -411,8 +411,6 @@ DEFINE_MEMBER_CALLBACK_POSTSPAWN( svg_monster_testdummy_debug_t, onPostSpawn )( 
 		const cm_contents_t mask = SVG_GetClipMask( self );
 		M_CheckGround( self, mask );
 		M_droptofloor( self );
-
-
 	}
 }
 
@@ -1422,9 +1420,9 @@ static int32_t Dummy_FindClosestFaceInLeaf( const Vector3 &point ) {
 		*	leaf-local fallback face that is not a valid standable target.
 		**/
 		if ( Nav_PointInsideFace2D( point, face ) ) {
-			const Vector3 v0 = g_nav_vertices[ g_nav_halfedges[ face.first_edge_idx ].vertex_idx ];
-			const float planeDist = static_cast<float>( QM_Vector3DotProduct( v0, face.normal ) );
-			const float verticalDist = std::fabs( static_cast<float>( QM_Vector3DotProduct( point, face.normal ) ) - planeDist );
+			const Vector3DP v0 = g_nav_vertices[ g_nav_halfedges[ face.first_edge_idx ].vertex_idx ];
+			const float planeDist = static_cast<float>( QM_Vector3DotProductDP( v0, face.normal ) );
+			const float verticalDist = std::fabs( static_cast<float>( QM_Vector3DotProductDP( Vector3DP( point ), face.normal ) ) - planeDist );
 			if ( verticalDist <= 64.0f ) {
 				return leafFace;
 			}
@@ -2138,10 +2136,27 @@ const Vector3 svg_monster_testdummy_debug_t::NextWaypoint( const Vector3 &finalG
     bool needsStepUp = (targetZ - feetOriginZ) > 8.0f;
     bool hasSteppedUp = !needsStepUp || (feetOriginZ >= targetZ - 4.0f);
 
-    float advanceDist = ( needsStepUp ? 12.0f : 4.0f ); 
+    const float agentRadius = std::max( std::abs( this->mins.x ), std::abs( this->maxs.x ) );
+    float advanceDist = ( needsStepUp ? 12.0f : agentRadius ); 
     const float dist2DSqr = QM_Vector2DistanceSqr( currentOrigin, portalMidpoint );
 
-    if ( dist2DSqr < (advanceDist * advanceDist) ) {
+    // Check for overshoot: Did the entity pass the waypoint in the current frame?
+    // We check if the dot product of the direction to the waypoint and velocity is negative.
+    bool overshot = false;
+    Vector3 toPortal = portalMidpoint - currentOrigin;
+    toPortal.z = 0.0f;
+    if ( QM_Vector3LengthSqr( this->velocity ) > 1.0f ) {
+        Vector3 vel2D = this->velocity;
+        vel2D.z = 0.0f;
+        if ( QM_Vector3DotProduct( toPortal, vel2D ) < 0.0f ) {
+            // We passed it, but we should only consider it a valid overshoot if we were reasonably close
+            if ( dist2DSqr < ( advanceDist * advanceDist * 4.0f ) ) {
+                overshot = true;
+            }
+        }
+    }
+
+    if ( dist2DSqr < (advanceDist * advanceDist) || overshot ) {
         if ( hasSteppedUp || (feetOriginZ > portalMidpoint.z + NAV_MAX_STEP_SIZE) ) {
             ++stringPathPos;
             return NextWaypoint( finalGoal );

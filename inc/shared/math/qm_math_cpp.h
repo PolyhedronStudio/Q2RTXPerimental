@@ -753,6 +753,7 @@ struct qm_is_same_template_type<Type, Type> : std::true_type {};
 // Module Functions Definition - Vector3 (Class-)Function Implementations.
 //----------------------------------------------------------------------------------
 #include "shared/math/qm_vector3.h"
+#include "shared/math/qm_vector3_dp.h"
 
 const int32_t DirToByte( const Vector3 &dir );
 void ByteToDir( const int32_t index, Vector3 &dir );

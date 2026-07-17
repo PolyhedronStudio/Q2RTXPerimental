@@ -126,20 +126,20 @@ static Vector3 Nav_DebugBuildFeetOrigin( const svg_base_edict_t *actor ) {
 *	@param	point World-space query point.
 *	@return	Face id or -1 when no nav face exists.
 **/
-static int32_t Nav_DebugFindClosestFaceInLeaf( const Vector3 &point ) {
-	const int32_t leafFace = Nav_FindPolyInLeaf( point );
+static int32_t Nav_DebugFindClosestFaceInLeaf( const Vector3DP &point ) {
+const int32_t leafFace = Nav_FindPolyInLeaf( static_cast<Vector3>( point ) );
 	if ( leafFace >= 0 && static_cast< size_t >( leafFace ) < g_nav_faces.size() ) {
 		const nav_face_t &face = g_nav_faces[ leafFace ];
-		if ( Nav_PointInsideFace2D( point, face ) ) {
-			const Vector3 v0 = g_nav_vertices[ g_nav_halfedges[ face.first_edge_idx ].vertex_idx ];
-			const float planeDist = static_cast< float >( QM_Vector3DotProduct( v0, face.normal ) );
-			const float verticalDist = std::fabs( static_cast< float >( QM_Vector3DotProduct( point, face.normal ) ) - planeDist );
-			if ( verticalDist <= 64.0f ) {
+			if ( Nav_PointInsideFace2D( static_cast<Vector3>( point ), face ) ) {
+			const Vector3DP v0 = g_nav_vertices[ g_nav_halfedges[ face.first_edge_idx ].vertex_idx ];
+			const double planeDist = ( QM_Vector3DotProductDP( v0, face.normal ) );
+			const double verticalDist = std::abs( ( QM_Vector3DotProductDP( point, face.normal ) ) - planeDist );
+			if ( verticalDist <= 64.0 ) {
 				return leafFace;
 			}
 		}
 	}
-	return Nav_FindClosestPolyGlobal( point );
+	return Nav_FindClosestPolyGlobal( static_cast<Vector3>( point ) );
 }
 
 /**
@@ -163,7 +163,7 @@ static void Nav_DebugDrawTestRoute() {
 
 	Vector3 prev = s_nav_dbg_goal_a_origin;
 	if ( s_nav_dbg_goal_a_face >= 0 && static_cast< size_t >( s_nav_dbg_goal_a_face ) < g_nav_faces.size() ) {
-		prev = g_nav_faces[ s_nav_dbg_goal_a_face ].center;
+		prev = QM_Vector3FromDP( g_nav_faces[ s_nav_dbg_goal_a_face ].center );
 	}
 
 	for ( size_t i = 0; i < s_nav_dbg_test_path.size(); i++ ) {
@@ -171,7 +171,7 @@ static void Nav_DebugDrawTestRoute() {
 		if ( faceIdx < 0 || static_cast< size_t >( faceIdx ) >= g_nav_faces.size() ) {
 			continue;
 		}
-		const Vector3 point = g_nav_faces[ faceIdx ].center;
+		const Vector3 point = QM_Vector3FromDP( g_nav_faces[ faceIdx ].center );
 		SVG_Nav_DebugDraw_AddSphere( point, 4.0f, DEBUG_ROUTE_SPHERE_COLOR, SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE );
 		SVG_Nav_DebugDraw_AddLine( prev, point, U32_MAGENTA, SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE );
 		prev = point;
@@ -179,7 +179,7 @@ static void Nav_DebugDrawTestRoute() {
 
 	Vector3 endPoint = s_nav_dbg_goal_b_origin;
 	if ( s_nav_dbg_goal_b_face >= 0 && static_cast< size_t >( s_nav_dbg_goal_b_face ) < g_nav_faces.size() ) {
-		endPoint = g_nav_faces[ s_nav_dbg_goal_b_face ].center;
+		endPoint = QM_Vector3FromDP( g_nav_faces[ s_nav_dbg_goal_b_face ].center );
 	}
 	SVG_Nav_DebugDraw_AddLine( prev, endPoint, U32_MAGENTA, SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE );
 }
@@ -193,7 +193,7 @@ void Nav_DebugSetGoalACommand( void ) {
 
 	const Vector3 playerCenter = player->currentOrigin;
 	s_nav_dbg_goal_a_origin = Nav_DebugBuildFeetOrigin( player );
-	s_nav_dbg_goal_a_face = Nav_DebugFindClosestFaceInLeaf( s_nav_dbg_goal_a_origin );
+	s_nav_dbg_goal_a_face = Nav_DebugFindClosestFaceInLeaf( Vector3DP( s_nav_dbg_goal_a_origin ) );
 	s_nav_dbg_has_goal_a = true;
 	s_nav_dbg_has_test_path = false;
 	s_nav_dbg_test_path.clear();
@@ -211,7 +211,7 @@ void Nav_DebugSetGoalBCommand( void ) {
 
 	const Vector3 playerCenter = player->currentOrigin;
 	s_nav_dbg_goal_b_origin = Nav_DebugBuildFeetOrigin( player );
-	s_nav_dbg_goal_b_face = Nav_DebugFindClosestFaceInLeaf( s_nav_dbg_goal_b_origin );
+	s_nav_dbg_goal_b_face = Nav_DebugFindClosestFaceInLeaf( Vector3DP( s_nav_dbg_goal_b_origin ) );
 	s_nav_dbg_has_goal_b = true;
 	s_nav_dbg_has_test_path = false;
 	s_nav_dbg_test_path.clear();
@@ -259,7 +259,7 @@ static void RecursiveDrawNodes( int32_t nodeIndex, const Vector3 &playerPos, flo
 	if ( s_nav_debug_nodes && s_nav_debug_nodes->value != 0 ) {
 		// Only draw leaf nodes to avoid overlapping AABB slivers from parent volumes
 		if ( node.left_child == -1 && node.right_child == -1 ) {
-			SVG_Nav_DebugDraw_AddAabb( node.mins, node.maxs, KDTREE_COLOR );
+			SVG_Nav_DebugDraw_AddAabb( static_cast<Vector3>( node.mins ), static_cast<Vector3>( node.maxs ), KDTREE_COLOR );
 		}
 	}
 
@@ -284,11 +284,11 @@ static void Nav_DebugDraw_TriangleFanForFace( const nav_face_t &face ) {
 	sg_svc_debug_draw_style_flags_t styleFlags = SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE;
 
 	// Triangulate the face as a fan from the first vertex (v0)
-	const Vector3 v0 = g_nav_vertices[ g_nav_halfedges[ face.first_edge_idx ].vertex_idx ];
+	const Vector3 v0 = static_cast<Vector3>( g_nav_vertices[ g_nav_halfedges[ face.first_edge_idx ].vertex_idx ] );
 	for ( int32_t e = 1; e < face.num_edges - 1; e++ ) {
 		const nav_halfedge_t &he = g_nav_halfedges[ face.first_edge_idx + e ];
-		const Vector3 v1 = g_nav_vertices[ he.vertex_idx ];
-		const Vector3 v2 = g_nav_vertices[ g_nav_halfedges[ he.next_idx ].vertex_idx ];
+		const Vector3 v1 = static_cast<Vector3>( g_nav_vertices[ he.vertex_idx ] );
+		const Vector3 v2 = static_cast<Vector3>( g_nav_vertices[ g_nav_halfedges[ he.next_idx ].vertex_idx ] );
 		SVG_Nav_DebugDraw_AddLine( v0, v1, TRIS_COLOR, styleFlags, 1, 1 );
 		SVG_Nav_DebugDraw_AddLine( v1, v2, TRIS_COLOR, styleFlags, 1, 1 );
 		SVG_Nav_DebugDraw_AddLine( v2, v0, TRIS_COLOR, styleFlags, 1, 1 );
@@ -444,7 +444,7 @@ void SVG_Nav_DebugDraw() {
 			const nav_face_t &face = g_nav_faces[ i ];
 
 			// Simple distance check
-			if ( QM_Vector3DistanceSqr( face.center, player->currentOrigin ) > ( s_nav_debug_draw_radius->value * s_nav_debug_draw_radius->value ) ) {
+			if ( QM_Vector3DistanceSqrDP( face.center, Vector3DP( player->currentOrigin ) ) > ( s_nav_debug_draw_radius->value * s_nav_debug_draw_radius->value ) ) {
 				continue;
 			}
 			/**
@@ -473,8 +473,8 @@ void SVG_Nav_DebugDraw() {
 				const nav_halfedge_t &he = g_nav_halfedges[ face.first_edge_idx + e ];
 
 				// Store the start and end vertices of the edge for drawing.
-				Vector3 start = g_nav_vertices[ he.vertex_idx ];
-				Vector3 end = g_nav_vertices[ g_nav_halfedges[ he.next_idx ].vertex_idx ];
+				Vector3 start = static_cast<Vector3>(g_nav_vertices[ he.vertex_idx ]);
+				Vector3 end = static_cast<Vector3>(g_nav_vertices[ g_nav_halfedges[ he.next_idx ].vertex_idx ]);
 
 				// Determine whether to draw with depth testing.
 				//const bool depthTest = ( s_nav_debug_tris && s_nav_debug_tris->value >= 2 );

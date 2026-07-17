@@ -538,7 +538,15 @@ DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_door_t, onOpenEndMove )( svg_f
     // Apply state.
     self->pushMoveInfo.state = DOOR_STATE_OPENED;
     // If the door has its own nav edges, we clear them when it is open.
-    Nav_SetEntityEdgesState( self->s.number, NAV_EDGE_DISABLED, false );
+    // For drawbridges, when they are OPEN they act as a wall/blocker, so edges must be disabled!
+    bool disableEdgesWhenOpen = false;
+    if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_rotating_t>() ) {
+        if ( self->spawnflags & ( svg_func_door_rotating_t::SPAWNFLAG_X_AXIS | svg_func_door_rotating_t::SPAWNFLAG_Y_AXIS ) ) {
+            disableEdgesWhenOpen = true;
+        }
+    }
+    Nav_SetEntityEdgesState( self->s.number, NAV_EDGE_DISABLED, disableEdgesWhenOpen );
+
     // Dispatch a lua signal.
     SVG_SignalOut( self, self->other, self->activator, "OnOpened" );
 
@@ -581,7 +589,14 @@ DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_door_t, onCloseEndMove )( svg_
     SVG_SignalOut( self, self->other, self->activator, "OnClosed" );
 
     // Dynamically set the nav edges disabled flag as soon as the door finishes closing.
-    Nav_SetEntityEdgesState( self->s.number, NAV_EDGE_DISABLED, true );
+    // For drawbridges (X/Y axis rotating doors), closing means they are flat on the ground and walkable, so they remain enabled.
+    bool disableEdgesWhenClosed = true;
+    if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_rotating_t>() ) {
+        if ( self->spawnflags & ( svg_func_door_rotating_t::SPAWNFLAG_X_AXIS | svg_func_door_rotating_t::SPAWNFLAG_Y_AXIS ) ) {
+            disableEdgesWhenClosed = false;
+        }
+    }
+    Nav_SetEntityEdgesState( self->s.number, NAV_EDGE_DISABLED, disableEdgesWhenClosed );
 
     // Canonical areaportal: release only when fully closed (team master only),
     // and only if this door team previously acquired a ref.

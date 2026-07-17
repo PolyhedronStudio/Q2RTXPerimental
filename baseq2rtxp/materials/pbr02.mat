@@ -39,19 +39,21 @@ textures/pbr02/crate00:
     kind CHROME
 	texture_base textures/pbr02/crate00.tga
 	texture_normals textures/pbr02/crate00_n.tga
-	base_factor 2.5
+	base_factor 1.0
 	bump_scale 1.0
-    metalness_factor 0.8
+    metalness_factor 0.0
     emissive_factor 0.0
-	specular_factor 0.1375
-    roughness_override 0.3
+	specular_factor 0.1750
+    roughness_override -1.0
 
 textures/pbr02/ground00:
 	texture_base textures/pbr02/ground00.tga
 	texture_normals textures/pbr02/ground00_n.tga
-	base_factor 1.0
+	base_factor 2.5
 	bump_scale 1.0
+	metalness_factor 0.0
 	specular_factor 0.175
+	roughness_override -1.0
 
 textures/pbr02/metal00_dented:
     kind CHROME

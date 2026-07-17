@@ -35,77 +35,81 @@ static bool Nav_ComputePortalOverlapSegment( const nav_halfedge_t &he, const nav
 		// Keep unrelated dynamic fragments from acting like a real traversable portal.
 		return false;
 	}
-	const float face_normal_length = QM_Vector3Length( face.normal );
-	const float neighbor_normal_length = QM_Vector3Length( neighbor_face.normal );
+	const float face_normal_length = QM_Vector3LengthDP( face.normal );
+	const float neighbor_normal_length = QM_Vector3LengthDP( neighbor_face.normal );
 	if ( face.normal.z < NAV_MIN_WALKABLE_Z || neighbor_face.normal.z < NAV_MIN_WALKABLE_Z ||
 		face_normal_length <= 0.001f || neighbor_normal_length <= 0.001f ) {
 		return false;
 	}
-	const float normal_alignment = QM_Vector3DotProduct( face.normal, neighbor_face.normal ) /
+	const float normal_alignment = QM_Vector3DotProductDP( face.normal, neighbor_face.normal ) /
 		( face_normal_length * neighbor_normal_length );
 	if ( normal_alignment < 0.0f ) {
 		return false;
 	}
 
-	const Vector3 a0 = g_nav_vertices[ he.vertex_idx ];
-	const Vector3 a1 = g_nav_vertices[ g_nav_halfedges[ he.next_idx ].vertex_idx ];
-	const Vector3 b0 = g_nav_vertices[ twin.vertex_idx ];
-	const Vector3 b1 = g_nav_vertices[ g_nav_halfedges[ twin.next_idx ].vertex_idx ];
+	const Vector3DP a0 = g_nav_vertices[ he.vertex_idx ];
+	const Vector3DP a1 = g_nav_vertices[ g_nav_halfedges[ he.next_idx ].vertex_idx ];
+	const Vector3DP b0 = g_nav_vertices[ twin.vertex_idx ];
+	const Vector3DP b1 = g_nav_vertices[ g_nav_halfedges[ twin.next_idx ].vertex_idx ];
 
-	Vector3 aDir2D = a1 - a0;
-	aDir2D.z = 0.0f;
-	const float aLen = QM_Vector3Length( aDir2D );
-	if ( aLen <= 0.0001f ) {
+	Vector3DP aDir2D = a1 - a0;
+	aDir2D.z = 0.0;
+	const double aLen = QM_Vector3LengthDP( aDir2D );
+	if ( aLen <= 0.0001 ) {
 		return false;
 	}
-	aDir2D = aDir2D * ( 1.0f / aLen );
-	const float lateral0 = std::fabs( aDir2D.x * ( b0.y - a0.y ) - aDir2D.y * ( b0.x - a0.x ) );
-	const float lateral1 = std::fabs( aDir2D.x * ( b1.y - a0.y ) - aDir2D.y * ( b1.x - a0.x ) );
-	if ( lateral0 > 0.5f || lateral1 > 0.5f ) {
-		return false;
-	}
-
-	Vector3 bDir2D = b1 - b0;
-	bDir2D.z = 0.0f;
-	const float bLen = QM_Vector3Length( bDir2D );
-	if ( bLen <= 0.0001f ) {
-		return false;
-	}
-	bDir2D = bDir2D * ( 1.0f / bLen );
-	const float edge_direction_alignment = QM_Vector3DotProduct( aDir2D, bDir2D );
-	if ( std::fabs( edge_direction_alignment ) < 0.95f ) {
+	aDir2D = aDir2D * ( 1.0 / aLen );
+	const double lateral0 = std::fabs( aDir2D.x * ( b0.y - a0.y ) - aDir2D.y * ( b0.x - a0.x ) );
+	const double lateral1 = std::fabs( aDir2D.x * ( b1.y - a0.y ) - aDir2D.y * ( b1.x - a0.x ) );
+	if ( lateral0 > 0.5 || lateral1 > 0.5 ) {
 		return false;
 	}
 
-	auto projectOnA = [&]( const Vector3 &p ) -> float {
-		Vector3 ap = p - a0;
-		ap.z = 0.0f;
-		return static_cast< float >( QM_Vector3DotProduct( ap, aDir2D ) );
+	Vector3DP bDir2D = b1 - b0;
+	bDir2D.z = 0.0;
+	const double bLen = QM_Vector3LengthDP( bDir2D );
+	if ( bLen <= 0.0001 ) {
+		return false;
+	}
+	bDir2D = bDir2D * ( 1.0 / bLen );
+	const double edge_direction_alignment = QM_Vector3DotProductDP( aDir2D, bDir2D );
+	if ( std::fabs( edge_direction_alignment ) < 0.95 ) {
+		return false;
+	}
+
+	auto projectOnA = [&]( const Vector3DP &p ) -> double {
+		Vector3DP ap = p - a0;
+		ap.z = 0.0;
+		return QM_Vector3DotProductDP( ap, aDir2D );
 		};
 
-	const float u0 = projectOnA( b0 );
-	const float u1 = projectOnA( b1 );
-	const float bMin = std::min( u0, u1 );
-	const float bMax = std::max( u0, u1 );
-	const float overlapStart = std::max( 0.0f, bMin );
-	const float overlapEnd = std::min( aLen, bMax );
-	const float overlapLen = overlapEnd - overlapStart;
-	if ( overlapLen < 0.1f ) {
+	const double u0 = projectOnA( b0 );
+	const double u1 = projectOnA( b1 );
+	const double bMin = std::min( u0, u1 );
+	const double bMax = std::max( u0, u1 );
+	const double overlapStart = std::max( 0.0, bMin );
+	const double overlapEnd = std::min( aLen, bMax );
+	const double overlapLen = overlapEnd - overlapStart;
+	if ( overlapLen < 0.1 ) {
 		return false;
 	}
 
-	const float t0 = QM_Clamp( overlapStart / aLen, 0.0f, 1.0f );
-	const float t1 = QM_Clamp( overlapEnd / aLen, 0.0f, 1.0f );
-	Vector3 seg0 = QM_Vector3MultiplyAdd( a0, t0, ( a1 - a0 ) );
-	Vector3 seg1 = QM_Vector3MultiplyAdd( a0, t1, ( a1 - a0 ) );
+	const double t0 = QM_Clamp( overlapStart / aLen, 0.0, 1.0 );
+	const double t1 = QM_Clamp( overlapEnd / aLen, 0.0, 1.0 );
+	Vector3DP seg0_dp = a0 + ( a1 - a0 ) * t0;
+	Vector3DP seg1_dp = a0 + ( a1 - a0 ) * t1;
+	Vector3 seg0 = static_cast<Vector3>( seg0_dp );
+	Vector3 seg1 = static_cast<Vector3>( seg1_dp );
 
-	const Vector3 bMinPoint = ( u0 <= u1 ) ? b0 : b1;
-	const Vector3 bMaxPoint = ( u0 <= u1 ) ? b1 : b0;
-	const float bSpan = std::max( 0.0001f, bMax - bMin );
-	const float bt0 = QM_Clamp( ( overlapStart - bMin ) / bSpan, 0.0f, 1.0f );
-	const float bt1 = QM_Clamp( ( overlapEnd - bMin ) / bSpan, 0.0f, 1.0f );
-	const Vector3 bSeg0 = QM_Vector3MultiplyAdd( bMinPoint, bt0, ( bMaxPoint - bMinPoint ) );
-	const Vector3 bSeg1 = QM_Vector3MultiplyAdd( bMinPoint, bt1, ( bMaxPoint - bMinPoint ) );
+	const Vector3DP bMinPoint = ( u0 <= u1 ) ? b0 : b1;
+	const Vector3DP bMaxPoint = ( u0 <= u1 ) ? b1 : b0;
+	const double bSpan = std::max( 0.0001, bMax - bMin );
+	const double bt0 = QM_Clamp( ( overlapStart - bMin ) / bSpan, 0.0, 1.0 );
+	const double bt1 = QM_Clamp( ( overlapEnd - bMin ) / bSpan, 0.0, 1.0 );
+	Vector3DP bSeg0_dp = bMinPoint + ( bMaxPoint - bMinPoint ) * bt0;
+	Vector3DP bSeg1_dp = bMinPoint + ( bMaxPoint - bMinPoint ) * bt1;
+	const Vector3 bSeg0 = static_cast<Vector3>( bSeg0_dp );
+	const Vector3 bSeg1 = static_cast<Vector3>( bSeg1_dp );
 
 	// Portal queries are directional.  Use the destination edge's height so
 	// stair transitions steer toward the receiving walk surface instead of
@@ -228,17 +232,17 @@ bool Nav_PointInsideFace2D( const Vector3 &point, const nav_face_t &face ) {
 	float windingSign = 0.0f;
 	for ( int32_t e = 0; e < face.num_edges; e++ ) {
 		const nav_halfedge_t &he = g_nav_halfedges[ face.first_edge_idx + e ];
-		const Vector3 a = g_nav_vertices[ he.vertex_idx ];
-		const Vector3 b = g_nav_vertices[ g_nav_halfedges[ he.next_idx ].vertex_idx ];
+		const Vector3DP a = g_nav_vertices[ he.vertex_idx ];
+		const Vector3DP b = g_nav_vertices[ g_nav_halfedges[ he.next_idx ].vertex_idx ];
 
 		// Compare the point against the edge in XY space.
-		const Vector3 edge = b - a;
-		const Vector3 toPoint = point - a;
-		const float cross2d = edge.x * toPoint.y - edge.y * toPoint.x;
+		const Vector3DP edge = b - a;
+		const Vector3DP toPoint = Vector3DP(point) - a;
+		const double cross2d = edge.x * toPoint.y - edge.y * toPoint.x;
 
 		// Keep a tolerance so small wall-adjacent offsets still count as inside.
-		const float edgeLen = std::sqrt( edge.x * edge.x + edge.y * edge.y );
-		if ( std::fabs( cross2d ) <= 24.0f * edgeLen ) {
+		const double edgeLen = std::sqrt( edge.x * edge.x + edge.y * edge.y );
+		if ( std::fabs( cross2d ) <= 24.0 * edgeLen ) {
 			continue;
 		}
 		const float edgeSign = ( cross2d > 0.0f ) ? 1.0f : -1.0f;
@@ -271,9 +275,9 @@ int32_t Nav_FindClosestPolyGlobal( const Vector3 &point ) {
 		const nav_face_t &face = g_nav_faces[ i ];
 
 		// Measure vertical distance to the face plane for the inside test.
-		const Vector3 v0 = g_nav_vertices[ g_nav_halfedges[ face.first_edge_idx ].vertex_idx ];
-		const float plane_dist = static_cast< float >( QM_Vector3DotProduct( v0, face.normal ) );
-		const float d = std::fabs( static_cast< float >( QM_Vector3DotProduct( point, face.normal ) ) - plane_dist );
+		const Vector3DP v0 = g_nav_vertices[ g_nav_halfedges[ face.first_edge_idx ].vertex_idx ];
+		const float plane_dist = static_cast< float >( QM_Vector3DotProductDP( v0, face.normal ) );
+		const float d = std::fabs( static_cast< float >( QM_Vector3DotProductDP( Vector3DP( point ), face.normal ) ) - plane_dist );
 
 		if ( d < bestInsideDist && Nav_PointInsideFace2D( point, face ) ) {
 			bestInsideDist = d;
@@ -328,9 +332,9 @@ int32_t Nav_FindPolyInLeaf( const Vector3 &point ) {
 		}
 
 		const nav_face_t &face = g_nav_faces[ faceIdx ];
-		const Vector3 v0 = g_nav_vertices[ g_nav_halfedges[ face.first_edge_idx ].vertex_idx ];
-		const float plane_dist = static_cast< float >( QM_Vector3DotProduct( v0, face.normal ) );
-		const float d = std::fabs( static_cast< float >( QM_Vector3DotProduct( point, face.normal ) ) - plane_dist );
+		const Vector3DP v0 = g_nav_vertices[ g_nav_halfedges[ face.first_edge_idx ].vertex_idx ];
+		const float plane_dist = static_cast< float >( QM_Vector3DotProductDP( v0, face.normal ) );
+		const float d = std::fabs( static_cast< float >( QM_Vector3DotProductDP( Vector3DP( point ), face.normal ) ) - plane_dist );
 
 		if ( d < bestInsideDist && Nav_PointInsideFace2D( point, face ) ) {
 			bestInsideDist = d;
@@ -390,9 +394,8 @@ bool Nav_GetPortalEndpoints( int32_t faceA, int32_t faceB, Vector3 *outV0, Vecto
 		}
 
 		// A portal is usable only when the two half-edges have a real overlap.
-		// Returning the full source edge here makes path width and steering disagree
-		// with the twin topology, especially on fragmented stair edges.
-		return false;
+		// If this fragment is invalid (e.g., degenerate float split), continue checking other shared edges.
+		continue;
 	}
 
 	return false;
@@ -441,7 +444,7 @@ bool Nav_FindPath( int32_t startFace, int32_t goalFace, std::vector<int32_t> &ou
 	// Seed the search from the start face.
 	gScore[ startFace ] = 0.0f;
 	auto Heuristic = []( int32_t a, int32_t b ) {
-		return static_cast< float >( QM_Vector3Distance( g_nav_faces[ a ].center, g_nav_faces[ b ].center ) );
+		return static_cast< float >( QM_Vector3DistanceDP( g_nav_faces[ a ].center, g_nav_faces[ b ].center ) );
 		};
 	openSet.push( { startFace, Heuristic( startFace, goalFace ) } );
 
@@ -514,7 +517,9 @@ if ( dz < -policy.max_drop_height ) {
 }
 
 // Penalize vertical motion so flat routes stay preferred when they are reasonable.
-const float dist2D = static_cast<float>( QM_Vector2Distance( face.center, neighborFace.center ) );
+const double dx = face.center.x - neighborFace.center.x;
+const double dy = face.center.y - neighborFace.center.y;
+const float dist2D = static_cast<float>( std::sqrt( dx * dx + dy * dy ) );
 const float distZ = std::abs( face.center.z - neighborFace.center.z );
 	const float tentative_gScore = gScore[ current ] + dist2D + distZ;
 
@@ -649,7 +654,7 @@ bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3 &startPos, 
 			portals.push_back( { left, right } );
 		} else {
 			// Fallback: If no portal connects them, use the face center.
-			const Vector3 center = g_nav_faces[ face_idx ].center;
+			const Vector3 center = static_cast<Vector3>( g_nav_faces[ face_idx ].center );
 			portals.push_back( { center, center } );
 		}
 	}

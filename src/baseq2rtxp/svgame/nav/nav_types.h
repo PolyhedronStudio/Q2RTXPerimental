@@ -3,7 +3,7 @@
 #include "nav_core.h"
 #include "nav_containers.h"
 
-#pragma pack(push, 1)
+//#pragma pack(push, 1)
 
 /**
 * @brief Convex polygon extracted from a BSP walkable surface.
@@ -15,11 +15,11 @@ struct nav_poly_t {
     //! Number of valid vertices stored in vertices.
     int32_t num_vertices = 0;
     //! Polygon vertices in winding order.
-    Vector3 vertices[ 1024 ] = {};
+    Vector3DP vertices[ 1024 ] = {};
     //! Polygon centroid used for partitioning and path queries.
-    Vector3 center = {};
+	Vector3DP center = {};
     //! Polygon plane normal.
-    Vector3 normal = {};
+	Vector3DP normal = {};
     //! BSP leaf that originally contributed this polygon.
     int32_t bsp_leaf_id = -1;
     //! Entity ID this polygon belongs to (e.g. for doors), or ENTITYNUM_NONE if world.
@@ -41,9 +41,9 @@ struct nav_halfedge_t {
     //! Face that owns this half-edge.
     int32_t face_idx = -1;
     //! Vertical difference between this edge and its twin edge.
-    float z_diff = 0.0f;
+    double z_diff = 0.0;
     //! If this edge is a boundary, how much was it pushed inward from the original geometry (metadata for runtime inspections).
-    float wall_offset = 0.0f;
+	double wall_offset = 0.0;
     //! Entity ID of the door this edge transitions into, or ENTITYNUM_NONE.
     int32_t edge_entity_id = ENTITYNUM_NONE;
     //! Bitmask for dynamic states (e.g., NAV_EDGE_DISABLED).
@@ -70,11 +70,11 @@ struct nav_face_t {
     //! Number of half-edges in the face loop.
     int32_t num_edges = 0;
     //! Face centroid.
-    Vector3 center = {};
+	Vector3DP center = {};
     //! Face plane normal.
-    Vector3 normal = {};
+	Vector3DP normal = {};
     //! Approximate clearance radius measured from the centroid.
-    float clearance = 0.0f;
+	double clearance = 0.0;
     //! BSP leaf that contributed this face.
     int32_t bsp_leaf_id = -1;
     //! Entity ID this face belongs to (e.g. for doors), or ENTITYNUM_NONE if world.
@@ -89,9 +89,9 @@ struct nav_face_t {
 **/
 struct nav_kdtree_node_t {
     //! Minimum bounds for this node.
-    Vector3 mins = {};
+	Vector3DP mins = {};
     //! Maximum bounds for this node.
-    Vector3 maxs = {};
+	Vector3DP maxs = {};
     //! First face index for leaf nodes, or -1 for internal nodes.
     int32_t first_face_id = -1;
     //! Number of faces stored in this leaf node.
@@ -143,4 +143,4 @@ struct nav_header_t {
     int32_t num_leaf_face_ids = 0;
 };
 
-#pragma pack(pop)
+//#pragma pack(pop)

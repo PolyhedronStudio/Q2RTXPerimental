@@ -14,7 +14,7 @@
 #include "svg_mmove_slidemove.h"
 
 #ifndef SVG_DEBUG_STAIR_TRACES
-#define SVG_DEBUG_STAIR_TRACES 0
+//#define SVG_DEBUG_STAIR_TRACES 0
 #endif
 
 #if defined( SVG_DEBUG_STAIR_TRACES )

@@ -142,7 +142,7 @@ void Nav_SetEntityEdgesState( int32_t entity_id, uint32_t flags, bool enable );
 extern nav_vector_t<nav_poly_t> g_nav_polys;
 
 //! Half-edge mesh global vertices data
-extern std::vector<Vector3> g_nav_vertices;
+extern std::vector<Vector3DP> g_nav_vertices;
 //! Half-edge mesh global half-edges data
 extern std::vector<nav_halfedge_t> g_nav_halfedges;
 //! Entity to half-edge mapping table for O(1) dynamic edge updates.
