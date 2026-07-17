@@ -369,7 +369,6 @@ int32_t Nav_FindPolyInLeaf( const Vector3 &point ) {
 * @return True if a shared edge was identified.
 **/
 bool Nav_GetPortalEndpoints( int32_t faceA, int32_t faceB, Vector3 *outV0, Vector3 *outV1 ) {
-// Validate inputs before touching the mesh arrays.
 	if ( outV0 == nullptr || outV1 == nullptr || faceA < 0 || faceB < 0 ||
 		static_cast< size_t >( faceA ) >= g_nav_faces.size() ||
 		static_cast< size_t >( faceB ) >= g_nav_faces.size() ) {
@@ -377,6 +376,13 @@ bool Nav_GetPortalEndpoints( int32_t faceA, int32_t faceB, Vector3 *outV0, Vecto
 	}
 
 	const nav_face_t &fA = g_nav_faces[ faceA ];
+	bool found_any = false;
+	Vector3DP base_v0, base_v1;
+	Vector3DP merged_v0, merged_v1;
+	Vector3DP line_dir;
+	double min_t = 0.0;
+	double max_t = 0.0;
+
 	for ( int32_t e = 0; e < fA.num_edges; ++e ) {
 		const nav_halfedge_t &he = g_nav_halfedges[ fA.first_edge_idx + e ];
 		if ( he.twin_idx == -1 ) {
@@ -388,14 +394,46 @@ bool Nav_GetPortalEndpoints( int32_t faceA, int32_t faceB, Vector3 *outV0, Vecto
 			continue;
 		}
 
-		// Use only the true overlap span so runtime steering matches twin-link topology.
-		if ( Nav_ComputePortalOverlapSegment( he, twin, outV0, outV1, nullptr ) ) {
-			return true;
-		}
+		Vector3 temp_v0_f32, temp_v1_f32;
+		if ( Nav_ComputePortalOverlapSegment( he, twin, &temp_v0_f32, &temp_v1_f32, nullptr ) ) {
+			Vector3DP temp_v0 = Vector3DP( temp_v0_f32 );
+			Vector3DP temp_v1 = Vector3DP( temp_v1_f32 );
+			if ( !found_any ) {
+				found_any = true;
+				base_v0 = temp_v0;
+				base_v1 = temp_v1;
+				merged_v0 = temp_v0;
+				merged_v1 = temp_v1;
 
-		// A portal is usable only when the two half-edges have a real overlap.
-		// If this fragment is invalid (e.g., degenerate float split), continue checking other shared edges.
-		continue;
+				line_dir = base_v1 - base_v0;
+				double lenSqr = line_dir.x * line_dir.x + line_dir.y * line_dir.y + line_dir.z * line_dir.z;
+				if ( lenSqr > 0.0001 ) {
+					line_dir = line_dir * ( 1.0 / std::sqrt( lenSqr ) );
+					max_t = std::sqrt( lenSqr );
+				} else {
+					line_dir = Vector3DP( 1.0, 0.0, 0.0 ); // Fallback (should never happen due to >0.1 check in Compute)
+					max_t = 0.0;
+				}
+			} else {
+				// Project temp_v0 and temp_v1 onto the line defined by base_v0 and line_dir
+				double t0 = QM_Vector3DotProductDP( temp_v0 - base_v0, line_dir );
+				double t1 = QM_Vector3DotProductDP( temp_v1 - base_v0, line_dir );
+
+				if ( t0 < min_t ) min_t = t0;
+				if ( t0 > max_t ) max_t = t0;
+				if ( t1 < min_t ) min_t = t1;
+				if ( t1 > max_t ) max_t = t1;
+
+				merged_v0 = base_v0 + line_dir * min_t;
+				merged_v1 = base_v0 + line_dir * max_t;
+			}
+		}
+	}
+
+	if ( found_any ) {
+		*outV0 = static_cast<Vector3>( merged_v0 );
+		*outV1 = static_cast<Vector3>( merged_v1 );
+		return true;
 	}
 
 	return false;
@@ -584,8 +622,9 @@ bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3 &startPos, 
 		const int32_t next_face_idx = path[ i + 1 ];
 		
 		Vector3 right, left;
-		// Nav_GetPortalEndpoints returns the right endpoint in the first out param, left in the second.
-		if ( Nav_GetPortalEndpoints( face_idx, next_face_idx, &right, &left ) ) {
+		// Nav_GetPortalEndpoints returns the LEFT endpoint in outV0, and RIGHT in outV1, 
+		// because Quake 2 BSP faces are wound CLOCKWISE.
+		if ( Nav_GetPortalEndpoints( face_idx, next_face_idx, &left, &right ) ) {
 			
 			// Determine if this portal belongs to a physical door
 			bool isDoor = false;
@@ -645,11 +684,34 @@ bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3 &startPos, 
 			if ( edgeLen > 0.001f ) {
 				edgeDir = edgeDir * ( 1.0f / edgeLen );
 				
-				// Provide a 2.0f unit padding to prevent floating point/step grazing
-				float shrinkDist = std::min( agentRadius + 2.0f, edgeLen * 0.5f );
+				/**
+				*	Provide a 2.0f unit padding to prevent floating point/step grazing.
+				*	Do NOT pinch the portal to a single point (zero width) if it's very narrow,
+				*	otherwise the Funnel algorithm is forced to zig-zag through exact midpoints.
+				*	We preserve at least a 0.2f unit gap.
+				**/
+				float maxShrink = std::max( 0.0f, ( edgeLen * 0.5f ) - 0.1f );
+				float shrinkDist = std::min( agentRadius + 2.0f, maxShrink );
 				
 				right = QM_Vector3Add( right, edgeDir * shrinkDist );
 				left = QM_Vector3Subtract( left, edgeDir * shrinkDist );
+				
+				// Check if this portal requires a step-up. If so, insert an "approach portal" 
+				// pushed outwards along the normal to force a safe, perpendicular approach angle.
+				// This prevents the agent from cutting the corner and failing the physics step-up.
+				if ( next_face_idx != -1 ) {
+					const float currentZ = g_nav_faces[ face_idx ].center.z;
+					const float nextZ = g_nav_faces[ next_face_idx ].center.z;
+					if ( nextZ - currentZ > 8.0f ) {
+						// edgeDir points from right to left. The outward normal (into the current face) is (-Y, X).
+						Vector3 normal = { -edgeDir.y, edgeDir.x, 0.0f };
+						// Push out by 1.5x agent radius to give enough room to align before stepping
+						float approachDist = agentRadius * 1.5f;
+						Vector3 approachRight = QM_Vector3Add( right, normal * approachDist );
+						Vector3 approachLeft = QM_Vector3Add( left, normal * approachDist );
+						portals.push_back( { approachLeft, approachRight } );
+					}
+				}
 			}
 			portals.push_back( { left, right } );
 		} else {

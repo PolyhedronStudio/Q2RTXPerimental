@@ -1924,14 +1924,13 @@ svg_monster_testdummy_debug_t::PathComputeResult svg_monster_testdummy_debug_t::
             // A* ping-ponging when the player crosses small KD-Tree node boundaries.
             const uint64_t now = level.time.Milliseconds();
             if ( goalFace == navPath.back() ) {
-                // Goal is in the exact same destination face. Hold path for up to 2 seconds.
-                if ( now - lastPathCalcTime.Milliseconds() < 2000 ) {
+                // Goal is in the exact same destination face. Hold path for up to 250ms.
+                if ( now - lastPathCalcTime.Milliseconds() < 250 ) {
                     return PathComputeResult::ReusedCached;
                 }
             } else {
-                // Goal has moved to a different face. Hold path for up to 1 second
-                // to prevent twitching when the player just crosses a boundary.
-                if ( now - lastPathCalcTime.Milliseconds() < 1000 ) {
+                // Goal has moved to a different face. Hold path for up to 250ms.
+                if ( now - lastPathCalcTime.Milliseconds() < 250 ) {
                     return PathComputeResult::ReusedCached;
                 }
             }
@@ -2042,49 +2041,14 @@ const Vector3 svg_monster_testdummy_debug_t::StabilizeWaypointTarget( const Vect
 		lastWaypointUpdateTime = level.time;
 		return candidateWaypoint;
 	}
-
-	/**
-	*	Estimate whether the new candidate is a side-flip relative to the cached
-	*	target by comparing direction vectors from the current actor position.
-	**/
-	Vector3 toCandidate = candidateWaypoint - currentOrigin;
-	Vector3 toCached = lastWaypointTarget - currentOrigin;
-	toCandidate.z = 0.0f;
-	toCached.z = 0.0f;
-
-	float candidateLen2 = static_cast<float>( QM_Vector3DotProduct( toCandidate, toCandidate ) );
-	float cachedLen2 = static_cast<float>( QM_Vector3DotProduct( toCached, toCached ) );
-	if ( candidateLen2 <= 0.0001f || cachedLen2 <= 0.0001f ) {
-		lastWaypointTarget = candidateWaypoint;
-		lastWaypointUpdateTime = level.time;
-		return candidateWaypoint;
-	}
-
-	toCandidate = QM_Vector3Normalize( toCandidate );
-	toCached = QM_Vector3Normalize( toCached );
-	const float dirDot = static_cast<float>( QM_Vector3DotProduct( toCandidate, toCached ) );
-
-	/**
-	*	Blend aggressively when the candidate jumped far and points away from the
-	*	cached steering direction; otherwise use a lighter blend.
-	**/
-	float cachedWeight = 0.55f;
-	float candidateWeight = 0.45f;
-	if ( delta2D >= 24.0f && dirDot < 0.25f ) {
-		cachedWeight = 0.85f;
-		candidateWeight = 0.15f;
-	} else if ( dirDot < 0.55f ) {
-		cachedWeight = 0.70f;
-		candidateWeight = 0.30f;
-	}
-
-	const Vector3 blendedWaypoint =
-		( lastWaypointTarget * cachedWeight ) +
-		( candidateWaypoint * candidateWeight );
-
-	lastWaypointTarget = blendedWaypoint;
+	// Interpolating waypoint positions is physically invalid because the blended coordinate 
+	// can fall outside the NavMesh (e.g. inside a solid wall) when turning corners.
+	// Since path calculation is already throttled (debounced), we can safely steer 
+	// directly toward the exact string-pulled corner without jitter.
+	
+	lastWaypointTarget = candidateWaypoint;
 	lastWaypointUpdateTime = level.time;
-	return blendedWaypoint;
+	return candidateWaypoint;
 }
 
 /**
@@ -2115,6 +2079,23 @@ const Vector3 svg_monster_testdummy_debug_t::NextWaypoint( const Vector3 &finalG
                     }
                     break;
                 }
+            }
+        }
+    }
+    // Lookahead to skip backward first waypoint if we started slightly ahead of it.
+    // This fixes the "red circle mess" where the agent loops backward to hit a waypoint it already passed.
+    if ( stringPathPos == 1 && stringPathPos + 1 < stringPulledPath.size() ) {
+        Vector3 w1 = stringPulledPath[ 1 ];
+        Vector3 w2 = stringPulledPath[ 2 ];
+        Vector3 toW1 = w1 - currentOrigin;
+        Vector3 toW2 = w2 - currentOrigin;
+        toW1.z = 0.0f;
+        toW2.z = 0.0f;
+        
+        // If w1 and w2 are in opposite directions from us, we are roughly between them.
+        if ( QM_Vector3DotProduct( toW1, toW2 ) < 0.0f ) {
+            if ( QM_Vector3LengthSqr( toW1 ) < ( 64.0f * 64.0f ) ) {
+                stringPathPos++;
             }
         }
     }
@@ -2156,9 +2137,13 @@ const Vector3 svg_monster_testdummy_debug_t::NextWaypoint( const Vector3 &finalG
         }
     }
 
+    // If we are close enough OR we overshot the waypoint, advance to the next one.
+    // For stairs, if we overshot, we ALWAYS advance so we don't steer backwards,
+    // which would pull us away from the stair riser we are trying to climb!
     if ( dist2DSqr < (advanceDist * advanceDist) || overshot ) {
-        if ( hasSteppedUp || (feetOriginZ > portalMidpoint.z + NAV_MAX_STEP_SIZE) ) {
+        if ( hasSteppedUp || overshot || (feetOriginZ > portalMidpoint.z + NAV_MAX_STEP_SIZE) ) {
             ++stringPathPos;
+            // Recursively get the NEXT waypoint to avoid stutter-stepping at boundaries
             return NextWaypoint( finalGoal );
         }
     }
