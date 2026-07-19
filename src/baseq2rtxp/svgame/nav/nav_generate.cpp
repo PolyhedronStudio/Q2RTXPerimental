@@ -388,7 +388,7 @@ static bool IsNavPolygonConvex( const nav_poly_t &poly, const Vector3DP &expecte
 		Vector3DP a_dp( poly.vertices[ i ] );
 		Vector3DP b_dp( poly.vertices[ ( i + 1 ) % poly.num_vertices ] );
 		Vector3DP c_dp( poly.vertices[ ( i + 2 ) % poly.num_vertices ] );
-		if ( QM_Vector3DistanceSqrDP( a_dp, b_dp ) <= 0.01 ) {
+		if ( QM_Vector3DistanceSqrDP( a_dp, b_dp ) <= 0.000001 ) {
 			return false;
 		}
 
@@ -1395,16 +1395,22 @@ static bool TryMergeWindings( const winding_t *w1, const winding_t *w2, const Ve
 		Vector3DP cross = QM_Vector3CrossProductDP( dir1, dir2 );
 		double dot = QM_Vector3DotProductDP( cross, Vector3DP( normal ) );
 
-		if ( dot < -0.01 ) {
+		const double edgeLen1 = std::sqrt( QM_Vector3DistanceSqrDP( p1, p2 ) );
+		const double edgeLen2 = std::sqrt( QM_Vector3DistanceSqrDP( p2, p3 ) );
+		const double tolerance = 0.01 * edgeLen1 * edgeLen2;
+
+		if ( dot < -tolerance ) {
 			return false; // Concave, cannot merge
 		}
-		if ( std::abs( dot ) < 0.01 ) {
+		if ( std::abs( dot ) <= tolerance ) {
 			// Collinear points, remove the middle one
-			for ( int32_t k = j + 1; k < simple.num_points - 1; k++ ) {
+			int32_t remove_idx = ( j + 1 ) % simple.num_points;
+			for ( int32_t k = remove_idx; k < simple.num_points - 1; k++ ) {
 				simple.points[ k ] = Vector3DP( simple.points[ k + 1 ] );
 			}
 			simple.num_points--;
-			j--;
+			
+			j = -1; // Restart loop to cleanly re-evaluate the modified polygon
 		}
 	}
 
@@ -1451,7 +1457,7 @@ static bool IsUsablePartitionFragment( const winding_t &winding ) {
 	}
 
 	const double longest_extent = std::max<double>( max_x - min_x, max_y - min_y );
-	return area >= 1.0 && ( longest_extent <= 0.001 || ( area / longest_extent ) >= 16.0 );
+	return area > 0.001;
 }
 
 /**
@@ -2065,9 +2071,9 @@ void Nav_DoExtractionWork() {
 					double dy = maxs.y - mins.y;
 					double longest = std::max<double>( dx, dy );
 
-					// If the average width (area / longest edge) is less than 8 units, it's a useless sliver!
+					// If the average width (area / longest edge) is less than 0.01 units, it's a useless sliver!
 					// This perfectly culls floating-point errors without destroying valid narrow pathways or creating false insets.
-					if ( area < 1.0 || ( longest > 0.001 && ( area / longest ) < 8.0 ) ) {
+					if ( area < 0.001 || ( longest > 0.001 && ( area / longest ) < 0.01 ) ) {
 						sliver_pruned_fragments++;
 						continue; // Prune sliver
 					}
@@ -3112,8 +3118,8 @@ void Nav_BuildHalfEdgeMesh() {
 							double dx = g_nav_vertices[ idx ].x - p.x;
 							double dy = g_nav_vertices[ idx ].y - p.y;
 							double dz = g_nav_vertices[ idx ].z - p.z;
-							// If the squared distance is less than 0.01, consider it a match and return the index.
-							if ( dx * dx + dy * dy + dz * dz < 0.01 ) {
+							// If the squared distance is less than 0.000001, consider it a match and return the index.
+							if ( dx * dx + dy * dy + dz * dz < 0.000001 ) {
 								return idx;
 							}
 						}

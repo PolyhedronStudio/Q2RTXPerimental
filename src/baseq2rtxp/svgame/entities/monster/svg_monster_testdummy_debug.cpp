@@ -2063,25 +2063,31 @@ const Vector3 svg_monster_testdummy_debug_t::NextWaypoint( const Vector3 &finalG
         return StabilizeWaypointTarget( finalGoal, true );
     }
 
-    // Synchronize navPath pathPos with physical face for "stillOnPath" checks.
-    if ( !navPath.empty() ) {
-        Vector3 myFeet = currentOrigin;
-        myFeet.z += this->mins.z;
-        const int32_t currentFace = Dummy_FindClosestFaceInLeaf( myFeet );
+    Vector3 myFeet = currentOrigin;
+    myFeet.z += this->mins.z;
+    const int32_t currentFace = Dummy_FindClosestFaceInLeaf( myFeet );
 
-        if ( currentFace != -1 ) {
-            const int32_t localStart = std::max<int32_t>( 0, static_cast<int32_t>( pathPos ) - 2 );
-            const int32_t localEnd = std::min<int32_t>( static_cast<int32_t>( navPath.size() ) - 1, static_cast<int32_t>( pathPos ) + 6 );
-            for ( int32_t i = localStart; i <= localEnd; i++ ) {
-                if ( navPath[ i ] == currentFace ) {
-                    if ( i > static_cast<int32_t>( pathPos ) ) {
-                        pathPos = static_cast<size_t>( i );
-                    }
-                    break;
+    // Synchronize navPath pathPos with physical face for "stillOnPath" checks.
+    if ( !navPath.empty() && currentFace != -1 ) {
+        const int32_t localStart = std::max<int32_t>( 0, static_cast<int32_t>( pathPos ) - 2 );
+        const int32_t localEnd = std::min<int32_t>( static_cast<int32_t>( navPath.size() ) - 1, static_cast<int32_t>( pathPos ) + 6 );
+        for ( int32_t i = localStart; i <= localEnd; i++ ) {
+            if ( navPath[ i ] == currentFace ) {
+                if ( i > static_cast<int32_t>( pathPos ) ) {
+                    pathPos = static_cast<size_t>( i );
                 }
+                break;
             }
         }
     }
+
+    bool onRamp = false;
+    if ( currentFace >= 0 && static_cast<size_t>( currentFace ) < g_nav_faces.size() ) {
+        if ( g_nav_faces[currentFace].normal.z < 0.99f ) {
+            onRamp = true;
+        }
+    }
+
     // Lookahead to skip backward first waypoint if we started slightly ahead of it.
     // This fixes the "red circle mess" where the agent loops backward to hit a waypoint it already passed.
     if ( stringPathPos == 1 && stringPathPos + 1 < stringPulledPath.size() ) {
@@ -2114,7 +2120,7 @@ const Vector3 svg_monster_testdummy_debug_t::NextWaypoint( const Vector3 &finalG
     // Determine if we need to step up
     float feetOriginZ = currentOrigin.z + this->mins.z;
     float targetZ = portalMidpoint.z;
-    bool needsStepUp = (targetZ - feetOriginZ) > 8.0f;
+    bool needsStepUp = (targetZ - feetOriginZ) > 8.0f && !onRamp;
     bool hasSteppedUp = !needsStepUp || (feetOriginZ >= targetZ - 4.0f);
 
     const float agentRadius = std::max( std::abs( this->mins.x ), std::abs( this->maxs.x ) );
