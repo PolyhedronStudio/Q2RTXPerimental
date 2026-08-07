@@ -1,6 +1,7 @@
 // Included by cm_shape_trace.cpp
 
 #include <algorithm>
+#include <limits>
 
 //! Small backoff used by ordinary brush traces.
 static constexpr float SWEEP_DIST_EPSILON = 0.03125f;
@@ -8,20 +9,81 @@ static constexpr float SWEEP_DIST_EPSILON = 0.03125f;
 //! Separation used for rounded shape traces to prevent tangent corner contacts from re-sticking.
 static constexpr float SWEEP_ROUNDED_SHAPE_EPSILON = 0.03125f;
 
-
+/**
+*	@brief	Recognize a rectangular brush even when BSP compilation duplicated axial sides.
+*	@param	brush	Brush to classify.
+*	@param	mins	[out] Tightest lower bounds recovered from negative axial planes.
+*	@param	maxs	[out] Tightest upper bounds recovered from positive axial planes.
+*	@return	True when the brush is bounded by all six axial directions and has no angled sides.
+*	@note	Duplicate planes are reduced to the tightest constraint so generated BSP side lists
+*			still use the exact axial-box sweep path.
+**/
 inline bool CM_IsBrushAxialBox( const mbrush_t *brush, Vector3 &mins, Vector3 &maxs ) {
-    if ( brush->numsides != 6 ) return false;
-    int32_t matched = 0;
-    for ( int32_t i = 0; i < brush->numsides; i++ ) {
-        const cm_plane_t *p = brush->firstbrushside[ i ].plane;
-        if ( p->normal[0] == 1.0f && p->normal[1] == 0.0f && p->normal[2] == 0.0f ) { maxs.x = p->dist; matched |= 1; }
-        else if ( p->normal[0] == -1.0f && p->normal[1] == 0.0f && p->normal[2] == 0.0f ) { mins.x = -p->dist; matched |= 2; }
-        else if ( p->normal[0] == 0.0f && p->normal[1] == 1.0f && p->normal[2] == 0.0f ) { maxs.y = p->dist; matched |= 4; }
-        else if ( p->normal[0] == 0.0f && p->normal[1] == -1.0f && p->normal[2] == 0.0f ) { mins.y = -p->dist; matched |= 8; }
-        else if ( p->normal[0] == 0.0f && p->normal[1] == 0.0f && p->normal[2] == 1.0f ) { maxs.z = p->dist; matched |= 16; }
-        else if ( p->normal[0] == 0.0f && p->normal[1] == 0.0f && p->normal[2] == -1.0f ) { mins.z = -p->dist; matched |= 32; }
-    }
-    return matched == 63;
+	/**
+	*	Validate the brush storage before reading its side planes.
+	**/
+	if ( brush == nullptr || brush->firstbrushside == nullptr || brush->numsides < 6 ) {
+		return false;
+	}
+
+	/**
+	*	Initialize bounds so duplicate planes can be reduced to the tightest box constraints.
+	**/
+	constexpr float axialNormalEpsilon = 0.00001f;
+	const float positiveInfinity = std::numeric_limits<float>::max();
+	mins = { positiveInfinity, positiveInfinity, positiveInfinity };
+	maxs = { -positiveInfinity, -positiveInfinity, -positiveInfinity };
+	int32_t matched = 0;
+
+	/**
+	*	Inspect every side and reject any genuinely angled plane so beveled or polygonal brushes
+	*	continue through the generic convex-brush path.
+	**/
+	for ( int32_t i = 0; i < brush->numsides; i++ ) {
+		const cm_plane_t *plane = brush->firstbrushside[ i ].plane;
+		if ( plane == nullptr ) {
+			return false;
+		}
+
+		const float absX = std::fabs( plane->normal[ 0 ] );
+		const float absY = std::fabs( plane->normal[ 1 ] );
+		const float absZ = std::fabs( plane->normal[ 2 ] );
+		if ( std::fabs( absX - 1.0f ) <= axialNormalEpsilon && absY <= axialNormalEpsilon && absZ <= axialNormalEpsilon ) {
+			if ( plane->normal[ 0 ] > 0.0f ) {
+				maxs.x = std::min( maxs.x, plane->dist );
+				matched |= BIT( 0 );
+			} else {
+				mins.x = std::max( mins.x, -plane->dist );
+				matched |= BIT( 1 );
+			}
+		} else if ( std::fabs( absY - 1.0f ) <= axialNormalEpsilon && absX <= axialNormalEpsilon && absZ <= axialNormalEpsilon ) {
+			if ( plane->normal[ 1 ] > 0.0f ) {
+				maxs.y = std::min( maxs.y, plane->dist );
+				matched |= BIT( 2 );
+			} else {
+				mins.y = std::max( mins.y, -plane->dist );
+				matched |= BIT( 3 );
+			}
+		} else if ( std::fabs( absZ - 1.0f ) <= axialNormalEpsilon && absX <= axialNormalEpsilon && absY <= axialNormalEpsilon ) {
+			if ( plane->normal[ 2 ] > 0.0f ) {
+				maxs.z = std::min( maxs.z, plane->dist );
+				matched |= BIT( 4 );
+			} else {
+				mins.z = std::max( mins.z, -plane->dist );
+				matched |= BIT( 5 );
+			}
+		} else {
+			return false;
+		}
+	}
+
+	/**
+	*	Require a valid lower and upper bound on every axis before enabling analytic sweeping.
+	**/
+	if ( matched != 63 || mins.x > maxs.x || mins.y > maxs.y || mins.z > maxs.z ) {
+		return false;
+	}
+	return true;
 }
 
 static void CM_TestFace(float planeDist, float rayStart, float rayDir, int axis, float min1, float max1, float min2, float max2, float p1_1, float v_1, float p1_2, float v_2, Vector3 n, float& tHit, Vector3& nHit, bool& hit) {

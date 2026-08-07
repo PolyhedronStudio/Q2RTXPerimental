@@ -41,6 +41,9 @@
 //! 1/32 epsilon to keep floating point stable at brush boundaries.
 static constexpr double DIST_EPSILON = 0.03125;
 
+//! Maximum shallow overlap treated as a boundary contact instead of solid penetration.
+static constexpr double STARTSOLID_BOUNDARY_EPSILON = 0.125;
+
 /**
 *	@brief	For thread-safety, we use a structure that is locally declared in a Trace function after which
 *			they are copied out to the caller's cm_trace_t. This is because the tracing implementation below uses shared file-scope scratch state and is therefore not re-entrant.
@@ -144,17 +147,17 @@ static bool CM_TryVisitBrush( std::unordered_set<const mbrush_t *> *visitedBrush
 	return visitedBrushes->insert( brush ).second;
 }
 
-/**
-/*	@brief	Clip a swept shape against a brush and record the earliest blocking plane.
-/*	@param	p1	Trace start point in world space.
-/*	@param	p2	Trace end point in world space.
-/*	@param	reantrantState	Mutable re-entrant trace state shared across brush tests.
-/*	@param	brush	Brush to clip against.
-/*	@note	Expands each brush plane to match the active trace shape before testing.
-**/
-static void CM_ClipShapeToBrush( const Vector3 &p1, const Vector3 &p2, cm_trace_reantrant_state_t *reantrantState, mbrush_t *brush ) {
 	/**
-	/*	Bail out immediately when the brush has no sides.
+	*	@brief	Clip a swept shape against a brush and record the earliest blocking plane.
+	*	@param	p1	Trace start point in world space.
+	*	@param	p2	Trace end point in world space.
+	*	@param	reantrantState	Mutable re-entrant trace state shared across brush tests.
+	*	@param	brush	Brush to clip against.
+	*	@note	Expands each brush plane to match the active trace shape before testing.
+	**/
+	static void CM_ClipShapeToBrush( const Vector3 &p1, const Vector3 &p2, cm_trace_reantrant_state_t *reantrantState, mbrush_t *brush ) {
+		/**
+		/*	Bail out immediately when the brush has no sides.
 	/*	Without any planes there is nothing meaningful to clip against.
 	**/
 	if ( !brush->numsides )
@@ -257,8 +260,6 @@ static void CM_ClipShapeToBrush( const Vector3 &p1, const Vector3 &p2, cm_trace_
 	int32_t i = 0;
 
 	float max_d1 = -99999.0f;
-	cm_plane_t *best_plane = nullptr;
-	mbrushside_t *best_side = nullptr;
 
 	for ( i = 0, side = side; side < endside; i++, side++ ) {
 		plane = side->plane;
@@ -310,9 +311,7 @@ static void CM_ClipShapeToBrush( const Vector3 &p1, const Vector3 &p2, cm_trace_
 		d2 = DotProductDP( p2, plane->normal ) - dist;
 
 		if ( d1 > max_d1 ) {
-			max_d1 = (float)d1;
-			best_plane = plane;
-			best_side = side;
+			max_d1 = ( float )d1;
 		}
 
 		if ( d2 > 0. ) {
@@ -367,23 +366,16 @@ static void CM_ClipShapeToBrush( const Vector3 &p1, const Vector3 &p2, cm_trace_
 		}
 	}
 
-	if ( !startout ) {
-		/**
-		/*	Barely inside the expanded brush (happens with cylinders on concave curves).
-		/*	Do not trap the player; instead, return a collision against the closest plane at fraction 0.
-		**/
-		if ( max_d1 >= -0.125f && best_plane != nullptr ) {
-			if ( reantrantState->trResult.fraction > 0.0 ) {
-				reantrantState->trResult.fraction = 0.0;
-				reantrantState->trResult.plane = *best_plane;
-				reantrantState->trResult.contents = static_cast< cm_contents_t >( brush->contents );
-				reantrantState->trResult.brushID = brush->brushID;
-				reantrantState->trResult.surface = &( best_side->texinfo->c );
-				reantrantState->trResult.material = nullptr;
-			}
-			return;
-		}
+	/**
+	/*	Treat a shallow overlap as a boundary contact only when no entering plane was recorded.
+	/*	A tangent or exiting sweep can then continue, while movement deeper into the brush still
+	/*	uses the already-recorded entering plane at fraction zero.
+	**/
+	if ( !startout && max_d1 >= -STARTSOLID_BOUNDARY_EPSILON && enterfrac[ 0 ] < 0. ) {
+		startout = true;
+	}
 
+	if ( !startout ) {
 		/**
 		/*	The trace starts inside the brush, so mark the result as solid at fraction 0.
 		**/

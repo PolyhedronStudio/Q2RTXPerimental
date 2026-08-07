@@ -1692,10 +1692,10 @@ const bool SVG_PushMover( svg_base_edict_t *pusher, const Vector3 &move, const V
 		*	BSP or another surface clips that pose, the bounded slide resolver can preserve recoverable motion.
 		**/
 		bool displacementSucceeded = SVG_TryPushEntityChain( pusher, candidate, totalDelta, 0, nullptr, includePusherAsBlocker );
-		if ( !displacementSucceeded && !VectorEmpty( amove ) ) {
+		if ( !displacementSucceeded && isRider && !VectorEmpty( amove ) ) {
 			/**
-			*	The rotating brush may have entered a rider or a corner-hugging contact. Treat the configured
-			*	displacement as a slide candidate before reporting a crush to the door.
+			*	The rotating brush may have entered the rider while corner-hugging or standing on its top. Treat
+			*	the configured rider displacement as a slide candidate before reporting a crush to the door.
 			**/
 			displacementSucceeded = SVG_TrySlidePushedEntityChain( pusher, candidate, totalDelta, includePusherAsBlocker );
 		}
