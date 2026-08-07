@@ -905,8 +905,17 @@ static bool SVG_TestEntityContactWithMover( const svg_base_edict_t *ent, svg_bas
 	}
 
 	/**
-	*	Reject a sweep that starts inside the mover. That state represents contact at T_start, not
-	*	a pusher entering a stationary entity; final overlap is handled by the explicit end probe.
+	*	A zero-length end-pose probe catches a mover that has entered a corner-hugging entity. This is a
+	*	valid contact even though the reverse relative sweep begins inside the moved brush.
+	**/
+	const svg_trace_t endPoseTrace = SVG_TraceEntityShapeAgainstClipEdict( ent, pusher, endPoint, endPoint );
+	if ( endPoseTrace.startsolid || endPoseTrace.allsolid ) {
+		return true;
+	}
+
+	/**
+	*	Use the reverse relative sweep for contacts crossed during the frame, while rejecting only genuine
+	*	start-solid/all-solid paths that do not represent an end-pose overlap.
 	**/
 	const svg_trace_t trace = SVG_TraceEntityShapeAgainstClipEdict( ent, pusher, startPoint, endPoint );
 	return !trace.startsolid && !trace.allsolid && trace.fraction < 1.0f;
@@ -1658,7 +1667,7 @@ const bool SVG_PushMover( svg_base_edict_t *pusher, const Vector3 &move, const V
 			const Vector3 localOrigin = candidate->currentOrigin - pusherStartOrigin;
 			const Vector3 angularDelta = SVG_Compute3DRotationDisplacement( localOrigin, pusherStartAngles, pusherEndAngles );
 			const Vector3 totalDelta = move + angularDelta;
-			const Vector3 sweepStart = candidate->currentOrigin + totalDelta;
+			const Vector3 sweepStart = candidate->currentOrigin - totalDelta;
 			isPusherContact = SVG_TestEntityContactWithMover( candidate, pusher, sweepStart, candidate->currentOrigin );
 		}
 
@@ -1683,10 +1692,10 @@ const bool SVG_PushMover( svg_base_edict_t *pusher, const Vector3 &move, const V
 		*	BSP or another surface clips that pose, the bounded slide resolver can preserve recoverable motion.
 		**/
 		bool displacementSucceeded = SVG_TryPushEntityChain( pusher, candidate, totalDelta, 0, nullptr, includePusherAsBlocker );
-		if ( !displacementSucceeded && isRider && !VectorEmpty( amove ) ) {
+		if ( !displacementSucceeded && !VectorEmpty( amove ) ) {
 			/**
-			*	The rotating brush may have entered the rider while the rider was corner-hugging or standing on
-			*	its top. Treat the configured rider displacement as a slide candidate before reporting a crush.
+			*	The rotating brush may have entered a rider or a corner-hugging contact. Treat the configured
+			*	displacement as a slide candidate before reporting a crush to the door.
 			**/
 			displacementSucceeded = SVG_TrySlidePushedEntityChain( pusher, candidate, totalDelta, includePusherAsBlocker );
 		}

@@ -363,29 +363,26 @@ const pm_slidemove_flags_t PM_StepSlideMove_Generic(
 	const bool isPredictive
 ) {
 	// Q3 Stepmove
-	Vector3 start_o = {}, start_v = {};
-	Vector3 down_o = {}, down_v = {};
 	// For traces.
 	cm_trace_t trace = {};
+	cm_trace_t cylinderTrace = {};
+	cm_trace_t capsuleTrace = {};
 	// For testing step distance.
-	double down_dist = 0., up_dist = 0.;
 	//	vec3_t		delta, delta2;
 	// For up and down traces.
-	Vector3	up = {}, down = {};
-	// Size of step.
-	double stepSize = 0.;
 	// Did we step?
-	bool stepped = false;
+	//bool stepped = false;
 
-	// Move.
+	// Initialize the slide move its origin, and velocity, as wel as setting its flags to none.
 	pm_slidemove_flags_t slideMoveFlags = PM_SLIDEMOVEFLAG_NONE;
-	start_o = pm->state->pmove.origin;
-	start_v = pm->state->pmove.velocity;
+	Vector3 start_o = pm->state->pmove.origin;
+	Vector3 start_v = pm->state->pmove.velocity;
+	// Perform a normal slide move first, then try stepping if we hit a wall.
 	slideMoveFlags |= PM_SlideMove_Generic( pm, pml, applyGravity );
 
 	// Initial down check: only a small ground contact probe.
 	// Do not pre-drop by a full step height when moving off edges; let gravity handle descent.
-	down = pm->state->pmove.origin;
+	Vector3 down = pm->state->pmove.origin;
 	down.z -= PM_STEP_GROUND_DIST;
 	//down.z -= stepSize + PM_STEP_GROUND_DIST;
 	trace = PM_TraceCylinder( pm->state->pmove.origin, pm->mins, pm->maxs, down );
@@ -397,21 +394,21 @@ const pm_slidemove_flags_t PM_StepSlideMove_Generic(
 		return slideMoveFlags;
 	}
 
-	down_o = pm->state->pmove.origin;
-	down_v = pm->state->pmove.velocity;
+	// If we are still on the ground, don't step up.
+	Vector3 down_o = pm->state->pmove.origin;
+	Vector3 down_v = pm->state->pmove.velocity;
 
 	// Try and step up.
-	up = start_o;
+	Vector3 up = start_o;
 	up.z += PM_STEP_MAX_SIZE /*+ PM_STEP_GROUND_DIST*/;
-	// Use capsule for obstacle step-up probing so stair traversal follows the player hull.
-	trace = PM_TraceCapsule( start_o, pm->mins, pm->maxs, up );
+	trace = PM_TraceCylinder( start_o, pm->mins, pm->maxs, up );
 	if ( trace.allsolid ) {
 		// Can't step up.
 		return slideMoveFlags;
 	}
 
 	// Get step size.
-	stepSize = trace.endpos[ 2 ] - start_o.z;
+	double stepSize = trace.endpos[ 2 ] - start_o.z;
 
 	// Try sliding above.
 	pm->state->pmove.origin = trace.endpos;
@@ -420,7 +417,7 @@ const pm_slidemove_flags_t PM_StepSlideMove_Generic(
 	// Push down the final amount.
 	down = pm->state->pmove.origin;
 	down.z -= stepSize + PM_STEP_GROUND_DIST;
-	// Use cylinder for step-over push-down so rapid ramp entry stays smooth and does not pop upward.
+	// Use a capsule trace to avoid stepping down into a ledge or hole.
 	trace = PM_TraceCylinder( pm->state->pmove.origin, pm->mins, pm->maxs, down );
 
 	// Used below for down step.
@@ -431,22 +428,37 @@ const pm_slidemove_flags_t PM_StepSlideMove_Generic(
 			// And assign trace endpos as new origin.
 			pm->state->pmove.origin = trace.endpos;
 		#else
+			// Assign trace endpos as new origin. So it can be compared with the down step.
 			pm->state->pmove.origin = trace.endpos;
 		#endif
 	}
 
+	// Save the down and up distances for comparison.
 	up = pm->state->pmove.origin;
 
-	// dDcide which one went farther.
-	down_dist = QM_Vector2LengthSqrDP( down_o - start_o );// ( down_o[ 0 ] - start_o[ 0 ] ) * ( down_o[ 0 ] - start_o[ 0 ] ) + ( down_o[ 1 ] - start_o[ 1 ] ) * ( down_o[ 1 ] - start_o[ 1 ] );
-	up_dist = QM_Vector2LengthSqrDP( up - start_o ); //( up[ 0 ] - start_o[ 0 ] ) *( up[ 0 ] - start_o[ 0 ] ) + ( up[ 1 ] - start_o[ 1 ] ) * ( up[ 1 ] - start_o[ 1 ] );
+	// Decide which one went farther.
+	const double down_dist = QM_Vector2LengthSqrDP( down_o - start_o );// ( down_o[ 0 ] - start_o[ 0 ] ) * ( down_o[ 0 ] - start_o[ 0 ] ) + ( down_o[ 1 ] - start_o[ 1 ] ) * ( down_o[ 1 ] - start_o[ 1 ] );
+	const double up_dist = QM_Vector2LengthSqrDP( up - start_o ); //( up[ 0 ] - start_o[ 0 ] ) *( up[ 0 ] - start_o[ 0 ] ) + ( up[ 1 ] - start_o[ 1 ] ) * ( up[ 1 ] - start_o[ 1 ] );
 
-	if ( down_dist > up_dist || trace.plane.normal[ 2 ] < PM_STEP_MIN_NORMAL ) {
+	#if 0
+	// Restore the original slide when the raised path did not land on a walkable surface.
+	const bool hasValidStepLanding = !trace.allsolid
+		&& trace.fraction < 1.0f
+		&& trace.plane.normal[ 2 ] >= PM_STEP_MIN_NORMAL;
+	if ( down_dist > up_dist || !hasValidStepLanding ) {
 		pm->state->pmove.origin = down_o;
 		pm->state->pmove.velocity = down_v;
 
 		//stepSize = pm->state->pmove.origin[ 2 ] - start_o.z;
 	}
+	#else
+	// Restore the original slide when the raised path did not land on a walkable surface.
+	if ( down_dist > up_dist
+		|| trace.plane.normal[ 2 ] < PM_STEP_MIN_NORMAL ) {
+		pm->state->pmove.origin = down_o;
+		pm->state->pmove.velocity = down_v;
+	}
+	#endif
 	// [Paril-KEX] NB: this line being commented is crucial for ramp-jumps to work.
 	// thanks to Jitspoe for pointing this one out.
 	else {// if (pm->s.pm_flags & PMF_ON_GROUND)
@@ -468,11 +480,17 @@ const pm_slidemove_flags_t PM_StepSlideMove_Generic(
 			// Don't step if we're falling down.
 			|| ( !( pm->cmd.buttons & BUTTON_JUMP ) && pm->state->pmove.velocity.z <= 0. ) 
 	) ) {
+		// Try stepping down to the ground, if we are not already on the ground.
 		down = pm->state->pmove.origin;
 		down.z -= stepSize + PM_STEP_GROUND_DIST; // <Q2RTXP>: WID: -= stepSize + PM_STEP_GROUND_DIST.
 		trace = PM_TraceCylinder( pm->state->pmove.origin, pm->mins, pm->maxs, down );
 
+		#if 0
+		// If we are not all solid, and we hit something, and it is a walkable surface, then step down.
+		if ( !trace.allsolid && trace.fraction < 1.0 && trace.plane.normal[ 2 ] >= PM_STEP_MIN_NORMAL ) {
+			#else
 		if ( !trace.allsolid && trace.fraction < 1.0 ) {
+		#endif
 			// Assign new origin.
 			pm->state->pmove.origin = trace.endpos;
 			// Determine step size.
@@ -516,7 +534,11 @@ const pm_slidemove_flags_t PM_StepSlideMove_Generic(
 			SG_BounceClipVelocity( pm->state->pmove.velocity, trace.plane.normal, pm->state->pmove.velocity, PM_OVERCLIP );
 			#endif
 		}
-		#if 1
+		#if 0
+		if ( !trace.allsolid && trace.fraction < 1.0 && trace.plane.normal[ 2 ] >= PM_STEP_MIN_NORMAL ) {
+			SG_BounceClipVelocity( pm->state->pmove.velocity, trace.plane.normal, pm->state->pmove.velocity, PM_OVERCLIP );
+		}
+		#else
 		if ( trace.fraction < 1.0 ) {
 			SG_BounceClipVelocity( pm->state->pmove.velocity, trace.plane.normal, pm->state->pmove.velocity, PM_OVERCLIP );
 		}
