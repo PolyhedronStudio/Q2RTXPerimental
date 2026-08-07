@@ -22,7 +22,7 @@
 
 
 
-/*QUAKED func_door_rotating (0 .5 .8) ? START_OPEN REVERSE CRUSHER NOMONSTER ANIMATED TOGGLE X_AXIS Y_AXIS
+/*QUAKED func_door_rotating (0 .5 .8) ? START_OPEN REVERSE CRUSHER NOMONSTER ANIMATED TOGGLE X_AXIS Y_AXIS NO_RIDER_CARRY
 TOGGLE causes the door to wait in both the start and end states for a trigger event.
 
 START_OPEN  the door to moves to its destination when spawned, and operate in reverse.  It is used to temporarily or permanently close off an area when triggered (not useful for touch or takedamage doors).
@@ -36,6 +36,8 @@ check either the X_AXIS or Y_AXIS box to change that.
 "speed" determines how fast the door moves; default value is 100.
 
 REVERSE will cause the door to rotate in the opposite direction.
+NO_RIDER_CARRY prevents entities riding the door from being carried around its rotation pivot. A rider
+will instead be handled as ordinary collision and may block the door or slide away from its brush.
 
 "message"   is printed when the door is touched if it is a trigger door and it hasn't been fired yet
 "angle"     determines the opening direction

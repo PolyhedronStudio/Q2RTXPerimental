@@ -14,17 +14,18 @@
 
 
 // Default normal/plane similarity tolerance (sane default for gameplay).
-static constexpr double DblEpsilon = 0.99;
+static constexpr double DblEpsilon = 0.9999;
 
 // Tight tolerance for tiny geometry or when you must avoid false positives.
-static constexpr double DblEpsilonTight = 0.999;
+static constexpr double DblEpsilonTight = 0.99999;
 
 // Loose tolerance for forgiving / approximate checks.
-static constexpr double DblEpsilonLoose = 0.95;
+static constexpr double DblEpsilonLoose = 0.99;
 
 // Plane entering threshold (angle-based). This is the normalized-dot threshold.
-// Values ~0.1 mean ~84 degrees tolerance (cosine); tune per gameplay needs.
-static constexpr double kPlaneEnterThreshold = 0.1;
+// Set to slightly negative to ensure parallel sliding (dot == 0) is not treated as entering,
+// preventing fake 3-plane deadlocks on curved analytical surfaces.
+static constexpr double kPlaneEnterThreshold = -0.001;
 
 // Minimum speed below which plane-enter checks treat the entity as not-entering.
 // Prevents noisy behaviour when velocity is near zero.
@@ -67,6 +68,7 @@ const pm_slidemove_flags_t PM_SlideMove_Generic(
 	pm_slidemove_flags_t slideMoveFlags = PM_SLIDEMOVEFLAG_NONE;
 
 	Vector3 planes[ PM_MAX_CLIP_PLANES ] = {};
+	int32_t brushIDs[ PM_MAX_CLIP_PLANES ] = { 0 }; // Track the unique brush/entity ID
 	Vector3 dir = {};
 	Vector3	end = {};
 
@@ -208,12 +210,10 @@ const pm_slidemove_flags_t PM_SlideMove_Generic(
 		// If this is a plane we have touched before, try clipping
 		// the velocity along it's normal and repeat.
 		for ( i = 0; i < numPlanes; i++ ) {
-			if ( QM_Vector3DotProductDP( trace.plane.normal, planes[ i ] ) > DblEpsilon ) {
+			const bool isVerticalWall = ( std::fabs( trace.plane.normal[ 2 ] ) < 0.1 && std::fabs( planes[ i ][ 2 ] ) < 0.1 );
+			const double epsilon = isVerticalWall ? DblEpsilonLoose : DblEpsilon;
+			if ( QM_Vector3DotProductDP( trace.plane.normal, planes[ i ] ) > epsilon ) {
 				pm->state->pmove.velocity += trace.plane.normal;
-				//// Add a microscopic nudge to the origin to prevent epsilon starvation loops where fraction == 0.0
-				//pm->state->pmove.origin.x += trace.plane.normal[ 0 ] * 0.015625;
-				//pm->state->pmove.origin.y += trace.plane.normal[ 1 ] * 0.015625;
-				//pm->state->pmove.origin.z += trace.plane.normal[ 2 ] * 0.015625;
 				break;
 			}
 		}
@@ -223,6 +223,7 @@ const pm_slidemove_flags_t PM_SlideMove_Generic(
 		}
 		// Add unique plane to the list of planes.
 		planes[ numPlanes ] = trace.plane.normal;
+		brushIDs[ numPlanes ] = trace.brushID;
 		numPlanes++;
 
 		/**
@@ -243,6 +244,14 @@ const pm_slidemove_flags_t PM_SlideMove_Generic(
 				pml->impactSpeed = -into;
 			}
 
+			/**
+			*	This physically clips the velocity against the new curvature normal using PM_OVERCLIP
+			*	(1.001 multiplier). This mathematically guarantees the next trace's dot product will
+			*	be positive, permanently breaking the zero-fraction starvation loop and allowing the
+			*	player to glide around the corner without stalling. This does NOT break AABB BSP Hull 
+			*	SOLID_BOUNDING_BOX player movement; in fact, overclip was the original Quake 2 behavior 
+			*	precisely to prevent zero-fraction stalling against axial planes.
+			**/
 			// Slide velocity along the plane.
 			SG_BounceClipVelocity( pm->state->pmove.velocity, planes[ i ], clipVelocity, PM_OVERCLIP );
 			// Slide endVelocity along the plane.
@@ -288,7 +297,29 @@ const pm_slidemove_flags_t PM_SlideMove_Generic(
 					if ( !QM_IsEnteringPlane( clipVelocity, planes[ k ] ) ) {
 						continue;
 					}
-					// Stop dead at a tripple plane interaction.
+					
+					/**
+					*	If two planes are vertical walls (z-normal ~ 0) and the third plane is a walkable ground/floor plane,
+					*	the 90-degree corner on flat ground is a valid 2D corner rather than a 3D wedge trap.
+					*	Project velocity onto the ground plane to allow sliding out of the corner.
+					**/
+					const bool planeISurface = ( i >= ( pml->hasGroundPlane ? 2 : 1 ) );
+					const bool planeJSurface = ( j >= ( pml->hasGroundPlane ? 2 : 1 ) );
+					const bool planeKSurface = ( k >= ( pml->hasGroundPlane ? 2 : 1 ) );
+
+					if ( planeISurface && planeJSurface ) {
+						const bool iVertical = ( std::fabs( planes[ i ].z ) < 0.1 );
+						const bool jVertical = ( std::fabs( planes[ j ].z ) < 0.1 );
+						
+						// If i and j are vertical walls and k is a walkable floor plane:
+						if ( iVertical && jVertical && planes[ k ].z >= PM_STEP_MIN_NORMAL ) {
+							SG_BounceClipVelocity( clipVelocity, planes[ k ], clipVelocity, PM_OVERCLIP );
+							SG_BounceClipVelocity( endClipVelocity, planes[ k ], endClipVelocity, PM_OVERCLIP );
+							continue;
+						}
+					}
+
+					// Stop dead at a true 3-plane wedge trap.
 					pm->state->pmove.velocity = {};
 					return slideMoveFlags |= PM_SLIDEMOVEFLAG_TRAPPED;
 				}

@@ -121,6 +121,14 @@ typedef char configstring_t[ MAX_CS_STRING_LENGTH ];
 //! Maximum amount of client entities.
 #define MAX_CLIENT_ENTITIES ( MAX_EDICTS ) /*8192*/
 
+/**
+*	@brief	Packs the unique brushID and the entity number into a single globally unique negative trace brushID.
+*			Because MAX_EDICTS is 8192 (13 bits), we can shift the brushID up by 13 to preserve both perfectly.
+**/
+static inline int32_t SG_PackEntityBrushID( const int32_t entNum, const int32_t brushID ) {
+	return -( ( entNum + 1 ) | ( brushID << 13 ) );
+}
+
 //! Maximum lightstyles.
 #define MAX_LIGHTSTYLES     256
 //! These are sent over the net as bytes so they cannot be blindly increased

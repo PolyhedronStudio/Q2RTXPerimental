@@ -211,19 +211,53 @@ static inline const svg_trace_t SVG_TraceCylinder( const Vector3 &start, float r
 }
 
 static inline const svg_trace_t SVG_TraceEntityShape( const Vector3 &start, const Vector3 &end, const svg_base_edict_t *ent, const svg_base_edict_t *passEdict, const cm_contents_t contentMask ) {
-	if ( ent->solid == SOLID_CAPSULE ) {
-		float radius = std::max( ent->maxs.x, ent->maxs.y );
-		float halfHeight = ent->maxs.z - radius;
-		return SVG_TraceCapsule( start, radius, std::max( 0.0f, halfHeight ), end, passEdict, contentMask );
-	} else if ( ent->solid == SOLID_CYLINDER ) {
-		float radius = std::max( ent->maxs.x, ent->maxs.y );
-		float halfHeight = ent->maxs.z;
-		return SVG_TraceCylinder( start, radius, std::max( 0.0f, halfHeight ), end, passEdict, contentMask );
-	} else if ( ent->solid == SOLID_SPHERE ) {
-		float radius = std::max( ent->maxs.x, std::max( ent->maxs.y, ent->maxs.z ) );
-		return SVG_TraceSphere( start, radius, end, passEdict, contentMask );
+	if ( !ent ) {
+		return SVG_Trace( start, QM_Vector3Zero(), QM_Vector3Zero(), end, passEdict, contentMask );
 	}
+
+	if ( ent->solid == SOLID_CAPSULE ) {
+		const float radius = std::max( std::fabs( ent->maxs.x ), std::fabs( ent->maxs.y ) );
+		const float halfHeight = std::max( 0.0f, std::fabs( ent->maxs.z ) - radius );
+		return SVG_TraceCapsule( start, radius, halfHeight, end, passEdict, contentMask );
+	} else if ( ent->solid == SOLID_CYLINDER ) {
+		const float radius = std::max( std::fabs( ent->maxs.x ), std::fabs( ent->maxs.y ) );
+		const float halfHeight = std::max( 0.0f, std::fabs( ent->maxs.z ) );
+		return SVG_TraceCylinder( start, radius, halfHeight, end, passEdict, contentMask );
+	} else if ( ent->solid == SOLID_SPHERE ) {
+		const float radius = std::max( std::fabs( ent->maxs.x ), std::max( std::fabs( ent->maxs.y ), std::fabs( ent->maxs.z ) ) );
+		return SVG_TraceSphere( start, radius, end, passEdict, contentMask );
+	} else if ( ent->solid == SOLID_BOUNDS_OCTAGON || ent->solid == SOLID_BOUNDS_BOX ) {
+		return SVG_Trace( start, ent->mins, ent->maxs, end, passEdict, contentMask );
+	}
+
 	return SVG_Trace( start, ent->mins, ent->maxs, end, passEdict, contentMask );
+}
+
+/**
+*	@brief	Compute the exact 3D bounding radius of an entity based on its solid primitive shape.
+*	@param	ent	Entity edict to evaluate.
+*	@return	3D bounding radius in world units.
+**/
+static inline const float SVG_GetEntityBoundingRadius( const svg_base_edict_t *ent ) {
+	if ( !ent ) {
+		return 0.0f;
+	}
+
+	switch ( ent->solid ) {
+		case SOLID_CAPSULE:
+		case SOLID_CYLINDER: {
+			const float r = std::max( std::fabs( ent->maxs.x ), std::fabs( ent->maxs.y ) );
+			const float h = std::fabs( ent->maxs.z );
+			return std::sqrt( ( r * r ) + ( h * h ) );
+		}
+		case SOLID_SPHERE: {
+			return std::max( std::fabs( ent->maxs.x ), std::max( std::fabs( ent->maxs.y ), std::fabs( ent->maxs.z ) ) );
+		}
+		default: {
+			const Vector3 extents = ( ent->maxs - ent->mins ) * 0.5f;
+			return QM_Vector3Length( extents );
+		}
+	}
 }
 
 

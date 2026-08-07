@@ -61,6 +61,11 @@ struct cm_trace_reantrant_state_t {
 	//! Optimization flag for point traces.
 	bool trIsPoint = false;
 
+	//! Flag indicating whether the trace model is rotated in world space.
+	bool isRotated = false;
+	//! Transformation axis from local model space to world space (transpose of AnglesToAxis).
+	Vector3 localToWorldAxis[ 3 ] = {};
+
 	//!	A bitfield of the contents flags of the surface that was hit by the trace. This is set by the trace implementation when a surface is hit, and is used for passing contents information back to the caller.
 	cm_contents_t trContents = CONTENTS_NONE;
 
@@ -250,6 +255,11 @@ static void CM_ClipShapeToBrush( const Vector3 &p1, const Vector3 &p2, cm_trace_
 	mbrushside_t *side = brush->firstbrushside;
 	mbrushside_t *endside = side + brush->numsides;
 	int32_t i = 0;
+
+	float max_d1 = -99999.0f;
+	cm_plane_t *best_plane = nullptr;
+	mbrushside_t *best_side = nullptr;
+
 	for ( i = 0, side = side; side < endside; i++, side++ ) {
 		plane = side->plane;
 
@@ -257,17 +267,28 @@ static void CM_ClipShapeToBrush( const Vector3 &p1, const Vector3 &p2, cm_trace_
 		/*	Expand the plane by the active trace shape before measuring endpoint distances.
 		/*	This keeps point, box, sphere, cylinder, and capsule tests consistent.
 		**/
+		Vector3 worldNormal = plane->normal;
+		if ( reantrantState->isRotated ) {
+			worldNormal.x = ( float )DotProductDP( reantrantState->localToWorldAxis[ 0 ], plane->normal );
+			worldNormal.y = ( float )DotProductDP( reantrantState->localToWorldAxis[ 1 ], plane->normal );
+			worldNormal.z = ( float )DotProductDP( reantrantState->localToWorldAxis[ 2 ], plane->normal );
+		}
+
 		float expand = 0.0f;
 		switch ( reantrantState->trShape.type ) {
 		case SHAPE_POINT:
 			expand = 0.0f;
 			break;
 		case SHAPE_AABB:
-			if ( plane->type < 3 ) {
+			if ( !reantrantState->isRotated && plane->type < 3 ) {
 				const double off = reantrantState->trOffsets[ plane->signbits ][ plane->type ];
 				expand = ( float )( off * plane->normal[ plane->type ] );
-			} else {
+			} else if ( !reantrantState->isRotated ) {
 				expand = ( float )DotProductDP( reantrantState->trOffsets[ plane->signbits ], plane->normal );
+			} else {
+				expand = -( ( reantrantState->trShape.extents.x * std::abs( worldNormal.x ) ) +
+							( reantrantState->trShape.extents.y * std::abs( worldNormal.y ) ) +
+							( reantrantState->trShape.extents.z * std::abs( worldNormal.z ) ) );
 			}
 			break;
 		case SHAPE_SPHERE:
@@ -275,18 +296,24 @@ static void CM_ClipShapeToBrush( const Vector3 &p1, const Vector3 &p2, cm_trace_
 			expand = -reantrantState->trShape.radius;
 			break;
 		case SHAPE_CYLINDER:
-			expand = -( ( reantrantState->trShape.radius * std::sqrt( plane->normal[ 0 ] * plane->normal[ 0 ] + plane->normal[ 1 ] * plane->normal[ 1 ] ) ) +
-				( reantrantState->trShape.halfHeight * std::abs( plane->normal[ 2 ] ) ) );
+			expand = -( ( reantrantState->trShape.radius * std::sqrt( worldNormal.x * worldNormal.x + worldNormal.y * worldNormal.y ) ) +
+				( reantrantState->trShape.halfHeight * std::abs( worldNormal.z ) ) );
 			break;
 		case SHAPE_CAPSULE:
 			// Keep capsule expansion exact so the trace does not hover above or sink into floors.
-			expand = -( reantrantState->trShape.radius + ( reantrantState->trShape.halfHeight * std::abs( plane->normal[ 2 ] ) ) );
+			expand = -( reantrantState->trShape.radius + ( reantrantState->trShape.halfHeight * std::abs( worldNormal.z ) ) );
 			break;
 		}
 		dist = plane->dist - expand;
 
 		d1 = DotProductDP( p1, plane->normal ) - dist;
 		d2 = DotProductDP( p2, plane->normal ) - dist;
+
+		if ( d1 > max_d1 ) {
+			max_d1 = (float)d1;
+			best_plane = plane;
+			best_side = side;
+		}
 
 		if ( d2 > 0. ) {
 			getout = true;
@@ -341,6 +368,22 @@ static void CM_ClipShapeToBrush( const Vector3 &p1, const Vector3 &p2, cm_trace_
 	}
 
 	if ( !startout ) {
+		/**
+		/*	Barely inside the expanded brush (happens with cylinders on concave curves).
+		/*	Do not trap the player; instead, return a collision against the closest plane at fraction 0.
+		**/
+		if ( max_d1 >= -0.125f && best_plane != nullptr ) {
+			if ( reantrantState->trResult.fraction > 0.0 ) {
+				reantrantState->trResult.fraction = 0.0;
+				reantrantState->trResult.plane = *best_plane;
+				reantrantState->trResult.contents = static_cast< cm_contents_t >( brush->contents );
+				reantrantState->trResult.brushID = brush->brushID;
+				reantrantState->trResult.surface = &( best_side->texinfo->c );
+				reantrantState->trResult.material = nullptr;
+			}
+			return;
+		}
+
 		/**
 		/*	The trace starts inside the brush, so mark the result as solid at fraction 0.
 		**/
@@ -416,28 +459,39 @@ static void CM_TestShapeInBrush( const Vector3 &p1, cm_trace_reantrant_state_t *
 	for ( i = 0; i < brush->numsides; i++, side++ ) {
 		plane = side->plane;
 
+		Vector3 worldNormal = plane->normal;
+		if ( reantrantState->isRotated ) {
+			worldNormal.x = ( float )DotProductDP( reantrantState->localToWorldAxis[ 0 ], plane->normal );
+			worldNormal.y = ( float )DotProductDP( reantrantState->localToWorldAxis[ 1 ], plane->normal );
+			worldNormal.z = ( float )DotProductDP( reantrantState->localToWorldAxis[ 2 ], plane->normal );
+		}
+
 		float expand = 0.0f;
 		switch ( reantrantState->trShape.type ) {
 		case SHAPE_POINT:
 			expand = 0.0f;
 			break;
 		case SHAPE_AABB:
-			if ( plane->type < 3 ) {
+			if ( !reantrantState->isRotated && plane->type < 3 ) {
 				const double off = reantrantState->trOffsets[ plane->signbits ][ plane->type ];
 				expand = ( float )( off * plane->normal[ plane->type ] );
-			} else {
+			} else if ( !reantrantState->isRotated ) {
 				expand = ( float )DotProductDP( reantrantState->trOffsets[ plane->signbits ], plane->normal );
+			} else {
+				expand = -( ( reantrantState->trShape.extents.x * std::abs( worldNormal.x ) ) +
+							( reantrantState->trShape.extents.y * std::abs( worldNormal.y ) ) +
+							( reantrantState->trShape.extents.z * std::abs( worldNormal.z ) ) );
 			}
 			break;
 		case SHAPE_SPHERE:
 			expand = -( reantrantState->trShape.radius );
 			break;
 		case SHAPE_CYLINDER:
-			expand = -( ( reantrantState->trShape.radius * std::sqrt( plane->normal[ 0 ] * plane->normal[ 0 ] + plane->normal[ 1 ] * plane->normal[ 1 ] ) ) +
-				( reantrantState->trShape.halfHeight * std::abs( plane->normal[ 2 ] ) ) );
+			expand = -( ( reantrantState->trShape.radius * std::sqrt( worldNormal.x * worldNormal.x + worldNormal.y * worldNormal.y ) ) +
+				( reantrantState->trShape.halfHeight * std::abs( worldNormal.z ) ) );
 			break;
 		case SHAPE_CAPSULE:
-			expand = -( reantrantState->trShape.radius + ( reantrantState->trShape.halfHeight * std::abs( plane->normal[ 2 ] ) ) );
+			expand = -( reantrantState->trShape.radius + ( reantrantState->trShape.halfHeight * std::abs( worldNormal.z ) ) );
 			break;
 		}
 		dist = plane->dist - expand;
@@ -681,10 +735,24 @@ recheck:
 /*	@return	Final trace result for the sweep.
 /*	@note	Initializes shape extents, handles point traces as a special case, then performs the recursive hull check.
 **/
+const cm_trace_t CM_ShapeTraceEx( cm_t *cm,
+	const Vector3 &start, const Vector3 &end,
+	const cm_trace_shape_t &shape,
+	mnode_t *headnode, const cm_contents_t brushmask,
+	bool isRotated, const vec3_t *localToWorldAxis );
+
 const cm_trace_t CM_ShapeTrace( cm_t *cm,
 	const Vector3 &start, const Vector3 &end,
 	const cm_trace_shape_t &shape,
 	mnode_t *headnode, const cm_contents_t brushmask ) {
+	return CM_ShapeTraceEx( cm, start, end, shape, headnode, brushmask, false, nullptr );
+}
+
+const cm_trace_t CM_ShapeTraceEx( cm_t *cm,
+	const Vector3 &start, const Vector3 &end,
+	const cm_trace_shape_t &shape,
+	mnode_t *headnode, const cm_contents_t brushmask,
+	bool isRotated, const vec3_t *localToWorldAxis ) {
 	/**
 	/*	Serialize trace execution because this routine relies on shared file-scope scratch state
 	/*	that can otherwise be clobbered by concurrent callers.
@@ -705,6 +773,12 @@ const cm_trace_t CM_ShapeTrace( cm_t *cm,
 	reantrantState.trStart = start;
 	reantrantState.trEnd = end;
 	reantrantState.trContents = brushmask;
+	reantrantState.isRotated = isRotated;
+	if ( isRotated && localToWorldAxis ) {
+		reantrantState.localToWorldAxis[ 0 ] = localToWorldAxis[ 0 ];
+		reantrantState.localToWorldAxis[ 1 ] = localToWorldAxis[ 1 ];
+		reantrantState.localToWorldAxis[ 2 ] = localToWorldAxis[ 2 ];
+	}
 	/**
 	/*	Derive conservative extents for the current trace shape.
 	/*	These values are used for early hull rejection and point-trace special cases.
@@ -936,6 +1010,7 @@ const cm_trace_t CM_TransformedShapeTrace( cm_t *cm,
 		AnglesToAxis( angles, axis );
 		RotatePoint( start_l, axis );
 		RotatePoint( end_l, axis );
+		TransposeAxis( axis ); // Convert model space axis to localToWorldAxis
 	}
 
 	cm_trace_t traceResult = {
@@ -967,13 +1042,12 @@ const cm_trace_t CM_TransformedShapeTrace( cm_t *cm,
 		return traceResult;
 	}
 
-	// sweep the shape through the model
-	traceResult = CM_ShapeTrace( cm, start_l, end_l, shape, headnode, brushmask );
+	// sweep the shape through the model using world-normal expanded plane tests
+	traceResult = CM_ShapeTraceEx( cm, start_l, end_l, shape, headnode, brushmask, rotated, axis );
 
 	// rotate plane normal into the worlds frame of reference
 	if ( traceResult.fraction < 1.0 ) {
 		if ( rotated ) {
-			TransposeAxis( axis );
 			RotatePoint( traceResult.plane.normal, axis );
 		}
 	}
@@ -1097,33 +1171,40 @@ const cm_trace_t CM_AnalyticalShapeSweep(
 	float R_shrunk = std::max( 0.0f, R - ( float )DIST_EPSILON );
 	float H_shrunk = std::max( 0.0f, H - ( float )DIST_EPSILON );
 
-	float distSqXY = P0_local.x * P0_local.x + P0_local.y * P0_local.y;
-	bool insideCylinder = distSqXY <= R_shrunk * R_shrunk && P0_local.z >= -H_shrunk && P0_local.z <= H_shrunk;
-
-	bool insideTopHemisphere = false;
-	if ( P0_local.z > H_shrunk ) {
-		float dz = P0_local.z - H_shrunk;
-		if ( pureCylinder ) {
-			insideTopHemisphere = ( distSqXY <= R_shrunk * R_shrunk && dz <= 0.0f );
-		} else {
-			insideTopHemisphere = ( distSqXY + dz * dz <= R_shrunk * R_shrunk );
+	auto IsInside = [&]( const Vector3 &point ) {
+		Vector3 local = point - centerB;
+		float distSqXY = local.x * local.x + local.y * local.y;
+		if ( distSqXY <= R_shrunk * R_shrunk && local.z >= -H_shrunk && local.z <= H_shrunk ) {
+			return true;
 		}
-	}
-
-	bool insideBotHemisphere = false;
-	if ( P0_local.z < -H_shrunk ) {
-		float dz = P0_local.z - ( -H_shrunk );
-		if ( pureCylinder ) {
-			insideBotHemisphere = ( distSqXY <= R_shrunk * R_shrunk && dz >= 0.0f );
-		} else {
-			insideBotHemisphere = ( distSqXY + dz * dz <= R_shrunk * R_shrunk );
+		if ( local.z > H_shrunk ) {
+			float dz = local.z - H_shrunk;
+			if ( pureCylinder ) {
+				if ( distSqXY <= R_shrunk * R_shrunk && dz <= 0.0f ) return true;
+			} else {
+				if ( distSqXY + dz * dz <= R_shrunk * R_shrunk ) return true;
+			}
 		}
-	}
+		if ( local.z < -H_shrunk ) {
+			float dz = local.z - ( -H_shrunk );
+			if ( pureCylinder ) {
+				if ( distSqXY <= R_shrunk * R_shrunk && dz >= 0.0f ) return true;
+			} else {
+				if ( distSqXY + dz * dz <= R_shrunk * R_shrunk ) return true;
+			}
+		}
+		return false;
+	};
 
-	if ( insideCylinder || insideBotHemisphere || insideTopHemisphere ) {
-		trace.allsolid = true;
+	if ( IsInside( start ) ) {
+		if ( IsInside( end ) ) {
+			trace.allsolid = true;
+			trace.startsolid = true;
+			trace.fraction = 0.0f;
+			return trace;
+		}
 		trace.startsolid = true;
-		trace.fraction = 0.0f;
+		trace.fraction = 1.0f;
 		return trace;
 	}
 
@@ -1271,9 +1352,9 @@ const cm_trace_t CM_AnalyticalShapeSweep(
 		/**
 		/*	Back the hit fraction off slightly so the trace stays numerically stable.
 		**/
-		float vLen = std::sqrt( V.x * V.x + V.y * V.y + V.z * V.z );
-		if ( vLen > 0.0001f ) {
-			tHit -= 0.03125f / vLen;
+		float dot = V.x * normal.x + V.y * normal.y + V.z * normal.z;
+		if ( dot < -0.0001f ) {
+			tHit -= ( float )DIST_EPSILON / -dot;
 		}
 		if ( tHit < 0.0f ) {
 			tHit = 0.0f;

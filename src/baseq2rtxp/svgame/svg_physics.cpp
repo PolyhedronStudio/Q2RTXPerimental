@@ -9,6 +9,13 @@
 #include "svgame/svg_physics.h"
 #include "svgame/svg_utils.h"
 
+// Rotating-door spawnflag used to select angular rider carry behavior.
+#include "svgame/entities/func/svg_func_door_rotating.h"
+
+// PMove constants and step defines.
+#include "sharedgame/pmove/sg_pmove.h"
+#include "sharedgame/pmove/sg_pmove_slidemove.h"
+
 
 
 /**
@@ -21,6 +28,8 @@ struct pushed_t {
 	Vector3 origin;
 	//! The original angles before the push.
 	Vector3 angles;
+	//! The original ground relationship before the push.
+	ground_info_t groundInfo;
 	//#if USE_SMOOTH_DELTA_ANGLES
 	double yawDelta;
 	//#endif
@@ -60,6 +69,9 @@ solid_edge items only clip against bsp models.
 //! Epsilon value for stopping clipped velocity.
 static constexpr double CLIPVELOCITY_STOP_EPSILON = 0.1;
 
+//! Distance used to determine whether a start-solid push path is leaving the blocking surface immediately.
+static constexpr float PUSH_PATH_SOLID_PROBE_DISTANCE = 0.25f;
+
 //! Return bit set in case of having clipped to a floor plane.
 static constexpr int32_t CLIPVELOCITY_CLIPPED_FLOOR = BIT( 0 );
 //! Return bit set in case of having clipped to a step plane. (Straight up wall.)
@@ -85,10 +97,10 @@ static constexpr int32_t CLIPVELOCITY_CLIPPED_CREASE_STOP = BIT( 5 );
 **/
 /**
 *	@brief	Applies a frame's worth of the gravity into the direction of the gravity vector for this entity.
-* 	@param	ent The entity to apply gravity to.
+*		@param	ent The entity to apply gravity to.
 **/
 void SVG_AddGravity( svg_base_edict_t *ent ) {
-	ent->velocity += ent->gravityVector * ( ent->gravity * level.gravity * gi.frame_time_s );
+	ent->velocity += ent->gravityVector *	( ent->gravity *	level.gravity *	gi.frame_time_s );
 }
 
 /**
@@ -130,11 +142,11 @@ const int32_t SVG_Physics_ClipVelocity( Vector3 &in, vec3_t normal, Vector3 &out
 	const double backOff = QM_Vector3DotProduct( in, normal );
 
 	if ( backOff < 0. ) {
-		const double clipBackOff = backOff * overbounce;
+		const double clipBackOff = backOff *	overbounce;
 		// Calculate and apply change.
 		for ( int32_t i = 0; i < 3; i++ ) {
 			// Calculate change for axis.
-			const float change = normal[ i ] * clipBackOff;
+			const float change = normal[ i ] *	clipBackOff;
 			// Apply velocity change.
 			out[ i ] = in[ i ] - change;
 			// Halt if we're past epsilon.
@@ -162,8 +174,8 @@ const int32_t SVG_Physics_ClipVelocity( Vector3 &in, vec3_t normal, Vector3 &out
 **/
 /**
 *	@brief	Fetch the clipMask for this entity; certain modifiers affect the clipping behavior of objects.
-* 	@param	ent The entity to get the clip mask for.
-* 	@return The contents mask to use for clipping traces against this entity.
+*		@param	ent The entity to get the clip mask for.
+*		@return The contents mask to use for clipping traces against this entity.
 **/
 const cm_contents_t SVG_GetClipMask( const svg_base_edict_t *ent ) {
 	// Get current clip mask.
@@ -226,6 +238,673 @@ svg_base_edict_t *SVG_TestEntityPosition( const svg_base_edict_t *ent ) {
 	// Otherwise, return nullptr, we aren't being obstructed..
     return nullptr;
 }
+/**
+*	@brief	Check whether an entity still overlaps a specific clip entity at its current position.
+*	@param	ent			Entity that was tentatively moved by the pusher.
+*	@param	clipEdict	Specific clip entity that may be blocking the move.
+*	@return	True when the entity still overlaps the clip entity, false when the apparent block
+*			comes only from world/frame geometry.
+*	@note	Uses the entity's native solid shape so capsule, cylinder, sphere, and box hulls are
+*			tested with their matching clip wrapper.
+**/
+static svg_trace_t SVG_TraceEntityShapeAgainstClipEdict( const svg_base_edict_t *ent, svg_base_edict_t *clipEdict, const Vector3 &start, const Vector3 &end ) {
+	/**
+	*	Validate the two collision participants before selecting a shape-specific clip path.
+	**/
+	if ( !ent || !clipEdict ) {
+		return {};
+	}
+
+	/**
+	*	Use the moving entity's native primitive so the probe has the same extents as gameplay movement.
+	**/
+	const cm_contents_t clipMask = SVG_GetClipMask( ent );
+	switch ( ent->solid ) {
+		case SOLID_CAPSULE: {
+			// Derive the capsule radius from the horizontal bounds and remove the spherical cap from its half-height.
+			const float radius = std::max( std::fabs( ent->maxs.x ), std::fabs( ent->maxs.y ) );
+			const float halfHeight = std::max( 0.0f, std::fabs( ent->maxs.z ) - radius );
+			return SVG_ClipCapsule( clipEdict, start, radius, halfHeight, end, clipMask );
+		}
+		case SOLID_CYLINDER: {
+			// Derive the cylinder radius and axial half-height from the entity bounds.
+			const float radius = std::max( std::fabs( ent->maxs.x ), std::fabs( ent->maxs.y ) );
+			const float halfHeight = std::fabs( ent->maxs.z );
+			return SVG_ClipCylinder( clipEdict, start, radius, halfHeight, end, clipMask );
+		}
+		case SOLID_SPHERE: {
+			// Use the largest bound component so the spherical probe contains the complete entity shape.
+			const float radius = std::max( std::fabs( ent->maxs.x ), std::max( std::fabs( ent->maxs.y ), std::fabs( ent->maxs.z ) ) );
+			return SVG_ClipSphere( clipEdict, start, radius, end, clipMask );
+		}
+		default: {
+			// Box-like solids use their native local mins/maxs against the selected clip edict.
+			return SVG_Clip( clipEdict, start, ent->mins, ent->maxs, end, clipMask );
+		}
+	}
+}
+
+/**
+*	@brief  Check whether an entity still overlaps a specific clip entity at its current position.
+*	@param  ent         Entity that was tentatively moved by the pusher.
+*	@param  clipEdict   Specific clip entity that may be blocking the move.
+*	@return True only when the entity penetrates the clip entity at its current position.
+*	@note   A zero-length probe reports only startsolid/allsolid as final penetration. A mere
+*	        contact at a valid separating surface must not be promoted to a blocked mover result.
+**/
+static bool SVG_TestEntityPositionAgainstClipEdictAt( const svg_base_edict_t *ent, svg_base_edict_t *clipEdict, const Vector3 &origin ) {
+	/**
+	*	Reject invalid or non-blocking candidates before performing a collision-model query.
+	**/
+	if ( !ent || !clipEdict ) {
+		return false;
+	}
+	if ( ent->solid == SOLID_NOT || ent->solid == SOLID_TRIGGER ) {
+		return false;
+	}
+
+	/**
+	*	A zero-length shape probe distinguishes actual penetration from a surface that is merely touching.
+	**/
+	const svg_trace_t trace = SVG_TraceEntityShapeAgainstClipEdict( ent, clipEdict, origin, origin );
+	return trace.startsolid || trace.allsolid;
+}
+
+/**
+*	@brief  Check whether an entity penetrates a specific clip entity at its current origin.
+*	@param  ent         Entity that was tentatively moved by the pusher.
+*	@param  clipEdict   Specific clip entity that may be blocking the move.
+*	@return True only when the entity penetrates the clip entity at its current origin.
+*	@note   This convenience wrapper keeps current-pose validation separate from virtual path probes.
+**/
+static bool SVG_TestEntityPositionAgainstClipEdict( const svg_base_edict_t *ent, svg_base_edict_t *clipEdict ) {
+	return SVG_TestEntityPositionAgainstClipEdictAt( ent, clipEdict, ent ? ent->currentOrigin : Vector3{} );
+}
+
+/**
+*	@brief  Check whether an edict is already recorded in the current recursive push chain.
+*	@param  ent         Entity to query.
+*	@param  visited     Bitset containing entities participating in the current chain.
+*	@return True when the entity is present in the chain bitset.
+**/
+static bool SVG_IsEntityInPushChain( const svg_base_edict_t *ent, const uint8_t *visited ) {
+	/**
+	*	Invalid entities or an uninitialized chain have no recorded membership.
+	**/
+	if ( !ent || !visited ) {
+		return false;
+	}
+
+	/**
+	*	Convert the edict number into the byte and bit used by the recursion guard.
+	**/
+	const int32_t entNum = ent->s.number;
+	if ( entNum <= 0 || entNum >= MAX_EDICTS ) {
+		return false;
+	}
+	const int32_t byteIdx = entNum / 8;
+	const uint8_t bitMask = static_cast<uint8_t>( 1u << ( entNum % 8 ) );
+	return ( visited[ byteIdx ] & bitMask ) != 0;
+}
+
+/**
+*	@brief  Check whether an entity already has a rollback record in the active mover transaction.
+*	@param  ent         Entity to query.
+*	@param  transaction First rollback record belonging to the current mover attempt.
+*	@return True when the entity was already displaced by this transaction.
+*	@note   Recursive blocker resolution records entities before mutation, so the outer contact scan
+*	        must not apply their mover displacement a second time.
+**/
+static bool SVG_HasPushedEntity( const svg_base_edict_t *ent, const pushed_t *transaction ) {
+	/**
+	*	Invalid inputs cannot identify a previous mutation.
+	**/
+	if ( !ent || !transaction || transaction > pushedState.pushedPtr ) {
+		return false;
+	}
+
+	/**
+	*	Search the bounded transaction records for the entity's first saved state.
+	**/
+	for ( const pushed_t *record = transaction; record < pushedState.pushedPtr; record++ ) {
+		if ( record->ent == ent ) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
+*	@brief  Determine whether a pushed entity path contains a newly encountered obstruction.
+*	@param  trace       Shape trace returned for a tentative pusher displacement.
+*	@param  ent         Entity whose shape was swept.
+*	@param  clipEdict   Entity or world BSP that produced `trace`.
+*	@param  start       World-space path start.
+*	@param  end         World-space path end.
+*	@param  allowInitialSeparation Allow a caller that has already resolved the initial overlap through a
+*	                               bounded slide search to commit its proven escape displacement.
+*	@return True when the path enters a solid, remains embedded after starting solid, or is all solid.
+*	@note   Ordinary mover paths require the first movement increment to leave an initial overlap. The
+*	        specialized no-carry slide transaction may bypass that conservative probe only after its
+*	        virtual path has explicitly recovered a separating normal and validated the remaining path.
+**/
+static bool SVG_IsPushedEntityPathBlocked( const svg_trace_t &trace, const svg_base_edict_t *ent, svg_base_edict_t *clipEdict, const Vector3 &start, const Vector3 &end, const bool allowInitialSeparation = false ) {
+	/**
+	*	Preserve the collision-model contract that permits a path to leave an initial solid overlap.
+	**/
+	if ( trace.allsolid || ( !trace.startsolid && trace.fraction < 1.0f ) ) {
+		return true;
+	}
+
+	/**
+	*	A start-solid trace is safe only when the first small step leaves the same solid volume. If that
+	*	probe remains embedded, the candidate is moving through or along the obstruction and must stop.
+	**/
+	if ( !trace.startsolid || !ent || !clipEdict ) {
+		return false;
+	}
+	const Vector3 path = end - start;
+	const float pathLength = QM_Vector3Length( path );
+	if ( pathLength <= 0.0001f ) {
+		return allowInitialSeparation;
+	}
+	if ( allowInitialSeparation ) {
+		/**
+		*	Locate the first free sample along the complete candidate path. This adaptive search is reserved
+		*	for the no-carry slide transaction because its aggregate displacement can begin deeper inside a
+		*	brush than the conservative ordinary-push probe distance.
+		**/
+		if ( SVG_TestEntityPositionAgainstClipEdictAt( ent, clipEdict, end ) ) {
+			return true;
+		}
+
+		constexpr int32_t escapeSampleCount = 16;
+		Vector3 lastSolidOrigin = start;
+		Vector3 firstFreeOrigin = end;
+		bool foundFreeSample = false;
+		for ( int32_t sampleIndex = 1; sampleIndex <= escapeSampleCount; sampleIndex++ ) {
+			const float sampleFraction = static_cast<float>( sampleIndex ) / static_cast<float>( escapeSampleCount );
+			const Vector3 sampleOrigin = start + ( path *	sampleFraction );
+			if ( SVG_TestEntityPositionAgainstClipEdictAt( ent, clipEdict, sampleOrigin ) ) {
+				lastSolidOrigin = sampleOrigin;
+				continue;
+			}
+			firstFreeOrigin = sampleOrigin;
+			foundFreeSample = true;
+			break;
+		}
+		if ( !foundFreeSample ) {
+			return true;
+		}
+
+		/**
+		*	Refine the solid-to-free boundary before checking the remainder, so a deep initial overlap is
+		*	separated without allowing the trace to skip a second intersection with the same clip volume.
+		**/
+		constexpr int32_t escapeSearchIterations = 8;
+		for ( int32_t searchIndex = 0; searchIndex < escapeSearchIterations; searchIndex++ ) {
+			const Vector3 midpoint = lastSolidOrigin + ( firstFreeOrigin - lastSolidOrigin ) *	0.5f;
+			if ( SVG_TestEntityPositionAgainstClipEdictAt( ent, clipEdict, midpoint ) ) {
+				lastSolidOrigin = midpoint;
+			} else {
+				firstFreeOrigin = midpoint;
+			}
+		}
+
+		/**
+		*	Start the remaining sweep just inside the proven free region. A short free margin avoids treating
+		*	the collision-model boundary epsilon as a second start-solid overlap.
+		**/
+		const Vector3 pathDirection = path *	( 1.0f / pathLength );
+		const float remainingLength = QM_Vector3Length( end - firstFreeOrigin );
+		constexpr float freeMargin = 0.125f;
+		const Vector3 remainingStart = remainingLength > freeMargin
+			? firstFreeOrigin + ( pathDirection *	freeMargin )
+			: end;
+		if ( SVG_TestEntityPositionAgainstClipEdictAt( ent, clipEdict, remainingStart ) ) {
+			return true;
+		}
+		const svg_trace_t remainingTrace = SVG_TraceEntityShapeAgainstClipEdict( ent, clipEdict, remainingStart, end );
+		return remainingTrace.allsolid || ( !remainingTrace.startsolid && remainingTrace.fraction < 1.0f );
+	}
+
+	/**
+	*	Ordinary pushes retain the short conservative probe so a side-contact shove cannot tunnel through
+	*	adjacent BSP while still allowing tiny numerical overlaps to leave the original surface.
+	**/
+	const float probeDistance = std::min( PUSH_PATH_SOLID_PROBE_DISTANCE, pathLength );
+	const Vector3 probeOrigin = start + ( path *	( probeDistance / pathLength ) );
+	if ( SVG_TestEntityPositionAgainstClipEdictAt( ent, clipEdict, probeOrigin ) ) {
+		return true;
+	}
+
+	/**
+	*	Once the path has escaped its initial overlap, sweep the remaining segment from the first known
+	*	free sample. This catches a second BSP brush entered later in the same displacement instead of
+	*	allowing a start-solid trace to tunnel through it.
+	**/
+	const svg_trace_t remainingTrace = SVG_TraceEntityShapeAgainstClipEdict( ent, clipEdict, probeOrigin, end );
+	return remainingTrace.allsolid || ( !remainingTrace.startsolid && remainingTrace.fraction < 1.0f );
+}
+
+/**
+*	@brief  Find the first solid entity hit while moving one pushed entity along a candidate path.
+*	@param  ent                    Moving entity whose native shape is swept.
+*	@param  pusher                 Mover that is carrying or pushing the entity.
+*	@param  start                  World-space path start.
+*	@param  end                    World-space path end.
+*	@param  visited                Recursive chain members retained for call-site context; final-pose
+*	                               validation must still inspect those entities for residual penetration.
+*	@param  outBlocker             [out] Entity producing the earliest blocking hit, or nullptr when clear.
+*	@param  includePusherAsBlocker Include the moved pusher for riders not carried around a pivot.
+*	@param  allowInitialSeparation Expose an initial start-solid contact to the caller so a specialized
+*	                               slide resolver can recover a separating normal; final-pose validation
+*	                               remains strict.
+*	@return Trace for the earliest blocking geometry.
+*	@note   World BSP and each dynamic edict are queried independently so a world startsolid cannot be
+*	        masked by an unrelated entity result in the merged server trace.
+**/
+static svg_trace_t SVG_TracePushedEntityPath( const svg_base_edict_t *ent, svg_base_edict_t *pusher, const Vector3 &start, const Vector3 &end, const uint8_t *visited, svg_base_edict_t **outBlocker, const bool includePusherAsBlocker, const bool allowInitialSeparation = false ) {
+	/**
+	*	Initialize the output blocker before evaluating world and entity candidates.
+	**/
+	if ( outBlocker ) {
+		*outBlocker = nullptr;
+	}
+	if ( !ent ) {
+		return {};
+	}
+
+	/**
+	*	Test world BSP first. A complete world-solid path is authoritative and cannot be displaced by recursion.
+	**/
+	svg_base_edict_t *worldEntity = g_edict_pool.EdictForNumber( ENTITYNUM_WORLD );
+	svg_trace_t bestTrace = SVG_TraceEntityShapeAgainstClipEdict( ent, worldEntity, start, end );
+	bool haveBlocker = false;
+	if ( bestTrace.allsolid ) {
+		if ( outBlocker ) {
+			*outBlocker = worldEntity;
+		}
+		return bestTrace;
+	}
+	if ( SVG_IsPushedEntityPathBlocked( bestTrace, ent, worldEntity, start, end, allowInitialSeparation ) ) {
+		if ( outBlocker ) {
+			*outBlocker = worldEntity;
+		}
+		haveBlocker = true;
+	} else if ( allowInitialSeparation && bestTrace.startsolid ) {
+		if ( outBlocker ) {
+			*outBlocker = worldEntity;
+		}
+		haveBlocker = true;
+	}
+
+	/**
+	*	Compare the candidate path against active solid edicts, excluding self and chain members. The mover
+	*	is additionally excluded for ordinary pushes but tested for non-carried rotating riders.
+	**/
+	for ( int32_t e = 1; e < globals.edictPool->num_edicts; e++ ) {
+		svg_base_edict_t *candidate = g_edict_pool.EdictForNumber( e );
+		if ( !candidate || !candidate->inUse || !candidate->isLinked ) {
+			continue;
+		}
+		if ( candidate == ent || SVG_IsEntityInPushChain( candidate, visited ) ) {
+			continue;
+		}
+		if ( candidate == pusher && !includePusherAsBlocker ) {
+			continue;
+		}
+		if ( candidate->solid == SOLID_NOT || candidate->solid == SOLID_TRIGGER ) {
+			continue;
+		}
+
+		/**
+		*	A direct clip preserves the candidate's entity identity without allowing the merged trace to report self.
+		**/
+		const svg_trace_t candidateTrace = SVG_TraceEntityShapeAgainstClipEdict( ent, candidate, start, end );
+		const bool candidateHit = SVG_IsPushedEntityPathBlocked( candidateTrace, ent, candidate, start, end, allowInitialSeparation ) || ( allowInitialSeparation && candidateTrace.startsolid );
+		if ( !candidateHit ) {
+			continue;
+		}
+		if ( !haveBlocker || candidateTrace.fraction < bestTrace.fraction ) {
+			bestTrace = candidateTrace;
+			if ( outBlocker ) {
+				*outBlocker = candidate;
+			}
+			haveBlocker = true;
+		}
+	}
+
+	return bestTrace;
+}
+
+/**
+*	@brief  Find a solid entity penetrating a pushed entity's current candidate pose.
+  *	@param  ent                    Entity at the tentative destination.
+ *	@param  pusher                 Mover responsible for the displacement.
+ *	@param  includePusherAsBlocker Include the mover when validating a non-carried rotating rider.
+*	@return The penetrating world or dynamic entity; nullptr when the pose is valid.
+*	@note   Final-pose validation checks penetration only. Valid contact at a separating boundary is allowed.
+**/
+static svg_base_edict_t *SVG_FindPushedEntityPositionBlocker( const svg_base_edict_t *ent, svg_base_edict_t *pusher, const bool includePusherAsBlocker ) {
+	/**
+	*	Validate the candidate entity before probing final geometry.
+	**/
+	if ( !ent || ent->solid == SOLID_NOT || ent->solid == SOLID_TRIGGER ) {
+		return nullptr;
+	}
+
+	/**
+	*	Check static world geometry first so a world penetration is never hidden by a mover contact.
+	**/
+	svg_base_edict_t *worldEntity = g_edict_pool.EdictForNumber( ENTITYNUM_WORLD );
+	if ( SVG_TestEntityPositionAgainstClipEdict( ent, worldEntity ) ) {
+		return worldEntity;
+	}
+
+	/**
+	*	A rider that opts out of angular carry must not be committed inside the pusher's rotated end pose.
+	*	Carried riders intentionally retain this contact, so the probe is conditional.
+	**/
+	if ( includePusherAsBlocker && pusher && SVG_TestEntityPositionAgainstClipEdict( ent, pusher ) ) {
+		return pusher;
+	}
+
+	/**
+	*	The pusher is an intentional contact surface for carried and directly pushed entities unless the
+	*	caller explicitly requested its validation. Check every other active solid edict while excluding only the entity itself. A
+	*	previously visited chain member is deliberately not skipped: recursive displacement must prove
+	*	that the complete committed chain is non-overlapping.
+	**/
+	for ( int32_t e = 1; e < globals.edictPool->num_edicts; e++ ) {
+		svg_base_edict_t *candidate = g_edict_pool.EdictForNumber( e );
+		if ( !candidate || !candidate->inUse || !candidate->isLinked ) {
+			continue;
+		}
+		if ( candidate == ent || ( candidate == pusher && !includePusherAsBlocker ) ) {
+			continue;
+		}
+		if ( candidate->solid == SOLID_NOT || candidate->solid == SOLID_TRIGGER ) {
+			continue;
+		}
+		if ( SVG_TestEntityPositionAgainstClipEdict( ent, candidate ) ) {
+			return candidate;
+		}
+	}
+
+	return nullptr;
+}
+
+/**
+*	@brief	Compute the exact 3D displacement of a point carried around a pusher pivot.
+*	@param	relOrg	World-space position relative to the pusher pivot before rotation.
+*	@param	startAngles	Pusher orientation at the beginning of the movement step.
+*	@param	endAngles	Pusher orientation at the end of the movement step.
+*	@return	World-space displacement produced by the start-to-end rotation.
+*	@note	The point is converted into the pusher's start frame and then reconstructed through its end
+*			frame, preserving the engine's forward/-right/up basis convention.
+**/
+static Vector3 SVG_Compute3DRotationDisplacement( const Vector3 &relOrg, const Vector3 &startAngles, const Vector3 &endAngles ) {
+	/**
+	*	Return zero immediately when the pusher orientation did not change during this frame.
+	**/
+	const Vector3 angularMove = endAngles - startAngles;
+	if ( VectorEmpty( angularMove ) ) {
+		return {};
+	}
+
+	/**
+	*	Build the pusher's start and end bases using the same Euler convention as transformed collision
+	*	traces. The negative right vector represents the world direction of local positive Y.
+	**/
+	Vector3 startForward = {};
+	Vector3 startRight = {};
+	Vector3 startUp = {};
+	Vector3 endForward = {};
+	Vector3 endRight = {};
+	Vector3 endUp = {};
+	QM_AngleVectors( startAngles, &startForward, &startRight, &startUp );
+	QM_AngleVectors( endAngles, &endForward, &endRight, &endUp );
+
+	/**
+	*	Convert the world-relative rider origin into coordinates local to the pusher's start orientation.
+	*	Dot products invert the orthonormal basis while negating right preserves local positive Y.
+	**/
+	const Vector3 localOrigin = {
+		QM_Vector3DotProduct( relOrg, startForward ),
+		-QM_Vector3DotProduct( relOrg, startRight ),
+		QM_Vector3DotProduct( relOrg, startUp )
+	};
+
+	/**
+	*	Convert the unchanged local offset through the pusher's end orientation and return only the
+	*	angular displacement. The caller adds linear move separately.
+	**/
+	const Vector3 rotatedOrigin = ( endForward *	localOrigin.x ) - ( endRight *	localOrigin.y ) + ( endUp *	localOrigin.z );
+	return rotatedOrigin - relOrg;
+}
+	
+/**
+*	@brief	Determine whether a mover carries riders around its rotating pivot.
+*	@param	pusher	Mover whose rider policy is being queried.
+*	@return	True when the existing angular rider displacement should be retained.
+*	@note	Only func_door_rotating consumes the opt-out flag; all other movers preserve their
+*			current behavior and therefore return true.
+**/
+static bool SVG_ShouldCarryRidersAroundPivot( const svg_base_edict_t *pusher ) {
+	/**
+	*	Preserve the existing behavior for invalid, non-rotating, and non-door movers.
+	**/
+	if ( !pusher || !pusher->GetTypeInfo()->IsSubClassType<svg_func_door_rotating_t>() ) {
+		return true;
+	}
+
+	/**
+	*	The explicit rotating-door opt-out leaves riders in ordinary collision handling so they can slide
+	*	away from the brush or block the mover rather than being teleported around its pivot.
+	**/
+	return ( pusher->spawnflags & svg_func_door_rotating_t::SPAWNFLAG_NO_RIDER_CARRY ) == 0;
+}
+
+/**
+*	@brief	Set origin of an entity during mover physics and synchronize client pmove prediction origin if applicable.
+*	@param	ent			Entity to translate.
+*	@param	origin		New world-space origin position.
+*	@param	setPrevious	If true, stores old origin in s.old_origin for interpolation.
+**/
+static void SVG_Mover_SetEntityOrigin( svg_base_edict_t *ent, const Vector3 &origin, bool setPrevious = true );
+
+/**
+*	@brief  Save an entity's authoritative state before a tentative mover mutation.
+*	@param  ent  Entity that is about to be moved or have its ground state changed.
+*	@return True when a rollback record was created, false when the transaction has no capacity.
+*	@note   Records are intentionally append-only during a transaction. A checkpoint can therefore
+*	        restore nested attempts in reverse mutation order without losing the original state.
+**/
+static bool SVG_SavePushedEntityState( svg_base_edict_t *ent ) {
+	/**
+	*	Validate the entity and ensure the bounded rollback array has a free slot.
+	**/
+	if ( !ent || !pushedState.pushedPtr || pushedState.pushedPtr >= &pushedState.pushed[ MAX_EDICTS ] ) {
+		return false;
+	}
+
+	/**
+	*	Capture all state changed by mover displacement, including client prediction and grounding.
+	**/
+	pushedState.pushedPtr->ent = ent;
+	pushedState.pushedPtr->origin = ent->currentOrigin;
+	pushedState.pushedPtr->angles = ent->currentAngles;
+	pushedState.pushedPtr->groundInfo = ent->groundInfo;
+	if ( ent->client ) {
+		pushedState.pushedPtr->yawDelta = ent->client->ps.pmove.delta_angles[ YAW ];
+	}
+	pushedState.pushedPtr++;
+	return true;
+}
+
+/**
+*	@brief  Restore all mover mutations made after a transaction checkpoint.
+*	@param  checkpoint  First rollback record belonging to the nested attempt.
+*	@note   Restoration runs in reverse order so entities pushed recursively are returned before
+*	        their parents, preserving the same dependency order used during displacement.
+**/
+static void SVG_RestorePushedStateTo( pushed_t *checkpoint ) {
+	/**
+	*	Ignore invalid checkpoints instead of walking outside the bounded rollback storage.
+	**/
+	if ( !checkpoint || checkpoint < pushedState.pushed || checkpoint > pushedState.pushedPtr ) {
+		return;
+	}
+
+	/**
+	*	Restore every entity changed after the checkpoint, including links and prediction state.
+	**/
+	while ( pushedState.pushedPtr > checkpoint ) {
+		--pushedState.pushedPtr;
+		pushed_t *saved = pushedState.pushedPtr;
+		if ( !saved->ent || !saved->ent->inUse ) {
+			continue;
+		}
+		SVG_Mover_SetEntityOrigin( saved->ent, saved->origin, true );
+		SVG_Util_SetEntityAngles( saved->ent, saved->angles, true );
+		saved->ent->groundInfo = saved->groundInfo;
+		if ( saved->ent->client ) {
+			saved->ent->client->ps.pmove.delta_angles[ YAW ] = saved->yawDelta;
+		}
+		gi.linkentity( saved->ent );
+	}
+}
+
+/**
+*	@brief  Trace an entity downward against a mover to determine its end-pose support surface.
+*	@param  ent      Entity whose native collision shape is being tested.
+*	@param  pusher   Mover that may still support the entity.
+*	@param  origin   Candidate entity origin to test.
+*	@return Shape trace from a small lift above origin down through the walkable support range.
+*	@note   The trace is directed at the mover only, so nearby world geometry cannot make a rider
+*	        appear supported by the rotating brush.
+**/
+static svg_trace_t SVG_TraceEntitySupportAgainstMover( const svg_base_edict_t *ent, svg_base_edict_t *pusher, const Vector3 &origin ) {
+	/**
+	*	Reject invalid participants before constructing the support probe.
+	**/
+	if ( !ent || !pusher ) {
+		return {};
+	}
+
+	/**
+	*	Lift the shape slightly to avoid classifying an embedded or boundary-starting pose as a valid floor
+	*	contact, then trace down by the same walkable-ground distance used by rider acquisition.
+	**/
+	const Vector3 start = origin + Vector3{ 0.0f, 0.0f, 0.1f };
+	const Vector3 end = origin - Vector3{ 0.0f, 0.0f, static_cast<float>( PM_STEP_GROUND_DIST ) };
+	return SVG_TraceEntityShapeAgainstClipEdict( ent, pusher, start, end );
+}
+
+/**
+*	@brief  Test whether an entity is supported by a mover at a candidate origin.
+*	@param  ent             Entity whose support state is being evaluated.
+*	@param  pusher          Mover providing the possible support surface.
+*	@param  origin          Candidate entity origin in the mover's current pose.
+*	@param  outGroundInfo   Optional support data populated when the mover is walkable.
+*	@return True when the mover is hit below the entity on a walkable, non-startsolid trace.
+**/
+static bool SVG_IsEntitySupportedByMoverAt( const svg_base_edict_t *ent, svg_base_edict_t *pusher, const Vector3 &origin, ground_info_t *outGroundInfo = nullptr ) {
+	/**
+	*	Validate the support participants before issuing the downward trace.
+	**/
+	if ( !ent || !pusher ) {
+		return false;
+	}
+
+	/**
+	*	Require a clean downward hit on the mover. A startsolid result represents penetration rather than
+	*	a rider standing freely on the rotating brush.
+	**/
+	const svg_trace_t trace = SVG_TraceEntitySupportAgainstMover( ent, pusher, origin );
+	if ( trace.startsolid || trace.allsolid || trace.fraction >= 1.0f || trace.entityNumber != pusher->s.number || trace.plane.normal[ 2 ] < static_cast<float>( PM_STEP_MIN_NORMAL ) ) {
+		return false;
+	}
+
+	/**
+	*	Preserve the authoritative support details when the caller needs to keep the rider grounded after a
+	*	successful no-carry displacement.
+	**/
+	if ( outGroundInfo ) {
+		outGroundInfo->entityNumber = pusher->s.number;
+		outGroundInfo->entityLinkCount = pusher->linkCount;
+		outGroundInfo->plane = trace.plane;
+		outGroundInfo->contents = trace.contents;
+		outGroundInfo->material = trace.material;
+		if ( trace.surface ) {
+			outGroundInfo->surface = *trace.surface;
+		}
+	}
+
+	return true;
+}
+
+/**
+*	@brief	Probe whether an entity is genuinely standing on top of a mover.
+*	@param	ent		Entity edict to evaluate.
+*	@param	pusher	Mover entity undergoing movement.
+*	@return	True when the entity is standing on top of the mover's horizontal surface, false otherwise.
+*	@note	First checks existing groundInfo data, then performs a non-startsolid downward shape trace
+*			lifted by 0.1f and extending by PM_STEP_GROUND_DIST to test for walkable floor surface contact.
+**/
+static bool SVG_IsEntityRidingMover( const svg_base_edict_t *ent, svg_base_edict_t *pusher ) {
+	// Sanity check: both entities must be valid and solid.
+	if ( !ent || !pusher ) {
+		return false;
+	}
+
+	// Perform a fresh direct mover-only support trace so stale link information cannot retain a dropped rider.
+	return SVG_IsEntitySupportedByMoverAt( ent, pusher, ent->currentOrigin );
+}
+
+/**
+*	@brief	Probe whether an entity shape intersects a mover along the mover's relative motion vector.
+*	@param	ent			Candidate entity being checked for mover contact.
+*	@param	pusher		Mover entity undergoing linear or angular displacement.
+*	@param	startPoint	Start point of the shape sweep in world space.
+*	@param	endPoint	End point of the shape sweep in world space.
+*	@return	True when the mover sweeps into or overlaps the entity shape, false otherwise.
+*	@note	Uses the entity's native shape primitive (SOLID_CAPSULE, SOLID_CYLINDER, SOLID_SPHERE, SOLID_BBOX)
+*			to perform a relative motion sweep from startPoint to endPoint against pusher.
+**/
+static bool SVG_TestEntityContactWithMover( const svg_base_edict_t *ent, svg_base_edict_t *pusher, const Vector3 &startPoint, const Vector3 &endPoint ) {
+	/**
+	*	Validate both collision participants before testing the relative mover sweep.
+	**/
+	if ( !ent || !pusher ) {
+		return false;
+	}
+	if ( ent->solid == SOLID_NOT || ent->solid == SOLID_TRIGGER ) {
+		return false;
+	}
+
+	/**
+	*	Reject a sweep that starts inside the mover. That state represents contact at T_start, not
+	*	a pusher entering a stationary entity; final overlap is handled by the explicit end probe.
+	**/
+	const svg_trace_t trace = SVG_TraceEntityShapeAgainstClipEdict( ent, pusher, startPoint, endPoint );
+	return !trace.startsolid && !trace.allsolid && trace.fraction < 1.0f;
+}
+
+/**
+*	@brief	Set origin of an entity during mover physics and synchronize client pmove prediction origin if applicable.
+*	@param	ent			Entity to translate.
+*	@param	origin		New world-space origin position.
+*	@param	setPrevious	If true, stores old origin in s.old_origin for interpolation.
+**/
+static void SVG_Mover_SetEntityOrigin( svg_base_edict_t *ent, const Vector3 &origin, bool setPrevious ) {
+	SVG_Util_SetEntityOrigin( ent, origin, setPrevious );
+	if ( ent != nullptr && ent->client != nullptr ) {
+		ent->client->ps.pmove.origin = ent->currentOrigin;
+	}
+}
+
 /**
 *	@brief	Two entities have collided; run their touch functions.
 *	@param	e1 The first entity.
@@ -332,7 +1011,7 @@ static const int32_t SVG_SlideBox( svg_base_edict_t *ent, const double time, con
 	ent->groundInfo.entityNumber = ENTITYNUM_NONE;
 	for ( bumpcount = 0; bumpcount < numbumps; bumpcount++ ) {
 		for ( i = 0; i < 3; i++ ) {
-			end[ i ] = ent->currentOrigin[ i ] + time_left * ent->velocity[ i ];
+			end[ i ] = ent->currentOrigin[ i ] + time_left *	ent->velocity[ i ];
 		}
 
 		trace = SVG_TraceEntityShape( ent->currentOrigin, end, ent, ent, mask );
@@ -376,7 +1055,7 @@ static const int32_t SVG_SlideBox( svg_base_edict_t *ent, const double time, con
 			break;      // removed by the impact function
 		}
 
-		time_left -= time_left * trace.fraction;
+		time_left -= time_left *	trace.fraction;
 
 		// cliped to another plane
 		if ( numplanes >= MAX_CLIP_PLANES ) {
@@ -445,10 +1124,10 @@ static const int32_t SVG_SlideBox( svg_base_edict_t *ent, const double time, con
 /**
 *	@brief	Will attempt to push an entity by the specified vector, handling collisions and impacts.
 *	@param	ent The entity to push.
-* 	@param	push The vector to push the entity by.
-* 	@return The trace result of the push operation.
-* 	@note	If the entity is blocked during the push, its position will be set to the end position of the trace.
-* 			If the entity is removed during the impact handling, it will not be re-linked.
+*		@param	push The vector to push the entity by.
+*		@return The trace result of the push operation.
+*		@note	If the entity is blocked during the push, its position will be set to the end position of the trace.
+*				If the entity is removed during the impact handling, it will not be re-linked.
 **/
 svg_trace_t SVG_PushEntity( svg_base_edict_t *ent, const Vector3& pushOffset ) {
 	// The resulting trace.
@@ -467,7 +1146,7 @@ retry:
 	// Perform the trace.
 	trace = SVG_TraceEntityShape( start, end, ent, ent, SVG_GetClipMask( ent ) );
 
-	SVG_Util_SetEntityOrigin( ent, trace.endpos, true ); // VectorCopy(trace.endpos, ent->s.origin);
+	SVG_Mover_SetEntityOrigin( ent, trace.endpos, true ); // VectorCopy(trace.endpos, ent->s.origin);
 	gi.linkentity( ent );
 
 	if ( trace.fraction != 1.0f ) {
@@ -477,7 +1156,7 @@ retry:
 		// If the pushed entity went away and the pusher is still there:
 		if ( !trace.ent->inUse && ent->inUse ) {
 			// Move the pusher back and try again.
-			SVG_Util_SetEntityOrigin( ent, start, true ); // VectorCopy( start, ent->s.origin );
+			SVG_Mover_SetEntityOrigin( ent, start, true ); // VectorCopy( start, ent->s.origin );
 			gi.linkentity( ent );
 			goto retry;
 		}
@@ -504,189 +1183,551 @@ retry:
 //    //    x += 0.5f;
 //    //else
 //    //    x -= 0.5f;
-//    //return 0.125f * (int)x;
+//    //return 0.125f *	(int)x;
 //    return x;
 //}
 
 /**
-*	@brief	Objects need to be moved back on a failed push, otherwise riders would continue to slide.
-*	@param	pusher The entity that is pushing.
-* 	@param	move The movement vector.
-* 	@param	amove The angular movement vector.
-* 	@return	true if the push was successful, false if blocked.
+*	@brief	Recursively attempts to displace a chain of dynamic entities pushed by a mover.
+*	@param	pusher		The root mover entity.
+*	@param	ent			The entity currently being pushed in the chain.
+*	@param	delta		The displacement vector to apply.
+*	@param	depth		Recursion depth guard to prevent infinite loops.
+*	@param	visited		Array of edict numbers already pushed in this chain.
+ *	@param	includePusherAsBlocker	Whether the root candidate must validate against the mover's rotated end pose.
+ *	@param	allowInitialSeparation	Whether this transaction is the prevalidated no-carry slide escape.
+ *	@return	true if ent and all downstream entities were successfully displaced into free space;
+ *			false if any link in the chain is blocked.
 **/
-const bool SVG_PushMover( svg_base_edict_t *pusher, const Vector3 &move, const Vector3 &amove ) {
-	svg_base_edict_t *blockPtr = nullptr;
-	Vector3 org2 = {};
-	Vector3 move2 = {};
-	Vector3 vForward = {}, vRight = {}, vUp = {};
-
-	// Sanity check.
-    if ( !pusher ) {
-        return false;
-    }
-
-    // clamp the move to 1/8 units, so the position will
-    // be accurate for client side prediction
-    //for ( int32_t i = 0; i < 3; i++ )
-    //    move[i] = SnapToEights(move[i]);
-
-    // find the bounding box
-	Vector3 mins = pusher->absMin + move;
-	Vector3 maxs = pusher->absMax + move;
-    //for (int32_t i = 0; i < 3; i++) {
-    //    mins[i] = pusher->absMin[i] + move[i];
-    //    maxs[i] = pusher->absMax[i] + move[i];
-    //}
+static bool SVG_TryPushEntityChain( svg_base_edict_t *pusher, svg_base_edict_t *ent, const Vector3 &delta, int32_t depth = 0, uint8_t *visited = nullptr, const bool includePusherAsBlocker = false, const bool allowInitialSeparation = false ) {
 
 	/**
-	*	We need this for pushing things later.
+	*	Initialize the recursion tracker at the root and reject invalid or non-blocking entities.
 	**/
-	Vector3 org = QM_Vector3Negate( amove );// VectorNegate( amove, org );
-	QM_AngleVectors( org, &vForward, &vRight, &vUp );
-
-// save the pusher's original position
-    pushedState.pushedPtr->ent = pusher;
-	// Preserve the pusher transform so a blocked move can be rolled back without using zero-initialized state.
-	pushedState.pushedPtr->origin = pusher->currentOrigin;
-	pushedState.pushedPtr->angles = pusher->currentAngles;
-	SVG_Util_SetEntityOrigin( pushedState.pushedPtr->ent, pusher->currentOrigin, true ); // VectorCopy(pusher->s.origin, pushed_p->origin);
-	SVG_Util_SetEntityAngles( pushedState.pushedPtr->ent, pusher->currentAngles, true ); // VectorCopy(pusher->s.angles, pushed_p->angles);
-    //#if USE_SMOOTH_DELTA_ANGLES
-	if ( pusher->client ) {
-		pushedState.pushedPtr->yawDelta = pusher->client->ps.pmove.delta_angles[ YAW ];
+	uint8_t localVisited[ MAX_EDICTS / 8 ] = {};
+	if ( !visited ) {
+		visited = localVisited;
 	}
-    //#endif
-	pushedState.pushedPtr++;
+	if ( !ent || ent == pusher || depth >= 16 || ent->solid == SOLID_NOT || ent->solid == SOLID_TRIGGER ) {
+		return false;
+	}
 
-// move the pusher to it's final position
-	SVG_Util_SetEntityOrigin( pusher, pusher->currentOrigin + move, true ); //
-	SVG_Util_SetEntityAngles( pusher, pusher->currentAngles + amove, true ); //
-	//pusher->currentOrigin += move; // VectorAdd(pusher->s.origin, move, pusher->s.origin);
-	//pusher->currentAngles += amove; // VectorAdd(pusher->s.angles, amove, pusher->s.angles);
-    gi.linkentity(pusher);
+	/**
+	 *	Mark the current entity before probing blockers so a circular contact graph cannot recurse forever.
+	 **/
+	const int32_t entNum = ent->s.number;
+	if ( entNum <= 0 || entNum >= MAX_EDICTS ) {
+		return false;
+	}
+	const int32_t byteIdx = entNum / 8;
+	const uint8_t bitMask = static_cast<uint8_t>( 1u << ( entNum % 8 ) );
+	if ( ( visited[ byteIdx ] & bitMask ) != 0 ) {
+		pushedState.obstacle = ent;
+		return false;
+	}
+	visited[ byteIdx ] |= bitMask;
 
-// see if any solid entities are inside the final position
-    svg_base_edict_t *checkPtr = g_edict_pool.EdictForNumber( 1 );
-    for ( int32_t e = 1; e < globals.edictPool->num_edicts; e++, checkPtr = g_edict_pool.EdictForNumber( e ) ) {
-		// Ensure it is in use.
-		if ( !checkPtr || !checkPtr->inUse ) {
+	/**
+	*	Record the entity before any tentative mutation. The checkpoint owns this entity and all
+	*	downstream records created while resolving its blockers.
+	**/
+	pushed_t *checkpoint = pushedState.pushedPtr;
+	if ( !SVG_SavePushedEntityState( ent ) ) {
+		pushedState.obstacle = ent;
+		return false;
+	}
+	const Vector3 startOrigin = ent->currentOrigin;
+	const Vector3 targetOrigin = startOrigin + delta;
+
+	/**
+	 *	Resolve up to the bounded number of possible contact links. Every iteration either moves a
+	 *	dynamic blocker or reaches the exact target pose; static geometry always aborts the transaction.
+	 **/
+	for ( int32_t attempt = 0; attempt < 16; attempt++ ) {
+		svg_base_edict_t *pathBlocker = nullptr;
+		const svg_trace_t pathTrace = SVG_TracePushedEntityPath( ent, pusher, startOrigin, targetOrigin, visited, &pathBlocker, includePusherAsBlocker, allowInitialSeparation );
+		if ( pathBlocker && SVG_IsPushedEntityPathBlocked( pathTrace, ent, pathBlocker, startOrigin, targetOrigin, allowInitialSeparation ) ) {
+			/**
+			*	Only ordinary movable entities may be displaced recursively. World BSP, brush movers,
+			*	stopped movers, and static solids are authoritative blockers for this transaction.
+			**/
+			const bool blockerIsMovable = pathBlocker != g_edict_pool.EdictForNumber( ENTITYNUM_WORLD )
+				&& pathBlocker->solid != SOLID_BSP
+				&& pathBlocker->movetype != MOVETYPE_PUSH
+				&& pathBlocker->movetype != MOVETYPE_STOP
+				&& pathBlocker->movetype != MOVETYPE_NONE
+				&& !SVG_IsEntityInPushChain( pathBlocker, visited );
+			if ( !blockerIsMovable || !SVG_TryPushEntityChain( pusher, pathBlocker, delta, depth + 1, visited, includePusherAsBlocker, allowInitialSeparation ) ) {
+				pushedState.obstacle = pathBlocker;
+				SVG_RestorePushedStateTo( checkpoint );
+				return false;
+			}
 			continue;
 		}
-		if ( checkPtr->movetype == MOVETYPE_PUSH
-			|| checkPtr->movetype == MOVETYPE_STOP
-			|| checkPtr->movetype == MOVETYPE_NONE
-			|| checkPtr->movetype == MOVETYPE_NOCLIP ) {
+
+		/**
+		*	Apply the complete requested displacement only after the path is clear. Partial trace endpoints
+		*	are not valid commits because they desynchronize the moved entity from the pusher.
+		**/
+		SVG_Mover_SetEntityOrigin( ent, targetOrigin, true );
+		svg_base_edict_t *finalBlocker = SVG_FindPushedEntityPositionBlocker( ent, pusher, includePusherAsBlocker );
+		if ( !finalBlocker ) {
+			// A successfully displaced entity is no longer grounded on its previous support surface.
+			ent->groundInfo.entityNumber = ENTITYNUM_NONE;
+			gi.linkentity( ent );
+			return true;
+		}
+
+		/**
+		 *	A dynamic overlap discovered at the exact target still requires downstream displacement. The
+		 *	current entity remains at targetOrigin while the blocker is moved so the final pose is re-tested.
+		 **/
+		const bool blockerIsMovable = finalBlocker != g_edict_pool.EdictForNumber( ENTITYNUM_WORLD )
+			&& finalBlocker->solid != SOLID_BSP
+			&& finalBlocker->movetype != MOVETYPE_PUSH
+			&& finalBlocker->movetype != MOVETYPE_STOP
+			&& finalBlocker->movetype != MOVETYPE_NONE
+			&& !SVG_IsEntityInPushChain( finalBlocker, visited );
+		if ( !blockerIsMovable || !SVG_TryPushEntityChain( pusher, finalBlocker, delta, depth + 1, visited, includePusherAsBlocker, allowInitialSeparation ) ) {
+			pushedState.obstacle = finalBlocker;
+			SVG_RestorePushedStateTo( checkpoint );
+			return false;
+		}
+	}
+
+	/**
+	*	The bounded chain limit was reached without proving a valid final pose.
+	**/
+	pushedState.obstacle = g_edict_pool.EdictForNumber( ENTITYNUM_WORLD );
+	SVG_RestorePushedStateTo( checkpoint );
+	return false;
+}
+
+/**
+*	@brief  Recover an outward contact normal for a pushed entity that began inside a blocker.
+*	@param  ent             Entity whose native collision shape is being sampled.
+*	@param  clipEdict       World or entity blocker whose contact normal is required.
+*	@param  origin          Virtual origin at which the entity is currently being resolved.
+*	@param  preferredDelta  Displacement direction that caused the contact.
+*	@param  outNormal       [out] Normal pointing away from the blocking surface.
+*	@return True when a usable outward normal was recovered.
+*	@note   Position traces intentionally report startsolid without a plane. Reverse probes from a
+*	        small set of likely free-space directions recover the missing plane without changing the
+*	        collision-model contract or mutating the active mover transaction.
+**/
+static bool SVG_FindPushedEntityContactNormal( const svg_base_edict_t *ent, svg_base_edict_t *clipEdict, const Vector3 &origin, const Vector3 &preferredDelta, Vector3 *outNormal, float *outSeparationDistance ) {
+	/**
+	*	Validate the collision participants and output storage before issuing any probe traces.
+	**/
+	if ( !ent || !clipEdict || !outNormal || !outSeparationDistance ) {
+		return false;
+	}
+	*outNormal = {};
+	*outSeparationDistance = 0.0f;
+
+	/**
+	*	Build probe directions beginning with the direction opposite the requested displacement. This is
+	*	the most likely free-space direction when the entity is pressed into a surface by the mover.
+	**/
+	Vector3 probeDirections[ 12 ] = {};
+	int32_t numProbeDirections = 0;
+	const float preferredLength = QM_Vector3Length( preferredDelta );
+	if ( preferredLength > 0.001f ) {
+		const Vector3 preferredDirection = preferredDelta *	( 1.0f / preferredLength );
+		probeDirections[ numProbeDirections++ ] = QM_Vector3Negate( preferredDirection );
+		probeDirections[ numProbeDirections++ ] = preferredDirection;
+	}
+
+	/**
+	*	Add radial probes as a useful fallback for rotating brush sides whose contact normal is not aligned
+	*	with the entity's instantaneous tangential displacement.
+	**/
+	const Vector3 radial = origin - clipEdict->currentOrigin;
+	const float radialLength = QM_Vector3Length( radial );
+	if ( radialLength > 0.001f && numProbeDirections + 2 <= static_cast<int32_t>( q_countof( probeDirections ) ) ) {
+		const Vector3 radialDirection = radial *	( 1.0f / radialLength );
+		probeDirections[ numProbeDirections++ ] = radialDirection;
+		probeDirections[ numProbeDirections++ ] = QM_Vector3Negate( radialDirection );
+	}
+
+	/**
+	*	Use axis probes last so a corner contact can still expose either of its independent separating planes.
+	**/
+	const Vector3 axisDirections[ 6 ] = {
+		{ 1.0f, 0.0f, 0.0f },
+		{ -1.0f, 0.0f, 0.0f },
+		{ 0.0f, 1.0f, 0.0f },
+		{ 0.0f, -1.0f, 0.0f },
+		{ 0.0f, 0.0f, 1.0f },
+		{ 0.0f, 0.0f, -1.0f }
+	};
+	for ( int32_t axisIndex = 0; axisIndex < static_cast<int32_t>( q_countof( axisDirections ) ) && numProbeDirections < static_cast<int32_t>( q_countof( probeDirections ) ); axisIndex++ ) {
+		probeDirections[ numProbeDirections++ ] = axisDirections[ axisIndex ];
+	}
+
+	/**
+	*	Start sufficiently outside the pushed shape to turn a zero-length start-solid contact into an
+	*	ordinary sweep with a collision plane. The probe remains local and never commits an entity move.
+	**/
+	const float probeDistance = std::max( 16.0f, SVG_GetEntityBoundingRadius( ent ) + 1.0f );
+	for ( int32_t directionIndex = 0; directionIndex < numProbeDirections; directionIndex++ ) {
+		const Vector3 probeStart = origin + ( probeDirections[ directionIndex ] *	probeDistance );
+		const svg_trace_t probeTrace = SVG_TraceEntityShapeAgainstClipEdict( ent, clipEdict, probeStart, origin );
+		if ( probeTrace.startsolid || probeTrace.allsolid || probeTrace.fraction >= 1.0f ) {
 			continue;
 		}
 
-		if ( /*!checkPtr->area.prev*/ !checkPtr->isLinked) {
-			continue;       // not linked in anywhere
+		/**
+		*	Reject degenerate planes before normalizing so malformed or synthetic traces cannot create NaNs.
+		**/
+		const Vector3 normal = { probeTrace.plane.normal[ 0 ], probeTrace.plane.normal[ 1 ], probeTrace.plane.normal[ 2 ] };
+		const float normalLength = QM_Vector3Length( normal );
+		if ( normalLength <= 0.001f ) {
+			continue;
+		}
+		*outNormal = normal *	( 1.0f / normalLength );
+		if ( QM_Vector3DotProduct( *outNormal, probeDirections[ directionIndex ] ) < 0.0f ) {
+			*outNormal = QM_Vector3Negate( *outNormal );
+		}
+		*outSeparationDistance = std::max( 0.0f, QM_Vector3Length( probeTrace.endpos - origin ) );
+		return true;
+	}
+
+	return false;
+}
+
+/**
+*	@brief  Attempt to resolve a pushed entity by sliding its requested contact displacement.
+*	@param  pusher              Mover currently held at its tentative end pose.
+*	@param  ent                 Entity that must separate from the mover and surrounding geometry.
+*	@param  requestedDelta      Contact displacement induced by the mover's linear and angular motion.
+*	@param  includePusherAsBlocker Include the tentative mover pose in final collision validation.
+*	@return True when a collision-free slid pose was committed to the active transaction.
+*	@note   Every failed candidate is rolled back by SVG_TryPushEntityChain. The final commit therefore
+*	        remains atomic and a valid slide can never leave a partial rider displacement behind.
+**/
+static bool SVG_TrySlidePushedEntityChain( svg_base_edict_t *pusher, svg_base_edict_t *ent, const Vector3 &requestedDelta, const bool includePusherAsBlocker ) {
+	/**
+	*	Reject invalid participants and empty contact motion. An empty displacement cannot separate an
+	*	entity from a rotating pusher and must remain a genuine block when the final pose overlaps.
+	**/
+	if ( !pusher || !ent || QM_Vector3Length( requestedDelta ) <= 0.001f ) {
+		return false;
+	}
+
+	/**
+	*	Prefer the complete contact displacement first. This preserves ordinary push behavior whenever the
+	*	requested tangent already has a free path and avoids introducing an unnecessary partial move.
+	**/
+	if ( SVG_TryPushEntityChain( pusher, ent, requestedDelta, 0, nullptr, includePusherAsBlocker ) ) {
+		return true;
+	}
+
+	/**
+	*	Resolve the requested motion through a small number of collision planes. The virtual origin is used
+	*	only for trace queries; the entity itself remains at its original position until the final chain
+	*	commit succeeds.
+	**/
+	const Vector3 startOrigin = ent->currentOrigin;
+	Vector3 virtualOrigin = startOrigin;
+	Vector3 accumulatedDelta = {};
+	Vector3 remainingDelta = requestedDelta;
+	constexpr int32_t maxSlideBumps = 4;
+	constexpr float minSlideDistance = 0.001f;
+	constexpr float startSolidSeparation = 0.125f;
+
+	for ( int32_t bumpIndex = 0; bumpIndex < maxSlideBumps; bumpIndex++ ) {
+		/**
+		*	Stop the bounded slide search once the remaining contact displacement is numerically exhausted.
+		**/
+		if ( QM_Vector3Length( remainingDelta ) <= minSlideDistance ) {
+			break;
 		}
 
-        // If the entity is standing on the pusher, it will definitely be moved.
-        if ( checkPtr->groundInfo.entityNumber != pusher->s.number ) {
-            // see if the ent needs to be tested
-			if ( checkPtr->absMin[ 0 ] >= maxs[ 0 ]
-				|| checkPtr->absMin[ 1 ] >= maxs[ 1 ]
-				|| checkPtr->absMin[ 2 ] >= maxs[ 2 ]
-				|| checkPtr->absMax[ 0 ] <= mins[ 0 ]
-				|| checkPtr->absMax[ 1 ] <= mins[ 1 ]
-				|| checkPtr->absMax[ 2 ] <= mins[ 2 ] ) {
+		/**
+		*	Trace the virtual remaining displacement against world geometry, dynamic entities, and the
+		*	tentative rotating pusher. A blocker that is only being left is not treated as a new hit.
+		**/
+		svg_base_edict_t *pathBlocker = nullptr;
+		const Vector3 virtualEnd = virtualOrigin + remainingDelta;
+		const svg_trace_t pathTrace = SVG_TracePushedEntityPath( ent, pusher, virtualOrigin, virtualEnd, nullptr, &pathBlocker, includePusherAsBlocker, true );
+		const bool pathEnteredNewSolid = ( !pathTrace.startsolid && pathTrace.fraction < 1.0f );
+		const bool pathBlocked = pathBlocker && ( pathTrace.allsolid || pathEnteredNewSolid || pathTrace.startsolid );
+		if ( !pathBlocked ) {
+			accumulatedDelta += remainingDelta;
+			break;
+		}
+
+		/**
+		*	Prefer the authoritative sweep plane, then recover a normal for start-solid contacts whose trace
+		*	intentionally contains no plane data.
+		**/
+		Vector3 contactNormal = { pathTrace.plane.normal[ 0 ], pathTrace.plane.normal[ 1 ], pathTrace.plane.normal[ 2 ] };
+		bool haveContactNormal = QM_Vector3Length( contactNormal ) > 0.001f;
+		float separationDistance = 0.0f;
+		if ( haveContactNormal ) {
+			contactNormal = QM_Vector3Normalize( contactNormal );
+		} else {
+			haveContactNormal = SVG_FindPushedEntityContactNormal( ent, pathBlocker, virtualOrigin, remainingDelta, &contactNormal, &separationDistance );
+		}
+		if ( !haveContactNormal ) {
+			return false;
+		}
+
+		/**
+		*	Advance to the safe side of the first impact, then remove only the component of the remaining
+		*	contact motion that drives the capsule into the surface.
+		**/
+		const float traceFraction = static_cast<float>( std::clamp( pathTrace.fraction, 0.0, 1.0 ) );
+		accumulatedDelta += remainingDelta *	traceFraction;
+		remainingDelta = remainingDelta *	( 1.0f - traceFraction );
+		if ( pathTrace.startsolid ) {
+			// Start-solid probes need an outward correction because collision-model position tests are conservative.
+			accumulatedDelta += contactNormal *	( separationDistance + startSolidSeparation );
+		}
+		virtualOrigin = startOrigin + accumulatedDelta;
+
+		const float intoSurface = QM_Vector3DotProduct( remainingDelta, contactNormal );
+		if ( intoSurface < 0.0f ) {
+			remainingDelta -= contactNormal *	intoSurface;
+		}
+	}
+
+	/**
+	*	Commit the aggregate slide as one normal transactional displacement. Final-pose validation still
+	*	rejects a candidate that remains inside the pusher, world, or another solid entity.
+	**/
+	if ( QM_Vector3Length( accumulatedDelta ) <= minSlideDistance ) {
+		return false;
+	}
+	return SVG_TryPushEntityChain( pusher, ent, accumulatedDelta, 0, nullptr, includePusherAsBlocker, true );
+}
+
+/**
+*	@brief	Displaces entities pushed by or riding on a mover edict (MOVETYPE_PUSH / MOVETYPE_STOP).
+*	@param	pusher	The mover entity performing movement.
+*	@param	move	The linear movement offset for this frame step.
+*	@param	amove	The angular movement offset for this frame step.
+*	@return	true if the push operation succeeded for all riders and pushed entities; false if blocked.
+*	@note	Refactored 3-Phase Mover Architecture:
+*			Phase 1: Pre-displacement rider acquisition at T_start.
+*			Phase 2: Forward swept-volume brush contact acquisition (T_start -> T_end).
+*			Phase 3: Recursive chain displacement (SVG_TryPushEntityChain), atomic prediction sync
+*					 (SVG_Mover_SetEntityOrigin), and block validation against static world walls
+*					 and MOVETYPE_PUSH / MOVETYPE_STOP entities.
+**/
+const bool SVG_PushMover( svg_base_edict_t *pusher, const Vector3 &move, const Vector3 &amove ) {
+	/**
+	*	Validate the mover before beginning the atomic transaction.
+	**/
+	if ( !pusher ) {
+		return false;
+	}
+
+	/**
+	*	Preserve broadphase swept bounds and the pusher transform at T_start before mutating it.
+	**/
+	const Vector3 pusherStartOrigin = pusher->currentOrigin;
+	const Vector3 pusherStartAngles = pusher->currentAngles;
+	Vector3 sweepMins = pusher->absMin;
+	Vector3 sweepMaxs = pusher->absMax;
+	if ( !VectorEmpty( amove ) ) {
+		const Vector3 bboxCenter = ( pusher->absMin + pusher->absMax ) *	0.5f;
+		const Vector3 halfSize = ( pusher->absMax - pusher->absMin ) *	0.5f;
+		const float bboxRadius = QM_Vector3Length( halfSize );
+		const float pivotOffset = QM_Vector3Length( pusher->currentOrigin - bboxCenter );
+		const float sweepRadius = bboxRadius + pivotOffset;
+		sweepMins = pusher->currentOrigin - Vector3{ sweepRadius, sweepRadius, sweepRadius };
+		sweepMaxs = pusher->currentOrigin + Vector3{ sweepRadius, sweepRadius, sweepRadius };
+	}
+	for ( int32_t i = 0; i < 3; i++ ) {
+		if ( move[ i ] < 0.0f ) {
+			sweepMins[ i ] += move[ i ];
+		} else {
+			sweepMaxs[ i ] += move[ i ];
+		}
+	}
+
+	/**
+	*	Start an atomic transaction by saving the pusher state first.
+	**/
+	pushed_t *transactionStart = pushedState.pushedPtr;
+	if ( !SVG_SavePushedEntityState( pusher ) ) {
+		pushedState.obstacle = pusher;
+		return false;
+	}
+
+	/**
+	*	Acquire riders at T_start before mutating the pusher transform.
+	**/
+	uint8_t riderFlags[ MAX_EDICTS / 8 ] = {};
+	for ( int32_t e = 1; e < globals.edictPool->num_edicts; e++ ) {
+		svg_base_edict_t *candidate = g_edict_pool.EdictForNumber( e );
+		if ( !candidate || !candidate->inUse || !candidate->isLinked ) {
+			continue;
+		}
+		if ( candidate == pusher
+			|| candidate->movetype == MOVETYPE_PUSH
+			|| candidate->movetype == MOVETYPE_STOP
+			|| candidate->movetype == MOVETYPE_NONE
+			|| candidate->movetype == MOVETYPE_NOCLIP ) {
+			continue;
+		}
+		if ( SVG_IsEntityRidingMover( candidate, pusher ) ) {
+			// Record rider membership without mutating state until the displacement transaction succeeds.
+			const int32_t byteIdx = e / 8;
+			const uint8_t bitMask = static_cast<uint8_t>( 1u << ( e % 8 ) );
+			riderFlags[ byteIdx ] |= bitMask;
+		}
+	}
+
+	/**
+	*	Move the pusher to T_end as part of the same transaction.
+	**/
+	const Vector3 pusherEndOrigin = pusherStartOrigin + move;
+	const Vector3 pusherEndAngles = pusherStartAngles + amove;
+	SVG_Util_SetEntityOrigin( pusher, pusherEndOrigin, true );
+	SVG_Util_SetEntityAngles( pusher, pusherEndAngles, true );
+	gi.linkentity( pusher );
+	const bool carryRidersAroundPivot = SVG_ShouldCarryRidersAroundPivot( pusher );
+
+	/**
+	*	Resolve every affected entity with exact linear + angular displacement and recursive blocker
+	*	handling. Any failure restores every mutation performed since transactionStart.
+	**/
+	for ( int32_t e = 1; e < globals.edictPool->num_edicts; e++ ) {
+		svg_base_edict_t *candidate = g_edict_pool.EdictForNumber( e );
+		if ( !candidate || !candidate->inUse || !candidate->isLinked ) {
+			continue;
+		}
+		if ( candidate == pusher
+			|| candidate->movetype == MOVETYPE_PUSH
+			|| candidate->movetype == MOVETYPE_STOP
+			|| candidate->movetype == MOVETYPE_NONE
+			|| candidate->movetype == MOVETYPE_NOCLIP ) {
+			continue;
+		}
+		if ( SVG_HasPushedEntity( candidate, transactionStart ) ) {
+			continue;
+		}
+
+		const int32_t byteIdx = e / 8;
+		const uint8_t bitMask = static_cast<uint8_t>( 1u << ( e % 8 ) );
+		const bool isRider = ( riderFlags[ byteIdx ] & bitMask ) != 0;
+		if ( pusher->movetype != MOVETYPE_PUSH && !isRider ) {
+			continue;
+		}
+
+		bool isPusherContact = isRider;
+		if ( !isRider ) {
+			const float entRadius = SVG_GetEntityBoundingRadius( candidate ) + 1.0f;
+			if ( candidate->currentOrigin.x + entRadius <= sweepMins.x
+				|| candidate->currentOrigin.x - entRadius >= sweepMaxs.x
+				|| candidate->currentOrigin.y + entRadius <= sweepMins.y
+				|| candidate->currentOrigin.y - entRadius >= sweepMaxs.y
+				|| candidate->currentOrigin.z + entRadius <= sweepMins.z
+				|| candidate->currentOrigin.z - entRadius >= sweepMaxs.z ) {
 				continue;
 			}
 
-            // see if the ent's bbox is inside the pusher's final position
-			if ( !SVG_TestEntityPosition( checkPtr ) ) {
-				continue;
-			}
-        }
-
-        if ( ( pusher->movetype == MOVETYPE_PUSH ) || ( checkPtr->groundInfo.entityNumber == pusher->s.number ) ) {
-            // move this entity
-            pushedState.pushedPtr->ent = checkPtr;
-			pushedState.pushedPtr->origin = checkPtr->currentOrigin; // VectorCopy( check->s.origin, pushed_p->origin );
-			pushedState.pushedPtr->angles = checkPtr->currentAngles; // VectorCopy( check->s.angles, pushed_p->angles );
-            //#if USE_SMOOTH_DELTA_ANGLES
-			if ( checkPtr->client ) {
-				pushedState.pushedPtr->yawDelta = checkPtr->client->ps.pmove.delta_angles[ YAW ];
-			}
-            //#endif
-			pushedState.pushedPtr++;
-
-            // Try moving the contacted entity.
-			SVG_Util_SetEntityOrigin( checkPtr, checkPtr->currentOrigin + move, true ); ////checkPtr->currentOrigin += move; // VectorAdd( check->s.origin, move, check->s.origin );
-            //#if USE_SMOOTH_DELTA_ANGLES
-            if ( checkPtr->client ) {
-                // FIXME: doesn't rotate monsters?
-                // FIXME: skuller: needs client side interpolation
-                //check->client->ps.pmove.delta_angles[YAW] += /*ANGLE2SHORT*/(amove[YAW]);
-                checkPtr->client->ps.pmove.delta_angles[ YAW ] = QM_AngleMod( checkPtr->client->ps.pmove.delta_angles[ YAW ] + amove[ YAW ] );
-            }
-            //#endif
-
-            // Figure movement due to the pusher's amove.
-			org = checkPtr->currentOrigin - pusher->currentOrigin; // VectorSubtract( checkPtr->s.origin, pusher->s.origin, org );
-			org2[ 0 ] = DotProduct( org, vForward );
-			org2[ 1 ] = -DotProduct( org, vRight );
-			org2[ 2 ] = DotProduct( org, vUp );
-			move2 = org2 - org; // VectorSubtract( org2, org, move2 );
-			SVG_Util_SetEntityOrigin( checkPtr, checkPtr->currentOrigin + move2, true ); //checkPtr->currentOrigin += move2;// VectorAdd( checkPtr->s.origin, move2, checkPtr->s.origin );
-
-            // may have pushed them off an edge
-            if ( checkPtr->groundInfo.entityNumber != pusher->s.number ) {
-                checkPtr->groundInfo.entityNumber = ENTITYNUM_NONE;
-            }
-
-            blockPtr = SVG_TestEntityPosition( checkPtr );
-            if ( !blockPtr ) {
-				// Not blocked thus apply origin.
-				SVG_Util_SetEntityOrigin( checkPtr, checkPtr->currentOrigin, true );
-                // pushed ok
-                gi.linkentity(checkPtr);
-                // impact?
-                continue;
-            }
-
-            // if it is ok to leave in the old position, do it
-            // this is only relevent for riding entities, not pushed
-            // FIXME: this doesn't acount for rotation
-			SVG_Util_SetEntityOrigin( checkPtr, checkPtr->currentOrigin - move, true ); //			checkPtr->currentOrigin -= move; //VectorSubtract(checkPtr->s.origin, move, checkPtr->s.origin);
-            blockPtr = SVG_TestEntityPosition( checkPtr );
-            if ( !blockPtr ) {
-				pushedState.pushedPtr--;
-                continue;
-            }
-        }
-
-        // save off the obstacle so we can call the block function
-		pushedState.obstacle = checkPtr;
-
-        // move back any entities we already moved
-        // go backwards, so if the same entity was pushed
-        // twice, it goes back to the original position
-        for ( int32_t i = ( pushedState.pushedPtr - pushedState.pushed ) - 1; i >= 0; i-- ) {
-			pushed_t *p = &pushedState.pushed[ i ];
-			SVG_Util_SetEntityOrigin( p->ent, p->origin, true ); // VectorCopy(p->origin, p->ent->s.origin);
-			SVG_Util_SetEntityAngles( p->ent, p->angles, true ); // VectorCopy(p->angles, p->ent->s.angles);
-
-			//#if USE_SMOOTH_DELTA_ANGLES
-			if ( p->ent->client ) {
-				p->ent->client->ps.pmove.delta_angles[ YAW ] = p->yawDelta;
-			}
-			//#endif
-			gi.linkentity( p->ent );
+			/**
+			*	Test the candidate in the pusher's end frame using inverse relative motion. A candidate that
+			*	merely touches a side plane at both frame endpoints is not a rider and must not be dragged
+			*	tangentially through neighboring BSP; only a mover-entering sweep qualifies as a shove.
+			**/
+			const Vector3 localOrigin = candidate->currentOrigin - pusherStartOrigin;
+			const Vector3 angularDelta = SVG_Compute3DRotationDisplacement( localOrigin, pusherStartAngles, pusherEndAngles );
+			const Vector3 totalDelta = move + angularDelta;
+			const Vector3 sweepStart = candidate->currentOrigin + totalDelta;
+			isPusherContact = SVG_TestEntityContactWithMover( candidate, pusher, sweepStart, candidate->currentOrigin );
 		}
-        return false;
-    }
 
-//FIXME: is there a better way to handle this?
-    // see if anything we moved has touched a trigger
-	for ( int32_t i = ( pushedState.pushedPtr - pushedState.pushed ) - 1; i >= 0; i-- ) {
-		SVG_Util_TouchTriggers( pushedState.pushed[ i ].ent );
+		if ( !isPusherContact ) {
+			continue;
+		}
+
+		/**
+		*	Use exact pivot displacement for ordinary riders by default. The rotating-door opt-out instead
+		*	gives the rider only the mover's linear displacement and lets collision resolution decide whether
+		*	it can remain clear, block the mover, or slide away from the brush.
+		**/
+		const Vector3 relativeOrigin = candidate->currentOrigin - pusherStartOrigin;
+		const Vector3 angularDelta = SVG_Compute3DRotationDisplacement( relativeOrigin, pusherStartAngles, pusherEndAngles );
+		const bool carryThisRider = !isRider || carryRidersAroundPivot;
+		const Vector3 totalDelta = move + ( carryThisRider ? angularDelta : Vector3{} );
+		const bool includePusherAsBlocker = isRider && !carryThisRider;
+		/**
+		*	First apply the configured displacement. In no-carry mode this is only the mover's linear motion,
+		*	allowing a rider to remain in place when the rotating brush has already moved away from it.
+		*	When pivot carry is enabled, the full transformed delta remains the primary candidate; if nearby
+		*	BSP or another surface clips that pose, the bounded slide resolver can preserve recoverable motion.
+		**/
+		bool displacementSucceeded = SVG_TryPushEntityChain( pusher, candidate, totalDelta, 0, nullptr, includePusherAsBlocker );
+		if ( !displacementSucceeded && isRider && !VectorEmpty( amove ) ) {
+			/**
+			*	The rotating brush may have entered the rider while the rider was corner-hugging or standing on
+			*	its top. Treat the configured rider displacement as a slide candidate before reporting a crush.
+			**/
+			displacementSucceeded = SVG_TrySlidePushedEntityChain( pusher, candidate, totalDelta, includePusherAsBlocker );
+		}
+
+		/**
+		*	Preserve transactional rollback behavior when both the ordinary displacement and any valid slide
+		*	candidate fail against world geometry or an unsolved solid obstruction.
+		**/
+		if ( !displacementSucceeded ) {
+			/**
+			*	A world/BSP failure belongs to the entity the mover was trying to push. Preserve that entity
+			*	for the blocked policy so a door can apply its configured crush damage and reverse, while the
+			*	world remains an internal collision result and can never enter an edict-free path.
+			**/
+			if ( !pushedState.obstacle || pushedState.obstacle->s.number <= ENTITYNUM_WORLD || !pushedState.obstacle->inUse ) {
+				pushedState.obstacle = candidate;
+			}
+			SVG_RestorePushedStateTo( transactionStart );
+			return false;
+		}
+
+		/**
+		*	Preserve support for carried riders after displacement. The chain resolver clears stale ground
+		*	state for ordinary pushed entities, while a carried rider remains supported by the pusher's new link.
+		**/
+		if ( isRider && carryThisRider ) {
+			candidate->groundInfo.entityNumber = pusher->s.number;
+			candidate->groundInfo.entityLinkCount = pusher->linkCount;
+			if ( candidate->groundInfo.plane.normal[ 2 ] < 0.7f ) {
+				VectorSet( candidate->groundInfo.plane.normal, 0.0f, 0.0f, 1.0f );
+			}
+		}
+		if ( isRider && !carryThisRider ) {
+			/**
+			*	No-carry riders are not attached to the pivot. Retain support only when a fresh end-pose trace
+			*	still finds the rotated pusher beneath the rider; otherwise clear stale support and let ordinary
+			*	physics slide or drop the entity away on the next simulation step.
+			**/
+			ground_info_t endSupport = {};
+			if ( SVG_IsEntitySupportedByMoverAt( candidate, pusher, candidate->currentOrigin, &endSupport ) ) {
+				candidate->groundInfo = endSupport;
+			} else {
+				candidate->groundInfo.entityNumber = ENTITYNUM_NONE;
+			}
+		}
+
+		if ( isRider && carryThisRider && candidate->client ) {
+			candidate->client->ps.pmove.delta_angles[ YAW ] = QM_AngleMod( candidate->client->ps.pmove.delta_angles[ YAW ] + amove[ YAW ] );
+		}
 	}
 
-    return true;
+	/**
+	*	Dispatch trigger touches only after all transaction mutations have committed.
+	**/
+	for ( pushed_t *record = transactionStart; record < pushedState.pushedPtr; record++ ) {
+		if ( record->ent && record->ent != pusher && record->ent->inUse ) {
+			SVG_Util_TouchTriggers( record->ent );
+		}
+	}
+
+	return true;
 }
 
 
@@ -725,14 +1766,16 @@ static void SV_Physics_Pusher( svg_base_edict_t *ent ) {
 #if 1
 retry:
 #endif
+	// Clear the previous attempt's blocker before resolving a new team-mover transaction.
+	pushedState.obstacle = nullptr;
 	// Try moving all parts:
 	pushedState.pushedPtr = pushedState.pushed;
 	for ( part = ent; part; part = part->teamchain ) {
 		// See if it needs to move:
 		if ( !VectorEmpty( part->velocity ) || !VectorEmpty( part->avelocity ) ) {
 			// object is moving
-			const Vector3 move = part->velocity * gi.frame_time_s; //VectorScale(part->velocity, gi.frame_time_s, move);
-			const Vector3 amove = part->avelocity * gi.frame_time_s; //VectorScale(part->avelocity, gi.frame_time_s, amove);
+			const Vector3 move = part->velocity *	gi.frame_time_s; //VectorScale(part->velocity, gi.frame_time_s, move);
+			const Vector3 amove = part->avelocity *	gi.frame_time_s; //VectorScale(part->avelocity, gi.frame_time_s, amove);
 
 			// Try to move it.
 			if ( !SVG_PushMover( part, move, amove ) ) {
@@ -748,6 +1791,12 @@ retry:
 
 	// Did we get blocked?
 	if ( part ) {
+		/**
+		*	Roll back every team part, not only the part that reported the obstruction. Team movers are one
+		*	atomic transform and must never leave earlier members committed when a later member is blocked.
+		**/
+		SVG_RestorePushedStateTo( pushedState.pushed );
+
 		// The move failed, bump all nextthink times and back out moves.
 		for ( mv = ent; mv; mv = mv->teamchain ) {
 			if ( mv->nextthink > 0_ms ) {
@@ -758,7 +1807,17 @@ retry:
 		// if the pusher has a "blocked" function, call it
 		// otherwise, just stay in place until the obstacle is gone
 		if ( part->HasBlockedCallback() ) {
-			part->DispatchBlockedCallback( pushedState.obstacle );
+			/**
+			*	Dispatch only a real live edict. World BSP is an internal collision result and must never be
+			*	passed into a callback that may damage, explode, or schedule an edict free operation.
+			**/
+			svg_base_edict_t *blockedEntity = pushedState.obstacle;
+			if ( !blockedEntity || blockedEntity->s.number <= ENTITYNUM_WORLD || !blockedEntity->inUse ) {
+				blockedEntity = nullptr;
+			}
+			if ( blockedEntity || ( part->svFlags & SVF_DOOR ) ) {
+				part->DispatchBlockedCallback( blockedEntity );
+			}
 		}
 		#if 1
 			// if the pushed entity went away and the pusher is still there
@@ -990,7 +2049,7 @@ void SVG_AddRotationalFriction( svg_base_edict_t *ent ) {
 	// Apply new angles.
 	SVG_Util_SetEntityAngles( ent, newAngles, true );
 
-	const double adjustment = FRAMETIME * sv_stopspeed * sv_friction;
+	const double adjustment = FRAMETIME *	sv_stopspeed *	sv_friction;
 	for ( int32_t n = 0; n < 3; n++ ) {
 		if ( ent->avelocity[ n ] > 0 ) {
 			ent->avelocity[ n ] -= adjustment;
@@ -1048,8 +2107,8 @@ void SV_Physics_Step( svg_base_edict_t *ent ) {
     if ( !wasonground )
         if ( !( ent->flags & FL_FLY ) )
             if ( !( ( ent->flags & FL_SWIM ) && ( ent->liquidInfo.level > LIQUID_WAIST ) ) ) {
-                //if ( ent->velocity[ 2 ] < level.gravity * -0.1f )
-                if ( ent->velocity[ 2 ] < sv_gravity->value * -0.1f ) {
+                //if ( ent->velocity[ 2 ] < level.gravity *	-0.1f )
+                if ( ent->velocity[ 2 ] < sv_gravity->value *	-0.1f ) {
                     hitsound = true;
                 }
                 if ( ent->liquidInfo.level != LIQUID_UNDER ) {
@@ -1063,7 +2122,7 @@ void SV_Physics_Step( svg_base_edict_t *ent ) {
         //control = speed < sv_stopspeed->value ? sv_stopspeed->value : speed;
         control = speed < sv_stopspeed ? sv_stopspeed : speed;
         friction = sv_friction / 3;
-        newspeed = speed - ( gi.frame_time_s * control * friction );
+        newspeed = speed - ( gi.frame_time_s *	control *	friction );
         if ( newspeed < 0 ) {
             newspeed = 0;
         }
@@ -1076,7 +2135,7 @@ void SV_Physics_Step( svg_base_edict_t *ent ) {
         speed = fabsf( ent->velocity[ 2 ] );
         //control = speed < sv_stopspeed->value ? sv_stopspeed->value : speed;
         control = speed < sv_stopspeed ? sv_stopspeed : speed;
-        newspeed = speed - ( gi.frame_time_s * control * sv_waterfriction * (float)ent->liquidInfo.level );
+        newspeed = speed - ( gi.frame_time_s *	control *	sv_waterfriction *	(float)ent->liquidInfo.level );
         if ( newspeed < 0 )
             newspeed = 0;
         newspeed /= speed;
@@ -1087,7 +2146,7 @@ void SV_Physics_Step( svg_base_edict_t *ent ) {
         // apply friction
         if ( ( wasonground || ( ent->flags & ( FL_SWIM | FL_FLY ) ) ) /*&& !( ent->monsterinfo.aiflags & AI_ALTERNATE_FLY )*/ ) {
             vel = &ent->velocity[0];
-            speed = sqrtf( vel[ 0 ] * vel[ 0 ] + vel[ 1 ] * vel[ 1 ] );
+            speed = sqrtf( vel[ 0 ] *	vel[ 0 ] + vel[ 1 ] *	vel[ 1 ] );
             if ( speed ) {
                 friction = sv_friction;
 
@@ -1097,7 +2156,7 @@ void SV_Physics_Step( svg_base_edict_t *ent ) {
 
                 //control = speed < sv_stopspeed->value ? sv_stopspeed->value : speed;
                 control = speed < sv_stopspeed ? sv_stopspeed : speed;
-                newspeed = speed - gi.frame_time_s * control * friction;
+                newspeed = speed - gi.frame_time_s *	control *	friction;
 
                 if ( newspeed < 0 )
                     newspeed = 0;
@@ -1187,7 +2246,7 @@ void SV_Physics_Step( svg_base_edict_t *ent ) {
 //    if (! wasonground)
 //        if (!(ent->flags & FL_FLY))
 //            if (!((ent->flags & FL_SWIM) && (ent->liquidInfo.level > 2))) {
-//                if (ent->velocity[2] < sv_gravity->value * -0.1f)
+//                if (ent->velocity[2] < sv_gravity->value *	-0.1f)
 //                    hitsound = true;
 //                if (ent->liquidInfo.level == 0)
 //                    SVG_AddGravity(ent);
@@ -1198,7 +2257,7 @@ void SV_Physics_Step( svg_base_edict_t *ent ) {
 //        speed = fabsf(ent->velocity[2]);
 //        control = speed < sv_stopspeed ? sv_stopspeed : speed;
 //        friction = sv_friction / 3;
-//        newspeed = speed - (FRAMETIME * control * friction);
+//        newspeed = speed - (FRAMETIME *	control *	friction);
 //        if (newspeed < 0)
 //            newspeed = 0;
 //        newspeed /= speed;
@@ -1209,7 +2268,7 @@ void SV_Physics_Step( svg_base_edict_t *ent ) {
 //    if ((ent->flags & FL_SWIM) && (ent->velocity[2] != 0)) {
 //        speed = fabsf(ent->velocity[2]);
 //        control = speed < sv_stopspeed ? sv_stopspeed : speed;
-//        newspeed = speed - (FRAMETIME * control * sv_waterfriction * (float)ent->liquidInfo.level);
+//        newspeed = speed - (FRAMETIME *	control *	sv_waterfriction *	(float)ent->liquidInfo.level);
 //        if (newspeed < 0)
 //            newspeed = 0;
 //        newspeed /= speed;
@@ -1222,12 +2281,12 @@ void SV_Physics_Step( svg_base_edict_t *ent ) {
 //        if ((wasonground) || (ent->flags & (FL_SWIM | FL_FLY)))
 //            if (!(ent->health <= 0.0f && !M_CheckBottom(ent))) {
 //                vel = ent->velocity;
-//                speed = sqrtf(vel[0] * vel[0] + vel[1] * vel[1]);
+//                speed = sqrtf(vel[0] *	vel[0] + vel[1] *	vel[1]);
 //                if (speed) {
 //                    friction = sv_friction;
 //
 //                    control = speed < sv_stopspeed ? sv_stopspeed : speed;
-//                    newspeed = speed - FRAMETIME * control * friction;
+//                    newspeed = speed - FRAMETIME *	control *	friction;
 //
 //                    if (newspeed < 0)
 //                        newspeed = 0;
@@ -1274,7 +2333,7 @@ void SV_Physics_Step( svg_base_edict_t *ent ) {
 *
 **/
 /**
-*   @brief  For RootMotion entities.
+*	@brief  For RootMotion entities.
 **/
 void SVG_Physics_RootMotion( svg_base_edict_t *ent ) {
     cm_contents_t mask = SVG_GetClipMask( ent );
@@ -1327,8 +2386,8 @@ void SVG_Physics_RootMotion( svg_base_edict_t *ent ) {
     if ( !wasonground ) {
         if ( !( ent->flags & FL_FLY ) ) {
             if ( !( ( ent->flags & FL_SWIM ) && ( ent->liquidInfo.level > LIQUID_WAIST ) ) ) {
-                //if ( ent->velocity[ 2 ] < level.gravity * -0.1f )
-				if ( ent->velocity[ 2 ] < sv_gravity->value * -0.1f ) {
+                //if ( ent->velocity[ 2 ] < level.gravity *	-0.1f )
+				if ( ent->velocity[ 2 ] < sv_gravity->value *	-0.1f ) {
 					hitsound = true;
 				}
 				if ( ent->liquidInfo.level != LIQUID_UNDER ) {
@@ -1344,7 +2403,7 @@ void SVG_Physics_RootMotion( svg_base_edict_t *ent ) {
         //control = speed < sv_stopspeed->value ? sv_stopspeed->value : speed;
         control = speed < sv_stopspeed ? sv_stopspeed : speed;
         friction = sv_friction / 3;
-        newspeed = speed - ( gi.frame_time_s * control * friction );
+        newspeed = speed - ( gi.frame_time_s *	control *	friction );
         if ( newspeed < 0 )
             newspeed = 0;
         newspeed /= speed;
@@ -1356,7 +2415,7 @@ void SVG_Physics_RootMotion( svg_base_edict_t *ent ) {
         speed = fabsf( ent->velocity[ 2 ] );
         //control = speed < sv_stopspeed->value ? sv_stopspeed->value : speed;
         control = speed < sv_stopspeed ? sv_stopspeed : speed;
-        newspeed = speed - ( gi.frame_time_s * control * sv_waterfriction * (float)ent->liquidInfo.level );
+        newspeed = speed - ( gi.frame_time_s *	control *	sv_waterfriction *	(float)ent->liquidInfo.level );
         if ( newspeed < 0 )
             newspeed = 0;
         newspeed /= speed;
@@ -1367,7 +2426,7 @@ void SVG_Physics_RootMotion( svg_base_edict_t *ent ) {
         // apply friction
         if ( ( wasonground || ( ent->flags & ( FL_SWIM | FL_FLY ) ) ) /*&& !( ent->monsterinfo.aiflags & AI_ALTERNATE_FLY )*/ ) {
             vel = &ent->velocity[ 0 ];
-            speed = sqrtf( vel[ 0 ] * vel[ 0 ] + vel[ 1 ] * vel[ 1 ] );
+            speed = sqrtf( vel[ 0 ] *	vel[ 0 ] + vel[ 1 ] *	vel[ 1 ] );
             if ( speed ) {
                 friction = sv_friction;
 
@@ -1377,7 +2436,7 @@ void SVG_Physics_RootMotion( svg_base_edict_t *ent ) {
 
                 //control = speed < sv_stopspeed->value ? sv_stopspeed->value : speed;
                 control = speed < sv_stopspeed ? sv_stopspeed : speed;
-                newspeed = speed - gi.frame_time_s * control * friction;
+                newspeed = speed - gi.frame_time_s *	control *	friction;
 
                 if ( newspeed < 0 )
                     newspeed = 0;

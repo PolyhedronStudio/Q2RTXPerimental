@@ -731,8 +731,9 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarToPlay
     const double dist2d = std::sqrt( QM_Vector2DistanceSqr( self->activator->currentOrigin, self->currentOrigin ) );
     const double distZ = std::abs( self->activator->currentOrigin.z - self->currentOrigin.z );
     // Player is 16 radius, monster is 16 radius. 32 is exact touch.
+    // 44 is 12 units of distance between edges.
     // Also enforce a reasonable Z height difference (e.g. 48 units, enough for jumping/stairs but not balconies)
-    const bool physicallyTouching = ( dist2d <= 40.0 ) && ( distZ < 48.0 );
+    const bool physicallyTouching = ( dist2d <= 44.0 ) && ( distZ < 48.0 );
 
     // Check for audible sounds before we move (optional realism step). Ignore if touching.
     if ( !activatorVisible && !physicallyTouching && self->CheckForAudibleSounds() ) {
@@ -740,7 +741,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarToPlay
     }
 
     // If we can see the player and are in attack range (both 2D and Z), OR if we are physically touching them (bypassing strict LOS), halt and attack/face.
-    if ( physicallyTouching || ( activatorVisible && dist2d < 64.0 && distZ < 48.0 ) ) {
+    if ( physicallyTouching || ( activatorVisible && dist2d <= 44.0 && distZ < 48.0 ) ) {
         self->velocity.x = 0;
         self->velocity.y = 0;
         self->monsterMove.state.velocity.x = 0;
@@ -1460,6 +1461,7 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
     // Do NOT steer or recalculate paths until we land.
     if ( !(monsterMove.state.mm_flags & MMF_ON_GROUND) ) {
         UpdateAnim( 4 ); // RUN
+        NextWaypoint( goalOrigin ); // Keep progressing waypoints naturally while airborne so we don't skip them.
         return true;
     }
 

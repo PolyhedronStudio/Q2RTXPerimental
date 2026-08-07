@@ -6,7 +6,7 @@
 static constexpr float SWEEP_DIST_EPSILON = 0.03125f;
 
 //! Separation used for rounded shape traces to prevent tangent corner contacts from re-sticking.
-static constexpr float SWEEP_ROUNDED_SHAPE_EPSILON = 1.0f;
+static constexpr float SWEEP_ROUNDED_SHAPE_EPSILON = 0.03125f;
 
 
 inline bool CM_IsBrushAxialBox( const mbrush_t *brush, Vector3 &mins, Vector3 &maxs ) {
@@ -27,11 +27,12 @@ inline bool CM_IsBrushAxialBox( const mbrush_t *brush, Vector3 &mins, Vector3 &m
 static void CM_TestFace(float planeDist, float rayStart, float rayDir, int axis, float min1, float max1, float min2, float max2, float p1_1, float v_1, float p1_2, float v_2, Vector3 n, float& tHit, Vector3& nHit, bool& hit) {
     if (rayDir * n[axis] < 0.0f) {
         float t = (planeDist - rayStart) / rayDir;
-        if (t >= 0.0f && t < tHit) {
-            float h1 = p1_1 + v_1 * t;
-            float h2 = p1_2 + v_2 * t;
+        if (t >= -SWEEP_DIST_EPSILON && t < tHit) {
+            float t_clamp = std::max(0.0f, t);
+            float h1 = p1_1 + v_1 * t_clamp;
+            float h2 = p1_2 + v_2 * t_clamp;
             if (h1 >= min1 && h1 <= max1 && h2 >= min2 && h2 <= max2) {
-                tHit = t; nHit = n; hit = true;
+                tHit = t_clamp; nHit = n; hit = true;
             }
         }
     }
@@ -40,15 +41,16 @@ static void CM_TestFace(float planeDist, float rayStart, float rayDir, int axis,
 static void CM_TestCylinderZFace(float planeDist, float rayStart, float rayDir, const Vector3& bMins, const Vector3& bMaxs, float R, const Vector3& p1, const Vector3& V, Vector3 n, float& tHit, Vector3& nHit, bool& hit) {
     if (rayDir * n.z < 0.0f) {
         float t = (planeDist - rayStart) / rayDir;
-        if (t >= 0.0f && t < tHit) {
-            float hx = p1.x + V.x * t;
-            float hy = p1.y + V.y * t;
+        if (t >= -SWEEP_DIST_EPSILON && t < tHit) {
+            float t_clamp = std::max(0.0f, t);
+            float hx = p1.x + V.x * t_clamp;
+            float hy = p1.y + V.y * t_clamp;
             float cx = std::max(bMins.x, std::min(hx, bMaxs.x));
             float cy = std::max(bMins.y, std::min(hy, bMaxs.y));
             float dx = hx - cx;
             float dy = hy - cy;
             if (dx*dx + dy*dy <= R*R + 0.0001f) {
-                tHit = t; nHit = n; hit = true;
+                tHit = t_clamp; nHit = n; hit = true;
             }
         }
     }
@@ -64,18 +66,19 @@ static void CM_TestEdge(float cx, float cy, float rayStart1, float rayDir1, floa
     float d = b * b - 4.0f * a * c;
     if (d >= 0.0f) {
         float t = (-b - std::sqrt(d)) / (2.0f * a);
-        if (t >= 0.0f && t < tHit) {
-            float h3 = rayStart3 + rayDir3 * t;
+        if (t >= -SWEEP_DIST_EPSILON && t < tHit) {
+            float t_clamp = std::max(0.0f, t);
+            float h3 = rayStart3 + rayDir3 * t_clamp;
             if (h3 >= min3 && h3 <= max3) {
-                float h1 = rayStart1 + rayDir1 * t;
-                float h2 = rayStart2 + rayDir2 * t;
+                float h1 = rayStart1 + rayDir1 * t_clamp;
+                float h2 = rayStart2 + rayDir2 * t_clamp;
                 Vector3 n = {0,0,0};
                 n[axis1] = h1 - cx;
                 n[axis2] = h2 - cy;
                 if (n[axis1] * rayDir1 + n[axis2] * rayDir2 < 0.0f) {
                     float len = std::sqrt(n[axis1]*n[axis1] + n[axis2]*n[axis2]);
                     if (len > 0.0001f) {
-                        tHit = t; nHit = {n.x/len, n.y/len, n.z/len}; hit = true;
+                        tHit = t_clamp; nHit = {n.x/len, n.y/len, n.z/len}; hit = true;
                     }
                 }
             }
@@ -94,15 +97,16 @@ static void CM_TestCorner(float cx, float cy, float cz, const Vector3& p1, const
     float d = b * b - 4.0f * a * c;
     if (d >= 0.0f) {
         float t = (-b - std::sqrt(d)) / (2.0f * a);
-        if (t >= 0.0f && t < tHit) {
-            float hx = p1.x + V.x * t;
-            float hy = p1.y + V.y * t;
-            float hz = p1.z + V.z * t;
+        if (t >= -SWEEP_DIST_EPSILON && t < tHit) {
+            float t_clamp = std::max(0.0f, t);
+            float hx = p1.x + V.x * t_clamp;
+            float hy = p1.y + V.y * t_clamp;
+            float hz = p1.z + V.z * t_clamp;
             Vector3 n = {hx - cx, hy - cy, hz - cz};
             if (n.x * V.x + n.y * V.y + n.z * V.z < 0.0f) {
                 float len = std::sqrt(n.x*n.x + n.y*n.y + n.z*n.z);
                 if (len > 0.0001f) {
-                    tHit = t; nHit = {n.x/len, n.y/len, n.z/len}; hit = true;
+                    tHit = t_clamp; nHit = {n.x/len, n.y/len, n.z/len}; hit = true;
                 }
             }
         }
@@ -130,7 +134,7 @@ static bool CM_SweepShapeVsAxialBox( const Vector3& p1, const Vector3& p2,
     
     // Leave a one-unit separation for rounded hulls so tangent corners do not remain in contact.
     float r_shrunk = std::max(0.0f, R - SWEEP_ROUNDED_SHAPE_EPSILON);
-    float r_shrunk_sq = r_shrunk * r_shrunk;
+    float r_shrunk_sq = (r_shrunk * r_shrunk) - 0.01f;
 
     const auto IsInside = [&]( const Vector3 &point ) {
         const Vector3 pointClosest = Vector3{

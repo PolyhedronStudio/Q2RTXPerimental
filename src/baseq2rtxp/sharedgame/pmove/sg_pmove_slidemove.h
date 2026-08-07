@@ -10,15 +10,15 @@
 #include "sharedgame/math/sg_math_velocity.h"
 
 //! Maximum amount of clipping planes to test for.
-static constexpr int32_t PM_MAX_CLIP_PLANES = 8;
+static constexpr int32_t PM_MAX_CLIP_PLANES = 32;
 //! The overclip factor for velocity clipping.
 static constexpr double PM_OVERCLIP = SG_OVERCLIP;//1.001;
 
 
 //! Can't step up onto very steep slopes
-static constexpr double PM_STEP_MIN_NORMAL = SG_STEP_MIN_NORMAL; // 0.7;
+static constexpr double PM_STEP_MIN_NORMAL		= SG_STEP_MIN_NORMAL; // 0.7;
 //! Minimal Z Normal for testing whether something is legitimately a "WALL".
-static constexpr double PM_MIN_WALL_NORMAL_Z = SG_MIN_WALL_NORMAL_Z; // 0.03125;
+static constexpr double PM_MIN_WALL_NORMAL_Z	= SG_MIN_WALL_NORMAL_Z; // 0.03125;
 
 
 

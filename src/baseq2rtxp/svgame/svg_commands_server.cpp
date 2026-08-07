@@ -29,7 +29,9 @@ void ServerCommand_Test_f(void)
 }
 
 /**
- *   @brief  Prints the collision-model geometry associated with one or more brush IDs.
+ *	@brief  Prints the collision-model geometry associated with one or more brush IDs.
+ * 
+ *	@note
  **/
 static void ServerCommand_BrushInfo_f(void) {
     if ( gi.argc() < 3 ) {

@@ -128,6 +128,8 @@ static void ClipTraceMoveToEntities( cm_trace_t *tr, const Vector3 &start, const
             trace = clgi.CM_AnalyticalShapeSweep( &centerStart, &shapeA, &centerEnd, &touchCenter, &touchShape );
 
             if ( trace.fraction < 1.0f ) {
+                trace.entityNumber = ent->current.number;
+                trace.brushID = SG_PackEntityBrushID( ent->current.number, trace.brushID );
                 trace.endpos = QM_Vector3Add( start, QM_Vector3Scale( QM_Vector3Subtract( end, start ), trace.fraction ) );
                 trace.contents = CONTENTS_SOLID;
             } else {
@@ -146,13 +148,16 @@ static void ClipTraceMoveToEntities( cm_trace_t *tr, const Vector3 &start, const
             );
         }
 
-        // Determine clipped entity trace result.
-        //CM_ClipEntity( &cl.collisionModel, tr, &trace, ent->current.number );
-	// If we hit something closer, update trace.
-        if ( trace.allsolid || trace.fraction < tr->fraction ) {
+        // Stamp entity-backed traces with the touched entity identity
+        if ( trace.allsolid || trace.startsolid || trace.fraction < 1.0f ) {
             trace.entityNumber = ent->current.number;
+            trace.brushID = SG_PackEntityBrushID( ent->current.number, trace.brushID );
+        }
+
+        if ( trace.allsolid || trace.fraction < tr->fraction ) {
+            const int32_t oldStartSolid = tr->startsolid;
             *tr = trace;
-			// Otherwise, if we started in solid, mark it.
+            tr->startsolid = (bool)( (int32_t)tr->startsolid | oldStartSolid );
         } else if ( trace.startsolid ) {
             tr->startsolid = true;
         }
@@ -241,6 +246,8 @@ static void ClipCapsuleMoveToEntities( cm_trace_t *tr, const Vector3 &start, con
 
 			// Reconstruct impact endpoint from sweep fraction when we hit.
             if ( trace.fraction < 1.0f ) {
+                trace.entityNumber = ent->current.number;
+                trace.brushID = SG_PackEntityBrushID( ent->current.number, trace.brushID );
                 trace.endpos = QM_Vector3Add( start, QM_Vector3Scale( QM_Vector3Subtract( end, start ), trace.fraction ) );
                 trace.contents = CONTENTS_SOLID;
             } else {
@@ -258,10 +265,17 @@ static void ClipCapsuleMoveToEntities( cm_trace_t *tr, const Vector3 &start, con
             );
         }
 
+        // Stamp entity-backed traces with the touched entity identity
+        if ( trace.allsolid || trace.startsolid || trace.fraction < 1.0f ) {
+            trace.entityNumber = ent->current.number;
+            trace.brushID = SG_PackEntityBrushID( ent->current.number, trace.brushID );
+        }
+
 		// Keep the closest hit among all tested entities.
         if ( trace.allsolid || trace.fraction < tr->fraction ) {
-            trace.entityNumber = ent->current.number;
+            const int32_t oldStartSolid = tr->startsolid;
             *tr = trace;
+            tr->startsolid = (bool)( (int32_t)tr->startsolid | oldStartSolid );
 		// Preserve startsolid information even when this hit is not the closest one.
         } else if ( trace.startsolid ) {
             tr->startsolid = true;
@@ -350,6 +364,8 @@ static void ClipCylinderMoveToEntities( cm_trace_t *tr, const Vector3 &start, co
 
 			// Reconstruct impact endpoint from sweep fraction when we hit.
             if ( trace.fraction < 1.0f ) {
+                trace.entityNumber = ent->current.number;
+                trace.brushID = SG_PackEntityBrushID( ent->current.number, trace.brushID );
                 trace.endpos = QM_Vector3Add( start, QM_Vector3Scale( QM_Vector3Subtract( end, start ), trace.fraction ) );
                 trace.contents = CONTENTS_SOLID;
             } else {
@@ -366,10 +382,18 @@ static void ClipCylinderMoveToEntities( cm_trace_t *tr, const Vector3 &start, co
                 &start, &end, radius, halfHeight, headNode, contentMask, &ent->current.origin, &ent->current.angles 
             );
         }
+
+        // Stamp entity-backed traces with the touched entity identity
+        if ( trace.allsolid || trace.startsolid || trace.fraction < 1.0f ) {
+            trace.entityNumber = ent->current.number;
+            trace.brushID = SG_PackEntityBrushID( ent->current.number, trace.brushID );
+        }
+
 		// Keep the closest hit among all tested entities.
         if ( trace.allsolid || trace.fraction < tr->fraction ) {
-            trace.entityNumber = ent->current.number;
+            const int32_t oldStartSolid = tr->startsolid;
             *tr = trace;
+            tr->startsolid = (bool)( (int32_t)tr->startsolid | oldStartSolid );
 		// Preserve startsolid information even when this hit is not the closest one.
         } else if ( trace.startsolid ) {
             tr->startsolid = true;
@@ -457,6 +481,8 @@ static void ClipSphereMoveToEntities( cm_trace_t *tr, const Vector3 &start, cons
 
 			// Reconstruct impact endpoint from sweep fraction when we hit.
             if ( trace.fraction < 1.0f ) {
+                trace.entityNumber = ent->current.number;
+                trace.brushID = SG_PackEntityBrushID( ent->current.number, trace.brushID );
                 trace.endpos = QM_Vector3Add( start, QM_Vector3Scale( QM_Vector3Subtract( end, start ), trace.fraction ) );
                 trace.contents = CONTENTS_SOLID;
             } else {
@@ -473,10 +499,18 @@ static void ClipSphereMoveToEntities( cm_trace_t *tr, const Vector3 &start, cons
                 &start, &end, radius, headNode, contentMask, &ent->current.origin, &ent->current.angles 
             );
         }
+
+        // Stamp entity-backed traces with the touched entity identity
+        if ( trace.allsolid || trace.startsolid || trace.fraction < 1.0f ) {
+            trace.entityNumber = ent->current.number;
+            trace.brushID = SG_PackEntityBrushID( ent->current.number, trace.brushID );
+        }
+
 		// Keep the closest hit among all tested entities.
         if ( trace.allsolid || trace.fraction < tr->fraction ) {
-            trace.entityNumber = ent->current.number;
+            const int32_t oldStartSolid = tr->startsolid;
             *tr = trace;
+            tr->startsolid = (bool)( (int32_t)tr->startsolid | oldStartSolid );
 		// Preserve startsolid information even when this hit is not the closest one.
         } else if ( trace.startsolid ) {
             tr->startsolid = true;

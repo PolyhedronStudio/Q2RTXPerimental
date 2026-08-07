@@ -810,17 +810,25 @@ DEFINE_MEMBER_CALLBACK_USE( svg_func_door_t, onUse )( svg_func_door_t *self, svg
 DEFINE_MEMBER_CALLBACK_BLOCKED( svg_func_door_t, onBlocked )( svg_func_door_t *self, svg_base_edict_t *other ) -> void {
     svg_base_edict_t *ent;
 
-    if ( !( other->svFlags & SVF_MONSTER ) && ( !other->client ) ) {
+    /**
+    * World BSP is represented by the world edict for collision bookkeeping, but it is not a damageable
+    * entity. Ignore missing/special identities for damage purposes and continue into the normal door
+    * reversal policy below; this prevents a failed door probe from scheduling world #0 for freeing.
+    **/
+    const bool hasDamageableBlocker = other && other->s.number > ENTITYNUM_WORLD && other->inUse;
+    if ( hasDamageableBlocker && !( other->svFlags & SVF_MONSTER ) && ( !other->client ) ) {
         // give it a chance to go away on it's own terms (like gibs)
         SVG_DamageEntity( other, self, self, vec3_origin, other->currentOrigin, vec3_origin, 100000, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
         // if it's still there, nuke it
-        if ( other ) {
+        if ( other->inUse && other->solid != SOLID_NOT ) {
             SVG_Misc_BecomeExplosion( other, 1 );
         }
         return;
     }
-	// Use currentOrigin for clients/monsters, as they are moving around.
-    SVG_DamageEntity( other, self, self, vec3_origin, other->currentOrigin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
+    if ( hasDamageableBlocker ) {
+        // Use currentOrigin for clients/monsters, as they are moving around.
+        SVG_DamageEntity( other, self, self, vec3_origin, other->currentOrigin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
+    }
 
     if ( self->spawnflags & svg_func_door_t::SPAWNFLAG_CRUSHER ) {
         return;

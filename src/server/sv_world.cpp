@@ -1051,8 +1051,10 @@ static cm_trace_t SV_ClipMoveToEntities(const Vector3 &start, const Vector3 *min
             
             touch->currentOrigin = originalOrigin;
 
-            // Recalculate endpos correctly
+            // Recalculate endpos correctly and stamp touched entity identity
             if ( etrace.fraction < 1.0f ) {
+                etrace.entityNumber = touch->s.number;
+                etrace.brushID = SG_PackEntityBrushID( touch->s.number, etrace.brushID );
                 etrace.endpos.x = start.x + (end.x - start.x) * etrace.fraction;
                 etrace.endpos.y = start.y + (end.y - start.y) * etrace.fraction;
                 etrace.endpos.z = start.z + (end.z - start.z) * etrace.fraction;
@@ -1066,22 +1068,24 @@ static cm_trace_t SV_ClipMoveToEntities(const Vector3 &start, const Vector3 *min
                                    SV_HullForEntity(touch), contentmask,
                                    &touch->currentOrigin.x, &touch->currentAngles.x);
         }
-        //CM_ClipEntity( &sv.cm, dst, &trace, touch->s.number );
+
+        // Stamp entity-backed traces with the touched entity identity
+        if ( etrace.allsolid || etrace.startsolid || etrace.fraction < 1.0f ) {
+            etrace.entityNumber = touch->s.number;
+            etrace.brushID = SG_PackEntityBrushID( touch->s.number, etrace.brushID );
+        }
 
         if ( etrace.allsolid ) {
             dst.allsolid = true;
-            etrace.entityNumber = touch->s.number;
             dst.brushID = etrace.brushID;
         } else if ( etrace.startsolid ) {
             dst.startsolid = true;
-            etrace.entityNumber = touch->s.number;
             dst.brushID = etrace.brushID;
         }
 
         if ( etrace.fraction < dst.fraction ) {
             // make sure we keep a startsolid from a previous trace
             const int32_t oldStartSolid = dst.startsolid;
-            etrace.entityNumber = touch->s.number;
             dst = etrace;
 
             const int32_t startsolid = (int32_t)dst.startsolid | oldStartSolid;
@@ -1250,7 +1254,7 @@ static cm_trace_t SV_ClipMoveToEntitiesShape( const Vector3 &start, const cm_tra
 			if ( etrace.fraction < 1.0f ) {
 				// Preserve the touched entity identity for downstream trace consumers.
 				etrace.entityNumber = touch->s.number;
-				etrace.brushID = -static_cast< int32_t >( touch->s.number + 1 );
+				etrace.brushID = SG_PackEntityBrushID( touch->s.number, etrace.brushID );
 				etrace.endpos.x = start.x + ( end.x - start.x ) * etrace.fraction;
 				etrace.endpos.y = start.y + ( end.y - start.y ) * etrace.fraction;
 				etrace.endpos.z = start.z + ( end.z - start.z ) * etrace.fraction;
@@ -1276,7 +1280,7 @@ static cm_trace_t SV_ClipMoveToEntitiesShape( const Vector3 &start, const cm_tra
         **/
         if ( etrace.allsolid || etrace.startsolid || etrace.fraction < 1.0f ) {
             etrace.entityNumber = touch->s.number;
-            etrace.brushID = -static_cast< int32_t >( touch->s.number + 1 );
+            etrace.brushID = SG_PackEntityBrushID( touch->s.number, etrace.brushID );
         }
 
 		/**
@@ -1427,6 +1431,11 @@ static const cm_trace_t SV_ShapeTraceInternal( const Vector3 &start, const cm_tr
 		trace.startsolid = true;
 		if ( entityTrace.allsolid ) {
 			trace.allsolid = true;
+		}
+		// If world trace produced no entity hit, propagate entity identity from entity trace.
+		if ( trace.entityNumber == ENTITYNUM_NONE ) {
+			trace.entityNumber = entityTrace.entityNumber;
+			trace.brushID = entityTrace.brushID;
 		}
 	}
 
@@ -1598,6 +1607,11 @@ const cm_trace_t q_gameabi SV_Trace( const Vector3 &start, const Vector3 *mins,
         trace.startsolid = true;
         if ( entityTrace.allsolid ) {
             trace.allsolid = true;
+        }
+        // If world trace produced no entity hit, propagate entity identity from entity trace.
+        if ( trace.entityNumber == ENTITYNUM_NONE ) {
+            trace.entityNumber = entityTrace.entityNumber;
+            trace.brushID = entityTrace.brushID;
         }
     }
 

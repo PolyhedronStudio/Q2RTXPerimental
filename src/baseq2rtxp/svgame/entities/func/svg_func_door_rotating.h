@@ -174,4 +174,11 @@ struct svg_func_door_rotating_t : public svg_func_door_t {
     *   Member Variables:
     *
     **/
+
+    /**
+    *   Spawnflags:
+    **/
+    //! Do not carry riders around the rotating door pivot; riders block or slide away from the brush.
+    static constexpr spawnflag_t SPAWNFLAG_NO_RIDER_CARRY = BIT( 13 );
+
 };

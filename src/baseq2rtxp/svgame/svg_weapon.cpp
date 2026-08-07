@@ -94,7 +94,7 @@ static bool SVG_TraceBullet_FindAnimatedEnvelopeCandidate( const Vector3 &start,
 	// brush ID when the skeletal refinement path did not supply one directly.
 	if ( bestTrace.brushID == BRUSHID_NONE && bestTrace.ent
 		&& ( bestTrace.ent->solid == SOLID_BOUNDS_BOX || bestTrace.ent->solid == SOLID_BOUNDS_OCTAGON ) ) {
-		bestTrace.brushID = -static_cast< int32_t >( bestTrace.ent->s.number + 1 );
+		bestTrace.brushID = SG_PackEntityBrushID( bestTrace.ent->s.number, bestTrace.brushID );
 	}
 
 	*outTrace = bestTrace;
@@ -161,14 +161,14 @@ static svg_trace_t SVG_TraceBullet( const Vector3 &start, const Vector3 &end, co
         // Preserve or derive an entity-linked brush identifier so impact code can
         // distinguish world brushes from entity-backed hulls and skeletal hits.
         if ( trace.brushID == BRUSHID_NONE && trace.entityNumber > ENTITYNUM_WORLD ) {
-            trace.brushID = -static_cast< int32_t >( trace.entityNumber + 1 );
+            trace.brushID = SG_PackEntityBrushID( trace.entityNumber, trace.brushID );
         }
 
         if ( trace.brushID == BRUSHID_NONE && trace.ent
             && ( trace.ent->solid == SOLID_BOUNDS_BOX || trace.ent->solid == SOLID_BOUNDS_OCTAGON 
 				|| trace.ent->solid == SOLID_SPHERE || trace.ent->solid == SOLID_CYLINDER
 				|| trace.ent->solid == SOLID_CAPSULE ) ) {
-            trace.brushID = -static_cast< int32_t >( trace.ent->s.number + 1 );
+            trace.brushID = SG_PackEntityBrushID( trace.ent->s.number, trace.brushID );
 		}
 	};
 

@@ -4,7 +4,7 @@
 {
 "mapversion" "220"
 "classname" "worldspawn"
-"sky" "sodermalmsallen"
+"sky" "ely2048/cloudtop_"
 // brush 0
 {
 ( -896 512 0 ) ( -896 -512 0 ) ( -896 -512 -32 ) pbr02/ground00 [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 0.0625 0.0625

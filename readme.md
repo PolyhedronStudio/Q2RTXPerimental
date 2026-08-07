@@ -62,9 +62,9 @@ original game.
   - Sunlight with direct and indirect illumination
   - Volumetric lighting (god-rays)
 
-You can download functional builds of the game from [GitHub Releases](https://github.com/NVIDIA/Q2RTX/releases).
+You can download functional builds of the game from [GitHub Releases](https://github.com/PolyhedronStudio/Q2RTXPerimental/releases).
 
-Latest development builds can be found in the [Actions](https://github.com/NVIDIA/Q2RTX/actions/workflows/build.yml) tab.
+Latest development builds can be found in the [Actions](https://github.com/PolyhedronStudio/Q2RTXPerimental/actions/workflows/build.yml) tab.
 To run a development build, download the artifact, extract it and put `q2rtx_media.pkz`, `blue_noise.pkz` and the `pak*.pak` files from the original game into `baseq2/`.
 
 ## Additional Information
@@ -89,7 +89,7 @@ Also, some source files have comments that explain various parts of the renderer
 
   * [GeForce.com Forums](https://forums.geforce.com/default/topic/1119082/geforce-rtx-20-series/quake-ii-rtx-installation-guide/)
   * [Steam Community Hub](https://steamcommunity.com/app/1089130)
-  * [GitHub Issue Tracker](https://github.com/NVIDIA/Q2RTX/issues)
+  * [GitHub Issue Tracker](https://github.com/PolyhedronStudio/Q2RTXPerimental/issues)
 
 ## System Requirements
 
@@ -134,7 +134,7 @@ Note: Linux ppc64le is also known to work though not officially supported.
 
   1. Clone the repository and its submodules from git :
 
-     `git clone --recursive https://github.com/NVIDIA/Q2RTX.git `
+     `git clone --recursive https://github.com/PolyhedronStudio/Q2RTXPerimental.git `
 
   2. Create a build folder named `build` under the repository root (`Q2RTX/build`)     
 
@@ -144,7 +144,7 @@ Note: Linux ppc64le is also known to work though not officially supported.
 
      Note: the asset packages are required for the engine to run.
      Specifically, the `blue_noise.pkz` and `q2rtx_media.pkz` files or their extracted contents.
-     The package files can be found in the [GitHub releases](https://github.com/NVIDIA/Q2RTX/releases) or in the published builds of Quake II RTX.
+     The package files can be found in the [GitHub releases](https://github.com/PolyhedronStudio/Q2RTXPerimental/releases) or in the published builds of Quake II RTX.
 
   4. Configure CMake with either the GUI or the command line and point the build at the `build` folder
      created in step 2.
