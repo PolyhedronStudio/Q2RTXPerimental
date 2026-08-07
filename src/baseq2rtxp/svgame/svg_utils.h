@@ -210,27 +210,51 @@ static inline const svg_trace_t SVG_TraceCylinder( const Vector3 &start, float r
 	return gi.traceCylinder( &start, radius, halfHeight, &end, passEdict, contentMask );
 }
 
+/**
+*	@brief	Trace an entity using the collision primitive represented by its solid type.
+*	@param	start	World-space start position expressed at the entity's bbox origin.
+*	@param	end		World-space end position expressed at the entity's bbox origin.
+*	@param	ent		Entity whose bounds and native collision primitive are being traced.
+*	@param	passEdict	Optional entity excluded from the trace.
+*	@param	contentMask	Contents mask used to filter collision candidates.
+*	@return	The collision trace in bbox-origin coordinates.
+*	@note	Capsule, cylinder, and sphere engine traces use a shape-center origin. The entity bounds are
+*			feet-origin bounds, so asymmetric stances such as crouching must shift the query by the bounds
+*			midpoint and shift the returned endpoint back to bbox-origin coordinates.
+**/
 static inline const svg_trace_t SVG_TraceEntityShape( const Vector3 &start, const Vector3 &end, const svg_base_edict_t *ent, const svg_base_edict_t *passEdict, const cm_contents_t contentMask ) {
 	if ( !ent ) {
 		return SVG_Trace( start, QM_Vector3Zero(), QM_Vector3Zero(), end, passEdict, contentMask );
 	}
 
-	if ( ent->solid == SOLID_CAPSULE ) {
-		const float radius = std::max( std::fabs( ent->maxs.x ), std::fabs( ent->maxs.y ) );
-		const float halfHeight = std::max( 0.0f, std::fabs( ent->maxs.z ) - radius );
-		return SVG_TraceCapsule( start, radius, halfHeight, end, passEdict, contentMask );
-	} else if ( ent->solid == SOLID_CYLINDER ) {
-		const float radius = std::max( std::fabs( ent->maxs.x ), std::fabs( ent->maxs.y ) );
-		const float halfHeight = std::max( 0.0f, std::fabs( ent->maxs.z ) );
-		return SVG_TraceCylinder( start, radius, halfHeight, end, passEdict, contentMask );
-	} else if ( ent->solid == SOLID_SPHERE ) {
-		const float radius = std::max( std::fabs( ent->maxs.x ), std::max( std::fabs( ent->maxs.y ), std::fabs( ent->maxs.z ) ) );
-		return SVG_TraceSphere( start, radius, end, passEdict, contentMask );
-	} else if ( ent->solid == SOLID_BOUNDS_OCTAGON || ent->solid == SOLID_BOUNDS_BOX ) {
+	if ( ent->solid != SOLID_CAPSULE && ent->solid != SOLID_CYLINDER && ent->solid != SOLID_SPHERE ) {
 		return SVG_Trace( start, ent->mins, ent->maxs, end, passEdict, contentMask );
 	}
 
-	return SVG_Trace( start, ent->mins, ent->maxs, end, passEdict, contentMask );
+	const float centerOffsetZ = ( ent->mins.z + ent->maxs.z ) * 0.5f;
+	Vector3 shapeStart = start;
+	shapeStart.z += centerOffsetZ;
+	Vector3 shapeEnd = end;
+	shapeEnd.z += centerOffsetZ;
+
+	const float radius = std::max( std::fabs( ent->maxs.x ), std::fabs( ent->maxs.y ) );
+	svg_trace_t trace = {};
+
+	if ( ent->solid == SOLID_CAPSULE ) {
+		const float fullHalfHeight = std::fabs( ent->maxs.z - ent->mins.z ) * 0.5f;
+		const float halfHeight = std::max( 0.0f, fullHalfHeight - radius );
+		trace = SVG_TraceCapsule( shapeStart, radius, halfHeight, shapeEnd, passEdict, contentMask );
+	} else if ( ent->solid == SOLID_CYLINDER ) {
+		const float halfHeight = std::fabs( ent->maxs.z - ent->mins.z ) * 0.5f;
+		trace = SVG_TraceCylinder( shapeStart, radius, halfHeight, shapeEnd, passEdict, contentMask );
+	} else {
+		const float sphereRadius = std::max( std::fabs( ent->mins.z ), std::fabs( ent->maxs.z ) );
+		const float actualRadius = std::max( radius, sphereRadius );
+		trace = SVG_TraceSphere( shapeStart, actualRadius, shapeEnd, passEdict, contentMask );
+	}
+
+	trace.endpos.z -= centerOffsetZ;
+	return trace;
 }
 
 /**
@@ -247,7 +271,7 @@ static inline const float SVG_GetEntityBoundingRadius( const svg_base_edict_t *e
 		case SOLID_CAPSULE:
 		case SOLID_CYLINDER: {
 			const float r = std::max( std::fabs( ent->maxs.x ), std::fabs( ent->maxs.y ) );
-			const float h = std::fabs( ent->maxs.z );
+			const float h = std::max( std::fabs( ent->mins.z ), std::fabs( ent->maxs.z ) );
 			return std::sqrt( ( r * r ) + ( h * h ) );
 		}
 		case SOLID_SPHERE: {

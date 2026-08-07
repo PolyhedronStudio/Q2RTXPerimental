@@ -259,29 +259,49 @@ static svg_trace_t SVG_TraceEntityShapeAgainstClipEdict( const svg_base_edict_t 
 	*	Use the moving entity's native primitive so the probe has the same extents as gameplay movement.
 	**/
 	const cm_contents_t clipMask = SVG_GetClipMask( ent );
+	const bool usesCenteredShape = ent->solid == SOLID_CAPSULE || ent->solid == SOLID_CYLINDER || ent->solid == SOLID_SPHERE;
+	Vector3 shapeStart = start;
+	Vector3 shapeEnd = end;
+	float centerOffsetZ = 0.0f;
+	if ( usesCenteredShape ) {
+		centerOffsetZ = ( ent->mins.z + ent->maxs.z ) * 0.5f;
+		shapeStart.z += centerOffsetZ;
+		shapeEnd.z += centerOffsetZ;
+	}
+	svg_trace_t trace = {};
+
 	switch ( ent->solid ) {
 		case SOLID_CAPSULE: {
 			// Derive the capsule radius from the horizontal bounds and remove the spherical cap from its half-height.
 			const float radius = std::max( std::fabs( ent->maxs.x ), std::fabs( ent->maxs.y ) );
-			const float halfHeight = std::max( 0.0f, std::fabs( ent->maxs.z ) - radius );
-			return SVG_ClipCapsule( clipEdict, start, radius, halfHeight, end, clipMask );
+			const float fullHalfHeight = std::fabs( ent->maxs.z - ent->mins.z ) * 0.5f;
+			const float halfHeight = std::max( 0.0f, fullHalfHeight - radius );
+			trace = SVG_ClipCapsule( clipEdict, shapeStart, radius, halfHeight, shapeEnd, clipMask );
+			break;
 		}
 		case SOLID_CYLINDER: {
 			// Derive the cylinder radius and axial half-height from the entity bounds.
 			const float radius = std::max( std::fabs( ent->maxs.x ), std::fabs( ent->maxs.y ) );
-			const float halfHeight = std::fabs( ent->maxs.z );
-			return SVG_ClipCylinder( clipEdict, start, radius, halfHeight, end, clipMask );
+			const float halfHeight = std::fabs( ent->maxs.z - ent->mins.z ) * 0.5f;
+			trace = SVG_ClipCylinder( clipEdict, shapeStart, radius, halfHeight, shapeEnd, clipMask );
+			break;
 		}
 		case SOLID_SPHERE: {
 			// Use the largest bound component so the spherical probe contains the complete entity shape.
-			const float radius = std::max( std::fabs( ent->maxs.x ), std::max( std::fabs( ent->maxs.y ), std::fabs( ent->maxs.z ) ) );
-			return SVG_ClipSphere( clipEdict, start, radius, end, clipMask );
+			const float radius = std::max( std::fabs( ent->maxs.x ), std::max( std::fabs( ent->maxs.y ), std::max( std::fabs( ent->mins.z ), std::fabs( ent->maxs.z ) ) ) );
+			trace = SVG_ClipSphere( clipEdict, shapeStart, radius, shapeEnd, clipMask );
+			break;
 		}
 		default: {
 			// Box-like solids use their native local mins/maxs against the selected clip edict.
 			return SVG_Clip( clipEdict, start, ent->mins, ent->maxs, end, clipMask );
 		}
 	}
+
+	if ( usesCenteredShape ) {
+		trace.endpos.z -= centerOffsetZ;
+	}
+	return trace;
 }
 
 /**
