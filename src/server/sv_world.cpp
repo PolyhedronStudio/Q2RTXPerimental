@@ -1749,13 +1749,60 @@ static const cm_trace_t SV_ShapeClipInternal( const edict_ptr_t *clipEntity, con
         if ( clipEntity == nullptr || ( clipEntity && clipEntity->s.number == ENTITYNUM_WORLD ) ) {
             trace = CM_ShapeTrace( &sv.cm, start, end, shape, sv.cm.cache->nodes, contentmask );
         } else {
-            mnode_t *headNode = SV_HullForEntity( clipEntity );
-            if ( headNode != nullptr ) {
-                trace = CM_TransformedShapeTrace( &sv.cm, start, end, shape, headNode, contentmask,
-                    &clipEntity->currentOrigin.x, &clipEntity->currentAngles.x );
+            /**
+            *   Dynamic capsule, cylinder, and sphere entities do not have a BSP hull. Build their
+            *   stationary shape explicitly so specified-entity clips can participate in pusher chains.
+            **/
+            if ( clipEntity->solid == SOLID_CAPSULE
+                || clipEntity->solid == SOLID_CYLINDER
+                || clipEntity->solid == SOLID_SPHERE ) {
+                cm_trace_shape_t clipShape = {};
+                const float radius = std::max( std::fabs( clipEntity->maxs.x ), std::fabs( clipEntity->maxs.y ) );
+                const float fullHalfHeight = std::fabs( clipEntity->maxs.z - clipEntity->mins.z ) * 0.5f;
+                const Vector3 centerOffset = ( clipEntity->mins + clipEntity->maxs ) * 0.5f;
 
-                if ( trace.fraction < 1. ) {
+                /**
+                *   Match the shape definitions used by game-side entity traces: capsules reserve their
+                *   spherical cap radius from the axial half-height, while cylinders retain flat ends.
+                **/
+                if ( clipEntity->solid == SOLID_CAPSULE ) {
+                    clipShape.type = SHAPE_CAPSULE;
+                    clipShape.radius = radius;
+                    clipShape.halfHeight = std::max( 0.0f, fullHalfHeight - radius );
+                } else if ( clipEntity->solid == SOLID_CYLINDER ) {
+                    clipShape.type = SHAPE_CYLINDER;
+                    clipShape.radius = radius;
+                    clipShape.halfHeight = fullHalfHeight;
+                } else {
+                    clipShape.type = SHAPE_SPHERE;
+                    clipShape.radius = std::max( radius, std::max( std::fabs( clipEntity->mins.z ), std::fabs( clipEntity->maxs.z ) ) );
+                    clipShape.halfHeight = 0.0f;
+                }
+
+                /**
+                *   Sweep the moving shape against the stationary dynamic shape in a shared center space.
+                **/
+                const Vector3 clipCenter = clipEntity->currentOrigin + centerOffset;
+                trace = CM_AnalyticalShapeSweep( start, shape, end, clipCenter, clipShape );
+                if ( trace.fraction < 1.0f ) {
                     trace.entityNumber = clipEntity->s.number;
+                    trace.endpos = start + ( end - start ) * trace.fraction;
+                    trace.contents = CONTENTS_SOLID;
+                } else {
+                    trace.endpos = end;
+                }
+            } else {
+                /**
+                *   Box and BSP entities continue through their existing transformed-hull path.
+                **/
+                mnode_t *headNode = SV_HullForEntity( clipEntity );
+                if ( headNode != nullptr ) {
+                    trace = CM_TransformedShapeTrace( &sv.cm, start, end, shape, headNode, contentmask,
+                        &clipEntity->currentOrigin.x, &clipEntity->currentAngles.x );
+
+                    if ( trace.fraction < 1. ) {
+                        trace.entityNumber = clipEntity->s.number;
+                    }
                 }
             }
         }

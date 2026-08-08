@@ -727,6 +727,29 @@ static bool SVG_ShouldCarryRidersAroundPivot( const svg_base_edict_t *pusher ) {
 }
 
 /**
+*	@brief	Determine whether a rotating door permits recovery sliding for an opening player contact.
+*	@param	pusher	Mover whose opening and damage policy is queried.
+*	@return	True only for a non-crusher opening door with no configured blocker damage.
+*	@note	Positive `dmg` values must reach onBlocked so the door can hurt the blocker and reverse direction.
+**/
+static bool SVG_IsOpeningRotatingDoor( const svg_base_edict_t *pusher ) {
+	/**
+	*	Restrict this exception to rotating doors so unrelated angular movers retain their existing behavior.
+	**/
+	if ( !pusher || !pusher->GetTypeInfo()->IsSubClassType<svg_func_door_rotating_t>() ) {
+		return false;
+	}
+
+	/**
+	*	Read the state set by onThink_OpenMove before the pusher starts its angular frame updates.
+	**/
+	const svg_func_door_t *rotatingDoor = static_cast<const svg_func_door_t *>( pusher );
+	return rotatingDoor->pushMoveInfo.state == svg_func_door_t::DOOR_STATE_MOVING_TO_OPENED_STATE
+		&& ( pusher->spawnflags & svg_func_door_t::SPAWNFLAG_CRUSHER ) == 0
+		&& pusher->dmg <= 0;
+}
+
+/**
 *	@brief	Set origin of an entity during mover physics and synchronize client pmove prediction origin if applicable.
 *	@param	ent			Entity to translate.
 *	@param	origin		New world-space origin position.
@@ -1217,6 +1240,33 @@ retry:
 //}
 
 /**
+*	@brief	Determine whether a collision entity may be recursively displaced by a pusher.
+*	@param	ent		Entity encountered in the pusher's displacement chain.
+*	@param	pusher	Root mover that must not be recursively displaced.
+*	@return	true when the entity is a movable non-BSP collision body.
+*	@note	World geometry, brush movers, static entities, and no-clip entities remain authoritative blockers.
+**/
+static bool SVG_IsPushedEntityMovable( const svg_base_edict_t *ent, const svg_base_edict_t *pusher ) {
+    /**
+    *	Reject the mover, world, and invalid entities before evaluating collision and movement properties.
+    **/
+    if ( !ent || ent == pusher || ent == g_edict_pool.EdictForNumber( ENTITYNUM_WORLD ) ) {
+        return false;
+    }
+
+    /**
+    *	Only non-BSP entities with an active movement mode can participate in recursive displacement.
+    **/
+    return ent->solid != SOLID_NOT
+        && ent->solid != SOLID_TRIGGER
+        && ent->solid != SOLID_BSP
+        && ent->movetype != MOVETYPE_PUSH
+        && ent->movetype != MOVETYPE_STOP
+        && ent->movetype != MOVETYPE_NONE
+        && ent->movetype != MOVETYPE_NOCLIP;
+}
+
+/**
 *	@brief	Recursively attempts to displace a chain of dynamic entities pushed by a mover.
 *	@param	pusher		The root mover entity.
 *	@param	ent			The entity currently being pushed in the chain.
@@ -1230,8 +1280,8 @@ retry:
 **/
 static bool SVG_TryPushEntityChain( svg_base_edict_t *pusher, svg_base_edict_t *ent, const Vector3 &delta, int32_t depth = 0, uint8_t *visited = nullptr, const bool includePusherAsBlocker = false, const bool allowInitialSeparation = false ) {
 
-	/**
-	*	Initialize the recursion tracker at the root and reject invalid or non-blocking entities.
+   /**
+   *	Initialize the recursion tracker at the root and reject invalid or non-blocking entities.
 	**/
 	uint8_t localVisited[ MAX_EDICTS / 8 ] = {};
 	if ( !visited ) {
@@ -1280,11 +1330,7 @@ static bool SVG_TryPushEntityChain( svg_base_edict_t *pusher, svg_base_edict_t *
 			*	Only ordinary movable entities may be displaced recursively. World BSP, brush movers,
 			*	stopped movers, and static solids are authoritative blockers for this transaction.
 			**/
-			const bool blockerIsMovable = pathBlocker != g_edict_pool.EdictForNumber( ENTITYNUM_WORLD )
-				&& pathBlocker->solid != SOLID_BSP
-				&& pathBlocker->movetype != MOVETYPE_PUSH
-				&& pathBlocker->movetype != MOVETYPE_STOP
-				&& pathBlocker->movetype != MOVETYPE_NONE
+			const bool blockerIsMovable = SVG_IsPushedEntityMovable( pathBlocker, pusher )
 				&& !SVG_IsEntityInPushChain( pathBlocker, visited );
 			if ( !blockerIsMovable || !SVG_TryPushEntityChain( pusher, pathBlocker, delta, depth + 1, visited, includePusherAsBlocker, allowInitialSeparation ) ) {
 				pushedState.obstacle = pathBlocker;
@@ -1311,11 +1357,7 @@ static bool SVG_TryPushEntityChain( svg_base_edict_t *pusher, svg_base_edict_t *
 		 *	A dynamic overlap discovered at the exact target still requires downstream displacement. The
 		 *	current entity remains at targetOrigin while the blocker is moved so the final pose is re-tested.
 		 **/
-		const bool blockerIsMovable = finalBlocker != g_edict_pool.EdictForNumber( ENTITYNUM_WORLD )
-			&& finalBlocker->solid != SOLID_BSP
-			&& finalBlocker->movetype != MOVETYPE_PUSH
-			&& finalBlocker->movetype != MOVETYPE_STOP
-			&& finalBlocker->movetype != MOVETYPE_NONE
+		const bool blockerIsMovable = SVG_IsPushedEntityMovable( finalBlocker, pusher )
 			&& !SVG_IsEntityInPushChain( finalBlocker, visited );
 		if ( !blockerIsMovable || !SVG_TryPushEntityChain( pusher, finalBlocker, delta, depth + 1, visited, includePusherAsBlocker, allowInitialSeparation ) ) {
 			pushedState.obstacle = finalBlocker;
@@ -1453,6 +1495,14 @@ static bool SVG_TrySlidePushedEntityChain( svg_base_edict_t *pusher, svg_base_ed
 	}
 
 	/**
+	*	A failed chain that names a movable entity must remain blocked. Allowing the slide resolver to continue
+	*	would move the rider through that entity instead of preserving the pusher -> rider -> blocker order.
+	**/
+	if ( SVG_IsPushedEntityMovable( pushedState.obstacle, pusher ) ) {
+		return false;
+	}
+
+	/**
 	*	Resolve the requested motion through a small number of collision planes. The virtual origin is used
 	*	only for trace queries; the entity itself remains at its original position until the final chain
 	*	commit succeeds.
@@ -1485,6 +1535,14 @@ static bool SVG_TrySlidePushedEntityChain( svg_base_edict_t *pusher, svg_base_ed
 		if ( !pathBlocked ) {
 			accumulatedDelta += remainingDelta;
 			break;
+		}
+
+		/**
+		*	A dynamic blocker discovered during slide probing is authoritative; sliding is reserved for world or
+		*	mover-surface recovery and must not turn a downstream entity into a pass-through surface.
+		**/
+		if ( SVG_IsPushedEntityMovable( pathBlocker, pusher ) ) {
+			return false;
 		}
 
 		/**
@@ -1619,6 +1677,7 @@ const bool SVG_PushMover( svg_base_edict_t *pusher, const Vector3 &move, const V
 	SVG_Util_SetEntityAngles( pusher, pusherEndAngles, true );
 	gi.linkentity( pusher );
 	const bool carryRidersAroundPivot = SVG_ShouldCarryRidersAroundPivot( pusher );
+	const bool allowOpeningAngularSlide = SVG_IsOpeningRotatingDoor( pusher );
 
 	/**
 	*	Resolve every affected entity with exact linear + angular displacement and recursive blocker
@@ -1667,7 +1726,8 @@ const bool SVG_PushMover( svg_base_edict_t *pusher, const Vector3 &move, const V
 			const Vector3 localOrigin = candidate->currentOrigin - pusherStartOrigin;
 			const Vector3 angularDelta = SVG_Compute3DRotationDisplacement( localOrigin, pusherStartAngles, pusherEndAngles );
 			const Vector3 totalDelta = move + angularDelta;
-			const Vector3 sweepStart = candidate->currentOrigin - totalDelta;
+			// Transform the candidate's start pose into the pusher's end frame before sweeping back to its current pose.
+			const Vector3 sweepStart = candidate->currentOrigin + totalDelta;
 			isPusherContact = SVG_TestEntityContactWithMover( candidate, pusher, sweepStart, candidate->currentOrigin );
 		}
 
@@ -1692,10 +1752,12 @@ const bool SVG_PushMover( svg_base_edict_t *pusher, const Vector3 &move, const V
 		*	BSP or another surface clips that pose, the bounded slide resolver can preserve recoverable motion.
 		**/
 		bool displacementSucceeded = SVG_TryPushEntityChain( pusher, candidate, totalDelta, 0, nullptr, includePusherAsBlocker );
-		if ( !displacementSucceeded && isRider && !VectorEmpty( amove ) ) {
+		if ( !displacementSucceeded && !VectorEmpty( amove )
+			&& ( isRider || ( allowOpeningAngularSlide && candidate->client ) ) ) {
 			/**
-			*	The rotating brush may have entered the rider while corner-hugging or standing on its top. Treat
-			*	the configured rider displacement as a slide candidate before reporting a crush to the door.
+			*	Riders retain angular slide recovery, while a non-rider player may use it only when an opening rotating
+			*	door with no configured damage contacts a pivot-edge corner. Positive-damage doors intentionally skip
+			*	this path so onBlocked can hurt the player and reverse the door when the path is blocked.
 			**/
 			displacementSucceeded = SVG_TrySlidePushedEntityChain( pusher, candidate, totalDelta, includePusherAsBlocker );
 		}

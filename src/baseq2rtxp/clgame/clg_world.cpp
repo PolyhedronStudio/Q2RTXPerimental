@@ -12,6 +12,104 @@
 
 
 /**
+*   @brief  Build the stationary collision shape represented by a dynamic client entity.
+*   @param  ent         Entity whose replicated solid and bounds define the target shape.
+*   @param  outShape    [out] Analytical target shape definition.
+*   @param  outCenter   [out] World-space center of the target shape.
+*   @return True when ent is a capsule, cylinder, or sphere; false for box/BSP targets.
+*   @note   Box and BSP targets continue through the existing transformed-hull path.
+**/
+static bool CLG_BuildDynamicEntityShape( const centity_t *ent, cm_trace_shape_t *outShape, Vector3 *outCenter ) {
+	/**
+	*   Reject invalid output storage and non-primitive target entities before building shape data.
+	**/
+	if ( !ent || !outShape || !outCenter
+		|| ( ent->current.solid != SOLID_CAPSULE
+			&& ent->current.solid != SOLID_CYLINDER
+			&& ent->current.solid != SOLID_SPHERE ) ) {
+		return false;
+	}
+
+	/**
+	*   Derive the target's horizontal radius, axial half-height, and origin-to-center offset.
+	**/
+	const float radius = std::max( std::fabs( ent->maxs.x ), std::fabs( ent->maxs.y ) );
+	const float fullHalfHeight = std::fabs( ent->maxs.z - ent->mins.z ) * 0.5f;
+	const Vector3 centerOffset = QM_Vector3Scale( QM_Vector3Add( ent->mins, ent->maxs ), 0.5f );
+	*outShape = {};
+
+	/**
+	*   Match the server shape definitions: capsule caps consume the radial portion of the axial height,
+	*   while cylinders retain flat ends and spheres use their largest bound component as radius.
+	**/
+	if ( ent->current.solid == SOLID_CAPSULE ) {
+		outShape->type = SHAPE_CAPSULE;
+		outShape->radius = radius;
+		outShape->halfHeight = std::max( 0.0f, fullHalfHeight - radius );
+	} else if ( ent->current.solid == SOLID_CYLINDER ) {
+		outShape->type = SHAPE_CYLINDER;
+		outShape->radius = radius;
+		outShape->halfHeight = fullHalfHeight;
+	} else {
+		outShape->type = SHAPE_SPHERE;
+		outShape->radius = std::max( radius, std::max( std::fabs( ent->mins.z ), std::fabs( ent->maxs.z ) ) );
+		outShape->halfHeight = 0.0f;
+	}
+
+	*outCenter = QM_Vector3Add( ent->current.origin, centerOffset );
+	return true;
+}
+
+/**
+*   @brief  Sweep an analytical moving shape against one dynamic primitive entity.
+*   @param  start         Moving-shape center at the beginning of the sweep.
+*   @param  movingShape   Analytical shape being swept.
+*   @param  end           Moving-shape center at the end of the sweep.
+*   @param  clipEntity    Dynamic primitive target.
+*   @return Trace result for the specified target, or a clear trace for non-primitive targets.
+**/
+static cm_trace_t CLG_TraceShapeAgainstDynamicEntity( const Vector3 &start, const cm_trace_shape_t &movingShape, const Vector3 &end, const centity_t *clipEntity ) {
+	/**
+	*   Initialize a clear trace with the client collision system's default payloads.
+	**/
+	cm_trace_t trace = {};
+	trace.fraction = 1.0f;
+	trace.endpos = end;
+	trace.surface = clgi.CM_GetNullSurface();
+	trace.material = clgi.CM_GetDefaultMaterial();
+	trace.surface2 = clgi.CM_GetNullSurface();
+	trace.material2 = clgi.CM_GetDefaultMaterial();
+
+	/**
+	*   Resolve the target's analytical shape; callers retain the transformed-hull path for other solids.
+	**/
+	cm_trace_shape_t targetShape = {};
+	Vector3 targetCenter = {};
+	if ( !CLG_BuildDynamicEntityShape( clipEntity, &targetShape, &targetCenter ) ) {
+		return trace;
+	}
+
+	/**
+	*   Perform the shape-vs-shape sweep and restore the target identity on a hit.
+	**/
+	trace = clgi.CM_AnalyticalShapeSweep( &start, &movingShape, &end, &targetCenter, &targetShape );
+	trace.surface = clgi.CM_GetNullSurface();
+	trace.material = clgi.CM_GetDefaultMaterial();
+	trace.surface2 = clgi.CM_GetNullSurface();
+	trace.material2 = clgi.CM_GetDefaultMaterial();
+	if ( trace.fraction < 1.0f ) {
+		trace.entityNumber = clipEntity->current.number;
+		trace.brushID = SG_PackEntityBrushID( clipEntity->current.number, trace.brushID );
+		trace.endpos = start + ( end - start ) * trace.fraction;
+		trace.contents = CONTENTS_SOLID;
+	} else {
+		trace.endpos = end;
+	}
+	return trace;
+}
+
+
+/**
 *
 *
 *
@@ -692,24 +790,48 @@ const cm_trace_t CLG_Clip( const Vector3 &start, const Vector3 *mins, const Vect
     if ( clipEntity == nullptr || clipEntity == clg_entities ) {
         trace = clgi.CM_BoxTrace( &start, &end, mins, maxs, clgi.GetEntityHullNode( nullptr ), contentMask);
         // Clip against clipEntity.
-    } else {
-		// Get the entity's hull.
-        mnode_t *headNode = clgi.GetEntityHullNode( clipEntity );
+	} else {
+		/**
+		*   Convert the moving bounds into the analytical representation used for primitive targets.
+		**/
+		cm_trace_shape_t movingShape = { .type = SHAPE_AABB, .extents = {}, .radius = 0.0f, .halfHeight = 0.0f };
+		Vector3 shapeStart = start;
+		Vector3 shapeEnd = end;
+		if ( mins && maxs ) {
+			movingShape.extents = QM_Vector3Scale( QM_Vector3Subtract( *maxs, *mins ), 0.5f );
+			movingShape.radius = std::max( movingShape.extents.x, movingShape.extents.y );
+			movingShape.halfHeight = movingShape.extents.z;
+			const Vector3 offset = QM_Vector3Scale( QM_Vector3Add( *mins, *maxs ), 0.5f );
+			shapeStart = QM_Vector3Add( shapeStart, offset );
+			shapeEnd = QM_Vector3Add( shapeEnd, offset );
+		}
 
-        // Perform clip.
-        if ( headNode != nullptr ) {
-            trace = clgi.CM_TransformedBoxTrace( 
-				&start, &end, 
-				mins, maxs, 
-				headNode, contentMask,
-                &clipEntity->current.origin, &clipEntity->current.angles
-			);
+		/**
+		*   Primitive entities have no guaranteed BSP hull, so use direct shape clipping for them.
+		**/
+		if ( clipEntity->current.solid == SOLID_CAPSULE
+			|| clipEntity->current.solid == SOLID_CYLINDER
+			|| clipEntity->current.solid == SOLID_SPHERE ) {
+			trace = CLG_TraceShapeAgainstDynamicEntity( shapeStart, movingShape, shapeEnd, clipEntity );
+		} else {
+			/**
+			*   Retain transformed BSP tracing for box and brush-model entities.
+			**/
+			mnode_t *headNode = clgi.GetEntityHullNode( clipEntity );
+			if ( headNode != nullptr ) {
+				trace = clgi.CM_TransformedBoxTrace(
+					&start, &end,
+					mins, maxs,
+					headNode, contentMask,
+					&clipEntity->current.origin, &clipEntity->current.angles
+				);
 
-            if ( trace.fraction < 1. ) {
-                trace.entityNumber = clipEntity->current.number;
-            }
-        }
-    }
+				if ( trace.fraction < 1.0f ) {
+					trace.entityNumber = clipEntity->current.number;
+				}
+			}
+		}
+	}
 
     return trace;
 }
@@ -743,20 +865,27 @@ const cm_trace_t CLG_ClipCapsule( const Vector3 &start, const float radius, cons
 		/**
 		*	Resolve the target entity hull and trace in its transformed local space.
 		**/
-        mnode_t *headNode = clgi.GetEntityHullNode( clipEntity );
-        if ( headNode != nullptr ) {
-            trace = clgi.CM_TransformedTraceCapsule( 
-				&start, &end, 
-				radius, halfHeight, 
-				headNode, contentMask,
-                &clipEntity->current.origin, &clipEntity->current.angles
-			);
-			// Tag hit entity id when the transformed trace blocked movement.
-            if ( trace.fraction < 1. ) {
-                trace.entityNumber = clipEntity->current.number;
-            }
-        }
-    }
+		if ( clipEntity->current.solid == SOLID_CAPSULE
+			|| clipEntity->current.solid == SOLID_CYLINDER
+			|| clipEntity->current.solid == SOLID_SPHERE ) {
+			const cm_trace_shape_t movingShape = { .type = SHAPE_CAPSULE, .extents = {}, .radius = radius, .halfHeight = halfHeight };
+			trace = CLG_TraceShapeAgainstDynamicEntity( start, movingShape, end, clipEntity );
+		} else {
+			mnode_t *headNode = clgi.GetEntityHullNode( clipEntity );
+			if ( headNode != nullptr ) {
+				trace = clgi.CM_TransformedTraceCapsule(
+					&start, &end,
+					radius, halfHeight,
+					headNode, contentMask,
+					&clipEntity->current.origin, &clipEntity->current.angles
+				);
+				// Tag hit entity id when the transformed trace blocked movement.
+				if ( trace.fraction < 1.0f ) {
+					trace.entityNumber = clipEntity->current.number;
+				}
+			}
+		}
+	}
 	// Return final trace payload.
     return trace;
 }
@@ -790,20 +919,27 @@ const cm_trace_t CLG_ClipCylinder( const Vector3 &start, const float radius, con
 		/**
 		*	Resolve the target entity hull and trace in its transformed local space.
 		**/
-        mnode_t *headNode = clgi.GetEntityHullNode( clipEntity );
-        if ( headNode != nullptr ) {
-            trace = clgi.CM_TransformedTraceCylinder( 
-				&start, &end, 
-				radius, halfHeight, 
-				headNode, contentMask,
-                &clipEntity->current.origin, &clipEntity->current.angles
-			);
-			// Tag hit entity id when the transformed trace blocked movement.
-            if ( trace.fraction < 1. ) {
-                trace.entityNumber = clipEntity->current.number;
-            }
-        }
-    }
+		if ( clipEntity->current.solid == SOLID_CAPSULE
+			|| clipEntity->current.solid == SOLID_CYLINDER
+			|| clipEntity->current.solid == SOLID_SPHERE ) {
+			const cm_trace_shape_t movingShape = { .type = SHAPE_CYLINDER, .extents = {}, .radius = radius, .halfHeight = halfHeight };
+			trace = CLG_TraceShapeAgainstDynamicEntity( start, movingShape, end, clipEntity );
+		} else {
+			mnode_t *headNode = clgi.GetEntityHullNode( clipEntity );
+			if ( headNode != nullptr ) {
+				trace = clgi.CM_TransformedTraceCylinder(
+					&start, &end,
+					radius, halfHeight,
+					headNode, contentMask,
+					&clipEntity->current.origin, &clipEntity->current.angles
+				);
+				// Tag hit entity id when the transformed trace blocked movement.
+				if ( trace.fraction < 1.0f ) {
+					trace.entityNumber = clipEntity->current.number;
+				}
+			}
+		}
+	}
 	// Return final trace payload.
     return trace;
 }
@@ -836,20 +972,27 @@ const cm_trace_t CLG_ClipSphere( const Vector3 &start, const float radius, const
 		/**
 		*	Resolve the target entity hull and trace in its transformed local space.
 		**/
-        mnode_t *headNode = clgi.GetEntityHullNode( clipEntity );
-        if ( headNode != nullptr ) {
-            trace = clgi.CM_TransformedTraceSphere( 
-				&start, &end, 
-				radius, 
-				headNode, contentMask,
-                &clipEntity->current.origin, &clipEntity->current.angles
-			);
-			// Tag hit entity id when the transformed trace blocked movement.
-            if ( trace.fraction < 1. ) {
-                trace.entityNumber = clipEntity->current.number;
-            }
-        }
-    }
+		if ( clipEntity->current.solid == SOLID_CAPSULE
+			|| clipEntity->current.solid == SOLID_CYLINDER
+			|| clipEntity->current.solid == SOLID_SPHERE ) {
+			const cm_trace_shape_t movingShape = { .type = SHAPE_SPHERE, .extents = {}, .radius = radius, .halfHeight = 0.0f };
+			trace = CLG_TraceShapeAgainstDynamicEntity( start, movingShape, end, clipEntity );
+		} else {
+			mnode_t *headNode = clgi.GetEntityHullNode( clipEntity );
+			if ( headNode != nullptr ) {
+				trace = clgi.CM_TransformedTraceSphere(
+					&start, &end,
+					radius,
+					headNode, contentMask,
+					&clipEntity->current.origin, &clipEntity->current.angles
+				);
+				// Tag hit entity id when the transformed trace blocked movement.
+				if ( trace.fraction < 1.0f ) {
+					trace.entityNumber = clipEntity->current.number;
+				}
+			}
+		}
+	}
 	// Return final trace payload.
     return trace;
 }
