@@ -312,12 +312,14 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/weapons/svg_weapon_fists.cpp
 	baseq2rtxp/svgame/weapons/svg_weapon_pistol.cpp
 	
-	baseq2rtxp/svgame/nav/nav_thread.cpp
-	baseq2rtxp/svgame/nav/nav_generate.cpp
-	baseq2rtxp/svgame/nav/nav_path.cpp
-	baseq2rtxp/svgame/nav/nav_persistence.cpp
+	baseq2rtxp/svgame/nav/nav_csg.cpp
 	baseq2rtxp/svgame/nav/nav_debug.cpp
 	baseq2rtxp/svgame/nav/nav_debug_draw.cpp
+	baseq2rtxp/svgame/nav/nav_generate.cpp
+	baseq2rtxp/svgame/nav/nav_kdtree_builder.cpp
+	baseq2rtxp/svgame/nav/nav_path.cpp
+	baseq2rtxp/svgame/nav/nav_persistence.cpp
+	baseq2rtxp/svgame/nav/nav_thread.cpp
 )
 SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_chase.h
@@ -344,13 +346,15 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_skeletal_hitboxes.h
 	baseq2rtxp/svgame/svg_weapons.h
 
-	baseq2rtxp/svgame/nav/nav_core.h
 	baseq2rtxp/svgame/nav/nav_containers.h
-	baseq2rtxp/svgame/nav/nav_types.h
-	baseq2rtxp/svgame/nav/nav_thread.h
-	baseq2rtxp/svgame/nav/nav_generate.h
-	baseq2rtxp/svgame/nav/nav_persistence.h
+	baseq2rtxp/svgame/nav/nav_core.h
+	baseq2rtxp/svgame/nav/nav_csg.h
 	baseq2rtxp/svgame/nav/nav_debug.h
+	baseq2rtxp/svgame/nav/nav_generate.h
+	baseq2rtxp/svgame/nav/nav_kdtree_builder.h
+	baseq2rtxp/svgame/nav/nav_persistence.h
+	baseq2rtxp/svgame/nav/nav_thread.h
+	baseq2rtxp/svgame/nav/nav_types.h
 
     baseq2rtxp/svgame/lua/svg_lua_callfunction.hpp
 	baseq2rtxp/svgame/lua/svg_lua_signals.hpp

@@ -2,6 +2,71 @@
 
 #include "nav_core.h"
 #include "nav_containers.h"
+#include <algorithm>
+
+/**
+*	@brief	Axis-Aligned Bounding Box (AABB) helper structure for 3D geometric queries.
+**/
+struct nav_aabb_t {
+	//! Minimum bounds extent along X, Y, and Z.
+	Vector3DP mins = { 1e30, 1e30, 1e30 };
+	//! Maximum bounds extent along X, Y, and Z.
+	Vector3DP maxs = { -1e30, -1e30, -1e30 };
+
+	/**
+	*	@brief	Reset bounding box extents to inverted infinite bounds.
+	**/
+	inline void Clear() {
+		mins = { 1e30, 1e30, 1e30 };
+		maxs = { -1e30, -1e30, -1e30 };
+	}
+
+	/**
+	*	@brief	Expand bounding box to include a 3D point location.
+	**/
+	inline void AddPoint( const Vector3DP &p ) {
+		mins.x = std::min<double>( mins.x, p.x );
+		mins.y = std::min<double>( mins.y, p.y );
+		mins.z = std::min<double>( mins.z, p.z );
+
+		maxs.x = std::max<double>( maxs.x, p.x );
+		maxs.y = std::max<double>( maxs.y, p.y );
+		maxs.z = std::max<double>( maxs.z, p.z );
+	}
+
+	/**
+	*	@brief	Expand bounding box by a uniform spatial margin in all directions.
+	**/
+	inline void Expand( double margin ) {
+		mins.x -= margin;
+		mins.y -= margin;
+		mins.z -= margin;
+
+		maxs.x += margin;
+		maxs.y += margin;
+		maxs.z += margin;
+	}
+
+	/**
+	*	@brief	Test whether this bounding box overlaps another bounding box with an optional safety margin.
+	**/
+	inline bool Overlaps( const nav_aabb_t &other, double margin = 0.0 ) const {
+		if ( mins.x - margin > other.maxs.x || maxs.x + margin < other.mins.x ) return false;
+		if ( mins.y - margin > other.maxs.y || maxs.y + margin < other.mins.y ) return false;
+		if ( mins.z - margin > other.maxs.z || maxs.z + margin < other.mins.z ) return false;
+		return true;
+	}
+
+	/**
+	*	@brief	Test whether a 3D point is inside this bounding box with an optional safety margin.
+	**/
+	inline bool ContainsPoint( const Vector3DP &p, double margin = 0.0 ) const {
+		if ( p.x < mins.x - margin || p.x > maxs.x + margin ) return false;
+		if ( p.y < mins.y - margin || p.y > maxs.y + margin ) return false;
+		if ( p.z < mins.z - margin || p.z > maxs.z + margin ) return false;
+		return true;
+	}
+};
 
 //#pragma pack(push, 1)
 
@@ -81,6 +146,12 @@ struct nav_face_t {
     int32_t entity_id = ENTITYNUM_NONE;
     //! Door entity that produced this face as a transition boundary, or ENTITYNUM_NONE if unrelated.
     int32_t transition_entity_id = ENTITYNUM_NONE;
+    //! Direct back-pointer identifier to originating qbism/Q2 BSP convex brush.
+    uint32_t brush_id = 0;
+    //! Surface contents and material flags (e.g., CONTENTS_SOLID, CM_SURFACE_NO_NAVMESH).
+    uint32_t surface_flags = 0;
+    //! Mailbox query identifier to prevent redundant narrow-phase testing across adjacent leaves.
+    mutable uint32_t last_query_id = 0;
 };
 
 /**
@@ -104,6 +175,8 @@ struct nav_kdtree_node_t {
     int32_t right_child = -1;
     //! Split axis for internal nodes.
     int32_t split_axis = 0;
+    //! Authoritative split coordinate position along split_axis.
+    double split_pos = 0.0;
 };
 
 /**

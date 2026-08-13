@@ -30,11 +30,16 @@
 #define CM_SURFACE_NODRAW       0x80
 //! Used by kmquake2.
 #define CM_SURFACE_ALPHATEST    0x02000000
-//! <Q2RTXP>: WID: TODO: Implement for VKPT?
-#define CM_SURFACE_N64_UV           (1U << 28)
-#define CM_SURFACE_N64_SCROLL_X     (1U << 29)
-#define CM_SURFACE_N64_SCROLL_Y     (1U << 30)
-#define CM_SURFACE_N64_SCROLL_FLIP  (1U << 31)
+//! Used for the Navigation Mesh system to indicate that this is an area which does not need to be involved
+//! for pathfinding. This is used to mark areas which are not walkable, such as (possibly) water or lava, 
+//! or areas which are not relevant to the navmesh generation, such as sky and decorative surfaces. 
+//! This flag is used to optimize the navmesh generation process by excluding these areas from consideration.
+#define CM_SURFACE_NO_NAVMESH	BIT( 11 )
+// Came from Q2RE but y
+//#define CM_SURFACE_N64_UV           BIT( 28 )
+//#define CM_SURFACE_N64_SCROLL_X     BIT( 29 )
+//#define CM_SURFACE_N64_SCROLL_Y     BIT( 30 )
+//#define CM_SURFACE_N64_SCROLL_FLIP  BIT( 31 )
 
 
 

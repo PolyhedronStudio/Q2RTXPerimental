@@ -195,6 +195,7 @@ LOAD( Planes ) {
 
     bsp->numplanes = count;
     bsp->planes = static_cast<cm_plane_t *>( ALLOC( sizeof( *out ) * count ) ); // WID: C++20: Added cast.
+    bsp->authored_planes = bsp->planes;
 
     out = bsp->planes;
     for ( i = 0; i < count; i++, in += 4, out++ ) {
@@ -259,6 +260,8 @@ LOAD( Brushes ) {
         }
         out->firstbrushside = bsp->brushsides + firstside;
         out->numsides = numsides;
+        out->authored_firstbrushside = out->firstbrushside;
+        out->authored_numsides = static_cast< int32_t >( numsides );
         out->contents = BSP_Long();
         out->checkcount = 0;
     }
@@ -937,6 +940,9 @@ void BSP_Free( bsp_t *bsp ) {
             bsp->pvs2_matrix = NULL;
         }
 
+        // Free runtime bevel tables owned by this final cached-BSP reference.
+        Z_Free( bsp->bevel_planes );
+        Z_Free( bsp->bevel_brushsides );
 
         Hunk_Free( &bsp->hunk );
         List_Remove( &bsp->entry );

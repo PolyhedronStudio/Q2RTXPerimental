@@ -65,7 +65,10 @@ struct nav_path_policy_t {
 *	@param	point World-space position to query.
 *	@return	Index of the leaf node, or -1 when the point lies outside world bounds.
 **/
-int32_t Nav_FindLeafNode( const Vector3 &point );
+int32_t Nav_FindLeafNode( const Vector3DP &point );
+inline int32_t Nav_FindLeafNode( const Vector3 &point ) {
+	return Nav_FindLeafNode( Vector3DP( point ) );
+}
 
 /**
 *	@brief	Check if a point lies within the 2D projection of a face.
@@ -73,14 +76,20 @@ int32_t Nav_FindLeafNode( const Vector3 &point );
 *	@param	face Face to test against.
 *	@return	True if the point is inside.
 **/
-bool Nav_PointInsideFace2D( const Vector3 &point, const nav_face_t &face );
+bool Nav_PointInsideFace2D( const Vector3DP &point, const nav_face_t &face );
+inline bool Nav_PointInsideFace2D( const Vector3 &point, const nav_face_t &face ) {
+	return Nav_PointInsideFace2D( Vector3DP( point ), face );
+}
 
 /**
 *	@brief	Return the nav face that actually contains a point.
 *	@param	point World-space position.
 *	@return	Index of the face, or -1 if none was found.
 **/
-int32_t Nav_FindPolyInLeaf( const Vector3 &point );
+int32_t Nav_FindPolyInLeaf( const Vector3DP &point );
+inline int32_t Nav_FindPolyInLeaf( const Vector3 &point ) {
+	return Nav_FindPolyInLeaf( Vector3DP( point ) );
+}
 
 /**
 *	@brief	Compute a path using A* from the start face to the goal face.
@@ -93,11 +102,52 @@ int32_t Nav_FindPolyInLeaf( const Vector3 &point );
 bool Nav_FindPath( int32_t startFace, int32_t goalFace, std::vector<int32_t> &outPath, const nav_path_policy_t &policy );
 
 /**
+ *	@brief	One-shot rejection summary produced by the most recent A* query.
+ *	@note	The counters describe only edges examined by that query and do not alter
+ *			path traversal or emit per-frame diagnostics.
+**/
+struct nav_path_diagnostics_t {
+	//! Start face supplied to the most recent query.
+	int32_t start_face = -1;
+	//! Goal face supplied to the most recent query.
+	int32_t goal_face = -1;
+	//! Whether the most recent query returned a path.
+	bool route_found = false;
+	//! Whether the query indices were valid.
+	bool query_valid = false;
+	//! Number of unique faces expanded by A*.
+	int32_t expanded_faces = 0;
+	//! Number of transitions that passed all traversal checks.
+	int32_t accepted_transitions = 0;
+	//! Number of disabled transitions rejected.
+	int32_t rejected_disabled = 0;
+	//! Number of transitions without valid portal overlap.
+	int32_t rejected_no_portal = 0;
+	//! Number of transitions rejected because their portal is too narrow.
+	int32_t rejected_narrow_portal = 0;
+	//! Number of transitions without a usable agent-center corridor.
+	int32_t rejected_no_agent_corridor = 0;
+	//! Number of transitions rejected because the upward step is too high.
+	int32_t rejected_step_height = 0;
+	//! Number of transitions rejected because the downward drop is too high.
+	int32_t rejected_drop_height = 0;
+};
+
+/**
+ *	@brief	Print the most recent A* rejection summary once.
+ *	@note	Intended for the existing `nav_dbg_test` command after a failed route.
+**/
+void Nav_LogLastPathDiagnostics( void );
+
+/**
 *	@brief	Fallback that finds the globally closest face by 3D distance.
 *	@param	point World-space position to search from.
 *	@return	Index of the closest face, or -1 if none exist.
 **/
-int32_t Nav_FindClosestPolyGlobal( const Vector3 &point );
+int32_t Nav_FindClosestPolyGlobal( const Vector3DP &point );
+inline int32_t Nav_FindClosestPolyGlobal( const Vector3 &point ) {
+	return Nav_FindClosestPolyGlobal( Vector3DP( point ) );
+}
 
 /**
 *	@brief	Calculate portal endpoints between two adjacent nav faces.
@@ -107,7 +157,17 @@ int32_t Nav_FindClosestPolyGlobal( const Vector3 &point );
 *	@param	outV1 Output receiving the second endpoint.
 *	@return	True when a shared edge was identified.
 **/
-bool Nav_GetPortalEndpoints( int32_t faceA, int32_t faceB, Vector3 *outV0, Vector3 *outV1 );
+bool Nav_GetPortalEndpoints( int32_t faceA, int32_t faceB, Vector3DP *outV0, Vector3DP *outV1 );
+inline bool Nav_GetPortalEndpoints( int32_t faceA, int32_t faceB, Vector3 *outV0, Vector3 *outV1 ) {
+	Vector3DP v0{}, v1{};
+	bool ok = Nav_GetPortalEndpoints( faceA, faceB, &v0, &v1 );
+	if ( ok ) {
+		if ( outV0 ) *outV0 = static_cast<Vector3>( v0 );
+		if ( outV1 ) *outV1 = static_cast<Vector3>( v1 );
+	}
+	return ok;
+}
+
 
 /**
 *	@brief	Build a smoothed string-pulled path using the Funnel algorithm.
@@ -115,10 +175,12 @@ bool Nav_GetPortalEndpoints( int32_t faceA, int32_t faceB, Vector3 *outV0, Vecto
 *	@param	startPos The exact starting position (e.g. agent's current position).
 *	@param	goalPos The exact ending position.
 *	@param	agentRadius The collision radius to steer clear of walls.
-*	@param	outWaypoints Output sequence of 3D points.
+ *	@param	outWaypoints Output sequence of 3D points.
+ *	@param	outForcedWaypoints Optional output flags parallel to `outWaypoints`; true
+ *						for stair approach and crossing constraints that must not be smoothed.
 *	@return	True if a valid corridor and string-pull could be generated.
 **/
-bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3 &startPos, const Vector3 &goalPos, float agentRadius, std::vector<Vector3> &outWaypoints );
+bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3 &startPos, const Vector3 &goalPos, float agentRadius, std::vector<Vector3> &outWaypoints, std::vector<bool> *outForcedWaypoints = nullptr );
 
 /**
 * 	@brief	Reapply dynamic nav edge state from the current runtime entity states.

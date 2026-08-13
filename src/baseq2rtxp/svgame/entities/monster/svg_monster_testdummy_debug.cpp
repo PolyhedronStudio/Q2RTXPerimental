@@ -1609,13 +1609,16 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
         return false;
     }
 
-    Vector3 moveDir = QM_Vector3Normalize( toGoal );
+	Vector3 moveDir = QM_Vector3Normalize( toGoal );
+	const bool isForcedWaypoint = stringPathPos < stringPulledWaypointForced.size() && stringPulledWaypointForced[ stringPathPos ];
 
 	/**
 	*	Apply continuity smoothing so waypoint plotting does not abruptly flip 180°
-	*	between frames when portal targeting jitters near boundaries.
+	*	between frames when portal targeting jitters near boundaries. Mandatory stair
+	*	segments intentionally use their exact target direction to stay centered on
+	*	the traversable portal instead of drifting into a neighboring step side.
 	**/
-	if ( hasLastNavigationMoveDir ) {
+	if ( hasLastNavigationMoveDir && !isForcedWaypoint ) {
 		const float dirContinuity = static_cast<float>( QM_Vector3DotProduct( moveDir, lastNavigationMoveDir ) );
 		if ( dirContinuity < -0.15f ) {
 			// Strongly oppose hard reversal in a single frame.
@@ -1637,8 +1640,8 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
     *	noise cannot immediately snap yaw by ~180 degrees.
     **/
     const float toGoalDist2D = std::sqrt( toGoalLen2 );
-    Vector3 facingDir = moveDir;
-    if ( hasLastFacingDirection ) {
+	Vector3 facingDir = moveDir;
+	if ( hasLastFacingDirection && !isForcedWaypoint ) {
     	const float facingContinuity = static_cast<float>( QM_Vector3DotProduct( facingDir, lastFacingDirection ) );
     	/**
     	*	Smooth facing direction without ever hard-locking it, avoiding the moonwalk trap.
@@ -1667,8 +1670,8 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
     *	Apply an ideal-yaw slew-rate limit so even if desired facing jitters, the
     *	commanded ideal yaw cannot jump by 180 degrees in one think.
     **/
-    const double desiredIdealYaw = QM_Vector3ToYaw( facingDir );
-    double yawStepLimit = 24.0;
+	const double desiredIdealYaw = QM_Vector3ToYaw( facingDir );
+	double yawStepLimit = 24.0;
     if ( toGoalDist2D < 64.0f ) {
     	yawStepLimit = 10.0;
     } else if ( toGoalDist2D < 128.0f ) {
@@ -1676,9 +1679,11 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
     } else if ( toGoalDist2D < 224.0f ) {
     	yawStepLimit = 18.0;
     }
-    const double desiredIdealStep = QM_AngleDelta( desiredIdealYaw, ideal_yaw );
-    const double clampedIdealStep = QM_Clamp( desiredIdealStep, -yawStepLimit, yawStepLimit );
-    ideal_yaw = QM_AngleMod( ideal_yaw + clampedIdealStep );
+	const double desiredIdealStep = QM_AngleDelta( desiredIdealYaw, ideal_yaw );
+	const double clampedIdealStep = QM_Clamp( desiredIdealStep, -yawStepLimit, yawStepLimit );
+	// A forced stair segment is a physical traversal constraint, not a soft corner.
+	// Face the exact portal heading so stale L-turn yaw cannot steer into a side edge.
+	ideal_yaw = isForcedWaypoint ? desiredIdealYaw : QM_AngleMod( ideal_yaw + clampedIdealStep );
 
     const double currentYaw = QM_AngleMod( currentAngles[ YAW ] );
     const double yawDeltaAbs = std::fabs( QM_AngleDelta( ideal_yaw, currentYaw ) );
@@ -1747,6 +1752,7 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
 void svg_monster_testdummy_debug_t::ResetNavigationPath() {
     navPath.clear();
     stringPulledPath.clear();
+	stringPulledWaypointForced.clear();
     pathPos = 0;
     stringPathPos = 0;
     cachedLeaf = -1;
@@ -1767,7 +1773,8 @@ void svg_monster_testdummy_debug_t::UpdateBlockedNavigationRecovery( const int32
 	*	Determine whether this frame indicates blocked/trapped movement.
 	**/
 	const bool isBlockedThisFrame = ( ( blockedMask & ( MM_SLIDEMOVEFLAG_BLOCKED | MM_SLIDEMOVEFLAG_TRAPPED ) ) != 0 );
-	const bool isHardBlockedThisFrame = ( ( blockedMask & ( MM_SLIDEMOVEFLAG_TRAPPED | MM_SLIDEMOVEFLAG_WALL_BLOCKED ) ) != 0 );
+	// Wall contact is expected while sliding around a valid corner; only a true trapped result invalidates immediately.
+	const bool isHardBlockedThisFrame = ( ( blockedMask & MM_SLIDEMOVEFLAG_TRAPPED ) != 0 );
 
 	/**
 	*	Reset recovery counters and stale wall-contact steering once movement is no longer blocked.
@@ -1793,7 +1800,7 @@ void svg_monster_testdummy_debug_t::UpdateBlockedNavigationRecovery( const int32
 	}
 
 	/**
-	*	Hard block cases (wall-corner lock or trapped) should invalidate immediately.
+	*	A genuine trapped result means the mover cannot continue its current corridor and should invalidate immediately.
 	**/
 	if ( isHardBlockedThisFrame ) {
 		// Clear stale path state so the next think computes a new route from current position.
@@ -1985,7 +1992,7 @@ svg_monster_testdummy_debug_t::PathComputeResult svg_monster_testdummy_debug_t::
         stringPathPos = 1; // start steering towards waypoint 1 (0 is currentOrigin)
         
         const float agentRadius = std::max( std::abs( this->mins.x ), std::abs( this->maxs.x ) );
-        if ( !Nav_StringPull( navPath, myFeet, targetFeet, agentRadius, stringPulledPath ) ) {
+		if ( !Nav_StringPull( navPath, myFeet, targetFeet, agentRadius, stringPulledPath, &stringPulledWaypointForced ) ) {
         	ResetNavigationPath();
         	lastPathCalcTime = level.time;
         	return PathComputeResult::Failed;
@@ -2090,29 +2097,18 @@ const Vector3 svg_monster_testdummy_debug_t::NextWaypoint( const Vector3 &finalG
         }
     }
 
-    // Lookahead to skip backward first waypoint if we started slightly ahead of it.
-    // This fixes the "red circle mess" where the agent loops backward to hit a waypoint it already passed.
-    if ( stringPathPos == 1 && stringPathPos + 1 < stringPulledPath.size() ) {
-        Vector3 w1 = stringPulledPath[ 1 ];
-        Vector3 w2 = stringPulledPath[ 2 ];
-        Vector3 toW1 = w1 - currentOrigin;
-        Vector3 toW2 = w2 - currentOrigin;
-        toW1.z = 0.0f;
-        toW2.z = 0.0f;
-        
-        // If w1 and w2 are in opposite directions from us, we are roughly between them.
-        if ( QM_Vector3DotProduct( toW1, toW2 ) < 0.0f ) {
-            if ( QM_Vector3LengthSqr( toW1 ) < ( 64.0f * 64.0f ) ) {
-                stringPathPos++;
-            }
-        }
-    }
+	/**
+	* Keep the first funnel waypoint intact.  Upward transitions now provide an
+	* explicit approach point on the current tread, so a vector lookahead here
+	* would be able to skip the stair front and turn into an adjacent edge.
+	**/
 
 	Vector3 portalMidpoint = stringPulledPath[stringPathPos];
 
     // Are we at the final goal?
     if ( stringPathPos == stringPulledPath.size() - 1 ) {
-        if ( QM_Vector3DistanceSqr( currentOrigin, portalMidpoint ) < WAYPOINT_EPS_SQR ) {
+        // Measure 3D Euclidean distance from the entity's feet-origin to the ground-level portal waypoint.
+        if ( QM_Vector3DistanceSqr( myFeet, portalMidpoint ) < WAYPOINT_EPS_SQR ) {
             ++stringPathPos;
             return StabilizeWaypointTarget( finalGoal, true );
         }
@@ -2122,86 +2118,62 @@ const Vector3 svg_monster_testdummy_debug_t::NextWaypoint( const Vector3 &finalG
     // Determine if we need to step up
     float feetOriginZ = currentOrigin.z + this->mins.z;
     float targetZ = portalMidpoint.z;
-    bool needsStepUp = (targetZ - feetOriginZ) > 8.0f && !onRamp;
-    bool hasSteppedUp = !needsStepUp || (feetOriginZ >= targetZ - 4.0f);
+	bool needsStepUp = (targetZ - feetOriginZ) > 8.0f && !onRamp;
+	bool hasSteppedUp = !needsStepUp || (feetOriginZ >= targetZ - 4.0f);
 
-    const float agentRadius = std::max( std::abs( this->mins.x ), std::abs( this->maxs.x ) );
-    float advanceDist = ( needsStepUp ? 12.0f : agentRadius ); 
-    const float dist2DSqr = QM_Vector2DistanceSqr( currentOrigin, portalMidpoint );
-
-    // Check for overshoot: Did the entity pass the waypoint in the current frame?
-    // We check if the dot product of the direction to the waypoint and velocity is negative.
-    bool overshot = false;
-    Vector3 toPortal = portalMidpoint - currentOrigin;
-    toPortal.z = 0.0f;
-    if ( QM_Vector3LengthSqr( this->velocity ) > 1.0f ) {
-        Vector3 vel2D = this->velocity;
-        vel2D.z = 0.0f;
-        if ( QM_Vector3DotProduct( toPortal, vel2D ) < 0.0f ) {
-            // We passed it, but we should only consider it a valid overshoot if we were reasonably close
-            if ( dist2DSqr < ( advanceDist * advanceDist * 4.0f ) ) {
-                overshot = true;
-            }
-        }
-    }
-
-    // If we are close enough OR we overshot the waypoint, advance to the next one.
-    // For stairs, if we overshot, we ALWAYS advance so we don't steer backwards,
-    // which would pull us away from the stair riser we are trying to climb!
-    if ( dist2DSqr < (advanceDist * advanceDist) || overshot ) {
-        if ( hasSteppedUp || overshot || (feetOriginZ > portalMidpoint.z + NAV_MAX_STEP_SIZE) ) {
-            ++stringPathPos;
-            // Recursively get the NEXT waypoint to avoid stutter-stepping at boundaries
-            return NextWaypoint( finalGoal );
-        }
-    }
+	const float waypointReachDistance = needsStepUp ? 12.0f : std::sqrt( WAYPOINT_EPS_SQR );
+	const float dist2DSqr = QM_Vector2DistanceSqr( currentOrigin, portalMidpoint );
+	const float agentRadius = std::max( std::abs( this->mins.x ), std::abs( this->maxs.x ) );
 
 	/**
-	* Keep the current funnel corner active until the actor reaches its distance
-	* threshold.  Crossing the waypoint's perpendicular plane is not sufficient:
-	* at a tight L-turn the actor can cross that plane while its collision volume
-	* is still on the incoming side of the portal.  Advancing there switches the
-	* desired direction to the outgoing segment too early and causes the actor to
-	* face the next route while remaining wedged against the corner.
+	* Determine whether the mover has crossed the current waypoint into the
+	* following corridor segment.  This is geometric and does not depend on the
+	* previous frame's velocity, which may still point into an L-turn wall.
 	**/
+	bool passedWaypoint = false;
+	bool waypointLaterallyAligned = true;
+	if ( stringPathPos + 1 < stringPulledPath.size() ) {
+		Vector3 toNextWaypoint = stringPulledPath[ stringPathPos + 1 ] - portalMidpoint;
+		toNextWaypoint.z = 0.0f;
+		if ( QM_Vector3LengthSqr( toNextWaypoint ) > 0.0001f ) {
+			const float nextWaypointLength = std::sqrt( QM_Vector3LengthSqr( toNextWaypoint ) );
+			const Vector3 nextWaypointDirection = toNextWaypoint / nextWaypointLength;
+			Vector3 fromWaypoint = currentOrigin - portalMidpoint;
+			fromWaypoint.z = 0.0f;
+			const float forwardDistance = QM_Vector3DotProduct( fromWaypoint, nextWaypointDirection );
+			const float lateralDistance = std::fabs( fromWaypoint.x * nextWaypointDirection.y - fromWaypoint.y * nextWaypointDirection.x );
+
+			/**
+			* Keep upward stair transitions strict, but allow an ordinary mover to
+			* cross a corner while its center remains within its cleared corridor.
+			**/
+			const float maxLateralDistance = needsStepUp
+				? std::min( std::sqrt( WAYPOINT_EPS_SQR ), 2.0f )
+				: std::max( std::sqrt( WAYPOINT_EPS_SQR ), agentRadius + 2.0f );
+			waypointLaterallyAligned = lateralDistance <= maxLateralDistance;
+			passedWaypoint = forwardDistance >= 0.0f && waypointLaterallyAligned;
+		}
+	}
+
 	/**
-	*    Push only an upward-step waypoint toward the following path point.
-	*
-	*    The offset exists to keep the actor from aiming at the exact edge of a
-	*    riser before the step trace can start.  Applying that same offset to a
-	*    level portal moves the target beyond an L-turn corner and can make the
-	*    collision trace enter the riser or adjacent wall instead of traversing
-	*    the portal.  Flat funnel waypoints must therefore remain unmodified.
+	* Advance only after reaching the waypoint or crossing into the next
+	* segment.  Upward portals remain active until the feet are on the target
+	* surface, so steering cannot rotate around a riser before stepping it.
 	**/
-	if ( needsStepUp && !hasSteppedUp && stringPathPos < stringPulledPath.size() ) {
-        Vector3 pushDir;
-        if ( stringPathPos + 1 < stringPulledPath.size() ) {
-            pushDir = stringPulledPath[stringPathPos + 1] - portalMidpoint;
-        } else {
-            pushDir = finalGoal - portalMidpoint;
-        }
-        pushDir.z = 0.0f;
-        const float pushLen2 = static_cast<float>(QM_Vector3LengthSqr(pushDir));
-        if ( pushLen2 > 0.0001f ) {
-            const float pushLen = std::sqrt(pushLen2);
-            pushDir = pushDir / pushLen;
-            
-			// Push the step target toward the next path node so the actor enters
-			// the elevated surface instead of stopping at the riser edge.
-            float pushDist = 24.0f;
-            
-            Vector3 pushedPoint = portalMidpoint + (pushDir * pushDist);
-            pushedPoint.z = portalMidpoint.z;
-            
-            Vector3 toPortal = portalMidpoint - currentOrigin;
-            Vector3 toPushed = pushedPoint - currentOrigin;
-            toPortal.z = 0.0f;
-            toPushed.z = 0.0f;
-            if ( QM_Vector3DotProduct( toPortal, toPushed ) >= 0.0f ) {
-                return StabilizeWaypointTarget( pushedPoint, false );
-            }
-        }
-    }
-    
-    return StabilizeWaypointTarget( portalMidpoint, false );
+	const bool reachedWaypoint = needsStepUp
+		? ( ( dist2DSqr <= ( waypointReachDistance * waypointReachDistance ) || passedWaypoint ) && waypointLaterallyAligned )
+		: ( dist2DSqr <= ( waypointReachDistance * waypointReachDistance ) || passedWaypoint );
+	if ( reachedWaypoint && ( !needsStepUp || hasSteppedUp ) ) {
+		++stringPathPos;
+		// Recursively get the next waypoint to avoid stutter-stepping at boundaries.
+		return NextWaypoint( finalGoal );
+	}
+
+	/**
+	* Keep the exact funnel target.  Upward transitions already contain a
+	* mandatory current-tread approach point, and offsetting the riser target
+	* toward the following point would cut L-turn corners into non-navigable
+	* geometry.
+	**/
+	return StabilizeWaypointTarget( portalMidpoint, false );
 }

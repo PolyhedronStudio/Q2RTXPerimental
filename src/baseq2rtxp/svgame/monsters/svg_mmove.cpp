@@ -47,12 +47,46 @@ static inline void SVG_MMove_DebugTrace( const char *shape, const Vector3 &start
 *
 **/
 /**
-*	@brief	Clips trace against world only.
+* @brief Resolve automatic monster traces from the moving entity's collision primitive.
+* @param passEntity Monster whose bounds are being swept.
+* @return Capsule or cylinder shape used for the sweep.
+* @note The previous implementation selected the shape from the first collision result,
+*       which made the same monster use different hulls against world and entity geometry.
 **/
-static constexpr double DIST_EPSILON = 0.03125;
+const mm_trace_shape_t SVG_MMove_GetNativeShape( const svg_base_edict_t *passEntity ) {
+	/**
+	* Use the explicitly authored analytical solid when the mover provides one.
+	**/
+	if ( passEntity ) {
+		switch ( passEntity->solid ) {
+			case SOLID_CAPSULE:
+			case SOLID_SPHERE:
+				return MM_SHAPE_CAPSULE;
+			case SOLID_CYLINDER:
+				return MM_SHAPE_CYLINDER;
+			default:
+				break;
+		}
+	}
+
+	/**
+	* Bounds-box and unavailable mover types retain the existing flat-ended fallback.
+	**/
+	return MM_SHAPE_CYLINDER;
+}
 
 /**
-*	@brief	Trace the monster bbox as a capsule using center-space parameters.
+* @brief Trace the monster bounds using the selected analytical shape.
+* @param start Monster bbox-origin trace start.
+* @param mins Monster bounds minimums relative to the origin.
+* @param maxs Monster bounds maximums relative to the origin.
+* @param end Monster bbox-origin trace end.
+* @param passEntity Monster excluded from the trace.
+* @param contentMask Contents mask used for collision filtering.
+* @param shape Explicit trace shape, or automatic mover-based selection.
+* @return Trace result in bbox-origin coordinates.
+* @note Analytical engine traces use center-space coordinates, so the asymmetric bounds offset
+*       is applied before the sweep and removed from the returned endpoint.
 **/
 const svg_trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, svg_base_edict_t *passEntity, cm_contents_t contentMask, mm_trace_shape_t shape ) {
 	if ( contentMask == CONTENTS_NONE ) {
@@ -70,23 +104,18 @@ const svg_trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, co
 	Vector3 capEnd = end;
 	capEnd.z += centerOffsetZ;
 
-	// Trace against the world and all entities (including BSPs).
-	svg_trace_t tr;
+	/**
+	* Resolve automatic traces from the mover so all world and entity contacts use one hull.
+	**/
 	if ( shape == MM_SHAPE_AUTO ) {
-		// Use the AABB trace to preserve the existing entity/world shape behavior.
-		const Vector3 boxMins = mins;
-		const Vector3 boxMaxs = maxs;
-		const svg_trace_t traceBox = SVG_Trace( start, boxMins, boxMaxs, end, passEntity, contentMask );
-	#if defined( SVG_DEBUG_STAIR_TRACES )
-		SVG_MMove_DebugTrace( "AABB probe", start, end, traceBox, radius, fullHalfHeight );
-	#endif
-		if ( traceBox.ent && traceBox.ent != g_edict_pool.EdictForNumber( 0 ) ) {
-			shape = MM_SHAPE_CAPSULE;
-		} else {
-			shape = MM_SHAPE_CYLINDER;
-		}
+		shape = SVG_MMove_GetNativeShape( passEntity );
 	}
 
+	/**
+	* Sweep the selected analytical shape in center-space coordinates.
+	**/
+	// Trace against the world and all entities (including BSPs).
+	svg_trace_t tr;
 	if ( shape == MM_SHAPE_CYLINDER ) {
 		tr = SVG_TraceCylinder( capStart, radius, fullHalfHeight, capEnd, passEntity, contentMask );
 	} else {
@@ -181,8 +210,13 @@ const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, con
 	Vector3 startOrigin = monsterMove->state.previousOrigin = monsterMove->state.origin;
 	Vector3 startVelocity = monsterMove->state.previousVelocity = monsterMove->state.velocity;
 
+	/**
+	* Resolve the mover shape once so the initial slide and every step candidate use identical geometry.
+	**/
+	const mm_trace_shape_t movementShape = SVG_MMove_GetNativeShape( monsterMove->monster );
+
 	// Perform an actual 'Step Slide'.
-	mm_slide_move_flags_t blockedMask = SVG_MMove_SlideMove( monsterMove->state.origin, monsterMove->state.velocity, monsterMove->frameTime, monsterMove->mins, monsterMove->maxs, monsterMove->monster, monsterMove->touchTraces, false /* monsterMove->hasTime */ );
+	mm_slide_move_flags_t blockedMask = SVG_MMove_SlideMove( monsterMove->state.origin, monsterMove->state.velocity, monsterMove->frameTime, monsterMove->mins, monsterMove->maxs, monsterMove->monster, monsterMove->touchTraces, false /* monsterMove->hasTime */, movementShape );
 
 	// Store for downward move XY.
 	Vector3 downOrigin = monsterMove->state.origin;
@@ -197,9 +231,8 @@ const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, con
 
 	// Perform 'up-trace' to see whether we can step up at all
 	Vector3 up = startOrigin + Vector3{ 0., 0., maxStepSize };
-	// Use the entity's native shape (MM_SHAPE_AUTO). Using a cylinder here causes instant 'startsolid' failures
-	// if the entity is a capsule that has wedged its rounded bottom closer to a step edge than the cylinder radius allows.
-	trace = SVG_MMove_Trace( startOrigin, monsterMove->mins, monsterMove->maxs, up, monsterMove->monster, CONTENTS_NONE, MM_SHAPE_AUTO );
+	// Use the same native shape as the initial slide so the step candidate cannot change clearance semantics.
+	trace = SVG_MMove_Trace( startOrigin, monsterMove->mins, monsterMove->maxs, up, monsterMove->monster, CONTENTS_NONE, movementShape );
 	if ( trace.allsolid ) {
 		return blockedMask; // can't step up
 	}
@@ -211,16 +244,16 @@ const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, con
 	monsterMove->state.origin = trace.endpos;
 	monsterMove->state.velocity = startVelocity;
 
-	// Perform an actual 'Step Slide'. Use the native shape so we don't startsolid if wedged in a corner.
-	const mm_slide_move_flags_t elevatedBlockedMask = SVG_MMove_SlideMove( monsterMove->state.origin, monsterMove->state.velocity, monsterMove->frameTime, monsterMove->mins, monsterMove->maxs, monsterMove->monster, monsterMove->touchTraces, false /* monsterMove->hasTime */, MM_SHAPE_AUTO );
+	// Perform the elevated slide with the same shape so a capsule cannot become a cylinder at the stair seam.
+	const mm_slide_move_flags_t elevatedBlockedMask = SVG_MMove_SlideMove( monsterMove->state.origin, monsterMove->state.velocity, monsterMove->frameTime, monsterMove->mins, monsterMove->maxs, monsterMove->monster, monsterMove->touchTraces, false /* monsterMove->hasTime */, movementShape );
 	blockedMask |= elevatedBlockedMask;
 
 	// Push down the final amount.
 	Vector3 down = monsterMove->state.origin;
 	down.z -= stepSize + (float)MM_STEP_GROUND_DIST;
 
-	// Trace down to the step floor.
-	trace = SVG_MMove_Trace( monsterMove->state.origin, monsterMove->mins, monsterMove->maxs, down, monsterMove->monster, CONTENTS_NONE, MM_SHAPE_AUTO );
+	// Trace down to the step floor with the same mover shape.
+	trace = SVG_MMove_Trace( monsterMove->state.origin, monsterMove->mins, monsterMove->maxs, down, monsterMove->monster, CONTENTS_NONE, movementShape );
 	if ( !trace.allsolid ) {
 		// WID: Use proper stair step checking.
 		if ( MMove_CheckStep( monsterMove, &trace ) ) {
@@ -266,8 +299,8 @@ const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, con
         // Use policy for step height.
 		Vector3 downOffset = { 0.f, 0.f, (float)policy.max_obstruction_jump_height };
         Vector3 down = QM_Vector3Subtract(monsterMove->state.origin, downOffset);
-		// Keep slope-follow/down-step probe on native shape for ramp continuity and jump behavior.
-		trace = SVG_MMove_Trace( monsterMove->state.origin, monsterMove->mins, monsterMove->maxs, down, monsterMove->monster, CONTENTS_NONE, MM_SHAPE_AUTO );
+		// Keep the slope-follow/down-step probe on the resolved mover shape for continuity.
+		trace = SVG_MMove_Trace( monsterMove->state.origin, monsterMove->mins, monsterMove->maxs, down, monsterMove->monster, CONTENTS_NONE, movementShape );
 
 		// WID: Use proper stair step checking.
 		// Check for stairs:

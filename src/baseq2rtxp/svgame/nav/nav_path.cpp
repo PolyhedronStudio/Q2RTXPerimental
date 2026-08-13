@@ -16,18 +16,23 @@
 #include <unordered_map>
 #include <vector>
 
+//! Bounded counters describing the most recent explicit path query.
+static nav_path_diagnostics_t s_nav_last_path_diagnostics = {};
+
 /**
-* @brief Compute the true overlapping portal segment between two twinned edges.
-* @param he Edge on the current face.
-* @param twin Opposite edge on the neighbor face.
-* @param outV0 Optional output first overlap endpoint.
-* @param outV1 Optional output second overlap endpoint.
-* @param outWidth2D Optional output overlap width in XY.
-* @return True when a non-degenerate overlap segment was found.
+*	@brief	Compute the true overlapping portal segment between two twinned edges.
+*	@param	he			[in] Half-edge on the current face.
+*	@param	twin		[in] Opposite half-edge on the neighbor face.
+*	@param	outV0		[out] Optional output first overlap endpoint.
+*	@param	outV1		[out] Optional output second overlap endpoint.
+*	@param	outWidth2D	[out] Optional output overlap width in XY.
+*	@return	True when a non-degenerate, traversable portal overlap segment was found; false otherwise.
+*	@note	Enforces strict 0.5-unit 2D lateral proximity and NAV_MAX_STEP_HEIGHT vertical step limits.
+*			Allows angled step edge alignments (dot <= -0.70) for valid stair transitions.
 **/
-static bool Nav_ComputePortalOverlapSegment( const nav_halfedge_t &he, const nav_halfedge_t &twin, Vector3 *outV0, Vector3 *outV1, float *outWidth2D ) {
+static bool Nav_ComputePortalOverlapSegment( const nav_halfedge_t &he, const nav_halfedge_t &twin, Vector3DP *outV0, Vector3DP *outV1, double *outWidth2D ) {
 	/**
-	* Reject topological twins whose owning faces cannot be a physical floor portal.
+	*	Sanity checks: reject topological twins whose owning faces cannot form a physical floor portal.
 	**/
 	const nav_face_t &face = g_nav_faces[ he.face_idx ];
 	const nav_face_t &neighbor_face = g_nav_faces[ twin.face_idx ];
@@ -35,18 +40,21 @@ static bool Nav_ComputePortalOverlapSegment( const nav_halfedge_t &he, const nav
 		// Keep unrelated dynamic fragments from acting like a real traversable portal.
 		return false;
 	}
-	const float face_normal_length = QM_Vector3LengthDP( face.normal );
-	const float neighbor_normal_length = QM_Vector3LengthDP( neighbor_face.normal );
+	const double face_normal_length = QM_Vector3LengthDP( face.normal );
+	const double neighbor_normal_length = QM_Vector3LengthDP( neighbor_face.normal );
 	if ( face.normal.z < NAV_MIN_WALKABLE_Z || neighbor_face.normal.z < NAV_MIN_WALKABLE_Z ||
-		face_normal_length <= 0.001f || neighbor_normal_length <= 0.001f ) {
+		face_normal_length <= 0.001 || neighbor_normal_length <= 0.001 ) {
 		return false;
 	}
-	const float normal_alignment = QM_Vector3DotProductDP( face.normal, neighbor_face.normal ) /
+	const double normal_alignment = QM_Vector3DotProductDP( face.normal, neighbor_face.normal ) /
 		( face_normal_length * neighbor_normal_length );
-	if ( normal_alignment < 0.0f ) {
+	if ( normal_alignment < 0.0 ) {
 		return false;
 	}
 
+	/**
+	*	Fetch edge endpoints and calculate 2D direction vectors and lateral separation.
+	**/
 	const Vector3DP a0 = g_nav_vertices[ he.vertex_idx ];
 	const Vector3DP a1 = g_nav_vertices[ g_nav_halfedges[ he.next_idx ].vertex_idx ];
 	const Vector3DP b0 = g_nav_vertices[ twin.vertex_idx ];
@@ -61,10 +69,16 @@ static bool Nav_ComputePortalOverlapSegment( const nav_halfedge_t &he, const nav
 	aDir2D = aDir2D * ( 1.0 / aLen );
 	const double lateral0 = std::fabs( aDir2D.x * ( b0.y - a0.y ) - aDir2D.y * ( b0.x - a0.x ) );
 	const double lateral1 = std::fabs( aDir2D.x * ( b1.y - a0.y ) - aDir2D.y * ( b1.x - a0.x ) );
-	if ( lateral0 > 0.5 || lateral1 > 0.5 ) {
+	// Allow up to 4.0 units lateral deviation for twin edges from high-poly BSP splitting
+	// to prevent flat ground seams with minor vertex drift from being falsely rejected as impassable portals.
+	static constexpr double NAV_MAX_PORTAL_LATERAL_DEVIATION = 4.0;
+	if ( lateral0 > NAV_MAX_PORTAL_LATERAL_DEVIATION || lateral1 > NAV_MAX_PORTAL_LATERAL_DEVIATION ) {
 		return false;
 	}
 
+	/**
+	*	Evaluate edge direction alignment and anti-parallel portal orientation.
+	**/
 	Vector3DP bDir2D = b1 - b0;
 	bDir2D.z = 0.0;
 	const double bLen = QM_Vector3LengthDP( bDir2D );
@@ -73,10 +87,16 @@ static bool Nav_ComputePortalOverlapSegment( const nav_halfedge_t &he, const nav
 	}
 	bDir2D = bDir2D * ( 1.0 / bLen );
 	const double edge_direction_alignment = QM_Vector3DotProductDP( aDir2D, bDir2D );
-	if ( std::fabs( edge_direction_alignment ) < 0.95 ) {
+	// Require anti-parallel edge alignment across shared seam (dot <= -0.70 for angled stair steps, dot < 0.0 for portal validity);
+	// same-direction twin edges (dot > 0) produce reversed portal endpoints that collapse the funnel.
+	const double min_alignment_threshold = ( std::fabs( he.z_diff ) <= NAV_MAX_STEP_HEIGHT ) ? -0.70 : -0.90;
+	if ( edge_direction_alignment > min_alignment_threshold ) {
 		return false;
 	}
 
+	/**
+	*	Project twin endpoints onto edge A to measure 2D overlap range.
+	**/
 	auto projectOnA = [&]( const Vector3DP &p ) -> double {
 		Vector3DP ap = p - a0;
 		ap.z = 0.0;
@@ -94,12 +114,13 @@ static bool Nav_ComputePortalOverlapSegment( const nav_halfedge_t &he, const nav
 		return false;
 	}
 
+	/**
+	*	Construct output 3D portal endpoints and width.
+	**/
 	const double t0 = QM_Clamp( overlapStart / aLen, 0.0, 1.0 );
 	const double t1 = QM_Clamp( overlapEnd / aLen, 0.0, 1.0 );
 	Vector3DP seg0_dp = a0 + ( a1 - a0 ) * t0;
 	Vector3DP seg1_dp = a0 + ( a1 - a0 ) * t1;
-	Vector3 seg0 = static_cast<Vector3>( seg0_dp );
-	Vector3 seg1 = static_cast<Vector3>( seg1_dp );
 
 	const Vector3DP bMinPoint = ( u0 <= u1 ) ? b0 : b1;
 	const Vector3DP bMaxPoint = ( u0 <= u1 ) ? b1 : b0;
@@ -108,20 +129,18 @@ static bool Nav_ComputePortalOverlapSegment( const nav_halfedge_t &he, const nav
 	const double bt1 = QM_Clamp( ( overlapEnd - bMin ) / bSpan, 0.0, 1.0 );
 	Vector3DP bSeg0_dp = bMinPoint + ( bMaxPoint - bMinPoint ) * bt0;
 	Vector3DP bSeg1_dp = bMinPoint + ( bMaxPoint - bMinPoint ) * bt1;
-	const Vector3 bSeg0 = static_cast<Vector3>( bSeg0_dp );
-	const Vector3 bSeg1 = static_cast<Vector3>( bSeg1_dp );
 
 	// Portal queries are directional.  Use the destination edge's height so
 	// stair transitions steer toward the receiving walk surface instead of
 	// flattening the portal to the highest adjacent vertex.
-	seg0.z = bSeg0.z;
-	seg1.z = bSeg1.z;
+	seg0_dp.z = bSeg0_dp.z;
+	seg1_dp.z = bSeg1_dp.z;
 
 	if ( outV0 ) {
-		*outV0 = seg0;
+		*outV0 = seg0_dp;
 	}
 	if ( outV1 ) {
-		*outV1 = seg1;
+		*outV1 = seg1_dp;
 	}
 	if ( outWidth2D ) {
 		*outWidth2D = overlapLen;
@@ -130,25 +149,30 @@ static bool Nav_ComputePortalOverlapSegment( const nav_halfedge_t &he, const nav
 }
 
 /**
-* @brief Legacy no-op placeholder for adjacency graph construction.
-* @note The half-edge mesh already stores adjacency during generation.
+*	@brief	Legacy no-op placeholder for adjacency graph construction.
+*	@note	The half-edge mesh already stores adjacency during generation.
 **/
 void Nav_BuildAdjacencyGraph() {
 // The graph is built explicitly via Nav_BuildHalfEdgeMesh, so no work is needed here.
 }
 
 /**
-* @brief Walk the KD-tree to locate the leaf node that contains a point.
-* @param point World-space position to query.
-* @return Index of the leaf node, or -1 when the point lies outside the tree.
+*	@brief	Walk the KD-tree to locate the leaf node that contains a point using authoritative split_pos.
+*	@param	point	[in] World-space position to query.
+*	@return	Index of the leaf node in g_nav_nodes, or -1 when the tree is empty.
+*	@note	Uses node.split_pos for exact, deterministic child branch selection.
 **/
-int32_t Nav_FindLeafNode( const Vector3 &point ) {
-// Reject empty trees immediately.
+int32_t Nav_FindLeafNode( const Vector3DP &point ) {
+	/**
+	*	Sanity check: reject empty trees immediately.
+	**/
 	if ( g_nav_nodes.empty() ) {
 		return -1;
 	}
 
-	// Start at the root and descend until a leaf is found.
+	/**
+	*	Start at root node (index 0) and traverse internal nodes down to a leaf.
+	**/
 	int32_t nodeIdx = 0;
 	while ( true ) {
 		const nav_kdtree_node_t &node = g_nav_nodes[ nodeIdx ];
@@ -158,17 +182,15 @@ int32_t Nav_FindLeafNode( const Vector3 &point ) {
 			return nodeIdx;
 		}
 
-		// Choose the child that contains the query point on the split axis.
+		// Choose the child that contains the query point on the split axis using exact split_pos.
 		bool leftSide = false;
-		if ( node.left_child != -1 ) {
-			const nav_kdtree_node_t &leftChild = g_nav_nodes[ node.left_child ];
-			if ( node.split_axis == 0 ) {
-				leftSide = ( point.x <= leftChild.maxs.x );
-			} else if ( node.split_axis == 1 ) {
-				leftSide = ( point.y <= leftChild.maxs.y );
-			} else if ( node.split_axis == 2 ) {
-				leftSide = ( point.z <= leftChild.maxs.z );
-			}
+		if ( node.left_child != -1 && node.right_child != -1 ) {
+			const int32_t axis = node.split_axis;
+			leftSide = ( point[ axis ] <= node.split_pos );
+		} else if ( node.left_child != -1 ) {
+			leftSide = true;
+		} else {
+			leftSide = false;
 		}
 
 		nodeIdx = leftSide ? node.left_child : node.right_child;
@@ -215,21 +237,18 @@ void Nav_ResyncDynamicEntityEdges() {
 }
 
 /**
-* @brief Check if a point lies inside the 2D projection of a face.
+* @brief Check if a point lies inside the 2D projection of a face using double precision.
 * @param point World-space position.
 * @param face Face to test against.
 * @return True if the point is inside the face outline.
 **/
-bool Nav_PointInsideFace2D( const Vector3 &point, const nav_face_t &face ) {
-// Faces need at least three edges before they can contain a point.
+bool Nav_PointInsideFace2D( const Vector3DP &point, const nav_face_t &face ) {
+	// Faces need at least three edges before they can contain a point.
 	if ( face.num_edges < 3 ) {
 		return false;
 	}
 
-		// Check every edge in the face winding using a winding-independent 2D
-		// cross-product test.  Extracted windings can be reversed by CSG clipping;
-		// assuming one winding direction makes one stair orientation unqueryable.
-	float windingSign = 0.0f;
+	double windingSign = 0.0;
 	for ( int32_t e = 0; e < face.num_edges; e++ ) {
 		const nav_halfedge_t &he = g_nav_halfedges[ face.first_edge_idx + e ];
 		const Vector3DP a = g_nav_vertices[ he.vertex_idx ];
@@ -237,16 +256,17 @@ bool Nav_PointInsideFace2D( const Vector3 &point, const nav_face_t &face ) {
 
 		// Compare the point against the edge in XY space.
 		const Vector3DP edge = b - a;
-		const Vector3DP toPoint = Vector3DP(point) - a;
+		const Vector3DP toPoint = point - a;
 		const double cross2d = edge.x * toPoint.y - edge.y * toPoint.x;
 
-		// Keep a tolerance so small wall-adjacent offsets still count as inside.
+		// Treat only genuine edge-contact rounding as inside; a 24-unit band overlaps adjacent stair faces.
 		const double edgeLen = std::sqrt( edge.x * edge.x + edge.y * edge.y );
-		if ( std::fabs( cross2d ) <= 24.0 * edgeLen ) {
+		static constexpr double POINT_ON_EDGE_TOLERANCE = 0.5;
+		if ( std::fabs( cross2d ) <= POINT_ON_EDGE_TOLERANCE * edgeLen ) {
 			continue;
 		}
-		const float edgeSign = ( cross2d > 0.0f ) ? 1.0f : -1.0f;
-		if ( windingSign == 0.0f ) {
+		const double edgeSign = ( cross2d > 0.0 ) ? 1.0 : -1.0;
+		if ( windingSign == 0.0 ) {
 			windingSign = edgeSign;
 		} else if ( edgeSign != windingSign ) {
 			return false;
@@ -261,14 +281,14 @@ bool Nav_PointInsideFace2D( const Vector3 &point, const nav_face_t &face ) {
 * @param point World-space position to search from.
 * @return Index of the closest face, or -1 if none exist.
 **/
-int32_t Nav_FindClosestPolyGlobal( const Vector3 &point ) {
-// Track the best face that actually contains the point in 2D.
+int32_t Nav_FindClosestPolyGlobal( const Vector3DP &point ) {
+	// Track the best face that actually contains the point in 2D.
 	int32_t bestInsideFace = -1;
-	float bestInsideDist = 64.0f;
+	double bestInsideDist = 64.0;
 
 	// Track the nearest face as a fallback when no face contains the point.
 	int32_t bestFallbackFace = -1;
-	float bestFallbackDist = 999999.0f;
+	double bestFallbackDist = 999999.0;
 
 	// Scan every face because this is the final catch-all lookup.
 	for ( size_t i = 0; i < g_nav_faces.size(); ++i ) {
@@ -276,8 +296,8 @@ int32_t Nav_FindClosestPolyGlobal( const Vector3 &point ) {
 
 		// Measure vertical distance to the face plane for the inside test.
 		const Vector3DP v0 = g_nav_vertices[ g_nav_halfedges[ face.first_edge_idx ].vertex_idx ];
-		const float plane_dist = static_cast< float >( QM_Vector3DotProductDP( v0, face.normal ) );
-		const float d = std::fabs( static_cast< float >( QM_Vector3DotProductDP( Vector3DP( point ), face.normal ) ) - plane_dist );
+		const double plane_dist = QM_Vector3DotProductDP( v0, face.normal );
+		const double d = std::fabs( QM_Vector3DotProductDP( point, face.normal ) - plane_dist );
 
 		if ( d < bestInsideDist && Nav_PointInsideFace2D( point, face ) ) {
 			bestInsideDist = d;
@@ -285,10 +305,10 @@ int32_t Nav_FindClosestPolyGlobal( const Vector3 &point ) {
 		}
 
 		// Also track the nearest face center as a fallback.
-		const float dx = point.x - face.center.x;
-		const float dy = point.y - face.center.y;
-		const float dz = point.z - face.center.z;
-		const float centerDist = std::sqrt( dx * dx + dy * dy + dz * dz );
+		const double dx = point.x - face.center.x;
+		const double dy = point.y - face.center.y;
+		const double dz = point.z - face.center.z;
+		const double centerDist = std::sqrt( dx * dx + dy * dy + dz * dz );
 		if ( centerDist < bestFallbackDist ) {
 			bestFallbackDist = centerDist;
 			bestFallbackFace = static_cast< int32_t >( i );
@@ -306,8 +326,8 @@ int32_t Nav_FindClosestPolyGlobal( const Vector3 &point ) {
 * @param point World-space position.
 * @return Index of the face, or a global fallback if the leaf lookup fails.
 **/
-int32_t Nav_FindPolyInLeaf( const Vector3 &point ) {
-// Find the leaf first so we can prefer local faces over a global scan.
+int32_t Nav_FindPolyInLeaf( const Vector3DP &point ) {
+	// Find the leaf first so we can prefer local faces over a global scan.
 	const int32_t leafIdx = Nav_FindLeafNode( point );
 	if ( leafIdx < 0 ) {
 		return Nav_FindClosestPolyGlobal( point );
@@ -319,11 +339,18 @@ int32_t Nav_FindPolyInLeaf( const Vector3 &point ) {
 		return Nav_FindClosestPolyGlobal( point );
 	}
 
-	// Search only the candidate faces in this leaf first.
+	//! Monotonically incrementing global query identifier for Ray ID Mailboxing deduplication.
+	static uint32_t s_global_query_id = 1;
+	const uint32_t current_query_id = ++s_global_query_id;
+	if ( s_global_query_id == 0 ) {
+		s_global_query_id = 1;
+	}
+
+	// Search candidate faces in this leaf first, skipping already-tested faces via query_id mailboxing.
 	int32_t bestInsideFace = -1;
-	float bestInsideDist = 64.0f;
+	double bestInsideDist = 64.0;
 	int32_t bestFallbackFace = -1;
-	float bestFallbackDist = 999999.0f;
+	double bestFallbackDist = 999999.0;
 
 	for ( int32_t i = 0; i < leaf.num_faces; ++i ) {
 		const int32_t faceIdx = firstFaceIdx + i;
@@ -332,19 +359,26 @@ int32_t Nav_FindPolyInLeaf( const Vector3 &point ) {
 		}
 
 		const nav_face_t &face = g_nav_faces[ faceIdx ];
+
+		// Ray ID Mailboxing: skip redundant narrow-phase test if this face was already tested during the current query.
+		if ( face.last_query_id == current_query_id ) {
+			continue;
+		}
+		face.last_query_id = current_query_id;
+
 		const Vector3DP v0 = g_nav_vertices[ g_nav_halfedges[ face.first_edge_idx ].vertex_idx ];
-		const float plane_dist = static_cast< float >( QM_Vector3DotProductDP( v0, face.normal ) );
-		const float d = std::fabs( static_cast< float >( QM_Vector3DotProductDP( Vector3DP( point ), face.normal ) ) - plane_dist );
+		const double plane_dist = QM_Vector3DotProductDP( v0, face.normal );
+		const double d = std::fabs( QM_Vector3DotProductDP( point, face.normal ) - plane_dist );
 
 		if ( d < bestInsideDist && Nav_PointInsideFace2D( point, face ) ) {
 			bestInsideDist = d;
 			bestInsideFace = faceIdx;
 		}
 
-		const float dx = point.x - face.center.x;
-		const float dy = point.y - face.center.y;
-		const float dz = point.z - face.center.z;
-		const float centerDist = std::sqrt( dx * dx + dy * dy + dz * dz );
+		const double dx = point.x - face.center.x;
+		const double dy = point.y - face.center.y;
+		const double dz = point.z - face.center.z;
+		const double centerDist = std::sqrt( dx * dx + dy * dy + dz * dz );
 		if ( centerDist < bestFallbackDist ) {
 			bestFallbackDist = centerDist;
 			bestFallbackFace = faceIdx;
@@ -354,10 +388,8 @@ int32_t Nav_FindPolyInLeaf( const Vector3 &point ) {
 	if ( bestInsideFace != -1 ) {
 		return bestInsideFace;
 	}
-	if ( bestFallbackFace == -1 ) {
-		return Nav_FindClosestPolyGlobal( point );
-	}
-	return bestFallbackFace;
+	// Perform global search if the candidate faces in the KD-tree leaf hint did not contain the point.
+	return Nav_FindClosestPolyGlobal( point );
 }
 
 /**
@@ -368,7 +400,7 @@ int32_t Nav_FindPolyInLeaf( const Vector3 &point ) {
 * @param outV1 Output receiving the second endpoint.
 * @return True if a shared edge was identified.
 **/
-bool Nav_GetPortalEndpoints( int32_t faceA, int32_t faceB, Vector3 *outV0, Vector3 *outV1 ) {
+bool Nav_GetPortalEndpoints( int32_t faceA, int32_t faceB, Vector3DP *outV0, Vector3DP *outV1 ) {
 	if ( outV0 == nullptr || outV1 == nullptr || faceA < 0 || faceB < 0 ||
 		static_cast< size_t >( faceA ) >= g_nav_faces.size() ||
 		static_cast< size_t >( faceB ) >= g_nav_faces.size() ) {
@@ -394,10 +426,8 @@ bool Nav_GetPortalEndpoints( int32_t faceA, int32_t faceB, Vector3 *outV0, Vecto
 			continue;
 		}
 
-		Vector3 temp_v0_f32, temp_v1_f32;
-		if ( Nav_ComputePortalOverlapSegment( he, twin, &temp_v0_f32, &temp_v1_f32, nullptr ) ) {
-			Vector3DP temp_v0 = Vector3DP( temp_v0_f32 );
-			Vector3DP temp_v1 = Vector3DP( temp_v1_f32 );
+		Vector3DP temp_v0, temp_v1;
+		if ( Nav_ComputePortalOverlapSegment( he, twin, &temp_v0, &temp_v1, nullptr ) ) {
 			if ( !found_any ) {
 				found_any = true;
 				base_v0 = temp_v0;
@@ -411,11 +441,10 @@ bool Nav_GetPortalEndpoints( int32_t faceA, int32_t faceB, Vector3 *outV0, Vecto
 					line_dir = line_dir * ( 1.0 / std::sqrt( lenSqr ) );
 					max_t = std::sqrt( lenSqr );
 				} else {
-					line_dir = Vector3DP( 1.0, 0.0, 0.0 ); // Fallback (should never happen due to >0.1 check in Compute)
+					line_dir = Vector3DP( 1.0, 0.0, 0.0 );
 					max_t = 0.0;
 				}
 			} else {
-				// Project temp_v0 and temp_v1 onto the line defined by base_v0 and line_dir
 				double t0 = QM_Vector3DotProductDP( temp_v0 - base_v0, line_dir );
 				double t1 = QM_Vector3DotProductDP( temp_v1 - base_v0, line_dir );
 
@@ -431,8 +460,28 @@ bool Nav_GetPortalEndpoints( int32_t faceA, int32_t faceB, Vector3 *outV0, Vecto
 	}
 
 	if ( found_any ) {
-		*outV0 = static_cast<Vector3>( merged_v0 );
-		*outV1 = static_cast<Vector3>( merged_v1 );
+		Vector3DP travel = g_nav_faces[ faceB ].center - fA.center;
+		travel.z = 0.0;
+		double travel_len = std::sqrt( travel.x * travel.x + travel.y * travel.y );
+		if ( travel_len < 0.001 ) {
+			Vector3DP mid = ( merged_v0 + merged_v1 ) * 0.5;
+			travel = mid - fA.center;
+			travel.z = 0.0;
+			travel_len = std::sqrt( travel.x * travel.x + travel.y * travel.y );
+		}
+
+		Vector3DP edge_vec = merged_v1 - merged_v0;
+		edge_vec.z = 0.0;
+
+		double cross2d = travel.x * edge_vec.y - travel.y * edge_vec.x;
+
+		if ( cross2d >= 0.0 ) {
+			*outV0 = merged_v1;
+			*outV1 = merged_v0;
+		} else {
+			*outV0 = merged_v0;
+			*outV1 = merged_v1;
+		}
 		return true;
 	}
 
@@ -444,7 +493,7 @@ bool Nav_GetPortalEndpoints( int32_t faceA, int32_t faceB, Vector3 *outV0, Vecto
 **/
 struct AStarNode {
 	int32_t polyIdx = -1;
-	float fScore = 0.0f;
+	double fScore = 0.0;
 
 	bool operator>( const AStarNode &other ) const {
 		return fScore > other.fScore;
@@ -452,7 +501,12 @@ struct AStarNode {
 };
 
 /**
-* @brief Compute a path using A* from the start face to the goal face.
+* @brief Test whether a portal retains a usable agent-center corridor using double precision.
+**/
+static bool Nav_ClipPortalForAgentClearance( const int32_t faceAIdx, const int32_t faceBIdx, const Vector3DP &portalLeft, const Vector3DP &portalRight, const double clearance, Vector3DP *outLeft, Vector3DP *outRight );
+
+/**
+ * @brief Compute a path using A* from the start face to the goal face.
 * @param startFace Index of the starting face.
 * @param goalFace Index of the goal face.
 * @param outPath Output vector that receives the face sequence.
@@ -460,148 +514,366 @@ struct AStarNode {
 * @return True when a valid path was found.
 **/
 bool Nav_FindPath( int32_t startFace, int32_t goalFace, std::vector<int32_t> &outPath, const nav_path_policy_t &policy ) {
-// Start with a clean output path.
+	s_nav_last_path_diagnostics = {};
+	s_nav_last_path_diagnostics.start_face = startFace;
+	s_nav_last_path_diagnostics.goal_face = goalFace;
+
 	outPath.clear();
 
-	// Reject invalid indices up front.
 	if ( startFace < 0 || goalFace < 0 || startFace >= static_cast< int32_t >( g_nav_faces.size() ) || goalFace >= static_cast< int32_t >( g_nav_faces.size() ) ) {
 		return false;
 	}
+	s_nav_last_path_diagnostics.query_valid = true;
 
-	// A zero-length path is valid when the start already matches the goal.
 	if ( startFace == goalFace ) {
 		outPath.push_back( startFace );
+		s_nav_last_path_diagnostics.route_found = true;
 		return true;
 	}
 
-	// Open set ordered by estimated total cost.
 	std::priority_queue<AStarNode, std::vector<AStarNode>, std::greater<AStarNode>> openSet;
 	std::unordered_map<int32_t, int32_t> cameFrom;
-	std::unordered_map<int32_t, float> gScore;
+	std::unordered_map<int32_t, double> gScore;
+	std::unordered_map<int32_t, bool> expandedFaces;
 
-	// Seed the search from the start face.
-	gScore[ startFace ] = 0.0f;
+	gScore[ startFace ] = 0.0;
 	auto Heuristic = []( int32_t a, int32_t b ) {
-		return static_cast< float >( QM_Vector3DistanceDP( g_nav_faces[ a ].center, g_nav_faces[ b ].center ) );
+		const double dist = QM_Vector3DistanceDP( g_nav_faces[ a ].center, g_nav_faces[ b ].center );
+		const double slopeA = QM_Clamp( g_nav_faces[ a ].normal.z, 0.0, 1.0 );
+		return dist * ( 1.0 + ( 1.0 - slopeA ) * 4.0 );
 		};
 	openSet.push( { startFace, Heuristic( startFace, goalFace ) } );
 
-	// Explore the graph until the open set is exhausted or the goal is found.
 	while ( !openSet.empty() ) {
 		const int32_t current = openSet.top().polyIdx;
 		openSet.pop();
+		if ( expandedFaces.find( current ) == expandedFaces.end() ) {
+			expandedFaces[ current ] = true;
+			s_nav_last_path_diagnostics.expanded_faces++;
+		}
 
 		if ( current == goalFace ) {
-		// Reconstruct the path by walking the predecessor map backwards.
-			int32_t curr = current;
+			int32_t curr = goalFace;
 			while ( curr != startFace ) {
 				outPath.push_back( curr );
 				curr = cameFrom[ curr ];
 			}
 			outPath.push_back( startFace );
 			std::reverse( outPath.begin(), outPath.end() );
+			s_nav_last_path_diagnostics.route_found = true;
 			return true;
 		}
 
-		const nav_face_t &face = g_nav_faces[ current ];
-		for ( int32_t e = 0; e < face.num_edges; ++e ) {
-			const nav_halfedge_t &he = g_nav_halfedges[ face.first_edge_idx + e ];
-			if ( he.twin_idx == -1 ) {
-				continue;
-			}
-
+		const nav_face_t &faceCurrent = g_nav_faces[ current ];
+		for ( int32_t e = 0; e < faceCurrent.num_edges; e++ ) {
+			const nav_halfedge_t &he = g_nav_halfedges[ faceCurrent.first_edge_idx + e ];
+			if ( he.twin_idx == -1 ) continue;
 			const nav_halfedge_t &twin = g_nav_halfedges[ he.twin_idx ];
-			const int32_t neighbor = twin.face_idx;
+			const int32_t neighborIdx = twin.face_idx;
 
-		/**
-		*	Door state is stored symmetrically on both directed portal edges. Reject the
-		*	transition before width or vertical checks when either side is disabled.
-		*	Ordinary world, slope, and stair portals retain zero flags and are unaffected.
-		**/
-		if ( !policy.ignore_disabled_edges ) {
 			if ( ( he.flags & NAV_EDGE_DISABLED ) != 0 || ( twin.flags & NAV_EDGE_DISABLED ) != 0 ) {
-				continue;
-			}
-		}
-
-			const nav_face_t &neighborFace = g_nav_faces[ neighbor ];
-
-			// Enforce physical traversability (not just topological adjacency) for this edge transition.
-			float portalWidth2D = 0.0f;
-			if ( !Nav_ComputePortalOverlapSegment( he, twin, nullptr, nullptr, &portalWidth2D ) ) {
-				continue;
-			}
-			const float minRequiredPortalWidth = policy.min_portal_width;
-			if ( portalWidth2D < minRequiredPortalWidth ) {
-				if ( portalWidth2D < 0.1f ) {
-					// Degenerate narrow portal – allow transition.
-					// No action needed.
-				} else {
-					gi.dprintf( "[NAV DEBUG] Edge rejected: width %.2f < %.2f (face %d -> %d)\n", portalWidth2D, minRequiredPortalWidth, current, neighbor );
+				if ( !policy.ignore_disabled_edges ) {
+					s_nav_last_path_diagnostics.rejected_disabled++;
 					continue;
 				}
 			}
 
-// Vertical clearance is limited so the path prefers walkable transitions.
-const float dz = he.z_diff;
-const float allowedStep = policy.max_step_height + policy.step_clearance;
-if ( dz > allowedStep ) {
-	gi.dprintf("[NAV DEBUG] Edge rejected: dz %.2f > allowed %.2f (face %d -> %d)\n", dz, allowedStep, current, neighbor);
-	continue;
-}
-if ( dz < -policy.max_drop_height ) {
-	gi.dprintf("[NAV DEBUG] Edge rejected: drop %.2f > max_drop %.2f (face %d -> %d)\n", -dz, policy.max_drop_height, current, neighbor);
-	continue;
-}
+			const nav_face_t &faceNeighbor = g_nav_faces[ neighborIdx ];
+			const double zDelta = he.z_diff;
+			if ( zDelta > NAV_MAX_STEP_HEIGHT ) {
+				s_nav_last_path_diagnostics.rejected_step_height++;
+				continue;
+			}
+			if ( -zDelta > policy.max_drop_height ) {
+				s_nav_last_path_diagnostics.rejected_drop_height++;
+				continue;
+			}
 
-// Penalize vertical motion so flat routes stay preferred when they are reasonable.
-const double dx = face.center.x - neighborFace.center.x;
-const double dy = face.center.y - neighborFace.center.y;
-const float dist2D = static_cast<float>( std::sqrt( dx * dx + dy * dy ) );
-const float distZ = std::abs( face.center.z - neighborFace.center.z );
-	const float tentative_gScore = gScore[ current ] + dist2D + distZ;
+			Vector3DP portalLeft{}, portalRight{};
+			double portalWidth2D = 0.0;
+			if ( !Nav_ComputePortalOverlapSegment( he, twin, &portalLeft, &portalRight, &portalWidth2D ) ) {
+				s_nav_last_path_diagnostics.rejected_no_portal++;
+				continue;
+			}
 
-const auto it = gScore.find( neighbor );
-if ( it == gScore.end() || tentative_gScore < it->second ) {
-cameFrom[ neighbor ] = current;
-gScore[ neighbor ] = tentative_gScore;
-const float h = Heuristic( neighbor, goalFace );
-openSet.push( { neighbor, tentative_gScore + h } );
-}
-}
-}
+			if ( portalWidth2D < 0.1 ) {
+				s_nav_last_path_diagnostics.rejected_narrow_portal++;
+				continue;
+			}
 
-// No exact route was found.
-outPath.clear();
-return false;
-}
+			// Penalize transitions across non-horizontal sloped faces (pyramids, roof slopes)
+			// so A* strongly prefers flat ground paths over climbing/traversing sloped surfaces.
+			const double neighborSlope = QM_Clamp( faceNeighbor.normal.z, 0.0, 1.0 );
+			const double slopePenalty = 1.0 + ( 1.0 - neighborSlope ) * 4.0;
+			const double edgeDistance = QM_Vector3DistanceDP( faceCurrent.center, faceNeighbor.center );
+			const double tentativeGScore = gScore[ current ] + edgeDistance * slopePenalty;
 
-/**
-*	@brief	Build a smoothed string-pulled path using the Funnel algorithm.
-*	@param	path		The sequence of face IDs to traverse.
-*	@param	startPos	The exact starting position (e.g. agent's current position).
-*	@param	goalPos		The exact ending position.
-*	@param	agentRadius	The collision radius to steer clear of walls.
-*	@param	outWaypoints	Output sequence of 3D points.
-*	@return	True if a valid corridor and string-pull could be generated.
-**/
-inline float Nav_TriArea2D( const Vector3 &a, const Vector3 &b, const Vector3 &c ) {
-	const float ax = b.x - a.x;
-	const float ay = b.y - a.y;
-	const float bx = c.x - a.x;
-	const float by = c.y - a.y;
-	return bx * ay - ax * by;
+			if ( gScore.find( neighborIdx ) == gScore.end() || tentativeGScore < gScore[ neighborIdx ] ) {
+				cameFrom[ neighborIdx ] = current;
+				gScore[ neighborIdx ] = tentativeGScore;
+				openSet.push( { neighborIdx, tentativeGScore + Heuristic( neighborIdx, goalFace ) } );
+				s_nav_last_path_diagnostics.accepted_transitions++;
+			}
+		}
+	}
+
+	return false;
 }
 
 /**
-*	@brief	Calculate 2D cross product of 3 vectors, ignoring Z component
+*	@brief	Print the most recent A* rejection counters for a failed debug query.
+*	@note	This is deliberately separate from Nav_FindPath so normal gameplay
+*			queries remain silent apart from their existing diagnostics.
 **/
-static float QM_Vector2CrossProduct( const Vector3 &a, const Vector3 &b, const Vector3 &c ) {
+void Nav_LogLastPathDiagnostics( void ) {
+	const nav_path_diagnostics_t &diagnostics = s_nav_last_path_diagnostics;
+	gi.dprintf( "nav_dbg_path_diag: start=%" PRId32 " goal=%" PRId32 " valid=%d found=%d expanded=%" PRId32 " accepted=%" PRId32 " disabled=%" PRId32 " no_portal=%" PRId32 " narrow=%" PRId32 " no_agent_corridor=%" PRId32 " step=%" PRId32 " drop=%" PRId32 "\n",
+		diagnostics.start_face,
+		diagnostics.goal_face,
+		diagnostics.query_valid ? 1 : 0,
+		diagnostics.route_found ? 1 : 0,
+		diagnostics.expanded_faces,
+		diagnostics.accepted_transitions,
+		diagnostics.rejected_disabled,
+		diagnostics.rejected_no_portal,
+		diagnostics.rejected_narrow_portal,
+		diagnostics.rejected_no_agent_corridor,
+		diagnostics.rejected_step_height,
+		diagnostics.rejected_drop_height );
+}
+
+
+/**
+*	@brief	Calculate 2D cross product of 3 Vector3DP vectors, ignoring Z component.
+**/
+static double QM_Vector2CrossProductDP( const Vector3DP &a, const Vector3DP &b, const Vector3DP &c ) {
 	return ( b.x - a.x ) * ( c.y - a.y ) - ( c.x - a.x ) * ( b.y - a.y );
 }
 
-bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3 &startPos, const Vector3 &goalPos, float agentRadius, std::vector<Vector3> &outWaypoints ) {
+/**
+*	@brief	Clip a 2D line interval against the convex boundary of a nav face using double precision.
+**/
+static bool Nav_ClipFaceLineInterval2D( const nav_face_t &face, const Vector3DP &lineOrigin, const Vector3DP &lineDirection, const double lineLength, const int32_t excludedFaceIdx, const double minimumClearance, double *outMinT, double *outMaxT ) {
+	if ( outMinT == nullptr || outMaxT == nullptr || lineLength <= 0.0 ) {
+		return false;
+	}
+
+	const Vector3DP faceCenter = face.center;
+	double windingSign = 0.0;
+	for ( int32_t edgeIndex = 0; edgeIndex < face.num_edges; edgeIndex++ ) {
+		const nav_halfedge_t &halfEdge = g_nav_halfedges[ face.first_edge_idx + edgeIndex ];
+		const Vector3DP a = g_nav_vertices[ halfEdge.vertex_idx ];
+		const Vector3DP b = g_nav_vertices[ g_nav_halfedges[ halfEdge.next_idx ].vertex_idx ];
+		const double cross = ( b.x - a.x ) * ( faceCenter.y - a.y ) - ( b.y - a.y ) * ( faceCenter.x - a.x );
+		if ( std::fabs( cross ) > 0.001 ) {
+			windingSign = ( cross > 0.0 ) ? 1.0 : -1.0;
+			break;
+		}
+	}
+	if ( windingSign == 0.0 ) {
+		return false;
+	}
+
+	double minT = 0.0;
+	double maxT = lineLength;
+	for ( int32_t edgeIndex = 0; edgeIndex < face.num_edges; edgeIndex++ ) {
+		const nav_halfedge_t &halfEdge = g_nav_halfedges[ face.first_edge_idx + edgeIndex ];
+		if ( halfEdge.twin_idx != -1 ) {
+			const nav_halfedge_t &twin = g_nav_halfedges[ halfEdge.twin_idx ];
+			const bool isSharedPortal = ( excludedFaceIdx >= 0 && twin.face_idx == excludedFaceIdx );
+			const bool isDisabledPortal = ( ( halfEdge.flags & NAV_EDGE_DISABLED ) != 0 || ( twin.flags & NAV_EDGE_DISABLED ) != 0 );
+			if ( isSharedPortal || !isDisabledPortal ) {
+				continue;
+			}
+		}
+		const Vector3DP a = g_nav_vertices[ halfEdge.vertex_idx ];
+		const Vector3DP b = g_nav_vertices[ g_nav_halfedges[ halfEdge.next_idx ].vertex_idx ];
+		const double edgeX = b.x - a.x;
+		const double edgeY = b.y - a.y;
+		const double edgeLength = std::sqrt( edgeX * edgeX + edgeY * edgeY );
+		if ( edgeLength <= 0.001 ) {
+			continue;
+		}
+
+		const double originCross = edgeX * ( lineOrigin.y - a.y ) - edgeY * ( lineOrigin.x - a.x );
+		const double directionCross = edgeX * lineDirection.y - edgeY * lineDirection.x;
+		const double interiorValue = windingSign * originCross;
+		const double interiorSlope = windingSign * directionCross;
+		const double minimumCross = minimumClearance * edgeLength;
+		if ( std::fabs( interiorSlope ) <= 0.000001 ) {
+			if ( interiorValue < minimumCross ) {
+				return false;
+			}
+			continue;
+		}
+
+		const double boundaryT = ( minimumCross - interiorValue ) / interiorSlope;
+		if ( interiorSlope > 0.0 ) {
+			minT = std::max( minT, boundaryT );
+		} else {
+			maxT = std::min( maxT, boundaryT );
+		}
+		if ( minT > maxT ) {
+			if ( maxT >= minT - 1.0 ) {
+				maxT = minT;
+			} else {
+				return false;
+			}
+		}
+	}
+
+	*outMinT = minT;
+	*outMaxT = maxT;
+	return true;
+}
+
+/**
+ *	@brief	Clip a shared portal to the agent-clearance corridor of both adjacent faces in double precision.
+ **/
+static bool Nav_ClipPortalForAgentClearance( const int32_t faceAIdx, const int32_t faceBIdx, const Vector3DP &portalLeft, const Vector3DP &portalRight, const double clearance, Vector3DP *outLeft, Vector3DP *outRight ) {
+	if ( outLeft == nullptr || outRight == nullptr || clearance < 0.0 || faceAIdx < 0 || faceBIdx < 0 ||
+		static_cast<size_t>( faceAIdx ) >= g_nav_faces.size() || static_cast<size_t>( faceBIdx ) >= g_nav_faces.size() ) {
+		return false;
+	}
+
+	const nav_face_t &faceA = g_nav_faces[ faceAIdx ];
+	const nav_face_t &faceB = g_nav_faces[ faceBIdx ];
+
+	Vector3DP portalDirection = portalLeft - portalRight;
+	portalDirection.z = 0.0;
+	const double portalLength = QM_Vector3LengthDP( portalDirection );
+	if ( portalLength <= 0.001 ) {
+		return false;
+	}
+	portalDirection = portalDirection * ( 1.0 / portalLength );
+
+	double minT = 0.0;
+	double maxT = portalLength;
+	double faceMinT = 0.0;
+	double faceMaxT = 0.0;
+	if ( !Nav_ClipFaceLineInterval2D( faceA, portalRight, portalDirection, portalLength, faceBIdx, clearance, &faceMinT, &faceMaxT ) ) {
+		return false;
+	}
+	minT = std::max( minT, faceMinT );
+	maxT = std::min( maxT, faceMaxT );
+
+	if ( !Nav_ClipFaceLineInterval2D( faceB, portalRight, portalDirection, portalLength, faceAIdx, clearance, &faceMinT, &faceMaxT ) ) {
+		return false;
+	}
+	minT = std::max( minT, faceMinT );
+	maxT = std::min( maxT, faceMaxT );
+
+	static constexpr double PORTAL_INTERVAL_EPSILON = 0.001;
+	if ( maxT < minT - PORTAL_INTERVAL_EPSILON ) {
+		return false;
+	}
+	if ( maxT < minT ) {
+		maxT = minT;
+	}
+
+	*outRight = portalRight + portalDirection * minT;
+	*outLeft = portalRight + portalDirection * maxT;
+	return true;
+}
+
+/**
+ *	@brief	Find a front-facing approach point in the widest valid section of an upward stair tread in double precision.
+ **/
+static bool Nav_ComputeStepApproachPoint( const nav_face_t &face, const Vector3DP &portalLeft, const Vector3DP &portalRight, const double agentRadius, Vector3DP *outPoint ) {
+	if ( outPoint == nullptr ) {
+		return false;
+	}
+
+	Vector3DP portalTangent = portalLeft - portalRight;
+	portalTangent.z = 0.0;
+	const double portalLength = QM_Vector3LengthDP( portalTangent );
+	if ( portalLength <= 0.001 ) {
+		return false;
+	}
+	portalTangent = portalTangent * ( 1.0 / portalLength );
+	Vector3DP inwardNormal = { -portalTangent.y, portalTangent.x, 0.0 };
+	const Vector3DP portalMidpoint = ( portalLeft + portalRight ) * 0.5;
+	Vector3DP toFaceCenter = face.center - portalMidpoint;
+	toFaceCenter.z = 0.0;
+	if ( QM_Vector3DotProductDP( inwardNormal, toFaceCenter ) < 0.0 ) {
+		inwardNormal = inwardNormal * -1.0;
+	}
+
+	const double preferredOffset = std::max( 4.0, agentRadius + 2.0 );
+	const Vector3DP portalBase = portalRight;
+	auto ClipAtOffset = [&]( const double offset, double *outMinT, double *outMaxT ) -> bool {
+		const Vector3DP lineOrigin = portalBase + inwardNormal * offset;
+		return Nav_ClipFaceLineInterval2D( face, lineOrigin, portalTangent, portalLength, -1, 0.5, outMinT, outMaxT );
+	};
+
+	double validOffset = preferredOffset;
+	double minT = 0.0;
+	double maxT = 0.0;
+	if ( !ClipAtOffset( validOffset, &minT, &maxT ) ) {
+		const double minimumApproachOffset = 0.5;
+		double lowerOffset = minimumApproachOffset;
+		double upperOffset = preferredOffset;
+		if ( !ClipAtOffset( lowerOffset, &minT, &maxT ) ) {
+			return false;
+		}
+		for ( int32_t iteration = 0; iteration < 10; iteration++ ) {
+			const double testOffset = ( lowerOffset + upperOffset ) * 0.5;
+			double testMinT = 0.0;
+			double testMaxT = 0.0;
+			if ( ClipAtOffset( testOffset, &testMinT, &testMaxT ) ) {
+				lowerOffset = testOffset;
+				minT = testMinT;
+				maxT = testMaxT;
+			} else {
+				upperOffset = testOffset;
+			}
+		}
+		validOffset = lowerOffset;
+	}
+
+	const double approachT = ( minT + maxT ) * 0.5;
+	*outPoint = portalBase + inwardNormal * validOffset + portalTangent * approachT;
+
+	const nav_halfedge_t &firstEdge = g_nav_halfedges[ face.first_edge_idx ];
+	const Vector3DP planePoint = g_nav_vertices[ firstEdge.vertex_idx ];
+	const Vector3DP planeNormal = face.normal;
+	if ( std::fabs( planeNormal.z ) <= 0.001 ) {
+		return false;
+	}
+	const double planeOffsetX = outPoint->x - planePoint.x;
+	const double planeOffsetY = outPoint->y - planePoint.y;
+	const double planeHeight = planePoint.z - ( planeNormal.x * planeOffsetX + planeNormal.y * planeOffsetY ) / planeNormal.z;
+	outPoint->z = planeHeight;
+	return true;
+}
+
+/**
+*	@brief	Calculate 2D cross product of 3 Vector3DP points for string pulling.
+**/
+static double Nav_TriArea2D( const Vector3DP &a, const Vector3DP &b, const Vector3DP &c ) {
+	return ( b.x - a.x ) * ( c.y - a.y ) - ( c.x - a.x ) * ( b.y - a.y );
+}
+
+/**
+*	@brief	Build a smoothed string-pulled path using the Funnel algorithm in double precision.
+*	@param	path	The sequence of face IDs to traverse.
+*	@param	startPos	The exact starting position.
+*	@param	goalPos	The exact ending position.
+*	@param	agentRadius	The collision radius to steer clear of walls.
+*	@param	outWaypoints	Output sequence of 3D points.
+*	@param	outForcedWaypoints Optional output flags parallel to outWaypoints.
+*	@return	True if a valid corridor and string-pull could be generated.
+*	@note	Upward stair transitions may add a mandatory approach waypoint before the portal.
+**/
+bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3 &startPos, const Vector3 &goalPos, float agentRadius, std::vector<Vector3> &outWaypoints, std::vector<bool> *outForcedWaypoints ) {
 	outWaypoints.clear();
+	if ( outForcedWaypoints != nullptr ) {
+		outForcedWaypoints->clear();
+	}
+
+	const Vector3DP startPosDP = Vector3DP( startPos );
+	const Vector3DP goalPosDP = Vector3DP( goalPos );
+
 	if ( path.empty() ) {
 		return false;
 	}
@@ -609,11 +881,16 @@ bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3 &startPos, 
 	if ( path.size() == 1 ) {
 		outWaypoints.push_back( startPos );
 		outWaypoints.push_back( goalPos );
+		if ( outForcedWaypoints != nullptr ) {
+			outForcedWaypoints->push_back( false );
+			outForcedWaypoints->push_back( false );
+		}
 		return true;
 	}
 
 	struct funnel_portal_t {
-		Vector3 left, right;
+		Vector3DP left, right;
+		bool force_waypoint = false;
 	};
 	std::vector<funnel_portal_t> portals;
 
@@ -621,18 +898,19 @@ bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3 &startPos, 
 		const int32_t face_idx = path[ i ];
 		const int32_t next_face_idx = path[ i + 1 ];
 		
-		Vector3 right, left;
-		// Nav_GetPortalEndpoints returns the LEFT endpoint in outV0, and RIGHT in outV1, 
-		// because Quake 2 BSP faces are wound CLOCKWISE.
+		Vector3DP left{}, right{};
+		// Nav_GetPortalEndpoints returns the directed portal's LEFT endpoint in outV0 and RIGHT in outV1.
 		if ( Nav_GetPortalEndpoints( face_idx, next_face_idx, &left, &right ) ) {
 			
-			// Determine if this portal belongs to a physical door
+			// Determine if this portal belongs to a physical door and get its step rise
 			bool isDoor = false;
 			int32_t door_entity_id = ENTITYNUM_NONE;
+			double stepRise = 0.0;
 			const nav_face_t &face = g_nav_faces[ face_idx ];
 			for ( int32_t e = 0; e < face.num_edges; e++ ) {
 				const nav_halfedge_t &he = g_nav_halfedges[ face.first_edge_idx + e ];
 				if ( he.twin_idx != -1 && g_nav_halfedges[ he.twin_idx ].face_idx == next_face_idx ) {
+					stepRise = he.z_diff;
 					if ( he.edge_entity_id != ENTITYNUM_NONE ) {
 						isDoor = true;
 						door_entity_id = he.edge_entity_id;
@@ -641,23 +919,19 @@ bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3 &startPos, 
 				}
 			}
 
+
 			// Natively expand door portals to their full physical BSP width
 			if ( isDoor && door_entity_id > 0 && door_entity_id < g_edict_pool.num_edicts ) {
 				svg_base_edict_t *door = g_edicts[ door_entity_id ];
 				if ( door ) {
-					// Reconstruct the original, unrotated generation-time bounding box.
-					// We use pos1 (closed origin) if available, otherwise fallback to s.origin.
-					// Wait, pushmovers use pos1 for the closed position. 
-					// s.origin updates dynamically, pos1 is static.
-					Vector3 closedMin = QM_Vector3Add( door->pos1, door->mins );
-					Vector3 closedMax = QM_Vector3Add( door->pos1, door->maxs );
+					Vector3DP closedMin = Vector3DP( QM_Vector3Add( door->pos1, door->mins ) );
+					Vector3DP closedMax = Vector3DP( QM_Vector3Add( door->pos1, door->maxs ) );
 					
-					Vector3 edgeDir = QM_Vector3Subtract( left, right );
-					edgeDir.z = 0.0f;
+					Vector3DP edgeDir = left - right;
+					edgeDir.z = 0.0;
 					
 					if ( std::abs( edgeDir.x ) > std::abs( edgeDir.y ) ) {
-						// Portal runs along the X axis
-						if ( edgeDir.x > 0.0f ) {
+						if ( edgeDir.x > 0.0 ) {
 							left.x = closedMax.x;
 							right.x = closedMin.x;
 						} else {
@@ -665,8 +939,7 @@ bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3 &startPos, 
 							right.x = closedMax.x;
 						}
 					} else {
-						// Portal runs along the Y axis
-						if ( edgeDir.y > 0.0f ) {
+						if ( edgeDir.y > 0.0 ) {
 							left.y = closedMax.y;
 							right.y = closedMin.y;
 						} else {
@@ -677,77 +950,107 @@ bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3 &startPos, 
 				}
 			}
 
-			// Shrink the portal by the agent radius so the agent doesn't graze the wall.
-			Vector3 edgeDir = QM_Vector3Subtract( left, right );
-			edgeDir.z = 0.0f;
-			const float edgeLen = QM_Vector3Length( edgeDir );
-			if ( edgeLen > 0.001f ) {
-				edgeDir = edgeDir * ( 1.0f / edgeLen );
-				
+			const nav_face_t &nextFace = g_nav_faces[ next_face_idx ];
+			const bool isDynamicPortal = face.entity_id != ENTITYNUM_NONE || face.transition_entity_id != ENTITYNUM_NONE ||
+				nextFace.entity_id != ENTITYNUM_NONE || nextFace.transition_entity_id != ENTITYNUM_NONE;
+
+			/**
+			* Match A*'s static-corridor check by clipping every static portal to both
+			* adjacent eroded face interiors.  This prevents the funnel from emitting a
+			* waypoint beside a flat exterior corner that the monster capsule cannot clear.
+			* Dynamic transitions keep their established door-width handling.
+			**/
+			if ( !isDynamicPortal ) {
+				Vector3DP clearanceLeft = {};
+				Vector3DP clearanceRight = {};
+				const double agentClearance = std::max( static_cast<double>( agentRadius ), 0.0 );
+				if ( Nav_ClipPortalForAgentClearance( face_idx, next_face_idx, left, right, agentClearance, &clearanceLeft, &clearanceRight ) ) {
+					left = clearanceLeft;
+					right = clearanceRight;
+				} else {
+					// Safe Midpoint Fallback: If agent clearance clipping collapses a narrow portal, center the portal endpoints on the corridor midpoint!
+					Vector3DP mid = ( left + right ) * 0.5;
+					left = mid;
+					right = mid;
+				}
+			} else {
+				Vector3DP edgeDir = left - right;
+				edgeDir.z = 0.0;
+				const double edgeLen = QM_Vector3LengthDP( edgeDir );
+				if ( edgeLen > 0.001 ) {
+					edgeDir = edgeDir * ( 1.0 / edgeLen );
+					const double maxShrink = std::max( 0.0, ( edgeLen * 0.5 ) - 0.1 );
+					const double shrinkDist = std::min( static_cast<double>( agentRadius ) + 2.0, maxShrink );
+					right = right + edgeDir * shrinkDist;
+					left = left - edgeDir * shrinkDist;
+				}
+			}
+
+			const double edgeLen = QM_Vector3LengthDP( left - right );
+			if ( edgeLen > 0.001 ) {
 				/**
-				*	Provide a 2.0f unit padding to prevent floating point/step grazing.
-				*	Do NOT pinch the portal to a single point (zero width) if it's very narrow,
-				*	otherwise the Funnel algorithm is forced to zig-zag through exact midpoints.
-				*	We preserve at least a 0.2f unit gap.
+				* Add a mandatory, flat approach point for upward transitions. The approach
+				* point keeps the funnel from cutting toward a later L-turn before the mover
+				* has reached the stair front.
 				**/
-				float maxShrink = std::max( 0.0f, ( edgeLen * 0.5f ) - 0.1f );
-				float shrinkDist = std::min( agentRadius + 2.0f, maxShrink );
-				
-				right = QM_Vector3Add( right, edgeDir * shrinkDist );
-				left = QM_Vector3Subtract( left, edgeDir * shrinkDist );
-				
-				// Check if this portal requires a step-up. If so, insert an "approach portal" 
-				// pushed outwards along the normal to force a safe, perpendicular approach angle.
-				// This prevents the agent from cutting the corner and failing the physics step-up.
 				if ( next_face_idx != -1 ) {
-					const float currentZ = g_nav_faces[ face_idx ].center.z;
-					const float nextZ = g_nav_faces[ next_face_idx ].center.z;
-					if ( nextZ - currentZ > 8.0f ) {
-						// edgeDir points from right to left. The outward normal (into the current face) is (-Y, X).
-						Vector3 normal = { -edgeDir.y, edgeDir.x, 0.0f };
-						// Push out by 1.5x agent radius to give enough room to align before stepping
-						float approachDist = agentRadius * 1.5f;
-						Vector3 approachRight = QM_Vector3Add( right, normal * approachDist );
-						Vector3 approachLeft = QM_Vector3Add( left, normal * approachDist );
-						portals.push_back( { approachLeft, approachRight } );
+					const nav_face_t &currentFace = g_nav_faces[ face_idx ];
+					static constexpr double NAV_MIN_UPWARD_APPROACH_RISE = 6.0;
+
+					if ( stepRise > NAV_MIN_UPWARD_APPROACH_RISE ) {
+						Vector3DP approachPoint = {};
+						if ( Nav_ComputeStepApproachPoint( currentFace, left, right, static_cast<double>( agentRadius ), &approachPoint ) ) {
+							// Force the funnel to retain a front-facing approach before the upward portal.
+							portals.push_back( { approachPoint, approachPoint, true } );
+							// Force a centered crossing target so movement cannot turn into the next riser early.
+							const Vector3DP crossingPoint = ( left + right ) * 0.5;
+							portals.push_back( { crossingPoint, crossingPoint, true } );
+						}
 					}
 				}
 			}
 			portals.push_back( { left, right } );
 		} else {
 			// Fallback: If no portal connects them, use the face center.
-			const Vector3 center = static_cast<Vector3>( g_nav_faces[ face_idx ].center );
+			const Vector3DP center = g_nav_faces[ face_idx ].center;
 			portals.push_back( { center, center } );
 		}
 	}
 
 	// Add the goal as the final portal.
-	portals.push_back( { goalPos, goalPos } );
+	portals.push_back( { goalPosDP, goalPosDP } );
 
-	outWaypoints.push_back( startPos );
+	auto AppendWaypoint = [&]( const Vector3DP &waypoint, const bool forced ) {
+		outWaypoints.push_back( static_cast<Vector3>( waypoint ) );
+		if ( outForcedWaypoints != nullptr ) {
+			outForcedWaypoints->push_back( forced );
+		}
+	};
 
-	Vector3 portalApex = startPos;
-	Vector3 portalLeft = startPos;
-	Vector3 portalRight = startPos;
+	AppendWaypoint( startPosDP, false );
+
+	Vector3DP portalApex = startPosDP;
+	Vector3DP portalLeft = startPosDP;
+	Vector3DP portalRight = startPosDP;
 
 	int32_t apexIndex = 0;
 	int32_t leftIndex = 0;
 	int32_t rightIndex = 0;
 
 	for ( int32_t i = 0; i < ( int32_t )portals.size(); ++i ) {
-		const Vector3 &left = portals[ i ].left;
-		const Vector3 &right = portals[ i ].right;
+		const Vector3DP &left = portals[ i ].left;
+		const Vector3DP &right = portals[ i ].right;
 
 		// Update the right bound.
-		if ( Nav_TriArea2D( portalApex, portalRight, right ) <= 0.0f ) {
-			float distSqRight = ( portalApex.x - portalRight.x ) * ( portalApex.x - portalRight.x ) + ( portalApex.y - portalRight.y ) * ( portalApex.y - portalRight.y );
-			if ( distSqRight < 0.001f || Nav_TriArea2D( portalApex, portalLeft, right ) > 0.0f ) {
+		if ( Nav_TriArea2D( portalApex, portalRight, right ) <= 0.0 ) {
+			double distSqRight = ( portalApex.x - portalRight.x ) * ( portalApex.x - portalRight.x ) + ( portalApex.y - portalRight.y ) * ( portalApex.y - portalRight.y );
+			if ( distSqRight < 0.001 || Nav_TriArea2D( portalApex, portalLeft, right ) > 0.0 ) {
 				// Tighten the funnel.
 				portalRight = right;
 				rightIndex = i;
 			} else {
 				// Right crossed left, so the left bound is a corner.
-				outWaypoints.push_back( portalLeft );
+				AppendWaypoint( portalLeft, false );
 				portalApex = portalLeft;
 				apexIndex = leftIndex;
 				// Reset funnel bounds.
@@ -762,15 +1065,15 @@ bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3 &startPos, 
 		}
 
 		// Update the left bound.
-		if ( Nav_TriArea2D( portalApex, portalLeft, left ) >= 0.0f ) {
-			float distSqLeft = ( portalApex.x - portalLeft.x ) * ( portalApex.x - portalLeft.x ) + ( portalApex.y - portalLeft.y ) * ( portalApex.y - portalLeft.y );
-			if ( distSqLeft < 0.001f || Nav_TriArea2D( portalApex, portalRight, left ) < 0.0f ) {
+		if ( Nav_TriArea2D( portalApex, portalLeft, left ) >= 0.0 ) {
+			double distSqLeft = ( portalApex.x - portalLeft.x ) * ( portalApex.x - portalLeft.x ) + ( portalApex.y - portalLeft.y ) * ( portalApex.y - portalLeft.y );
+			if ( distSqLeft < 0.001 || Nav_TriArea2D( portalApex, portalRight, left ) < 0.0 ) {
 				// Tighten the funnel.
 				portalLeft = left;
 				leftIndex = i;
 			} else {
 				// Left crossed right, so the right bound is a corner.
-				outWaypoints.push_back( portalRight );
+				AppendWaypoint( portalRight, false );
 				portalApex = portalRight;
 				apexIndex = rightIndex;
 				// Reset funnel bounds.
@@ -783,9 +1086,25 @@ bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3 &startPos, 
 				continue;
 			}
 		}
+
+		/**
+		* Commit a stair-front approach only after the ordinary funnel tests have
+		* accepted it, so the forced waypoint cannot bypass an earlier corner.
+		**/
+		if ( portals[ i ].force_waypoint ) {
+			if ( QM_Vector3DistanceSqrDP( portalApex, left ) > static_cast<double>( WAYPOINT_EPS_SQR ) ) {
+				AppendWaypoint( left, true );
+			}
+			portalApex = left;
+			apexIndex = i;
+			portalLeft = portalApex;
+			portalRight = portalApex;
+			leftIndex = apexIndex;
+			rightIndex = apexIndex;
+		}
 	}
 
-	outWaypoints.push_back( goalPos );
+	AppendWaypoint( goalPosDP, false );
 
 	return true;
 }

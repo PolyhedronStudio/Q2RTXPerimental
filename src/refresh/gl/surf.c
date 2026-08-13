@@ -561,6 +561,8 @@ static void build_surface_poly(mface_t *surf, vec_t *vbo)
     scale[0] = 1.0f / texinfo->image->width;
     scale[1] = 1.0f / texinfo->image->height;
 
+	// <Q2RTXP>: WID: For Q2 ReRelease like games, the N64 texture coordinates are scaled down by 0.5, and the scrolling is enabled for the surface if the flags are set.
+	#if 0
     if (surf->drawflags & CM_SURFACE_N64_UV) {
         scale[0] *= 0.5f;
         scale[1] *= 0.5f;
@@ -574,6 +576,7 @@ static void build_surface_poly(mface_t *surf, vec_t *vbo)
     if (surf->drawflags & CM_SURFACE_N64_SCROLL_FLIP) {
         surf->statebits |= GLS_SCROLL_FLIP;
     }
+	#endif
 
     mins[0] = mins[1] = 99999;
     maxs[0] = maxs[1] = -99999;

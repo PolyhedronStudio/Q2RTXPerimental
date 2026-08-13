@@ -101,7 +101,4 @@ typedef struct cm_s {
     cm_material_t *materials;
     int32_t num_materials;
 
-    //! Bevel extensions for brushes.
-    cm_plane_t *bevel_planes;
-    mbrushside_t *bevel_brushsides;
-} cm_t;
+    } cm_t;

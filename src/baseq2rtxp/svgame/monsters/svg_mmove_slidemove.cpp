@@ -61,10 +61,36 @@ void SVG_MMove_RegisterTouchTrace( mm_touch_trace_list_t &touchTraceList, svg_tr
 **/
 // Epsilon to 'halt' at.
 static constexpr float MM_STOP_EPSILON = 0.1f;
+//! Dot-product tolerance for recognizing the same analytical contact plane again.
+static constexpr float MM_PLANE_REPEAT_DOT = 0.9999f;
+//! More forgiving repeated-plane tolerance for nearly vertical wall contacts.
+static constexpr float MM_VERTICAL_PLANE_REPEAT_DOT = 0.99f;
+//! Normalized entering threshold used to avoid clipping planes that movement is leaving.
+static constexpr float MM_PLANE_ENTER_THRESHOLD = -0.001f;
+//! Minimum velocity magnitude required for a meaningful plane-entering test.
+static constexpr float MM_MIN_PLANE_CHECK_SPEED = 1e-6f;
 
 /**
-*	@brief	Clips the velocity to surface normal.
+* @brief Determine whether velocity is entering a collision plane.
+* @param velocity Current movement velocity.
+* @param normal Normalized collision-plane normal.
+* @return True when the velocity points into the plane by more than the noise threshold.
 **/
+static bool SVG_MMove_IsEnteringPlane( const Vector3 &velocity, const Vector3 &normal ) {
+    /**
+    * Normalize the velocity projection so the decision is independent of movement speed.
+    **/
+    const float speed = QM_Vector3Length( velocity );
+    if ( speed <= MM_MIN_PLANE_CHECK_SPEED ) {
+        return false;
+    }
+
+    return QM_Vector3DotProduct( velocity, normal ) / speed < MM_PLANE_ENTER_THRESHOLD;
+}
+
+/**
+ * @brief Clips the velocity to surface normal.
+ **/
 const int32_t SVG_MMove_ClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const float overbounce ) {
 	// Whether we're actually blocked or not.
 	int32_t blocked = MM_VELOCITY_CLIPPED_NONE;
@@ -186,90 +212,114 @@ const mm_slide_move_flags_t SVG_MMove_SlideMove( Vector3 &origin, Vector3 &veloc
 		// Subtract the fraction of time used, from the whole fraction of the move.
 		time_left -= time_left * trace.fraction;
 
-		// if this is a plane we have touched before, try clipping
-		// the velocity along it's normal and repeat.
+		/**
+		* Treat near-identical analytical normals as one plane so floating-point variation
+		* does not consume the clip-plane budget at a stair seam.
+		**/
 		for ( i = 0; i < numplanes; i++ ) {
-			if ( QM_Vector3DotProduct( trace.plane.normal, planes[ i ] ) > ( 1.0f - FLT_EPSILON ) ) {//0.99f ) {/*( 1.0f - SLIDEMOVE_PLANEINTERACT_EPSILON )*/  
-				velocity += trace.plane.normal; // VectorAdd( trace.plane.normal, velocity, velocity );
+			const bool isVerticalWall = std::fabs( trace.plane.normal[ 2 ] ) < 0.1f && std::fabs( planes[ i ].z ) < 0.1f;
+			const float repeatDot = isVerticalWall ? MM_VERTICAL_PLANE_REPEAT_DOT : MM_PLANE_REPEAT_DOT;
+			if ( QM_Vector3DotProduct( trace.plane.normal, planes[ i ] ) > repeatDot ) {
+				velocity += trace.plane.normal;
 				break;
 			}
 		}
-		if ( i < numplanes ) { // found a repeated plane, so don't add it, just repeat the trace
+		if ( i < numplanes ) {
+			// Repeat the trace after nudging velocity away from the already-known plane.
 			continue;
 		}
 
-		// Slide along this plane
+		/**
+		* Store the new contact plane before solving the one-, two-, and three-plane cases.
+		**/
 		if ( numplanes >= MM_MAX_CLIP_PLANES ) {
-			// Zero out velocity. This should never happen though.
+			// Exhausting the plane budget means the mover is genuinely wedged.
 			velocity = {};
 			blockedMask = MM_SLIDEMOVEFLAG_TRAPPED;
 			break;
 		}
-
-		//
-		// if this is the same plane we hit before, nudge origin
-		// out along it, which fixes some epsilon issues with
-		// non-axial planes (xswamp, q2dm1 sometimes...)
-		//
-		//for ( i = 0; i < numplanes; i++ ) {
-		//	if ( QM_Vector3DotProduct( trace.plane.normal, planes[ i ] ) > 0.99f ) {
-		//		pml.origin.x += trace.plane.normal.x * 0.01f;
-		//		pml.origin.y += trace.plane.normal.y * 0.01f;
-		//		G_FixStuckObject_Generic( pml.origin, mins, maxs, trace_func );
-		//		break;
-		//	}
-		//}
-
-		//if ( i < numplanes )
-		//	continue;
-
 		planes[ numplanes ] = trace.plane.normal;
 		numplanes++;
 
-		//
-		// modify original_velocity so it parallels all of the clip planes
-		//
-		int32_t i = 0;
-		int32_t j = 0;
-		Vector3 original_velocity = velocity;
+		/**
+		* Find a velocity that leaves every accumulated plane without clipping against surfaces
+		* that the mover is already leaving.
+		**/
+		const Vector3 original_velocity = velocity;
 		Vector3 clipVelocity = {};
+		bool foundClipVelocity = false;
+		for ( int32_t clipPlaneIndex = 0; clipPlaneIndex < numplanes; clipPlaneIndex++ ) {
+			if ( !SVG_MMove_IsEnteringPlane( original_velocity, planes[ clipPlaneIndex ] ) ) {
+				continue;
+			}
+			foundClipVelocity = true;
 
-		for ( i = 0; i < numplanes; i++ ) {
-			SVG_MMove_ClipVelocity( original_velocity, planes[ i ], clipVelocity, 1.01f );
-			for ( j = 0; j < numplanes; j++ ) {
-				if ( j != i ) {
-					if ( QM_Vector3DotProduct( clipVelocity, planes[ j ] ) < 0 ) {
-						break;  // not ok
+			SVG_MMove_ClipVelocity( original_velocity, planes[ clipPlaneIndex ], clipVelocity, 1.01f );
+			int32_t secondPlaneIndex = 0;
+			for ( secondPlaneIndex = 0; secondPlaneIndex < numplanes; secondPlaneIndex++ ) {
+				if ( secondPlaneIndex == clipPlaneIndex || !SVG_MMove_IsEnteringPlane( clipVelocity, planes[ secondPlaneIndex ] ) ) {
+					continue;
+				}
+
+				SVG_MMove_ClipVelocity( clipVelocity, planes[ secondPlaneIndex ], clipVelocity, 1.01f );
+				if ( QM_Vector3DotProduct( clipVelocity, planes[ clipPlaneIndex ] ) >= 0.0f ) {
+					continue;
+				}
+
+				/**
+				* Move along the crease of two blocking planes, then distinguish a valid flat-ground
+				* corner from a true three-plane wedge.
+				**/
+				dir = QM_Vector3CrossProduct( planes[ clipPlaneIndex ], planes[ secondPlaneIndex ] );
+				d = QM_Vector3DotProduct( dir, original_velocity );
+				clipVelocity = QM_Vector3Scale( dir, d );
+
+				for ( int32_t thirdPlaneIndex = 0; thirdPlaneIndex < numplanes; thirdPlaneIndex++ ) {
+					if ( thirdPlaneIndex == clipPlaneIndex || thirdPlaneIndex == secondPlaneIndex || !SVG_MMove_IsEnteringPlane( clipVelocity, planes[ thirdPlaneIndex ] ) ) {
+						continue;
 					}
+
+					const bool firstIsVertical = std::fabs( planes[ clipPlaneIndex ].z ) < 0.1f;
+					const bool secondIsVertical = std::fabs( planes[ secondPlaneIndex ].z ) < 0.1f;
+					if ( firstIsVertical && secondIsVertical && planes[ thirdPlaneIndex ].z >= MM_MIN_STEP_NORMAL ) {
+						// A pair of walls plus a walkable floor is a valid flat-ground corner.
+						SVG_MMove_ClipVelocity( clipVelocity, planes[ thirdPlaneIndex ], clipVelocity, 1.01f );
+						continue;
+					}
+
+					// A third entering plane with no walkable floor is a genuine wedge trap.
+					velocity = {};
+					return blockedMask | MM_SLIDEMOVEFLAG_TRAPPED;
 				}
 			}
-			if ( j == numplanes ) {
-				break;
-			}
 		}
 
-		if ( i != numplanes ) {
-			// go along this plane
-			velocity = clipVelocity;
-		} else {
-			// go along the crease
-			if ( numplanes != 2 ) {
-				velocity = {}; // Clear out velocity.
+		if ( !foundClipVelocity ) {
+			/**
+			* A contact that the mover is grazing or leaving is not a blocking plane.
+			* Preserve that valid velocity and let the next trace clear the contact;
+			* zeroing it here makes edge-following movement stick at fraction zero.
+			**/
+			if ( QM_Vector3Length( original_velocity ) <= MM_MIN_PLANE_CHECK_SPEED ) {
+				velocity = {};
 				break;
 			}
-			dir = QM_Vector3CrossProduct( planes[ 0 ], planes[ 1 ] );
-			d = QM_Vector3DotProduct( dir, original_velocity );
-			velocity = QM_Vector3Scale( dir, d );
+			velocity = original_velocity;
+			continue;
 		}
 
-		//
-		// if velocity is against the original velocity, stop dead
-		// to avoid tiny occilations in sloping corners
-		//
-		if ( QM_Vector3DotProduct( velocity, primal_velocity ) <= 0 ) {
+		/**
+		* Reject a resolved velocity that reverses the original movement direction.
+		* The overbounce factor intentionally permits a tiny outward component, but
+		* retaining a fully reversed result would make the monster rebound from a floor.
+		**/
+		if ( QM_Vector3DotProduct( clipVelocity, original_velocity ) <= 0.0f ) {
 			velocity = {};
 			break;
 		}
+
+		// Commit the resolved slide direction and continue with the remaining frame time.
+		velocity = clipVelocity;
 	}
 
 	if ( has_time ) {

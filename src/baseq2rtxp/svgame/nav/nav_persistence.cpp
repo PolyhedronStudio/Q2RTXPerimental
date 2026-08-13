@@ -36,7 +36,7 @@ bool Nav_Save( const char *filepath ) {
     
     // Write data blocks
     if (header.num_vertices > 0)
-        fwrite(g_nav_vertices.data(), sizeof(Vector3), header.num_vertices, f);
+        fwrite(g_nav_vertices.data(), sizeof(Vector3DP), header.num_vertices, f);
     if (header.num_halfedges > 0)
         fwrite(g_nav_halfedges.data(), sizeof(nav_halfedge_t), header.num_halfedges, f);
     if (header.num_faces > 0)
@@ -84,7 +84,7 @@ bool Nav_Load( const char *filepath ) {
     // Allocate and read blocks
     g_nav_vertices.resize(header.num_vertices);
     if (header.num_vertices > 0)
-        fread(g_nav_vertices.data(), sizeof(Vector3), header.num_vertices, f);
+        fread(g_nav_vertices.data(), sizeof(Vector3DP), header.num_vertices, f);
         
     g_nav_halfedges.resize(header.num_halfedges);
     if (header.num_halfedges > 0)

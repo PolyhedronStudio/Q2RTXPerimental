@@ -129,10 +129,6 @@ void CM_FreeMap( cm_t *cm ) {
     Z_Free( cm->hull_boundingbox );
     Z_Free( cm->hull_octagonbox );
 
-    // Free bevel extensions.
-    Z_Free( cm->bevel_planes );
-    Z_Free( cm->bevel_brushsides );
-
     // Free BSP World and its Models.
     BSP_Free( cm->cache );
 

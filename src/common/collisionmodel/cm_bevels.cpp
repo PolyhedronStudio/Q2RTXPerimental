@@ -201,6 +201,31 @@ void CM_GenerateBrushBevels( cm_t *cm ) {
 	bsp_t *bsp = cm->cache;
 
 	/**
+	* Reuse bevel tables already attached to this cached BSP. Multiple collision-model
+	* users can share one BSP cache entry, so generation must occur only once.
+	**/
+	if ( bsp->bevel_planes != nullptr || bsp->bevel_brushsides != nullptr ) {
+		Q_assert( bsp->bevel_planes != nullptr && bsp->bevel_brushsides != nullptr );
+		bsp->planes = bsp->bevel_planes;
+		bsp->brushsides = bsp->bevel_brushsides;
+		return;
+	}
+
+	/**
+	* Retain the authored brush ranges before runtime bevel sides replace them.
+	**/
+	for ( int32_t i = 0; i < bsp->numbrushes; i++ ) {
+		mbrush_t *brush = &bsp->brushes[ i ];
+		if ( brush->authored_firstbrushside == nullptr ) {
+			brush->authored_firstbrushside = brush->firstbrushside;
+			brush->authored_numsides = brush->numsides;
+		}
+	}
+	if ( bsp->authored_planes == nullptr ) {
+		bsp->authored_planes = bsp->planes;
+	}
+
+	/**
 	*	Estimate worst-case storage so we can allocate once up-front.
 	*	Each brush may contribute a large number of bevel planes, so we reserve a
 	*	conservative fixed upper bound per brush to avoid repeated reallocations.
@@ -209,14 +234,14 @@ void CM_GenerateBrushBevels( cm_t *cm ) {
 	int32_t max_new_planes = bsp->numplanes + ( bsp->numbrushes * 128 );
 
 	// Allocate the generated brushside and plane arrays from the collision-model zone.
-	cm->bevel_brushsides = static_cast<mbrushside_t *>( Z_TagMallocz( max_new_sides * sizeof( mbrushside_t ), TAG_CMODEL ) );
-	cm->bevel_planes = static_cast<cm_plane_t *>( Z_TagMallocz( max_new_planes * sizeof( cm_plane_t ), TAG_CMODEL ) );
+	bsp->bevel_brushsides = static_cast<mbrushside_t *>( Z_TagMallocz( max_new_sides * sizeof( mbrushside_t ), TAG_CMODEL ) );
+	bsp->bevel_planes = static_cast<cm_plane_t *>( Z_TagMallocz( max_new_planes * sizeof( cm_plane_t ), TAG_CMODEL ) );
 
 	// Allocate the large windings array on the heap to avoid a stack overflow.
 	winding_t *windings = new winding_t[128];
 
 	// Preserve the original plane table as the base of the new plane array.
-	memcpy( cm->bevel_planes, bsp->planes, bsp->numplanes * sizeof( cm_plane_t ) );
+	memcpy( bsp->bevel_planes, bsp->authored_planes, bsp->numplanes * sizeof( cm_plane_t ) );
 	int32_t num_planes = bsp->numplanes;
 
 	// Track the next write position inside the generated brushside array.
@@ -228,21 +253,25 @@ void CM_GenerateBrushBevels( cm_t *cm ) {
 	*	to derive extra bevel planes that help collision handling remain stable.
 	**/
 	for ( int32_t i = 0; i < bsp->numbrushes; i++ ) {
-		mbrush_t *b = &bsp->brushes[i];
+		mbrush_t *b = &bsp->brushes[ i ];
+		mbrushside_t *original_sides = b->authored_firstbrushside;
+		const int32_t original_num_sides = b->authored_numsides;
 
-		// Non-solid brushes do not need bevel generation, but their sides still need to be copied over.
+		// Non-solid brushes do not need bevel generation, but their authored sides still need to be copied over.
 		if ( !( b->contents & CONTENTS_SOLID ) ) {
-			mbrushside_t *original_sides = b->firstbrushside;
 			// Point the brush at the next generated side range.
-			b->firstbrushside = &cm->bevel_brushsides[current_side];
+			b->firstbrushside = &bsp->bevel_brushsides[ current_side ];
+			b->numsides = original_num_sides;
 
-			// Copy the brush's existing sides into the generated side array unchanged.
-			for ( int32_t j = 0; j < b->numsides; j++ ) {
-				cm->bevel_brushsides[current_side + j] = original_sides[j];
+			// Copy the brush's authored sides into the generated side array.
+			for ( int32_t j = 0; j < original_num_sides; j++ ) {
+				bsp->bevel_brushsides[ current_side + j ] = original_sides[ j ];
+				const int32_t plane_idx = static_cast< int32_t >( original_sides[ j ].plane - bsp->authored_planes );
+				bsp->bevel_brushsides[ current_side + j ].plane = &bsp->bevel_planes[ plane_idx ];
 			}
 
 			// Advance past the copied non-solid brush sides.
-			current_side += b->numsides;
+			current_side += original_num_sides;
 			continue;
 		}
 
@@ -252,15 +281,15 @@ void CM_GenerateBrushBevels( cm_t *cm ) {
 		**/
 		bool valid_windings[128] = { false };
 
-		// Clamp the working side count to our fixed local buffer size for safety.
-		int32_t numsides = b->numsides;
+		// Clamp the authored working side count to our fixed local buffer size for safety.
+		int32_t numsides = original_num_sides;
 		if ( numsides > 128 ) {
 			numsides = 128;
 		}
 
-		// Generate a clipped polygon for each side of the brush.
+		// Generate a clipped polygon for each authored side of the brush.
 		for ( int32_t j = 0; j < numsides; j++ ) {
-			mbrushside_t *s = &b->firstbrushside[j];
+			mbrushside_t *s = &original_sides[ j ];
 			windings[j] = BaseWindingForPlane( s->plane );
 			valid_windings[j] = true;
 
@@ -273,7 +302,7 @@ void CM_GenerateBrushBevels( cm_t *cm ) {
 					continue;
 				}
 
-				mbrushside_t *s2 = &b->firstbrushside[k];
+				mbrushside_t *s2 = &original_sides[ k ];
 
 				// Convert the opposing side into an inward-facing split plane.
 				cm_plane_t splitPlane;
@@ -380,7 +409,7 @@ void CM_GenerateBrushBevels( cm_t *cm ) {
 				// Skip planes that already match an existing brush side normal.
 				bool has_plane = false;
 				for ( int32_t s = 0; s < numsides; s++ ) {
-					cm_plane_t *p = b->firstbrushside[s].plane;
+					cm_plane_t *p = original_sides[ s ].plane;
 					float dot = p->normal[0] * normal.x + p->normal[1] * normal.y + p->normal[2] * normal.z;
 					if ( fabs( dot ) > 0.999f ) {
 						has_plane = true;
@@ -477,16 +506,16 @@ void CM_GenerateBrushBevels( cm_t *cm ) {
 		*	Commit the original brush sides into the generated array.
 		*	Each side's plane pointer is remapped into the newly allocated plane buffer.
 		**/
-		mbrushside_t *original_sides = b->firstbrushside;
-		b->firstbrushside = &cm->bevel_brushsides[current_side];
+		b->firstbrushside = &bsp->bevel_brushsides[ current_side ];
+		b->numsides = numsides;
 
-		// Copy the brush's original sides first so the brush still retains its source planes.
+		// Copy the brush's authored sides first so the brush retains its source geometry separately.
 		for ( int32_t j = 0; j < numsides; j++ ) {
-			cm->bevel_brushsides[current_side] = original_sides[j];
+			bsp->bevel_brushsides[ current_side ] = original_sides[ j ];
 
-			// Rebind the side to the new plane array using the original plane index.
-			int32_t plane_idx = original_sides[j].plane - bsp->planes;
-			cm->bevel_brushsides[current_side].plane = &cm->bevel_planes[plane_idx];
+			// Rebind the side to the new plane array using the authored plane index.
+			const int32_t plane_idx = static_cast< int32_t >( original_sides[ j ].plane - bsp->authored_planes );
+			bsp->bevel_brushsides[ current_side ].plane = &bsp->bevel_planes[ plane_idx ];
 			current_side++;
 		}
 
@@ -500,9 +529,9 @@ void CM_GenerateBrushBevels( cm_t *cm ) {
 				break;
 			}
 
-			cm->bevel_planes[num_planes] = new_brush_planes[j];
-			cm->bevel_brushsides[current_side].plane = &cm->bevel_planes[num_planes];
-			cm->bevel_brushsides[current_side].texinfo = cm->bevel_brushsides[current_side - numsides].texinfo; // Copy from the first side.
+			bsp->bevel_planes[ num_planes ] = new_brush_planes[ j ];
+			bsp->bevel_brushsides[ current_side ].plane = &bsp->bevel_planes[ num_planes ];
+			bsp->bevel_brushsides[ current_side ].texinfo = bsp->bevel_brushsides[ current_side - numsides ].texinfo; // Copy from the first authored side.
 
 			num_planes++;
 			current_side++;
@@ -511,8 +540,8 @@ void CM_GenerateBrushBevels( cm_t *cm ) {
 	}
 
 	// Repoint the BSP tables so downstream collision queries use the generated bevel arrays.
-	bsp->planes = cm->bevel_planes;
-	bsp->brushsides = cm->bevel_brushsides;
+	bsp->planes = bsp->bevel_planes;
+	bsp->brushsides = bsp->bevel_brushsides;
 
 	delete[] windings;
 

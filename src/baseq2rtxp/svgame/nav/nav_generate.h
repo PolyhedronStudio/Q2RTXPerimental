@@ -1,7 +1,7 @@
 /********************************************************************
 *
 *
-*	ServerGame: Navigation edge-mesh generation and KD-tree construction.
+*	ServerGame: Navigation edge-mesh generation and pipeline orchestration.
 *
 *
 ********************************************************************/
@@ -10,6 +10,8 @@
 #include "nav_core.h"
 #include "nav_types.h"
 #include "nav_containers.h"
+#include "nav_csg.h"
+#include "nav_kdtree_builder.h"
 #include <vector>
 
 //! Temporary polygon data produced during extraction.
@@ -58,6 +60,10 @@ void Nav_DoExtractionWork();
 void Nav_BuildHalfEdgeMesh();
 
 /**
-*	@brief	Build the KD-tree used for spatial nav queries.
+*	@brief	Validate half-edge and KD-tree ownership invariants.
+*	@param	stage	Human-readable generation stage included in the bounded report.
+*	@return	True when all checked topology invariants hold.
+*	@note	This emits aggregate diagnostics and a capped set of failures only; it is
+*			intended for deterministic diagnosis without per-edge log spam.
 **/
-void Nav_BuildKDTree();
+bool Nav_ValidateTopology( const char *stage );

@@ -392,6 +392,8 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	std::vector<int32_t> navPath;
 	//! Cached string-pulled path.
 	std::vector<Vector3> stringPulledPath;
+	//! Per-waypoint constraints that preserve mandatory stair approaches and crossings.
+	std::vector<bool> stringPulledWaypointForced;
 	//! Current position in the navPath vector.
 	size_t pathPos = 0;
 	//! Current position in the stringPulledPath vector.

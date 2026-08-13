@@ -254,7 +254,11 @@ typedef struct {
     int             contents;
     int             numsides;
     mbrushside_t    *firstbrushside;
-    unsigned        checkcount;         // to avoid repeated testings
+    //! Original authored brush-side range retained when collision bevels replace firstbrushside.
+    mbrushside_t    *authored_firstbrushside;
+    //! Number of sides in the original authored brush-side range.
+    int32_t         authored_numsides;
+    unsigned        checkcount;
 } mbrush_t;
 
 typedef struct {
@@ -332,6 +336,12 @@ typedef struct bsp_s {
 
     int             numplanes;
     cm_plane_t        *planes;
+    //! Original authored plane table retained when runtime bevel planes replace planes.
+    cm_plane_t        *authored_planes;
+    //! Runtime bevel plane table owned by this cached BSP.
+    cm_plane_t        *bevel_planes;
+    //! Runtime bevel brush-side table owned by this cached BSP.
+    mbrushside_t      *bevel_brushsides;
 
     int             numnodes;
     mnode_t         *nodes;

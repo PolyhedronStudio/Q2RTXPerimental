@@ -246,8 +246,17 @@ enum mm_trace_shape_t {
 };
 
 /**
-*	@brief	Determines the mask to use and returns a trace doing so. If spectating, it'll return clip instead.
+* @brief Resolve the analytical movement shape from the moving monster's solid type.
+* @param passEntity Monster whose collision primitive is being swept.
+* @return The shape used by automatic monster movement traces.
+* @note Automatic selection is based on the mover, never on whichever brush or entity
+*       happens to be hit first. Bounds-box movers retain the historical cylinder fallback.
 **/
+const mm_trace_shape_t SVG_MMove_GetNativeShape( const svg_base_edict_t *passEntity );
+
+/**
+ * @brief Determines the mask to use and returns a trace doing so. If spectating, it'll return clip instead.
+ **/
 const svg_trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, svg_base_edict_t *passEntity, cm_contents_t contentMask = CONTENTS_NONE, mm_trace_shape_t shape = MM_SHAPE_AUTO );
 
 

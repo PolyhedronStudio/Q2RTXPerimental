@@ -45,6 +45,10 @@ static const uint32_t TRIS_COLOR = MakeColor( 238, 195, 154, 255 );
 // Used for debug path.
 //! For debug start/end point sphere.
 static const uint32_t DEBUG_ROUTE_SPHERE_COLOR = MakeColor( 223, 113, 38, 255 );
+//! Color used for string-pulled route segments and ordinary waypoints.
+static const uint32_t DEBUG_FUNNEL_ROUTE_COLOR = MakeColor( 95, 205, 228, 255 );
+//! Color used for mandatory stair approach and crossing waypoints.
+static const uint32_t DEBUG_FORCED_WAYPOINT_COLOR = MakeColor( 106, 190, 48, 255 );
 
 
 /**
@@ -62,6 +66,8 @@ cvar_t *s_nav_debug_nodes = nullptr;
 cvar_t *s_nav_debug_polys = nullptr;
 //! Cvar that toggles triangle edge debug rendering.
 cvar_t *s_nav_debug_tris = nullptr;
+//! Cvar that highlights the retained debug route endpoint KD leaves.
+cvar_t *s_nav_debug_query_leaves = nullptr;
 //! Cvar that sets the maximum radius for nav debug overlay rendering.
 cvar_t *s_nav_debug_draw_radius = nullptr;
 
@@ -79,6 +85,10 @@ static bool s_nav_dbg_has_goal_a = false;
 static bool s_nav_dbg_has_goal_b = false;
 //! Cached test route between goal A and goal B.
 static std::vector<int32_t> s_nav_dbg_test_path = {};
+//! Cached string-pulled route rendered beside the raw A* face-center chain.
+static std::vector<Vector3> s_nav_dbg_test_waypoints = {};
+//! Flags parallel to s_nav_dbg_test_waypoints for mandatory stair constraints.
+static std::vector<bool> s_nav_dbg_test_forced_waypoints = {};
 //! Whether cached test route is valid and should be rendered.
 static bool s_nav_dbg_has_test_path = false;
 
@@ -92,6 +102,7 @@ void Nav_DebugInit() {
 	s_nav_debug_nodes = gi.cvar( "nav_debug_nodes", "0", 0 );
 	s_nav_debug_polys = gi.cvar( "nav_debug_polys", "1", 0 );
 	s_nav_debug_tris = gi.cvar( "nav_debug_tris", "0", 0 );
+	s_nav_debug_query_leaves = gi.cvar( "nav_debug_query_leaves", "0", 0 );
 	s_nav_debug_draw_radius = gi.cvar( "nav_debug_draw_radius", std::to_string( CM_MAX_WORLD_HALF_SIZE ).c_str(), 0 );
 }
 
@@ -182,6 +193,25 @@ static void Nav_DebugDrawTestRoute() {
 		endPoint = QM_Vector3FromDP( g_nav_faces[ s_nav_dbg_goal_b_face ].center );
 	}
 	SVG_Nav_DebugDraw_AddLine( prev, endPoint, U32_MAGENTA, SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE );
+
+	/**
+	*	Render the actual funnel result separately from the A* face-center chain.
+	*	This makes the mandatory lower-tread approach and portal-crossing points
+	*	visible instead of implying that face centers are movement targets.
+	**/
+	if ( s_nav_dbg_test_waypoints.size() >= 2 ) {
+		Vector3 funnelPrevious = s_nav_dbg_test_waypoints[ 0 ];
+		for ( size_t waypointIndex = 0; waypointIndex < s_nav_dbg_test_waypoints.size(); waypointIndex++ ) {
+			const Vector3 &waypoint = s_nav_dbg_test_waypoints[ waypointIndex ];
+			const bool forced = waypointIndex < s_nav_dbg_test_forced_waypoints.size() && s_nav_dbg_test_forced_waypoints[ waypointIndex ];
+			const uint32_t waypointColor = forced ? DEBUG_FORCED_WAYPOINT_COLOR : DEBUG_FUNNEL_ROUTE_COLOR;
+			SVG_Nav_DebugDraw_AddSphere( waypoint, forced ? 5.0f : 3.0f, waypointColor, SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE );
+			if ( waypointIndex > 0 ) {
+				SVG_Nav_DebugDraw_AddLine( funnelPrevious, waypoint, DEBUG_FUNNEL_ROUTE_COLOR, SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE );
+			}
+			funnelPrevious = waypoint;
+		}
+	}
 }
 
 void Nav_DebugSetGoalACommand( void ) {
@@ -197,6 +227,8 @@ void Nav_DebugSetGoalACommand( void ) {
 	s_nav_dbg_has_goal_a = true;
 	s_nav_dbg_has_test_path = false;
 	s_nav_dbg_test_path.clear();
+	s_nav_dbg_test_waypoints.clear();
+	s_nav_dbg_test_forced_waypoints.clear();
 	gi.dprintf( "nav_dbg_goal_a: center=(%.2f %.2f %.2f) feet=(%.2f %.2f %.2f) face=%d\n",
 		playerCenter.x, playerCenter.y, playerCenter.z,
 		s_nav_dbg_goal_a_origin.x, s_nav_dbg_goal_a_origin.y, s_nav_dbg_goal_a_origin.z, s_nav_dbg_goal_a_face );
@@ -215,9 +247,101 @@ void Nav_DebugSetGoalBCommand( void ) {
 	s_nav_dbg_has_goal_b = true;
 	s_nav_dbg_has_test_path = false;
 	s_nav_dbg_test_path.clear();
+	s_nav_dbg_test_waypoints.clear();
+	s_nav_dbg_test_forced_waypoints.clear();
 	gi.dprintf( "nav_dbg_goal_b: center=(%.2f %.2f %.2f) feet=(%.2f %.2f %.2f) face=%d\n",
 		playerCenter.x, playerCenter.y, playerCenter.z,
 		s_nav_dbg_goal_b_origin.x, s_nav_dbg_goal_b_origin.y, s_nav_dbg_goal_b_origin.z, s_nav_dbg_goal_b_face );
+}
+
+/**
+*	@brief	Print one bounded diagnostic snapshot for the currently cached debug route.
+*	@param	policy	Path policy used to create the cached route.
+*	@note	This runs only from `nav_dbg_test`; it retains deterministic goal samples
+*			without adding movement-frame or per-edge generation logging.
+**/
+static void Nav_DebugLogTestPathDiagnostics( const nav_path_policy_t &policy ) {
+	/**
+	*	Report the frozen endpoint localization and active policy before walking the route.
+	**/
+	const int32_t start_leaf = Nav_FindLeafNode( s_nav_dbg_goal_a_origin );
+	const int32_t goal_leaf = Nav_FindLeafNode( s_nav_dbg_goal_b_origin );
+	gi.dprintf( "nav_dbg_test_diag: start=(%.2f %.2f %.2f) face=%d leaf=%d goal=(%.2f %.2f %.2f) face=%d leaf=%d radius=%.2f step=%.2f drop=%.2f\n",
+		s_nav_dbg_goal_a_origin.x, s_nav_dbg_goal_a_origin.y, s_nav_dbg_goal_a_origin.z,
+		s_nav_dbg_goal_a_face, start_leaf,
+		s_nav_dbg_goal_b_origin.x, s_nav_dbg_goal_b_origin.y, s_nav_dbg_goal_b_origin.z,
+		s_nav_dbg_goal_b_face, goal_leaf,
+		policy.agent_radius, policy.max_step_height, policy.max_drop_height );
+
+	/**
+	*	Stop after endpoint data when A* did not produce a corridor to inspect.
+	**/
+	if ( !s_nav_dbg_has_test_path || s_nav_dbg_test_path.empty() ) {
+		gi.dprintf( "nav_dbg_test_diag: no route was produced\n" );
+		return;
+	}
+
+	/**
+	*	Report each stable face index/ID and each physical portal in the cached corridor.
+	**/
+	for ( size_t path_index = 0; path_index < s_nav_dbg_test_path.size(); path_index++ ) {
+		const int32_t face_index = s_nav_dbg_test_path[ path_index ];
+		if ( face_index < 0 || face_index >= static_cast< int32_t >( g_nav_faces.size() ) ) {
+			gi.dprintf( "nav_dbg_test_diag: invalid cached face index=%d at path_index=%d\n", face_index, static_cast< int32_t >( path_index ) );
+			return;
+		}
+
+		const nav_face_t &face = g_nav_faces[ face_index ];
+		gi.dprintf( "nav_dbg_test_diag: path[%d] face=%d id=%d center=(%.2f %.2f %.2f) edges=%d\n",
+			static_cast< int32_t >( path_index ), face_index, face.face_id,
+			face.center.x, face.center.y, face.center.z, face.num_edges );
+		if ( path_index + 1 >= s_nav_dbg_test_path.size() ) {
+			continue;
+		}
+
+		const int32_t next_face_index = s_nav_dbg_test_path[ path_index + 1 ];
+		Vector3 portal_left = {};
+		Vector3 portal_right = {};
+		const bool has_portal = Nav_GetPortalEndpoints( face_index, next_face_index, &portal_left, &portal_right );
+		int32_t portal_edge = -1;
+		int32_t portal_twin = -1;
+		for ( int32_t edge_offset = 0; edge_offset < face.num_edges; edge_offset++ ) {
+			const int32_t edge_index = face.first_edge_idx + edge_offset;
+			const nav_halfedge_t &edge = g_nav_halfedges[ edge_index ];
+			if ( edge.twin_idx != -1 && g_nav_halfedges[ edge.twin_idx ].face_idx == next_face_index ) {
+				portal_edge = edge_index;
+				portal_twin = edge.twin_idx;
+				break;
+			}
+		}
+
+		if ( !has_portal || portal_edge == -1 ) {
+			gi.dprintf( "nav_dbg_test_diag: transition=%d->%d has_portal=%d edge=%d\n", face_index, next_face_index, has_portal ? 1 : 0, portal_edge );
+			continue;
+		}
+
+		const nav_halfedge_t &edge = g_nav_halfedges[ portal_edge ];
+		const nav_halfedge_t &twin = g_nav_halfedges[ portal_twin ];
+		const float delta_z = static_cast< float >( g_nav_faces[ next_face_index ].center.z - face.center.z );
+		gi.dprintf( "nav_dbg_test_diag: transition=%d->%d edge=%d twin=%d flags=0x%08x/0x%08x entity=%d dz=%.2f portalL=(%.2f %.2f %.2f) portalR=(%.2f %.2f %.2f)\n",
+			face_index, next_face_index, portal_edge, portal_twin,
+			edge.flags, twin.flags, edge.edge_entity_id, delta_z,
+			portal_left.x, portal_left.y, portal_left.z,
+			portal_right.x, portal_right.y, portal_right.z );
+	}
+
+	/**
+	*	Run the same funnel stage used by NPC movement and retain its finite waypoint output.
+	**/
+	s_nav_dbg_test_waypoints.clear();
+	s_nav_dbg_test_forced_waypoints.clear();
+	const bool string_pull_ok = Nav_StringPull( s_nav_dbg_test_path, s_nav_dbg_goal_a_origin, s_nav_dbg_goal_b_origin, policy.agent_radius, s_nav_dbg_test_waypoints, &s_nav_dbg_test_forced_waypoints );
+	gi.dprintf( "nav_dbg_test_diag: funnel_success=%d waypoint_count=%d\n", string_pull_ok ? 1 : 0, static_cast< int32_t >( s_nav_dbg_test_waypoints.size() ) );
+	for ( size_t waypoint_index = 0; waypoint_index < s_nav_dbg_test_waypoints.size(); waypoint_index++ ) {
+		const Vector3 &waypoint = s_nav_dbg_test_waypoints[ waypoint_index ];
+		const bool forced = waypoint_index < s_nav_dbg_test_forced_waypoints.size() && s_nav_dbg_test_forced_waypoints[ waypoint_index ];
+		gi.dprintf( "nav_dbg_test_diag: waypoint[%d] forced=%d pos=(%.2f %.2f %.2f)\n", static_cast< int32_t >( waypoint_index ), forced ? 1 : 0, waypoint.x, waypoint.y, waypoint.z );
+	}
 }
 
 void Nav_DebugTestPathCommand( void ) {
@@ -239,9 +363,16 @@ void Nav_DebugTestPathCommand( void ) {
 	policy.max_drop_height_cap = NAV_DROPOFF_MAX_SIZE;
 
 	s_nav_dbg_test_path.clear();
+	s_nav_dbg_test_waypoints.clear();
+	s_nav_dbg_test_forced_waypoints.clear();
 	s_nav_dbg_has_test_path = Nav_FindPath( s_nav_dbg_goal_a_face, s_nav_dbg_goal_b_face, s_nav_dbg_test_path, policy );
 	gi.dprintf( "nav_dbg_test: A=%d B=%d success=%d nodes=%d\n",
 		s_nav_dbg_goal_a_face, s_nav_dbg_goal_b_face, s_nav_dbg_has_test_path ? 1 : 0, static_cast< int32_t >( s_nav_dbg_test_path.size() ) );
+	if ( !s_nav_dbg_has_test_path ) {
+		// Print the exact one-shot rejection totals for this frozen A/B query.
+		Nav_LogLastPathDiagnostics();
+	}
+	Nav_DebugLogTestPathDiagnostics( policy );
 }
 
 static void RecursiveDrawNodes( int32_t nodeIndex, const Vector3 &playerPos, float radius ) {
@@ -267,6 +398,37 @@ static void RecursiveDrawNodes( int32_t nodeIndex, const Vector3 &playerPos, flo
 
 	if ( node.left_child != -1 ) RecursiveDrawNodes( node.left_child, playerPos, radius );
 	if ( node.right_child != -1 ) RecursiveDrawNodes( node.right_child, playerPos, radius );
+}
+
+/**
+*	@brief	Highlight the fixed endpoint leaves used by the retained debug path test.
+*	@note	This intentionally draws only command-captured leaves, making KD candidate
+*			inspection independent from transient player movement and node-AABB clutter.
+**/
+static void Nav_DebugDrawQueryLeaves( void ) {
+	/**
+	*	Require an enabled overlay and two captured endpoint samples.
+	**/
+	if ( !s_nav_debug_query_leaves || s_nav_debug_query_leaves->value == 0 || !s_nav_dbg_has_goal_a || !s_nav_dbg_has_goal_b ) {
+		return;
+	}
+
+	/**
+	*	Resolve each retained endpoint independently because both can occupy one leaf.
+	**/
+	const int32_t endpoint_leaves[ 2 ] = {
+		Nav_FindLeafNode( s_nav_dbg_goal_a_origin ),
+		Nav_FindLeafNode( s_nav_dbg_goal_b_origin )
+	};
+	for ( int32_t endpoint_index = 0; endpoint_index < 2; endpoint_index++ ) {
+		const int32_t leaf_index = endpoint_leaves[ endpoint_index ];
+		if ( leaf_index < 0 || leaf_index >= static_cast< int32_t >( g_nav_nodes.size() ) ) {
+			continue;
+		}
+
+		const nav_kdtree_node_t &leaf = g_nav_nodes[ leaf_index ];
+		SVG_Nav_DebugDraw_AddAabb( static_cast<Vector3>( leaf.mins ), static_cast<Vector3>( leaf.maxs ), endpoint_index == 0 ? U32_GREEN : U32_RED );
+	}
 }
 
 #ifdef DEBUG_NAV_DRAW_NGON_TRIANGLES_METHOD
@@ -433,6 +595,7 @@ void SVG_Nav_DebugDraw() {
 	*	using the player's current position as the center of the debug draw radius.
 	**/
 	RecursiveDrawNodes( 0, player->currentOrigin, s_nav_debug_draw_radius->value );
+	Nav_DebugDrawQueryLeaves();
 
 	/**
 	*	Debug draw the navmesh half-edge mesh N-gons, their edges, and if enabled possibly their triangles too.
