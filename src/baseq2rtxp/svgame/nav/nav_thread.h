@@ -29,10 +29,16 @@ struct nav_gen_progress_t {
 void Nav_StartAsyncGeneration( void );
 
 /**
-* @brief Read the current generation progress snapshot.
-* @return Reference to the global progress state.
+*	@brief	Read the current generation progress snapshot.
+*	@return	Reference to the global progress state.
 **/
 const nav_gen_progress_t &Nav_GetGenerationProgress( void );
+
+/**
+*	@brief	Set the current navmesh generation progress percentage.
+*	@param	progress_pct	The progression fraction between 0.0f and 1.0f.
+**/
+void Nav_SetGenerationProgress( const float progress_pct );
 
 /**
 * @brief Advance the async generation status from the main server loop.

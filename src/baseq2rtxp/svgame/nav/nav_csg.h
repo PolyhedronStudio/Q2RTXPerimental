@@ -269,6 +269,20 @@ bool IsUsablePartitionFragment( const winding_t &w );
 
 
 /**
+*	@brief	Simplify redundant collinear perimeter vertices on a single navigation polygon.
+*	@param	poly	[in,out] Navigation polygon whose perimeter vertices will be simplified.
+*	@return	True if any redundant collinear vertex was removed.
+*	@note	Removes intermediate vertices where the 2D turn angle is near zero,
+*			restoring straight edges across door thresholds and merged floor boundaries.
+**/
+bool SimplifyNavPolygonCollinearVertices( nav_poly_t &poly );
+
+/**
+*	@brief	Simplify redundant collinear perimeter vertices across all extracted navigation polygons.
+**/
+void SimplifyAllNavPolygonsCollinearVertices();
+
+/**
 *	@brief	Merge adjacent coplanar polygons in g_nav_polys to form maximal convex walk surfaces.
 **/
 void Nav_MergeCoplanarPolygons();
@@ -282,3 +296,4 @@ void Nav_DissolveSlivers();
 *	@brief	Recursively partition raw floor polygons using localized, obstacle-aware split planes.
 **/
 void Nav_PartitionPolygons();
+

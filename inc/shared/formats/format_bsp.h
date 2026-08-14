@@ -336,6 +336,10 @@ typedef struct bsp_s {
 
     int             numplanes;
     cm_plane_t        *planes;
+
+	/**
+	* <Q2RTXP>: Added for runtime bevel plane replacement.
+	**/
     //! Original authored plane table retained when runtime bevel planes replace planes.
     cm_plane_t        *authored_planes;
     //! Runtime bevel plane table owned by this cached BSP.

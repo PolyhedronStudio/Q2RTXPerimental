@@ -644,10 +644,9 @@ void SVG_Nav_DebugDraw() {
 				sg_svc_debug_draw_style_flags_t styleFlags = SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE;//( depthTest ? SG_SVC_DEBUG_DRAW_STYLE_FLAG_DEPTH_TEST : SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE );
 
 				/**
-				*	Matching transition-owned edge found via direct edge ownership or face transition ownership,
-				*	so we draw it with the door state color.
+				*	Dynamic transition portal edge found via edge ownership, so we draw it with the door state color.
 				**/
-				if ( he.edge_entity_id != ENTITYNUM_NONE || face.entity_id != ENTITYNUM_NONE || face.transition_entity_id != ENTITYNUM_NONE ) {
+				if ( he.edge_entity_id != ENTITYNUM_NONE ) {
 					// Dynamic transition edges retain their state color whether or not a matching twin was found.
 					const uint32_t edgeColor = ( he.flags & NAV_EDGE_DISABLED ) != 0 ? EDGE_DISABLED_COLOR : EDGE_ENABLED_COLOR;
 					SVG_Nav_DebugDraw_AddLine( start, end, edgeColor, styleFlags, 2, 0 );

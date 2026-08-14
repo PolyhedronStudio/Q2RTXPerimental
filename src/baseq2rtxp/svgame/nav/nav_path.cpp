@@ -968,10 +968,19 @@ bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3 &startPos, 
 					left = clearanceLeft;
 					right = clearanceRight;
 				} else {
-					// Safe Midpoint Fallback: If agent clearance clipping collapses a narrow portal, center the portal endpoints on the corridor midpoint!
-					Vector3DP mid = ( left + right ) * 0.5;
-					left = mid;
-					right = mid;
+					// Proportional clearance shrink fallback: Rather than collapsing to a single zero-width midpoint
+					// (which breaks funnel string-pulling and emits artificial zigzag waypoints), shrink the portal
+					// endpoints symmetrically toward the portal center up to 40% of portal length.
+					Vector3DP edgeDir = left - right;
+					edgeDir.z = 0.0;
+					const double edgeLen = QM_Vector3LengthDP( edgeDir );
+					if ( edgeLen > 0.001 ) {
+						edgeDir = edgeDir * ( 1.0 / edgeLen );
+						const double maxShrink = std::max( 0.0, ( edgeLen * 0.40 ) );
+						const double shrinkDist = std::min( static_cast<double>( agentRadius ), maxShrink );
+						right = right + edgeDir * shrinkDist;
+						left = left - edgeDir * shrinkDist;
+					}
 				}
 			} else {
 				Vector3DP edgeDir = left - right;

@@ -21,6 +21,7 @@
 // Entity includes for IsSubClassType checking
 #include "svgame/entities/func/svg_func_door.h"
 #include "svgame/entities/func/svg_func_door_rotating.h"
+#include "svgame/entities/func/svg_func_rotating.h"
 #include "svgame/entities/func/svg_func_wall.h"
 #include "svgame/entities/func/svg_func_areaportal.h"
 
@@ -576,11 +577,11 @@ void Nav_StatusCommand( void ) {
 	*	Print a stable summary line so server operators can see whether generation is active and how far it has progressed.
 	**/
 	gi.dprintf(
-		"NavMesh status: generating=%d progress=%.2f%% elapsed=%u ms remaining=%u ms\n",
+		"NavMesh status: generating=%d progress=%.2f%% elapsed=%.2f s remaining=%.2f s\n",
 		progress.is_generating ? 1 : 0,
 		progress.progress_pct * 100.0,
-		progress.time_taken_ms,
-		progress.estimated_time_left_ms );
+		progress.time_taken_ms / 1000.0f,
+		progress.estimated_time_left_ms / 1000.0f );
 }
 
 /**
@@ -778,6 +779,10 @@ static bool IsDynamicTransitionEntityBlockingNavigation( const int32_t entity_id
 			door->pushMoveInfo.state == svg_func_door_t::DOOR_STATE_MOVING_TO_CLOSED_STATE;
 	}
 
+	if ( entity->GetTypeInfo()->IsSubClassType<svg_func_rotating_t>() ) {
+		return entity->solid == SOLID_BSP;
+	}
+
 	if ( entity->GetTypeInfo()->IsSubClassType<svg_func_areaportal_t>() ) {
 		const svg_func_areaportal_t *areaportal = static_cast< const svg_func_areaportal_t * >( entity );
 		return areaportal->count <= 0;
@@ -935,56 +940,6 @@ static cm_plane_t GetTransformedPlane( const cm_plane_t *plane, const nav_brush_
 	return transformed_plane;
 }
 
-/**
-* @brief Computes the maximum Z height of a brush by physically building its geometry.
-* @param b The brush to analyze.
-* @param brush_instance World-space transform applied to the brush's planes.
-* @return The maximum Z height of the brush, or (world_maxs.z + 10000.0) if the brush could not be constructed.
-**/
-static double GetBrushMaxZ( const mbrush_t *b, const nav_brush_ownership_t &brush_instance ) {
-	cm_t *cm = gi.GetCollisionModel();
-	bsp_t *bsp = cm ? cm->cache : nullptr;
-	double model_min_z = -4096.0;
-	double model_max_z = 4096.0;
-	if ( bsp != nullptr && bsp->models != nullptr && brush_instance.model_num >= 0 && brush_instance.model_num < bsp->nummodels ) {
-		const mmodel_t *model = &bsp->models[ brush_instance.model_num ];
-		model_min_z = static_cast< double >( model->mins[ 2 ] + brush_instance.offset.z );
-		model_max_z = static_cast< double >( model->maxs[ 2 ] + brush_instance.offset.z );
-	}
-
-	double max_z = model_min_z - 100.0;
-	const int32_t brush_num_sides = Nav_GetBrushNumSides( b );
-	const mbrushside_t *brush_sides = Nav_GetBrushSides( b );
-
-	// Try to build a face for every authored plane of the brush.
-	for ( int32_t i = 0; i < brush_num_sides; i++ ) {
-		const mbrushside_t *side = &brush_sides[ i ];
-		cm_plane_t p = GetTransformedPlane( side->plane, brush_instance );
-
-		winding_t w = BaseWindingForPlane( &p );
-		bool valid = true;
-
-		for ( int32_t j = 0; j < brush_num_sides && valid; j++ ) {
-			if ( i == j ) continue;
-			cm_plane_t clip = GetTransformedPlane( brush_sides[ j ].plane, brush_instance );
-			if ( !ChopWindingInPlace( &w, &clip, 0.1 ) ) {
-				valid = false;
-			}
-		}
-
-		// If this face is valid, check its vertices for the maximum Z coordinate.
-		if ( valid ) {
-			for ( int32_t pt = 0; pt < w.num_points; pt++ ) {
-				if ( w.points[ pt ].z > max_z ) {
-					max_z = w.points[ pt ].z;
-				}
-			}
-		}
-	}
-
-	// If the brush geometry could not be constructed for some reason, return a high Z value to treat it as a wall.
-	return ( max_z < model_min_z ) ? ( model_max_z + 1000.0 ) : max_z;
-}
 
 /**
 * @brief Computes which planes of a brush are actually part of its physical surface (not redundant).
@@ -1178,17 +1133,140 @@ static bool IsFragmentCompletelyOutsideBrush( const winding_t *frag, const mbrus
 }
 
 /**
+*	@brief	Compute the world-space bounding box of a transformed convex brush.
+*	@param	b	Brush structure to analyze.
+*	@param	brush_instance	World-space transformation offset and angles.
+*	@param	out_mins	[out] Minimum X, Y, Z coordinates.
+*	@param	out_maxs	[out] Maximum X, Y, Z coordinates.
+*	@return	True if the brush produces valid convex geometry with measurable bounds.
+**/
+static bool GetBrushWorldBounds( const mbrush_t *b, const nav_brush_ownership_t &brush_instance, Vector3DP *out_mins, Vector3DP *out_maxs ) {
+	if ( b == nullptr || out_mins == nullptr || out_maxs == nullptr ) {
+		return false;
+	}
+
+	const int32_t brush_num_sides = Nav_GetBrushNumSides( b );
+	const mbrushside_t *brush_sides = Nav_GetBrushSides( b );
+	if ( brush_num_sides < 4 || brush_sides == nullptr ) {
+		return false;
+	}
+
+	// Fast axial box check: if all planes are axis-aligned, compute bounding box directly in O(N) with zero winding chops.
+	bool all_axial = true;
+	Vector3DP axial_mins( -static_cast< double >( CM_MAX_WORLD_HALF_SIZE ), -static_cast< double >( CM_MAX_WORLD_HALF_SIZE ), -static_cast< double >( CM_MAX_WORLD_HALF_SIZE ) );
+	Vector3DP axial_maxs( static_cast< double >( CM_MAX_WORLD_HALF_SIZE ), static_cast< double >( CM_MAX_WORLD_HALF_SIZE ), static_cast< double >( CM_MAX_WORLD_HALF_SIZE ) );
+	int32_t axial_mask = 0;
+
+	for ( int32_t i = 0; i < brush_num_sides; i++ ) {
+		cm_plane_t p = GetTransformedPlane( brush_sides[ i ].plane, brush_instance );
+		const float nx = p.normal[ 0 ];
+		const float ny = p.normal[ 1 ];
+		const float nz = p.normal[ 2 ];
+
+		if ( nx > 0.999f && std::abs( ny ) < 0.001f && std::abs( nz ) < 0.001f ) {
+			axial_maxs.x = std::min<double>( axial_maxs.x, p.dist );
+			axial_mask |= 1;
+		} else if ( nx < -0.999f && std::abs( ny ) < 0.001f && std::abs( nz ) < 0.001f ) {
+			axial_mins.x = std::max<double>( axial_mins.x, -p.dist );
+			axial_mask |= 2;
+		} else if ( ny > 0.999f && std::abs( nx ) < 0.001f && std::abs( nz ) < 0.001f ) {
+			axial_maxs.y = std::min<double>( axial_maxs.y, p.dist );
+			axial_mask |= 4;
+		} else if ( ny < -0.999f && std::abs( nx ) < 0.001f && std::abs( nz ) < 0.001f ) {
+			axial_mins.y = std::max<double>( axial_mins.y, -p.dist );
+			axial_mask |= 8;
+		} else if ( nz > 0.999f && std::abs( nx ) < 0.001f && std::abs( ny ) < 0.001f ) {
+			axial_maxs.z = std::min<double>( axial_maxs.z, p.dist );
+			axial_mask |= 16;
+		} else if ( nz < -0.999f && std::abs( nx ) < 0.001f && std::abs( ny ) < 0.001f ) {
+			axial_mins.z = std::max<double>( axial_mins.z, -p.dist );
+			axial_mask |= 32;
+		} else {
+			all_axial = false;
+		}
+	}
+
+	if ( all_axial && axial_mask == 63 && axial_mins.x <= axial_maxs.x && axial_mins.y <= axial_maxs.y && axial_mins.z <= axial_maxs.z ) {
+		*out_mins = axial_mins;
+		*out_maxs = axial_maxs;
+		return true;
+	}
+
+	// For non-axial brushes (cylinders, bevels, arches), compute exact bounds via face winding construction.
+	Vector3DP mins( static_cast< double >( CM_MAX_WORLD_HALF_SIZE ), static_cast< double >( CM_MAX_WORLD_HALF_SIZE ), static_cast< double >( CM_MAX_WORLD_HALF_SIZE ) );
+	Vector3DP maxs( -static_cast< double >( CM_MAX_WORLD_HALF_SIZE ), -static_cast< double >( CM_MAX_WORLD_HALF_SIZE ), -static_cast< double >( CM_MAX_WORLD_HALF_SIZE ) );
+	bool has_points = false;
+
+	for ( int32_t i = 0; i < brush_num_sides; i++ ) {
+		cm_plane_t p = GetTransformedPlane( brush_sides[ i ].plane, brush_instance );
+		winding_t w = BaseWindingForPlane( &p );
+		bool valid = true;
+
+		for ( int32_t j = 0; j < brush_num_sides && valid; j++ ) {
+			if ( i == j ) continue;
+			cm_plane_t clip = GetTransformedPlane( brush_sides[ j ].plane, brush_instance );
+			if ( !ChopWindingInPlace( &w, &clip, 0.1 ) ) {
+				valid = false;
+			}
+		}
+
+		if ( valid && w.num_points >= 3 ) {
+			has_points = true;
+			for ( int32_t pt = 0; pt < w.num_points; pt++ ) {
+				mins.x = std::min( mins.x, w.points[ pt ].x );
+				mins.y = std::min( mins.y, w.points[ pt ].y );
+				mins.z = std::min( mins.z, w.points[ pt ].z );
+				maxs.x = std::max( maxs.x, w.points[ pt ].x );
+				maxs.y = std::max( maxs.y, w.points[ pt ].y );
+				maxs.z = std::max( maxs.z, w.points[ pt ].z );
+			}
+		}
+	}
+
+	if ( !has_points ) {
+		return false;
+	}
+
+	*out_mins = mins;
+	*out_maxs = maxs;
+	return true;
+}
+
+/**
+*	@brief	Return the maximum Z coordinate of a brush.
+*	@param	b				The brush to analyze.
+*	@param	brush_instance	World-space transform applied to the brush's planes.
+*	@return	The maximum Z height of the brush.
+**/
+static double GetBrushMaxZ( const mbrush_t *b, const nav_brush_ownership_t &brush_instance ) {
+	Vector3DP mins = {}, maxs = {};
+	if ( GetBrushWorldBounds( b, brush_instance, &mins, &maxs ) ) {
+		return maxs.z;
+	}
+	return static_cast< double >( CM_MAX_WORLD_HALF_SIZE );
+}
+
+/**
 * @brief Subtract one blocking brush from a set of polygon fragments.
 * @param fragments Fragments that will be clipped in place.
 * @param b Blocking brush to subtract.
 * @param brush_instance World-space transform applied to the brush's planes.
 * @param poly_normal Original polygon normal used for coplanar tests.
+* @note When carving horizontal floor surfaces (such as the main world ground),
+*       obstacles with angled, sloped, or curved sides are carved using their clean 4-plane
+*       axis-aligned bounding box (AABB) footprint. This completely eliminates diagonal rays
+*       and sliver stripes across the open terrain while preserving the exact curved/sloped
+*       step treads on the elevated walkable surfaces themselves.
 **/
 static void SubtractBrushFromWindings( std::vector<winding_t> &fragments, const mbrush_t *b, const nav_brush_ownership_t &brush_instance, const Vector3DP &poly_normal ) {
 	std::vector<winding_t> next_fragments;
 	const int32_t brush_num_sides = Nav_GetBrushNumSides( b );
 	const mbrushside_t *brush_sides = Nav_GetBrushSides( b );
 	std::vector<bool> plane_active = GetBrushActivePlanes( b, brush_instance );
+
+	// Calculate the world-space bounding box of the brush.
+	Vector3DP brush_mins = {}, brush_maxs = {};
+	const bool has_bounds = GetBrushWorldBounds( b, brush_instance, &brush_mins, &brush_maxs );
 
 	for ( const winding_t &frag : fragments ) {
 		/**
@@ -1201,18 +1279,27 @@ static void SubtractBrushFromWindings( std::vector<winding_t> &fragments, const 
 		}
 
 		// Optimization: If the fragment is entirely in front of any plane of the brush, it is completely outside the brush.
-		// We can skip splitting it entirely, saving massive amounts of fragmentation!
 		if ( IsFragmentCompletelyOutsideBrush( &frag, b, brush_instance, plane_active, 0.0 ) ) {
 			next_fragments.push_back( frag );
 			continue;
 		}
 
-		winding_t inside_part = frag;
-		bool entirely_inside = true;
-		const int32_t brush_num_sides = Nav_GetBrushNumSides( b );
-		const mbrushside_t *brush_sides = Nav_GetBrushSides( b );
+		// Quick 2D bounding-box overlap test if bounds are available.
+		if ( has_bounds ) {
+			nav_aabb_t frag_box;
+			frag_box.Clear();
+			for ( int32_t pt = 0; pt < frag.num_points; pt++ ) {
+				frag_box.AddPoint( frag.points[ pt ] );
+			}
+			if ( frag_box.maxs.x <= brush_mins.x - 0.1 || frag_box.mins.x >= brush_maxs.x + 0.1 ||
+				 frag_box.maxs.y <= brush_mins.y - 0.1 || frag_box.mins.y >= brush_maxs.y + 0.1 ) {
+				next_fragments.push_back( frag );
+				continue;
+			}
+		}
 
-		// Slicing against every authored plane of the brush.
+		// Direct subtraction using the brush's true authored planes.
+		winding_t inside_part = frag;
 		for ( int32_t j = 0; j < brush_num_sides; j++ ) {
 			if ( !plane_active[ j ] ) continue;
 
@@ -1225,20 +1312,17 @@ static void SubtractBrushFromWindings( std::vector<winding_t> &fragments, const 
 
 			// Anything in front of an outward-facing plane is strictly OUTSIDE the brush. We save it.
 			if ( front.num_points >= 3 ) {
+				front.entity_id = frag.entity_id;
+				front.transition_entity_id = frag.transition_entity_id;
 				next_fragments.push_back( front );
-				entirely_inside = false;
 			}
 
 			// Anything behind the plane might still be inside the brush, so we keep chopping it.
 			inside_part = back;
 			if ( inside_part.num_points < 3 ) {
-				entirely_inside = false;
-				break; // It's no longer inside the brush
+				break;
 			}
 		}
-
-		// If inside_part still has points after checking all planes, it is completely inside the brush.
-		// Since this is a subtraction, we simply discard it! (Do not add it to next_fragments).
 	}
 
 	fragments = next_fragments;
@@ -1464,6 +1548,132 @@ static void RegisterNavEntityEdge( const int32_t entity_id, const int32_t edge_i
 }
 
 /**
+*	@brief	Subdivide a large walkable horizontal floor winding into regular spatial grid tiles.
+*	@param	w			Source floor winding to tile.
+*	@param	tileSize	Maximum spatial extent along X and Y per tile (e.g. 256.0 units).
+*	@param	normal		Surface normal of the floor plane.
+*	@param	out_tiles	[out] Vector receiving the resulting subdivided tile windings.
+*	@note	Subdividing large open floor surfaces into spatial tiles prevents obstacle
+*			CSG cutlines from propagating globally across the world, confining carving to
+*			local cells and enabling pristine open-area tiles to merge into maximal rectangles.
+**/
+static void Nav_SubdivideWindingIntoSpatialTiles( const winding_t &w, const double tileSize, const Vector3DP &normal, std::vector<winding_t> &out_tiles ) {
+	if ( w.num_points < 3 || tileSize <= 0.0 ) {
+		if ( w.num_points >= 3 ) {
+			out_tiles.push_back( w );
+		}
+		return;
+	}
+
+	// Compute 2D bounding box of the winding.
+	Vector3DP mins = w.points[ 0 ];
+	Vector3DP maxs = w.points[ 0 ];
+	for ( int32_t i = 1; i < w.num_points; i++ ) {
+		mins.x = std::min<double>( mins.x, w.points[ i ].x );
+		mins.y = std::min<double>( mins.y, w.points[ i ].y );
+		mins.z = std::min<double>( mins.z, w.points[ i ].z );
+		maxs.x = std::max<double>( maxs.x, w.points[ i ].x );
+		maxs.y = std::max<double>( maxs.y, w.points[ i ].y );
+		maxs.z = std::max<double>( maxs.z, w.points[ i ].z );
+	}
+
+	const double extent_x = maxs.x - mins.x;
+	const double extent_y = maxs.y - mins.y;
+
+	// If the floor winding is already small (e.g. small step tread or box), no tiling is needed.
+	if ( extent_x <= tileSize && extent_y <= tileSize ) {
+		out_tiles.push_back( w );
+		return;
+	}
+
+	// Collect vertical split coordinates along X (multiples of tileSize).
+	std::vector<double> x_splits;
+	const double start_x = std::floor( ( mins.x + 0.1 ) / tileSize + 1.0 ) * tileSize;
+	for ( double x = start_x; x < maxs.x - 0.1; x += tileSize ) {
+		x_splits.push_back( x );
+	}
+
+	// Split winding into vertical stripes along X.
+	std::vector<winding_t> x_stripes;
+	std::vector<winding_t> current_x_set;
+	current_x_set.push_back( w );
+
+	for ( const double split_x : x_splits ) {
+		cm_plane_t plane;
+		plane.normal[ 0 ] = 1.0f; plane.normal[ 1 ] = 0.0f; plane.normal[ 2 ] = 0.0f;
+		plane.dist = static_cast< float >( split_x );
+
+		std::vector<winding_t> next_x_set;
+		for ( const winding_t &item : current_x_set ) {
+			winding_t front = {};
+			winding_t back = {};
+			SplitWinding( &item, &plane, 0.1, normal, &front, &back );
+			if ( front.num_points >= 3 ) {
+				front.entity_id = item.entity_id;
+				front.transition_entity_id = item.transition_entity_id;
+				next_x_set.push_back( front );
+			}
+			if ( back.num_points >= 3 ) {
+				back.entity_id = item.entity_id;
+				back.transition_entity_id = item.transition_entity_id;
+				x_stripes.push_back( back );
+			}
+		}
+		current_x_set = next_x_set;
+	}
+	for ( const winding_t &rem : current_x_set ) {
+		x_stripes.push_back( rem );
+	}
+
+	// Collect horizontal split coordinates along Y (multiples of tileSize).
+	std::vector<double> y_splits;
+	const double start_y = std::floor( ( mins.y + 0.1 ) / tileSize + 1.0 ) * tileSize;
+	for ( double y = start_y; y < maxs.y - 0.1; y += tileSize ) {
+		y_splits.push_back( y );
+	}
+
+	if ( y_splits.empty() ) {
+		for ( const auto &stripe : x_stripes ) {
+			out_tiles.push_back( stripe );
+		}
+		return;
+	}
+
+	// Split each vertical stripe into rectangular grid tiles along Y.
+	for ( const winding_t &stripe : x_stripes ) {
+		std::vector<winding_t> current_y_set;
+		current_y_set.push_back( stripe );
+
+		for ( const double split_y : y_splits ) {
+			cm_plane_t plane;
+			plane.normal[ 0 ] = 0.0f; plane.normal[ 1 ] = 1.0f; plane.normal[ 2 ] = 0.0f;
+			plane.dist = static_cast< float >( split_y );
+
+			std::vector<winding_t> next_y_set;
+			for ( const winding_t &item : current_y_set ) {
+				winding_t front = {};
+				winding_t back = {};
+				SplitWinding( &item, &plane, 0.1, normal, &front, &back );
+				if ( front.num_points >= 3 ) {
+					front.entity_id = item.entity_id;
+					front.transition_entity_id = item.transition_entity_id;
+					next_y_set.push_back( front );
+				}
+				if ( back.num_points >= 3 ) {
+					back.entity_id = item.entity_id;
+					back.transition_entity_id = item.transition_entity_id;
+					out_tiles.push_back( back );
+				}
+			}
+			current_y_set = next_y_set;
+		}
+		for ( const winding_t &rem : current_y_set ) {
+			out_tiles.push_back( rem );
+		}
+	}
+}
+
+/**
 * @brief Extract walkable polygons from the current map collision model.
 * @note This is the first stage of navmesh generation and fills g_nav_polys.
 **/
@@ -1502,18 +1712,6 @@ void Nav_DoExtractionWork() {
 		}
 
 		if ( edict->model.ptr != nullptr && edict->model.size() >= 2 && edict->model[ 0 ] == '*' ) {
-			if ( edict->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
-				// Ignore physical door geometry so it doesn't carve a 3D footprint into the floor,
-				// which would result in multiple redundant portals. We will tag the natural BSP edge later.
-				continue;
-			}
-			if ( edict->GetTypeInfo()->IsSubClassType<svg_func_door_rotating_t>() ) {
-				// Vertical rotating doors (Z axis) are ignored for the same reason.
-				// However, drawbridges and trapdoors (X or Y axis) are walkable floors and must be included.
-				if ( !( edict->spawnflags & ( svg_func_door_rotating_t::SPAWNFLAG_X_AXIS | svg_func_door_rotating_t::SPAWNFLAG_Y_AXIS ) ) ) {
-					continue;
-				}
-			}
 			/**
 			*	Resolve the network model handle to the zero-based BSP submodel index.
 			*
@@ -1527,16 +1725,34 @@ void Nav_DoExtractionWork() {
 			const int32_t model_num = model_handle - 1;
 			if ( model_num > 0 && model_num < bsp->nummodels && bsp->models != nullptr ) {
 				if ( bsp->models[ model_num ].headnode != nullptr ) {
-					// Inline BSP planes are authored in local coordinates; position them at the current runtime origin.
-					const Vector3DP offset = Vector3DP( edict->currentOrigin );
-
+					// Inline BSP planes are authored in local coordinates.
+					// Default to current runtime origin and angles.
+					Vector3DP offset = Vector3DP( edict->currentOrigin );
+					Vector3DP angles = Vector3DP( edict->currentAngles );
 					int32_t assigned_ent_id = ENTITYNUM_NONE;
+
 					if ( edict->GetTypeInfo()->IsSubClassType<svg_func_wall_t>() ) {
 						assigned_ent_id = i;
+					} else if ( edict->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
+						const svg_func_door_t *door = static_cast< const svg_func_door_t * >( edict );
+						// Extract door brushes using their authored closed position so Pass 1 can cleanly
+						// carve the doorway threshold footprint without being displaced by runtime mover states.
+						offset = Vector3DP( door->pushMoveInfo.startOrigin );
+						angles = Vector3DP( door->pushMoveInfo.startAngles );
+						assigned_ent_id = edict->teammaster ? edict->teammaster->s.number : i;
+					} else if ( edict->GetTypeInfo()->IsSubClassType<svg_func_door_rotating_t>() ) {
+						const svg_func_door_rotating_t *door = static_cast< const svg_func_door_rotating_t * >( edict );
+						// Vertical rotating doors (Z axis) are doorway transitions.
+						// X/Y axis rotating doors (drawbridges / trapdoors) are walkable floor geometry.
+						if ( !( door->spawnflags & ( svg_func_door_rotating_t::SPAWNFLAG_X_AXIS | svg_func_door_rotating_t::SPAWNFLAG_Y_AXIS ) ) ) {
+							offset = Vector3DP( door->pushMoveInfo.startOrigin );
+							angles = Vector3DP( door->pushMoveInfo.startAngles );
+							assigned_ent_id = edict->teammaster ? edict->teammaster->s.number : i;
+						}
 					}
 
 					std::vector<bool> seen_model_brushes( static_cast< size_t >( bsp->numbrushes ), false );
-					CollectModelBrushes( bsp, bsp->models[ model_num ].headnode, model_num, next_instance_id++, assigned_ent_id, offset, Vector3DP( edict->currentAngles ), brush_instances, seen_model_brushes );
+					CollectModelBrushes( bsp, bsp->models[ model_num ].headnode, model_num, next_instance_id++, assigned_ent_id, offset, angles, brush_instances, seen_model_brushes );
 				}
 			}
 		}
@@ -1598,6 +1814,12 @@ void Nav_DoExtractionWork() {
 
 	// Iterate through every active model instance's brush references to extract walkable polygons.
 	for ( size_t instance_brush_index = 0; instance_brush_index < brush_instances.size(); instance_brush_index++ ) {
+		// Update extraction stage progress (mapping to 0.0f..0.40f).
+		if ( !brush_instances.empty() ) {
+			const float pct = 0.40f * ( static_cast< float >( instance_brush_index ) / static_cast< float >( brush_instances.size() ) );
+			Nav_SetGenerationProgress( pct );
+		}
+
 		const nav_brush_ownership_t &brush_instance = brush_instances[ instance_brush_index ];
 		const int32_t brush_num = brush_instance.brush_num;
 		mbrush_t *b = &bsp->brushes[ brush_num ];
@@ -1673,261 +1895,249 @@ void Nav_DoExtractionWork() {
 				}
 			}
 			// If the winding is still valid and has at least 3 points, create a nav_poly_t and add it to the global navmesh polygon container.
-			if ( !valid || w.num_points < 3 ) {
+if ( !valid || w.num_points < 3 ) {
 				continue;
 			}
 			w.entity_id = brush_instance.entity_id;
 
-			std::vector<winding_t> fragments;
-			fragments.push_back( w );
-
-			/**
-			*   Calculate the aggregate polygon area currently available on this source
-			*   floor. This is used only by the bounded ordered-clipping audit below.
-			**/
-			// Calculate the highest Z of the floor polygon we are currently subtracting from
-			double floor_max_z = w.points[ 0 ].z;
-			for ( int32_t p = 1; p < w.num_points; p++ ) {
-				if ( w.points[ p ].z > floor_max_z ) {
-					floor_max_z = w.points[ p ].z;
-				}
-			}
-
 			// Subtract all other solid brushes from this walkable surface
 			Vector3DP normal( shifted_plane.normal[ 0 ], shifted_plane.normal[ 1 ], shifted_plane.normal[ 2 ] );
 
-			// Pass 1: Extract all dynamic door transition footprints FIRST so the door volume is claimed
-			// as an unsplit, whole polygon before static wall brush planes slice the surrounding floor.
-			for ( size_t other_instance_index = 0; other_instance_index < brush_instances.size(); other_instance_index++ ) {
-				if ( other_instance_index == instance_brush_index ) {
-					continue; // Skip the source brush instance itself.
-				}
-
-				const nav_brush_ownership_t &other_instance = brush_instances[ other_instance_index ];
-				// Only compatible model ownership domains may alter this source polygon.
-				if ( !AreBrushesCompatibleForClipping( brush_instance, other_instance ) ) {
-					continue;
-				}
-
-				if ( !IsDynamicTransitionBrush( other_instance ) ) {
-					continue;
-				}
-
-				mbrush_t *other_b = &bsp->brushes[ other_instance.brush_num ];
-				if ( !( other_b->contents & ( CONTENTS_SOLID | CONTENTS_DETAIL | CONTENTS_MONSTERCLIP ) ) ) {
-					continue; // Only subtract blocking geometry
-				}
-
-				/**
-				*   A fully enclosed same-door brush cannot contribute an outer
-				*   compound-door boundary. Skip it before fragment clipping so it
-				*   cannot manufacture an internal portal or duplicate seam.
-				**/
-				if ( IsContainedDynamicTransitionBrush( bsp, brush_instances, other_instance_index ) ) {
-					s_nav_generation_diagnostics.contained_dynamic_clip_skips++;
-					continue;
-				}
-
-				// A dynamic model may exist elsewhere in the map; only split this floor when its current fragment reaches the model volume.
-				const std::vector<bool> other_plane_active = GetBrushActivePlanes( other_b, other_instance );
-				bool intersectsFragment = false;
-				for ( const winding_t &fragment : fragments ) {
-					if ( !IsFragmentCompletelyOutsideBrush( &fragment, other_b, other_instance, other_plane_active, 4.0 ) ) {
-						intersectsFragment = true;
-						break;
-					}
-				}
-				if ( !intersectsFragment ) {
-					continue;
-				}
-
-				// This is a door brush! We DO NOT subtract it to block movement.
-				// Instead, we split the fragments with the standard safety expansion, and any fragment
-				// that falls INSIDE the door gets its entity_id updated!
-				SplitWindingsByEntityBrush( fragments, other_b, other_instance, 0.0 );
+			// If this is a horizontal floor (normal.z > 0.99), subdivide large floor into 256x256 spatial tiles
+			// so obstacle cutlines remain strictly localized within their respective grid cells.
+			std::vector<winding_t> base_tiles;
+			if ( normal.z > 0.99 ) {
+				Nav_SubdivideWindingIntoSpatialTiles( w, 256.0, normal, base_tiles );
+			} else {
+				base_tiles.push_back( w );
 			}
 
-			// Pass 2: Subtract all static solid obstacles from the remaining world floor fragments.
-			for ( size_t other_instance_index = 0; other_instance_index < brush_instances.size(); other_instance_index++ ) {
-				if ( other_instance_index == instance_brush_index ) {
-					continue; // Skip the source brush instance itself.
-				}
+			// Process each spatial tile independently.
+			for ( const winding_t &tile : base_tiles ) {
+				std::vector<winding_t> fragments;
+				fragments.push_back( tile );
 
-				const nav_brush_ownership_t &other_instance = brush_instances[ other_instance_index ];
-				// Only compatible model ownership domains may alter this source polygon.
-				if ( !AreBrushesCompatibleForClipping( brush_instance, other_instance ) ) {
-					continue;
+				// Calculate 2D bounding box and floor Z height for this tile.
+				Vector3DP tile_mins = tile.points[ 0 ];
+				Vector3DP tile_maxs = tile.points[ 0 ];
+				for ( int32_t p = 1; p < tile.num_points; p++ ) {
+					tile_mins.x = std::min<double>( tile_mins.x, tile.points[ p ].x );
+					tile_mins.y = std::min<double>( tile_mins.y, tile.points[ p ].y );
+					tile_mins.z = std::min<double>( tile_mins.z, tile.points[ p ].z );
+					tile_maxs.x = std::max<double>( tile_maxs.x, tile.points[ p ].x );
+					tile_maxs.y = std::max<double>( tile_maxs.y, tile.points[ p ].y );
+					tile_maxs.z = std::max<double>( tile_maxs.z, tile.points[ p ].z );
 				}
+				const double floor_max_z = tile_maxs.z;
 
-				if ( IsDynamicTransitionBrush( other_instance ) ) {
-					continue; // Dynamic door transition brushes were processed in Pass 1.
-				}
-
-				mbrush_t *other_b = &bsp->brushes[ other_instance.brush_num ];
-				if ( !( other_b->contents & ( CONTENTS_SOLID | CONTENTS_DETAIL | CONTENTS_MONSTERCLIP ) ) ) {
-					continue; // Only subtract blocking geometry
-				}
-
-				// Determine whether the candidate brush is a low stair-like step.
-				// Low steps must still carve the surrounding floor, but the first tread
-				// should not be fully swallowed or turned into a blocked boundary strip.
-				const double other_max_z = GetBrushMaxZ( other_b, other_instance );
-				const bool isLowAscendingStep = other_max_z > floor_max_z && other_max_z <= floor_max_z + NAV_MAX_STEP_HEIGHT;
-				if ( isLowAscendingStep ) {
-					if ( other_max_z - floor_max_z <= NAV_MAX_STEP_HEIGHT * 0.25 ) {
+				// Pass 1: Extract dynamic door transition footprints on this tile.
+				for ( size_t other_instance_index = 0; other_instance_index < brush_instances.size(); other_instance_index++ ) {
+					if ( other_instance_index == instance_brush_index ) {
 						continue;
 					}
-				}
 
-				// Normal solid obstacle subtraction. Door-owned fragments (entity_id != ENTITYNUM_NONE)
-				// are preserved intact inside SubtractBrushFromWindings so static wall planes cannot slice them.
-				SubtractBrushFromWindings( fragments, other_b, other_instance, normal );
+					const nav_brush_ownership_t &other_instance = brush_instances[ other_instance_index ];
+					if ( !AreBrushesCompatibleForClipping( brush_instance, other_instance ) ) {
+						continue;
+					}
 
-				if ( fragments.empty() ) {
-					break; // Entire surface was swallowed by other brushes
-				}
-			}
-			// Merge fragments to reduce unnecessary fragmentation and keep polygon counts low
-			#if 1
-			bool merged = true;
-			while ( merged ) {
-				merged = false;
-				for ( size_t f1 = 0; f1 < fragments.size() && !merged; f1++ ) {
-					for ( size_t f2 = f1 + 1; f2 < fragments.size(); f2++ ) {
-						winding_t merged_w;
-						if ( TryMergeWindings( fragments[ f1 ], fragments[ f2 ], Vector3DP( normal ), &merged_w ) ) {
-							// Replace f1 with merged, remove f2
-							fragments[ f1 ] = merged_w;
-							fragments.erase( fragments.begin() + f2 );
-							merged = true; // Restart the scan because indices have changed
+					if ( !IsDynamicTransitionBrush( other_instance ) ) {
+						continue;
+					}
+
+					mbrush_t *other_b = &bsp->brushes[ other_instance.brush_num ];
+					if ( !( other_b->contents & ( CONTENTS_SOLID | CONTENTS_DETAIL | CONTENTS_MONSTERCLIP ) ) ) {
+						continue;
+					}
+
+					if ( IsContainedDynamicTransitionBrush( bsp, brush_instances, other_instance_index ) ) {
+						s_nav_generation_diagnostics.contained_dynamic_clip_skips++;
+						continue;
+					}
+
+					const std::vector<bool> other_plane_active = GetBrushActivePlanes( other_b, other_instance );
+					bool intersectsFragment = false;
+					for ( const winding_t &fragment : fragments ) {
+						if ( !IsFragmentCompletelyOutsideBrush( &fragment, other_b, other_instance, other_plane_active, 4.0 ) ) {
+							intersectsFragment = true;
 							break;
 						}
 					}
+					if ( !intersectsFragment ) {
+						continue;
+					}
+
+					SplitWindingsByEntityBrush( fragments, other_b, other_instance, 0.0 );
 				}
-			}
-			#endif
 
-			// Add surviving fragments
-			for ( const winding_t &frag : fragments ) {
-				// --- SLIVER PRUNING ---
-				// Calculate polygon area and AABB to prune slivers (very long and thin polygons).
-				if ( frag.num_points >= 3 ) {
-					double area = 0.0;
-					Vector3DP mins = frag.points[ 0 ];
-					Vector3DP maxs = frag.points[ 0 ];
-					for ( int32_t v = 0; v < frag.num_points; v++ ) {
-						Vector3DP p = frag.points[ v ];
-						mins.x = std::min<double>( mins.x, p.x );
-						mins.y = std::min<double>( mins.y, p.y );
-						mins.z = std::min<double>( mins.z, p.z );
-						maxs.x = std::max<double>( maxs.x, p.x );
-						maxs.y = std::max<double>( maxs.y, p.y );
-						maxs.z = std::max<double>( maxs.z, p.z );
+				// Pass 2: Subtract only static solid obstacles that ACTUALLY OVERLAP THIS TILE!
+				for ( size_t other_instance_index = 0; other_instance_index < brush_instances.size(); other_instance_index++ ) {
+					if ( other_instance_index == instance_brush_index ) {
+						continue;
+					}
 
-						if ( v >= 2 ) {
-							Vector3DP cross = QM_Vector3CrossProductDP( Vector3DP( frag.points[ v - 1 ] ) - Vector3DP( frag.points[ 0 ] ), p - Vector3DP( frag.points[ 0 ] ) );
-							area += 0.5 * QM_Vector3LengthDP( cross );
+					const nav_brush_ownership_t &other_instance = brush_instances[ other_instance_index ];
+					if ( !AreBrushesCompatibleForClipping( brush_instance, other_instance ) ) {
+						continue;
+					}
+
+					if ( IsDynamicTransitionBrush( other_instance ) ) {
+						continue;
+					}
+
+					mbrush_t *other_b = &bsp->brushes[ other_instance.brush_num ];
+					if ( !( other_b->contents & ( CONTENTS_SOLID | CONTENTS_DETAIL | CONTENTS_MONSTERCLIP ) ) ) {
+						continue;
+					}
+
+					// Fast 3D obstacle bounding-box filter:
+					// An obstacle brush can only block this walkable surface if:
+					// 1. It horizontally overlaps this tile.
+					// 2. Its top is higher than a walkable step (> NAV_MAX_STEP_HEIGHT above this floor).
+					// 3. Its bottom descends low enough to intersect the agent's body (< 56 units above floor).
+					Vector3DP other_mins = {}, other_maxs = {};
+					if ( GetBrushWorldBounds( other_b, other_instance, &other_mins, &other_maxs ) ) {
+						// 1. Horizontal overlap test
+						if ( other_maxs.x <= tile_mins.x - 0.1 || other_mins.x >= tile_maxs.x + 0.1 ||
+							 other_maxs.y <= tile_mins.y - 0.1 || other_mins.y >= tile_maxs.y + 0.1 ) {
+							continue;
+						}
+
+						// 2. Obstacles below or at floor level: if top is at or below this floor, it cannot block this surface.
+						if ( other_maxs.z <= floor_max_z + 0.1 ) {
+							continue;
+						}
+
+						// 3. Overhead ceiling check: if bottom is above agent head clearance (56 units), do not subtract!
+						constexpr double AGENT_HEAD_CLEARANCE = 56.0;
+						if ( other_mins.z >= floor_max_z + AGENT_HEAD_CLEARANCE - 0.1 ) {
+							continue;
 						}
 					}
 
-					double dx = maxs.x - mins.x;
-					double dy = maxs.y - mins.y;
-					double longest = std::max<double>( dx, dy );
+					SubtractBrushFromWindings( fragments, other_b, other_instance, normal );
 
-					// If the average width (area / longest edge) is less than 0.01 units, it's a useless sliver!
-					// This perfectly culls floating-point errors without destroying valid narrow pathways or creating false insets.
-					if ( area < 0.001 || ( longest > 0.001 && ( area / longest ) < 0.01 ) ) {
+					if ( fragments.empty() ) {
+						break;
+					}
+				}
+
+				// Merge local fragments within this tile to eliminate redundant seams.
+				bool merged = true;
+				while ( merged && fragments.size() > 1 ) {
+					merged = false;
+					for ( size_t f1 = 0; f1 < fragments.size() && !merged; f1++ ) {
+						for ( size_t f2 = f1 + 1; f2 < fragments.size(); f2++ ) {
+							winding_t merged_w;
+							if ( TryMergeWindings( fragments[ f1 ], fragments[ f2 ], Vector3DP( normal ), &merged_w ) ) {
+								fragments[ f1 ] = merged_w;
+								fragments.erase( fragments.begin() + f2 );
+								merged = true;
+								break;
+							}
+						}
+					}
+				}
+
+				// Add surviving fragments for this tile.
+				for ( const winding_t &frag : fragments ) {
+					if ( frag.num_points >= 3 ) {
+						double area = 0.0;
+						Vector3DP mins = frag.points[ 0 ];
+						Vector3DP maxs = frag.points[ 0 ];
+						for ( int32_t v = 0; v < frag.num_points; v++ ) {
+							Vector3DP p = frag.points[ v ];
+							mins.x = std::min<double>( mins.x, p.x );
+							mins.y = std::min<double>( mins.y, p.y );
+							mins.z = std::min<double>( mins.z, p.z );
+							maxs.x = std::max<double>( maxs.x, p.x );
+							maxs.y = std::max<double>( maxs.y, p.y );
+							maxs.z = std::max<double>( maxs.z, p.z );
+
+							if ( v >= 2 ) {
+								Vector3DP cross = QM_Vector3CrossProductDP( Vector3DP( frag.points[ v - 1 ] ) - Vector3DP( frag.points[ 0 ] ), p - Vector3DP( frag.points[ 0 ] ) );
+								area += 0.5 * QM_Vector3LengthDP( cross );
+							}
+						}
+
+						double dx = maxs.x - mins.x;
+						double dy = maxs.y - mins.y;
+						double longest = std::max<double>( dx, dy );
+
+						if ( area < 0.001 || ( longest > 0.001 && ( area / longest ) < 0.01 ) ) {
+							sliver_pruned_fragments++;
+							continue;
+						}
+					}
+
+					nav_poly_t poly = {};
+					poly.poly_id = g_nav_polys.size();
+					poly.num_vertices = std::min( frag.num_points, MAX_WINDING_POINTS );
+					Vector3DP center( 0, 0, 0 );
+					for ( int32_t v = 0; v < poly.num_vertices; v++ ) {
+						poly.vertices[ v ] = static_cast< Vector3DP >( frag.points[ v ] );
+						center = center + Vector3DP( poly.vertices[ v ] );
+					}
+					poly.center = static_cast< Vector3DP >( center / static_cast< double >( poly.num_vertices ) );
+					poly.normal = static_cast< Vector3DP >( normal );
+					poly.entity_id = frag.entity_id;
+					poly.transition_entity_id = frag.transition_entity_id;
+					poly.bsp_leaf_id = 0;
+
+					if ( !EnsureNavPolygonCCW( poly ) ) {
 						sliver_pruned_fragments++;
-						continue; // Prune sliver
+						continue;
 					}
-				}
-				// ----------------------
 
-				// Create a new nav_poly_t and populate its fields.
-				nav_poly_t poly = {};
-				// Assign a unique polygon ID based on the current size of the global navmesh polygon container.
-				poly.poly_id = g_nav_polys.size();
-				// Clamp the number of vertices to MAX_WINDING_POINTS.
-				poly.num_vertices = std::min( frag.num_points, MAX_WINDING_POINTS );
-				// Calculate the center of the polygon by averaging its vertices.
-				Vector3DP center( 0, 0, 0 );
-				// Copy the vertices from the winding to the nav_poly_t and accumulate the center.
-				for ( int32_t v = 0; v < poly.num_vertices; v++ ) {
-					// Copy the vertex position from the winding to the polygon.
-					poly.vertices[ v ] = static_cast< Vector3DP >( frag.points[ v ] );
-					// Accumulate the vertex positions to compute the center.
-					center = center + Vector3DP( poly.vertices[ v ] );
-				}
-				// Average the accumulated vertex positions to find the center of the polygon.
-				poly.center = static_cast< Vector3DP >( center / static_cast< double >( poly.num_vertices ) );
-				// Store the normal of the polygon plane, derived from the original brush side.
-				poly.normal = static_cast< Vector3DP >( normal );
-				poly.entity_id = frag.entity_id;
-				poly.transition_entity_id = frag.transition_entity_id;
-				// Save the ID of the BSP leaf that contributed this polygon (used for leaf-local pathfinding lookups).
-				poly.bsp_leaf_id = 0;
+					center = Vector3DP( 0, 0, 0 );
+					for ( int32_t v = 0; v < poly.num_vertices; v++ ) {
+						center = center + Vector3DP( poly.vertices[ v ] );
+					}
+					poly.center = static_cast< Vector3DP >( center / static_cast< double >( poly.num_vertices ) );
 
-				// Enforce strict Counter-Clockwise (CCW) winding order on extracted polygon.
-				if ( !EnsureNavPolygonCCW( poly ) ) {
-					sliver_pruned_fragments++;
-					continue;
-				}
-
-				// Recompute polygon geometric center.
-				center = Vector3DP( 0, 0, 0 );
-				for ( int32_t v = 0; v < poly.num_vertices; v++ ) {
-					center = center + Vector3DP( poly.vertices[ v ] );
-				}
-				poly.center = static_cast< Vector3DP >( center / static_cast< double >( poly.num_vertices ) );
-
-
-				/**
-				*   Emit a small, extraction-stage-only footprint inventory for dynamic
-				*   interiors and their preserved world boundary fragments.
-				**/
-				if ( ( poly.entity_id != ENTITYNUM_NONE || poly.transition_entity_id != ENTITYNUM_NONE ) && printed_dynamic_footprints < 16 ) {
-					double footprint_area = 0.0;
-					Vector3DP footprint_mins = Vector3DP( poly.vertices[ 0 ] );
-					Vector3DP footprint_maxs = Vector3DP( poly.vertices[ 0 ] );
-					for ( int32_t footprint_vertex_index = 0; footprint_vertex_index < poly.num_vertices; footprint_vertex_index++ ) {
-						const Vector3DP footprint_vertex = Vector3DP( poly.vertices[ footprint_vertex_index ] );
-						footprint_mins.x = std::min<double>( footprint_mins.x, footprint_vertex.x );
-						footprint_mins.y = std::min<double>( footprint_mins.y, footprint_vertex.y );
-						footprint_mins.z = std::min<double>( footprint_mins.z, footprint_vertex.z );
-						footprint_maxs.x = std::max<double>( footprint_maxs.x, footprint_vertex.x );
-						footprint_maxs.y = std::max<double>( footprint_maxs.y, footprint_vertex.y );
-						footprint_maxs.z = std::max<double>( footprint_maxs.z, footprint_vertex.z );
-						if ( footprint_vertex_index >= 2 ) {
-							const Vector3DP footprint_cross = QM_Vector3CrossProductDP( Vector3DP( poly.vertices[ footprint_vertex_index - 1 ] ) - Vector3DP( poly.vertices[ 0 ] ), footprint_vertex - Vector3DP( poly.vertices[ 0 ] ) );
-							footprint_area += 0.5 * QM_Vector3LengthDP( footprint_cross );
+					if ( ( poly.entity_id != ENTITYNUM_NONE || poly.transition_entity_id != ENTITYNUM_NONE ) && printed_dynamic_footprints < 16 ) {
+						double footprint_area = 0.0;
+						Vector3DP footprint_mins = Vector3DP( poly.vertices[ 0 ] );
+						Vector3DP footprint_maxs = Vector3DP( poly.vertices[ 0 ] );
+						for ( int32_t footprint_vertex_index = 0; footprint_vertex_index < poly.num_vertices; footprint_vertex_index++ ) {
+							const Vector3DP footprint_vertex = Vector3DP( poly.vertices[ footprint_vertex_index ] );
+							footprint_mins.x = std::min<double>( footprint_mins.x, footprint_vertex.x );
+							footprint_mins.y = std::min<double>( footprint_mins.y, footprint_vertex.y );
+							footprint_mins.z = std::min<double>( footprint_mins.z, footprint_vertex.z );
+							footprint_maxs.x = std::max<double>( footprint_maxs.x, footprint_vertex.x );
+							footprint_maxs.y = std::max<double>( footprint_maxs.y, footprint_vertex.y );
+							footprint_maxs.z = std::max<double>( footprint_maxs.z, footprint_vertex.z );
+							if ( footprint_vertex_index >= 2 ) {
+								const Vector3DP footprint_cross = QM_Vector3CrossProductDP( Vector3DP( poly.vertices[ footprint_vertex_index - 1 ] ) - Vector3DP( poly.vertices[ 0 ] ), footprint_vertex - Vector3DP( poly.vertices[ 0 ] ) );
+								footprint_area += 0.5 * QM_Vector3LengthDP( footprint_cross );
+							}
 						}
+
+						gi.dprintf( "NavMesh DynamicFootprint [sourceBrush=%d side=%d entity=%d transition=%d vertices=%d area=%.1f bounds=(%.1f %.1f %.1f)->(%.1f %.1f %.1f)]\n",
+							brush_num,
+							j,
+							poly.entity_id,
+							poly.transition_entity_id,
+							poly.num_vertices,
+							footprint_area,
+							footprint_mins.x,
+							footprint_mins.y,
+							footprint_mins.z,
+							footprint_maxs.x,
+							footprint_maxs.y,
+							footprint_maxs.z );
+						printed_dynamic_footprints++;
 					}
 
-					gi.dprintf( "NavMesh DynamicFootprint [sourceBrush=%d side=%d entity=%d transition=%d vertices=%d area=%.1f bounds=(%.1f %.1f %.1f)->(%.1f %.1f %.1f)]\n",
-						brush_num,
-						j,
-						poly.entity_id,
-						poly.transition_entity_id,
-						poly.num_vertices,
-						footprint_area,
-						footprint_mins.x,
-						footprint_mins.y,
-						footprint_mins.z,
-						footprint_maxs.x,
-						footprint_maxs.y,
-						footprint_maxs.z );
-					printed_dynamic_footprints++;
-				}
+					// Track how much geometry each ownership class contributes before later partitioning and splicing.
+					s_nav_generation_diagnostics.extracted_polys++;
+					if ( poly.entity_id != ENTITYNUM_NONE ) {
+						s_nav_generation_diagnostics.extracted_dynamic_polys++;
+						s_nav_generation_diagnostics.extracted_polys_by_entity[ poly.entity_id ]++;
+						s_nav_generation_diagnostics.extracted_dynamic_entities = static_cast< int32_t >( s_nav_generation_diagnostics.extracted_polys_by_entity.size() );
+					}
 
-				// Submit the polygon to the global navmesh polygon container.
-				g_nav_polys.push_back( poly );
-
-				// Track how much geometry each ownership class contributes before later partitioning and splicing.
-				s_nav_generation_diagnostics.extracted_polys++;
-				if ( poly.entity_id != ENTITYNUM_NONE ) {
-					s_nav_generation_diagnostics.extracted_dynamic_polys++;
-					s_nav_generation_diagnostics.extracted_polys_by_entity[ poly.entity_id ]++;
-					s_nav_generation_diagnostics.extracted_dynamic_entities = static_cast< int32_t >( s_nav_generation_diagnostics.extracted_polys_by_entity.size() );
+					g_nav_polys.push_back( poly );
 				}
 			}
 		}
@@ -2136,9 +2346,11 @@ static void Nav_ResolveTJunctionsByEdgeSplicing() {
 
 	int32_t totalSplices = 0;
 	bool made_change = true;
+	int32_t pass_num = 0;
 
-	while ( made_change && totalSplices < 10000 ) {
+	while ( made_change && totalSplices < 1000 && pass_num < 4 ) {
 		made_change = false;
+		pass_num++;
 
 		for ( size_t i = 0; i < g_nav_polys.size() && !made_change; i++ ) {
 			// Dynamic union interiors are authored portal boundaries and must not be reshaped by world T-junction repair.
@@ -2368,32 +2580,43 @@ void Nav_BuildHalfEdgeMesh() {
 	}
 
 	/**
-	*	Partition the massive extracted polys into a structured sub-polygon grid.
-	**/
-	Nav_PartitionPolygons();
-
-	// Conform dynamic/world doorway perimeter segments before generic world T-junction repair.
-	Nav_ResolveDynamicPortalTJunctions();
-
-	/**
-	*	Phase 1: Splice T-junctions first so adjacent coplanar edges receive matching split vertices.
-	**/
-	Nav_ResolveTJunctionsByEdgeSplicing();
-
-	/**
-	*	Phase 2: Iteratively merge adjacent coplanar polygons (dissolves spliced seams & long floor strips).
+	*	Phase 1: Iteratively merge adjacent coplanar polygons (dissolves temporary BSP cut seams).
+	*			Merging coplanar world floor pieces directly ensures large open terrain areas remain unified
+	*			and continuous before dynamic door portal conformance and T-junction splicing.
 	**/
 	Nav_MergeCoplanarPolygons();
+	Nav_SetGenerationProgress( 0.48f );
 
 	/**
-	*	Phase 3: Dissolve surviving narrow diagonal slivers into adjacent coplanar neighbors.
+	*	Phase 2: Dissolve surviving narrow diagonal slivers into adjacent coplanar neighbors.
 	**/
 	Nav_DissolveSlivers();
+	Nav_SetGenerationProgress( 0.53f );
 
 	/**
-	*	Phase 4: Final T-junction repair pass to guarantee 100% conformal half-edge mesh topology.
+	*	Phase 3: Simplify collinear perimeter vertices across all world and entity polygons to restore
+	*			straight edges along door thresholds and merged floor boundaries.
+	**/
+	SimplifyAllNavPolygonsCollinearVertices();
+	Nav_SetGenerationProgress( 0.55f );
+
+	/**
+	*	Phase 4: Conform dynamic/world doorway perimeter segments now that world floors are merged and clean.
+	**/
+	Nav_ResolveDynamicPortalTJunctions();
+	Nav_SetGenerationProgress( 0.58f );
+
+	/**
+	*	Phase 5: Splice T-junctions so remaining adjacent coplanar edges receive matching split vertices.
 	**/
 	Nav_ResolveTJunctionsByEdgeSplicing();
+	Nav_SetGenerationProgress( 0.63f );
+
+	/**
+	*	Phase 6: Retain spliced vertices from Phase 4 and Phase 5 intact so adjacent edges match 1-to-1 in 2D for twin linking.
+	**/
+	Nav_SetGenerationProgress( 0.65f );
+
 
 	// Spatial hash grid to deduplicate vertices and prevent T-junctions.
 	std::unordered_map<int64_t, std::vector<int32_t>> vertex_grid;
@@ -2463,6 +2686,12 @@ void Nav_BuildHalfEdgeMesh() {
 	*		4) Perform twin linking to connect adjacent edges across polygons
 	**/
 	for ( size_t i = 0; i < g_nav_polys.size(); i++ ) {
+		// Update mesh building progress (mapping to 0.65f..0.70f).
+		if ( !g_nav_polys.empty() ) {
+			const float pct = 0.65f + 0.05f * ( static_cast< float >( i ) / static_cast< float >( g_nav_polys.size() ) );
+			Nav_SetGenerationProgress( pct );
+		}
+
 		const nav_poly_t &poly = g_nav_polys[ i ];
 
 		/**
@@ -2554,6 +2783,19 @@ void Nav_BuildHalfEdgeMesh() {
 		std::vector<nav_deterministic_pair_t> deterministic_pairs = {};
 		deterministic_pairs.reserve( 4096 );
 
+		// Index unlinked halfedges in a 2D spatial grid (64-unit cells)
+		std::unordered_map<int64_t, std::vector<int32_t>> arb_grid;
+		static constexpr double ARB_GRID_SIZE = 64.0;
+		for ( int32_t e = 0; e < ( int32_t )g_nav_halfedges.size(); e++ ) {
+			if ( g_nav_halfedges[ e ].twin_idx != -1 ) continue;
+			const Vector3DP v1 = Vector3DP( g_nav_vertices[ g_nav_halfedges[ e ].vertex_idx ] );
+			const Vector3DP v2 = Vector3DP( g_nav_vertices[ g_nav_halfedges[ g_nav_halfedges[ e ].next_idx ].vertex_idx ] );
+			const Vector3DP mid = ( v1 + v2 ) * 0.5;
+			const int64_t cx = ( int64_t )std::floor( mid.x / ARB_GRID_SIZE );
+			const int64_t cy = ( int64_t )std::floor( mid.y / ARB_GRID_SIZE );
+			arb_grid[ ( cx * 73856093 ) ^ ( cy * 19349663 ) ].push_back( e );
+		}
+
 		for ( int32_t edge_a = 0; edge_a < ( int32_t )g_nav_halfedges.size(); edge_a++ ) {
 			if ( g_nav_halfedges[ edge_a ].twin_idx != -1 ) {
 				continue;
@@ -2575,80 +2817,89 @@ void Nav_BuildHalfEdgeMesh() {
 			}
 			direction_a = direction_a * static_cast< double >( 1.0 / length_a );
 
-			for ( int32_t edge_b = edge_a + 1; edge_b < ( int32_t )g_nav_halfedges.size(); edge_b++ ) {
-				if ( g_nav_halfedges[ edge_b ].twin_idx != -1 ) {
-					continue;
-				}
+			const Vector3DP mid_a = ( a1 + a2 ) * 0.5;
+			const int64_t cx = ( int64_t )std::floor( mid_a.x / ARB_GRID_SIZE );
+			const int64_t cy = ( int64_t )std::floor( mid_a.y / ARB_GRID_SIZE );
 
-				const nav_halfedge_t &half_edge_b = g_nav_halfedges[ edge_b ];
-				if ( half_edge_a.face_idx == half_edge_b.face_idx ) {
-					continue;
-				}
+			for ( int64_t ox = -1; ox <= 1; ox++ ) {
+				for ( int64_t oy = -1; oy <= 1; oy++ ) {
+					const int64_t key = ( ( cx + ox ) * 73856093 ) ^ ( ( cy + oy ) * 19349663 );
+					auto it = arb_grid.find( key );
+					if ( it == arb_grid.end() ) continue;
 
-				const nav_poly_t &poly_b = g_nav_polys[ half_edge_b.face_idx ];
-				if ( poly_b.entity_id != ENTITYNUM_NONE || poly_b.transition_entity_id != ENTITYNUM_NONE || poly_b.normal.z < NAV_MIN_WALKABLE_Z ) {
-					continue;
-				}
+					for ( int32_t edge_b : it->second ) {
+						if ( edge_b <= edge_a ) continue;
+						if ( g_nav_halfedges[ edge_b ].twin_idx != -1 ) continue;
 
-				if ( !AreHalfEdgesInCompatibleNavigationDomains( edge_a, edge_b ) ) {
-					continue;
-				}
+						const nav_halfedge_t &half_edge_b = g_nav_halfedges[ edge_b ];
+						if ( half_edge_a.face_idx == half_edge_b.face_idx ) continue;
 
-				const Vector3DP b1 = Vector3DP( g_nav_vertices[ half_edge_b.vertex_idx ] );
-				const Vector3DP b2 = Vector3DP( g_nav_vertices[ g_nav_halfedges[ half_edge_b.next_idx ].vertex_idx ] );
-				Vector3DP direction_b = b2 - b1;
-				direction_b.z = 0.0;
-				const double length_b = QM_Vector3LengthDP( direction_b );
-				if ( length_b < 0.1 ) {
-					continue;
-				}
-				direction_b = direction_b * static_cast< double >( 1.0 / length_b );
-				if ( QM_Vector3DotProductDP( direction_a, direction_b ) > -0.95 ) {
-					continue;
-				}
+						const nav_poly_t &poly_b = g_nav_polys[ half_edge_b.face_idx ];
+						if ( poly_b.entity_id != ENTITYNUM_NONE || poly_b.transition_entity_id != ENTITYNUM_NONE || poly_b.normal.z < NAV_MIN_WALKABLE_Z ) {
+							continue;
+						}
 
-				static constexpr double MAX_DETERMINISTIC_LATERAL_SEPARATION = 0.5;
-				const double lateral_b1 = std::fabs( direction_a.x * ( b1.y - a1.y ) - direction_a.y * ( b1.x - a1.x ) );
-				const double lateral_b2 = std::fabs( direction_a.x * ( b2.y - a1.y ) - direction_a.y * ( b2.x - a1.x ) );
-				if ( lateral_b1 > MAX_DETERMINISTIC_LATERAL_SEPARATION || lateral_b2 > MAX_DETERMINISTIC_LATERAL_SEPARATION ) {
-					continue;
-				}
+						if ( !AreHalfEdgesInCompatibleNavigationDomains( edge_a, edge_b ) ) {
+							continue;
+						}
 
-				Vector3DP a1_to_b1 = b1 - a1;
-				a1_to_b1.z = 0.0;
-				const double projection_b1 = QM_Vector3DotProductDP( a1_to_b1, direction_a );
-				Vector3DP closest_point = QM_Vector3MultiplyAddDP( a1, projection_b1, direction_a );
-				closest_point.z = 0.0;
-				Vector3DP b1_2d = b1;
-				b1_2d.z = 0.0;
-				if ( QM_Vector3DistanceSqrDP( b1_2d, closest_point ) > 0.25 ) {
-					continue;
-				}
+						const Vector3DP b1 = Vector3DP( g_nav_vertices[ half_edge_b.vertex_idx ] );
+						const Vector3DP b2 = Vector3DP( g_nav_vertices[ g_nav_halfedges[ half_edge_b.next_idx ].vertex_idx ] );
+						Vector3DP direction_b = b2 - b1;
+						direction_b.z = 0.0;
+						const double length_b = QM_Vector3LengthDP( direction_b );
+						if ( length_b < 0.1 ) {
+							continue;
+						}
+						direction_b = direction_b * static_cast< double >( 1.0 / length_b );
+						if ( QM_Vector3DotProductDP( direction_a, direction_b ) > -0.95 ) {
+							continue;
+						}
 
-				Vector3DP a1_to_b2 = b2 - a1;
-				a1_to_b2.z = 0.0;
-				const double projection_b2 = QM_Vector3DotProductDP( a1_to_b2, direction_a );
-				const double min_projection = std::min( projection_b1, projection_b2 );
-				const double max_projection = std::max( projection_b1, projection_b2 );
-				const double overlap_start = std::max<double>( 0.0, min_projection );
-				const double overlap_end = std::min<double>( length_a, max_projection );
-				const double overlap_length = overlap_end - overlap_start;
-				if ( overlap_length < 2.0 ) {
-					continue;
-				}
+						static constexpr double MAX_DETERMINISTIC_LATERAL_SEPARATION = 1.0;
+						const double lateral_b1 = std::fabs( direction_a.x * ( b1.y - a1.y ) - direction_a.y * ( b1.x - a1.x ) );
+						const double lateral_b2 = std::fabs( direction_a.x * ( b2.y - a1.y ) - direction_a.y * ( b2.x - a1.x ) );
+						if ( lateral_b1 > MAX_DETERMINISTIC_LATERAL_SEPARATION || lateral_b2 > MAX_DETERMINISTIC_LATERAL_SEPARATION ) {
+							continue;
+						}
 
-				static constexpr double MAX_Z_DIFF = NAV_MAX_STEP_SIZE;
-				const double z_delta = std::abs( ( a1.z + a2.z ) * 0.5 - ( b1.z + b2.z ) * 0.5 );
-				if ( z_delta > MAX_Z_DIFF ) {
-					continue;
-				}
+						Vector3DP a1_to_b1 = b1 - a1;
+						a1_to_b1.z = 0.0;
+						const double projection_b1 = QM_Vector3DotProductDP( a1_to_b1, direction_a );
+						Vector3DP closest_point = QM_Vector3MultiplyAddDP( a1, projection_b1, direction_a );
+						closest_point.z = 0.0;
+						Vector3DP b1_2d = b1;
+						b1_2d.z = 0.0;
+						if ( QM_Vector3DistanceSqrDP( b1_2d, closest_point ) > 1.0 ) {
+							continue;
+						}
 
-				nav_deterministic_pair_t pair = {};
-				pair.edge_a = edge_a;
-				pair.edge_b = edge_b;
-				pair.overlap_len = overlap_length;
-				pair.z_delta = z_delta;
-				deterministic_pairs.push_back( pair );
+						Vector3DP a1_to_b2 = b2 - a1;
+						a1_to_b2.z = 0.0;
+						const double projection_b2 = QM_Vector3DotProductDP( a1_to_b2, direction_a );
+						const double min_projection = std::min( projection_b1, projection_b2 );
+						const double max_projection = std::max( projection_b1, projection_b2 );
+						const double overlap_start = std::max<double>( 0.0, min_projection );
+						const double overlap_end = std::min<double>( length_a, max_projection );
+						const double overlap_length = overlap_end - overlap_start;
+						if ( overlap_length < 2.0 ) {
+							continue;
+						}
+
+						static constexpr double MAX_Z_DIFF = NAV_MAX_STEP_SIZE;
+						const double z_delta = std::abs( ( a1.z + a2.z ) * 0.5 - ( b1.z + b2.z ) * 0.5 );
+						if ( z_delta > MAX_Z_DIFF ) {
+							continue;
+						}
+
+						nav_deterministic_pair_t pair = {};
+						pair.edge_a = edge_a;
+						pair.edge_b = edge_b;
+						pair.overlap_len = overlap_length;
+						pair.z_delta = z_delta;
+						deterministic_pairs.push_back( pair );
+					}
+				}
 			}
 		}
 
@@ -2714,6 +2965,12 @@ void Nav_BuildHalfEdgeMesh() {
 	*	Iterate through all half-edges and find twins by checking grid cells.
 	**/
 	for ( uint64_t i = 0; i < g_nav_halfedges.size(); i++ ) {
+		// Update primary twin linking progress (mapping to 0.75f..0.80f).
+		if ( !g_nav_halfedges.empty() ) {
+			const float pct = 0.75f + 0.05f * ( static_cast< float >( i ) / static_cast< float >( g_nav_halfedges.size() ) );
+			Nav_SetGenerationProgress( pct );
+		}
+
 		if ( g_nav_halfedges[ i ].twin_idx != -1 ) {
 			continue;
 		}
@@ -2774,7 +3031,7 @@ void Nav_BuildHalfEdgeMesh() {
 
 					const double lateralB1 = std::fabs( edgeA2D.x * ( b1.y - a1.y ) - edgeA2D.y * ( b1.x - a1.x ) );
 					const double lateralB2 = std::fabs( edgeA2D.x * ( b2.y - a1.y ) - edgeA2D.y * ( b2.x - a1.x ) );
-					static constexpr double MAX_TWIN_LATERAL_SEPARATION = 0.5;
+					static constexpr double MAX_TWIN_LATERAL_SEPARATION = 1.0;
 					if ( lateralB1 > MAX_TWIN_LATERAL_SEPARATION || lateralB2 > MAX_TWIN_LATERAL_SEPARATION ) {
 						continue;
 					}
@@ -2793,7 +3050,7 @@ void Nav_BuildHalfEdgeMesh() {
 					const double dy_same_2 = a2.y - b2.y;
 					const double dz_same_2 = std::abs( a2.z - b2.z );
 
-					static constexpr double MAX_DIST_SQR = 0.25;
+					static constexpr double MAX_DIST_SQR = 1.0;
 					static constexpr double MAX_Z_DIFF = NAV_MAX_STEP_SIZE;
 					const bool reversed_endpoint_match =
 						dx_rev_1 * dx_rev_1 + dy_rev_1 * dy_rev_1 < MAX_DIST_SQR && dz_rev_1 <= MAX_Z_DIFF &&
@@ -2868,6 +3125,12 @@ void Nav_BuildHalfEdgeMesh() {
 	}
 
 	for ( size_t i = 0; i < g_nav_halfedges.size(); i++ ) {
+		// Update secondary twin linking progress (mapping to 0.80f..0.85f).
+		if ( !g_nav_halfedges.empty() ) {
+			const float pct = 0.80f + 0.05f * ( static_cast< float >( i ) / static_cast< float >( g_nav_halfedges.size() ) );
+			Nav_SetGenerationProgress( pct );
+		}
+
 		if ( g_nav_halfedges[ i ].twin_idx != -1 ) {
 			continue;
 		}
@@ -2930,7 +3193,7 @@ void Nav_BuildHalfEdgeMesh() {
 						dirA.x * ( b1.y - a1.y ) - dirA.y * ( b1.x - a1.x ) );
 					const double lateralSeparationB2 = std::fabs(
 						dirA.x * ( b2.y - a1.y ) - dirA.y * ( b2.x - a1.x ) );
-					static constexpr double MAX_LATERAL_SEPARATION = 0.5;
+					static constexpr double MAX_LATERAL_SEPARATION = 1.0;
 					if ( lateralSeparationB1 > MAX_LATERAL_SEPARATION || lateralSeparationB2 > MAX_LATERAL_SEPARATION ) {
 						continue;
 					}
@@ -2941,7 +3204,7 @@ void Nav_BuildHalfEdgeMesh() {
 					Vector3DP closestPt = QM_Vector3MultiplyAddDP( a1, proj, dirA );
 					closestPt.z = 0.0;
 					Vector3DP b1_2d = b1; b1_2d.z = 0.0;
-					if ( QM_Vector3DistanceSqrDP( b1_2d, closestPt ) > 0.25 ) {
+					if ( QM_Vector3DistanceSqrDP( b1_2d, closestPt ) > 1.0 ) {
 						continue;
 					}
 
@@ -3026,10 +3289,21 @@ void Nav_BuildHalfEdgeMesh() {
 			if ( !( edict->spawnflags & ( svg_func_door_rotating_t::SPAWNFLAG_X_AXIS | svg_func_door_rotating_t::SPAWNFLAG_Y_AXIS ) ) ) {
 				isVerticalDoor = true;
 			}
+		} else if ( edict->GetTypeInfo()->IsSubClassType<svg_func_rotating_t>() ) {
+			isVerticalDoor = true;
 		}
 
 		if ( isVerticalDoor ) {
 			const int32_t entity_id = edict->teammaster ? edict->teammaster->s.number : i;
+
+			/**
+			*	Skip fallback bounding-box tagging if this door entity already has its exact threshold transition
+			*	edges registered from extracted 2D door footprints. This prevents world-world floor edges extending
+			*	into solid wall frames from being falsely promoted to dynamic door portals.
+			**/
+			if ( static_cast< size_t >( entity_id ) < g_nav_entity_edges.size() && !g_nav_entity_edges[ entity_id ].empty() ) {
+				continue;
+			}
 
 			Vector3DP absMin = Vector3DP( edict->absMin );
 			Vector3DP absMax = Vector3DP( edict->absMax );
@@ -3044,12 +3318,42 @@ void Nav_BuildHalfEdgeMesh() {
 				const Vector3DP v1 = Vector3DP( g_nav_vertices[ halfedge.vertex_idx ] );
 				const Vector3DP v2 = Vector3DP( g_nav_vertices[ g_nav_halfedges[ halfedge.next_idx ].vertex_idx ] );
 
+				/**
+				*	Verify that both endpoints lie strictly within the door's 3D bounding box.
+				**/
 				if ( v1.x >= absMin.x && v1.x <= absMax.x &&
 					v1.y >= absMin.y && v1.y <= absMax.y &&
 					v1.z >= absMin.z && v1.z <= absMax.z &&
 					v2.x >= absMin.x && v2.x <= absMax.x &&
 					v2.y >= absMin.y && v2.y <= absMax.y &&
 					v2.z >= absMin.z && v2.z <= absMax.z ) {
+
+					/**
+					*	Reject longitudinal internal seams that slice through the door interior.
+					*	Only transverse perimeter edges spanning the width of the doorway form valid portals.
+					**/
+					const double door_width_x = absMax.x - absMin.x;
+					const double door_width_y = absMax.y - absMin.y;
+
+					// Compute 2D horizontal direction vector of the candidate edge.
+					Vector3DP edge_dir = v2 - v1;
+					edge_dir.z = 0.0;
+					const double edge_len = QM_Vector3LengthDP( edge_dir );
+					if ( edge_len < 0.1 ) {
+						continue;
+					}
+					edge_dir = edge_dir * ( 1.0 / edge_len );
+
+					// For a door spanning along X, threshold edges must align with X (|edge_dir.x| >= 0.707).
+					// For a door spanning along Y, threshold edges must align with Y (|edge_dir.y| >= 0.707).
+					const bool is_transverse_threshold = ( door_width_x > door_width_y )
+						? ( std::abs( edge_dir.x ) >= 0.707 )
+						: ( std::abs( edge_dir.y ) >= 0.707 );
+
+					// Skip internal longitudinal seams so they are never tagged as dynamic door portals.
+					if ( !is_transverse_threshold ) {
+						continue;
+					}
 
 					halfedge.edge_entity_id = entity_id;
 					g_nav_halfedges[ halfedge.twin_idx ].edge_entity_id = entity_id;
@@ -3130,6 +3434,7 @@ void Nav_BuildHalfEdgeMesh() {
 	gi.dprintf( "NavMesh Topology Diagnostics: deterministicLinks=%d firstPassLinks=%d secondPassLinks=%d twinnedEdges=%d boundaryEdges=%d shortBoundaryEdges=%d twinReverseMismatch=%d tinyOverlapTwins=%d\n",
 		deterministic_twin_links, first_pass_twin_links, second_pass_twin_links, twinned_edges, boundary_edges, short_boundary_edges, twin_reverse_mismatch, tiny_overlap_twins );
 	LogNavGenerationDiagnostics( "HalfEdge" );
+	Nav_SetGenerationProgress( 0.90f );
 }
 
 /**

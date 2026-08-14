@@ -55,8 +55,8 @@ static void Nav_AsyncGenerationDone( void *arg ) {
 
 	// The worker is finished, so the progress snapshot can be marked idle.
 	s_gen_progress.is_generating = false;
-	gi.dprintf( "NavMesh Generation Completed in %u ms. (Faces: %u, Nodes: %u)\n",
-		s_gen_progress.time_taken_ms,
+	gi.dprintf( "NavMesh Generation Completed in %.2f s. (Faces: %u, Nodes: %u)\n",
+		s_gen_progress.time_taken_ms / 1000.0f,
 		static_cast<unsigned int>( g_nav_faces.size() ),
 		static_cast<unsigned int>( g_nav_nodes.size() ) );
 }
@@ -90,6 +90,17 @@ void Nav_StartAsyncGeneration() {
 }
 
 /**
+*	@brief	Set the current navmesh generation progress percentage.
+*	@param	progress_pct	The progression fraction between 0.0f and 1.0f.
+**/
+void Nav_SetGenerationProgress( const float progress_pct ) {
+	/**
+	*	Update the progress percentage in the shared status structure.
+	**/
+	s_gen_progress.progress_pct = progress_pct;
+}
+
+/**
 *	@brief	Return the current generation progress snapshot.
 *	@return	Reference to the shared progress state.
 **/
@@ -111,6 +122,16 @@ void Nav_UpdateAsyncGeneration() {
 	s_gen_progress.current_time_ms = gi.GetRealTime();
 	s_gen_progress.time_taken_ms = s_gen_progress.current_time_ms - s_gen_progress.start_time_ms;
 
+	/**
+	*	Compute dynamic remaining time estimate using current progress.
+	**/
+	if ( s_gen_progress.progress_pct > 0.01f ) {
+		const float elapsed = static_cast< float >( s_gen_progress.time_taken_ms );
+		s_gen_progress.estimated_time_left_ms = static_cast< uint32_t >( elapsed * ( 1.0f - s_gen_progress.progress_pct ) / s_gen_progress.progress_pct );
+	} else {
+		s_gen_progress.estimated_time_left_ms = 0;
+	}
+
 	// Print at a gentle cadence so operators can track long builds without console spam.
 	if ( s_gen_progress.current_time_ms - s_last_progress_print_ms < 1000 ) {
 		return;
@@ -118,9 +139,9 @@ void Nav_UpdateAsyncGeneration() {
 	s_last_progress_print_ms = s_gen_progress.current_time_ms;
 
 	// Emit a bounded progress line for server operators.
-	gi.dprintf( "NavMesh Generation Progress: %.2f%%, Time Elapsed: %u ms\n",
+	gi.dprintf( "NavMesh Generation Progress: %.2f%%, Time Elapsed: %.2f s\n",
 		s_gen_progress.progress_pct * 100.0f,
-		s_gen_progress.current_time_ms - s_gen_progress.start_time_ms );
+		( s_gen_progress.current_time_ms - s_gen_progress.start_time_ms ) / 1000.0f );
 }
 
 /**

@@ -693,6 +693,120 @@ bool IsUsablePartitionFragment( const winding_t &winding ) {
 }
 
 /**
+*	@brief	Simplify redundant collinear perimeter vertices on a single navigation polygon.
+*	@param	poly	[in,out] Navigation polygon whose perimeter vertices will be simplified.
+*	@return	True if any redundant collinear vertex was removed.
+*	@note	Removes intermediate vertices where the 2D turn angle is near zero,
+*			restoring straight edges across door thresholds and merged floor boundaries.
+**/
+bool SimplifyNavPolygonCollinearVertices( nav_poly_t &poly ) {
+	/**
+	*	Sanity check: polygons with fewer than 3 vertices cannot be simplified.
+	**/
+	if ( poly.num_vertices < 3 ) {
+		return false;
+	}
+
+	bool modified = false;
+
+	/**
+	*	Iteratively evaluate turn angles around polygon perimeter.
+	**/
+	for ( int32_t j = 0; j < poly.num_vertices; j++ ) {
+		// Retrieve consecutive 3D double-precision vertex triple around the polygon boundary.
+		const Vector3DP p1 = Vector3DP( poly.vertices[ j ] );
+		const Vector3DP p2 = Vector3DP( poly.vertices[ ( j + 1 ) % poly.num_vertices ] );
+		const Vector3DP p3 = Vector3DP( poly.vertices[ ( j + 2 ) % poly.num_vertices ] );
+
+		// Compute 2D horizontal direction vectors.
+		Vector3DP dir1 = p2 - p1;
+		Vector3DP dir2 = p3 - p2;
+		dir1.z = 0.0;
+		dir2.z = 0.0;
+
+		// Calculate edge lengths.
+		const double len1 = std::sqrt( dir1.x * dir1.x + dir1.y * dir1.y );
+		const double len2 = std::sqrt( dir2.x * dir2.x + dir2.y * dir2.y );
+
+		// Remove degenerate zero-length micro-edges.
+		if ( len1 < 0.001 || len2 < 0.001 ) {
+			const int32_t remove_idx = ( j + 1 ) % poly.num_vertices;
+			// Shift remaining vertices down by one position.
+			for ( int32_t k = remove_idx; k < poly.num_vertices - 1; k++ ) {
+				poly.vertices[ k ] = poly.vertices[ k + 1 ];
+			}
+			poly.num_vertices--;
+			modified = true;
+			// Restart loop after array mutation.
+			j = -1;
+			continue;
+		}
+
+		// Normalize edge direction vectors.
+		dir1 = dir1 * ( 1.0 / len1 );
+		dir2 = dir2 * ( 1.0 / len2 );
+
+		// Compute 2D cross product of normalized direction vectors.
+		const double cross2d = dir1.x * dir2.y - dir1.y * dir2.x;
+
+		// Angular tolerance (~0.3 degrees) for collinear edge detection.
+		constexpr double COLLINEAR_TOLERANCE = 0.005;
+
+		// If turn angle is near zero, vertex p2 lies on a straight line and is redundant.
+		if ( std::abs( cross2d ) <= COLLINEAR_TOLERANCE ) {
+			const int32_t remove_idx = ( j + 1 ) % poly.num_vertices;
+			// Shift remaining vertices down by one position.
+			for ( int32_t k = remove_idx; k < poly.num_vertices - 1; k++ ) {
+				poly.vertices[ k ] = poly.vertices[ k + 1 ];
+			}
+			poly.num_vertices--;
+			modified = true;
+			// Restart loop after array mutation to re-evaluate modified perimeter.
+			j = -1;
+		}
+	}
+
+	/**
+	*	Sanitize winding order and update geometric centroid if modified.
+	**/
+	if ( modified ) {
+		EnsureNavPolygonCCW( poly );
+		RecomputeNavPolygonCenter( poly );
+	}
+
+	return modified;
+}
+
+/**
+*	@brief	Simplify redundant collinear perimeter vertices across all extracted navigation polygons.
+**/
+void SimplifyAllNavPolygonsCollinearVertices() {
+	/**
+	*	Sanity check: return early if no polygons exist.
+	**/
+	if ( g_nav_polys.empty() ) {
+		return;
+	}
+
+	int32_t total_simplified = 0;
+
+	/**
+	*	Iterate over all active polygons and simplify collinear boundary vertices.
+	**/
+	for ( size_t i = 0; i < g_nav_polys.size(); i++ ) {
+		if ( g_nav_polys[ i ].num_vertices >= 3 ) {
+			if ( SimplifyNavPolygonCollinearVertices( g_nav_polys[ i ] ) ) {
+				total_simplified++;
+			}
+		}
+	}
+
+	if ( total_simplified > 0 ) {
+		gi.dprintf( "SimplifyAllNavPolygonsCollinearVertices: simplified perimeter vertices on %d polygons.\n", total_simplified );
+	}
+}
+
+/**
 *	@brief	Merge adjacent coplanar polygons in g_nav_polys to form maximal convex walk surfaces.
 *	@details	Iteratively scans all polygon pairs in g_nav_polys and combines adjacent coplanar
 *			polygons sharing edge segments into single convex polygons. This eliminates redundant CSG seams.
@@ -733,6 +847,31 @@ void Nav_MergeCoplanarPolygons() {
 
 				// Plane check: ensure polygons lie on the exact same spatial plane and normal.
 				if ( !AreNavPolygonsCoplanar( g_nav_polys[ i ], g_nav_polys[ j ] ) ) continue;
+
+				// Fast bounding box proximity check: polygons must touch within 0.5 units to be merge candidates.
+				Vector3DP min_i = g_nav_polys[ i ].vertices[ 0 ], max_i = min_i;
+				for ( int32_t k = 1; k < g_nav_polys[ i ].num_vertices; k++ ) {
+					min_i.x = std::min<double>( min_i.x, g_nav_polys[ i ].vertices[ k ].x );
+					min_i.y = std::min<double>( min_i.y, g_nav_polys[ i ].vertices[ k ].y );
+					min_i.z = std::min<double>( min_i.z, g_nav_polys[ i ].vertices[ k ].z );
+					max_i.x = std::max<double>( max_i.x, g_nav_polys[ i ].vertices[ k ].x );
+					max_i.y = std::max<double>( max_i.y, g_nav_polys[ i ].vertices[ k ].y );
+					max_i.z = std::max<double>( max_i.z, g_nav_polys[ i ].vertices[ k ].z );
+				}
+				Vector3DP min_j = g_nav_polys[ j ].vertices[ 0 ], max_j = min_j;
+				for ( int32_t k = 1; k < g_nav_polys[ j ].num_vertices; k++ ) {
+					min_j.x = std::min<double>( min_j.x, g_nav_polys[ j ].vertices[ k ].x );
+					min_j.y = std::min<double>( min_j.y, g_nav_polys[ j ].vertices[ k ].y );
+					min_j.z = std::min<double>( min_j.z, g_nav_polys[ j ].vertices[ k ].z );
+					max_j.x = std::max<double>( max_j.x, g_nav_polys[ j ].vertices[ k ].x );
+					max_j.y = std::max<double>( max_j.y, g_nav_polys[ j ].vertices[ k ].y );
+					max_j.z = std::max<double>( max_j.z, g_nav_polys[ j ].vertices[ k ].z );
+				}
+				if ( max_j.x < min_i.x - 0.5 || min_j.x > max_i.x + 0.5 ||
+					 max_j.y < min_i.y - 0.5 || min_j.y > max_i.y + 0.5 ||
+					 max_j.z < min_i.z - 0.5 || min_j.z > max_i.z + 0.5 ) {
+					continue;
+				}
 
 				// Convert polygon i to winding structure.
 				winding_t w1 = {};
@@ -816,28 +955,20 @@ void Nav_DissolveSlivers() {
 	// Log start of sliver dissolution pass.
 	gi.dprintf( "Nav_DissolveSlivers: evaluating %d polygons...\n", static_cast< int32_t >( g_nav_polys.size() ) );
 
-	// Temporary vector to store clean surviving polygons.
+	int32_t discarded_degenerates = 0;
 	std::vector<nav_poly_t> clean_polys;
 	clean_polys.reserve( g_nav_polys.size() );
 
-	// Counter for dissolved slivers.
-	int32_t dissolved_count = 0;
-
-	// Loop over all extracted polygons.
 	for ( size_t k = 0; k < g_nav_polys.size(); ++k ) {
 		const auto &poly = g_nav_polys[ k ];
-		// Reject degenerate polygons with fewer than 3 vertices.
 		if ( poly.num_vertices < 3 ) continue;
 
-		// Calculate 2D horizontal bounding box and surface area using nav_aabb_t.
 		nav_aabb_t box;
 		box.Clear();
 		double area = 0.0;
-
 		for ( int32_t i = 0; i < poly.num_vertices; i++ ) {
 			const Vector3DP &p = poly.vertices[ i ];
 			box.AddPoint( p );
-
 			if ( i >= 2 ) {
 				Vector3DP e1 = Vector3DP( poly.vertices[ i - 1 ] ) - Vector3DP( poly.vertices[ 0 ] );
 				Vector3DP e2 = Vector3DP( p ) - Vector3DP( poly.vertices[ 0 ] );
@@ -845,31 +976,28 @@ void Nav_DissolveSlivers() {
 			}
 		}
 
-		// Calculate horizontal extents along X and Y.
-		double extent_x = box.maxs.x - box.mins.x;
-		double extent_y = box.maxs.y - box.mins.y;
-		double min_extent = std::min<double>( extent_x, extent_y );
+		const double extent_x = box.maxs.x - box.mins.x;
+		const double extent_y = box.maxs.y - box.mins.y;
+		const double min_extent = std::min<double>( extent_x, extent_y );
 
-		// Dissolve micro slivers (< 4.0 units extent or < 16.0 sq units area).
-		if ( min_extent < 4.0 || area < 16.0 ) {
-			dissolved_count++;
+		// Filter out degenerate numerical artifacts (min_extent < 0.5 units or area < 1.0)
+		if ( min_extent < 0.5 || area < 1.0 ) {
+			discarded_degenerates++;
 			continue;
 		}
 
-
-		// Keep usable polygon.
 		clean_polys.push_back( poly );
 	}
 
-	// Log completion summary.
-	gi.dprintf( "Nav_DissolveSlivers: dissolved %" PRId32 " slivers, remaining polygons: %d\n",
-		dissolved_count, static_cast< int32_t >( clean_polys.size() ) );
-
-	// Commit clean polygon collection.
+	// Commit clean polygon collection to g_nav_polys.
 	g_nav_polys.clear();
 	for ( const auto &poly : clean_polys ) {
 		g_nav_polys.push_back( poly );
 	}
+
+	// Log completion summary.
+	gi.dprintf( "Nav_DissolveSlivers: discarded %\" PRId32 \" degenerates, remaining polygons: %d\n",
+		discarded_degenerates, static_cast< int32_t >( g_nav_polys.size() ) );
 }
 
 /**
