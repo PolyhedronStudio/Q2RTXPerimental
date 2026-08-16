@@ -1648,7 +1648,9 @@ static pbr_material_t const * get_mesh_material(const entity_t* entity, const ma
 {
 	if (entity->skin)
 	{
-		return MAT_ForSkin(IMG_ForHandle(entity->skin));
+		pbr_material_t const *mat = MAT_ForSkin(IMG_ForHandle(entity->skin));
+		if (mat)
+			return mat;
 	}
 
 	int skinnum = 0;

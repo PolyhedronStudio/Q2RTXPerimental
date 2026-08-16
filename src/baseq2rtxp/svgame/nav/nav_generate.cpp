@@ -7,6 +7,7 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "nav_generate.h"
+#include "nav_cover_generate.h"
 #include "nav_path.h"
 #include "nav_thread.h"
 #include <algorithm>
@@ -558,6 +559,7 @@ void Nav_Clear() {
 	g_nav_nodes.clear();
 	g_nav_leaf_links.clear();
 	g_nav_leaf_poly_ids.clear();
+	Nav_ClearCoverPoints();
 
 	// Log memory clear message to server console.
 	gi.dprintf( "NavMesh memory cleared.\n" );
@@ -574,11 +576,12 @@ void Nav_StatusCommand( void ) {
 	const nav_gen_progress_t &progress = Nav_GetGenerationProgress();
 
 	/**
-	*	Print a stable summary line so server operators can see whether generation is active and how far it has progressed.
+	*	Print a stable summary line so server operators can see whether generation is active, what stage it is in, and how far it has progressed.
 	**/
 	gi.dprintf(
-		"NavMesh status: generating=%d progress=%.2f%% elapsed=%.2f s remaining=%.2f s\n",
+		"NavMesh status: generating=%d stage=\"%s\" progress=%.2f%% elapsed=%.2f s remaining=%.2f s\n",
 		progress.is_generating ? 1 : 0,
+		progress.stage[ 0 ] != '\0' ? progress.stage : ( progress.is_generating ? "Building" : "Idle" ),
 		progress.progress_pct * 100.0,
 		progress.time_taken_ms / 1000.0f,
 		progress.estimated_time_left_ms / 1000.0f );
@@ -1258,15 +1261,10 @@ static double GetBrushMaxZ( const mbrush_t *b, const nav_brush_ownership_t &brus
 *       and sliver stripes across the open terrain while preserving the exact curved/sloped
 *       step treads on the elevated walkable surfaces themselves.
 **/
-static void SubtractBrushFromWindings( std::vector<winding_t> &fragments, const mbrush_t *b, const nav_brush_ownership_t &brush_instance, const Vector3DP &poly_normal ) {
+static void SubtractBrushFromWindings( std::vector<winding_t> &fragments, const mbrush_t *b, const nav_brush_ownership_t &brush_instance, const Vector3DP &poly_normal, const std::vector<bool> &plane_active, const bool has_bounds, const Vector3DP &brush_mins, const Vector3DP &brush_maxs ) {
 	std::vector<winding_t> next_fragments;
 	const int32_t brush_num_sides = Nav_GetBrushNumSides( b );
 	const mbrushside_t *brush_sides = Nav_GetBrushSides( b );
-	std::vector<bool> plane_active = GetBrushActivePlanes( b, brush_instance );
-
-	// Calculate the world-space bounding box of the brush.
-	Vector3DP brush_mins = {}, brush_maxs = {};
-	const bool has_bounds = GetBrushWorldBounds( b, brush_instance, &brush_mins, &brush_maxs );
 
 	for ( const winding_t &frag : fragments ) {
 		/**
@@ -1812,12 +1810,47 @@ void Nav_DoExtractionWork() {
 	int32_t printed_dynamic_footprints = 0;
 	int32_t printed_pending_dynamic_blockers = 0;
 
+	// Precompute bounds and active planes for all brushes once to eliminate redundant calculations.
+	struct nav_cached_brush_info_t {
+		Vector3DP mins = {};
+		Vector3DP maxs = {};
+		bool has_bounds = false;
+		std::vector<bool> active_planes = {};
+	};
+	std::vector<nav_cached_brush_info_t> brush_info( brush_instances.size() );
+	for ( size_t i = 0; i < brush_instances.size(); i++ ) {
+		const mbrush_t *br = &bsp->brushes[ brush_instances[ i ].brush_num ];
+		brush_info[ i ].has_bounds = GetBrushWorldBounds( br, brush_instances[ i ], &brush_info[ i ].mins, &brush_info[ i ].maxs );
+		brush_info[ i ].active_planes = GetBrushActivePlanes( br, brush_instances[ i ] );
+	}
+
+	// Build a 2D spatial grid of static obstacle brush indices (512-unit cells) for instant O(1) tile lookups.
+	static constexpr double OBSTACLE_GRID_SIZE = 512.0;
+	std::unordered_map<int64_t, std::vector<int32_t>> obstacle_spatial_grid;
+	for ( size_t i = 0; i < brush_instances.size(); i++ ) {
+		const mbrush_t *br = &bsp->brushes[ brush_instances[ i ].brush_num ];
+		if ( !( br->contents & ( CONTENTS_SOLID | CONTENTS_DETAIL | CONTENTS_MONSTERCLIP ) ) ) continue;
+		if ( IsOriginBrush( br ) || IsDynamicTransitionBrush( brush_instances[ i ] ) ) continue;
+		if ( !brush_info[ i ].has_bounds ) continue;
+
+		int64_t min_cx = ( int64_t )std::floor( brush_info[ i ].mins.x / OBSTACLE_GRID_SIZE );
+		int64_t max_cx = ( int64_t )std::floor( brush_info[ i ].maxs.x / OBSTACLE_GRID_SIZE );
+		int64_t min_cy = ( int64_t )std::floor( brush_info[ i ].mins.y / OBSTACLE_GRID_SIZE );
+		int64_t max_cy = ( int64_t )std::floor( brush_info[ i ].maxs.y / OBSTACLE_GRID_SIZE );
+
+		for ( int64_t cx = min_cx; cx <= max_cx; cx++ ) {
+			for ( int64_t cy = min_cy; cy <= max_cy; cy++ ) {
+				obstacle_spatial_grid[ ( cx * 73856093 ) ^ ( cy * 19349663 ) ].push_back( static_cast< int32_t >( i ) );
+			}
+		}
+	}
+
 	// Iterate through every active model instance's brush references to extract walkable polygons.
 	for ( size_t instance_brush_index = 0; instance_brush_index < brush_instances.size(); instance_brush_index++ ) {
-		// Update extraction stage progress (mapping to 0.0f..0.40f).
+		// Update extraction stage progress (mapping to 0.0f..0.25f).
 		if ( !brush_instances.empty() ) {
-			const float pct = 0.40f * ( static_cast< float >( instance_brush_index ) / static_cast< float >( brush_instances.size() ) );
-			Nav_SetGenerationProgress( pct );
+			const float pct = 0.25f * ( static_cast< float >( instance_brush_index ) / static_cast< float >( brush_instances.size() ) );
+			Nav_SetGenerationProgress( pct, "Geometry Extraction" );
 		}
 
 		const nav_brush_ownership_t &brush_instance = brush_instances[ instance_brush_index ];
@@ -1895,7 +1928,7 @@ void Nav_DoExtractionWork() {
 				}
 			}
 			// If the winding is still valid and has at least 3 points, create a nav_poly_t and add it to the global navmesh polygon container.
-if ( !valid || w.num_points < 3 ) {
+			if ( !valid || w.num_points < 3 ) {
 				continue;
 			}
 			w.entity_id = brush_instance.entity_id;
@@ -1903,11 +1936,11 @@ if ( !valid || w.num_points < 3 ) {
 			// Subtract all other solid brushes from this walkable surface
 			Vector3DP normal( shifted_plane.normal[ 0 ], shifted_plane.normal[ 1 ], shifted_plane.normal[ 2 ] );
 
-			// If this is a horizontal floor (normal.z > 0.99), subdivide large floor into 256x256 spatial tiles
+			// If this is a horizontal floor (normal.z > 0.99), subdivide large floor into 512x512 spatial tiles
 			// so obstacle cutlines remain strictly localized within their respective grid cells.
 			std::vector<winding_t> base_tiles;
 			if ( normal.z > 0.99 ) {
-				Nav_SubdivideWindingIntoSpatialTiles( w, 256.0, normal, base_tiles );
+				Nav_SubdivideWindingIntoSpatialTiles( w, 512.0, normal, base_tiles );
 			} else {
 				base_tiles.push_back( w );
 			}
@@ -1955,7 +1988,7 @@ if ( !valid || w.num_points < 3 ) {
 						continue;
 					}
 
-					const std::vector<bool> other_plane_active = GetBrushActivePlanes( other_b, other_instance );
+					const std::vector<bool> &other_plane_active = brush_info[ other_instance_index ].active_planes;
 					bool intersectsFragment = false;
 					for ( const winding_t &fragment : fragments ) {
 						if ( !IsFragmentCompletelyOutsideBrush( &fragment, other_b, other_instance, other_plane_active, 4.0 ) ) {
@@ -1970,9 +2003,28 @@ if ( !valid || w.num_points < 3 ) {
 					SplitWindingsByEntityBrush( fragments, other_b, other_instance, 0.0 );
 				}
 
-				// Pass 2: Subtract only static solid obstacles that ACTUALLY OVERLAP THIS TILE!
-				for ( size_t other_instance_index = 0; other_instance_index < brush_instances.size(); other_instance_index++ ) {
-					if ( other_instance_index == instance_brush_index ) {
+				// Pass 2: Subtract static solid obstacles querying only candidate brushes from the 2D spatial grid.
+				int64_t tile_cx1 = ( int64_t )std::floor( ( tile_mins.x - 0.1 ) / OBSTACLE_GRID_SIZE );
+				int64_t tile_cx2 = ( int64_t )std::floor( ( tile_maxs.x + 0.1 ) / OBSTACLE_GRID_SIZE );
+				int64_t tile_cy1 = ( int64_t )std::floor( ( tile_mins.y - 0.1 ) / OBSTACLE_GRID_SIZE );
+				int64_t tile_cy2 = ( int64_t )std::floor( ( tile_maxs.y + 0.1 ) / OBSTACLE_GRID_SIZE );
+
+				std::vector<int32_t> candidate_obstacles;
+				for ( int64_t cx = tile_cx1; cx <= tile_cx2; cx++ ) {
+					for ( int64_t cy = tile_cy1; cy <= tile_cy2; cy++ ) {
+						auto it = obstacle_spatial_grid.find( ( cx * 73856093 ) ^ ( cy * 19349663 ) );
+						if ( it != obstacle_spatial_grid.end() ) {
+							for ( int32_t idx : it->second ) {
+								if ( std::find( candidate_obstacles.begin(), candidate_obstacles.end(), idx ) == candidate_obstacles.end() ) {
+									candidate_obstacles.push_back( idx );
+								}
+							}
+						}
+					}
+				}
+
+				for ( int32_t other_instance_index : candidate_obstacles ) {
+					if ( static_cast< size_t >( other_instance_index ) == instance_brush_index ) {
 						continue;
 					}
 
@@ -1981,41 +2033,28 @@ if ( !valid || w.num_points < 3 ) {
 						continue;
 					}
 
-					if ( IsDynamicTransitionBrush( other_instance ) ) {
+					const Vector3DP &other_mins = brush_info[ other_instance_index ].mins;
+					const Vector3DP &other_maxs = brush_info[ other_instance_index ].maxs;
+
+					// 1. Horizontal overlap test
+					if ( other_maxs.x <= tile_mins.x - 0.1 || other_mins.x >= tile_maxs.x + 0.1 ||
+						 other_maxs.y <= tile_mins.y - 0.1 || other_mins.y >= tile_maxs.y + 0.1 ) {
+						continue;
+					}
+
+					// 2. Obstacles below or at floor level: if top is at or below this floor, it cannot block this surface.
+					if ( other_maxs.z <= floor_max_z + 0.1 ) {
+						continue;
+					}
+
+					// 3. Overhead ceiling check: if bottom is above agent head clearance (56 units), do not subtract!
+					constexpr double AGENT_HEAD_CLEARANCE = 56.0;
+					if ( other_mins.z >= floor_max_z + AGENT_HEAD_CLEARANCE - 0.1 ) {
 						continue;
 					}
 
 					mbrush_t *other_b = &bsp->brushes[ other_instance.brush_num ];
-					if ( !( other_b->contents & ( CONTENTS_SOLID | CONTENTS_DETAIL | CONTENTS_MONSTERCLIP ) ) ) {
-						continue;
-					}
-
-					// Fast 3D obstacle bounding-box filter:
-					// An obstacle brush can only block this walkable surface if:
-					// 1. It horizontally overlaps this tile.
-					// 2. Its top is higher than a walkable step (> NAV_MAX_STEP_HEIGHT above this floor).
-					// 3. Its bottom descends low enough to intersect the agent's body (< 56 units above floor).
-					Vector3DP other_mins = {}, other_maxs = {};
-					if ( GetBrushWorldBounds( other_b, other_instance, &other_mins, &other_maxs ) ) {
-						// 1. Horizontal overlap test
-						if ( other_maxs.x <= tile_mins.x - 0.1 || other_mins.x >= tile_maxs.x + 0.1 ||
-							 other_maxs.y <= tile_mins.y - 0.1 || other_mins.y >= tile_maxs.y + 0.1 ) {
-							continue;
-						}
-
-						// 2. Obstacles below or at floor level: if top is at or below this floor, it cannot block this surface.
-						if ( other_maxs.z <= floor_max_z + 0.1 ) {
-							continue;
-						}
-
-						// 3. Overhead ceiling check: if bottom is above agent head clearance (56 units), do not subtract!
-						constexpr double AGENT_HEAD_CLEARANCE = 56.0;
-						if ( other_mins.z >= floor_max_z + AGENT_HEAD_CLEARANCE - 0.1 ) {
-							continue;
-						}
-					}
-
-					SubtractBrushFromWindings( fragments, other_b, other_instance, normal );
+					SubtractBrushFromWindings( fragments, other_b, other_instance, normal, brush_info[ other_instance_index ].active_planes, brush_info[ other_instance_index ].has_bounds, other_mins, other_maxs );
 
 					if ( fragments.empty() ) {
 						break;
@@ -2147,6 +2186,7 @@ if ( !valid || w.num_points < 3 ) {
 	gi.dprintf( "Nav_DoExtractionWork: Checked %d brushes. Found %d solid/detail brushes, %d playerclip-only brushes, %d walkable sides. Extracted %d polys, pruned %d sliver fragments.\n",
 		bsp->numbrushes, solid_brushes, playerclip_brushes, walkable_sides, ( int )g_nav_polys.size(), sliver_pruned_fragments );
 	LogNavGenerationDiagnostics( "Extraction" );
+	Nav_SetGenerationProgress( 0.25f, "Geometry Extraction" );
 }
 
 /**
@@ -2244,6 +2284,7 @@ static void Nav_ResolveDynamicPortalTJunctions() {
 	*	A portal conformance pass has no work without at least two extracted polygons.
 	**/
 	if ( g_nav_polys.size() < 2 ) {
+		Nav_SetGenerationProgress( 0.54f, "Dynamic Portal Conformance" );
 		return;
 	}
 
@@ -2257,6 +2298,10 @@ static void Nav_ResolveDynamicPortalTJunctions() {
 		*	edit so subsequent comparisons use the current, validated winding topology.
 		**/
 		for ( size_t target_index = 0; target_index < g_nav_polys.size() && !made_change; target_index++ ) {
+			// Update dynamic portal conformance progress (mapping to 0.50f..0.54f).
+			const float pct = 0.50f + 0.04f * ( static_cast< float >( target_index ) / static_cast< float >( g_nav_polys.size() ) );
+			Nav_SetGenerationProgress( pct, "Dynamic Portal Conformance" );
+
 			for ( size_t source_index = 0; source_index < g_nav_polys.size() && !made_change; source_index++ ) {
 				if ( target_index == source_index || !AreNavPolygonsDynamicPortalNeighbors( g_nav_polys[ target_index ], g_nav_polys[ source_index ] ) ) {
 					continue;
@@ -2275,6 +2320,8 @@ static void Nav_ResolveDynamicPortalTJunctions() {
 			}
 		}
 	}
+
+	Nav_SetGenerationProgress( 0.54f, "Dynamic Portal Conformance" );
 
 	if ( conformance_splices > 0 ) {
 		gi.dprintf( "NavMesh: Conformed %d dynamic portal edge vertices.\n", conformance_splices );
@@ -2353,6 +2400,13 @@ static void Nav_ResolveTJunctionsByEdgeSplicing() {
 		pass_num++;
 
 		for ( size_t i = 0; i < g_nav_polys.size() && !made_change; i++ ) {
+			// Update edge splicing progress (mapping to 0.54f..0.60f).
+			if ( !g_nav_polys.empty() ) {
+				const float pass_base = 0.54f + ( pass_num - 1 ) * 0.015f;
+				const float pct = pass_base + 0.015f * ( static_cast< float >( i ) / static_cast< float >( g_nav_polys.size() ) );
+				Nav_SetGenerationProgress( pct, "Edge Splicing" );
+			}
+
 			// Dynamic union interiors are authored portal boundaries and must not be reshaped by world T-junction repair.
 			if ( g_nav_polys[ i ].entity_id != ENTITYNUM_NONE ) {
 				continue;
@@ -2551,6 +2605,8 @@ static void Nav_ResolveTJunctionsByEdgeSplicing() {
 		}
 	}
 
+	Nav_SetGenerationProgress( 0.60f, "Edge Splicing" );
+
 	if ( totalSplices > 0 ) {
 		gi.dprintf( "NavMesh: Spliced %d T-Junction vertices.\n", totalSplices );
 	}
@@ -2585,37 +2641,37 @@ void Nav_BuildHalfEdgeMesh() {
 	*			and continuous before dynamic door portal conformance and T-junction splicing.
 	**/
 	Nav_MergeCoplanarPolygons();
-	Nav_SetGenerationProgress( 0.48f );
+	Nav_SetGenerationProgress( 0.45f, "Coplanar Merging" );
 
 	/**
 	*	Phase 2: Dissolve surviving narrow diagonal slivers into adjacent coplanar neighbors.
 	**/
 	Nav_DissolveSlivers();
-	Nav_SetGenerationProgress( 0.53f );
+	Nav_SetGenerationProgress( 0.48f, "Dissolving Slivers" );
 
 	/**
 	*	Phase 3: Simplify collinear perimeter vertices across all world and entity polygons to restore
 	*			straight edges along door thresholds and merged floor boundaries.
 	**/
 	SimplifyAllNavPolygonsCollinearVertices();
-	Nav_SetGenerationProgress( 0.55f );
+	Nav_SetGenerationProgress( 0.50f, "Perimeter Simplification" );
 
 	/**
 	*	Phase 4: Conform dynamic/world doorway perimeter segments now that world floors are merged and clean.
 	**/
 	Nav_ResolveDynamicPortalTJunctions();
-	Nav_SetGenerationProgress( 0.58f );
+	Nav_SetGenerationProgress( 0.54f, "Dynamic Portal Conformance" );
 
 	/**
 	*	Phase 5: Splice T-junctions so remaining adjacent coplanar edges receive matching split vertices.
 	**/
 	Nav_ResolveTJunctionsByEdgeSplicing();
-	Nav_SetGenerationProgress( 0.63f );
+	Nav_SetGenerationProgress( 0.60f, "Edge Splicing" );
 
 	/**
 	*	Phase 6: Retain spliced vertices from Phase 4 and Phase 5 intact so adjacent edges match 1-to-1 in 2D for twin linking.
 	**/
-	Nav_SetGenerationProgress( 0.65f );
+	Nav_SetGenerationProgress( 0.60f, "Half-Edge Construction" );
 
 
 	// Spatial hash grid to deduplicate vertices and prevent T-junctions.
@@ -2686,10 +2742,10 @@ void Nav_BuildHalfEdgeMesh() {
 	*		4) Perform twin linking to connect adjacent edges across polygons
 	**/
 	for ( size_t i = 0; i < g_nav_polys.size(); i++ ) {
-		// Update mesh building progress (mapping to 0.65f..0.70f).
+		// Update mesh building progress (mapping to 0.60f..0.65f).
 		if ( !g_nav_polys.empty() ) {
-			const float pct = 0.65f + 0.05f * ( static_cast< float >( i ) / static_cast< float >( g_nav_polys.size() ) );
-			Nav_SetGenerationProgress( pct );
+			const float pct = 0.60f + 0.05f * ( static_cast< float >( i ) / static_cast< float >( g_nav_polys.size() ) );
+			Nav_SetGenerationProgress( pct, "Half-Edge Construction" );
 		}
 
 		const nav_poly_t &poly = g_nav_polys[ i ];
@@ -2797,6 +2853,12 @@ void Nav_BuildHalfEdgeMesh() {
 		}
 
 		for ( int32_t edge_a = 0; edge_a < ( int32_t )g_nav_halfedges.size(); edge_a++ ) {
+			// Update arbitration progress (mapping to 0.65f..0.68f).
+			if ( !g_nav_halfedges.empty() ) {
+				const float pct = 0.65f + 0.03f * ( static_cast< float >( edge_a ) / static_cast< float >( g_nav_halfedges.size() ) );
+				Nav_SetGenerationProgress( pct, "Deterministic Arbitration" );
+			}
+
 			if ( g_nav_halfedges[ edge_a ].twin_idx != -1 ) {
 				continue;
 			}
@@ -2965,10 +3027,10 @@ void Nav_BuildHalfEdgeMesh() {
 	*	Iterate through all half-edges and find twins by checking grid cells.
 	**/
 	for ( uint64_t i = 0; i < g_nav_halfedges.size(); i++ ) {
-		// Update primary twin linking progress (mapping to 0.75f..0.80f).
+		// Update primary twin linking progress (mapping to 0.68f..0.76f).
 		if ( !g_nav_halfedges.empty() ) {
-			const float pct = 0.75f + 0.05f * ( static_cast< float >( i ) / static_cast< float >( g_nav_halfedges.size() ) );
-			Nav_SetGenerationProgress( pct );
+			const float pct = 0.68f + 0.08f * ( static_cast< float >( i ) / static_cast< float >( g_nav_halfedges.size() ) );
+			Nav_SetGenerationProgress( pct, "Primary Twin Linking" );
 		}
 
 		if ( g_nav_halfedges[ i ].twin_idx != -1 ) {
@@ -3125,10 +3187,10 @@ void Nav_BuildHalfEdgeMesh() {
 	}
 
 	for ( size_t i = 0; i < g_nav_halfedges.size(); i++ ) {
-		// Update secondary twin linking progress (mapping to 0.80f..0.85f).
+		// Update secondary twin linking progress (mapping to 0.76f..0.83f).
 		if ( !g_nav_halfedges.empty() ) {
-			const float pct = 0.80f + 0.05f * ( static_cast< float >( i ) / static_cast< float >( g_nav_halfedges.size() ) );
-			Nav_SetGenerationProgress( pct );
+			const float pct = 0.76f + 0.07f * ( static_cast< float >( i ) / static_cast< float >( g_nav_halfedges.size() ) );
+			Nav_SetGenerationProgress( pct, "Secondary Twin Linking" );
 		}
 
 		if ( g_nav_halfedges[ i ].twin_idx != -1 ) {
@@ -3434,7 +3496,7 @@ void Nav_BuildHalfEdgeMesh() {
 	gi.dprintf( "NavMesh Topology Diagnostics: deterministicLinks=%d firstPassLinks=%d secondPassLinks=%d twinnedEdges=%d boundaryEdges=%d shortBoundaryEdges=%d twinReverseMismatch=%d tinyOverlapTwins=%d\n",
 		deterministic_twin_links, first_pass_twin_links, second_pass_twin_links, twinned_edges, boundary_edges, short_boundary_edges, twin_reverse_mismatch, tiny_overlap_twins );
 	LogNavGenerationDiagnostics( "HalfEdge" );
-	Nav_SetGenerationProgress( 0.90f );
+	Nav_SetGenerationProgress( 0.85f, "Half-Edge Mesh Ready" );
 }
 
 /**

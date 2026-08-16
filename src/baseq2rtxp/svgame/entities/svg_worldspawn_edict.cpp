@@ -176,6 +176,8 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_worldspawn_edict_t, onSpawn )( svg_worldspawn_
 
     // set configstrings for items
     SVG_SetItemNames();
+	// set crowdID skins
+	SVG_RegisterCrowdIDSkins();
 
     if ( self->nextmap ) {
         Q_strlcpy( level.nextmap, (const char *)self->nextmap, sizeof( level.nextmap ) );

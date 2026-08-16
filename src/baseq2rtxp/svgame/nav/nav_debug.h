@@ -29,3 +29,9 @@ void Nav_DebugSetGoalBCommand( void );
 * @brief Build one test path from goal A to goal B and cache it for rendering.
 **/
 void Nav_DebugTestPathCommand( void );
+
+/**
+* @brief Render monster and NPC navigation path debug overlays.
+**/
+void Nav_DebugDrawNPCPaths( void );
+

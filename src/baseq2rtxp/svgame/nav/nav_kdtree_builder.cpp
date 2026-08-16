@@ -401,8 +401,8 @@ static int32_t BuildKDNode( int32_t firstFaceIdx, int32_t faceCount, int32_t dep
 *			Repairs half-edge face back-pointers after `std::partition` shuffles face indices.
 **/
 void Nav_BuildKDTree() {
-	// Set initial KD-tree generation progress stage.
-	Nav_SetGenerationProgress( 0.90f );
+	// Set initial KD-tree generation progress stage (0.85f).
+	Nav_SetGenerationProgress( 0.85f, "KD-Tree Spatial Indexing" );
 
 	/**
 	*	Reset global KD-node storage vector.
@@ -415,7 +415,7 @@ void Nav_BuildKDTree() {
 	*	Build recursive KD-tree spatial index starting from root.
 	**/
 	BuildKDNode( 0, static_cast< int32_t >( g_nav_faces.size() ), 0 );
-	Nav_SetGenerationProgress( 0.95f );
+	Nav_SetGenerationProgress( 0.88f, "KD-Tree Face Repair" );
 
 	/**
 	*	`CRITICAL FIX`: `BuildKDNode` calls `std::partition`, which physically shuffles `g_nav_faces`.
@@ -423,10 +423,10 @@ void Nav_BuildKDTree() {
 	*	Otherwise, Nav_FindPath's A* will jump to random, completely unconnected faces!
 	**/
 	for ( int32_t i = 0; i < static_cast< int32_t >( g_nav_faces.size() ); i++ ) {
-		// Update KD-tree post-build face repair progress (mapping to 0.95f..0.99f).
+		// Update KD-tree post-build face repair progress (mapping to 0.88f..0.92f).
 		if ( !g_nav_faces.empty() ) {
-			const float pct = 0.95f + 0.04f * ( static_cast< float >( i ) / static_cast< float >( g_nav_faces.size() ) );
-			Nav_SetGenerationProgress( pct );
+			const float pct = 0.88f + 0.04f * ( static_cast< float >( i ) / static_cast< float >( g_nav_faces.size() ) );
+			Nav_SetGenerationProgress( pct, "KD-Tree Face Repair" );
 		}
 
 		// Update face ID back-pointer on face structure.
@@ -437,6 +437,8 @@ void Nav_BuildKDTree() {
 			g_nav_halfedges[ g_nav_faces[ i ].first_edge_idx + e ].face_idx = i;
 		}
 	}
+
+	Nav_SetGenerationProgress( 0.92f, "KD-Tree Spatial Indexing" );
 
 	// Validate the repaired ownership and final KD leaf face spans.
 	Nav_ValidateTopology( "KDTree" );

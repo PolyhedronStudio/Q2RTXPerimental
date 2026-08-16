@@ -1,6 +1,12 @@
 #include "nav_thread.h"
 #include "nav_generate.h"
+#include "nav_cover_generate.h"
 #include "nav_path.h"
+#include "nav_cover_types.h"
+#include "shared/util/util_strings.h"
+
+//! External cover points vector defined in nav_cover_generate.cpp
+extern std::vector<nav_cover_point_t> g_nav_cover_points;
 
 //! Shared progress snapshot updated by the async generation worker.
 static nav_gen_progress_t s_gen_progress = {};
@@ -24,20 +30,18 @@ static void Nav_AsyncGenerationWork( void *arg ) {
 	s_gen_progress.estimated_time_left_ms = 0;
 	s_gen_progress.progress_pct = 0.0f;
 
-	// Extract walkable geometry from the current collision model.
+	// Extract walkable geometry from the current collision model (0.00 -> 0.25).
 	Nav_DoExtractionWork();
 
-	// Record mid-point progress once extraction finishes.
-	s_gen_progress.progress_pct = 0.5f;
-	s_gen_progress.current_time_ms = gi.GetRealTime();
-	s_gen_progress.time_taken_ms = s_gen_progress.current_time_ms - start;
-
-	// Build the half-edge mesh and KD-tree from the extracted polygons.
+	// Build the half-edge mesh and KD-tree from the extracted polygons (0.25 -> 0.92).
 	Nav_BuildHalfEdgeMesh();
 	Nav_BuildKDTree();
 
+	// Extract precalculated tactical cover points from boundary edges (0.92 -> 0.99).
+	Nav_GenerateCoverPoints();
+
 	// Mark the job as complete in the progress snapshot.
-	s_gen_progress.progress_pct = 1.0f;
+	Nav_SetGenerationProgress( 1.0f, "Completed" );
 	s_gen_progress.current_time_ms = gi.GetRealTime();
 	s_gen_progress.time_taken_ms = s_gen_progress.current_time_ms - start;
 	s_gen_progress.estimated_time_left_ms = 0;
@@ -55,10 +59,12 @@ static void Nav_AsyncGenerationDone( void *arg ) {
 
 	// The worker is finished, so the progress snapshot can be marked idle.
 	s_gen_progress.is_generating = false;
-	gi.dprintf( "NavMesh Generation Completed in %.2f s. (Faces: %u, Nodes: %u)\n",
+	Q_strlcpy( s_gen_progress.stage, "Completed", sizeof( s_gen_progress.stage ) );
+	gi.dprintf( "NavMesh Generation Completed in %.2f s. (Faces: %u, Nodes: %u, Cover Points: %u)\n",
 		s_gen_progress.time_taken_ms / 1000.0f,
 		static_cast<unsigned int>( g_nav_faces.size() ),
-		static_cast<unsigned int>( g_nav_nodes.size() ) );
+		static_cast<unsigned int>( g_nav_nodes.size() ),
+		static_cast<unsigned int>( g_nav_cover_points.size() ) );
 }
 
 /**
@@ -78,6 +84,7 @@ void Nav_StartAsyncGeneration() {
 	s_gen_progress.is_generating = true;
 	s_gen_progress.start_time_ms = gi.GetRealTime();
 	s_gen_progress.current_time_ms = s_gen_progress.start_time_ms;
+	Q_strlcpy( s_gen_progress.stage, "Starting", sizeof( s_gen_progress.stage ) );
 
 	// Bind the worker and completion callbacks to the async work item.
 	s_gen_work.work_cb = Nav_AsyncGenerationWork;
@@ -90,14 +97,32 @@ void Nav_StartAsyncGeneration() {
 }
 
 /**
-*	@brief	Set the current navmesh generation progress percentage.
+*	@brief	Set the current navmesh generation progress percentage and optional stage label.
 *	@param	progress_pct	The progression fraction between 0.0f and 1.0f.
+*	@param	stage			Optional human-readable stage name to display in status reports.
+*	@note	Clamps the value between 0.0f and 1.0f and ensures monotonic advancement.
 **/
-void Nav_SetGenerationProgress( const float progress_pct ) {
+void Nav_SetGenerationProgress( const float progress_pct, const char *stage ) {
 	/**
-	*	Update the progress percentage in the shared status structure.
+	*	Update the progress percentage in the shared status structure monotonically.
 	**/
-	s_gen_progress.progress_pct = progress_pct;
+	const float clamped = QM_Clamp( progress_pct, 0.0f, 1.0f );
+	if ( clamped > s_gen_progress.progress_pct ) {
+		s_gen_progress.progress_pct = clamped;
+	}
+	if ( stage != nullptr && stage[ 0 ] != '\0' ) {
+		Q_strlcpy( s_gen_progress.stage, stage, sizeof( s_gen_progress.stage ) );
+	}
+}
+
+/**
+*	@brief	Set the current active generation stage label without modifying progress.
+*	@param	stage	Human-readable stage name.
+**/
+void Nav_SetGenerationStage( const char *stage ) {
+	if ( stage != nullptr && stage[ 0 ] != '\0' ) {
+		Q_strlcpy( s_gen_progress.stage, stage, sizeof( s_gen_progress.stage ) );
+	}
 }
 
 /**
@@ -138,8 +163,9 @@ void Nav_UpdateAsyncGeneration() {
 	}
 	s_last_progress_print_ms = s_gen_progress.current_time_ms;
 
-	// Emit a bounded progress line for server operators.
-	gi.dprintf( "NavMesh Generation Progress: %.2f%%, Time Elapsed: %.2f s\n",
+	// Emit a bounded progress line for server operators with the active stage.
+	gi.dprintf( "NavMesh Generation [%s]: %.2f%%, Time Elapsed: %.2f s\n",
+		s_gen_progress.stage[ 0 ] != '\0' ? s_gen_progress.stage : "Building",
 		s_gen_progress.progress_pct * 100.0f,
 		( s_gen_progress.current_time_ms - s_gen_progress.start_time_ms ) / 1000.0f );
 }

@@ -171,3 +171,46 @@ QM_API_CONSTEXPR double QM_Vector3DistanceSqrDP( const Vector3DP &v1, const Vect
     const double dz = v2.z - v1.z;
     return ( dx * dx + dy * dy + dz * dz );
 }
+
+// Normalize double-precision vector
+inline Vector3DP QM_Vector3NormalizeDP( const Vector3DP &v ) {
+    const double length = std::sqrt( v.x * v.x + v.y * v.y + v.z * v.z );
+    if ( length > 0.0 ) {
+        const double ilength = 1.0 / length;
+        return { v.x * ilength, v.y * ilength, v.z * ilength };
+    }
+    return { 0.0, 0.0, 0.0 };
+}
+
+// Calculate 2D square distance between two double-precision vectors
+QM_API_CONSTEXPR inline double QM_Vector2DistanceSqrDP( const Vector3DP &v1, const Vector3DP &v2 ) {
+    const double dx = v2.x - v1.x;
+    const double dy = v2.y - v1.y;
+    return ( dx * dx + dy * dy );
+}
+
+// Calculate 2D distance between two double-precision vectors
+inline double QM_Vector2DistanceDP( const Vector3DP &v1, const Vector3DP &v2 ) {
+    const double dx = v2.x - v1.x;
+    const double dy = v2.y - v1.y;
+    return std::sqrt( dx * dx + dy * dy );
+}
+
+// Calculate yaw angle in degrees from a double-precision direction vector
+inline double QM_Vector3ToYawDP( const Vector3DP &vec ) {
+    double yaw;
+    if ( vec.x == 0.0 ) {
+        yaw = 0.0;
+        if ( vec.y > 0.0 ) {
+            yaw = 90.0;
+        } else if ( vec.y < 0.0 ) {
+            yaw = 270.0;
+        }
+    } else {
+        yaw = ( std::atan2( vec.y, vec.x ) * 180.0 / QM_PI );
+        if ( yaw < 0.0 ) {
+            yaw += 360.0;
+        }
+    }
+    return yaw;
+}

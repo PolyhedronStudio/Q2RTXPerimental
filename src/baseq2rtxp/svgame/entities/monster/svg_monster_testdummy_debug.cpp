@@ -10,6 +10,8 @@
 #include "svgame/svg_skeletal_hitboxes.h"
 #include "svgame/svg_trigger.h"
 #include "svgame/svg_utils.h"
+#include <algorithm>
+#include <vector>
 
 // TODO: Move elsewhere.. ?
 #include "refresh/shared_types.h"
@@ -33,14 +35,160 @@
 
 // TestDummy Monster
 #include "svgame/entities/monster/svg_monster_testdummy_debug.h"
-#include "svgame/entities/svg_pushmove_edict.h"
-#include "svgame/entities/func/svg_func_door.h"
-#include "svgame/entities/func/svg_func_door_rotating.h"
-#include "svgame/entities/func/svg_func_wall.h"
-#include "svgame/entities/func/svg_func_areaportal.h"
 
+
+/**
+*   @brief  Save descriptor array definition for all the members of svg_monster_testdummy_debug_t.
+**/
+SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_monster_testdummy_debug_t )
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, isActivated, SD_FIELD_TYPE_BOOL ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, lastPlayerVisibleTime, SD_FIELD_TYPE_FRAMETIME ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, thinkAIState, SD_FIELD_TYPE_INT32 ),
+
+	// StateIdleScan_t
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, stateIdleScan.yawScanDirection, SD_FIELD_TYPE_DOUBLE ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, stateIdleScan.nextFlipTime, SD_FIELD_TYPE_FRAMETIME ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, stateIdleScan.headingIndex, SD_FIELD_TYPE_INT32 ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, stateIdleScan.targetYaw, SD_FIELD_TYPE_FLOAT ),
+
+	// StateNavigationTrail_t
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, stateNavigationTrail.targetEntity, SD_FIELD_TYPE_EDICT ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, stateNavigationTrail.trailTimeStamp, SD_FIELD_TYPE_FRAMETIME ),
+
+	// StateSoundScan_t
+	SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_monster_testdummy_debug_t, stateSoundCan.origin, SD_FIELD_TYPE_VECTOR3, 1 ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, stateSoundCan.hasOrigin, SD_FIELD_TYPE_BOOL ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, stateSoundCan.lastTime, SD_FIELD_TYPE_FRAMETIME ),
+
+	// mood
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, mood, SD_FIELD_TYPE_INT32 ),
+
+	// stateCover
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, stateCover.activeCoverIdx, SD_FIELD_TYPE_INT32 ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_monster_testdummy_debug_t, stateCover.coverWorldPos, SD_FIELD_TYPE_VECTOR3, 1 ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, stateCover.coverSelectTime, SD_FIELD_TYPE_FRAMETIME ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, stateCover.nextExposureCheckTime, SD_FIELD_TYPE_FRAMETIME ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, stateCover.isHidingInCover, SD_FIELD_TYPE_BOOL ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_monster_testdummy_debug_t, stateCover.recentCoverIndices, SD_FIELD_TYPE_INT32, 4 ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_monster_testdummy_debug_t, stateCover.recentCoverBanTimes, SD_FIELD_TYPE_FRAMETIME, 4 ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, stateCover.recentCoverHead, SD_FIELD_TYPE_INT32 ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, stateCover.lastCatchReactionTime, SD_FIELD_TYPE_FRAMETIME ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, stateCover.nextPeekTime, SD_FIELD_TYPE_FRAMETIME ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, stateCover.peekTargetYaw, SD_FIELD_TYPE_FLOAT ),
+
+	// initialCrowdParams
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, initialCrowdParams.lateralSpacing, SD_FIELD_TYPE_DOUBLE ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, initialCrowdParams.longitudinalSpacing, SD_FIELD_TYPE_DOUBLE ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, initialCrowdParams.maxCoverDistance, SD_FIELD_TYPE_DOUBLE ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, initialCrowdParams.minCoverDistance, SD_FIELD_TYPE_DOUBLE ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, initialCrowdParams.arrivalRadius, SD_FIELD_TYPE_DOUBLE ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, initialCrowdParams.maxTimeToSeek, SD_FIELD_TYPE_FRAMETIME ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, initialCrowdParams.orientationMode, SD_FIELD_TYPE_INT32 ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, initialCrowdParams.fixedYaw, SD_FIELD_TYPE_DOUBLE ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, initialCrowdParams.pathStaggerMs, SD_FIELD_TYPE_INT32 ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, initialCrowdParams.coverExclusionRadius, SD_FIELD_TYPE_DOUBLE ),
+
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, initialCrowdStyle, SD_FIELD_TYPE_INT32 ),
+SAVE_DESCRIPTOR_FIELDS_END();
+
+//! Implement the methods for saving this edict type's save descriptor fields.
+SVG_SAVE_DESCRIPTOR_FIELDS_DEFINE_IMPLEMENTATION( svg_monster_testdummy_debug_t, svg_monster_base_t );
+
+//! Precached image indices for crowd skins.
+int32_t svg_monster_testdummy_debug_t::crowdSkinIndices[ svg_monster_testdummy_debug_t::CS_CUSTOMIMAGE_CROWD_MAX + 1 ] = {};
+
+/**
+*	@brief	Register all crowd skins with the image precache system.
+**/
+void svg_monster_testdummy_debug_t::RegisterCrowdIDSkins( void ) {
+	/**
+	*	Register crowd skin textures into the engine's image table via gi.imageindex.
+	*	This allocates slots in CS_IMAGES so clients precache them into image_precache.
+	**/
+	crowdSkinIndices[ CS_CUSTOMIMAGE_CROWD_NEUTRAL ] = gi.imageindex( "textures/models/testdummy/skin_grey.tga" );
+	crowdSkinIndices[ CS_CUSTOMIMAGE_CROWD_ORANGE ]  = gi.imageindex( "textures/models/testdummy/skin_orange.tga" );
+	crowdSkinIndices[ CS_CUSTOMIMAGE_CROWD_BLUE ]    = gi.imageindex( "textures/models/testdummy/skin_blue.tga" );
+	crowdSkinIndices[ CS_CUSTOMIMAGE_CROWD_GREEN ]   = gi.imageindex( "textures/models/testdummy/skin_green.tga" );
+}
+
+/**
+*	@brief	Get the precached skin image index corresponding to a crowd group identifier.
+*	@param	crowdID	Crowd group ID (-1 or 0 for neutral, 1=orange, 2=blue, 3=green, etc.).
+*	@return	Image index registered with gi.imageindex.
+**/
+const int32_t svg_monster_testdummy_debug_t::GetCrowdSkinImageIndex( const int32_t crowdID ) {
+	/**
+	*	Map crowd ID to the registered skin image index.
+	**/
+	// Neutral / civilian crowd group.
+	if ( crowdID <= 0 ) {
+		return crowdSkinIndices[ CS_CUSTOMIMAGE_CROWD_NEUTRAL ];
+	}
+	// Orange squad.
+	if ( crowdID == CS_CUSTOMIMAGE_CROWD_ORANGE ) {
+		return crowdSkinIndices[ CS_CUSTOMIMAGE_CROWD_ORANGE ];
+	}
+	// Blue squad.
+	if ( crowdID == CS_CUSTOMIMAGE_CROWD_BLUE ) {
+		return crowdSkinIndices[ CS_CUSTOMIMAGE_CROWD_BLUE ];
+	}
+	// Green squad.
+	if ( crowdID == CS_CUSTOMIMAGE_CROWD_GREEN ) {
+		return crowdSkinIndices[ CS_CUSTOMIMAGE_CROWD_GREEN ];
+	}
+
+	// For higher crowd IDs, fallback to blue squad skin.
+	return crowdSkinIndices[ CS_CUSTOMIMAGE_CROWD_NEUTRAL ];
+}
+
+
+/**
+*
+*
+*
+*	Core:
+*
+*
+*
+**/
+/**
+*   Reconstructs the object, optionally retaining the entityDictionary.
+**/
+void svg_monster_testdummy_debug_t::Reset( const bool retainDictionary ) {
+    IMPLEMENT_EDICT_RESET_BY_COPY_ASSIGNMENT( Super, SelfType, retainDictionary );
+}
+
+/**
+*   @brief  Save the entity into a file using game_write_context.
+**/
+void svg_monster_testdummy_debug_t::Save( struct game_write_context_t *ctx ) {
+    Super::Save( ctx );
+    ctx->write_fields( svg_monster_testdummy_debug_t::saveDescriptorFields, this );
+}
+
+/**
+*   @brief  Restore the entity from a loadgame read context.
+**/
+void svg_monster_testdummy_debug_t::Restore( struct game_read_context_t *ctx ) {
+    Super::Restore( ctx );
+    ctx->read_fields( svg_monster_testdummy_debug_t::saveDescriptorFields, this );
+}
+
+
+/**
+*
+*
+*
+*	Entity Callbacks:
+*
+*
+*
+**/
 // Navigation
 #include "svgame/nav/nav_path.h"
+
+// Crowd & Crew
+#include "svgame/crowd/svg_crowd_manager.h"
 
 static constexpr QMTime PATH_RECALC_INTERVAL_MS = 100_ms;
 
@@ -106,6 +254,8 @@ static inline const char *Dummy_DebugAIStateName( const svg_monster_testdummy_de
 			return "PursueBreadcrumb";
 		case svg_monster_testdummy_debug_t::AIThinkState::InvestigateSound:
 			return "InvestigateSound";
+		case svg_monster_testdummy_debug_t::AIThinkState::HideInCover:
+			return "HideInCover";
 		case svg_monster_testdummy_debug_t::AIThinkState::IdleLookout:
 		default:
 			return "IdleLookout";
@@ -229,6 +379,9 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink )( svg_mons
 		case svg_monster_testdummy_debug_t::AIThinkState::InvestigateSound:
 			svg_monster_testdummy_debug_t::onThink_InvestigateSound( self );
 			break;
+		case svg_monster_testdummy_debug_t::AIThinkState::HideInCover:
+			svg_monster_testdummy_debug_t::onThink_HideInCover( self );
+			break;
 		case svg_monster_testdummy_debug_t::AIThinkState::IdleLookout:
 		default:
 			svg_monster_testdummy_debug_t::onThink_Idle( self );
@@ -238,11 +391,59 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink )( svg_mons
 
 
 /**
+*   @brief  Called for each cm_entity_t key/value pair for this entity.
+**/
+const bool svg_monster_testdummy_debug_t::KeyValue( const cm_entity_t *keyValuePair, std::string &errorStr ) {
+	const std::string keyStr = keyValuePair->key;
+
+	if ( keyStr == "crowd_id" && ( keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) ) {
+		this->crowd.crowdID = keyValuePair->integer;
+		return true;
+	} else if ( keyStr == "crowd_role" && ( keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) ) {
+		this->crowd.role = static_cast<crowd_member_role_t>( keyValuePair->integer );
+		return true;
+	} else if ( keyStr == "crowd_style" && ( keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) ) {
+		this->initialCrowdStyle = static_cast<crowd_chase_target_type_t>( keyValuePair->integer );
+		return true;
+	} else if ( keyStr == "crowd_lat_spacing" && ( keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) ) {
+		this->initialCrowdParams.lateralSpacing = static_cast<double>( keyValuePair->value );
+		return true;
+	} else if ( keyStr == "crowd_lon_spacing" && ( keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) ) {
+		this->initialCrowdParams.longitudinalSpacing = static_cast<double>( keyValuePair->value );
+		return true;
+	} else if ( keyStr == "crowd_max_cover_dist" && ( keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) ) {
+		this->initialCrowdParams.maxCoverDistance = static_cast<double>( keyValuePair->value );
+		return true;
+	} else if ( keyStr == "crowd_min_cover_dist" && ( keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) ) {
+		this->initialCrowdParams.minCoverDistance = static_cast<double>( keyValuePair->value );
+		return true;
+	} else if ( keyStr == "crowd_arrival_radius" && ( keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) ) {
+		this->initialCrowdParams.arrivalRadius = static_cast<double>( keyValuePair->value );
+		return true;
+	}
+
+	return Super::KeyValue( keyValuePair, errorStr );
+}
+
+/**
 *	@brief	For this debug variant, we override the spawn and think callbacks to always attempt async A* to the activator.
 *			Spawn for debug testdummy: call base onSpawn then set think to our simple loop.
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_monster_testdummy_debug_t, onSpawn )( svg_monster_testdummy_debug_t *self ) -> void {
 	Super::onSpawn( self );
+
+	// Apply map-defined crowd parameters to the global crowd manager if this dummy belongs to a valid crowd.
+	// Since TrenchBroom usually applies these keys uniformly, any dummy can safely initialize the group's params.
+	if ( self->crowd.crowdID > 0 ) {
+		SVG_Crowd_SetCrowdParams( self->crowd.crowdID, self->initialCrowdParams );
+	}
+
+	/**
+	*	Set custom skin renderfx and skinnum based on crowd membership.
+	**/
+	// Assign custom skin according to crowd membership (-1 and 0 default to neutral grey skin).
+	self->s.renderfx |= RF_CUSTOMSKIN;
+	self->s.skinnum = svg_monster_testdummy_debug_t::GetCrowdSkinImageIndex( self->crowd.crowdID );
 
 	/**
 	*    Basic entity type and movement properties.
@@ -294,8 +495,6 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_monster_testdummy_debug_t, onSpawn )( svg_mons
 	self->svFlags &= ~SVF_DEADENTITY;
 	self->svFlags |= SVF_MONSTER;
 
-	self->s.skinnum = 0;
-
 	self->takedamage = DAMAGE_AIM;
 
 	self->airFinishedBreathTime = level.time + 12_sec;
@@ -305,7 +504,6 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_monster_testdummy_debug_t, onSpawn )( svg_mons
 
 	self->takedamage = DAMAGE_YES;
 	self->lifeStatus = LIFESTATUS_ALIVE;
-
 
 	/**
 	*    Interaction hooks and think scheduling.
@@ -412,6 +610,8 @@ DEFINE_MEMBER_CALLBACK_POSTSPAWN( svg_monster_testdummy_debug_t, onPostSpawn )( 
 		M_CheckGround( self, mask );
 		M_droptofloor( self );
 	}
+
+
 }
 
 /**
@@ -607,6 +807,11 @@ DEFINE_MEMBER_CALLBACK_USE( svg_monster_testdummy_debug_t, onUse )( svg_monster_
 
 	if ( self->isActivated ) {
 		self->goalentity = activator;
+		// Activated dummy always returns to mood == 0 (MOOD_TYPE_NORMAL) following behavior!
+		self->mood = svg_monster_mood_type_t::MOOD_TYPE_NORMAL;
+		self->mins = DUMMY_BBOX_STANDUP_MINS;
+		self->maxs = DUMMY_BBOX_STANDUP_MAXS;
+		self->viewheight = DUMMY_VIEWHEIGHT_STANDUP;
 		Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::PursuePlayer );
 	} else {
 		self->goalentity = nullptr;
@@ -617,10 +822,32 @@ DEFINE_MEMBER_CALLBACK_USE( svg_monster_testdummy_debug_t, onUse )( svg_monster_
 }
 
 /**
-*   @brief  Death routine.
+*   @brief  Pain routine.
 **/
 DEFINE_MEMBER_CALLBACK_PAIN( svg_monster_testdummy_debug_t, onPain )( svg_monster_testdummy_debug_t *self, svg_base_edict_t *other, const float kick, const int32_t damage, const entity_damageflags_t damageFlags ) -> void {
+	if ( ( self->lifeStatus & LIFESTATUS_DEAD ) == LIFESTATUS_DEAD ) {
+		return;
+	}
 
+	// When hit, become scared (mood == 1) and flee to cover!
+	if ( self->mood != svg_monster_mood_type_t::MOOD_TYPE_SCARED ) {
+		self->mood = svg_monster_mood_type_t::MOOD_TYPE_SCARED;
+		if ( other && other->client ) {
+			self->activator = other;
+		} else if ( !self->activator ) {
+			self->activator = g_edicts[ 1 ]; // Player
+		}
+
+		if ( self->activator && self->activator->client ) {
+			gi.centerprintf( self->activator, "I'm scared!! GAAHH!!!" );
+		}
+
+		self->stateCover.activeCoverIdx = -1;
+		self->stateCover.isHidingInCover = false;
+		self->ResetNavigationPath();
+		Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::HideInCover );
+		self->nextthink = level.time + FRAME_TIME_MS;
+	}
 }
 
 
@@ -641,6 +868,11 @@ DEFINE_MEMBER_CALLBACK_PAIN( svg_monster_testdummy_debug_t, onPain )( svg_monste
 *
 **/
 bool svg_monster_testdummy_debug_t::CheckForAudibleSounds() {
+	// Scared monsters prioritize tactical cover hiding and do not seek out sounds.
+	if ( this->mood == svg_monster_mood_type_t::MOOD_TYPE_SCARED ) {
+		return false;
+	}
+
 	svg_base_edict_t *foundAudibleEntity = nullptr;
 
 	//! We want to react to the freshest event regardless of which slot it is in, so we compare timestamps to find the most recent.
@@ -674,11 +906,22 @@ bool svg_monster_testdummy_debug_t::CheckForAudibleSounds() {
 		const double soundDist3D = std::sqrt( QM_Vector3DistanceSqr( audibleEntity->currentOrigin, this->currentOrigin ) );
 		
 		if ( soundAge <= DUMMY_SOUND_INVESTIGATE_MAX_AGE && soundDist3D <= DUMMY_SOUND_INVESTIGATE_MAX_DIST ) {
-			this->stateSoundCan.origin = audibleEntity->currentOrigin;
-			this->stateSoundCan.hasOrigin = true;
-			this->stateSoundCan.lastTime = audibleEntity->last_sound_time;
+			// Nearby gunshot or explosive event: trigger mood == 1 (scared) and retreat to cover!
+			this->mood = svg_monster_mood_type_t::MOOD_TYPE_SCARED;
+			if ( audibleEntity->owner && audibleEntity->owner->client ) {
+				this->activator = audibleEntity->owner;
+			} else if ( !this->activator ) {
+				this->activator = g_edicts[ 1 ]; // Player
+			}
+
+			if ( this->activator && this->activator->client ) {
+				gi.centerprintf( this->activator, "I'm scared!! GAAHH!!!" );
+			}
+
+			this->stateCover.activeCoverIdx = -1;
+			this->stateCover.isHidingInCover = false;
 			this->ResetNavigationPath();
-			Dummy_SetState( this, svg_monster_testdummy_debug_t::AIThinkState::InvestigateSound );
+			Dummy_SetState( this, svg_monster_testdummy_debug_t::AIThinkState::HideInCover );
 			this->nextthink = level.time + FRAME_TIME_MS;
 			return true;
 		}
@@ -712,6 +955,13 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarToPlay
         return;
     }
 
+    // If mood is scared, immediately divert to cover hiding behavior!
+    if ( self->mood == svg_monster_mood_type_t::MOOD_TYPE_SCARED ) {
+        Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::HideInCover );
+        svg_monster_testdummy_debug_t::onThink_HideInCover( self );
+        return;
+    }
+
     const bool activatorVisible = SVG_Entity_IsVisible( self, self->activator );
     if ( activatorVisible ) {
         self->lastPlayerVisibleTime = level.time;
@@ -730,18 +980,14 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarToPlay
     
     const double dist2d = std::sqrt( QM_Vector2DistanceSqr( self->activator->currentOrigin, self->currentOrigin ) );
     const double distZ = std::abs( self->activator->currentOrigin.z - self->currentOrigin.z );
-    // Player is 16 radius, monster is 16 radius. 32 is exact touch.
-    // 44 is 12 units of distance between edges.
-    // Also enforce a reasonable Z height difference (e.g. 48 units, enough for jumping/stairs but not balconies)
-    const bool physicallyTouching = ( dist2d <= 44.0 ) && ( distZ < 48.0 );
 
-    // Check for audible sounds before we move (optional realism step). Ignore if touching.
-    if ( !activatorVisible && !physicallyTouching && self->CheckForAudibleSounds() ) {
+    // Check for audible sounds before we move (optional realism step)
+    if ( !activatorVisible && self->CheckForAudibleSounds() ) {
         return;
     }
 
-    // If we can see the player and are in attack range (both 2D and Z), OR if we are physically touching them (bypassing strict LOS), halt and attack/face.
-    if ( physicallyTouching || ( activatorVisible && dist2d <= 44.0 && distZ < 48.0 ) ) {
+    // If we can see the player and are in melee attack range (both 2D and Z), halt and attack/face.
+    if ( activatorVisible && dist2d <= 44.0 && distZ < 48.0 ) {
         self->velocity.x = 0;
         self->velocity.y = 0;
         self->monsterMove.state.velocity.x = 0;
@@ -760,9 +1006,8 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarToPlay
             SVG_MMove_FaceIdealYaw( self, self->ideal_yaw, self->yaw_speed );
         }
     } else {
-        // Direct A* pursuit to player's current origin!
-        // MoveAStarToOrigin properly sets the ideal_yaw and velocity to follow the path.
-        // We DO NOT override ideal_yaw here anymore, so the monster will actually look where it's going!
+        // Direct A* pursuit to player's current origin via NavMesh path following.
+        // MoveAStarToOrigin sets the ideal_yaw and velocity to navigate around walls and corners.
         self->MoveAStarToOrigin( self->activator->currentOrigin );
     }
 
@@ -790,6 +1035,13 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarPursui
     if ( !self->isActivated ) {
         Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
         self->nextthink = level.time + FRAME_TIME_MS;
+        return;
+    }
+
+    // If mood is scared, divert to cover hiding immediately.
+    if ( self->mood == svg_monster_mood_type_t::MOOD_TYPE_SCARED ) {
+        Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::HideInCover );
+        svg_monster_testdummy_debug_t::onThink_HideInCover( self );
         return;
     }
 
@@ -852,6 +1104,13 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Investigate
 	*   Maintain base state and liveness.
 	**/
 	if ( !self->GenericThinkBegin() ) {
+		return;
+	}
+
+	// If mood is scared, divert to cover hiding immediately.
+	if ( self->mood == svg_monster_mood_type_t::MOOD_TYPE_SCARED ) {
+		Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::HideInCover );
+		svg_monster_testdummy_debug_t::onThink_HideInCover( self );
 		return;
 	}
 
@@ -940,6 +1199,556 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Investigate
 //=================================================================================================
 
 /**
+*	@brief		Find the best tactical cover point prioritizing crouch cover over standing cover.
+*	@param	threat_origin	Position of the enemy/player to hide from.
+*	@return	Index of the chosen cover point in g_nav_cover_points, or -1 if none found.
+**/
+const int32_t svg_monster_testdummy_debug_t::FindBestScaredCover( const Vector3 &threat_origin ) {
+	/**
+	*	Sanity checks: Ensure cover points exist in active navmesh.
+	**/
+	const int32_t num_points = Nav_GetCoverPointCount();
+	if ( num_points <= 0 ) {
+		return -1;
+	}
+
+	const svg_base_edict_t *requester_edict = this;
+	const float dist_self_to_threat = QM_Vector3Distance( currentOrigin, threat_origin );
+
+	struct scored_candidate_t {
+		int32_t index = -1;
+		float score = -1e9f;
+	};
+
+	std::vector<scored_candidate_t> valid_candidates = {};
+	valid_candidates.reserve( 32 );
+
+	std::vector<scored_candidate_t> fallback_candidates = {};
+	fallback_candidates.reserve( 32 );
+
+	/**
+	*	Pass 1: Tactical search with full anti-ping-pong and anti-clustering constraints.
+	*	1. Anti-Ping-Pong: Reject recently visited/compromised cover spots.
+	*	2. Spatial Anti-Clustering: Reject points within 160 units of claimed spots or other monsters.
+	*	3. True Occlusion: Require world solid geometry obstruction between cover eye and threat eye.
+	*	4. Safe Direction: Favor moving away from threat (flee_gain).
+	*	5. Proximity to Dummy: Favor closest valid occluded spot over sprinting across the map.
+	*	6. Posture: Prioritize crouch cover (NAV_COVER_LOW) over standing cover.
+	**/
+	for ( int32_t i = 0; i < num_points; i++ ) {
+		const nav_cover_point_t *cp = Nav_GetCoverPoint( i );
+		if ( !cp ) {
+			continue;
+		}
+
+		// 1. Anti-Ping-Pong: skip recently visited/compromised cover spots.
+		if ( stateCover.IsCoverBanned( i ) ) {
+			continue;
+		}
+
+		// 2. Spatial anti-clustering: reject if this point or any neighbor within 160 units is claimed or on cooldown.
+		if ( Nav_IsCoverPointSpatiallyClaimed( i, s.number, 160.0f ) ) {
+			continue;
+		}
+
+		// 3. Check dynamic mover usability.
+		if ( !Nav_IsCoverPointUsable( *cp, requester_edict ) ) {
+			continue;
+		}
+
+		// 4. Resolve current world-space coordinates.
+		Vector3 world_pos = {}, world_normal = {};
+		if ( !Nav_GetCoverPointWorld( *cp, &world_pos, &world_normal ) ) {
+			continue;
+		}
+
+		const float dist_from_self = QM_Vector3Distance( world_pos, currentOrigin );
+		const float dist_cover_to_threat = QM_Vector3Distance( world_pos, threat_origin );
+		const float flee_gain = dist_cover_to_threat - dist_self_to_threat;
+
+		// Skip candidate if it forces the monster to run straight into the threat.
+		if ( flee_gain < -96.0f && dist_self_to_threat < 400.0f ) {
+			continue;
+		}
+
+		// When fleeing from a close threat, skip cover that is practically under our feet (< 160 units).
+		if ( dist_from_self < 160.0f && dist_self_to_threat < 350.0f ) {
+			continue;
+		}
+
+		// 5. Strict line-of-sight trace check from cover eye to threat eye.
+		const float protection = Nav_EvaluateCoverForThreat( i, threat_origin, true );
+
+		// 6. Ally spreading and territorial avoidance.
+		float ally_proximity_penalty = 0.0f;
+		bool too_close_to_ally = false;
+
+		for ( int32_t ent_idx = game.maxclients + 1; ent_idx < g_edict_pool.num_edicts; ent_idx++ ) {
+			if ( ent_idx == s.number ) {
+				continue;
+			}
+			const svg_base_edict_t *other_ent = g_edict_pool.EdictForNumber( ent_idx );
+			if ( !other_ent || !other_ent->inUse || other_ent->health <= 0 ) {
+				continue;
+			}
+
+			// Reject if another entity is already physically within 160 units of this spot.
+			const float dist_to_ally = QM_Vector3Distance( world_pos, other_ent->currentOrigin );
+			if ( dist_to_ally < 160.0f ) {
+				too_close_to_ally = true;
+				break;
+			}
+			if ( dist_to_ally < 320.0f ) {
+				ally_proximity_penalty += ( 320.0f - dist_to_ally ) * 1.5f;
+			}
+		}
+
+		if ( too_close_to_ally ) {
+			continue;
+		}
+
+		if ( protection > 0.0f ) {
+			// Comprehensive retreat scoring:
+			const float posture_bonus = ( cp->cover_type == NAV_COVER_LOW ) ? 300.0f : 0.0f;
+			const float score = 1000.0f + posture_bonus
+				+ ( QM_Clamp( flee_gain, -100.0f, 600.0f ) * 1.5f )
+				- ( dist_from_self * 0.25f )
+				- ally_proximity_penalty;
+
+			valid_candidates.push_back( { i, score } );
+		} else {
+			// Fallback scoring if no point has strict line-of-sight occlusion:
+			const float to_threat_dot = QM_Vector3DotProduct( QM_Vector3Normalize( QM_Vector3Subtract( threat_origin, world_pos ) ), QM_Vector3Scale( world_normal, -1.0f ) );
+			const float score = ( to_threat_dot * 200.0f )
+				+ ( QM_Clamp( flee_gain, -100.0f, 600.0f ) * 1.0f )
+				- ( dist_from_self * 0.40f )
+				- ally_proximity_penalty;
+
+			fallback_candidates.push_back( { i, score } );
+		}
+	}
+
+	/**
+	*	Select from valid Pass 1 candidates:
+	**/
+	if ( !valid_candidates.empty() ) {
+		std::sort( valid_candidates.begin(), valid_candidates.end(),
+			[]( const scored_candidate_t &a, const scored_candidate_t &b ) {
+				return a.score > b.score;
+			}
+		);
+
+		const float max_score = valid_candidates[ 0 ].score;
+		int32_t top_count = 1;
+		while ( top_count < static_cast<int32_t>( valid_candidates.size() ) && top_count < 4 ) {
+			if ( ( max_score - valid_candidates[ top_count ].score ) > 100.0f ) {
+				break;
+			}
+			top_count++;
+		}
+
+		const int32_t chosen_slot = ( top_count > 1 ) ? irandom( top_count ) : 0;
+		return valid_candidates[ chosen_slot ].index;
+	}
+
+	if ( !fallback_candidates.empty() ) {
+		std::sort( fallback_candidates.begin(), fallback_candidates.end(),
+			[]( const scored_candidate_t &a, const scored_candidate_t &b ) {
+				return a.score > b.score;
+			}
+		);
+
+		const int32_t top_count = std::min<int32_t>( 3, static_cast<int32_t>( fallback_candidates.size() ) );
+		const int32_t chosen_slot = ( top_count > 1 ) ? irandom( top_count ) : 0;
+		return fallback_candidates[ chosen_slot ].index;
+	}
+
+	/**
+	*	Pass 2: Relaxed search when all candidates in Pass 1 were banned, on cooldown, or rejected.
+	*	Allows re-using older cover points and corner escapes so monsters never freeze in place.
+	**/
+	valid_candidates.clear();
+	fallback_candidates.clear();
+
+	for ( int32_t i = 0; i < num_points; i++ ) {
+		const nav_cover_point_t *cp = Nav_GetCoverPoint( i );
+		if ( !cp ) {
+			continue;
+		}
+
+		// Only skip if currently claimed by another living entity.
+		if ( Nav_IsCoverPointClaimed( i, s.number ) ) {
+			continue;
+		}
+
+		// Check dynamic mover usability.
+		if ( !Nav_IsCoverPointUsable( *cp, requester_edict ) ) {
+			continue;
+		}
+
+		Vector3 world_pos = {}, world_normal = {};
+		if ( !Nav_GetCoverPointWorld( *cp, &world_pos, &world_normal ) ) {
+			continue;
+		}
+
+		// Skip if another entity is physically standing directly on the point.
+		bool occupied = false;
+		for ( int32_t ent_idx = game.maxclients + 1; ent_idx < g_edict_pool.num_edicts; ent_idx++ ) {
+			if ( ent_idx == s.number ) {
+				continue;
+			}
+			const svg_base_edict_t *other_ent = g_edict_pool.EdictForNumber( ent_idx );
+			if ( !other_ent || !other_ent->inUse || other_ent->health <= 0 ) {
+				continue;
+			}
+			if ( QM_Vector3DistanceSqr( world_pos, other_ent->currentOrigin ) <= ( 80.0f * 80.0f ) ) {
+				occupied = true;
+				break;
+			}
+		}
+		if ( occupied ) {
+			continue;
+		}
+
+		const float dist_from_self = QM_Vector3Distance( world_pos, currentOrigin );
+		const float dist_cover_to_threat = QM_Vector3Distance( world_pos, threat_origin );
+		const float flee_gain = dist_cover_to_threat - dist_self_to_threat;
+
+		const float protection = Nav_EvaluateCoverForThreat( i, threat_origin, true );
+		const float posture_bonus = ( cp->cover_type == NAV_COVER_LOW ) ? 300.0f : 0.0f;
+
+		if ( protection > 0.0f ) {
+			const float score = 500.0f + posture_bonus
+				+ ( QM_Clamp( flee_gain, -200.0f, 600.0f ) * 1.0f )
+				- ( dist_from_self * 0.15f );
+			valid_candidates.push_back( { i, score } );
+		} else {
+			const float to_threat_dot = QM_Vector3DotProduct( QM_Vector3Normalize( QM_Vector3Subtract( threat_origin, world_pos ) ), QM_Vector3Scale( world_normal, -1.0f ) );
+			const float score = ( to_threat_dot * 150.0f )
+				+ ( QM_Clamp( flee_gain, -200.0f, 600.0f ) * 0.75f )
+				- ( dist_from_self * 0.25f );
+			fallback_candidates.push_back( { i, score } );
+		}
+	}
+
+	if ( !valid_candidates.empty() ) {
+		std::sort( valid_candidates.begin(), valid_candidates.end(),
+			[]( const scored_candidate_t &a, const scored_candidate_t &b ) {
+				return a.score > b.score;
+			}
+		);
+		return valid_candidates[ 0 ].index;
+	}
+
+	if ( !fallback_candidates.empty() ) {
+		std::sort( fallback_candidates.begin(), fallback_candidates.end(),
+			[]( const scored_candidate_t &a, const scored_candidate_t &b ) {
+				return a.score > b.score;
+			}
+		);
+		return fallback_candidates[ 0 ].index;
+	}
+
+	return -1;
+}
+
+/**
+*	@brief	Cover hiding thinker: seeks and holds crouch cover when scared.
+**/
+DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_HideInCover )( svg_monster_testdummy_debug_t *self ) -> void {
+	/**
+	*	Generic think initialization.
+	**/
+	if ( !self->GenericThinkBegin() ) {
+		return;
+	}
+
+	// Deactivate if not activated.
+	if ( !self->isActivated ) {
+		self->mins = DUMMY_BBOX_STANDUP_MINS;
+		self->maxs = DUMMY_BBOX_STANDUP_MAXS;
+		self->viewheight = DUMMY_VIEWHEIGHT_STANDUP;
+		Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
+		self->nextthink = level.time + FRAME_TIME_MS;
+		return;
+	}
+
+	// Disable gap jumping to avoid unnatural jumping while navigating to cover.
+	self->pathNavigationState.policy.allow_gap_jumping = false;
+
+	// Target threat is the player/activator.
+	if ( !self->activator ) {
+		self->stateNavigationTrail.targetEntity = nullptr;
+		self->goalentity = nullptr;
+		self->ResetNavigationPath();
+		self->mins = DUMMY_BBOX_STANDUP_MINS;
+		self->maxs = DUMMY_BBOX_STANDUP_MAXS;
+		self->viewheight = DUMMY_VIEWHEIGHT_STANDUP;
+		Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
+		self->nextthink = level.time + FRAME_TIME_MS;
+		return;
+	}
+
+	/**
+	*	Check if caught by any player client:
+	*	Being caught means in-sight from within a 128 unit radius.
+	*	Only evaluate catch if actively hiding in cover, or after a catch reaction cooldown (1500ms).
+	*	This prevents monsters who are already sprinting from thrashing/resetting their A* path every frame.
+	**/
+	svg_base_edict_t *catching_player = nullptr;
+	const bool can_be_caught = self->stateCover.isHidingInCover || ( level.time >= self->stateCover.lastCatchReactionTime + 1500_ms );
+
+	if ( can_be_caught ) {
+		for ( int32_t i = 1; i <= game.maxclients; i++ ) {
+			svg_base_edict_t *player = g_edict_pool.EdictForNumber( i );
+			if ( !player || !player->inUse || !player->client || player->health <= 0 ) {
+				continue;
+			}
+
+			// Distance check: within 128 units
+			const float dist = QM_Vector3Distance( self->currentOrigin, player->currentOrigin );
+			if ( dist <= 128.0f ) {
+				// In-sight check: direct line of sight between player and monster
+				if ( SVG_Entity_IsVisible( player, self ) ) {
+					catching_player = player;
+					break;
+				}
+			}
+		}
+	}
+
+	if ( catching_player ) {
+		self->stateCover.lastCatchReactionTime = level.time;
+
+		// Centerprint to the catching client
+		gi.centerprintf( catching_player, "[LULZ]: Caught a scared testdummy :-(" );
+
+		// Target threat is now the catching player
+		self->activator = catching_player;
+
+		// Ban old compromised cover point with short duration and release claim.
+		if ( self->stateCover.activeCoverIdx >= 0 ) {
+			self->stateCover.BanRecentCover( self->stateCover.activeCoverIdx, 4000_ms );
+			Nav_SetCoverPointCooldown( self->stateCover.activeCoverIdx, 2000_ms );
+			Nav_ReleaseCoverPoint( self->stateCover.activeCoverIdx, self->s.number );
+			self->stateCover.activeCoverIdx = -1;
+		}
+
+		// Stand up to run away to the new cover!
+		self->stateCover.isHidingInCover = false;
+		self->mins = DUMMY_BBOX_STANDUP_MINS;
+		self->maxs = DUMMY_BBOX_STANDUP_MAXS;
+		self->viewheight = DUMMY_VIEWHEIGHT_STANDUP;
+		self->ResetNavigationPath();
+
+		// Immediately pick a new tactical cover spot away from this catching player
+		const int32_t new_cover_idx = self->FindBestScaredCover( catching_player->currentOrigin );
+		if ( new_cover_idx >= 0 ) {
+			const nav_cover_point_t *cp = Nav_GetCoverPoint( new_cover_idx );
+			if ( cp ) {
+				Vector3 w_pos = {}, w_normal = {};
+				if ( Nav_GetCoverPointWorld( *cp, &w_pos, &w_normal ) ) {
+					Nav_ClaimCoverPoint( new_cover_idx, self->s.number, 15000_ms );
+					self->stateCover.activeCoverIdx = new_cover_idx;
+					self->stateCover.coverWorldPos = w_pos;
+					self->stateCover.coverSelectTime = level.time;
+					self->stateCover.isHidingInCover = false;
+					self->stateCover.nextExposureCheckTime = level.time + 1500_ms;
+					self->ResetNavigationPath();
+
+					// Immediately start running to new cover!
+					self->MoveAStarToOrigin( self->stateCover.coverWorldPos, true );
+				}
+			}
+		}
+	}
+
+	const Vector3 threat_origin = self->activator->currentOrigin;
+
+	/**
+	*	Direct line-of-sight & exposure check when sitting in cover:
+	*	If the player spots the crouching testdummy, it screams "OH NOT AGAIN!@" and flees to another cover spot!
+	**/
+	bool spotted_in_cover = false;
+	if ( self->stateCover.isHidingInCover && self->activator ) {
+		Vector3 dummy_eye = self->currentOrigin;
+		dummy_eye.z += self->viewheight;
+		Vector3 player_eye = self->activator->currentOrigin;
+		player_eye.z += ( ( self->activator->viewheight != 0.0f ) ? self->activator->viewheight : 22.0f );
+		const svg_trace_t los_tr = SVG_Trace( dummy_eye, vec3_origin, vec3_origin, player_eye, self, CM_CONTENTMASK_OPAQUE );
+		if ( los_tr.fraction >= 1.0f && !los_tr.startsolid && !los_tr.allsolid ) {
+			// Direct unobstructed line-of-sight: we have been spotted!
+			spotted_in_cover = true;
+		}
+	}
+
+	/**
+	*	Exposure and cover validity check:
+	*	Re-evaluate cover if we don't have one, or periodically once we are actively hiding in cover.
+	**/
+	const bool needs_cover_eval = ( self->stateCover.activeCoverIdx == -1 ) || spotted_in_cover ||
+		( self->stateCover.isHidingInCover && level.time >= self->stateCover.nextExposureCheckTime );
+
+	if ( needs_cover_eval && !catching_player ) {
+		self->stateCover.nextExposureCheckTime = level.time + 1500_ms;
+
+		bool cover_valid = false;
+		if ( self->stateCover.activeCoverIdx >= 0 && !spotted_in_cover ) {
+			// Check if cover point is still usable and protecting from the threat.
+			const float protection = Nav_EvaluateCoverForThreat( self->stateCover.activeCoverIdx, threat_origin, true );
+			if ( protection > 0.0f ) {
+				cover_valid = true;
+			}
+		}
+
+		// If current cover is invalid/exposed or not set, find a new crouch cover spot!
+		if ( !cover_valid ) {
+			if ( self->stateCover.isHidingInCover && self->activator ) {
+				// Scream to the player when spotted while sitting at our cover spot!
+				gi.centerprintf( self->activator, "OH NOT AGAIN!@" );
+			}
+
+			// Ban compromised cover point with short duration and place on cooldown.
+			if ( self->stateCover.activeCoverIdx >= 0 ) {
+				self->stateCover.BanRecentCover( self->stateCover.activeCoverIdx, 4000_ms );
+				Nav_SetCoverPointCooldown( self->stateCover.activeCoverIdx, 2000_ms );
+				Nav_ReleaseCoverPoint( self->stateCover.activeCoverIdx, self->s.number );
+				self->stateCover.activeCoverIdx = -1;
+			}
+
+			// Stand up for running to new cover.
+			self->stateCover.isHidingInCover = false;
+			self->mins = DUMMY_BBOX_STANDUP_MINS;
+			self->maxs = DUMMY_BBOX_STANDUP_MAXS;
+			self->viewheight = DUMMY_VIEWHEIGHT_STANDUP;
+
+			// Find best crouch cover spot away from threat.
+			const int32_t new_cover_idx = self->FindBestScaredCover( threat_origin );
+			if ( new_cover_idx >= 0 ) {
+				const nav_cover_point_t *cp = Nav_GetCoverPoint( new_cover_idx );
+				if ( cp ) {
+					Vector3 w_pos = {}, w_normal = {};
+					if ( Nav_GetCoverPointWorld( *cp, &w_pos, &w_normal ) ) {
+						Nav_ClaimCoverPoint( new_cover_idx, self->s.number, 15000_ms );
+						self->stateCover.activeCoverIdx = new_cover_idx;
+						self->stateCover.coverWorldPos = w_pos;
+						self->stateCover.coverSelectTime = level.time;
+						self->stateCover.isHidingInCover = false;
+						self->stateCover.nextExposureCheckTime = level.time + 1500_ms;
+						self->ResetNavigationPath();
+
+						// Immediately start running to new cover!
+						self->MoveAStarToOrigin( self->stateCover.coverWorldPos, true );
+					}
+				}
+			}
+		}
+	}
+
+	/**
+	*	If no cover could be found, retreat directly away from the player.
+	**/
+	if ( self->stateCover.activeCoverIdx < 0 ) {
+		self->stateCover.isHidingInCover = false;
+		self->mins = DUMMY_BBOX_STANDUP_MINS;
+		self->maxs = DUMMY_BBOX_STANDUP_MAXS;
+		self->viewheight = DUMMY_VIEWHEIGHT_STANDUP;
+
+		Vector3 flee_dir = QM_Vector3Subtract( self->currentOrigin, threat_origin );
+		flee_dir.z = 0.0f;
+		if ( QM_Vector3LengthSqr( flee_dir ) > 0.01f ) {
+			Vector3 flee_goal = QM_Vector3Add( self->currentOrigin, QM_Vector3Scale( QM_Vector3Normalize( flee_dir ), 384.0f ) );
+			const int32_t goalFace = Nav_FindPolyInLeaf( flee_goal );
+			if ( goalFace >= 0 && goalFace < static_cast<int32_t>( g_nav_faces.size() ) ) {
+				flee_goal = static_cast<Vector3>( g_nav_faces[ goalFace ].center );
+			}
+			self->MoveAStarToOrigin( flee_goal );
+		}
+		int32_t blockedMask = 0;
+		self->GenericThinkFinish( true, blockedMask );
+		self->currentAngles[ PITCH ] = 0.0f;
+		self->currentAngles[ ROLL ] = 0.0f;
+		SVG_Util_SetEntityAngles( self, self->currentAngles, true );
+		self->UpdateBlockedNavigationRecovery( blockedMask );
+		self->nextthink = level.time + FRAME_TIME_MS;
+		return;
+	}
+
+	/**
+	*	Navigate to the active cover spot or hold and crouch behind it.
+	**/
+	const float dist_to_cover_2d = std::sqrt( QM_Vector2DistanceSqr( self->stateCover.coverWorldPos, self->currentOrigin ) );
+	constexpr float arrival_threshold = 28.0f;
+
+	if ( !self->stateCover.isHidingInCover && dist_to_cover_2d <= arrival_threshold ) {
+		// Arrived at cover: latch hiding state so entity does not flap back and forth in yaw/movement.
+		self->stateCover.isHidingInCover = true;
+	}
+
+	if ( !self->stateCover.isHidingInCover ) {
+		// Still en route to cover: stand up, run towards cover position using A*.
+		self->mins = DUMMY_BBOX_STANDUP_MINS;
+		self->maxs = DUMMY_BBOX_STANDUP_MAXS;
+		self->viewheight = DUMMY_VIEWHEIGHT_STANDUP;
+		self->MoveAStarToOrigin( self->stateCover.coverWorldPos );
+	} else {
+		// Arrived at cover: halt movement and crouch!
+		self->velocity.x = 0.0f;
+		self->velocity.y = 0.0f;
+		self->monsterMove.state.velocity.x = 0.0f;
+		self->monsterMove.state.velocity.y = 0.0f;
+
+		// Shrink bounding box to crouch height.
+		self->mins = DUMMY_BBOX_DUCKED_MINS;
+		self->maxs = DUMMY_BBOX_DUCKED_MAXS;
+		self->viewheight = DUMMY_VIEWHEIGHT_DUCKED;
+
+		// If vision of the entity is obstructed behind cover, randomly peek around interpolating yaw from and to various directions, pretending to be scared!
+		const nav_cover_point_t *cp = Nav_GetCoverPoint( self->stateCover.activeCoverIdx );
+		if ( cp ) {
+			Vector3 w_pos = {}, w_normal = {};
+			if ( Nav_GetCoverPointWorld( *cp, &w_pos, &w_normal ) ) {
+				const float base_yaw = QM_Vector3ToYaw( w_normal );
+
+				// Pick a new nervous look direction at randomized intervals (400ms - 900ms)
+				if ( level.time >= self->stateCover.nextPeekTime ) {
+					// Random peek angle offset between -55 and +55 degrees relative to cover outward normal
+					const float angle_offset = crandom_openf() * 55.0f; // random_open( -55.0f, 55.0f );
+					self->stateCover.peekTargetYaw = QM_AngleMod( base_yaw + angle_offset );
+					self->stateCover.nextPeekTime = level.time + random_time( 400_ms, 900_ms );
+				}
+
+				// Smoothly interpolate ideal_yaw toward peekTargetYaw
+				self->ideal_yaw = self->stateCover.peekTargetYaw;
+				self->yaw_speed = 18.0f;
+				self->currentAngles[ PITCH ] = 0.0f;
+				self->currentAngles[ ROLL ] = 0.0f;
+				SVG_MMove_FaceIdealYaw( self, self->ideal_yaw, self->yaw_speed );
+			}
+		}
+
+		// Play crouch idle animation.
+		if ( self->rootMotionSet && self->rootMotionSet->motions[ 1 ] ) {
+			skm_rootmotion_t *rootMotion = self->rootMotionSet->motions[ 1 ]; // IDLE
+			const double t = level.time.Seconds<double>();
+			const int32_t animFrame = ( int32_t )std::floor( ( float )( t * 40.0f ) );
+			const int32_t localFrame = ( rootMotion->frameCount > 0 ) ? ( animFrame % rootMotion->frameCount ) : 0;
+			self->s.frame = rootMotion->firstFrameIndex + localFrame;
+		}
+	}
+
+	int32_t blockedMask = MM_SLIDEMOVEFLAG_NONE;
+	self->GenericThinkFinish( true, blockedMask );
+	self->currentAngles[ PITCH ] = 0.0f;
+	self->currentAngles[ ROLL ] = 0.0f;
+	SVG_Util_SetEntityAngles( self, self->currentAngles, true );
+	self->UpdateBlockedNavigationRecovery( blockedMask );
+	self->nextthink = level.time + FRAME_TIME_MS;
+}
+
+//=================================================================================================
+
+/**
 *	@brief		Always looks for activator presence, or its trail, and otherwise does nothing.
 *
 *	@details	If we are in idle state, it means we failed to find a valid target to pursue in the previous think.
@@ -1002,8 +1811,12 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Idle )( svg
     if ( self->activator ) {
 		// Immediate action.
 		self->goalentity = self->activator;
-		// Set the nextThink to AStarToPlayer so we start chasing the player right away using the navmesh.
-		Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::PursuePlayer );
+		if ( self->mood == svg_monster_mood_type_t::MOOD_TYPE_SCARED ) {
+			Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::HideInCover );
+		} else {
+			// Set the nextThink to AStarToPlayer so we start chasing the player right away using the navmesh.
+			Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::PursuePlayer );
+		}
 		self->nextthink = level.time + FRAME_TIME_MS;
 		// Skip all other idle logic if we have an activator to pursue.
 		return;
@@ -1138,1042 +1951,17 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Dead )( svg
 	self->nextthink = level.time + FRAME_TIME_MS;
 }
 
-
-//=============================================================================================
-//=============================================================================================
-
-
 /**
-*
-*
-*
-*
-*		(Generic-) NPC Entity Think Support Routines:
-*
-*
-*
+*	@brief	Update entity animation frame / state.
+*	@param	animId	Animation identifier (0=None, 1=Idle, 2=Walk, 3=Walk_Aim, 4=Run, 5=Duck_Idle, 6=Duck_Walk, 7=Dead).
 **/
-/**
-	*	@brief	Generic support routine taking care of the base logic that each onThink implementation relies on.
-	*			( Setup navPolicy, recategorize ground and liquid information,  check for being alive,
-	*			  check for activator presence, etc).
-	*	@return	True if the caller should proceed with its specific think logic, or false if it should return early and skip the specific think logic.
-**/
-const bool svg_monster_testdummy_debug_t::GenericThinkBegin() {
-	/**
-	*	Clear visual flags.
-	**/
-	s.renderfx &= ~( RF_STAIR_STEP | RF_OLD_FRAME_LERP );
-
-	/**
-	*    Recategorize position and check grounding.
-	**/
-	RecategorizeGroundAndLiquidState();
-
-	// Sync physics state with entity state (origin may have changed during grounding/snapping).
-	monsterMove.state.origin = currentOrigin;
-	monsterMove.state.velocity = velocity;
-	monsterMove.ground = groundInfo;
-	monsterMove.liquid = liquidInfo;
-	
-	// Synchronize the physics engine's ground flag with the entity's ground information
-	if ( groundInfo.entityNumber != ENTITYNUM_NONE ) {
-	    monsterMove.state.mm_flags |= MMF_ON_GROUND;
-	} else {
-	    monsterMove.state.mm_flags &= ~MMF_ON_GROUND;
-	}
-
-	/**
-	*    Liveness check.
-	**/
-	if ( health <= 0 || ( lifeStatus & LIFESTATUS_ALIVE ) != LIFESTATUS_ALIVE ) {
-		// Transition and remain in the dead thinker and do nothing if we are dead.
-		SetThinkCallback( &svg_monster_testdummy_debug_t::onThink_Dead );
-		nextthink = level.time + FRAME_TIME_MS;
-		// Return false to indicate the caller should skip its specific think logic since we are now dead and should only be running the dead thinker.
-		return false;
-	}
-
-	// Return true to indicate the caller can proceed with its specific think logic after this generic logic is done.
-	return true;
-}
-
-/**
-*	@brief	Generic support routine taking care of the finishing logic that each onThink implementation relies on.
-*			( Deal with the slidemove process, stepping stairs, jumping over obstructions, crouching under obstructions. ).
-*	@param	processSlideMove	When true, will perform the slide move and all the associated logic for handling blocked/trapped results.
-*								When false, will skip the slide move and just return false so the caller can handle it in its specific way
-*								(e.g., the caller may want to try a different movement approach if we are blocked, or may want to ignore being blocked if we are just trying to adjust our position to better see the player).
-*	@param	blockedMask			The blockedMask result from the slide move, which is important for the caller to determine if we should do any special handling
-*								for being trapped (e.g., try to jump, pick a new path, etc).
-*	@return	False if we didn't move, true if we did.
-**/
-const bool svg_monster_testdummy_debug_t::GenericThinkFinish( const bool processSlideMove, int32_t &blockedMask ) {
-	// Perform the slide move and get the blocked mask describing the result of the movement attempt.
-	blockedMask = ( processSlideMove ? ProcessSlideMove() : MM_SLIDEMOVEFLAG_NONE );
-
-	// If we are not blocked or trapped, we can update our position and grounding info. 
-	// Otherwise, we will rely on the next think to attempt recovery and not update our position 
-	// so we don't get stuck in invalid geometry.
-	if ( !( blockedMask & MM_SLIDEMOVEFLAG_TRAPPED ) ) {
-		// Update velocity to the new velocity resulting from the movement attempt, which is likely modified.
-		velocity = monsterMove.state.velocity;
-		// Update position and grounding info.
-		groundInfo = monsterMove.ground;
-		liquidInfo = monsterMove.liquid;
-		// Update the entity's origin to the new position resulting from the movement attempt.
-		SVG_Util_SetEntityOrigin( this, monsterMove.state.origin, true );
-		// Update the entity's link in the world after changing its position.
-		gi.linkentity( this );
-	} else {
-		// We failed to move, we're trapped, this is no good.
-		return false;
-	}
-
-	// We moved successfully, return true.
-	return true;
-}
-
-
-//=============================================================================================
-//=============================================================================================
-
-
-/**
-*
-*
-*
-*
-*	Explicit NPC State Management:
-*
-*
-*
-*
-**/
-//! Tracks whether the NPC has been enabled(By use, with the intend for it to follow the player) by the player.
-//bool isActivated = false;
-////! Last server time when the activator was confirmed visible.
-//QMTime lastPlayerVisibleTime = 0_ms;
-//
-///**
-//*   Explicit AI states.
-//**/
-//enum class AIThinkState {
-//	IdleLookout,
-//	PursuePlayer,
-//	PursueBreadcrumb,
-//	InvestigateSound
-//};
-////! Determines the thinking state callback to fire for the frame.
-//AIThinkState thinkAIState = AIThinkState::IdleLookout;
-
-
-
-/**
-*
-*
-*
-*	Animation Processing Work:
-*
-*
-*
-**/
-//skm_rootmotion_set_t *rootMotionSet = nullptr;
-
-
-//=============================================================================================
-//=============================================================================================
-
-/**
-*
-*
-*
-*	Basic AI Physics Movement(-State):
-*
-*
-*
-**/
-/**
-*	@brief	Performs the actual SlideMove processing and updates the final origin if successful.
-**/
-const int32_t svg_monster_testdummy_debug_t::ProcessSlideMove() {
-
-	// For storing the results of the slide move.
-	nav_path_policy_t pathPolicy = {};
-	pathPolicy.max_step_height = NAV_MAX_STEP_SIZE;
-	pathPolicy.max_drop_height = NAV_DROPOFF_MAX_SIZE;
-	pathPolicy.enable_max_drop_height_cap = true;
-	pathPolicy.max_drop_height_cap = NAV_DROPOFF_ALLOWED_SIZE;
-	monsterMove.navPolicy = &pathPolicy;
-
-	/**
-	*	Reset per-frame touch traces so collision feedback reflects only this frame.
-	**/
-	monsterMove.touchTraces.numberOfTraces = 0;
-	// Perform the slide move and get the blocked mask describing the result of the movement attempt.
-	const int32_t blockedMask = SVG_MMove_StepSlideMove( &monsterMove, pathPolicy );
-
-	// Return the blocked mask so the caller can decide how to react to obstructions.
-	return blockedMask;
-}
-
-/**
-*    @brief    Slerp direction helper. (Local to this TU to avoid parent dependency).
-**/
-const Vector3 svg_monster_testdummy_debug_t::SlerpDirectionVector3( const Vector3 &from, const Vector3 &to, float t ) {
-	float dot = QM_Vector3DotProduct( from, to );
-	float aFactor, bFactor;
-	if ( std::fabs( dot ) > 0.9995f ) {
-		aFactor = 1.0f - t;
-		bFactor = t;
-	} else {
-		float ang = std::acos( dot );
-		float sinOmega = std::sin( ang );
-		aFactor = std::sin( ( 1.0f - t ) * ang ) / sinOmega;
-		bFactor = std::sin( t * ang ) / sinOmega;
-	}
-	return from * aFactor + to * bFactor;
-}
-
-/**
-*	@brief	Recategorize the entity's ground/liquid and ground states.
-**/
-const void svg_monster_testdummy_debug_t::RecategorizeGroundAndLiquidState() {
-	// Get the mask for checking ground and recategorizing position.
-	const cm_contents_t mask = SVG_GetClipMask( this );
-	// Check for ground and recategorize position so we can settle on the floor and interact with the world properly instead of being stuck in the air or in a wall.
-	M_CheckGround( this, mask );
-	// Recategorize position so we can update our liquid level/type and so we can properly interact with the world instead of being stuck in the air or in a wall.
-	M_CatagorizePosition( this, currentOrigin, liquidInfo.level, liquidInfo.type );
-}
-
-
-//=============================================================================================
-//=============================================================================================
-
-
-/**
-*
-*
-*
-*	Internal Navigation Queueing and Path Following Logic API:
-*
-*
-*
-**/
-/**
-*	@brief	Retrieve the appropriate navigation agent bounds for the entity, prioritizing navmesh-defined bounds, then nav-agent-profile-defined bounds, and finally falling back to entity-defined bounds if necessary.
-**/
-void svg_monster_testdummy_debug_t::GetNavigationAgentBounds( Vector3 *out_mins, Vector3 *out_maxs ) {
-	if ( !out_mins || !out_maxs ) {
-		return;
-	}
-
-	// We must ensure that we aren't completely trapped by a dynamic mesh rebuild.
-	// Since we are decoupling Nav2, mesh checks are no longer needed here.
-
-	// Third priority: entity-defined bounds as a fallback to ensure we always have some kind of valid bounds to work with.
-	// Use the entity's mins and maxs, which should always be valid for a properly initialized entity.
-	*out_mins = mins;
-	*out_maxs = maxs;
-}
-/**
-*   @brief	Clear stale async nav request state when no navmesh is loaded.
-*   @param	self	Debug testdummy owning the async path process.
-*   @return	True when navmesh is unavailable and caller should early-return.
-*   @note	Prevents repeated queue refresh/debounce loops on maps without navmesh.
-**/
-const bool svg_monster_testdummy_debug_t::GuardForNullNavMesh() {
-	/**
-	*   Determine whether there is any async state worth tearing down.
-	**/	const bool hadPendingState = false;
-
-	if ( DUMMY_NAV_DEBUG != 0 ) {
-		gi.dprintf( "[NAV DEBUG] %s: Canceling all pending paths/requests (hadPending=%d).\n",
-			__func__, hadPendingState ? 1 : 0 );
-	}
-
-	/**
-	*   Emit a debug message only when we actually cleaned stale state.
-	**/
-	if ( hadPendingState && DUMMY_NAV_DEBUG != 0 ) {
-		gi.dprintf( "[NAV DEBUG] %s: navmesh unavailable, cleared pending async state and skipped queueing.\n", __func__ );
-	}
-
-	/**
-	*   No navmesh loaded; caller should skip path request/query work.
-	**/
-	return true;
-}
-
-static int32_t Dummy_FindClosestFaceInLeaf( const Vector3 &point ) {
-	/**
-	*	Prefer local KD-tree face lookup for stable corner progression.
-	*	However, only keep that result when the query point is actually on/near
-	*	that face plane; otherwise fall back to global lookup for suspended/air cases.
-	**/
-	const int32_t leafFace = Nav_FindPolyInLeaf( point );
-	if ( leafFace >= 0 && static_cast<size_t>( leafFace ) < g_nav_faces.size() ) {
-		const nav_face_t &face = g_nav_faces[ leafFace ];
-
-		/**
-		*	Verify 2D containment and vertical proximity to avoid locking onto a
-		*	leaf-local fallback face that is not a valid standable target.
-		**/
-		if ( Nav_PointInsideFace2D( point, face ) ) {
-			const Vector3DP v0 = g_nav_vertices[ g_nav_halfedges[ face.first_edge_idx ].vertex_idx ];
-			const float planeDist = static_cast<float>( QM_Vector3DotProductDP( v0, face.normal ) );
-			const float verticalDist = std::fabs( static_cast<float>( QM_Vector3DotProductDP( Vector3DP( point ), face.normal ) ) - planeDist );
-			if ( verticalDist <= 64.0f ) {
-				return leafFace;
-			}
-		}
-	}
-
-	/**
-	*	Fallback for edge cases where local leaf lookup picks a poor proxy.
-	**/
-	return Nav_FindClosestPolyGlobal( point );
-}
-
-/**
-*    @brief    Attempt A* navigation to a target origin and apply local movement/animation.
-*    @param    goalOrigin    World-space destination used for the rebuild request (feet-origin).
-*    @param    force         When true, bypass throttles/heuristics and rebuild immediately.
-*    @return   True if movement/animation was updated (caller can expect velocity/frames to have changed).
-*    @note     This implementation provides a responsive direct-steer fallback while async path generation
-*              is queued so the debug monster remains visually responsive even when a path has not yet
-*              been produced by the async nav system.
-**/
-const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goalOrigin, bool force ) {
-    const double t = level.time.Seconds<double>();
-    const int32_t animFrameGlobal = ( int32_t )std::floor( ( float )( t * 40.0f ) );
-    
-    auto UpdateAnim = [&]( int32_t rootMotionIndex ) {
-        if ( this->rootMotionSet && this->rootMotionSet->motions[ rootMotionIndex ] ) {
-            skm_rootmotion_t *rootMotion = this->rootMotionSet->motions[ rootMotionIndex ];
-            const int32_t localFrame = ( rootMotion->frameCount > 0 ) ? ( animFrameGlobal % rootMotion->frameCount ) : 0;
-            this->s.frame = rootMotion->firstFrameIndex + localFrame;
-        }
-    };
-
-    // If we are airborne (jumping or falling), just maintain our ballistic trajectory and play the run animation.
-    // Do NOT steer or recalculate paths until we land.
-    if ( !(monsterMove.state.mm_flags & MMF_ON_GROUND) ) {
-        UpdateAnim( 4 ); // RUN
-        NextWaypoint( goalOrigin ); // Keep progressing waypoints naturally while airborne so we don't skip them.
-        return true;
-    }
-
-    const PathComputeResult pathResult = ComputePathTo( goalOrigin, force );
-    bool path_failed = ( pathResult == PathComputeResult::Failed );
-    
-    // Dynamic Gap Jumping Check
-    if ( pathNavigationState.policy.allow_gap_jumping ) {
-        Vector3 myFeet = currentOrigin;
-        myFeet.z += this->mins.z;
-        Vector3 targetFeet = goalOrigin;
-        targetFeet.z += this->mins.z; // Approximate goal's feet assuming similar bounds
-
-		Vector3 delta = targetFeet - myFeet;
-        float delta_xy = std::sqrt( delta.x * delta.x + delta.y * delta.y );
-        
-        bool should_jump = false;
-        
-        if ( delta_xy >= pathNavigationState.policy.min_gap_width && delta_xy <= pathNavigationState.policy.max_jump_distance ) {
-            if ( path_failed ) {
-                should_jump = true; // Player jumped across a disconnected gap, follow them!
-			} else if ( navPath.size() > 1 ) {
-				/**
-				* Keep a valid navigation route authoritative.  The route may contain
-				* short stair rises that are invisible when comparing face centers, so
-				* planar/elevation classification is not safe for shortcut jumping.
-				* Gap jumps remain available when no route can be found.
-				**/
-				should_jump = false;
-            }
-            
-            // Only jump if there is an ACTUAL gap (i.e. we aren't just running on flat ground).
-            // Do a downward trace at the midpoint of the jump.
-            if ( should_jump ) {
-				Vector3 midpoint = QM_Vector3MultiplyAdd( myFeet, 0.5f, delta );
-                midpoint.z += 16.0f; // Start slightly elevated to avoid flat terrain bumps
-                Vector3 downpoint = midpoint;
-                downpoint.z -= 128.0f;
-                
-                svg_trace_t tr = SVG_MMove_Trace( midpoint, Vector3{0,0,0}, Vector3{0,0,0}, downpoint, this, CONTENTS_SOLID | CONTENTS_PLAYERCLIP );
-                // If we hit solid ground near our level, it's not a gap, it's just floor!
-                if ( tr.fraction < 1.0f && tr.endpos.z >= std::min(myFeet.z, targetFeet.z) - 24.0f ) {
-                    should_jump = false;
-                }
-            }
-        }
-        
-        if ( should_jump ) {
-            // Standard Quake 2 gravity and jump velocity
-            float g = 800.0f;
-            float vz0 = 300.0f; 
-            float dz = delta.z;
-            
-            // Quadratic equation for projectile motion: -0.5*g*t^2 + vz0*t - dz = 0
-            float a = -0.5f * g;
-            float b = vz0;
-            float c = -dz;
-            float discriminant = b * b - 4 * a * c;
-            
-            if ( discriminant >= 0.0f ) {
-                // Pick the larger time so we land on the way down
-                float t = (-b - std::sqrt(discriminant)) / (2 * a);
-                if ( t <= 0.0f ) {
-                    t = (-b + std::sqrt(discriminant)) / (2 * a); // Fallback to way up if necessary
-                }
-                
-                if ( t > 0.0f ) {
-                    float vxy = delta_xy / t;
-                    // Ensure the required horizontal velocity isn't absurdly fast (cap at 600)
-                    if ( vxy <= 600.0f ) {
-                        // Apply jump velocities
-                        velocity.x = (delta.x / delta_xy) * vxy;
-                        velocity.y = (delta.y / delta_xy) * vxy;
-                        velocity.z = vz0;
-                        monsterMove.state.velocity = velocity;
-                        
-                        // Switch physics to flight mode
-                        monsterMove.state.gravity = g; // Ensure gravity is active
-                        monsterMove.state.mm_type = MM_NORMAL;
-                        monsterMove.state.mm_flags &= ~MMF_ON_GROUND;
-                        
-                        // Face the jump direction
-                        ideal_yaw = QM_Vector3ToYaw( velocity );
-                        SVG_MMove_FaceIdealYaw( this, ideal_yaw, 45.0f );
-                        
-                        UpdateAnim( 4 ); // RUN
-                        return true;
-                    }
-                }
-            }
-        }
-    }
-
-    if ( path_failed ) {
-        // Direct fallback removed. Halt!
-        velocity.x = velocity.y = 0.0f;
-        monsterMove.state.velocity.x = velocity.x;
-        monsterMove.state.velocity.y = velocity.y;
-        UpdateAnim( 1 ); // IDLE
-
-        // Face the goal even if pathing failed
-		Vector3 toGoal = goalOrigin - currentOrigin;
-        toGoal.z = 0.0f;
-        if ( QM_Vector3LengthSqr( toGoal ) > 0.001f ) {
-            Vector3 moveDir = QM_Vector3Normalize( toGoal );
-            /**
-            *	Decouple facing from raw movement direction so one-frame portal-side
-            *	noise cannot immediately snap yaw by ~180 degrees.
-            **/
-            Vector3 facingDir = moveDir;
-            if ( hasLastFacingDirection ) {
-            	const float facingContinuity = static_cast<float>( QM_Vector3DotProduct( facingDir, lastFacingDirection ) );
-            	if ( facingContinuity < -0.20f ) {
-					const Vector3 blendedFacing = ( lastFacingDirection * 0.85f ) + ( facingDir * 0.15f );
-            		if ( QM_Vector3LengthSqr( blendedFacing ) > 0.0001f ) {
-            			facingDir = QM_Vector3Normalize( blendedFacing );
-            		}
-            	} else if ( facingContinuity < 0.40f ) {
-					const Vector3 blendedFacing = ( lastFacingDirection * 0.65f ) + ( facingDir * 0.35f );
-            		if ( QM_Vector3LengthSqr( blendedFacing ) > 0.0001f ) {
-            			facingDir = QM_Vector3Normalize( blendedFacing );
-            		}
-            	}
-            }
-
-            ideal_yaw = QM_Vector3ToYaw( facingDir );
-            const double currentYaw = QM_AngleMod( currentAngles[ YAW ] );
-            const double yawDeltaAbs = std::fabs( QM_AngleDelta( ideal_yaw, currentYaw ) );
-            yaw_speed = ( float )QM_Clamp( 16.0 + (yawDeltaAbs * 0.10), 10.0, 45.0 );
-            SVG_MMove_FaceIdealYaw( this, ideal_yaw, yaw_speed );
-        }
-
-        return false;
-    }
-
-    Vector3 nextWay = NextWaypoint( goalOrigin );
-	Vector3 toGoal = nextWay - currentOrigin;
-    toGoal.z = 0.0f;
-    const float toGoalLen2 = static_cast<float>( QM_Vector3DotProduct( toGoal, toGoal ) );
-    if ( toGoalLen2 < 0.0001f ) {
-        velocity.x = velocity.y = 0.0f;
-        monsterMove.state.velocity.x = velocity.x;
-        monsterMove.state.velocity.y = velocity.y;
-        UpdateAnim( 1 ); // IDLE
-        return false;
-    }
-
-	Vector3 moveDir = QM_Vector3Normalize( toGoal );
-	const bool isForcedWaypoint = stringPathPos < stringPulledWaypointForced.size() && stringPulledWaypointForced[ stringPathPos ];
-
-	/**
-	*	Apply continuity smoothing so waypoint plotting does not abruptly flip 180°
-	*	between frames when portal targeting jitters near boundaries. Mandatory stair
-	*	segments intentionally use their exact target direction to stay centered on
-	*	the traversable portal instead of drifting into a neighboring step side.
-	**/
-	if ( hasLastNavigationMoveDir && !isForcedWaypoint ) {
-		const float dirContinuity = static_cast<float>( QM_Vector3DotProduct( moveDir, lastNavigationMoveDir ) );
-		if ( dirContinuity < -0.15f ) {
-			// Strongly oppose hard reversal in a single frame.
-			const Vector3 blendedDir = ( lastNavigationMoveDir * 0.80f ) + ( moveDir * 0.20f );
-			if ( QM_Vector3LengthSqr( blendedDir ) > 0.0001f ) {
-				moveDir = QM_Vector3Normalize( blendedDir );
-			}
-		} else if ( dirContinuity < 0.35f ) {
-			// Mildly smooth medium directional jumps.
-			const Vector3 blendedDir = ( lastNavigationMoveDir * 0.55f ) + ( moveDir * 0.45f );
-			if ( QM_Vector3LengthSqr( blendedDir ) > 0.0001f ) {
-				moveDir = QM_Vector3Normalize( blendedDir );
-			}
-		}
-	}
-
-    /**
-    *	Decouple facing from raw movement direction so one-frame portal-side
-    *	noise cannot immediately snap yaw by ~180 degrees.
-    **/
-    const float toGoalDist2D = std::sqrt( toGoalLen2 );
-	Vector3 facingDir = moveDir;
-	if ( hasLastFacingDirection && !isForcedWaypoint ) {
-    	const float facingContinuity = static_cast<float>( QM_Vector3DotProduct( facingDir, lastFacingDirection ) );
-    	/**
-    	*	Smooth facing direction without ever hard-locking it, avoiding the moonwalk trap.
-    	**/
-    	if ( facingContinuity < -0.98f ) {
-            // Break collinearity trap so Slerp or blends don't get stuck in dead-center opposite directions
-            facingDir.x += 0.01f;
-            facingDir.y -= 0.01f;
-            facingDir = QM_Vector3Normalize( facingDir );
-        }
-        
-    	if ( facingContinuity < -0.20f ) {
-			const Vector3 blendedFacing = SlerpDirectionVector3( lastFacingDirection, facingDir, 0.15f );
-    		if ( QM_Vector3LengthSqr( blendedFacing ) > 0.0001f ) {
-    			facingDir = QM_Vector3Normalize( blendedFacing );
-    		}
-    	} else if ( facingContinuity < 0.40f ) {
-			const Vector3 blendedFacing = SlerpDirectionVector3( lastFacingDirection, facingDir, 0.35f );
-    		if ( QM_Vector3LengthSqr( blendedFacing ) > 0.0001f ) {
-    			facingDir = QM_Vector3Normalize( blendedFacing );
-    		}
-    	}
-    }
-
-    /**
-    *	Apply an ideal-yaw slew-rate limit so even if desired facing jitters, the
-    *	commanded ideal yaw cannot jump by 180 degrees in one think.
-    **/
-	const double desiredIdealYaw = QM_Vector3ToYaw( facingDir );
-	double yawStepLimit = 24.0;
-    if ( toGoalDist2D < 64.0f ) {
-    	yawStepLimit = 10.0;
-    } else if ( toGoalDist2D < 128.0f ) {
-    	yawStepLimit = 14.0;
-    } else if ( toGoalDist2D < 224.0f ) {
-    	yawStepLimit = 18.0;
-    }
-	const double desiredIdealStep = QM_AngleDelta( desiredIdealYaw, ideal_yaw );
-	const double clampedIdealStep = QM_Clamp( desiredIdealStep, -yawStepLimit, yawStepLimit );
-	// A forced stair segment is a physical traversal constraint, not a soft corner.
-	// Face the exact portal heading so stale L-turn yaw cannot steer into a side edge.
-	ideal_yaw = isForcedWaypoint ? desiredIdealYaw : QM_AngleMod( ideal_yaw + clampedIdealStep );
-
-    const double currentYaw = QM_AngleMod( currentAngles[ YAW ] );
-    const double yawDeltaAbs = std::fabs( QM_AngleDelta( ideal_yaw, currentYaw ) );
-    
-    const double trueYawDeltaAbs = std::fabs( QM_AngleDelta( desiredIdealYaw, currentYaw ) );
-
-    float yawSpeedMax = 45.0f;
-    if ( toGoalDist2D < 48.0f ) {
-    	yawSpeedMax = 28.0f;
-    } else if ( toGoalDist2D < 96.0f ) {
-    	yawSpeedMax = 34.0f;
-    }
-    yaw_speed = static_cast<float>( QM_Clamp( 12.0 + ( trueYawDeltaAbs * 0.08 ), 8.0, static_cast<double>( yawSpeedMax ) ) );
-    SVG_MMove_FaceIdealYaw( this, ideal_yaw, yaw_speed );
-
-    /**
-    *	Reduce forward speed when we are facing far away from desired move direction
-    *	to prevent visible moonwalking/backpedal during rapid turn corrections.
-    **/
-    float facingScale = 1.0f;
-    if ( trueYawDeltaAbs >= 90.0 ) {
-		// Keep a small amount of lateral progress during a hard turn.  Stopping
-		// completely at 90 degrees can deadlock the actor against an L-turn
-		// corner because it cannot move far enough to clear the incoming wall.
-		facingScale = 0.20f;
-    } else if ( trueYawDeltaAbs > 35.0 ) {
-    	facingScale = static_cast<float>( ( 90.0 - trueYawDeltaAbs ) / 55.0 );
-    }
-
-    constexpr double baseFrameVelocity = 220.0;
-    const double frameVelocity = baseFrameVelocity * static_cast<double>( facingScale );
-    velocity.x = ( float )( moveDir.x * frameVelocity );
-    velocity.y = ( float )( moveDir.y * frameVelocity );
-    monsterMove.state.velocity.x = velocity.x;
-    monsterMove.state.velocity.y = velocity.y;
-    if ( frameVelocity > 0.01 ) {
-    	lastNavigationMoveDir = moveDir;
-    	hasLastNavigationMoveDir = true;
-    	lastFacingDirection = facingDir;
-    	hasLastFacingDirection = true;
-    }
-    
-    UpdateAnim( 4 ); // RUN
-    
-    return true;
-}
-
-/**
-*	@brief	Enqueue a navigation rebuild request when the async queue is enabled.
-*	@param	self	Monster owning the path process state.
-*	@param	start_origin	Current feet-origin start position.
-*	@param	goal_origin	Desired feet-origin goal position.
-*	@param	policy	Path-follow policy tuning rebuild heuristics.
-*	@param	agent_mins	Feet-origin agent bbox minimums.
-*	@param	agent_maxs	Feet-origin agent bbox maximums.
-*	@param	force	When true, bypass throttles/heuristics and rebuild immediately.
-*	@return	True if the queue accepted the request or already had one pending.
-*	@note	When this returns true the path process relies on the queued rebuild instead
-*			of immediate synchronous execution so we do not spam blocking calls.
-**/
-/**
-*    @brief	Reset cached navigation path state for the test dummy.
-*    @param	self	Monster whose path state should be cleared.
-*    @note	Cancels any queued async request and clears cached path buffers.
-**/
-void svg_monster_testdummy_debug_t::ResetNavigationPath() {
-    navPath.clear();
-    stringPulledPath.clear();
-	stringPulledWaypointForced.clear();
-    pathPos = 0;
-    stringPathPos = 0;
-    cachedLeaf = -1;
-    cachedPoly = -1;
-	hasLastNavigationMoveDir = false;
-	hasLastFacingDirection = false;
-	hasLastWaypointTarget = false;
-	lastWaypointPathPos = 0;
-	lastWaypointUpdateTime = 0_ms;
-}
-
-/**
-*	@brief	Update blocked/trapped recovery bookkeeping and force path refresh after sustained stalls.
-*	@param	blockedMask	Slide move blocked flags for the current think frame.
-**/
-void svg_monster_testdummy_debug_t::UpdateBlockedNavigationRecovery( const int32_t blockedMask ) {
-	/**
-	*	Determine whether this frame indicates blocked/trapped movement.
-	**/
-	const bool isBlockedThisFrame = ( ( blockedMask & ( MM_SLIDEMOVEFLAG_BLOCKED | MM_SLIDEMOVEFLAG_TRAPPED ) ) != 0 );
-	// Wall contact is expected while sliding around a valid corner; only a true trapped result invalidates immediately.
-	const bool isHardBlockedThisFrame = ( ( blockedMask & MM_SLIDEMOVEFLAG_TRAPPED ) != 0 );
-
-	/**
-	*	Reset recovery counters and stale wall-contact steering once movement is no longer blocked.
-	**/
-	if ( !isBlockedThisFrame ) {
-		consecutiveBlockedFrames = 0;
-		hasRecentWallBlockNormal = false;
-		return;
-	}
-
-	/**
-	*	Capture a fresh wall normal from this frame's touch traces when available.
-	**/
-	hasRecentWallBlockNormal = false;
-	for ( uint32_t i = 0; i < monsterMove.touchTraces.numberOfTraces; i++ ) {
-		const svg_trace_t &touchTrace = monsterMove.touchTraces.traces[ i ];
-		if ( touchTrace.plane.normal[ 2 ] < MM_MIN_WALL_NORMAL_Z ) {
-			recentWallBlockNormal = touchTrace.plane.normal;
-			hasRecentWallBlockNormal = true;
-			lastWallBlockTime = level.time;
-			break;
-		}
-	}
-
-	/**
-	*	A genuine trapped result means the mover cannot continue its current corridor and should invalidate immediately.
-	**/
-	if ( isHardBlockedThisFrame ) {
-		// Clear stale path state so the next think computes a new route from current position.
-		ResetNavigationPath();
-		// Clear path-rebuild throttle so recomputation happens immediately.
-		lastPathCalcTime = 0_ms;
-		// Reset streak bookkeeping after forced invalidation.
-		consecutiveBlockedFrames = 0;
-		lastBlockedFrameTime = level.time;
-		return;
-	}
-
-	/**
-	*	Accumulate consecutive blocked frames only when samples are contiguous in time.
-	**/
-	const uint64_t nowMs = level.time.Milliseconds();
-	const uint64_t lastMs = lastBlockedFrameTime.Milliseconds();
-	const uint64_t maxGapMs = FRAME_TIME_MS.Milliseconds() * 2;
-	const bool isContiguousSample = ( lastMs > 0 && ( nowMs - lastMs ) <= maxGapMs );
-	if ( isContiguousSample ) {
-		consecutiveBlockedFrames++;
-	} else {
-		consecutiveBlockedFrames = 1;
-	}
-	lastBlockedFrameTime = level.time;
-
-	/**
-	*	If we are repeatedly blocked for several frames, force a fresh path build.
-	**/
-	static constexpr int32_t STUCK_RECOVER_BLOCKED_FRAMES = 8;
-	if ( consecutiveBlockedFrames >= STUCK_RECOVER_BLOCKED_FRAMES ) {
-		// Clear stale path state so the next think computes a new route from current position.
-		ResetNavigationPath();
-		// Clear path-rebuild throttle so recomputation happens immediately.
-		lastPathCalcTime = 0_ms;
-		// Reset stall counter after forcing recovery.
-		consecutiveBlockedFrames = 0;
+void svg_monster_testdummy_debug_t::UpdateAnim( const int32_t animId ) {
+	const double t = level.time.Seconds<double>();
+	const int32_t animFrameGlobal = static_cast<int32_t>( std::floor( static_cast<float>( t * 40.0f ) ) );
+	if ( this->rootMotionSet != nullptr && animId >= 0 && this->rootMotionSet->motions[ animId ] != nullptr ) {
+		skm_rootmotion_t *rootMotion = this->rootMotionSet->motions[ animId ];
+		const int32_t localFrame = ( rootMotion->frameCount > 0 ) ? ( animFrameGlobal % rootMotion->frameCount ) : 0;
+		this->s.frame = rootMotion->firstFrameIndex + localFrame;
 	}
 }
 
-/**
-*	@brief	Member wrapper that forwards to the TU-local AdjustGoalZBlendPolicy helper.
-*	@param	goalOrigin	World-space feet-origin goal position used to bias layer selection.
-*	@note	Called each think after `GenericThinkBegin()` to keep `pathNavigationState.policy`
-*			tuned to current pursuit conditions (distance, vertical delta, failures, visibility).
-**/
-
-
-
-//=============================================================================================
-//=============================================================================================
-
-
-/**
-*
-*
-*
-*
-*	Explicit NPC State Management:
-*
-*
-*
-*
-**/
-/**
-*    @brief    Check if the path should be recalculated based on distance and time.
-**/
-const bool svg_monster_testdummy_debug_t::ShouldRecalcPath( const Vector3 &pos ) {
-    const uint64_t now = level.time.Milliseconds();
-    if ( now - lastPathCalcTime.Milliseconds() > PATH_RECALC_INTERVAL_MS.Milliseconds() ) return true;
-    return false;
-}
-
-
-
-/**
-*    @brief    Compute an A* path to the target origin.
-**/
-svg_monster_testdummy_debug_t::PathComputeResult svg_monster_testdummy_debug_t::ComputePathTo( const Vector3 &target, const bool force ) {
-    // Offset origins to feet level. The monster's center is 24-36 units in the air, which can cause
-    // the system to mistakenly snap to a higher stair step if the monster is near a stair riser!
-    Vector3 myFeet = currentOrigin;
-    myFeet.z += this->mins.z;
-    
-    // Convert target to feet-origin using live target bounds when available.
-    Vector3 targetFeet = target;
-    if ( this->goalentity ) {
-        targetFeet.z += this->goalentity->mins.z;
-    } else {
-        targetFeet.z += this->mins.z;
-    }
-
-    int32_t startFace = Dummy_FindClosestFaceInLeaf( myFeet );
-    int32_t goalFace = Dummy_FindClosestFaceInLeaf( targetFeet );
-    
-    if ( startFace == -1 || goalFace == -1 ) {
-        if ( DUMMY_NAV_DEBUG ) {
-            gi.dprintf("ComputePathTo: failed to find face! startFace=%" PRId32 ", goalFace=%" PRId32 "\n", startFace, goalFace);
-        }
-        ResetNavigationPath();
-        lastPathCalcTime = level.time; // Debounce even on complete failure
-        return PathComputeResult::Failed; // BUGFIX: Halt if we can't find a valid starting or goal face, to prevent blind suicide steering.
-    }
-
-    if ( !force && !navPath.empty() ) {
-        // If we already have a path, see if it is still perfectly valid.
-        // We consider it valid if the monster hasn't wandered completely off the path.
-        bool stillOnPath = false;
-        // Check if our current physical face is anywhere near us in the path (including slightly behind)
-        // We must check slightly behind pathPos because NextWaypoint advances pathPos BEFORE the monster's 
-        // physical center crosses the portal boundary (due to advanceDist).
-        const int32_t pathPosI = static_cast<int32_t>( pathPos );
-        const int32_t navSizeI = static_cast<int32_t>( navPath.size() );
-        const int32_t searchStart = std::max<int32_t>( 0, pathPosI - 3 );
-        const int32_t searchEnd = std::min<int32_t>( navSizeI - 1, pathPosI + 10 );
-        for ( int32_t i = searchStart; i <= searchEnd; i++ ) {
-            if ( navPath[ i ] == startFace ) {
-                stillOnPath = true;
-                // If we advanced faces physically, gently push pathPos forward so we don't backtrack!
-                // Notice we do NOT push it backward if we match a face behind pathPos.
-                if ( i > pathPosI ) {
-                    pathPos = static_cast<size_t>( i );
-                }
-                break;
-            }
-        }
-        
-        if ( stillOnPath ) {
-            // The monster is still on the path. Throttle recalculations heavily to prevent
-            // A* ping-ponging when the player crosses small KD-Tree node boundaries.
-            const uint64_t now = level.time.Milliseconds();
-            if ( goalFace == navPath.back() ) {
-                // Goal is in the exact same destination face. Hold path for up to 250ms.
-                if ( now - lastPathCalcTime.Milliseconds() < 250 ) {
-                    return PathComputeResult::ReusedCached;
-                }
-            } else {
-                // Goal has moved to a different face. Hold path for up to 250ms.
-                if ( now - lastPathCalcTime.Milliseconds() < 250 ) {
-                    return PathComputeResult::ReusedCached;
-                }
-            }
-        }
-    }
-
-    if ( !force && !ShouldRecalcPath( currentOrigin ) ) {
-        // Throttle rapid recalculations when the path is invalid or empty.
-        return navPath.empty() ? PathComputeResult::Failed : PathComputeResult::ReusedCached; 
-    }
-    
-    if ( Nav_FindPath( startFace, goalFace, navPath, pathNavigationState.policy ) ) {
-		/**
-		*	Validate that each face transition has a real portal. If not, invalidate
-		*	the path immediately instead of steering blindly into non-adjacent faces.
-		**/
-		Vector3 pv0 = {};
-		Vector3 pv1 = {};
-		for ( size_t i = 0; i + 1 < navPath.size(); i++ ) {
-			if ( !Nav_GetPortalEndpoints( navPath[ i ], navPath[ i + 1 ], &pv0, &pv1 ) ) {
-				if ( DUMMY_NAV_DEBUG != 0 ) {
-					gi.dprintf( "[NAV DEBUG][PathValidate] invalid-segment idx=%d faceA=%d faceB=%d reason=no-portal\n",
-						static_cast<int32_t>( i ), navPath[ i ], navPath[ i + 1 ] );
-				}
-				ResetNavigationPath();
-				lastPathCalcTime = level.time;
-				return PathComputeResult::Failed;
-			}
-
-			const float width2D = static_cast<float>( QM_Vector2Distance( pv0, pv1 ) );
-			if ( width2D < 2.0f ) {
-				if ( DUMMY_NAV_DEBUG != 0 ) {
-					gi.dprintf( "[NAV DEBUG][PathValidate] invalid-segment idx=%d faceA=%d faceB=%d reason=tiny-portal width=%.3f\n",
-						static_cast<int32_t>( i ), navPath[ i ], navPath[ i + 1 ], width2D );
-				}
-				ResetNavigationPath();
-				lastPathCalcTime = level.time;
-				return PathComputeResult::Failed;
-			}
-		}
-
-        if ( DUMMY_NAV_DEBUG ) {
-            gi.dprintf("[NAV DEBUG] Path found: %zu nodes - ", navPath.size());
-            for (int32_t idx : navPath) {
-                gi.dprintf("%d ", idx);
-            }
-            gi.dprintf("\n");
-        }
-        pathPos = 0;
-        stringPathPos = 1; // start steering towards waypoint 1 (0 is currentOrigin)
-        
-        const float agentRadius = std::max( std::abs( this->mins.x ), std::abs( this->maxs.x ) );
-		if ( !Nav_StringPull( navPath, myFeet, targetFeet, agentRadius, stringPulledPath, &stringPulledWaypointForced ) ) {
-        	ResetNavigationPath();
-        	lastPathCalcTime = level.time;
-        	return PathComputeResult::Failed;
-        }
-
-        lastPathCalcTime = level.time;
-        return PathComputeResult::NewPathGenerated;
-    }
-    
-    if ( DUMMY_NAV_DEBUG ) {
-        gi.dprintf("ComputePathTo: Nav_FindPath failed from %d to %d\n", startFace, goalFace);
-    }
-    ResetNavigationPath();
-    lastPathCalcTime = level.time; // Prevent spamming failed paths every frame
-    // BUGFIX: Return false when path completely fails so the monster halts instead of suiciding off a cliff!
-    return PathComputeResult::Failed; 
-}
-
-/**
-*    @brief    Get the next waypoint from the navigation path, defaulting to finalGoal when finished.
-**/
-const Vector3 svg_monster_testdummy_debug_t::StabilizeWaypointTarget( const Vector3 &candidateWaypoint, const bool isFinalGoalWaypoint ) {
-	/**
-	*	Final-goal waypoints should not be sticky, otherwise we can lag behind
-	*	a moving target and introduce unnecessary steering latency.
-	**/
-	if ( isFinalGoalWaypoint ) {
-		hasLastWaypointTarget = false;
-		return candidateWaypoint;
-	}
-
-	/**
-	*	Reset the stickiness window when we switched path segment or when the
-	*	cached sample is too old to be meaningful.
-	**/
-	const bool switchedPathSegment = ( !hasLastWaypointTarget || lastWaypointPathPos != pathPos );
-	const bool switchedFunnelWaypoint = ( !hasLastWaypointTarget || lastWaypointStringPathPos != stringPathPos );
-	const bool expiredSample = ( hasLastWaypointTarget && ( level.time - lastWaypointUpdateTime ) > 350_ms );
-	if ( switchedPathSegment || switchedFunnelWaypoint || expiredSample ) {
-		lastWaypointTarget = candidateWaypoint;
-		hasLastWaypointTarget = true;
-		lastWaypointPathPos = pathPos;
-		lastWaypointStringPathPos = stringPathPos;
-		lastWaypointUpdateTime = level.time;
-		return candidateWaypoint;
-	}
-
-	/**
-	*	When the candidate only moved a little, accept it directly to keep
-	*	normal trajectory updates responsive.
-	**/
-	const float delta2D = static_cast<float>( QM_Vector2Distance( candidateWaypoint, lastWaypointTarget ) );
-	if ( delta2D <= 6.0f ) {
-		lastWaypointTarget = candidateWaypoint;
-		lastWaypointUpdateTime = level.time;
-		return candidateWaypoint;
-	}
-	// Interpolating waypoint positions is physically invalid because the blended coordinate 
-	// can fall outside the NavMesh (e.g. inside a solid wall) when turning corners.
-	// Since path calculation is already throttled (debounced), we can safely steer 
-	// directly toward the exact string-pulled corner without jitter.
-	
-	lastWaypointTarget = candidateWaypoint;
-	lastWaypointUpdateTime = level.time;
-	return candidateWaypoint;
-}
-
-/**
-*    @brief    Get the next waypoint from the navigation path, defaulting to finalGoal when finished.
-**/
-const Vector3 svg_monster_testdummy_debug_t::NextWaypoint( const Vector3 &finalGoal ) {
-    if ( stringPulledPath.empty() ) {
-        return StabilizeWaypointTarget( finalGoal, true );
-    }
-
-    if ( stringPathPos >= stringPulledPath.size() ) {
-        return StabilizeWaypointTarget( finalGoal, true );
-    }
-
-    Vector3 myFeet = currentOrigin;
-    myFeet.z += this->mins.z;
-    const int32_t currentFace = Dummy_FindClosestFaceInLeaf( myFeet );
-
-    // Synchronize navPath pathPos with physical face for "stillOnPath" checks.
-    if ( !navPath.empty() && currentFace != -1 ) {
-        const int32_t localStart = std::max<int32_t>( 0, static_cast<int32_t>( pathPos ) - 2 );
-        const int32_t localEnd = std::min<int32_t>( static_cast<int32_t>( navPath.size() ) - 1, static_cast<int32_t>( pathPos ) + 6 );
-        for ( int32_t i = localStart; i <= localEnd; i++ ) {
-            if ( navPath[ i ] == currentFace ) {
-                if ( i > static_cast<int32_t>( pathPos ) ) {
-                    pathPos = static_cast<size_t>( i );
-                }
-                break;
-            }
-        }
-    }
-
-    bool onRamp = false;
-    if ( currentFace >= 0 && static_cast<size_t>( currentFace ) < g_nav_faces.size() ) {
-        if ( g_nav_faces[currentFace].normal.z < 0.99f ) {
-            onRamp = true;
-        }
-    }
-
-	/**
-	* Keep the first funnel waypoint intact.  Upward transitions now provide an
-	* explicit approach point on the current tread, so a vector lookahead here
-	* would be able to skip the stair front and turn into an adjacent edge.
-	**/
-
-	Vector3 portalMidpoint = stringPulledPath[stringPathPos];
-
-    // Are we at the final goal?
-    if ( stringPathPos == stringPulledPath.size() - 1 ) {
-        // Measure 3D Euclidean distance from the entity's feet-origin to the ground-level portal waypoint.
-        if ( QM_Vector3DistanceSqr( myFeet, portalMidpoint ) < WAYPOINT_EPS_SQR ) {
-            ++stringPathPos;
-            return StabilizeWaypointTarget( finalGoal, true );
-        }
-        return StabilizeWaypointTarget( portalMidpoint, true );
-    }
-
-    // Determine if we need to step up
-    float feetOriginZ = currentOrigin.z + this->mins.z;
-    float targetZ = portalMidpoint.z;
-	bool needsStepUp = (targetZ - feetOriginZ) > 8.0f && !onRamp;
-	bool hasSteppedUp = !needsStepUp || (feetOriginZ >= targetZ - 4.0f);
-
-	const float waypointReachDistance = needsStepUp ? 12.0f : std::sqrt( WAYPOINT_EPS_SQR );
-	const float dist2DSqr = QM_Vector2DistanceSqr( currentOrigin, portalMidpoint );
-	const float agentRadius = std::max( std::abs( this->mins.x ), std::abs( this->maxs.x ) );
-
-	/**
-	* Determine whether the mover has crossed the current waypoint into the
-	* following corridor segment.  This is geometric and does not depend on the
-	* previous frame's velocity, which may still point into an L-turn wall.
-	**/
-	bool passedWaypoint = false;
-	bool waypointLaterallyAligned = true;
-	if ( stringPathPos + 1 < stringPulledPath.size() ) {
-		Vector3 toNextWaypoint = stringPulledPath[ stringPathPos + 1 ] - portalMidpoint;
-		toNextWaypoint.z = 0.0f;
-		if ( QM_Vector3LengthSqr( toNextWaypoint ) > 0.0001f ) {
-			const float nextWaypointLength = std::sqrt( QM_Vector3LengthSqr( toNextWaypoint ) );
-			const Vector3 nextWaypointDirection = toNextWaypoint / nextWaypointLength;
-			Vector3 fromWaypoint = currentOrigin - portalMidpoint;
-			fromWaypoint.z = 0.0f;
-			const float forwardDistance = QM_Vector3DotProduct( fromWaypoint, nextWaypointDirection );
-			const float lateralDistance = std::fabs( fromWaypoint.x * nextWaypointDirection.y - fromWaypoint.y * nextWaypointDirection.x );
-
-			/**
-			* Keep upward stair transitions strict, but allow an ordinary mover to
-			* cross a corner while its center remains within its cleared corridor.
-			**/
-			const float maxLateralDistance = needsStepUp
-				? std::min( std::sqrt( WAYPOINT_EPS_SQR ), 2.0f )
-				: std::max( std::sqrt( WAYPOINT_EPS_SQR ), agentRadius + 2.0f );
-			waypointLaterallyAligned = lateralDistance <= maxLateralDistance;
-			passedWaypoint = forwardDistance >= 0.0f && waypointLaterallyAligned;
-		}
-	}
-
-	/**
-	* Advance only after reaching the waypoint or crossing into the next
-	* segment.  Upward portals remain active until the feet are on the target
-	* surface, so steering cannot rotate around a riser before stepping it.
-	**/
-	const bool reachedWaypoint = needsStepUp
-		? ( ( dist2DSqr <= ( waypointReachDistance * waypointReachDistance ) || passedWaypoint ) && waypointLaterallyAligned )
-		: ( dist2DSqr <= ( waypointReachDistance * waypointReachDistance ) || passedWaypoint );
-	if ( reachedWaypoint && ( !needsStepUp || hasSteppedUp ) ) {
-		++stringPathPos;
-		// Recursively get the next waypoint to avoid stutter-stepping at boundaries.
-		return NextWaypoint( finalGoal );
-	}
-
-	/**
-	* Keep the exact funnel target.  Upward transitions already contain a
-	* mandatory current-tread approach point, and offsetting the riser target
-	* toward the following point would cut L-turn corners into non-navigable
-	* geometry.
-	**/
-	return StabilizeWaypointTarget( portalMidpoint, false );
-}

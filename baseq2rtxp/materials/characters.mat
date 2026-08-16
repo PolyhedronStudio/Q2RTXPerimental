@@ -6,3 +6,76 @@ models/characters/mixadummy/mixamodummy:
 	specular_factor 1.0
 	metalness_factor 0
 	roughness_override 0.4
+
+textures/models/testdummy/skin_grey:
+	texture_base textures/models/testdummy/skin_grey.tga
+	texture_normals textures/models/testdummy/skin_n.tga
+	base_factor 2.5
+	bump_scale 1.0
+	specular_factor 1.0
+	metalness_factor 0
+	roughness_override 0.4
+
+textures/models/testdummy/skin_orange:
+	texture_base textures/models/testdummy/skin_orange.tga
+	texture_normals textures/models/testdummy/skin_n.tga
+	base_factor 2.5
+	bump_scale 1.0
+	specular_factor 1.0
+	metalness_factor 0
+	roughness_override 0.4
+
+textures/models/testdummy/skin_blue:
+	texture_base textures/models/testdummy/skin_blue.tga
+	texture_normals textures/models/testdummy/skin_n.tga
+	base_factor 2.5
+	bump_scale 1.0
+	specular_factor 1.0
+	metalness_factor 0
+	roughness_override 0.4
+
+textures/models/testdummy/skin_green:
+	texture_base textures/models/testdummy/skin_green.tga
+	texture_normals textures/models/testdummy/skin_n.tga
+	base_factor 2.5
+	bump_scale 1.0
+	specular_factor 1.0
+	metalness_factor 0
+	roughness_override 0.4
+
+models/testdummy/skin_grey:
+	texture_base textures/models/testdummy/skin_grey.tga
+	texture_normals textures/models/testdummy/skin_n.tga
+	base_factor 2.5
+	bump_scale 1.0
+	specular_factor 1.0
+	metalness_factor 0
+	roughness_override 0.4
+
+models/testdummy/skin_orange:
+	texture_base textures/models/testdummy/skin_orange.tga
+	texture_normals textures/models/testdummy/skin_n.tga
+	base_factor 2.5
+	bump_scale 1.0
+	specular_factor 1.0
+	metalness_factor 0
+	roughness_override 0.4
+
+models/testdummy/skin_blue:
+	texture_base textures/models/testdummy/skin_blue.tga
+	texture_normals textures/models/testdummy/skin_n.tga
+	base_factor 2.5
+	bump_scale 1.0
+	specular_factor 1.0
+	metalness_factor 0
+	roughness_override 0.4
+
+models/testdummy/skin_green:
+	texture_base textures/models/testdummy/skin_green.tga
+	texture_normals textures/models/testdummy/skin_n.tga
+	base_factor 2.5
+	bump_scale 1.0
+	specular_factor 1.0
+	metalness_factor 0
+	roughness_override 0.4
+

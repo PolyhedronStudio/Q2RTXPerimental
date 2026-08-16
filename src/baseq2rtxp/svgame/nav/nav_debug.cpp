@@ -4,6 +4,10 @@
 #include "svgame/nav/nav_generate.h"
 #include "svgame/nav/nav_path.h"
 #include "svgame/nav/nav_debug.h"
+#include "svgame/nav/nav_cover_debug.h"
+#include "svgame/player/svg_player_trail.h"
+#include "svgame/entities/monster/svg_monster_testdummy_debug.h"
+#include "svgame/svg_edict_pool.h"
 
 #include "svgame/nav/nav_debug_draw.h"
 #include "svgame/svg_utils.h"
@@ -50,6 +54,19 @@ static const uint32_t DEBUG_FUNNEL_ROUTE_COLOR = MakeColor( 95, 205, 228, 255 );
 //! Color used for mandatory stair approach and crossing waypoints.
 static const uint32_t DEBUG_FORCED_WAYPOINT_COLOR = MakeColor( 106, 190, 48, 255 );
 
+//! Colors for monster/NPC path debug rendering.
+//! Traversed waypoints (casual fitting colors matching existing debug theme).
+static const uint32_t NPC_PATH_TRAVERSED_COLOR = MakeColor( 95, 205, 228, 255 );       // Casual cyan/teal for traversed funnel waypoints.
+static const uint32_t NPC_PATH_TRAVERSED_FORCED = MakeColor( 106, 190, 48, 255 );      // Casual green for traversed forced stair/portal waypoints.
+//! Active target waypoint and active steering line.
+static const uint32_t NPC_PATH_ACTIVE_TARGET_COLOR = MakeColor( 255, 230, 50, 255 );   // Bright yellow for current steering target.
+//! Future / incomplete path yet to traverse (semi-transparent grey/muted style).
+static const uint32_t NPC_PATH_FUTURE_COLOR = MakeColor( 140, 150, 160, 100 );         // Semi-transparent muted grey for future waypoints.
+static const uint32_t NPC_PATH_FUTURE_FORCED = MakeColor( 180, 140, 100, 120 );        // Semi-transparent muted orange-grey for future forced waypoints.
+//! A* Face-centered waypointed path (grey style with black outline).
+static const uint32_t NPC_PATH_FACE_CHAIN_TRAVERSED = MakeColor( 120, 130, 140, 200 ); // Darker slate grey with outline for traversed faces.
+static const uint32_t NPC_PATH_FACE_CHAIN_FUTURE = MakeColor( 170, 175, 185, 100 );    // Semi-transparent light grey with outline for future faces.
+
 
 /**
 *
@@ -70,6 +87,8 @@ cvar_t *s_nav_debug_tris = nullptr;
 cvar_t *s_nav_debug_query_leaves = nullptr;
 //! Cvar that sets the maximum radius for nav debug overlay rendering.
 cvar_t *s_nav_debug_draw_radius = nullptr;
+//! Cvar that toggles monster/NPC navigation path debug overlay rendering.
+cvar_t *s_nav_debug_npc_paths = nullptr;
 
 //! Cached goal A world position for nav debug path testing.
 static Vector3 s_nav_dbg_goal_a_origin = {};
@@ -104,6 +123,9 @@ void Nav_DebugInit() {
 	s_nav_debug_tris = gi.cvar( "nav_debug_tris", "0", 0 );
 	s_nav_debug_query_leaves = gi.cvar( "nav_debug_query_leaves", "0", 0 );
 	s_nav_debug_draw_radius = gi.cvar( "nav_debug_draw_radius", std::to_string( CM_MAX_WORLD_HALF_SIZE ).c_str(), 0 );
+	s_nav_debug_npc_paths = gi.cvar( "nav_debug_npc_paths", "1", 0 );
+	Nav_Cover_DebugInit();
+	PlayerTrail_DebugInit();
 }
 
 /**
@@ -669,4 +691,155 @@ void SVG_Nav_DebugDraw() {
 	*	Render temporary route test debug primitives once per debug draw frame.
 	**/
 	Nav_DebugDrawTestRoute();
+
+	/**
+	*	Render precalculated tactical cover point debug overlays.
+	**/
+	Nav_Cover_DebugDraw();
+
+	/**
+	*	Render player breadcrumb trail debug overlays.
+	**/
+	PlayerTrail_DebugDraw();
+
+	/**
+	*	Render monster / NPC navigation path debug overlays.
+	**/
+	Nav_DebugDrawNPCPaths();
 }
+
+/**
+*	@brief	Render monster and NPC navigation path debug overlays.
+*	@details	Visualizes the A* face center waypointed path in grey with black outlines,
+*				and the string-pulled funnel path with traversed segments in vibrant colors
+*				and yet-to-traverse segments in semi-transparent grey, highlighting the
+*				active steering target and corner points for corner-hugging diagnostics.
+**/
+void Nav_DebugDrawNPCPaths( void ) {
+	/**
+	*	Sanity checks: Ensure NPC path debug drawing is enabled and top-level debug draw is active.
+	**/
+	if ( !s_nav_debug_npc_paths || s_nav_debug_npc_paths->value == 0 ) {
+		return;
+	}
+	if ( !SVG_Nav_DebugDraw_IsEnabled() ) {
+		return;
+	}
+
+	/**
+	*	Iterate over all active entity slots in the world edict pool.
+	**/
+	for ( int32_t ent_idx = game.maxclients + 1; ent_idx < g_edict_pool.num_edicts; ent_idx++ ) {
+		svg_base_edict_t *ent = g_edict_pool.EdictForNumber( ent_idx );
+		if ( !ent || !ent->inUse || ent->health <= 0 ) {
+			continue;
+		}
+
+		// Check if entity is a monster testdummy with active navigation path data.
+		if ( !ent->classname || strcmp( ent->classname, "monster_testdummy_debug" ) != 0 ) {
+			continue;
+		}
+
+		const svg_monster_testdummy_debug_t *dummy = static_cast<const svg_monster_testdummy_debug_t *>( ent );
+		if ( !dummy ) {
+			continue;
+		}
+
+		// Calculate entity feet origin.
+		Vector3 myFeet = dummy->currentOrigin;
+		myFeet.z += dummy->mins.z;
+
+		/**
+		*	1. Render A* waypointed face-center path (navPath) in grey with black outline.
+		**/
+		if ( !dummy->navPath.empty() ) {
+			const size_t numFaces = dummy->navPath.size();
+			Vector3 prevFaceCenter = {};
+			bool hasPrevFace = false;
+
+			for ( size_t i = 0; i < numFaces; i++ ) {
+				const int32_t faceIdx = dummy->navPath[ i ];
+				if ( faceIdx < 0 || static_cast<size_t>( faceIdx ) >= g_nav_faces.size() ) {
+					continue;
+				}
+
+				const Vector3 faceCenter = static_cast<Vector3>( g_nav_faces[ faceIdx ].center );
+				const bool isTraversed = ( i < dummy->pathPos );
+				const uint32_t faceColor = isTraversed ? NPC_PATH_FACE_CHAIN_TRAVERSED : NPC_PATH_FACE_CHAIN_FUTURE;
+
+				// Draw face center sphere with black outline.
+				SVG_Nav_DebugDraw_AddSphere( faceCenter, 3.0f, faceColor, SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE, 1.5f, 1.0f );
+
+				// Draw line connecting consecutive face centers with black outline.
+				if ( hasPrevFace ) {
+					SVG_Nav_DebugDraw_AddLine( prevFaceCenter, faceCenter, faceColor, SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE, 2.0f, 1.0f );
+				}
+
+				prevFaceCenter = faceCenter;
+				hasPrevFace = true;
+			}
+		}
+
+		/**
+		*	2. Render string-pulled funnel path (stringPulledPath) with traversed vs yet-to-traverse styling.
+		**/
+		if ( !dummy->stringPulledPath.empty() ) {
+			const size_t numWaypoints = dummy->stringPulledPath.size();
+			const size_t currentTargetIdx = dummy->stringPathPos;
+			Vector3 prevWpPos = {};
+			bool hasPrevWp = false;
+
+			for ( size_t wpIdx = 0; wpIdx < numWaypoints; wpIdx++ ) {
+				const Vector3 wpPos = QM_Vector3FromDP( dummy->stringPulledPath[ wpIdx ] );
+				const bool forced = ( wpIdx < dummy->stringPulledWaypointForced.size() && dummy->stringPulledWaypointForced[ wpIdx ] );
+				const bool isTraversed = ( wpIdx < currentTargetIdx );
+				const bool isActiveTarget = ( wpIdx == currentTargetIdx );
+
+				if ( isActiveTarget ) {
+					// Active target waypoint: prominent highlighted sphere with outline.
+					SVG_Nav_DebugDraw_AddSphere( wpPos, 6.0f, NPC_PATH_ACTIVE_TARGET_COLOR, SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE, 2.5f, 1.0f );
+
+					// Active steering line from monster feet directly to this target waypoint.
+					SVG_Nav_DebugDraw_AddLine( myFeet, wpPos, NPC_PATH_ACTIVE_TARGET_COLOR, SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE, 3.0f, 1.0f );
+
+					// Connect previous traversed waypoint to current entity feet to show traveled route.
+					if ( hasPrevWp ) {
+						const uint32_t prevColor = ( ( wpIdx - 1 ) < dummy->stringPulledWaypointForced.size() && dummy->stringPulledWaypointForced[ wpIdx - 1 ] )
+							? NPC_PATH_TRAVERSED_FORCED : NPC_PATH_TRAVERSED_COLOR;
+						SVG_Nav_DebugDraw_AddLine( prevWpPos, myFeet, prevColor, SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE, 2.5f, 0.0f );
+					}
+				} else if ( isTraversed ) {
+					// Traversed waypoint: casual vibrant color.
+					const uint32_t wpColor = forced ? NPC_PATH_TRAVERSED_FORCED : NPC_PATH_TRAVERSED_COLOR;
+					SVG_Nav_DebugDraw_AddSphere( wpPos, forced ? 5.0f : 3.5f, wpColor, SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE, 2.0f, 0.0f );
+
+					// Connect traversed line segment.
+					if ( hasPrevWp ) {
+						SVG_Nav_DebugDraw_AddLine( prevWpPos, wpPos, wpColor, SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE, 2.5f, 0.0f );
+					}
+				} else {
+					// Yet-to-traverse waypoint: semi-transparent, incomplete/grey style.
+					const uint32_t wpColor = forced ? NPC_PATH_FUTURE_FORCED : NPC_PATH_FUTURE_COLOR;
+					SVG_Nav_DebugDraw_AddSphere( wpPos, forced ? 4.5f : 3.0f, wpColor, SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE, 1.5f, 0.0f );
+
+					// Connect future line segment.
+					if ( hasPrevWp ) {
+						SVG_Nav_DebugDraw_AddLine( prevWpPos, wpPos, wpColor, SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE, 2.0f, 0.0f );
+					}
+				}
+
+				prevWpPos = wpPos;
+				hasPrevWp = true;
+			}
+		}
+
+		/**
+		*	3. Corner-hugging diagnostic helpers: draw wall block normal or move direction if present.
+		**/
+		if ( dummy->hasRecentWallBlockNormal && ( level.time < dummy->lastWallBlockTime + 1000_ms ) ) {
+			const Vector3 normalEnd = myFeet + ( dummy->recentWallBlockNormal * 24.0f );
+			SVG_Nav_DebugDraw_AddArrow( myFeet, normalEnd, 8.0f, MakeColor( 255, 50, 50, 255 ), SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE, 2.0f, 1.0f );
+		}
+	}
+}
+

@@ -26,6 +26,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/nav/nav_debug.h"
 #include "svgame/nav/nav_debug_draw.h"
 #include "svgame/nav/nav_generate.h"
+#include "svgame/crowd/svg_crowd_manager.h"
+#include "svgame/crowd/svg_crowd_commands.h"
 
 
 
@@ -482,6 +484,10 @@ void SVG_InitGame( void ) {
     Nav_DebugInit();
     SVG_Nav_DebugDraw_Init();
 
+	// Initialize Crowd / Crew Navigation Manager.
+	SVG_Crowd_Init();
+	SVG_Crowd_RegisterCommands();
+
 	// <Q2RTXP>: WID: Happens in SVG_SpawnEntities now since we need the map's entities to initialize the nav system.
 
     /**
@@ -506,6 +512,9 @@ void SVG_InitGame( void ) {
 void SVG_ShutdownGame( void ) {
     // Notify of shutdown.
     gi.dprintf( "==== Initiating ServerGame Shutdown ====\n" );
+
+	// Shutdown crowd subsystem and release active cover claims.
+	SVG_Crowd_Shutdown();
 
 	// Clear navmesh data
 	Nav_Clear();
@@ -838,8 +847,9 @@ void SVG_RunFrame(void) {
 	**/
 	// Update movewith entities.
     SVG_PushMove_UpdateMoveWithEntities();
-	//! Make sure to update the navigation system.
-	// <Q2RTXP? WID: OldNav: SVG_Nav_RefreshInlineModelRuntime();
+
+	// Process per-frame crowd coordination, slot tracking, and follow updates.
+	SVG_Crowd_Frame();
 	
 	/**
 	*	WID: LUA: CallBack.

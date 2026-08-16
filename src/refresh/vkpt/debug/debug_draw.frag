@@ -27,6 +27,11 @@
 #define GLOBAL_TEXTURES_DESC_SET_IDX 0
 #include "../shader/global_textures.h"
 
+// Render/output extents used to map final-overlay pixels to the ray-traced depth image.
+layout( push_constant ) uniform DebugDrawPushConstants {
+    vec4 extent_mapping; //!< xy = render extent, zw = final output extent.
+} debug_draw_push_constants;
+
 // ---------------------------------------------------------------------------
 // Per-fragment inputs (match debug_draw.vert outputs).
 // ---------------------------------------------------------------------------
@@ -60,6 +65,24 @@ float sample_scene_depth( ivec2 pixel ) {
     return texelFetch( TEX_PT_VIEW_DEPTH_A, pixel, 0 ).r;
 }
 
+/**
+ *   Convert the final-overlay fragment coordinate into the active ray-traced
+ *   depth-image coordinate space and clamp it to the allocated image bounds.
+ **/
+ivec2 get_scene_depth_pixel() {
+    // The depth image can be larger than the active render region under DRS.
+    ivec2 depth_image_size = textureSize( TEX_PT_VIEW_DEPTH_A, 0 );
+    vec2 render_extent = max( debug_draw_push_constants.extent_mapping.xy, vec2( 1.0 ) );
+    vec2 output_extent = max( debug_draw_push_constants.extent_mapping.zw, vec2( 1.0 ) );
+
+    // Normalize the swapchain-space fragment and scale it into render-space.
+    vec2 output_uv = gl_FragCoord.xy / output_extent;
+    vec2 depth_position = floor( output_uv * render_extent );
+
+    // Keep texelFetch inside the allocated depth image for scaled or rounded extents.
+    return clamp( ivec2( depth_position ), ivec2( 0 ), max( depth_image_size - ivec2( 1 ), ivec2( 0 ) ) );
+}
+
 // ---------------------------------------------------------------------------
 // Main.
 // ---------------------------------------------------------------------------
@@ -68,7 +91,7 @@ void main() {
     *   Compute the pixel coordinate for depth texture sampling.
     *   gl_FragCoord.xy gives the exact pixel centre in window space.
     **/
-    ivec2 pixel = ivec2( gl_FragCoord.xy );
+    ivec2 pixel = get_scene_depth_pixel();
 
     /**
     *   Per-type alpha and outline computation.

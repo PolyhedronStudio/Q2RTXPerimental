@@ -1,0 +1,150 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  # Filtering push to main means a feature branch no longer runs CI on push -- its PR
+  # does. workflow_dispatch keeps a deliberate way to run the matrix on a branch, which
+  # is the capability the filter would otherwise silently remove.
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: ${{ matrix.os }} / ${{ matrix.build_type }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-2025]   # linux x64, macos apple silicon, windows x64
+        build_type: [Debug, Release]
+        include:
+          - os: windows-2025
+            cmake_args: -A x64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} ${{ matrix.cmake_args }}
+
+      - name: Build
+        run: cmake --build build --config ${{ matrix.build_type }} --parallel
+
+      - name: Test
+        run: ctest --test-dir build --build-config ${{ matrix.build_type }} --output-on-failure
+
+      # indicative only: shared runners are noisy. compare trends, not absolute numbers.
+      - name: Benchmark
+        if: matrix.build_type == 'Release'
+        shell: bash
+        run: |
+          if [ -f build/bin/Release/bench.exe ]; then
+            ./build/bin/Release/bench.exe
+          else
+            ./build/bin/bench
+          fi
+
+  # the only big endian coverage in the matrix: exercises the bswap / host_to_network
+  # path for real, and the golden wire format test proves the wire bytes are identical
+  big-endian:
+    name: big endian s390x / ${{ matrix.build_type }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [Debug, Release]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install s390x cross toolchain and qemu
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++-s390x-linux-gnu qemu-user-static
+
+      # static linking so the emulated binaries need no s390x sysroot at runtime
+      - name: Configure
+        run: >
+          cmake -B build
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          -DCMAKE_SYSTEM_NAME=Linux
+          -DCMAKE_SYSTEM_PROCESSOR=s390x
+          -DCMAKE_CXX_COMPILER=s390x-linux-gnu-g++
+          -DCMAKE_CXX_FLAGS="-static"
+          -DCMAKE_CROSSCOMPILING_EMULATOR=qemu-s390x-static
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  fuzz:
+    name: fuzz (libFuzzer)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Debug -DSERIALIZE_FUZZ=ON -DCMAKE_CXX_COMPILER=clang++
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Fuzz
+        run: ./build/bin/fuzz -max_total_time=60 -timeout=10 -print_final_stats=1
+
+  sanitizers:
+    name: asan + ubsan
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer"
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  # the strictest language mode a real consumer compiles the vendored header in. Every other job
+  # builds at the toolchain default (>= C++14), which is how a functional-style cast routed through
+  # a C++11-only explicit conversion operator shipped: yojimbo's macOS leg builds at Apple clang's
+  # default (gnu++98) and was the first thing to compile the header pre-C++11. clang specifically,
+  # because the guarded property is "compiles in C++98/03 with the declaration-only C++11
+  # extensions accepted as warnings" — the profile of the consumer that broke (gcc hard-errors on
+  # those extensions, so it cannot check this). SERIALIZE_ENABLE_TESTS forces the emulated 128 bit
+  # pair even on native-__int128 hosts, exactly as yojimbo's test build does; the second compile
+  # drops native __int128 so the emulated pair is the real storage type on the wire.
+  cxx03-consumer:
+    name: pre-C++11 consumer (clang -std=c++03)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and run tests at -std=c++03 (emulated pair alongside native)
+        run: |
+          clang++ -std=c++03 -DSERIALIZE_ENABLE_TESTS=1 -DSERIALIZE_DEBUG -Wall -Wextra -ffast-math -fno-rtti test.cpp -o test_cxx03
+          ./test_cxx03
+
+      - name: Build and run tests at -std=c++03 (emulated pair as the serialize types)
+        run: |
+          clang++ -std=c++03 -DSERIALIZE_ENABLE_TESTS=1 -DSERIALIZE_DEBUG -U__SIZEOF_INT128__ -Wall -Wextra -ffast-math -fno-rtti test.cpp -o test_cxx03_no_int128
+          ./test_cxx03_no_int128
+
+  conformance:
+    name: STANDARD.md conformance
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      # Checks the wire-format specification against the implementation. The
+      # checker parses artifacts the real library produces using ONLY what
+      # STANDARD.md states, with no reference to the source. A failure means
+      # the document and the code disagree — decide which is wrong, and fix
+      # that one. A specification nothing verifies drifts, and a drifted spec
+      # is worse than none because independent implementations are built on it.
+      - name: Verify STANDARD.md
+        run: python3 tools/conformance/verify_standard.py
+

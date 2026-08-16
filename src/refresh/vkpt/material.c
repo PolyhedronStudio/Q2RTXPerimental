@@ -1097,9 +1097,14 @@ pbr_material_t* MAT_ForIndex(int index)
 
 pbr_material_t* MAT_ForSkin(image_t* image_base)
 {
+	// Sanity check: ensure caller provided a valid image.
+	if (!image_base || image_base == R_NOTEXTURE)
+		return NULL;
+
 	// find the material
 	pbr_material_t* mat = MAT_Find(image_base->name, IT_SKIN, IF_NONE);
-	assert(mat);
+	if (!mat)
+		return NULL;
 
 	// if it's already using this skin, do nothing
 	if (mat->image_base == image_base)

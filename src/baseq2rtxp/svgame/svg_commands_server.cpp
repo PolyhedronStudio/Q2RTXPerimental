@@ -17,6 +17,7 @@
 #include "svgame/nav/nav_generate.h"
 #include "svgame/nav/nav_debug.h"
 #include "svgame/nav/nav_persistence.h"
+#include "svgame/crowd/svg_crowd_commands.h"
 
 
 
@@ -366,6 +367,9 @@ void SVG_ServerCommand(void) {
         ServerCommand_ListIP_f();
     else if ( Q_stricmp( cmd, "writeip" ) == 0 )
         ServerCommand_WriteIP_f();
+    else if ( SVG_Crowd_ServerCommand( cmd ) ) {
+        // Handled by crowd subsystem.
+    }
     else
         gi.cprintf( NULL, PRINT_HIGH, "Unknown server command \"%s\"\n", cmd );
 }

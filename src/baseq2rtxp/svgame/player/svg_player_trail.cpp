@@ -24,6 +24,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/entities/monster/svg_monster_testdummy_debug.h"
 
 #include "svgame/player/svg_player_trail.h"
+#include "svgame/nav/nav_debug_draw.h"
+#include "sharedgame/sg_cmd_messages.h"
+#include "shared/util/util_endian.h"
 
 /*
 ==============================================================================
@@ -53,6 +56,10 @@ int         trail_head;
 //! Whether the trail system has been initialized and is active.
 bool        trail_active = false;
 
+// Amount of time in between trail spots.
+QMTime  trail_time = 100_ms; // <Q2RTXP>: TODO: Make this player independent and configurable via cvar.
+QMTime	trail_last = 0_ms; // <Q2RTXP>: TODO: Make this player independent and configurable via cvar.
+
 #define NEXT(n)     (((n) + 1) & (TRAIL_LENGTH - 1))
 #define PREV(n)     (((n) - 1) & (TRAIL_LENGTH - 1))
 
@@ -75,6 +82,13 @@ void PlayerTrail_Init(void)
     // Reset head index and mark the system active.
     trail_head = 0;
     trail_active = true;
+
+	// <Q2RTXP>: TEMP.
+	trail[ trail_head ]->timestamp = 0_ms;
+
+
+    // Register breadcrumb debug visualization cvar.
+    PlayerTrail_DebugInit();
 }
 
 
@@ -89,7 +103,7 @@ void PlayerTrail_Init(void)
 void PlayerTrail_Add( const Vector3 &spot )
 {
     // Early out when the trail system hasn't been initialized.
-    if ( !trail_active ) {
+    if ( !trail_active || trail[ trail_head ]->timestamp + trail_time < level.time ) {
         return;
     }
 
@@ -225,6 +239,75 @@ svg_base_edict_t *PlayerTrail_LastSpot( void )
 {
     return trail[ PREV( trail_head ) ];
 }
+
+//! Cvar to toggle player breadcrumb trail debug visualization.
+static cvar_t *s_nav_debug_breadcrumb = nullptr;
+
+//! Breadcrumb debug visualization colors.
+static const uint32_t COLOR_BREADCRUMB_NODE = MakeColor( 255, 204, 0, 255 );  // Gold / yellow sphere for breadcrumb spots.
+static const uint32_t COLOR_BREADCRUMB_HEAD = MakeColor( 0, 255, 255, 255 );   // Cyan sphere for newest/head breadcrumb.
+static const uint32_t COLOR_BREADCRUMB_CHAIN = MakeColor( 255, 128, 0, 200 ); // Orange connecting line between breadcrumbs.
+static const uint32_t COLOR_BREADCRUMB_DIR = MakeColor( 106, 190, 48, 255 );   // Green facing direction indicator.
+
+/**
+*	@brief	Register nav_debug_breadcrumb cvar for breadcrumb visualization.
+**/
+void PlayerTrail_DebugInit( void ) {
+	if ( !s_nav_debug_breadcrumb ) {
+		s_nav_debug_breadcrumb = gi.cvar( "nav_debug_breadcrumb", "1", 0 );
+	}
+}
+
+/**
+*	@brief	Render player breadcrumb debug overlays when nav_debug_breadcrumb == 1.
+**/
+void PlayerTrail_DebugDraw( void ) {
+	/**
+	*	Sanity checks: Ensure breadcrumb debug cvar is active and trail system is running.
+	**/
+	if ( !s_nav_debug_breadcrumb || s_nav_debug_breadcrumb->value == 0 ) {
+		return;
+	}
+	if ( !trail_active || !SVG_Nav_DebugDraw_IsEnabled() ) {
+		return;
+	}
+
+	const int32_t headIdx = PREV( trail_head );
+
+	/**
+	*	Iterate over all slots in the circular trail buffer and render active breadcrumbs.
+	**/
+	for ( int32_t i = 0; i < TRAIL_LENGTH; i++ ) {
+		const svg_base_edict_t *spot = trail[ i ];
+		if ( !spot || spot->timestamp == 0_ms ) {
+			continue;
+		}
+
+		const bool isHead = ( i == headIdx );
+		const uint32_t sphereColor = isHead ? COLOR_BREADCRUMB_HEAD : COLOR_BREADCRUMB_NODE;
+		const float sphereRadius = isHead ? 5.0f : 3.0f;
+
+		// Draw breadcrumb position sphere at world feet-origin.
+		SVG_Nav_DebugDraw_AddSphere( spot->currentOrigin, sphereRadius, sphereColor, SG_SVC_DEBUG_DRAW_STYLE_FLAG_DEPTH_TEST, 1.5f );
+
+		// Draw connecting line to previous consecutive breadcrumb if both are valid.
+		const int32_t prevIdx = PREV( i );
+		const svg_base_edict_t *prevSpot = trail[ prevIdx ];
+		if ( prevSpot && prevSpot->timestamp > 0_ms && prevSpot->timestamp < spot->timestamp ) {
+			const float distSqr = QM_Vector3DistanceSqr( prevSpot->currentOrigin, spot->currentOrigin );
+			// Only connect if distance is within 512 units (prevents long lines across teleports/spawns).
+			if ( distSqr <= ( 512.0f * 512.0f ) ) {
+				SVG_Nav_DebugDraw_AddLine( prevSpot->currentOrigin, spot->currentOrigin, COLOR_BREADCRUMB_CHAIN, SG_SVC_DEBUG_DRAW_STYLE_FLAG_DEPTH_TEST, 2.0f );
+			}
+		}
+		
+		// Draw directional forward indicator along the breadcrumb's stored yaw.
+		Vector3 forward = {};
+		QM_AngleVectors( Vector3{ 0.0f, spot->currentAngles[ 1 ], 0.0f }, &forward, nullptr, nullptr );
+		const Vector3 arrowEnd = QM_Vector3Add( spot->currentOrigin, QM_Vector3Scale( forward, 12.0f ) );
+		SVG_Nav_DebugDraw_AddLine( spot->currentOrigin, arrowEnd, COLOR_BREADCRUMB_DIR, SG_SVC_DEBUG_DRAW_STYLE_FLAG_DEPTH_TEST, 1.5f );
+	}
+}
 #else // !ENABLE_PLAYER_TRAIL_ENTITIES
 #define TRAIL_LENGTH    128
 
@@ -246,6 +329,12 @@ void PlayerTrail_New( const Vector3 &spot ) {
 svg_base_edict_t *PlayerTrail_PickFirst( svg_base_edict_t *self ) {
 	// Nothing to do.
 	return nullptr;
+}
+void PlayerTrail_DebugInit( void ) {
+	// Nothing to do.
+}
+void PlayerTrail_DebugDraw( void ) {
+	// Nothing to do.
 }
 
 #endif // ENABLE_PLAYER_TRAIL_ENTITIES

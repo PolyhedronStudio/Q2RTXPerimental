@@ -80,6 +80,19 @@ static vkpt_debug_draw_instance_t debug_draw_queue[ VKPT_DEBUG_DRAW_MAX_INSTANCE
 //! Number of queued debug instances in the current frame.
 static uint32_t debug_draw_queue_count = 0;
 
+typedef struct vkpt_debug_draw_push_constants_s {
+	float depth_width;       //!< Width of the active ray-traced render region.
+	float depth_height;      //!< Height of the active ray-traced render region.
+	float output_width;      //!< Width of the final debug-overlay output region.
+	float output_height;     //!< Height of the final debug-overlay output region.
+} vkpt_debug_draw_push_constants_t;
+
+/**
+*	@brief	Create the isolated swapchain render pass for the debug overlay.
+*	@note	The pass loads/stores the swapchain image so debug primitives blend on top.
+**/
+
+
 /**
 *	@brief	Create the isolated swapchain render pass for the debug overlay.
 *	@note	The pass loads/stores the swapchain image so debug primitives blend on top.
@@ -734,9 +747,10 @@ VkResult vkpt_debug_draw_destroy( void ) {
 /**
 *	@brief	Create debug draw graphics pipelines and swapchain framebuffers.
 *	@return	`VK_SUCCESS` when creation succeeds.
-*	@note	The pipeline layout uses only the global textures descriptor set (set 0)
-*			for `TEX_PT_VIEW_DEPTH_A` depth sampling. The old SSBO descriptor set is gone;
-*			vertex data is now submitted as a real vertex buffer.
+ *	@note	The pipeline layout uses the global textures descriptor set (set 0)
+ *			for `TEX_PT_VIEW_DEPTH_A` depth sampling and a fragment push constant for
+ *			final-output to render-resolution coordinate mapping. The old SSBO descriptor
+ *			set is gone; vertex data is now submitted as a real vertex buffer.
 **/
 VkResult vkpt_debug_draw_create_pipelines( void ) {
 	/**
@@ -746,10 +760,17 @@ VkResult vkpt_debug_draw_create_pipelines( void ) {
 	VkDescriptorSetLayout desc_set_layouts[] = {
 		qvk.desc_set_layout_textures,
 	};
+	VkPushConstantRange push_constant_range = {
+		.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+		.offset = 0,
+		.size = sizeof( vkpt_debug_draw_push_constants_t ),
+	};
 
 	CREATE_PIPELINE_LAYOUT( qvk.device, &debug_draw_pipeline_layout,
 		.setLayoutCount = LENGTH( desc_set_layouts ),
-		.pSetLayouts = desc_set_layouts
+		.pSetLayouts = desc_set_layouts,
+		.pushConstantRangeCount = 1,
+		.pPushConstantRanges = &push_constant_range
 	);
 	ATTACH_LABEL_VARIABLE( debug_draw_pipeline_layout, PIPELINE_LAYOUT );
 
@@ -948,6 +969,13 @@ VkResult vkpt_debug_draw_record( VkCommandBuffer cmd_buf ) {
 	// Viewport dimensions used for NDC ↔ pixel conversion.
 	const float vp_w = (float)qvk.extent_unscaled.width;
 	const float vp_h = (float)qvk.extent_unscaled.height;
+	// Preserve both coordinate spaces so the fragment shader can locate the matching scene-depth pixel.
+	const vkpt_debug_draw_push_constants_t debug_draw_push_constants = {
+		.depth_width = (float)qvk.extent_render.width,
+		.depth_height = (float)qvk.extent_render.height,
+		.output_width = (float)qvk.extent_unscaled.width,
+		.output_height = (float)qvk.extent_unscaled.height,
+	};
 
 	/**
 	*	Tessellate each queued instance into ribbon/billboard quad vertices.
@@ -1201,6 +1229,14 @@ VkResult vkpt_debug_draw_record( VkCommandBuffer cmd_buf ) {
 
 	vkCmdBindPipeline( cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS,
 		debug_draw_pipelines[ VKPT_DEBUG_DRAW_PIPELINE_OVERLAY ] );
+
+	// Map final-output fragments to the active ray-traced depth-image coordinate space.
+	vkCmdPushConstants( cmd_buf,
+		debug_draw_pipeline_layout,
+		VK_SHADER_STAGE_FRAGMENT_BIT,
+		0,
+		sizeof( debug_draw_push_constants ),
+		&debug_draw_push_constants );
 
 	// Bind the tessellated vertex buffer and draw all triangles.
 	VkDeviceSize vb_offset = 0;

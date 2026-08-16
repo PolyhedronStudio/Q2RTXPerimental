@@ -10,6 +10,7 @@
 #include "svgame/svg_local.h"
 #include "nav_csg.h"
 #include "nav_generate.h"
+#include "nav_thread.h"
 #include <algorithm>
 #include <cmath>
 #include <memory>
@@ -794,12 +795,18 @@ void SimplifyAllNavPolygonsCollinearVertices() {
 	*	Iterate over all active polygons and simplify collinear boundary vertices.
 	**/
 	for ( size_t i = 0; i < g_nav_polys.size(); i++ ) {
+		// Update simplification stage progress (mapping to 0.48f..0.50f).
+		const float pct = 0.48f + 0.02f * ( static_cast< float >( i ) / static_cast< float >( g_nav_polys.size() ) );
+		Nav_SetGenerationProgress( pct, "Perimeter Simplification" );
+
 		if ( g_nav_polys[ i ].num_vertices >= 3 ) {
 			if ( SimplifyNavPolygonCollinearVertices( g_nav_polys[ i ] ) ) {
 				total_simplified++;
 			}
 		}
 	}
+
+	Nav_SetGenerationProgress( 0.50f, "Perimeter Simplification" );
 
 	if ( total_simplified > 0 ) {
 		gi.dprintf( "SimplifyAllNavPolygonsCollinearVertices: simplified perimeter vertices on %d polygons.\n", total_simplified );
@@ -826,6 +833,25 @@ void Nav_MergeCoplanarPolygons() {
 	bool merged_any = true;
 	int32_t pass_count = 0;
 
+	// Precompute 3D bounding box for all polygons once.
+	std::vector<Vector3DP> poly_mins( g_nav_polys.size() );
+	std::vector<Vector3DP> poly_maxs( g_nav_polys.size() );
+	for ( size_t i = 0; i < g_nav_polys.size(); i++ ) {
+		if ( g_nav_polys[ i ].num_vertices < 3 ) continue;
+		Vector3DP mi = g_nav_polys[ i ].vertices[ 0 ];
+		Vector3DP ma = mi;
+		for ( int32_t k = 1; k < g_nav_polys[ i ].num_vertices; k++ ) {
+			mi.x = std::min<double>( mi.x, g_nav_polys[ i ].vertices[ k ].x );
+			mi.y = std::min<double>( mi.y, g_nav_polys[ i ].vertices[ k ].y );
+			mi.z = std::min<double>( mi.z, g_nav_polys[ i ].vertices[ k ].z );
+			ma.x = std::max<double>( ma.x, g_nav_polys[ i ].vertices[ k ].x );
+			ma.y = std::max<double>( ma.y, g_nav_polys[ i ].vertices[ k ].y );
+			ma.z = std::max<double>( ma.z, g_nav_polys[ i ].vertices[ k ].z );
+		}
+		poly_mins[ i ] = mi;
+		poly_maxs[ i ] = ma;
+	}
+
 	/**
 	*	Iteratively merge polygon pairs until no further combinations are possible.
 	**/
@@ -835,6 +861,14 @@ void Nav_MergeCoplanarPolygons() {
 
 		// Outer loop: iterate over all polygons.
 		for ( size_t i = 0; i < g_nav_polys.size(); i++ ) {
+			// Update merge progress across passes (mapping to 0.25f..0.45f).
+			if ( !g_nav_polys.empty() ) {
+				const float pass_start = ( pass_count == 1 ) ? 0.25f : ( ( pass_count == 2 ) ? 0.38f : ( ( pass_count == 3 ) ? 0.42f : 0.44f ) );
+				const float pass_range = ( pass_count == 1 ) ? 0.13f : ( ( pass_count == 2 ) ? 0.04f : ( ( pass_count == 3 ) ? 0.02f : 0.01f ) );
+				const float pct = pass_start + pass_range * ( static_cast< float >( i ) / static_cast< float >( g_nav_polys.size() ) );
+				Nav_SetGenerationProgress( pct, "Coplanar Merging" );
+			}
+
 			// Skip deleted polygons marked with 0 vertices.
 			if ( g_nav_polys[ i ].num_vertices == 0 ) continue;
 
@@ -845,33 +879,15 @@ void Nav_MergeCoplanarPolygons() {
 				// Do not merge polygons belonging to different entities!
 				if ( g_nav_polys[ i ].entity_id != g_nav_polys[ j ].entity_id ) continue;
 
-				// Plane check: ensure polygons lie on the exact same spatial plane and normal.
-				if ( !AreNavPolygonsCoplanar( g_nav_polys[ i ], g_nav_polys[ j ] ) ) continue;
-
-				// Fast bounding box proximity check: polygons must touch within 0.5 units to be merge candidates.
-				Vector3DP min_i = g_nav_polys[ i ].vertices[ 0 ], max_i = min_i;
-				for ( int32_t k = 1; k < g_nav_polys[ i ].num_vertices; k++ ) {
-					min_i.x = std::min<double>( min_i.x, g_nav_polys[ i ].vertices[ k ].x );
-					min_i.y = std::min<double>( min_i.y, g_nav_polys[ i ].vertices[ k ].y );
-					min_i.z = std::min<double>( min_i.z, g_nav_polys[ i ].vertices[ k ].z );
-					max_i.x = std::max<double>( max_i.x, g_nav_polys[ i ].vertices[ k ].x );
-					max_i.y = std::max<double>( max_i.y, g_nav_polys[ i ].vertices[ k ].y );
-					max_i.z = std::max<double>( max_i.z, g_nav_polys[ i ].vertices[ k ].z );
-				}
-				Vector3DP min_j = g_nav_polys[ j ].vertices[ 0 ], max_j = min_j;
-				for ( int32_t k = 1; k < g_nav_polys[ j ].num_vertices; k++ ) {
-					min_j.x = std::min<double>( min_j.x, g_nav_polys[ j ].vertices[ k ].x );
-					min_j.y = std::min<double>( min_j.y, g_nav_polys[ j ].vertices[ k ].y );
-					min_j.z = std::min<double>( min_j.z, g_nav_polys[ j ].vertices[ k ].z );
-					max_j.x = std::max<double>( max_j.x, g_nav_polys[ j ].vertices[ k ].x );
-					max_j.y = std::max<double>( max_j.y, g_nav_polys[ j ].vertices[ k ].y );
-					max_j.z = std::max<double>( max_j.z, g_nav_polys[ j ].vertices[ k ].z );
-				}
-				if ( max_j.x < min_i.x - 0.5 || min_j.x > max_i.x + 0.5 ||
-					 max_j.y < min_i.y - 0.5 || min_j.y > max_i.y + 0.5 ||
-					 max_j.z < min_i.z - 0.5 || min_j.z > max_i.z + 0.5 ) {
+				// Fast precomputed bounding box proximity check: polygons must touch within 0.5 units to be merge candidates.
+				if ( poly_maxs[ j ].x < poly_mins[ i ].x - 0.5 || poly_mins[ j ].x > poly_maxs[ i ].x + 0.5 ||
+					 poly_maxs[ j ].y < poly_mins[ i ].y - 0.5 || poly_mins[ j ].y > poly_maxs[ i ].y + 0.5 ||
+					 poly_maxs[ j ].z < poly_mins[ i ].z - 0.5 || poly_mins[ j ].z > poly_maxs[ i ].z + 0.5 ) {
 					continue;
 				}
+
+				// Plane check: ensure polygons lie on the exact same spatial plane and normal.
+				if ( !AreNavPolygonsCoplanar( g_nav_polys[ i ], g_nav_polys[ j ] ) ) continue;
 
 				// Convert polygon i to winding structure.
 				winding_t w1 = {};
@@ -891,7 +907,6 @@ void Nav_MergeCoplanarPolygons() {
 					w2.push_back( Vector3DP( g_nav_polys[ j ].vertices[ k ] ) );
 				}
 
-
 				// Attempt convex merge of the two windings.
 				winding_t merged_w = {};
 				if ( TryMergeWindings( w1, w2, Vector3DP( g_nav_polys[ i ].normal ), &merged_w ) ) {
@@ -907,6 +922,13 @@ void Nav_MergeCoplanarPolygons() {
 					// Recompute polygon i geometric centroid.
 					RecomputeNavPolygonCenter( g_nav_polys[ i ] );
 
+					// Update precomputed bounding box for polygon i.
+					poly_mins[ i ].x = std::min<double>( poly_mins[ i ].x, poly_mins[ j ].x );
+					poly_mins[ i ].y = std::min<double>( poly_mins[ i ].y, poly_mins[ j ].y );
+					poly_mins[ i ].z = std::min<double>( poly_mins[ i ].z, poly_mins[ j ].z );
+					poly_maxs[ i ].x = std::max<double>( poly_maxs[ i ].x, poly_maxs[ j ].x );
+					poly_maxs[ i ].y = std::max<double>( poly_maxs[ i ].y, poly_maxs[ j ].y );
+					poly_maxs[ i ].z = std::max<double>( poly_maxs[ i ].z, poly_maxs[ j ].z );
 
 					// Mark candidate polygon j as deleted (0 vertices).
 					g_nav_polys[ j ].num_vertices = 0;
@@ -929,7 +951,7 @@ void Nav_MergeCoplanarPolygons() {
 	}
 
 	// Print summary diagnostic log.
-	gi.dprintf( "Nav_MergeCoplanarPolygons: finished after %" PRId32 " passes, reduced from %d to %d polygons.\n",
+	gi.dprintf( "Nav_MergeCoplanarPolygons: finished after %\" PRId32 \" passes, reduced from %d to %d polygons.\n",
 		pass_count, static_cast< int32_t >( g_nav_polys.size() ), static_cast< int32_t >( clean_polys.size() ) );
 
 	// Commit compacted polygon vector.
@@ -937,6 +959,8 @@ void Nav_MergeCoplanarPolygons() {
 	for ( const auto &poly : clean_polys ) {
 		g_nav_polys.push_back( poly );
 	}
+
+	Nav_SetGenerationProgress( 0.45f, "Coplanar Merging" );
 }
 
 /**
@@ -960,6 +984,10 @@ void Nav_DissolveSlivers() {
 	clean_polys.reserve( g_nav_polys.size() );
 
 	for ( size_t k = 0; k < g_nav_polys.size(); ++k ) {
+		// Update sliver dissolution stage progress (mapping to 0.45f..0.48f).
+		const float pct = 0.45f + 0.03f * ( static_cast< float >( k ) / static_cast< float >( g_nav_polys.size() ) );
+		Nav_SetGenerationProgress( pct, "Dissolving Slivers" );
+
 		const auto &poly = g_nav_polys[ k ];
 		if ( poly.num_vertices < 3 ) continue;
 
@@ -994,6 +1022,8 @@ void Nav_DissolveSlivers() {
 	for ( const auto &poly : clean_polys ) {
 		g_nav_polys.push_back( poly );
 	}
+
+	Nav_SetGenerationProgress( 0.48f, "Dissolving Slivers" );
 
 	// Log completion summary.
 	gi.dprintf( "Nav_DissolveSlivers: discarded %\" PRId32 \" degenerates, remaining polygons: %d\n",

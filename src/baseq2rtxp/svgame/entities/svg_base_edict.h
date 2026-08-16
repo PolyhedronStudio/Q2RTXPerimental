@@ -33,6 +33,8 @@ struct svg_base_edict_t;
 #include "svgame/svg_save.h"
 //! UseTargets
 #include "svgame/svg_usetargets.h"
+//! Crowd / Crew coordination.
+#include "svgame/crowd/svg_crowd_types.h"
 
 //! Macro for validating a callback function pointer at time of assignment.
 #if ( defined( DEBUG_CALLBACK_ASSIGNMENTS ) && ( DEBUG_CALLBACK_ASSIGNMENTS == 1 ) )
@@ -1046,6 +1048,13 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     svg_base_edict_t *activator = nullptr;
     //! The entity that called upon the SignalOut/UseTarget
     svg_base_edict_t *other = nullptr;
+
+
+    /**
+    *   Crowd / Crew Coordination:
+    **/
+    //! Crowd membership, formation slot index, role, and navigation state.
+    crowd_t crowd = {};
 
 
     /**

@@ -1655,10 +1655,8 @@ qhandle_t R_RegisterImage(const char *name, imagetype_t type, imageflags_t flags
         return 0;
     }
 
-    if (type == IT_SKIN) {
-        len = FS_NormalizePathBuffer(fullname, name, sizeof(fullname));
-    } else if (*name == '/' || *name == '\\') {
-        len = FS_NormalizePathBuffer(fullname, name + 1, sizeof(fullname));
+    if (type == IT_SKIN || *name == '/' || *name == '\\' || !strncmp(name, "textures/", 9) || !strncmp(name, "models/", 7) || !strncmp(name, "pics/", 5) || !strncmp(name, "env/", 4) || !strncmp(name, "fonts/", 6)) {
+        len = FS_NormalizePathBuffer(fullname, (*name == '/' || *name == '\\') ? name + 1 : name, sizeof(fullname));
     } else {
         len = Q_concat(fullname, sizeof(fullname), "pics/", name);
         if (len < sizeof(fullname)) {

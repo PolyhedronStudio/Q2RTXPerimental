@@ -30,7 +30,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/entities/svg_item_edict.h"
 #include "svgame/player/svg_player_hud.h"
 
-
+// Needed for crowd configstring.
+#include "svgame/entities/monster/svg_monster_testdummy_debug.h"
 
 
 //void Weapon_Blaster(svg_base_edict_t *ent);
@@ -1010,4 +1011,12 @@ void SVG_SetItemNames(void) {
     //body_armor_index   = ITEM_INDEX(SVG_Item_FindByPickupName("Body Armor"));
     //power_screen_index = ITEM_INDEX(SVG_Item_FindByPickupName("Power Screen"));
     //power_shield_index = ITEM_INDEX(SVG_Item_FindByPickupName("Power Shield"));
+}
+
+/**
+*	@brief	Set crowdID skin for used by crowd system.
+**/
+void SVG_RegisterCrowdIDSkins( void ) {
+	// Delegate crowd skin texture registration to the testdummy debug entity class.
+	svg_monster_testdummy_debug_t::RegisterCrowdIDSkins();
 }

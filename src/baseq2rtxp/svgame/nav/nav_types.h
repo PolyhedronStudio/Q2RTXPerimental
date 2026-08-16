@@ -2,6 +2,7 @@
 
 #include "nav_core.h"
 #include "nav_containers.h"
+#include "nav_cover_types.h"
 #include <algorithm>
 
 /**
@@ -214,6 +215,8 @@ struct nav_header_t {
     int32_t num_leaf_links = 0;
     //! Number of flattened face IDs referenced by leaf links.
     int32_t num_leaf_face_ids = 0;
+    //! Number of serialized precalculated tactical cover points.
+    int32_t num_cover_points = 0;
 };
 
 //#pragma pack(pop)

@@ -1,5 +1,9 @@
 #include "nav_persistence.h"
 #include "nav_generate.h"
+#include "nav_cover_types.h"
+
+//! External reference to the global list of generated cover points.
+extern std::vector<nav_cover_point_t> g_nav_cover_points;
 
 /**
 * @brief Save the current navmesh to a .nav7 file.
@@ -30,6 +34,7 @@ bool Nav_Save( const char *filepath ) {
     header.num_kdtree_nodes = (int32_t)g_nav_nodes.size();
     header.num_leaf_links = (int32_t)g_nav_leaf_links.size();
     header.num_leaf_face_ids = (int32_t)g_nav_leaf_poly_ids.size();
+    header.num_cover_points = (int32_t)g_nav_cover_points.size();
 
     // Write header
     fwrite(&header, sizeof(nav_header_t), 1, f);
@@ -47,9 +52,11 @@ bool Nav_Save( const char *filepath ) {
         fwrite(g_nav_leaf_links.get_data(), sizeof(nav_leaf_link_t), header.num_leaf_links, f);
     if (header.num_leaf_face_ids > 0)
         fwrite(g_nav_leaf_poly_ids.get_data(), sizeof(int32_t), header.num_leaf_face_ids, f);
+    if (header.num_cover_points > 0)
+        fwrite(g_nav_cover_points.data(), sizeof(nav_cover_point_t), header.num_cover_points, f);
 
     fclose(f);
-    gi.dprintf("NavMesh Saved to %s successfully.\n", filepath);
+    gi.dprintf("NavMesh Saved to %s successfully (Faces: %d, Cover: %d).\n", filepath, header.num_faces, header.num_cover_points);
     return true;
 }
 
@@ -73,7 +80,8 @@ bool Nav_Load( const char *filepath ) {
     }
 
     if (header.magic != NAV7_MAGIC || header.version != NAV7_VERSION) {
-        gi.dprintf("NavMesh Load Error: Invalid format or version mismatch.\n");
+        gi.dprintf("NavMesh Load Error: Invalid format or version mismatch (Expected v%u, got v%u).\n",
+            NAV7_VERSION, header.version);
         fclose(f);
         return false;
     }
@@ -112,8 +120,18 @@ bool Nav_Load( const char *filepath ) {
         g_nav_leaf_poly_ids.push_back(id);
     }
 
+    g_nav_cover_points.resize(header.num_cover_points);
+    if (header.num_cover_points > 0) {
+        fread(g_nav_cover_points.data(), sizeof(nav_cover_point_t), header.num_cover_points, f);
+        // Reset transient reservation state on loaded cover points
+        for (auto &cp : g_nav_cover_points) {
+            cp.claimed_by_ent = ENTITYNUM_NONE;
+            cp.claim_expiration = 0_ms;
+        }
+    }
+
     fclose(f);
-    gi.dprintf("NavMesh Loaded from %s successfully (Faces: %d, Nodes: %d).\n", 
-               filepath, header.num_faces, header.num_kdtree_nodes);
+    gi.dprintf("NavMesh Loaded from %s successfully (Faces: %d, Nodes: %d, Cover Points: %d).\n", 
+               filepath, header.num_faces, header.num_kdtree_nodes, header.num_cover_points);
     return true;
 }

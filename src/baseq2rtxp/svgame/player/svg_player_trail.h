@@ -60,3 +60,14 @@ svg_base_edict_t *PlayerTrail_PickNext( svg_monster_testdummy_debug_t *self );
     @return	Pointer to the last spot in the circular trail buffer.
 **/
 svg_base_edict_t *PlayerTrail_LastSpot( void );
+
+/**
+*	@brief	Register nav_debug_breadcrumb cvar for breadcrumb visualization.
+**/
+void PlayerTrail_DebugInit( void );
+
+/**
+*	@brief	Render player breadcrumb debug overlays when nav_debug_breadcrumb == 1.
+**/
+void PlayerTrail_DebugDraw( void );
+

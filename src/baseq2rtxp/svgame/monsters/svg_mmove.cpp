@@ -216,7 +216,8 @@ const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, con
 	const mm_trace_shape_t movementShape = SVG_MMove_GetNativeShape( monsterMove->monster );
 
 	// Perform an actual 'Step Slide'.
-	mm_slide_move_flags_t blockedMask = SVG_MMove_SlideMove( monsterMove->state.origin, monsterMove->state.velocity, monsterMove->frameTime, monsterMove->mins, monsterMove->maxs, monsterMove->monster, monsterMove->touchTraces, false /* monsterMove->hasTime */, movementShape );
+	const mm_slide_move_flags_t groundBlockedMask = SVG_MMove_SlideMove( monsterMove->state.origin, monsterMove->state.velocity, monsterMove->frameTime, monsterMove->mins, monsterMove->maxs, monsterMove->monster, monsterMove->touchTraces, false /* monsterMove->hasTime */, movementShape );
+	mm_slide_move_flags_t blockedMask = groundBlockedMask;
 
 	// Store for downward move XY.
 	Vector3 downOrigin = monsterMove->state.origin;
@@ -246,7 +247,6 @@ const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, con
 
 	// Perform the elevated slide with the same shape so a capsule cannot become a cylinder at the stair seam.
 	const mm_slide_move_flags_t elevatedBlockedMask = SVG_MMove_SlideMove( monsterMove->state.origin, monsterMove->state.velocity, monsterMove->frameTime, monsterMove->mins, monsterMove->maxs, monsterMove->monster, monsterMove->touchTraces, false /* monsterMove->hasTime */, movementShape );
-	blockedMask |= elevatedBlockedMask;
 
 	// Push down the final amount.
 	Vector3 down = monsterMove->state.origin;
@@ -280,6 +280,8 @@ const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, con
 	if ( down_dist > up_dist || !hasWalkableLanding ) {
 		monsterMove->state.origin = downOrigin;
 		monsterMove->state.velocity = downVelocity;
+		// Maintain ground slide blocked flags when elevated candidate was rejected
+		blockedMask = groundBlockedMask;
 	}
 	// [Paril-KEX] NB: this line being commented is crucial for ramp-jumps to work.
 	// thanks to Jitspoe for pointing this one out.
@@ -287,6 +289,7 @@ const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, con
 		acceptedStepUp = true;
 		// A valid elevated landing supersedes transient trap flags from the
 		// boundary probe; the landing trace is the authoritative candidate check.
+		blockedMask = elevatedBlockedMask;
 		blockedMask &= ~MM_SLIDEMOVEFLAG_TRAPPED;
 		//!! Special case
 		// if we were walking along a plane, then we need to copy the Z over

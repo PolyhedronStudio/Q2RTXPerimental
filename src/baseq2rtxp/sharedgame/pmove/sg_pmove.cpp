@@ -2182,13 +2182,14 @@ static void PM_CheckSpecialMovement() {
 	pm->state->pmove.pm_flags &= ~PMF_ON_LADDER;
 
 	// Re-Check for a ladder.
-	Vector3 flatforward = QM_Vector3NormalizeDP( {
-		pml.forward.x,
-		pml.forward.y,
-		0.f
-		} );
-	const Vector3 spot = pm->state->pmove.origin + ( flatforward * 1 );
-	cm_trace_t trace = PM_Trace( pm->state->pmove.origin, pm->mins, pm->maxs, spot, CONTENTS_LADDER );
+	Vector3DP flatforward = QM_Vector3NormalizeDP( Vector3DP{
+		(double)pml.forward.x,
+		(double)pml.forward.y,
+		0.
+	} );
+	const Vector3DP spot = Vector3DP( pm->state->pmove.origin ) + ( flatforward * 1.0 );
+	Vector3 floatSpot = Vector3( spot );
+	cm_trace_t trace = PM_Trace( pm->state->pmove.origin, pm->mins, pm->maxs, floatSpot, CONTENTS_LADDER );
 	if ( ( trace.fraction < 1. ) && ( trace.contents & CONTENTS_LADDER ) 
 		// Uncomment to disable underwater ladders.
 		/*&& pm->liquid.level < cm_liquid_level_t::LIQUID_WAIST*/ ) {

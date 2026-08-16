@@ -170,14 +170,27 @@ inline bool Nav_GetPortalEndpoints( int32_t faceA, int32_t faceB, Vector3 *outV0
 
 
 /**
-*	@brief	Build a smoothed string-pulled path using the Funnel algorithm.
+*	@brief	Build a smoothed string-pulled path using the Funnel algorithm in full double precision.
 *	@param	path The sequence of face IDs to traverse.
-*	@param	startPos The exact starting position (e.g. agent's current position).
+*	@param	startPos The exact starting position in double precision.
+*	@param	goalPos The exact ending position in double precision.
+*	@param	agentRadius The collision radius to steer clear of walls.
+*	@param	outWaypoints Output sequence of 3D double-precision points.
+*	@param	outForcedWaypoints Optional output flags parallel to `outWaypoints`; true
+*						for stair approach and crossing constraints that must not be smoothed.
+*	@return	True if a valid corridor and string-pull could be generated.
+**/
+bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3DP &startPos, const Vector3DP &goalPos, double agentRadius, std::vector<Vector3DP> &outWaypoints, std::vector<bool> *outForcedWaypoints = nullptr );
+
+/**
+*	@brief	Build a smoothed string-pulled path using the Funnel algorithm (single-precision convenience wrapper).
+*	@param	path The sequence of face IDs to traverse.
+*	@param	startPos The exact starting position.
 *	@param	goalPos The exact ending position.
 *	@param	agentRadius The collision radius to steer clear of walls.
- *	@param	outWaypoints Output sequence of 3D points.
- *	@param	outForcedWaypoints Optional output flags parallel to `outWaypoints`; true
- *						for stair approach and crossing constraints that must not be smoothed.
+*	@param	outWaypoints Output sequence of 3D points.
+*	@param	outForcedWaypoints Optional output flags parallel to `outWaypoints`; true
+*						for stair approach and crossing constraints that must not be smoothed.
 *	@return	True if a valid corridor and string-pull could be generated.
 **/
 bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3 &startPos, const Vector3 &goalPos, float agentRadius, std::vector<Vector3> &outWaypoints, std::vector<bool> *outForcedWaypoints = nullptr );

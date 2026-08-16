@@ -7,7 +7,7 @@
 * @note These values are shared by the generator, pathfinder, and persistence layers.
 **/
 #define NAV7_MAGIC 'NAV7'
-#define NAV7_VERSION 4
+#define NAV7_VERSION 5
 
 //! Upper bound for the number of generated nav faces kept in memory.
 constexpr int32_t MAX_NAV_FACES = 262144;

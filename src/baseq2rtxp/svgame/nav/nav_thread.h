@@ -8,18 +8,20 @@
 * @note The worker thread updates these fields while the server reads them for status output.
 **/
 struct nav_gen_progress_t {
-    //! Fractional completion in the range 0.0f..1.0f.
-    float progress_pct = 0.0f;
-    //! Server time when generation started.
-    uint32_t start_time_ms = 0;
-    //! Latest sampled server time.
-    uint32_t current_time_ms = 0;
-    //! Elapsed time in milliseconds since generation began.
-    uint32_t time_taken_ms = 0;
-    //! Estimated time remaining in milliseconds.
-    uint32_t estimated_time_left_ms = 0;
-    //! True while the asynchronous generation job is active.
-    bool is_generating = false;
+	//! Fractional completion in the range 0.0f..1.0f.
+	float progress_pct = 0.0f;
+	//! Server time when generation started.
+	uint32_t start_time_ms = 0;
+	//! Latest sampled server time.
+	uint32_t current_time_ms = 0;
+	//! Elapsed time in milliseconds since generation began.
+	uint32_t time_taken_ms = 0;
+	//! Estimated time remaining in milliseconds.
+	uint32_t estimated_time_left_ms = 0;
+	//! Current generation stage description.
+	char stage[ 64 ] = {};
+	//! True while the asynchronous generation job is active.
+	bool is_generating = false;
 };
 
 /**
@@ -35,10 +37,17 @@ void Nav_StartAsyncGeneration( void );
 const nav_gen_progress_t &Nav_GetGenerationProgress( void );
 
 /**
-*	@brief	Set the current navmesh generation progress percentage.
+*	@brief	Set the current navmesh generation progress percentage and optional stage label.
 *	@param	progress_pct	The progression fraction between 0.0f and 1.0f.
+*	@param	stage			Optional human-readable stage name to display in status reports.
 **/
-void Nav_SetGenerationProgress( const float progress_pct );
+void Nav_SetGenerationProgress( const float progress_pct, const char *stage = nullptr );
+
+/**
+*	@brief	Set the current active generation stage label without modifying progress.
+*	@param	stage	Human-readable stage name.
+**/
+void Nav_SetGenerationStage( const char *stage );
 
 /**
 * @brief Advance the async generation status from the main server loop.

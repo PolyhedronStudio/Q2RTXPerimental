@@ -162,6 +162,10 @@ void SVG_PrecacheItem( const gitem_t *it );
 **/
 void SVG_InitItems( void );
 /**
+*	@brief	Set crowdID skin for used by crowd system.
+**/
+void SVG_RegisterCrowdIDSkins( void );
+/**
 *   @brief
 **/
 void SVG_SetItemNames( void );
