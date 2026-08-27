@@ -19,6 +19,12 @@ static constexpr float PORTAL_EPS_SQR = 16.0f * 16.0f;
 struct nav_path_policy_t {
 	//! Radius of the navigating agent (used for clearance and portal checks).
 	float agent_radius = 16.0f;
+	//! Bounding box minimums of the agent (used for full physical collision volume traces).
+	Vector3 agent_mins = { -16.0f, -16.0f, -36.0f };
+	//! Bounding box maximums of the agent (used for full physical collision volume traces).
+	Vector3 agent_maxs = { 16.0f, 16.0f, 36.0f };
+	//! Analytical collision shape for mover traces (0 = Auto, 1 = Capsule, 2 = Cylinder).
+	int32_t trace_shape = 1;
 	//! Minimum upward surface normal required to treat a landing as a step.
 	float min_step_normal = 0.7f;
 	//! Minimum step height in world units.
@@ -178,9 +184,12 @@ inline bool Nav_GetPortalEndpoints( int32_t faceA, int32_t faceB, Vector3 *outV0
 *	@param	outWaypoints Output sequence of 3D double-precision points.
 *	@param	outForcedWaypoints Optional output flags parallel to `outWaypoints`; true
 *						for stair approach and crossing constraints that must not be smoothed.
+*	@param	agentMins Bounding box minimums for full physical swept volume verification.
+*	@param	agentMaxs Bounding box maximums for full physical swept volume verification.
+*	@param	traceShape Analytical collision shape (0 = Auto, 1 = Capsule, 2 = Cylinder).
 *	@return	True if a valid corridor and string-pull could be generated.
 **/
-bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3DP &startPos, const Vector3DP &goalPos, double agentRadius, std::vector<Vector3DP> &outWaypoints, std::vector<bool> *outForcedWaypoints = nullptr );
+bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3DP &startPos, const Vector3DP &goalPos, double agentRadius, std::vector<Vector3DP> &outWaypoints, std::vector<bool> *outForcedWaypoints = nullptr, const Vector3 &agentMins = { -16.0f, -16.0f, -36.0f }, const Vector3 &agentMaxs = { 16.0f, 16.0f, 36.0f }, int32_t traceShape = 1 );
 
 /**
 *	@brief	Build a smoothed string-pulled path using the Funnel algorithm (single-precision convenience wrapper).
@@ -191,9 +200,12 @@ bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3DP &startPos
 *	@param	outWaypoints Output sequence of 3D points.
 *	@param	outForcedWaypoints Optional output flags parallel to `outWaypoints`; true
 *						for stair approach and crossing constraints that must not be smoothed.
+*	@param	agentMins Bounding box minimums for full physical swept volume verification.
+*	@param	agentMaxs Bounding box maximums for full physical swept volume verification.
+*	@param	traceShape Analytical collision shape (0 = Auto, 1 = Capsule, 2 = Cylinder).
 *	@return	True if a valid corridor and string-pull could be generated.
 **/
-bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3 &startPos, const Vector3 &goalPos, float agentRadius, std::vector<Vector3> &outWaypoints, std::vector<bool> *outForcedWaypoints = nullptr );
+bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3 &startPos, const Vector3 &goalPos, float agentRadius, std::vector<Vector3> &outWaypoints, std::vector<bool> *outForcedWaypoints = nullptr, const Vector3 &agentMins = { -16.0f, -16.0f, -36.0f }, const Vector3 &agentMaxs = { 16.0f, 16.0f, 36.0f }, int32_t traceShape = 1 );
 
 /**
 * 	@brief	Reapply dynamic nav edge state from the current runtime entity states.

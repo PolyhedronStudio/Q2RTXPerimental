@@ -12,6 +12,7 @@
 ********************************************************************/
 #include "nav_cover_generate.h"
 #include "nav_cover_types.h"
+#include "nav_cover_query.h"
 #include "nav_generate.h"
 #include "nav_core.h"
 #include "nav_thread.h"
@@ -36,6 +37,7 @@ void Nav_ClearCoverPoints( void ) {
 	// Clear the vector and free memory.
 	g_nav_cover_points.clear();
 	g_nav_cover_points.shrink_to_fit();
+	Nav_ClearCoverSpatialIndex();
 }
 
 /**
@@ -55,13 +57,20 @@ static float Nav_ProbeWallHeight( const Vector3 &probe_origin, const Vector3 &wa
 
 	/**
 	*	Verify physical solid barrier rising above ground:
-	*	Trace horizontally in 2D from probe_origin into the obstacle at heights 18, 24, 32, 40, 56, 72, 96 units.
-	*	Probe distance 44.0 units reliably reaches 45-degree angled walls and diagonal chamfers.
+	*	A valid cover wall must be solid at the lowest height (18.0 units) to ensure it rises from the ground.
+	*	If there is open air at height 18 (e.g. drop-off, ledge, or catwalk edge), return 0.0f.
 	**/
 	constexpr float probe_dist = 48.0f;
+	const Vector3 base_start = QM_Vector3Add( probe_origin, Vector3{ 0.0f, 0.0f, 18.0f } );
+	const Vector3 base_end = QM_Vector3Add( base_start, QM_Vector3Scale( wall_normal_2d, probe_dist ) );
+	const svg_trace_t base_tr = SVG_Trace( base_start, vec3_origin, vec3_origin, base_end, nullptr, CM_CONTENTMASK_SOLID );
+	if ( !base_tr.startsolid && base_tr.fraction >= 1.0f ) {
+		return 0.0f;
+	}
+
 	constexpr float test_heights[] = { 96.0f, 72.0f, 56.0f, 40.0f, 32.0f, 24.0f, 18.0f };
 
-	float highest_detected = 0.0f;
+	float highest_detected = 18.0f;
 
 	for ( const float h : test_heights ) {
 		const Vector3 h_start = QM_Vector3Add( probe_origin, Vector3{ 0.0f, 0.0f, h } );
@@ -123,13 +132,26 @@ void Nav_GenerateCoverPoints( void ) {
 
 		const nav_face_t &face = g_nav_faces[ f_idx ];
 
+		// Exclude stair step treads from cover generation (stair steps are transit passages, not cover spots).
+		bool is_stair_step = false;
+		for ( int32_t e = 0; e < face.num_edges; e++ ) {
+			const nav_halfedge_t &he = g_nav_halfedges[ face.first_edge_idx + e ];
+			if ( he.twin_idx != -1 && std::fabs( he.z_diff ) >= 4.0 && std::fabs( he.z_diff ) <= NAV_MAX_STEP_HEIGHT ) {
+				is_stair_step = true;
+				break;
+			}
+		}
+		if ( is_stair_step ) {
+			continue;
+		}
+
 		for ( int32_t e = 0; e < face.num_edges; e++ ) {
 			const int32_t edge_idx = face.first_edge_idx + e;
 			const nav_halfedge_t &he = g_nav_halfedges[ edge_idx ];
 
 			const bool has_no_twin = ( he.twin_idx == -1 );
-			const bool is_step_drop = ( std::fabs( he.z_diff ) > NAV_MAX_STEP_HEIGHT );
-			const bool is_boundary = has_no_twin || is_step_drop;
+			const bool is_upward_step_wall = ( he.twin_idx != -1 && he.z_diff > NAV_MAX_STEP_HEIGHT );
+			const bool is_boundary = has_no_twin || is_upward_step_wall;
 			if ( !is_boundary ) {
 				continue;
 			}
@@ -183,8 +205,8 @@ void Nav_GenerateCoverPoints( void ) {
 			for ( const float dist_along_edge : sample_offsets ) {
 				const Vector3 edge_pos = QM_Vector3Add( v1, QM_Vector3Scale( tangent_2d, dist_along_edge ) );
 
-				// Inset cover position onto the walkable face by agent radius + clearance (20 units).
-				constexpr float agent_radius_inset = 20.0f;
+				// Inset cover position onto the walkable face by agent radius + clearance (24 units).
+				constexpr float agent_radius_inset = 24.0f;
 				Vector3 cover_pos = QM_Vector3Add( edge_pos, QM_Vector3Scale( open_normal_2d, agent_radius_inset ) );
 
 				// Drop cover position to exact floor surface.
@@ -197,7 +219,7 @@ void Nav_GenerateCoverPoints( void ) {
 
 				// Determine wall height:
 				float wall_height = 0.0f;
-				if ( is_step_drop && he.z_diff > NAV_MAX_STEP_HEIGHT ) {
+				if ( is_upward_step_wall ) {
 					wall_height = std::min<float>( 96.0f, static_cast<float>( he.z_diff ) );
 				} else {
 					wall_height = Nav_ProbeWallHeight( edge_pos, wall_normal_2d );
@@ -250,8 +272,8 @@ void Nav_GenerateCoverPoints( void ) {
 			const nav_halfedge_t &he_prev = g_nav_halfedges[ e_prev_idx ];
 			const nav_halfedge_t &he_curr = g_nav_halfedges[ e_curr_idx ];
 
-			const bool prev_is_bnd = ( he_prev.twin_idx == -1 ) || ( std::fabs( he_prev.z_diff ) > NAV_MAX_STEP_HEIGHT );
-			const bool curr_is_bnd = ( he_curr.twin_idx == -1 ) || ( std::fabs( he_curr.z_diff ) > NAV_MAX_STEP_HEIGHT );
+			const bool prev_is_bnd = ( he_prev.twin_idx == -1 ) || ( he_prev.twin_idx != -1 && he_prev.z_diff > NAV_MAX_STEP_HEIGHT );
+			const bool curr_is_bnd = ( he_curr.twin_idx == -1 ) || ( he_curr.twin_idx != -1 && he_curr.z_diff > NAV_MAX_STEP_HEIGHT );
 
 			if ( prev_is_bnd && curr_is_bnd ) {
 				const Vector3 v_shared = static_cast<Vector3>( g_nav_vertices[ he_curr.vertex_idx ] );
@@ -274,7 +296,8 @@ void Nav_GenerateCoverPoints( void ) {
 					const float bisector_len = QM_Vector3Length( corner_bisector );
 					if ( bisector_len > 0.1f ) {
 						corner_bisector = QM_Vector3Scale( corner_bisector, 1.0f / bisector_len );
-						constexpr float corner_inset_dist = 22.0f;
+						// Inset along corner bisector by 32 units: guarantees >= 22.6 units perpendicular standoff from both corner walls.
+						constexpr float corner_inset_dist = 32.0f;
 						Vector3 corner_pos = QM_Vector3Add( v_shared, QM_Vector3Scale( corner_bisector, corner_inset_dist ) );
 
 						// Drop to floor:
@@ -347,7 +370,7 @@ void Nav_GenerateCoverPoints( void ) {
 			Nav_SetGenerationProgress( pct, "Tactical Cover Validation" );
 		}
 
-		const nav_cover_point_t &cand = raw_candidates[ c_idx ];
+		nav_cover_point_t &cand = raw_candidates[ c_idx ];
 
 		// 1. Spatial separation check:
 		bool too_close = false;
@@ -362,27 +385,30 @@ void Nav_GenerateCoverPoints( void ) {
 		}
 
 		// 2. Physical bounding-box clearance validation using exact entity physics bounds:
-		// Entity origin is centered vertically at feet + 36 units:
+		// Entity center is positioned vertically at feet + 36 units so mins.z (-36) aligns with the floor:
 		const Vector3 entity_center = QM_Vector3Add( cand.local_position, Vector3{ 0.0f, 0.0f, 36.0f } );
 
-		// Ducked clearance (required for all cover):
+		// Ducked clearance (required for crouching behind cover):
 		const svg_trace_t duck_tr = SVG_Trace( entity_center, PHYS_DEFAULT_BBOX_DUCKED_MINS, PHYS_DEFAULT_BBOX_DUCKED_MAXS, entity_center, nullptr, CM_CONTENTMASK_SOLID );
 		if ( duck_tr.startsolid || duck_tr.allsolid ) {
 			continue; // Cannot crouch without clipping solid wall geometry.
 		}
 
-		// Standing clearance check for full-height cover:
-		if ( cand.cover_type == NAV_COVER_HIGH ) {
-			const svg_trace_t stand_tr = SVG_Trace( entity_center, PHYS_DEFAULT_BBOX_STANDUP_MINS, PHYS_DEFAULT_BBOX_STANDUP_MAXS, entity_center, nullptr, CM_CONTENTMASK_SOLID );
-			if ( stand_tr.startsolid || stand_tr.allsolid ) {
-				continue; // Cannot stand without clipping ceiling/overhang.
-			}
+		// Standing clearance check:
+		const svg_trace_t stand_tr = SVG_Trace( entity_center, PHYS_DEFAULT_BBOX_STANDUP_MINS, PHYS_DEFAULT_BBOX_STANDUP_MAXS, entity_center, nullptr, CM_CONTENTMASK_SOLID );
+		if ( stand_tr.startsolid || stand_tr.allsolid ) {
+			// If standing clips ceiling but ducking fits, keep as low cover point:
+			cand.cover_type = NAV_COVER_LOW;
+			cand.peek_flags |= NAV_COVER_PEEK_OVER;
 		}
 
 		g_nav_cover_points.push_back( cand );
 	}
 
 	Nav_SetGenerationProgress( 0.99f, "Tactical Cover Validation" );
+
+	// Build the 2D spatial grid acceleration index for O(1) runtime queries.
+	Nav_RebuildCoverSpatialIndex();
 
 	// Log extraction summary.
 	gi.dprintf( "NavMesh Cover Generation: Extracted %u raw candidates -> %u validated tactical cover points.\n",

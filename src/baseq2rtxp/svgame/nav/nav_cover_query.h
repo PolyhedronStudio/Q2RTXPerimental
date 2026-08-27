@@ -10,12 +10,12 @@
 *	@param	radius				Maximum search distance from search_origin.
 *	@param	requester_ent		Entity ID requesting cover (used to filter claim reservations).
 *	@param	out_cover_indices	[out] List of valid cover point indices ranked by tactical score.
-*	@param	min_cover_type		Minimum acceptable posture (NAV_COVER_LOW or NAV_COVER_HIGH).
+*	@param	min_cover_type		Posture requirement filter (NAV_COVER_LOW, NAV_COVER_HIGH, or NAV_COVER_NONE for any posture).
 *	@return	True when one or more suitable cover points were found.
 **/
 const bool Nav_FindCoverPoints( const Vector3 &search_origin, const Vector3 &threat_origin,
 	const float radius, const int32_t requester_ent, std::vector<int32_t> *out_cover_indices,
-	const nav_cover_type_t min_cover_type = NAV_COVER_LOW );
+	const nav_cover_type_t min_cover_type = NAV_COVER_NONE );
 
 /**
 *	@brief		Evaluate the tactical protection score of a specific cover point against a threat.
@@ -78,3 +78,13 @@ const nav_cover_point_t *Nav_GetCoverPoint( const int32_t cover_idx );
 *	@return	Cover point count.
 **/
 const int32_t Nav_GetCoverPointCount( void );
+
+/**
+*	@brief		Build or rebuild the 2D spatial grid acceleration index for tactical cover points.
+**/
+void Nav_RebuildCoverSpatialIndex( void );
+
+/**
+*	@brief		Clear the tactical cover point spatial grid acceleration index.
+**/
+void Nav_ClearCoverSpatialIndex( void );

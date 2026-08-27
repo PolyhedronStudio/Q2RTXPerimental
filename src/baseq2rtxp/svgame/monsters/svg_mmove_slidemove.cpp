@@ -146,8 +146,6 @@ const mm_slide_move_flags_t SVG_MMove_SlideMove( Vector3 &origin, Vector3 &veloc
 
 	for ( bumpcount = 0; bumpcount < numbumps; bumpcount++ ) {
 		VectorMA( origin, time_left, velocity, end );
-		//for ( i = 0; i < 3; i++ )
-		//	end[ i ] = origin[ i ] + time_left * velocity[ i ];
 		trace = SVG_MMove_Trace( origin, mins, maxs, end, passEntity, CONTENTS_NONE, override_shape );
 
 		if ( trace.allsolid ) {
@@ -157,6 +155,10 @@ const mm_slide_move_flags_t SVG_MMove_SlideMove( Vector3 &origin, Vector3 &veloc
 			SVG_MMove_RegisterTouchTrace( touch_traces, trace );
 			// Return trapped mask.
 			return MM_SLIDEMOVEFLAG_TRAPPED;
+		}
+
+		if ( trace.startsolid ) {
+			origin += Vector3( trace.plane.normal ) * 0.25f;
 		}
 
 		// [Paril-KEX] experimental attempt to fix stray collisions on curved
@@ -309,11 +311,9 @@ const mm_slide_move_flags_t SVG_MMove_SlideMove( Vector3 &origin, Vector3 &veloc
 		}
 
 		/**
-		* Reject a resolved velocity that reverses the original movement direction.
-		* The overbounce factor intentionally permits a tiny outward component, but
-		* retaining a fully reversed result would make the monster rebound from a floor.
+		* If the clipped velocity magnitude is below the stop threshold, stop sliding.
 		**/
-		if ( QM_Vector3DotProduct( clipVelocity, original_velocity ) <= 0.0f ) {
+		if ( QM_Vector3LengthSqr( clipVelocity ) < ( MM_STOP_EPSILON * MM_STOP_EPSILON ) ) {
 			velocity = {};
 			break;
 		}

@@ -204,6 +204,10 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_skeletal_hitboxes.cpp
 	baseq2rtxp/svgame/memory/svg_raiiobject.cpp
 
+	baseq2rtxp/svgame/crowd/svg_crowd_formations.cpp
+	baseq2rtxp/svgame/crowd/svg_crowd_manager.cpp
+	baseq2rtxp/svgame/crowd/svg_crowd_commands.cpp
+
 
 	baseq2rtxp/svgame/entities/func/svg_func_areaportal.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_button.cpp
@@ -237,6 +241,7 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/misc/svg_misc_teleporter.cpp
 	baseq2rtxp/svgame/entities/misc/svg_misc_teleporter_dest.cpp
 
+	baseq2rtxp/svgame/entities/monster/svg_monster_base.cpp
 	#baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_sfxfollow.cpp
 	#baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_puppet.cpp
     baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_debug.cpp
@@ -312,6 +317,9 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/weapons/svg_weapon_fists.cpp
 	baseq2rtxp/svgame/weapons/svg_weapon_pistol.cpp
 	
+	baseq2rtxp/svgame/nav/nav_cover_debug.cpp
+	baseq2rtxp/svgame/nav/nav_cover_generate.cpp
+	baseq2rtxp/svgame/nav/nav_cover_query.cpp
 	baseq2rtxp/svgame/nav/nav_csg.cpp
 	baseq2rtxp/svgame/nav/nav_debug.cpp
 	baseq2rtxp/svgame/nav/nav_debug_draw.cpp
@@ -346,8 +354,17 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_skeletal_hitboxes.h
 	baseq2rtxp/svgame/svg_weapons.h
 
+	baseq2rtxp/svgame/crowd/svg_crowd_types.h
+	baseq2rtxp/svgame/crowd/svg_crowd_formations.h
+	baseq2rtxp/svgame/crowd/svg_crowd_manager.h
+	baseq2rtxp/svgame/crowd/svg_crowd_commands.h
+
 	baseq2rtxp/svgame/nav/nav_containers.h
 	baseq2rtxp/svgame/nav/nav_core.h
+	baseq2rtxp/svgame/nav/nav_cover_debug.h
+	baseq2rtxp/svgame/nav/nav_cover_generate.h
+	baseq2rtxp/svgame/nav/nav_cover_query.h
+	baseq2rtxp/svgame/nav/nav_cover_types.h
 	baseq2rtxp/svgame/nav/nav_csg.h
 	baseq2rtxp/svgame/nav/nav_debug.h
 	baseq2rtxp/svgame/nav/nav_generate.h
@@ -386,6 +403,7 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/light/svg_light_light.h
 	baseq2rtxp/svgame/entities/light/svg_light_spotlight.h
 
+	baseq2rtxp/svgame/entities/monster/svg_monster_base.h
 	#baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_sfxfollow.h
 	baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_debug.h
 	#baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_puppet.h

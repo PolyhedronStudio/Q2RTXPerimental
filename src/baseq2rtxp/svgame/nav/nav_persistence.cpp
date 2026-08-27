@@ -1,6 +1,7 @@
 #include "nav_persistence.h"
 #include "nav_generate.h"
 #include "nav_cover_types.h"
+#include "nav_cover_query.h"
 
 //! External reference to the global list of generated cover points.
 extern std::vector<nav_cover_point_t> g_nav_cover_points;
@@ -129,6 +130,8 @@ bool Nav_Load( const char *filepath ) {
             cp.claim_expiration = 0_ms;
         }
     }
+
+    Nav_RebuildCoverSpatialIndex();
 
     fclose(f);
     gi.dprintf("NavMesh Loaded from %s successfully (Faces: %d, Nodes: %d, Cover Points: %d).\n", 

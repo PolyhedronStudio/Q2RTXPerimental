@@ -11,7 +11,9 @@ enum nav_cover_type_t : uint8_t {
 	//! Low obstacle (crouch cover, e.g. ~32 to 52 units tall).
 	NAV_COVER_LOW = 0,
 	//! Full-height obstacle (standing cover, e.g. > 56 units tall).
-	NAV_COVER_HIGH = 1
+	NAV_COVER_HIGH = 1,
+	//! Any posture / no posture restriction.
+	NAV_COVER_NONE = 2
 };
 
 /**

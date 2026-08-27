@@ -1014,8 +1014,6 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarToPlay
     int32_t blockedMask = MM_SLIDEMOVEFLAG_NONE;
     self->GenericThinkFinish( true, blockedMask );
     SVG_Util_SetEntityAngles( self, self->currentAngles, true );
-	// Track blocked/trapped streaks and force a route refresh if we keep scraping the same corner.
-	self->UpdateBlockedNavigationRecovery( blockedMask );
     
     self->nextthink = level.time + FRAME_TIME_MS;
 }
@@ -1212,241 +1210,83 @@ const int32_t svg_monster_testdummy_debug_t::FindBestScaredCover( const Vector3 
 		return -1;
 	}
 
-	const svg_base_edict_t *requester_edict = this;
-	const float dist_self_to_threat = QM_Vector3Distance( currentOrigin, threat_origin );
-
-	struct scored_candidate_t {
-		int32_t index = -1;
-		float score = -1e9f;
-	};
-
-	std::vector<scored_candidate_t> valid_candidates = {};
-	valid_candidates.reserve( 32 );
-
-	std::vector<scored_candidate_t> fallback_candidates = {};
-	fallback_candidates.reserve( 32 );
-
 	/**
-	*	Pass 1: Tactical search with full anti-ping-pong and anti-clustering constraints.
-	*	1. Anti-Ping-Pong: Reject recently visited/compromised cover spots.
-	*	2. Spatial Anti-Clustering: Reject points within 160 units of claimed spots or other monsters.
-	*	3. True Occlusion: Require world solid geometry obstruction between cover eye and threat eye.
-	*	4. Safe Direction: Favor moving away from threat (flee_gain).
-	*	5. Proximity to Dummy: Favor closest valid occluded spot over sprinting across the map.
-	*	6. Posture: Prioritize crouch cover (NAV_COVER_LOW) over standing cover.
+	*	Phase 1: High-Performance Spatial Query with Anti-Ping-Pong filtering (768 unit radius, crouch cover).
 	**/
-	for ( int32_t i = 0; i < num_points; i++ ) {
-		const nav_cover_point_t *cp = Nav_GetCoverPoint( i );
-		if ( !cp ) {
-			continue;
-		}
-
-		// 1. Anti-Ping-Pong: skip recently visited/compromised cover spots.
-		if ( stateCover.IsCoverBanned( i ) ) {
-			continue;
-		}
-
-		// 2. Spatial anti-clustering: reject if this point or any neighbor within 160 units is claimed or on cooldown.
-		if ( Nav_IsCoverPointSpatiallyClaimed( i, s.number, 160.0f ) ) {
-			continue;
-		}
-
-		// 3. Check dynamic mover usability.
-		if ( !Nav_IsCoverPointUsable( *cp, requester_edict ) ) {
-			continue;
-		}
-
-		// 4. Resolve current world-space coordinates.
-		Vector3 world_pos = {}, world_normal = {};
-		if ( !Nav_GetCoverPointWorld( *cp, &world_pos, &world_normal ) ) {
-			continue;
-		}
-
-		const float dist_from_self = QM_Vector3Distance( world_pos, currentOrigin );
-		const float dist_cover_to_threat = QM_Vector3Distance( world_pos, threat_origin );
-		const float flee_gain = dist_cover_to_threat - dist_self_to_threat;
-
-		// Skip candidate if it forces the monster to run straight into the threat.
-		if ( flee_gain < -96.0f && dist_self_to_threat < 400.0f ) {
-			continue;
-		}
-
-		// When fleeing from a close threat, skip cover that is practically under our feet (< 160 units).
-		if ( dist_from_self < 160.0f && dist_self_to_threat < 350.0f ) {
-			continue;
-		}
-
-		// 5. Strict line-of-sight trace check from cover eye to threat eye.
-		const float protection = Nav_EvaluateCoverForThreat( i, threat_origin, true );
-
-		// 6. Ally spreading and territorial avoidance.
-		float ally_proximity_penalty = 0.0f;
-		bool too_close_to_ally = false;
-
-		for ( int32_t ent_idx = game.maxclients + 1; ent_idx < g_edict_pool.num_edicts; ent_idx++ ) {
-			if ( ent_idx == s.number ) {
-				continue;
-			}
-			const svg_base_edict_t *other_ent = g_edict_pool.EdictForNumber( ent_idx );
-			if ( !other_ent || !other_ent->inUse || other_ent->health <= 0 ) {
-				continue;
-			}
-
-			// Reject if another entity is already physically within 160 units of this spot.
-			const float dist_to_ally = QM_Vector3Distance( world_pos, other_ent->currentOrigin );
-			if ( dist_to_ally < 160.0f ) {
-				too_close_to_ally = true;
-				break;
-			}
-			if ( dist_to_ally < 320.0f ) {
-				ally_proximity_penalty += ( 320.0f - dist_to_ally ) * 1.5f;
+	std::vector<int32_t> candidate_indices = {};
+	if ( Nav_FindCoverPoints( currentOrigin, threat_origin, 768.0f, s.number, &candidate_indices, NAV_COVER_LOW ) ) {
+		std::vector<int32_t> unbanned_candidates = {};
+		for ( const int32_t idx : candidate_indices ) {
+			if ( !stateCover.IsCoverBanned( idx ) ) {
+				unbanned_candidates.push_back( idx );
 			}
 		}
 
-		if ( too_close_to_ally ) {
-			continue;
+		if ( !unbanned_candidates.empty() ) {
+			const int32_t top_count = std::min<int32_t>( 3, static_cast<int32_t>( unbanned_candidates.size() ) );
+			const int32_t chosen_slot = ( top_count > 1 ) ? irandom( top_count ) : 0;
+			return unbanned_candidates[ chosen_slot ];
 		}
 
-		if ( protection > 0.0f ) {
-			// Comprehensive retreat scoring:
-			const float posture_bonus = ( cp->cover_type == NAV_COVER_LOW ) ? 300.0f : 0.0f;
-			const float score = 1000.0f + posture_bonus
-				+ ( QM_Clamp( flee_gain, -100.0f, 600.0f ) * 1.5f )
-				- ( dist_from_self * 0.25f )
-				- ally_proximity_penalty;
-
-			valid_candidates.push_back( { i, score } );
-		} else {
-			// Fallback scoring if no point has strict line-of-sight occlusion:
-			const float to_threat_dot = QM_Vector3DotProduct( QM_Vector3Normalize( QM_Vector3Subtract( threat_origin, world_pos ) ), QM_Vector3Scale( world_normal, -1.0f ) );
-			const float score = ( to_threat_dot * 200.0f )
-				+ ( QM_Clamp( flee_gain, -100.0f, 600.0f ) * 1.0f )
-				- ( dist_from_self * 0.40f )
-				- ally_proximity_penalty;
-
-			fallback_candidates.push_back( { i, score } );
-		}
+		return candidate_indices[ 0 ];
 	}
 
 	/**
-	*	Select from valid Pass 1 candidates:
+	*	Phase 2: Expanded radius fallback search (up to 1280 units, crouch cover).
 	**/
-	if ( !valid_candidates.empty() ) {
-		std::sort( valid_candidates.begin(), valid_candidates.end(),
-			[]( const scored_candidate_t &a, const scored_candidate_t &b ) {
-				return a.score > b.score;
+	if ( Nav_FindCoverPoints( currentOrigin, threat_origin, 1280.0f, s.number, &candidate_indices, NAV_COVER_LOW ) ) {
+		std::vector<int32_t> unbanned_candidates = {};
+		for ( const int32_t idx : candidate_indices ) {
+			if ( !stateCover.IsCoverBanned( idx ) ) {
+				unbanned_candidates.push_back( idx );
 			}
-		);
-
-		const float max_score = valid_candidates[ 0 ].score;
-		int32_t top_count = 1;
-		while ( top_count < static_cast<int32_t>( valid_candidates.size() ) && top_count < 4 ) {
-			if ( ( max_score - valid_candidates[ top_count ].score ) > 100.0f ) {
-				break;
-			}
-			top_count++;
 		}
-
-		const int32_t chosen_slot = ( top_count > 1 ) ? irandom( top_count ) : 0;
-		return valid_candidates[ chosen_slot ].index;
-	}
-
-	if ( !fallback_candidates.empty() ) {
-		std::sort( fallback_candidates.begin(), fallback_candidates.end(),
-			[]( const scored_candidate_t &a, const scored_candidate_t &b ) {
-				return a.score > b.score;
-			}
-		);
-
-		const int32_t top_count = std::min<int32_t>( 3, static_cast<int32_t>( fallback_candidates.size() ) );
-		const int32_t chosen_slot = ( top_count > 1 ) ? irandom( top_count ) : 0;
-		return fallback_candidates[ chosen_slot ].index;
+		if ( !unbanned_candidates.empty() ) {
+			return unbanned_candidates[ 0 ];
+		}
+		return candidate_indices[ 0 ];
 	}
 
 	/**
-	*	Pass 2: Relaxed search when all candidates in Pass 1 were banned, on cooldown, or rejected.
-	*	Allows re-using older cover points and corner escapes so monsters never freeze in place.
+	*	Phase 3: Expanded search for ANY cover height (standing/medium cover up to 1536 units).
 	**/
-	valid_candidates.clear();
-	fallback_candidates.clear();
-
-	for ( int32_t i = 0; i < num_points; i++ ) {
-		const nav_cover_point_t *cp = Nav_GetCoverPoint( i );
-		if ( !cp ) {
-			continue;
-		}
-
-		// Only skip if currently claimed by another living entity.
-		if ( Nav_IsCoverPointClaimed( i, s.number ) ) {
-			continue;
-		}
-
-		// Check dynamic mover usability.
-		if ( !Nav_IsCoverPointUsable( *cp, requester_edict ) ) {
-			continue;
-		}
-
-		Vector3 world_pos = {}, world_normal = {};
-		if ( !Nav_GetCoverPointWorld( *cp, &world_pos, &world_normal ) ) {
-			continue;
-		}
-
-		// Skip if another entity is physically standing directly on the point.
-		bool occupied = false;
-		for ( int32_t ent_idx = game.maxclients + 1; ent_idx < g_edict_pool.num_edicts; ent_idx++ ) {
-			if ( ent_idx == s.number ) {
-				continue;
-			}
-			const svg_base_edict_t *other_ent = g_edict_pool.EdictForNumber( ent_idx );
-			if ( !other_ent || !other_ent->inUse || other_ent->health <= 0 ) {
-				continue;
-			}
-			if ( QM_Vector3DistanceSqr( world_pos, other_ent->currentOrigin ) <= ( 80.0f * 80.0f ) ) {
-				occupied = true;
-				break;
+	if ( Nav_FindCoverPoints( currentOrigin, threat_origin, 1536.0f, s.number, &candidate_indices, NAV_COVER_NONE ) ) {
+		std::vector<int32_t> unbanned_candidates = {};
+		for ( const int32_t idx : candidate_indices ) {
+			if ( !stateCover.IsCoverBanned( idx ) ) {
+				unbanned_candidates.push_back( idx );
 			}
 		}
-		if ( occupied ) {
-			continue;
+		if ( !unbanned_candidates.empty() ) {
+			return unbanned_candidates[ 0 ];
 		}
-
-		const float dist_from_self = QM_Vector3Distance( world_pos, currentOrigin );
-		const float dist_cover_to_threat = QM_Vector3Distance( world_pos, threat_origin );
-		const float flee_gain = dist_cover_to_threat - dist_self_to_threat;
-
-		const float protection = Nav_EvaluateCoverForThreat( i, threat_origin, true );
-		const float posture_bonus = ( cp->cover_type == NAV_COVER_LOW ) ? 300.0f : 0.0f;
-
-		if ( protection > 0.0f ) {
-			const float score = 500.0f + posture_bonus
-				+ ( QM_Clamp( flee_gain, -200.0f, 600.0f ) * 1.0f )
-				- ( dist_from_self * 0.15f );
-			valid_candidates.push_back( { i, score } );
-		} else {
-			const float to_threat_dot = QM_Vector3DotProduct( QM_Vector3Normalize( QM_Vector3Subtract( threat_origin, world_pos ) ), QM_Vector3Scale( world_normal, -1.0f ) );
-			const float score = ( to_threat_dot * 150.0f )
-				+ ( QM_Clamp( flee_gain, -200.0f, 600.0f ) * 0.75f )
-				- ( dist_from_self * 0.25f );
-			fallback_candidates.push_back( { i, score } );
-		}
+		return candidate_indices[ 0 ];
 	}
 
-	if ( !valid_candidates.empty() ) {
-		std::sort( valid_candidates.begin(), valid_candidates.end(),
-			[]( const scored_candidate_t &a, const scored_candidate_t &b ) {
-				return a.score > b.score;
+	/**
+	*	Phase 4: Global map-wide search for any valid cover point (any posture).
+	**/
+	if ( Nav_FindCoverPoints( currentOrigin, threat_origin, 4096.0f, s.number, &candidate_indices, NAV_COVER_NONE ) ) {
+		std::vector<int32_t> unbanned_candidates = {};
+		for ( const int32_t idx : candidate_indices ) {
+			if ( !stateCover.IsCoverBanned( idx ) ) {
+				unbanned_candidates.push_back( idx );
 			}
-		);
-		return valid_candidates[ 0 ].index;
+		}
+		if ( !unbanned_candidates.empty() ) {
+			return unbanned_candidates[ 0 ];
+		}
+		return candidate_indices[ 0 ];
 	}
 
-	if ( !fallback_candidates.empty() ) {
-		std::sort( fallback_candidates.begin(), fallback_candidates.end(),
-			[]( const scored_candidate_t &a, const scored_candidate_t &b ) {
-				return a.score > b.score;
+	// Final safeguard: return ANY valid cover point on the map if cover points exist!
+	if ( num_points > 0 ) {
+		for ( int32_t i = 0; i < num_points; i++ ) {
+			if ( !stateCover.IsCoverBanned( i ) ) {
+				return i;
 			}
-		);
-		return fallback_candidates[ 0 ].index;
+		}
+		return 0;
 	}
 
 	return -1;
@@ -1554,6 +1394,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_HideInCover
 					self->stateCover.coverSelectTime = level.time;
 					self->stateCover.isHidingInCover = false;
 					self->stateCover.nextExposureCheckTime = level.time + 1500_ms;
+					self->goalentity = nullptr;
 					self->ResetNavigationPath();
 
 					// Immediately start running to new cover!
@@ -1584,9 +1425,11 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_HideInCover
 
 	/**
 	*	Exposure and cover validity check:
-	*	Re-evaluate cover if we don't have one, or periodically once we are actively hiding in cover.
+	*	Re-evaluate cover if we don't have one (rate-limited), or when spotted in cover,
+	*	or periodically once actively hiding in cover.
 	**/
-	const bool needs_cover_eval = ( self->stateCover.activeCoverIdx == -1 ) || spotted_in_cover ||
+	const bool needs_cover_eval = ( self->stateCover.activeCoverIdx == -1 && level.time >= self->stateCover.nextExposureCheckTime ) ||
+		spotted_in_cover ||
 		( self->stateCover.isHidingInCover && level.time >= self->stateCover.nextExposureCheckTime );
 
 	if ( needs_cover_eval && !catching_player ) {
@@ -1635,18 +1478,22 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_HideInCover
 						self->stateCover.coverSelectTime = level.time;
 						self->stateCover.isHidingInCover = false;
 						self->stateCover.nextExposureCheckTime = level.time + 1500_ms;
+						self->goalentity = nullptr;
 						self->ResetNavigationPath();
 
 						// Immediately start running to new cover!
 						self->MoveAStarToOrigin( self->stateCover.coverWorldPos, true );
 					}
 				}
+			} else {
+				// Rate-limit next cover search attempt if none could be found
+				self->stateCover.nextExposureCheckTime = level.time + 1000_ms;
 			}
 		}
 	}
 
 	/**
-	*	If no cover could be found, retreat directly away from the player.
+	*	If no cover could be found, retreat to a safe walkable face away from the player.
 	**/
 	if ( self->stateCover.activeCoverIdx < 0 ) {
 		self->stateCover.isHidingInCover = false;
@@ -1658,11 +1505,18 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_HideInCover
 		flee_dir.z = 0.0f;
 		if ( QM_Vector3LengthSqr( flee_dir ) > 0.01f ) {
 			Vector3 flee_goal = QM_Vector3Add( self->currentOrigin, QM_Vector3Scale( QM_Vector3Normalize( flee_dir ), 384.0f ) );
-			const int32_t goalFace = Nav_FindPolyInLeaf( flee_goal );
-			if ( goalFace >= 0 && goalFace < static_cast<int32_t>( g_nav_faces.size() ) ) {
-				flee_goal = static_cast<Vector3>( g_nav_faces[ goalFace ].center );
+			int32_t goalFace = Nav_FindPolyInLeaf( flee_goal );
+			if ( goalFace < 0 ) {
+				goalFace = Nav_FindClosestPolyGlobal( flee_goal );
 			}
-			self->MoveAStarToOrigin( flee_goal );
+			if ( goalFace >= 0 && static_cast<size_t>( goalFace ) < g_nav_faces.size() ) {
+				flee_goal = static_cast<Vector3>( g_nav_faces[ goalFace ].center );
+				self->goalentity = nullptr;
+				self->MoveAStarToOrigin( flee_goal );
+			} else {
+				self->velocity.x = self->velocity.y = 0.0f;
+				self->monsterMove.state.velocity.x = self->monsterMove.state.velocity.y = 0.0f;
+			}
 		}
 		int32_t blockedMask = 0;
 		self->GenericThinkFinish( true, blockedMask );
@@ -1690,6 +1544,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_HideInCover
 		self->mins = DUMMY_BBOX_STANDUP_MINS;
 		self->maxs = DUMMY_BBOX_STANDUP_MAXS;
 		self->viewheight = DUMMY_VIEWHEIGHT_STANDUP;
+		self->goalentity = nullptr;
 		self->MoveAStarToOrigin( self->stateCover.coverWorldPos );
 	} else {
 		// Arrived at cover: halt movement and crouch!

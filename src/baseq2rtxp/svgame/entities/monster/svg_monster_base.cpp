@@ -241,10 +241,8 @@ svg_monster_base_t::PathComputeResult svg_monster_base_t::ComputePathTo( const V
 	myFeet.z += this->mins.z;
 
 	Vector3 targetFeet = target;
-	if ( this->goalentity != nullptr ) {
+	if ( this->goalentity != nullptr && QM_Vector3DistanceSqr( target, this->goalentity->currentOrigin ) < ( 8.0f * 8.0f ) ) {
 		targetFeet.z += this->goalentity->mins.z;
-	} else {
-		targetFeet.z += this->mins.z;
 	}
 
 	const int32_t startFace = Nav_FindClosestFaceInLeaf( myFeet );
@@ -254,9 +252,7 @@ svg_monster_base_t::PathComputeResult svg_monster_base_t::ComputePathTo( const V
 		return PathComputeResult::Failed;
 	}
 
-	constexpr QMTime PATH_DEBOUNCE_INTERVAL = 250_ms;
-	const bool timeElapsed = ( level.time - lastPathCalcTime >= PATH_DEBOUNCE_INTERVAL );
-	const bool targetMoved = ( QM_Vector3DistanceSqr( target, pathNavigationState.lastGoal.origin ) > ( 64.0f * 64.0f ) );
+	const bool targetMoved = ( QM_Vector3DistanceSqr( target, pathNavigationState.lastGoal.origin ) > ( 48.0f * 48.0f ) );
 	const bool pathEmpty = navPath.empty() || stringPulledPath.empty();
 
 	// Check if entity is still on the current path corridor
@@ -273,7 +269,8 @@ svg_monster_base_t::PathComputeResult svg_monster_base_t::ComputePathTo( const V
 		}
 	}
 
-	if ( !force && !pathEmpty && stillOnPath && !targetMoved && !timeElapsed ) {
+	// Reuse active path while entity remains on corridor and target has not moved significantly
+	if ( !force && !pathEmpty && stillOnPath && !targetMoved ) {
 		return PathComputeResult::ReusedCached;
 	}
 
@@ -290,7 +287,7 @@ svg_monster_base_t::PathComputeResult svg_monster_base_t::ComputePathTo( const V
 		pathNavigationState.lastGoal.isValid = true;
 		lastPathCalcTime = level.time;
 
-		Nav_StringPull( navPath, Vector3DP( myFeet ), Vector3DP( targetFeet ), static_cast<double>( agentRadius ), stringPulledPath, &stringPulledWaypointForced );
+		Nav_StringPull( navPath, Vector3DP( myFeet ), Vector3DP( targetFeet ), static_cast<double>( agentRadius ), stringPulledPath, &stringPulledWaypointForced, this->mins, this->maxs, static_cast<int32_t>( SVG_MMove_GetNativeShape( this ) ) );
 
 		if ( stringPulledPath.size() >= 2 ) {
 			stringPathPos = 1;
@@ -323,6 +320,7 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 
 	/**
 	*	Direct goal fallback when no string-pulled path polyline is available.
+	*	Validates unobstructed physical line-of-sight before moving directly towards destination.
 	**/
 	if ( stringPulledPath.empty() ) {
 		Vector3DP toGoal = finalGoal - myFeetDP;
@@ -332,6 +330,16 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 		if ( dist2D <= 16.0 && verticalDist <= 32.0 ) {
 			return false;
 		}
+
+		// Prevent blind wall walking: only move directly if there is unobstructed entity swept line-of-sight through world geometry
+		const Vector3 startTrace = currentOrigin;
+		Vector3 endTrace = static_cast<Vector3>( finalGoal );
+		endTrace.z -= this->mins.z;
+		const svg_trace_t losTr = SVG_MMove_Trace( startTrace, this->mins, this->maxs, endTrace, this, CM_CONTENTMASK_SOLID, MM_SHAPE_AUTO );
+		if ( losTr.fraction < 1.0f || losTr.startsolid || losTr.allsolid ) {
+			return false;
+		}
+
 		*outMoveDir = ( dist2D > 0.001 ) ? ( toGoal * ( 1.0 / dist2D ) ) : Vector3DP{ 1.0, 0.0, 0.0 };
 		*outSpeedScale = 1.0;
 		return true;
@@ -372,8 +380,8 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 	}
 
 	/**
-	*	Waypoint arrival & segment advancement loop:
-	*	Advances stringPathPos as each intermediate waypoint is reached or passed.
+	*	Waypoint arrival & segment advancement:
+	*	Advances stringPathPos as each intermediate waypoint is reached or passed along its incoming segment.
 	**/
 	while ( stringPathPos < stringPulledPath.size() - 1 ) {
 		const Vector3DP currentWp = stringPulledPath[ stringPathPos ];
@@ -382,33 +390,58 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 		toWp.z = 0.0;
 		const double dist2DSqr = QM_Vector3DotProductDP( toWp, toWp );
 
-		// Vertical step-up constraint: if target is elevated, wait until feet reach step height
-		const bool needsStepUp = ( zDiff > 8.0 ) && !onRamp;
-		const bool hasSteppedUp = !needsStepUp || ( myFeetDP.z >= currentWp.z - 4.0 );
+		// Vertical step-up constraint: if target exceeds max step height (NAV_MAX_STEP_HEIGHT), wait until elevated
+		const bool isClimbBarrier = ( zDiff > NAV_MAX_STEP_HEIGHT ) && !onRamp;
+		const bool hasSteppedUp = !isClimbBarrier || ( myFeetDP.z >= currentWp.z - 4.0 );
 
-		// 1) Arrival radius around intermediate waypoint (16.0 units)
-		constexpr double REACH_RADIUS_SQR = 16.0 * 16.0;
-		const bool withinRadius = ( dist2DSqr <= REACH_RADIUS_SQR );
+		// Check if current waypoint is a forced constraint (corner standoff, stair crossing)
+		const bool isForcedWp = ( stringPathPos < stringPulledWaypointForced.size() && stringPulledWaypointForced[ stringPathPos ] );
 
-		// 2) Passed waypoint projection into next segment
-		bool passedIntoNext = false;
-		if ( stringPathPos + 1 < stringPulledPath.size() ) {
+		// Check turn angle at W_k:
+		bool isSharpTurn = isForcedWp;
+		if ( stringPathPos > 0 && stringPathPos + 1 < stringPulledPath.size() ) {
+			const Vector3DP prevWp = stringPulledPath[ stringPathPos - 1 ];
 			const Vector3DP nextWp = stringPulledPath[ stringPathPos + 1 ];
-			Vector3DP nextSegDir = nextWp - currentWp;
-			nextSegDir.z = 0.0;
-			const double nextSegLen = QM_Vector3LengthDP( nextSegDir );
-			if ( nextSegLen > 0.001 ) {
-				nextSegDir = nextSegDir * ( 1.0 / nextSegLen );
-				Vector3DP fromCurrent = myFeetDP - currentWp;
-				fromCurrent.z = 0.0;
-				const double forwardAlongNext = QM_Vector3DotProductDP( fromCurrent, nextSegDir );
-				if ( forwardAlongNext > 0.0 && dist2DSqr <= ( 36.0 * 36.0 ) ) {
-					passedIntoNext = true;
+			Vector3DP inDir = currentWp - prevWp;
+			Vector3DP outDir = nextWp - currentWp;
+			inDir.z = 0.0;
+			outDir.z = 0.0;
+			const double inLen = QM_Vector3LengthDP( inDir );
+			const double outLen = QM_Vector3LengthDP( outDir );
+			if ( inLen > 0.001 && outLen > 0.001 ) {
+				const double turnDot = QM_Vector3DotProductDP( inDir * ( 1.0 / inLen ), outDir * ( 1.0 / outLen ) );
+				// If turn angle is 30 degrees or sharper, treat as a sharp turn
+				if ( turnDot < 0.866 ) {
+					isSharpTurn = true;
 				}
 			}
 		}
 
-		if ( ( withinRadius || passedIntoNext ) && hasSteppedUp ) {
+		// 1) Arrival radius around intermediate waypoint (strict 12.0 units on sharp corners or forced constraints)
+		const double reachRadiusSqr = isSharpTurn ? ( 12.0 * 12.0 ) : ( 16.0 * 16.0 );
+		const bool withinRadius = ( dist2DSqr <= reachRadiusSqr );
+
+		// 2) Passed waypoint plane along the incoming segment (only allowed on straight, unforced sections)
+		bool passedPlane = false;
+		if ( !isSharpTurn && !isForcedWp && stringPathPos > 0 ) {
+			const Vector3DP prevWp = stringPulledPath[ stringPathPos - 1 ];
+			Vector3DP inSegDir = currentWp - prevWp;
+			inSegDir.z = 0.0;
+			const double inSegLen = QM_Vector3LengthDP( inSegDir );
+			if ( inSegLen > 0.001 ) {
+				inSegDir = inSegDir * ( 1.0 / inSegLen );
+				Vector3DP fromTarget = myFeetDP - currentWp;
+				fromTarget.z = 0.0;
+				const double forwardPast = QM_Vector3DotProductDP( fromTarget, inSegDir );
+				const double lateralDistSqr = QM_Vector3DotProductDP( fromTarget, fromTarget ) - ( forwardPast * forwardPast );
+				// Crossed the plane of W_k while remaining within the corridor lateral bounds
+				if ( forwardPast >= 0.0 && lateralDistSqr <= ( 12.0 * 12.0 ) && dist2DSqr <= ( 16.0 * 16.0 ) ) {
+					passedPlane = true;
+				}
+			}
+		}
+
+		if ( ( withinRadius || passedPlane ) && hasSteppedUp ) {
 			++stringPathPos;
 			continue;
 		}
@@ -428,61 +461,46 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 	}
 
 	/**
-	*	Compute Continuous Lookahead Steering Target along the Path Polyline:
-	*	Project feet position onto active segment (W_{k-1} -> W_k) and sample forward
-	*	by lookahead distance (24 units), seamlessly peering into W_k -> W_{k+1} across turns.
+	*	Compute Target Steering Vector:
+	*	Directly track the active path waypoint W_k (stringPathPos).
+	*	If approaching W_k within lookahead distance and rounding a gentle turn (< 30 deg),
+	*	smoothly look ahead into W_{k+1}. Sharp corners and forced standoff waypoints
+	*	strictly steer directly to W_k to guarantee full corner clearance before commencing the turn.
 	**/
 	const size_t k = std::min( stringPathPos, stringPulledPath.size() - 1 );
-	const size_t prevIdx = ( k > 0 ) ? ( k - 1 ) : 0;
-	const Vector3DP w0 = stringPulledPath[ prevIdx ];
-	const Vector3DP w1 = stringPulledPath[ k ];
+	const Vector3DP targetWp = stringPulledPath[ k ];
 
-	Vector3DP segDir = w1 - w0;
-	segDir.z = 0.0;
-	const double segLen = QM_Vector3LengthDP( segDir );
+	Vector3DP toTarget = targetWp - myFeetDP;
+	toTarget.z = 0.0;
+	const double distToTarget = QM_Vector3LengthDP( toTarget );
 
-	Vector3DP steerTarget = w1;
-	Vector3DP forwardDir = ( segLen > 0.001 ) ? ( segDir * ( 1.0 / segLen ) ) : Vector3DP{ 1.0, 0.0, 0.0 };
+	Vector3DP steerTarget = targetWp;
 	constexpr double LOOKAHEAD_DIST = 24.0;
 
-	if ( segLen > 0.001 ) {
-		const Vector3DP segDirNorm = forwardDir;
-		Vector3DP toFeet = myFeetDP - w0;
-		toFeet.z = 0.0;
-		const double t = std::clamp( QM_Vector3DotProductDP( toFeet, segDirNorm ) / segLen, 0.0, 1.0 );
-		const Vector3DP projPoint = w0 + segDirNorm * ( t * segLen );
-		const double distRemOnSeg = ( 1.0 - t ) * segLen;
+	const bool isTargetForced = ( k < stringPulledWaypointForced.size() && stringPulledWaypointForced[ k ] );
+	if ( !isTargetForced && distToTarget < LOOKAHEAD_DIST && k + 1 < stringPulledPath.size() ) {
+		const size_t prevIdx = ( k > 0 ) ? ( k - 1 ) : 0;
+		const Vector3DP prevWp = stringPulledPath[ prevIdx ];
+		Vector3DP currSeg = targetWp - prevWp;
+		currSeg.z = 0.0;
+		const double currSegLen = QM_Vector3LengthDP( currSeg );
 
-		if ( distRemOnSeg >= LOOKAHEAD_DIST || k >= stringPulledPath.size() - 1 ) {
-			// Lookahead point lies entirely on current segment
-			steerTarget = projPoint + segDirNorm * std::min( distRemOnSeg, LOOKAHEAD_DIST );
-		} else {
-			// Lookahead reaches end of current segment (W_0 -> W_1)
-			const size_t nextIdx = k + 1;
-			const Vector3DP w2 = stringPulledPath[ nextIdx ];
-			Vector3DP nextSegDir = w2 - w1;
-			nextSegDir.z = 0.0;
-			const double nextSegLen = QM_Vector3LengthDP( nextSegDir );
+		const Vector3DP nextWp = stringPulledPath[ k + 1 ];
+		Vector3DP nextSeg = nextWp - targetWp;
+		nextSeg.z = 0.0;
+		const double nextSegLen = QM_Vector3LengthDP( nextSeg );
 
-			double turnDot = 1.0;
-			if ( nextSegLen > 0.001 ) {
-				const Vector3DP nextSegDirNorm = nextSegDir * ( 1.0 / nextSegLen );
-				turnDot = QM_Vector3DotProductDP( segDirNorm, nextSegDirNorm );
-				forwardDir = nextSegDirNorm;
-			}
+		if ( currSegLen > 0.001 && nextSegLen > 0.001 ) {
+			const Vector3DP currSegNorm = currSeg * ( 1.0 / currSegLen );
+			const Vector3DP nextSegNorm = nextSeg * ( 1.0 / nextSegLen );
+			const double turnDot = QM_Vector3DotProductDP( currSegNorm, nextSegNorm );
 
-			if ( turnDot > 0.50 && nextSegLen > 0.001 ) {
-				// Gentle turn (< 60 degrees): safe to smoothly blend into next segment
-				const Vector3DP nextSegDirNorm = nextSegDir * ( 1.0 / nextSegLen );
-				const double nextAdvance = std::min( LOOKAHEAD_DIST - distRemOnSeg, nextSegLen );
-				steerTarget = w1 + nextSegDirNorm * nextAdvance;
-			} else {
-				// Sharp turn / U-turn: steer directly to corner waypoint W_1
-				steerTarget = w1;
+			// Only blend forward across gentle turns (< 30 degrees); sharp turns must round W_k directly
+			if ( turnDot > 0.866 ) {
+				const double advance = std::min( LOOKAHEAD_DIST - distToTarget, nextSegLen * 0.5 );
+				steerTarget = targetWp + nextSegNorm * advance;
 			}
 		}
-	} else {
-		steerTarget = w1;
 	}
 
 	/**
@@ -492,11 +510,12 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 	toSteer.z = 0.0;
 	const double steerDist = QM_Vector3LengthDP( toSteer );
 
-	// If standing on target or steering vector reverses path direction, use forward path direction
-	if ( steerDist <= 0.001 || QM_Vector3DotProductDP( toSteer, forwardDir ) <= 0.0 ) {
-		*outMoveDir = forwardDir;
-	} else {
+	if ( steerDist > 0.001 ) {
 		*outMoveDir = toSteer * ( 1.0 / steerDist );
+	} else if ( distToTarget > 0.001 ) {
+		*outMoveDir = toTarget * ( 1.0 / distToTarget );
+	} else {
+		*outMoveDir = Vector3DP{ 1.0, 0.0, 0.0 };
 	}
 
 	/**
@@ -534,33 +553,8 @@ const bool svg_monster_base_t::StepMoveToGoal( const Vector3 &goalOrigin ) {
 		return false;
 	}
 
-	/**
-	*	Wall contact glancing deflection:
-	*	If the entity is currently in contact with a vertical wall or corner edge
-	*	and the path steering direction pushes into the wall normal (dot < 0),
-	*	deflect the move direction along the wall surface with a gentle outward bias
-	*	so the entity smoothly slides off corners without getting pinned at the vertex.
-	**/
-	if ( hasRecentWallBlockNormal && ( level.time - lastWallBlockTime ) <= 200_ms ) {
-		Vector3DP wallNormDP = Vector3DP( recentWallBlockNormal );
-		wallNormDP.z = 0.0;
-		const double wallNormLen = QM_Vector3LengthDP( wallNormDP );
-		if ( wallNormLen > 0.001 ) {
-			wallNormDP = wallNormDP * ( 1.0 / wallNormLen );
-			const double dot = QM_Vector3DotProductDP( moveDirDP, wallNormDP );
-			if ( dot < 0.0 ) {
-				Vector3DP deflected = moveDirDP - wallNormDP * dot + wallNormDP * 0.25;
-				deflected.z = 0.0;
-				const double defLen = QM_Vector3LengthDP( deflected );
-				if ( defLen > 0.001 ) {
-					moveDirDP = deflected * ( 1.0 / defLen );
-				}
-			}
-		}
-	}
-
 	ideal_yaw = static_cast<float>( QM_Vector3ToYawDP( moveDirDP ) );
-	SVG_MMove_FaceIdealYaw( this, ideal_yaw, 50.0f );
+	SVG_MMove_FaceIdealYaw( this, ideal_yaw, 45.0f );
 
 	constexpr double baseFrameVelocity = 220.0;
 	const double frameVelocity = baseFrameVelocity * speedScale;
