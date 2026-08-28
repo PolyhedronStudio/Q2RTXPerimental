@@ -90,6 +90,7 @@ struct svg_monster_testdummy_debug_t : public svg_monster_base_t {
 	DECLARE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_InvestigateSound );
 	DECLARE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Idle );
 	DECLARE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_HideInCover );
+	DECLARE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_CrowdFormation );
 	DECLARE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Dead );
 
 	/**
@@ -110,7 +111,8 @@ struct svg_monster_testdummy_debug_t : public svg_monster_base_t {
 		PursuePlayer,
 		PursueBreadcrumb,
 		InvestigateSound,
-		HideInCover
+		HideInCover,
+		CrowdFormation
 	};
 	//! Determines the thinking state callback to fire for the frame.
 	AIThinkState thinkAIState = AIThinkState::IdleLookout;
@@ -174,6 +176,11 @@ struct svg_monster_testdummy_debug_t : public svg_monster_base_t {
 	**/
 	svg_monster_mood_type_t mood = svg_monster_mood_type_t::MOOD_TYPE_SCARED;
 
+	//! Maximum number of recently visited cover points tracked in history to prevent repetitive looping.
+	static constexpr int32_t RECENT_COVER_HISTORY_COUNT = 16;
+	//! Duration for which compromised or abandoned cover points remain banned.
+	static constexpr QMTime COVER_BAN_DURATION = 90_sec;
+
 	/**
 	*	@brief	State information for tactical cover hiding when scared.
 	**/
@@ -186,12 +193,14 @@ struct svg_monster_testdummy_debug_t : public svg_monster_base_t {
 		QMTime coverSelectTime = 0_ms;
 		//! Server time of the next threat exposure check.
 		QMTime nextExposureCheckTime = 0_ms;
+		//! Server time of the next retreat probe attempt when unable to reach or find cover.
+		QMTime nextRetreatProbeTime = 0_ms;
 		//! Whether the monster has arrived at the cover spot and is currently crouching.
 		bool isHidingInCover = false;
 		//! History of recently visited cover point indices to prevent ping-pong looping.
-		int32_t recentCoverIndices[ 4 ] = { -1, -1, -1, -1 };
+		int32_t recentCoverIndices[ RECENT_COVER_HISTORY_COUNT ] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 };
 		//! Expiration timestamps for each banned recent cover point.
-		QMTime recentCoverBanTimes[ 4 ] = { 0_ms, 0_ms, 0_ms, 0_ms };
+		QMTime recentCoverBanTimes[ RECENT_COVER_HISTORY_COUNT ] = {};
 		//! Circular index for recent cover history.
 		int32_t recentCoverHead = 0;
 		//! Timestamp of the last time we reacted to being caught or chased.
@@ -207,14 +216,14 @@ struct svg_monster_testdummy_debug_t : public svg_monster_base_t {
 			}
 			recentCoverIndices[ recentCoverHead ] = idx;
 			recentCoverBanTimes[ recentCoverHead ] = level.time + duration;
-			recentCoverHead = ( recentCoverHead + 1 ) % 4;
+			recentCoverHead = ( recentCoverHead + 1 ) % RECENT_COVER_HISTORY_COUNT;
 		}
 
 		inline const bool IsCoverBanned( const int32_t idx ) const {
 			if ( idx < 0 ) {
 				return false;
 			}
-			for ( int32_t k = 0; k < 4; k++ ) {
+			for ( int32_t k = 0; k < RECENT_COVER_HISTORY_COUNT; k++ ) {
 				if ( recentCoverIndices[ k ] == idx && level.time < recentCoverBanTimes[ k ] ) {
 					return true;
 				}
@@ -224,11 +233,31 @@ struct svg_monster_testdummy_debug_t : public svg_monster_base_t {
 	} stateCover = {};
 
 	/**
-	*	@brief	Find the best tactical cover point prioritizing crouch cover over standing cover.
+	*	@brief	Find the best tactical cover point prioritizing crouch cover over standing cover (Vector3DP precision).
+	*	@param	threat_origin	Position of the enemy/player to hide from in Vector3DP.
+	*	@return	Index of the chosen cover point in g_nav_cover_points, or -1 if none found.
+	**/
+	const int32_t FindBestScaredCover( const Vector3DP &threat_origin );
+
+	/**
+	*	@brief	Find the best tactical cover point prioritizing crouch cover over standing cover (single-precision convenience wrapper).
 	*	@param	threat_origin	Position of the enemy/player to hide from.
 	*	@return	Index of the chosen cover point in g_nav_cover_points, or -1 if none found.
 	**/
-	const int32_t FindBestScaredCover( const Vector3 &threat_origin );
+	inline const int32_t FindBestScaredCover( const Vector3 &threat_origin ) {
+		return FindBestScaredCover( Vector3DP( threat_origin ) );
+	}
+
+	/**
+	*	@brief	Monster-specific edge cost evaluator for A* navigation pathfinding.
+	*	@details Overrides svg_monster_base_t to prioritize stair transitions when scared and fleeing.
+	*	@param	fromFaceIdx	Source polygon index.
+	*	@param	toFaceIdx	Target polygon index.
+	*	@param	he			Half-edge connecting fromFace to toFace.
+	*	@param	baseCost	Standard geometric cost (distance * slope * clearance).
+	*	@return	Adjusted edge traversal cost.
+	**/
+	double OnNavEvaluateEdgeCost( const int32_t fromFaceIdx, const int32_t toFaceIdx, const nav_halfedge_t &he, const double baseCost ) override;
 
 	/**
 	*	@brief	Checks for audible sounds and transitions to InvestigateSound if a fresh one is found.

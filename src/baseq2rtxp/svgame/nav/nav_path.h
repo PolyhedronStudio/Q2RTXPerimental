@@ -68,6 +68,21 @@ static constexpr double NAV_CORNER_DUPLICATE_TOLERANCE_SQR = NAV_CORNER_DUPLICAT
 static constexpr double NAV_CORNER_SEARCH_PADDING_XY = 160.0;
 //! Vertical expansion bounds for gathering relevant obstacle corners along the path corridor.
 static constexpr double NAV_CORNER_SEARCH_PADDING_Z = 64.0;
+
+//! Forward declaration of half-edge descriptor for path evaluation callback.
+struct nav_halfedge_t;
+//! Forward declaration of monster base edict for path evaluation callback.
+struct svg_monster_base_t;
+
+//! Callback signature for custom edge traversal cost evaluation during A* pathfinding.
+//! @param fromFaceIdx Index of face being traversed from.
+//! @param toFaceIdx Index of neighbor face being evaluated.
+//! @param he Connecting half-edge descriptor.
+//! @param baseCost The computed baseline edge traversal cost (distance * slopePenalty * clearancePenalty).
+//! @param monster Monster entity instance supplied in nav_path_policy_t.
+//! @return Adjusted traversal cost (must be >= 0.0). Return baseCost for unmodified baseline.
+typedef double ( *nav_path_edge_cost_fptr )( int32_t fromFaceIdx, int32_t toFaceIdx, const nav_halfedge_t &he, double baseCost, svg_monster_base_t *monster );
+
 /**
 *	@brief	Path policy describing movement limits and traversal preferences.
 *	@note	These values are consumed by the nav pathfinder and the movement steering code.
@@ -121,6 +136,10 @@ struct nav_path_policy_t {
 	float min_gap_width = 24.0f;
 	//! Ignore disabled edges to allow generating paths through closed doors.
 	bool ignore_disabled_edges = false;
+	//! Optional callback for entity-specific edge cost customization (stair preference, corridor hysteresis, tactical avoidance).
+	nav_path_edge_cost_fptr edge_cost_callback = nullptr;
+	//! Monster entity instance passed to edge_cost_callback.
+	svg_monster_base_t *edge_cost_monster = nullptr;
 };
 /**
 *	@brief	Walk the KD-tree to locate the leaf node that contains a point.
@@ -156,13 +175,25 @@ inline double Nav_DistancePointToSegment2DSqr( const Vector3 &p, const Vector3 &
 }
 
 /**
-*	@brief	Return the nav face that actually contains a point.
+*	@brief	Return the nav face that actually contains a point (falls back to global scan).
 *	@param	point World-space position.
 *	@return	Index of the face, or -1 if none was found.
 **/
 int32_t Nav_FindPolyInLeaf( const Vector3DP &point );
 inline int32_t Nav_FindPolyInLeaf( const Vector3 &point ) {
 	return Nav_FindPolyInLeaf( Vector3DP( point ) );
+}
+
+/**
+*	@brief	Locate the navmesh polygon enclosing a world-space point strictly within its local KD-leaf.
+*	@note	Unlike Nav_FindPolyInLeaf, this function strictly never falls back to Nav_FindClosestPolyGlobal.
+*			If the point is not contained within any face of the resolved KD-tree leaf, it returns -1 immediately in O(log N).
+*	@param	point	Query position in world space (Vector3DP).
+*	@return	Face index if contained within a leaf face, or -1 otherwise.
+**/
+int32_t Nav_FindFaceInLeafStrict( const Vector3DP &point );
+inline int32_t Nav_FindFaceInLeafStrict( const Vector3 &point ) {
+	return Nav_FindFaceInLeafStrict( Vector3DP( point ) );
 }
 
 /**

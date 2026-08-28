@@ -128,6 +128,109 @@ const svg_trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, co
 	return tr;
 }
 
+/**
+*	@brief	Perform a step-aware and slope-aware swept trace probe using the mover's native analytical shape.
+*	@param	start			Starting position in world space.
+*	@param	mins			Bounding box minimums.
+*	@param	maxs			Bounding box maximums.
+*	@param	end				Target probe destination in world space.
+*	@param	passEntity		Monster entity to ignore during trace.
+*	@param	outEndpos		[out] Furthest reachable ground position.
+*	@param	maxStepHeight	Maximum step-up height (defaults to 18.25f).
+*	@param	maxDropHeight	Maximum step-down drop height (defaults to 128.0f).
+*	@return	True if progress was made towards end (fraction > 0.1), false if immediately blocked.
+**/
+const bool SVG_MMove_StepProbe( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, svg_base_edict_t *passEntity, Vector3 *outEndpos, const float maxStepHeight, const float maxDropHeight ) {
+	/**
+	*	Sanity checks / output pointer validation.
+	**/
+	if ( outEndpos == nullptr ) {
+		return false;
+	}
+
+	*outEndpos = start;
+
+	const mm_trace_shape_t nativeShape = SVG_MMove_GetNativeShape( passEntity );
+
+	/**
+	*	1. Direct baseline swept trace toward the destination.
+	**/
+	const svg_trace_t directTr = SVG_MMove_Trace( start, mins, maxs, end, passEntity, CM_CONTENTMASK_SOLID, nativeShape );
+	if ( directTr.allsolid || directTr.startsolid ) {
+		return false;
+	}
+
+	/**
+	*	2. If destination reached cleanly, check ground underneath to handle slopes / downward stairs.
+	**/
+	if ( directTr.fraction >= 1.0f ) {
+		Vector3 downFloor = directTr.endpos;
+		downFloor.z -= maxDropHeight;
+		const svg_trace_t downTr = SVG_MMove_Trace( directTr.endpos, mins, maxs, downFloor, passEntity, CM_CONTENTMASK_SOLID, nativeShape );
+		if ( !downTr.allsolid && !downTr.startsolid && downTr.fraction < 1.0f && downTr.plane.normal[ 2 ] >= 0.7f ) {
+			*outEndpos = downTr.endpos;
+			return true;
+		}
+		*outEndpos = directTr.endpos;
+		return true;
+	}
+
+	/**
+	*	3. If contact was a walkable ramp/slope surface (normal.z >= 0.7f), accept progress along the slope.
+	**/
+	if ( directTr.fraction > 0.15f && directTr.plane.normal[ 2 ] >= 0.7f ) {
+		*outEndpos = directTr.endpos;
+		return true;
+	}
+
+	/**
+	*	4. If blocked by a vertical step riser or curb (stairs, step-up), attempt a step-up probe.
+	**/
+	Vector3 stepStart = start;
+	stepStart.z += maxStepHeight;
+	const svg_trace_t upTr = SVG_MMove_Trace( start, mins, maxs, stepStart, passEntity, CM_CONTENTMASK_SOLID, nativeShape );
+	if ( !upTr.allsolid && !upTr.startsolid && upTr.fraction > 0.2f ) {
+		// Calculate actual overhead step clearance achieved
+		const float actualStepUp = ( upTr.endpos.z - start.z );
+		Vector3 elevatedEnd = end;
+		elevatedEnd.z += actualStepUp;
+
+		// Sweep forward at elevated step height
+		const svg_trace_t fwdTr = SVG_MMove_Trace( upTr.endpos, mins, maxs, elevatedEnd, passEntity, CM_CONTENTMASK_SOLID, nativeShape );
+		if ( !fwdTr.allsolid && !fwdTr.startsolid && fwdTr.fraction > directTr.fraction ) {
+			// Sweep down to find the stair tread or floor landing
+			Vector3 downFloor = fwdTr.endpos;
+			downFloor.z -= ( actualStepUp + maxDropHeight );
+			const svg_trace_t groundTr = SVG_MMove_Trace( fwdTr.endpos, mins, maxs, downFloor, passEntity, CM_CONTENTMASK_SOLID, nativeShape );
+			if ( !groundTr.allsolid && !groundTr.startsolid && groundTr.fraction < 1.0f && groundTr.plane.normal[ 2 ] >= 0.7f ) {
+				*outEndpos = groundTr.endpos;
+				return true;
+			}
+		}
+	}
+
+	/**
+	*	5. Fallback: return baseline contact if non-trivial progress was made onto walkable ground.
+	**/
+	if ( QM_Vector3DistanceSqr( start, directTr.endpos ) >= ( 32.0f * 32.0f ) ) {
+		Vector3 downFloor = directTr.endpos;
+		downFloor.z -= maxDropHeight;
+		const svg_trace_t downTr = SVG_MMove_Trace( directTr.endpos, mins, maxs, downFloor, passEntity, CM_CONTENTMASK_SOLID, nativeShape );
+		if ( !downTr.allsolid && !downTr.startsolid && downTr.fraction < 1.0f && downTr.plane.normal[ 2 ] >= 0.7f ) {
+			Vector3 safePos = downTr.endpos;
+			// If we impacted a vertical wall or steep slope, offset outward away from the wall
+			if ( directTr.plane.normal[ 2 ] < 0.7f ) {
+				safePos.x += directTr.plane.normal[ 0 ] * 16.0f;
+				safePos.y += directTr.plane.normal[ 1 ] * 16.0f;
+			}
+			*outEndpos = safePos;
+			return true;
+		}
+	}
+
+	return false;
+}
+
 
 
 

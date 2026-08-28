@@ -259,6 +259,22 @@ const mm_trace_shape_t SVG_MMove_GetNativeShape( const svg_base_edict_t *passEnt
  **/
 const svg_trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, svg_base_edict_t *passEntity, cm_contents_t contentMask = CONTENTS_NONE, mm_trace_shape_t shape = MM_SHAPE_AUTO );
 
+/**
+*	@brief	Perform a step-aware and slope-aware swept trace probe using the mover's native analytical shape.
+*	@details Sweeps from start toward end, attempting to step up vertical obstacles (stairs/curbs up to maxStepHeight)
+*			and trace down to landing treads across descending stairs or slopes (up to maxDropHeight).
+*	@param	start			Starting position in world space.
+*	@param	mins			Bounding box minimums.
+*	@param	maxs			Bounding box maximums.
+*	@param	end				Target probe destination in world space.
+*	@param	passEntity		Monster entity to ignore during trace.
+*	@param	outEndpos		[out] Furthest reachable ground position.
+*	@param	maxStepHeight	Maximum step-up height (defaults to 18.25f).
+*	@param	maxDropHeight	Maximum step-down drop height (defaults to 128.0f).
+*	@return	True if progress was made towards end (fraction > 0.1), false if immediately blocked.
+**/
+const bool SVG_MMove_StepProbe( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, svg_base_edict_t *passEntity, Vector3 *outEndpos, const float maxStepHeight = 18.25f, const float maxDropHeight = 128.0f );
+
 
 
 /**

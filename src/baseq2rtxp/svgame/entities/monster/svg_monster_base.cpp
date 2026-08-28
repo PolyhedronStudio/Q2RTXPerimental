@@ -21,6 +21,9 @@
 #include "svgame/monsters/svg_mmove.h"
 #include "svgame/monsters/svg_mmove_slidemove.h"
 
+// Crowd coordination.
+#include "svgame/crowd/svg_crowd_manager.h"
+
 
 /**
 *	@brief	Reconstructs the object, optionally retaining the entityDictionary.
@@ -354,6 +357,8 @@ svg_monster_base_t::PathComputeResult svg_monster_base_t::ComputePathTo( const V
 	if ( pathPolicy.agent_radius <= 0.0 ) {
 		pathPolicy.agent_radius = static_cast<float>( agentRadius );
 	}
+	pathPolicy.edge_cost_callback = &svg_monster_base_t::NavEdgeCostCallbackBridge;
+	pathPolicy.edge_cost_monster = this;
 
 	if ( Nav_FindPath( startFace, goalFace, navPath, pathPolicy ) ) {
 		pathNavigationState.lastGoal.origin = target;
@@ -696,6 +701,20 @@ const bool svg_monster_base_t::StepMoveToGoal( const Vector3 &goalOrigin ) {
 		return false;
 	}
 
+	/**
+	*	Blend mutual crowd separation force if agent belongs to an active squad:
+	**/
+	if ( this->crowd.crowdID >= 0 ) {
+		Vector3DP sepForce{ 0.0, 0.0, 0.0 };
+		if ( SVG_Crowd_ComputeMutualSeparation( this->s.number, &sepForce ) ) {
+			Vector3DP blendedDir = moveDirDP + sepForce;
+			const double blendedLen = QM_Vector3LengthDP( blendedDir );
+			if ( blendedLen > 0.001 ) {
+				moveDirDP = blendedDir * ( 1.0 / blendedLen );
+			}
+		}
+	}
+
 	ideal_yaw = static_cast<float>( QM_Vector3ToYawDP( moveDirDP ) );
 	SVG_MMove_FaceIdealYaw( this, ideal_yaw, 45.0f );
 
@@ -806,4 +825,46 @@ void svg_monster_base_t::UpdateBlockedNavigationRecovery( const int32_t blockedM
 		lastPathCalcTime = 0_ms;
 		consecutiveBlockedFrames = 0;
 	}
+}
+
+/**
+*	@brief	Static bridge dispatching nav_path_policy_t edge cost callbacks to monster instances.
+**/
+double svg_monster_base_t::NavEdgeCostCallbackBridge( int32_t fromFaceIdx, int32_t toFaceIdx, const nav_halfedge_t &he, double baseCost, svg_monster_base_t *monster ) {
+	if ( monster != nullptr && monster->GetTypeInfo()->IsSubClassType<svg_monster_base_t>() ) {
+		return monster->OnNavEvaluateEdgeCost( fromFaceIdx, toFaceIdx, he, baseCost );
+	}
+	return baseCost;
+}
+
+/**
+*	@brief	Custom edge cost evaluator for A* navigation pathfinding.
+*	@details Allows individual monster classes or states to bias path choices (e.g. preferring stairs/ramps,
+*			applying path commitment hysteresis to prevent bifurcation jitter, avoiding hazards).
+*	@param	fromFaceIdx	Source polygon index.
+*	@param	toFaceIdx	Target polygon index.
+*	@param	he			Half-edge connecting fromFace to toFace.
+*	@param	baseCost	Standard geometric cost (distance * slope * clearance).
+*	@return	Adjusted edge traversal cost.
+**/
+double svg_monster_base_t::OnNavEvaluateEdgeCost( const int32_t fromFaceIdx, const int32_t toFaceIdx, const nav_halfedge_t &he, const double baseCost ) {
+	double cost = baseCost;
+
+	/**
+	*	Corridor Hysteresis:
+	*	If toFaceIdx is part of our currently committed navPath corridor ahead of our position,
+	*	apply a 15% discount (cost *= 0.85). This decisively breaks equal-cost ties across
+	*	bifurcation manifolds (e.g. around obstacles or split stairways) and permanently prevents
+	*	high-frequency route flip-flopping.
+	**/
+	if ( !navPath.empty() ) {
+		for ( size_t i = pathPos; i < navPath.size(); ++i ) {
+			if ( navPath[ i ] == toFaceIdx ) {
+				cost *= 0.85;
+				break;
+			}
+		}
+	}
+
+	return cost;
 }

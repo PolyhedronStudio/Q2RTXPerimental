@@ -102,6 +102,32 @@ struct nav_cover_grid_t {
 	}
 
 	/**
+	*	@brief	Collect candidate cover point indices within a 2D circle from the spatial grid in Vector3DP double precision.
+	**/
+	void QueryRadius( const Vector3DP &center, const double radius, std::vector<int32_t> &out_indices ) const {
+		out_indices.clear();
+		if ( cells.empty() || radius <= 0.0 ) {
+			return;
+		}
+
+		const double cellSize = static_cast<double>( NAV_COVER_GRID_CELL_SIZE );
+		const double minX = static_cast<double>( min_x );
+		const double minY = static_cast<double>( min_y );
+
+		const int32_t min_gx = std::clamp( static_cast<int32_t>( ( center.x - radius - minX ) / cellSize ), 0, width - 1 );
+		const int32_t max_gx = std::clamp( static_cast<int32_t>( ( center.x + radius - minX ) / cellSize ), 0, width - 1 );
+		const int32_t min_gy = std::clamp( static_cast<int32_t>( ( center.y - radius - minY ) / cellSize ), 0, height - 1 );
+		const int32_t max_gy = std::clamp( static_cast<int32_t>( ( center.y + radius - minY ) / cellSize ), 0, height - 1 );
+
+		for ( int32_t gy = min_gy; gy <= max_gy; gy++ ) {
+			for ( int32_t gx = min_gx; gx <= max_gx; gx++ ) {
+				const auto &cell = cells[ static_cast<size_t>( gy * width + gx ) ];
+				out_indices.insert( out_indices.end(), cell.begin(), cell.end() );
+			}
+		}
+	}
+
+	/**
 	*	@brief	Clear spatial grid data.
 	**/
 	void Clear( void ) {
@@ -343,13 +369,13 @@ void Nav_SetCoverPointCooldown( const int32_t cover_idx, const QMTime duration )
 }
 
 /**
-*	@brief		Evaluate the tactical protection score of a specific cover point against a threat.
+*	@brief		Evaluate the tactical protection score of a specific cover point against a threat (Vector3DP precision).
 *	@param	cover_idx			Index into the global cover points array.
-*	@param	threat_origin		Position of the threat to evaluate against.
+*	@param	threat_origin		Position of the threat to evaluate against in Vector3DP.
 *	@param	perform_trace_check	When true, performs a line-of-sight trace to verify occlusion.
 *	@return	Score between 0.0f (no cover/exposed) and 1.0f (ideal directional occlusion).
 **/
-const float Nav_EvaluateCoverForThreat( const int32_t cover_idx, const Vector3 &threat_origin, const bool perform_trace_check ) {
+const float Nav_EvaluateCoverForThreat( const int32_t cover_idx, const Vector3DP &threat_origin, const bool perform_trace_check ) {
 	/**
 	*	Validate cover point pointer.
 	**/
@@ -364,21 +390,21 @@ const float Nav_EvaluateCoverForThreat( const int32_t cover_idx, const Vector3 &
 	}
 
 	/**
-	*	Resolve world-space coordinates.
+	*	Resolve world-space coordinates in double precision (Vector3DP).
 	**/
-	Vector3 world_pos = {}, world_normal = {};
-	if ( !Nav_GetCoverPointWorld( *cover, &world_pos, &world_normal ) ) {
+	Vector3DP world_pos = {}, world_normal = {};
+	if ( !Nav_GetCoverPointWorldDP( *cover, &world_pos, &world_normal ) ) {
 		return 0.0f;
 	}
 
 	if ( perform_trace_check ) {
 		// Eye position crouched or standing behind the cover obstacle.
-		const float eye_z = ( cover->cover_type == NAV_COVER_LOW ) ? 24.0f : 48.0f;
-		const Vector3 eye_pos = QM_Vector3Add( world_pos, Vector3{ 0.0f, 0.0f, eye_z } );
+		const double eye_z = ( cover->cover_type == NAV_COVER_LOW ) ? 24.0 : 48.0;
+		const Vector3DP eye_pos = world_pos + Vector3DP{ 0.0, 0.0, eye_z };
 
 		// Trace toward threat eye level (+48 units).
-		const Vector3 threat_eye = QM_Vector3Add( threat_origin, Vector3{ 0.0f, 0.0f, 48.0f } );
-		const svg_trace_t tr = SVG_Trace( eye_pos, vec3_origin, vec3_origin, threat_eye, nullptr, CM_CONTENTMASK_SOLID );
+		const Vector3DP threat_eye = threat_origin + Vector3DP{ 0.0, 0.0, 48.0 };
+		const svg_trace_t tr = SVG_Trace( QM_Vector3FromDP( eye_pos ), vec3_origin, vec3_origin, QM_Vector3FromDP( threat_eye ), nullptr, CM_CONTENTMASK_SOLID );
 
 		// If trace reached the threat without hitting solid geometry, there is no line-of-sight obstruction!
 		if ( tr.fraction >= 1.0f ) {
@@ -391,18 +417,18 @@ const float Nav_EvaluateCoverForThreat( const int32_t cover_idx, const Vector3 &
 	}
 
 	/**
-	*	Directional heuristic when trace check is skipped (fast broad-phase filter).
+	*	Directional heuristic when trace check is skipped (fast broad-phase filter in double precision).
 	**/
-	Vector3 to_threat = QM_Vector3Subtract( threat_origin, world_pos );
-	to_threat.z = 0.0f;
-	const float dist = QM_Vector3Length( to_threat );
-	if ( dist < 1.0f ) {
+	Vector3DP to_threat = threat_origin - world_pos;
+	to_threat.z = 0.0;
+	const double dist = QM_Vector3LengthDP( to_threat );
+	if ( dist < 1.0 ) {
 		return 0.0f;
 	}
 
-	const Vector3 to_threat_dir = QM_Vector3Scale( to_threat, 1.0f / dist );
-	const float wall_alignment = QM_Vector3DotProduct( to_threat_dir, QM_Vector3Scale( world_normal, -1.0f ) );
-	return QM_Clamp( wall_alignment, -1.0f, 1.0f );
+	const Vector3DP to_threat_dir = to_threat * ( 1.0 / dist );
+	const double wall_alignment = QM_Vector3DotProductDP( to_threat_dir, world_normal * -1.0 );
+	return static_cast<float>( std::clamp( wall_alignment, -1.0, 1.0 ) );
 }
 
 /**
@@ -414,22 +440,26 @@ struct nav_cover_candidate_t {
 };
 
 /**
-*	@brief		Find valid cover points protecting against a threat within a search radius.
-*	@param	search_origin		Center origin of the search area (typically monster origin).
-*	@param	threat_origin		Position of the enemy/threat to seek cover from.
-*	@param	radius				Maximum search distance from search_origin.
+*	@brief		Find valid cover points protecting against a threat within a search radius (Vector3DP double precision).
+*	@param	search_origin		Center origin of the search area in Vector3DP.
+*	@param	threat_origin		Position of the enemy/threat to seek cover from in Vector3DP.
+*	@param	radius				Maximum search distance from search_origin in double precision.
 *	@param	requester_ent		Entity ID requesting cover (used to filter claim reservations).
 *	@param	out_cover_indices	[out] List of valid cover point indices ranked by tactical score.
-*	@param	min_cover_type		Posture requirement filter (NAV_COVER_LOW, NAV_COVER_HIGH, or NAV_COVER_NONE for any posture).
+*	@param	min_cover_type		Posture requirement filter (NAV_COVER_LOW, NAV_COVER_HIGH, or NAV_COVER_NONE).
+*	@param	threat_forward		Optional normalized horizontal forward direction the threat is facing (Vector3DP).
+*	@param	max_results			Maximum number of candidate cover points to collect (default: 12).
 *	@return	True when one or more suitable cover points were found.
 **/
-const bool Nav_FindCoverPoints( const Vector3 &search_origin, const Vector3 &threat_origin,
-	const float radius, const int32_t requester_ent, std::vector<int32_t> *out_cover_indices,
-	const nav_cover_type_t min_cover_type ) {
+const bool Nav_FindCoverPoints( const Vector3DP &search_origin, const Vector3DP &threat_origin,
+	const double radius, const int32_t requester_ent, std::vector<int32_t> *out_cover_indices,
+	const nav_cover_type_t min_cover_type,
+	const Vector3DP &threat_forward,
+	const size_t max_results ) {
 	/**
 	*	Sanity checks: Ensure output pointer and cover points list are valid.
 	**/
-	if ( !out_cover_indices || g_nav_cover_points.empty() || radius <= 0.0f ) {
+	if ( !out_cover_indices || g_nav_cover_points.empty() || radius <= 0.0 ) {
 		return false;
 	}
 
@@ -444,11 +474,11 @@ const bool Nav_FindCoverPoints( const Vector3 &search_origin, const Vector3 &thr
 	const svg_base_edict_t *requester_edict = ( requester_ent > 0 && requester_ent < g_edict_pool.num_edicts )
 		? g_edicts[ requester_ent ] : nullptr;
 
-	const float radius_sqr = radius * radius;
-	const float dist_self_to_threat = QM_Vector3Distance( search_origin, threat_origin );
+	const double radius_sqr = radius * radius;
+	const double dist_self_to_threat = QM_Vector3DistanceDP( search_origin, threat_origin );
 
 	/**
-	*	Phase 1: Fast Spatial Grid Query (O(1) localized candidate collection).
+	*	Phase 1: Fast Spatial Grid Query (O(1) localized candidate collection in Vector3DP).
 	**/
 	std::vector<int32_t> grid_candidates = {};
 	s_cover_grid.QueryRadius( search_origin, radius, grid_candidates );
@@ -464,8 +494,10 @@ const bool Nav_FindCoverPoints( const Vector3 &search_origin, const Vector3 &thr
 	std::vector<nav_cover_candidate_t> candidates = {};
 	candidates.reserve( 32 );
 
+	const bool has_threat_forward = ( QM_Vector3LengthSqrDP( threat_forward ) > 0.001 );
+
 	/**
-	*	Phase 2: Fast Zero-Raycast Broad-Phase Filter & Tactical Scoring (pure arithmetic).
+	*	Phase 2: Fast Zero-Raycast Broad-Phase Filter & Tactical Scoring (Vector3DP precision).
 	**/
 	for ( const int32_t cp_idx : grid_candidates ) {
 		if ( cp_idx < 0 || cp_idx >= static_cast<int32_t>( g_nav_cover_points.size() ) ) {
@@ -494,49 +526,73 @@ const bool Nav_FindCoverPoints( const Vector3 &search_origin, const Vector3 &thr
 			continue;
 		}
 
-		// 5. Resolve current world-space coordinates.
-		Vector3 world_pos = {}, world_normal = {};
-		if ( !Nav_GetCoverPointWorld( cp, &world_pos, &world_normal ) ) {
+		// 5. Resolve current world-space coordinates in double precision.
+		Vector3DP world_pos = {}, world_normal = {};
+		if ( !Nav_GetCoverPointWorldDP( cp, &world_pos, &world_normal ) ) {
 			continue;
 		}
 
 		// 6. Distance check relative to search origin.
-		const Vector3 to_point = QM_Vector3Subtract( world_pos, search_origin );
-		const float dist_sqr = QM_Vector3DotProduct( to_point, to_point );
+		const Vector3DP to_point = world_pos - search_origin;
+		const double dist_sqr = QM_Vector3DotProductDP( to_point, to_point );
 		if ( dist_sqr > radius_sqr ) {
 			continue;
 		}
 
 		/**
-		*	Calculate comprehensive broad-phase tactical score (0 raycasts):
-		*	Favors distance from threat (flee gain), directional wall occlusion, and closer proximity to monster.
+		*	Calculate comprehensive broad-phase tactical score in Vector3DP double precision:
+		*	Favors distance from threat (flee gain), directional wall occlusion, and avoids player's aim cone.
 		**/
-		Vector3 to_threat = QM_Vector3Subtract( threat_origin, world_pos );
-		to_threat.z = 0.0f;
-		const float dist_cover_to_threat = QM_Vector3Length( to_threat );
-		const float dist_from_self = std::sqrt( dist_sqr );
-		const float flee_gain = dist_cover_to_threat - dist_self_to_threat; // Positive = increases distance from threat
+		Vector3DP to_threat = threat_origin - world_pos;
+		to_threat.z = 0.0;
+		const double dist_cover_to_threat = QM_Vector3LengthDP( to_threat );
+		const double dist_from_self = std::sqrt( dist_sqr );
+		const double flee_gain = dist_cover_to_threat - dist_self_to_threat; // Positive = increases distance from threat
 
-		float wall_alignment = 0.0f;
-		if ( dist_cover_to_threat > 1.0f ) {
-			const Vector3 to_threat_dir = QM_Vector3Scale( to_threat, 1.0f / dist_cover_to_threat );
-			wall_alignment = QM_Vector3DotProduct( to_threat_dir, QM_Vector3Scale( world_normal, -1.0f ) );
+		double wall_alignment = 0.0;
+		if ( dist_cover_to_threat > 1.0 ) {
+			const Vector3DP to_threat_dir = to_threat * ( 1.0 / dist_cover_to_threat );
+			wall_alignment = QM_Vector3DotProductDP( to_threat_dir, world_normal * -1.0 );
 		}
 
 		// Base candidate score (always positive so all valid spots can compete)
-		float score = 500.0f;
+		double score = 500.0;
 		// Directional wall alignment bonus (-150 to +150)
-		score += wall_alignment * 150.0f;
+		score += wall_alignment * 150.0;
 		// Flee distance gain bonus
-		score += QM_Clamp( flee_gain, -200.0f, 600.0f ) * 0.8f;
-		// Travel distance penalty
-		score -= dist_from_self * 0.25f;
-		// Crouch posture preference bonus
-		if ( cp.cover_type == NAV_COVER_LOW ) {
-			score += 150.0f;
+		score += std::clamp( flee_gain, -200.0, 800.0 ) * 1.2;
+
+		// If threat forward aim direction is supplied, prioritize cover points away from the player's direct gaze
+		if ( has_threat_forward && dist_cover_to_threat > 1.0 ) {
+			Vector3DP dir_threat_to_cover = world_pos - threat_origin;
+			dir_threat_to_cover.z = 0.0;
+			dir_threat_to_cover = QM_Vector3NormalizeDP( dir_threat_to_cover );
+			const double aim_dot = QM_Vector3DotProductDP( threat_forward, dir_threat_to_cover );
+			// Bonus for points away from the player's forward aim direction (-1 to +1 range mapped to 0..300)
+			score += ( 1.0 - aim_dot ) * 150.0;
 		}
 
-		candidates.push_back( { cp_idx, score } );
+		// Check if moving to this cover point requires heading forward toward the threat
+		if ( dist_from_self > 1.0 && dist_self_to_threat > 1.0 ) {
+			Vector3DP move_dir = world_pos - search_origin;
+			move_dir.z = 0.0;
+			move_dir = QM_Vector3NormalizeDP( move_dir );
+			Vector3DP threat_dir = threat_origin - search_origin;
+			threat_dir.z = 0.0;
+			threat_dir = QM_Vector3NormalizeDP( threat_dir );
+			const double approach_threat_dot = QM_Vector3DotProductDP( move_dir, threat_dir );
+			if ( approach_threat_dot > 0.15 && dist_cover_to_threat < dist_self_to_threat ) {
+				// Moving toward the threat to a spot closer to the threat: moderate penalty
+				score -= 150.0;
+			}
+		}
+
+		// Crouch posture preference bonus
+		if ( cp.cover_type == NAV_COVER_LOW ) {
+			score += 150.0;
+		}
+
+		candidates.push_back( { cp_idx, static_cast<float>( score ) } );
 	}
 
 	// Return false if no suitable cover points passed broad-phase filtering.
@@ -552,19 +608,19 @@ const bool Nav_FindCoverPoints( const Vector3 &search_origin, const Vector3 &thr
 	} );
 
 	/**
-	*	Phase 4: Budgeted Narrow-Phase Raycast Validation (Max 8 traces per query!).
+	*	Phase 4: Budgeted Narrow-Phase Raycast Validation.
 	**/
-	constexpr size_t MAX_TRACE_VALIDATIONS = 8;
+	const size_t max_traces = std::max<size_t>( 16, max_results * 2 );
 	size_t traces_performed = 0;
 
 	for ( const auto &cand : candidates ) {
-		if ( traces_performed < MAX_TRACE_VALIDATIONS ) {
+		if ( traces_performed < max_traces ) {
 			traces_performed++;
 			const float trace_prot = Nav_EvaluateCoverForThreat( cand.index, threat_origin, true );
 			if ( trace_prot > 0.0f ) {
 				out_cover_indices->push_back( cand.index );
 				// If we have collected enough confirmed occluded spots, early exit narrow phase!
-				if ( out_cover_indices->size() >= 4 ) {
+				if ( out_cover_indices->size() >= max_results ) {
 					break;
 				}
 			}

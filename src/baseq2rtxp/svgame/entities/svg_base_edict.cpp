@@ -305,6 +305,7 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, crowd.crowdID, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, crowd.slotIndex, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, crowd.role, SD_FIELD_TYPE_INT32 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, crowd.leaderEntityNumber, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, crowd.assignedGoalOrigin, SD_FIELD_TYPE_VECTOR3 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, crowd.activeCoverIdx, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, crowd.startTimeForSeeking, SD_FIELD_TYPE_INT64 ),

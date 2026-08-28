@@ -170,6 +170,77 @@ inline const bool Nav_GetCoverPointWorld( const nav_cover_point_t &cover, Vector
 }
 
 /**
+*	@brief		Resolve a cover point's current world-space position, normal, and tangent in double precision (Vector3DP).
+*	@param	cover			Cover point record to resolve.
+*	@param	out_pos			[out] Transformed world-space feet position in Vector3DP.
+*	@param	out_normal		[out] Transformed world-space outward normal in Vector3DP.
+*	@param	out_tangent		[out] Optional transformed world-space edge tangent in Vector3DP.
+*	@return	True when the parent entity is alive/valid and coordinates were resolved.
+**/
+inline const bool Nav_GetCoverPointWorldDP( const nav_cover_point_t &cover, Vector3DP *out_pos, Vector3DP *out_normal, Vector3DP *out_tangent = nullptr ) {
+	/**
+	*	Validate output pointers.
+	**/
+	if ( !out_pos || !out_normal ) {
+		return false;
+	}
+
+	/**
+	*	Static world geometry: convert local coordinates to Vector3DP directly.
+	**/
+	if ( cover.parent_entity_id == ENTITYNUM_NONE || cover.parent_entity_id == ENTITYNUM_WORLD ) {
+		*out_pos = Vector3DP( cover.local_position );
+		*out_normal = Vector3DP( cover.local_normal );
+		if ( out_tangent ) {
+			*out_tangent = Vector3DP( cover.local_tangent );
+		}
+		return true;
+	}
+
+	/**
+	*	Dynamic parent mover: transform local coordinates by parent edict's origin and angles.
+	**/
+	if ( cover.parent_entity_id <= 0 || cover.parent_entity_id >= g_edict_pool.num_edicts ) {
+		return false;
+	}
+
+	const svg_base_edict_t *parent_ent = g_edicts[ cover.parent_entity_id ];
+	if ( !parent_ent || !parent_ent->inUse ) {
+		return false;
+	}
+
+	// Calculate rotation basis vectors from parent mover angles.
+	Vector3 forward = {}, right = {}, up = {};
+	QM_AngleVectors( parent_ent->currentAngles, &forward, &right, &up );
+
+	const Vector3DP fwdDP( forward );
+	const Vector3DP rgtDP( right );
+	const Vector3DP upDP( up );
+	const Vector3DP parentOriginDP( parent_ent->currentOrigin );
+
+	// Transform local position to world space in double precision.
+	*out_pos = parentOriginDP + ( fwdDP * static_cast<double>( cover.local_position.x ) )
+		+ ( rgtDP * static_cast<double>( cover.local_position.y ) )
+		+ ( upDP * static_cast<double>( cover.local_position.z ) );
+
+	// Rotate local normal by parent basis in double precision.
+	const Vector3DP normDP = ( fwdDP * static_cast<double>( cover.local_normal.x ) )
+		+ ( rgtDP * static_cast<double>( cover.local_normal.y ) )
+		+ ( upDP * static_cast<double>( cover.local_normal.z ) );
+	*out_normal = QM_Vector3NormalizeDP( normDP );
+
+	// Rotate local tangent if caller requested tangent output.
+	if ( out_tangent ) {
+		const Vector3DP tangDP = ( fwdDP * static_cast<double>( cover.local_tangent.x ) )
+			+ ( rgtDP * static_cast<double>( cover.local_tangent.y ) )
+			+ ( upDP * static_cast<double>( cover.local_tangent.z ) );
+		*out_tangent = QM_Vector3NormalizeDP( tangDP );
+	}
+
+	return true;
+}
+
+/**
 *	@brief		Verify whether a cover point is currently usable given dynamic mover states.
 *	@param	cover		Cover point to test.
 *	@param	requester	Optional entity requesting cover (to verify rider status on moving platforms).

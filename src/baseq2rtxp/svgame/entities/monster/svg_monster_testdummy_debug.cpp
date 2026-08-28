@@ -69,8 +69,8 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_monster_testdummy_debug_t )
 	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, stateCover.coverSelectTime, SD_FIELD_TYPE_FRAMETIME ),
 	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, stateCover.nextExposureCheckTime, SD_FIELD_TYPE_FRAMETIME ),
 	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, stateCover.isHidingInCover, SD_FIELD_TYPE_BOOL ),
-	SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_monster_testdummy_debug_t, stateCover.recentCoverIndices, SD_FIELD_TYPE_INT32, 4 ),
-	SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_monster_testdummy_debug_t, stateCover.recentCoverBanTimes, SD_FIELD_TYPE_FRAMETIME, 4 ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_monster_testdummy_debug_t, stateCover.recentCoverIndices, SD_FIELD_TYPE_INT32, 16 ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_monster_testdummy_debug_t, stateCover.recentCoverBanTimes, SD_FIELD_TYPE_FRAMETIME, 16 ),
 	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, stateCover.recentCoverHead, SD_FIELD_TYPE_INT32 ),
 	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, stateCover.lastCatchReactionTime, SD_FIELD_TYPE_FRAMETIME ),
 	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_debug_t, stateCover.nextPeekTime, SD_FIELD_TYPE_FRAMETIME ),
@@ -256,6 +256,8 @@ static inline const char *Dummy_DebugAIStateName( const svg_monster_testdummy_de
 			return "InvestigateSound";
 		case svg_monster_testdummy_debug_t::AIThinkState::HideInCover:
 			return "HideInCover";
+		case svg_monster_testdummy_debug_t::AIThinkState::CrowdFormation:
+			return "CrowdFormation";
 		case svg_monster_testdummy_debug_t::AIThinkState::IdleLookout:
 		default:
 			return "IdleLookout";
@@ -381,6 +383,9 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink )( svg_mons
 			break;
 		case svg_monster_testdummy_debug_t::AIThinkState::HideInCover:
 			svg_monster_testdummy_debug_t::onThink_HideInCover( self );
+			break;
+		case svg_monster_testdummy_debug_t::AIThinkState::CrowdFormation:
+			svg_monster_testdummy_debug_t::onThink_CrowdFormation( self );
 			break;
 		case svg_monster_testdummy_debug_t::AIThinkState::IdleLookout:
 		default:
@@ -829,25 +834,35 @@ DEFINE_MEMBER_CALLBACK_PAIN( svg_monster_testdummy_debug_t, onPain )( svg_monste
 		return;
 	}
 
-	// When hit, become scared (mood == 1) and flee to cover!
-	if ( self->mood != svg_monster_mood_type_t::MOOD_TYPE_SCARED ) {
-		self->mood = svg_monster_mood_type_t::MOOD_TYPE_SCARED;
-		if ( other && other->client ) {
-			self->activator = other;
-		} else if ( !self->activator ) {
-			self->activator = g_edicts[ 1 ]; // Player
-		}
+	// Always trigger scared mood on hit
+	const bool wasScared = ( self->mood == svg_monster_mood_type_t::MOOD_TYPE_SCARED );
+	self->mood = svg_monster_mood_type_t::MOOD_TYPE_SCARED;
 
-		if ( self->activator && self->activator->client ) {
-			gi.centerprintf( self->activator, "I'm scared!! GAAHH!!!" );
-		}
-
-		self->stateCover.activeCoverIdx = -1;
-		self->stateCover.isHidingInCover = false;
-		self->ResetNavigationPath();
-		Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::HideInCover );
-		self->nextthink = level.time + FRAME_TIME_MS;
+	if ( other && other->client ) {
+		self->activator = other;
+	} else if ( !self->activator ) {
+		self->activator = g_edicts[ 1 ]; // Player
 	}
+
+	if ( !wasScared && self->activator && self->activator->client ) {
+		gi.centerprintf( self->activator, "I'm scared!! GAAHH!!!" );
+	}
+
+	// If hit while occupying or running to a cover point, ban that compromised point
+	if ( self->stateCover.activeCoverIdx >= 0 ) {
+		self->stateCover.BanRecentCover( self->stateCover.activeCoverIdx, svg_monster_testdummy_debug_t::COVER_BAN_DURATION );
+		Nav_SetCoverPointCooldown( self->stateCover.activeCoverIdx, 30_sec );
+		Nav_ReleaseCoverPoint( self->stateCover.activeCoverIdx, self->s.number );
+		self->stateCover.activeCoverIdx = -1;
+	}
+
+	self->stateCover.isHidingInCover = false;
+	// Force immediate fresh cover evaluation on the very next think frame
+	self->stateCover.nextExposureCheckTime = 0_ms;
+	self->stateCover.nextRetreatProbeTime = 0_ms;
+	self->ResetNavigationPath();
+	Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::HideInCover );
+	self->nextthink = level.time + FRAME_TIME_MS;
 }
 
 
@@ -918,8 +933,16 @@ bool svg_monster_testdummy_debug_t::CheckForAudibleSounds() {
 				gi.centerprintf( this->activator, "I'm scared!! GAAHH!!!" );
 			}
 
-			this->stateCover.activeCoverIdx = -1;
+			if ( this->stateCover.activeCoverIdx >= 0 ) {
+				this->stateCover.BanRecentCover( this->stateCover.activeCoverIdx, svg_monster_testdummy_debug_t::COVER_BAN_DURATION );
+				Nav_SetCoverPointCooldown( this->stateCover.activeCoverIdx, 30_sec );
+				Nav_ReleaseCoverPoint( this->stateCover.activeCoverIdx, this->s.number );
+				this->stateCover.activeCoverIdx = -1;
+			}
+
 			this->stateCover.isHidingInCover = false;
+			// Force immediate fresh cover evaluation on the very next think frame
+			this->stateCover.nextExposureCheckTime = 0_ms;
 			this->ResetNavigationPath();
 			Dummy_SetState( this, svg_monster_testdummy_debug_t::AIThinkState::HideInCover );
 			this->nextthink = level.time + FRAME_TIME_MS;
@@ -1197,11 +1220,11 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Investigate
 //=================================================================================================
 
 /**
-*	@brief		Find the best tactical cover point prioritizing crouch cover over standing cover.
-*	@param	threat_origin	Position of the enemy/player to hide from.
+*	@brief		Find the best tactical cover point prioritizing crouch cover over standing cover (Vector3DP precision).
+*	@param	threat_origin	Position of the enemy/player to hide from in Vector3DP.
 *	@return	Index of the chosen cover point in g_nav_cover_points, or -1 if none found.
 **/
-const int32_t svg_monster_testdummy_debug_t::FindBestScaredCover( const Vector3 &threat_origin ) {
+const int32_t svg_monster_testdummy_debug_t::FindBestScaredCover( const Vector3DP &threat_origin ) {
 	/**
 	*	Sanity checks: Ensure cover points exist in active navmesh.
 	**/
@@ -1210,86 +1233,189 @@ const int32_t svg_monster_testdummy_debug_t::FindBestScaredCover( const Vector3 
 		return -1;
 	}
 
+	const Vector3DP monster_origin( currentOrigin );
+
+	// Resolve threat horizontal forward aim direction.
+	Vector3DP threat_forward{ 0.0, 0.0, 0.0 };
+	if ( activator ) {
+		Vector3 fwd = {};
+		const Vector3 &threat_angles = ( activator->client )
+			? activator->client->viewMove.viewAngles
+			: activator->currentAngles;
+		QM_AngleVectors( threat_angles, &fwd, nullptr, nullptr );
+		fwd.z = 0.0f;
+		if ( QM_Vector3LengthSqr( fwd ) > 0.001f ) {
+			threat_forward = Vector3DP( QM_Vector3Normalize( fwd ) );
+		}
+	}
+	const bool has_threat_forward = ( QM_Vector3LengthSqrDP( threat_forward ) > 0.001 );
+
+	// Compute 2D retreat vector away from threat.
+	Vector3DP to_threat = threat_origin - monster_origin;
+	to_threat.z = 0.0;
+	const double dist_to_threat = QM_Vector3LengthDP( to_threat );
+	Vector3DP retreat_dir{ 0.0, 0.0, 0.0 };
+	if ( dist_to_threat > 1.0 ) {
+		retreat_dir = to_threat * ( -1.0 / dist_to_threat );
+	}
+
 	/**
-	*	Phase 1: High-Performance Spatial Query with Anti-Ping-Pong filtering (768 unit radius, crouch cover).
+	*	Evaluator lambda: strictly filters and scores candidate cover points using Vector3DP.
+	*	Rejects banned points, points in the threat's forward aim cone, and points heading toward the threat.
+	**/
+	auto EvaluateCandidate = [&]( const int32_t cp_idx, double *out_score ) -> bool {
+		// Reject if point was visited recently and remains banned.
+		if ( stateCover.IsCoverBanned( cp_idx ) ) {
+			return false;
+		}
+
+		const nav_cover_point_t *cp = Nav_GetCoverPoint( cp_idx );
+		if ( !cp ) {
+			return false;
+		}
+
+		Vector3DP world_pos = {}, world_normal = {};
+		if ( !Nav_GetCoverPointWorldDP( *cp, &world_pos, &world_normal ) ) {
+			return false;
+		}
+
+		// 1. Minimum threat distance check: do not choose cover right on top of the threat (within 128 units)
+		Vector3DP to_threat_from_cover = threat_origin - world_pos;
+		to_threat_from_cover.z = 0.0;
+		const double dist_cover_to_threat = QM_Vector3LengthDP( to_threat_from_cover );
+		if ( dist_cover_to_threat < 128.0 ) {
+			return false;
+		}
+
+		// 2. Compute flee distance gain (positive = increases separation from threat)
+		const double flee_gain = dist_cover_to_threat - dist_to_threat;
+
+		// 3. Check movement vector toward cover point
+		Vector3DP move_to_cover = world_pos - monster_origin;
+		move_to_cover.z = 0.0;
+		const double move_dist = QM_Vector3LengthDP( move_to_cover );
+		double approach_threat_dot = 0.0;
+		if ( move_dist > 1.0 && dist_to_threat > 1.0 ) {
+			const Vector3DP move_dir = move_to_cover * ( 1.0 / move_dist );
+			const Vector3DP threat_dir = to_threat * ( 1.0 / dist_to_threat );
+			approach_threat_dot = QM_Vector3DotProductDP( move_dir, threat_dir );
+		}
+
+		// 4. Calculate tactical score: heavily favor deep flee progression, directional occlusion, and crouch posture
+		double score = 500.0;
+		score += std::clamp( flee_gain, -200.0, 1200.0 ) * 2.0;
+
+		// Soft penalty for moves that temporarily head toward threat (e.g. escaping through a doorway where threat is nearby)
+		if ( approach_threat_dot > 0.0 ) {
+			score -= approach_threat_dot * 250.0;
+		}
+
+		// Prioritize cover points away from the player's direct forward gaze (-1 to +1 range mapped to 0..300)
+		if ( has_threat_forward && dist_cover_to_threat > 1.0 ) {
+			Vector3DP dir_threat_to_cover = world_pos - threat_origin;
+			dir_threat_to_cover.z = 0.0;
+			dir_threat_to_cover = QM_Vector3NormalizeDP( dir_threat_to_cover );
+			const double aim_dot = QM_Vector3DotProductDP( threat_forward, dir_threat_to_cover );
+			score += ( 1.0 - aim_dot ) * 150.0;
+		}
+
+		if ( dist_cover_to_threat > 1.0 ) {
+			const Vector3DP to_threat_dir = to_threat_from_cover * ( 1.0 / dist_cover_to_threat );
+			const double wall_alignment = QM_Vector3DotProductDP( to_threat_dir, world_normal * -1.0 );
+			score += wall_alignment * 150.0;
+		}
+
+		if ( cp->cover_type == NAV_COVER_LOW ) {
+			score += 150.0;
+		}
+
+		if ( out_score ) {
+			*out_score = score;
+		}
+		return true;
+	};
+
+	auto PickBestCandidate = [&]( const std::vector<int32_t> &indices ) -> int32_t {
+		std::vector<std::pair<int32_t, double>> valid_scored = {};
+		for ( const int32_t idx : indices ) {
+			double s = 0.0;
+			if ( EvaluateCandidate( idx, &s ) ) {
+				valid_scored.push_back( { idx, s } );
+			}
+		}
+
+		if ( valid_scored.empty() ) {
+			return -1;
+		}
+
+		std::sort( valid_scored.begin(), valid_scored.end(), []( const auto &a, const auto &b ) {
+			return a.second > b.second;
+		} );
+
+		// Pick randomly among top 2 best candidates to add slight natural variety without picking poor spots.
+		const int32_t top_count = std::min<int32_t>( 2, static_cast<int32_t>( valid_scored.size() ) );
+		const int32_t chosen = ( top_count > 1 ) ? irandom( top_count ) : 0;
+		return valid_scored[ chosen ].first;
+	};
+
+	/**
+	*	Phase 1: Local Search (radius 768.0, centered on agent, all postures).
 	**/
 	std::vector<int32_t> candidate_indices = {};
-	if ( Nav_FindCoverPoints( currentOrigin, threat_origin, 768.0f, s.number, &candidate_indices, NAV_COVER_LOW ) ) {
-		std::vector<int32_t> unbanned_candidates = {};
-		for ( const int32_t idx : candidate_indices ) {
-			if ( !stateCover.IsCoverBanned( idx ) ) {
-				unbanned_candidates.push_back( idx );
-			}
+	if ( Nav_FindCoverPoints( monster_origin, threat_origin, 768.0, s.number, &candidate_indices, NAV_COVER_NONE, threat_forward, 16 ) ) {
+		const int32_t chosen = PickBestCandidate( candidate_indices );
+		if ( chosen >= 0 ) {
+			return chosen;
 		}
-
-		if ( !unbanned_candidates.empty() ) {
-			const int32_t top_count = std::min<int32_t>( 3, static_cast<int32_t>( unbanned_candidates.size() ) );
-			const int32_t chosen_slot = ( top_count > 1 ) ? irandom( top_count ) : 0;
-			return unbanned_candidates[ chosen_slot ];
-		}
-
-		return candidate_indices[ 0 ];
 	}
 
 	/**
-	*	Phase 2: Expanded radius fallback search (up to 1280 units, crouch cover).
+	*	Phase 2: Medium Vicinity Search (radius 1536.0, centered on agent, all postures).
 	**/
-	if ( Nav_FindCoverPoints( currentOrigin, threat_origin, 1280.0f, s.number, &candidate_indices, NAV_COVER_LOW ) ) {
-		std::vector<int32_t> unbanned_candidates = {};
-		for ( const int32_t idx : candidate_indices ) {
-			if ( !stateCover.IsCoverBanned( idx ) ) {
-				unbanned_candidates.push_back( idx );
-			}
+	if ( Nav_FindCoverPoints( monster_origin, threat_origin, 1536.0, s.number, &candidate_indices, NAV_COVER_NONE, threat_forward, 24 ) ) {
+		const int32_t chosen = PickBestCandidate( candidate_indices );
+		if ( chosen >= 0 ) {
+			return chosen;
 		}
-		if ( !unbanned_candidates.empty() ) {
-			return unbanned_candidates[ 0 ];
-		}
-		return candidate_indices[ 0 ];
 	}
 
 	/**
-	*	Phase 3: Expanded search for ANY cover height (standing/medium cover up to 1536 units).
+	*	Phase 3: Deep World-Wide Search (radius 3072.0, centered on agent, all postures).
 	**/
-	if ( Nav_FindCoverPoints( currentOrigin, threat_origin, 1536.0f, s.number, &candidate_indices, NAV_COVER_NONE ) ) {
-		std::vector<int32_t> unbanned_candidates = {};
-		for ( const int32_t idx : candidate_indices ) {
-			if ( !stateCover.IsCoverBanned( idx ) ) {
-				unbanned_candidates.push_back( idx );
-			}
+	if ( Nav_FindCoverPoints( monster_origin, threat_origin, 3072.0, s.number, &candidate_indices, NAV_COVER_NONE, threat_forward, 32 ) ) {
+		const int32_t chosen = PickBestCandidate( candidate_indices );
+		if ( chosen >= 0 ) {
+			return chosen;
 		}
-		if ( !unbanned_candidates.empty() ) {
-			return unbanned_candidates[ 0 ];
-		}
-		return candidate_indices[ 0 ];
 	}
 
-	/**
-	*	Phase 4: Global map-wide search for any valid cover point (any posture).
-	**/
-	if ( Nav_FindCoverPoints( currentOrigin, threat_origin, 4096.0f, s.number, &candidate_indices, NAV_COVER_NONE ) ) {
-		std::vector<int32_t> unbanned_candidates = {};
-		for ( const int32_t idx : candidate_indices ) {
-			if ( !stateCover.IsCoverBanned( idx ) ) {
-				unbanned_candidates.push_back( idx );
-			}
-		}
-		if ( !unbanned_candidates.empty() ) {
-			return unbanned_candidates[ 0 ];
-		}
-		return candidate_indices[ 0 ];
-	}
-
-	// Final safeguard: return ANY valid cover point on the map if cover points exist!
-	if ( num_points > 0 ) {
-		for ( int32_t i = 0; i < num_points; i++ ) {
-			if ( !stateCover.IsCoverBanned( i ) ) {
-				return i;
-			}
-		}
-		return 0;
-	}
-
+	// Do NOT fall back to banned cover points! Return -1 to allow the monster to sprint along the NavMesh into new map areas.
 	return -1;
+}
+
+/**
+*	@brief	Monster-specific edge cost evaluator for A* navigation pathfinding.
+*	@details Overrides svg_monster_base_t to prioritize stair transitions when scared and fleeing.
+*	@param	fromFaceIdx	Source polygon index.
+*	@param	toFaceIdx	Target polygon index.
+*	@param	he			Half-edge connecting fromFace to toFace.
+*	@param	baseCost	Standard geometric cost (distance * slope * clearance).
+*	@return	Adjusted edge traversal cost.
+**/
+double svg_monster_testdummy_debug_t::OnNavEvaluateEdgeCost( const int32_t fromFaceIdx, const int32_t toFaceIdx, const nav_halfedge_t &he, const double baseCost ) {
+	// Base class applies corridor hysteresis (15% commitment discount for current corridor)
+	double cost = svg_monster_base_t::OnNavEvaluateEdgeCost( fromFaceIdx, toFaceIdx, he, baseCost );
+
+	// When scared and fleeing, prioritize vertical step transitions (staircases and stepped levels)
+	if ( this->mood == svg_monster_mood_type_t::MOOD_TYPE_SCARED ) {
+		const double zDelta = std::fabs( he.z_diff );
+		if ( zDelta >= 4.0 && zDelta <= NAV_MAX_STEP_HEIGHT ) {
+			// 20% stairway preference bonus to decisively break ties in favor of stairs
+			cost *= 0.80;
+		}
+	}
+
+	return cost;
 }
 
 /**
@@ -1335,8 +1461,11 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_HideInCover
 	*	Only evaluate catch if actively hiding in cover, or after a catch reaction cooldown (1500ms).
 	*	This prevents monsters who are already sprinting from thrashing/resetting their A* path every frame.
 	**/
+	// Catching only applies when actively crouching/hiding at a cover point.
+	// When actively sprinting towards a goal (!isHidingInCover), the monster is already fleeing
+	// and must NOT cancel its path or ban its destination when passing by the player.
+	const bool can_be_caught = self->stateCover.isHidingInCover && ( level.time >= self->stateCover.lastCatchReactionTime + 1500_ms );
 	svg_base_edict_t *catching_player = nullptr;
-	const bool can_be_caught = self->stateCover.isHidingInCover || ( level.time >= self->stateCover.lastCatchReactionTime + 1500_ms );
 
 	if ( can_be_caught ) {
 		for ( int32_t i = 1; i <= game.maxclients; i++ ) {
@@ -1346,8 +1475,8 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_HideInCover
 			}
 
 			// Distance check: within 128 units
-			const float dist = QM_Vector3Distance( self->currentOrigin, player->currentOrigin );
-			if ( dist <= 128.0f ) {
+			const double dist = QM_Vector3DistanceDP( Vector3DP( self->currentOrigin ), Vector3DP( player->currentOrigin ) );
+			if ( dist <= 128.0 ) {
 				// In-sight check: direct line of sight between player and monster
 				if ( SVG_Entity_IsVisible( player, self ) ) {
 					catching_player = player;
@@ -1366,10 +1495,10 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_HideInCover
 		// Target threat is now the catching player
 		self->activator = catching_player;
 
-		// Ban old compromised cover point with short duration and release claim.
+		// Ban old compromised cover point with long duration and release claim.
 		if ( self->stateCover.activeCoverIdx >= 0 ) {
-			self->stateCover.BanRecentCover( self->stateCover.activeCoverIdx, 4000_ms );
-			Nav_SetCoverPointCooldown( self->stateCover.activeCoverIdx, 2000_ms );
+			self->stateCover.BanRecentCover( self->stateCover.activeCoverIdx, svg_monster_testdummy_debug_t::COVER_BAN_DURATION );
+			Nav_SetCoverPointCooldown( self->stateCover.activeCoverIdx, 30_sec );
 			Nav_ReleaseCoverPoint( self->stateCover.activeCoverIdx, self->s.number );
 			self->stateCover.activeCoverIdx = -1;
 		}
@@ -1382,15 +1511,15 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_HideInCover
 		self->ResetNavigationPath();
 
 		// Immediately pick a new tactical cover spot away from this catching player
-		const int32_t new_cover_idx = self->FindBestScaredCover( catching_player->currentOrigin );
+		const int32_t new_cover_idx = self->FindBestScaredCover( Vector3DP( catching_player->currentOrigin ) );
 		if ( new_cover_idx >= 0 ) {
 			const nav_cover_point_t *cp = Nav_GetCoverPoint( new_cover_idx );
 			if ( cp ) {
-				Vector3 w_pos = {}, w_normal = {};
-				if ( Nav_GetCoverPointWorld( *cp, &w_pos, &w_normal ) ) {
+				Vector3DP w_posDP = {}, w_normalDP = {};
+				if ( Nav_GetCoverPointWorldDP( *cp, &w_posDP, &w_normalDP ) ) {
 					Nav_ClaimCoverPoint( new_cover_idx, self->s.number, 15000_ms );
 					self->stateCover.activeCoverIdx = new_cover_idx;
-					self->stateCover.coverWorldPos = w_pos;
+					self->stateCover.coverWorldPos = QM_Vector3FromDP( w_posDP );
 					self->stateCover.coverSelectTime = level.time;
 					self->stateCover.isHidingInCover = false;
 					self->stateCover.nextExposureCheckTime = level.time + 1500_ms;
@@ -1401,6 +1530,9 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_HideInCover
 					self->MoveAStarToOrigin( self->stateCover.coverWorldPos, true );
 				}
 			}
+		} else {
+			// Rate-limit next cover search attempt if none could be found
+			self->stateCover.nextExposureCheckTime = level.time + 500_ms;
 		}
 	}
 
@@ -1451,10 +1583,10 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_HideInCover
 				gi.centerprintf( self->activator, "OH NOT AGAIN!@" );
 			}
 
-			// Ban compromised cover point with short duration and place on cooldown.
+			// Ban compromised cover point with long duration and place on cooldown.
 			if ( self->stateCover.activeCoverIdx >= 0 ) {
-				self->stateCover.BanRecentCover( self->stateCover.activeCoverIdx, 4000_ms );
-				Nav_SetCoverPointCooldown( self->stateCover.activeCoverIdx, 2000_ms );
+				self->stateCover.BanRecentCover( self->stateCover.activeCoverIdx, svg_monster_testdummy_debug_t::COVER_BAN_DURATION );
+				Nav_SetCoverPointCooldown( self->stateCover.activeCoverIdx, 30_sec );
 				Nav_ReleaseCoverPoint( self->stateCover.activeCoverIdx, self->s.number );
 				self->stateCover.activeCoverIdx = -1;
 			}
@@ -1466,15 +1598,15 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_HideInCover
 			self->viewheight = DUMMY_VIEWHEIGHT_STANDUP;
 
 			// Find best crouch cover spot away from threat.
-			const int32_t new_cover_idx = self->FindBestScaredCover( threat_origin );
+			const int32_t new_cover_idx = self->FindBestScaredCover( Vector3DP( threat_origin ) );
 			if ( new_cover_idx >= 0 ) {
 				const nav_cover_point_t *cp = Nav_GetCoverPoint( new_cover_idx );
 				if ( cp ) {
-					Vector3 w_pos = {}, w_normal = {};
-					if ( Nav_GetCoverPointWorld( *cp, &w_pos, &w_normal ) ) {
+					Vector3DP w_posDP = {}, w_normalDP = {};
+					if ( Nav_GetCoverPointWorldDP( *cp, &w_posDP, &w_normalDP ) ) {
 						Nav_ClaimCoverPoint( new_cover_idx, self->s.number, 15000_ms );
 						self->stateCover.activeCoverIdx = new_cover_idx;
-						self->stateCover.coverWorldPos = w_pos;
+						self->stateCover.coverWorldPos = QM_Vector3FromDP( w_posDP );
 						self->stateCover.coverSelectTime = level.time;
 						self->stateCover.isHidingInCover = false;
 						self->stateCover.nextExposureCheckTime = level.time + 1500_ms;
@@ -1487,13 +1619,13 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_HideInCover
 				}
 			} else {
 				// Rate-limit next cover search attempt if none could be found
-				self->stateCover.nextExposureCheckTime = level.time + 1000_ms;
+				self->stateCover.nextExposureCheckTime = level.time + 500_ms;
 			}
 		}
 	}
 
 	/**
-	*	If no cover could be found, retreat to a safe walkable face away from the player.
+	*	If no cover could be found, retreat to a safe walkable face away from the player into the map/world.
 	**/
 	if ( self->stateCover.activeCoverIdx < 0 ) {
 		self->stateCover.isHidingInCover = false;
@@ -1501,21 +1633,92 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_HideInCover
 		self->maxs = DUMMY_BBOX_STANDUP_MAXS;
 		self->viewheight = DUMMY_VIEWHEIGHT_STANDUP;
 
-		Vector3 flee_dir = QM_Vector3Subtract( self->currentOrigin, threat_origin );
-		flee_dir.z = 0.0f;
-		if ( QM_Vector3LengthSqr( flee_dir ) > 0.01f ) {
-			Vector3 flee_goal = QM_Vector3Add( self->currentOrigin, QM_Vector3Scale( QM_Vector3Normalize( flee_dir ), 384.0f ) );
-			int32_t goalFace = Nav_FindPolyInLeaf( flee_goal );
-			if ( goalFace < 0 ) {
-				goalFace = Nav_FindClosestPolyGlobal( flee_goal );
+		const Vector3DP monster_origin( self->currentOrigin );
+		const Vector3DP threat_originDP( threat_origin );
+		Vector3DP flee_dir = monster_origin - threat_originDP;
+		flee_dir.z = 0.0;
+		if ( QM_Vector3LengthSqrDP( flee_dir ) > 0.01 ) {
+			flee_dir = QM_Vector3NormalizeDP( flee_dir );
+
+			// Goal commitment: if already actively navigating toward an unreached retreat goal, continue along it
+			bool has_active_retreat_goal = false;
+			if ( self->pathNavigationState.lastGoal.isValid && !self->stringPulledPath.empty() ) {
+				const Vector3 curGoal = self->pathNavigationState.lastGoal.origin;
+				const float distToGoalSq = QM_Vector3DistanceSqr( self->currentOrigin, curGoal );
+				if ( distToGoalSq > ( 32.0f * 32.0f ) ) {
+					has_active_retreat_goal = true;
+				}
 			}
-			if ( goalFace >= 0 && static_cast<size_t>( goalFace ) < g_nav_faces.size() ) {
-				flee_goal = static_cast<Vector3>( g_nav_faces[ goalFace ].center );
-				self->goalentity = nullptr;
-				self->MoveAStarToOrigin( flee_goal );
+
+			if ( !has_active_retreat_goal ) {
+				// Rate-limit swept retreat probing so we do not execute 15 physics sweeps on every 10ms frame
+				if ( level.time >= self->stateCover.nextRetreatProbeTime ) {
+					self->stateCover.nextRetreatProbeTime = level.time + 300_ms;
+
+					// Determine retreat destination using step-aware and slope-aware swept shape probing
+					Vector3 flee_goal = self->currentOrigin;
+					bool found_flee_dest = false;
+
+					// Try primary retreat direction (away from threat), then diagonal and side escape corridors.
+					// If cornered in a dead-end corridor, probe past the threat through the entrance.
+					const Vector3 f_dir = static_cast<Vector3>( flee_dir );
+					const Vector3 l_dir = Vector3{ -f_dir.y, f_dir.x, 0.0f };
+					const Vector3 r_dir = Vector3{ f_dir.y, -f_dir.x, 0.0f };
+					const Vector3 bl_dir = QM_Vector3Normalize( Vector3{ f_dir.x + l_dir.x, f_dir.y + l_dir.y, 0.0f } );
+					const Vector3 br_dir = QM_Vector3Normalize( Vector3{ f_dir.x + r_dir.x, f_dir.y + r_dir.y, 0.0f } );
+					const Vector3 pass_l = QM_Vector3Normalize( Vector3{ -f_dir.x * 0.85f + l_dir.x * 0.25f, -f_dir.y * 0.85f + l_dir.y * 0.25f, 0.0f } );
+					const Vector3 pass_r = QM_Vector3Normalize( Vector3{ -f_dir.x * 0.85f + r_dir.x * 0.25f, -f_dir.y * 0.85f + r_dir.y * 0.25f, 0.0f } );
+					const Vector3 pass_fwd = Vector3{ -f_dir.x, -f_dir.y, 0.0f };
+
+					const Vector3 retreat_dirs[ 8 ] = {
+						f_dir,
+						bl_dir,
+						br_dir,
+						l_dir,
+						r_dir,
+						pass_l,
+						pass_r,
+						pass_fwd
+					};
+
+					constexpr float flee_distances[ 4 ] = { 384.0f, 256.0f, 160.0f, 96.0f };
+					for ( const Vector3 &r_dir_test : retreat_dirs ) {
+						if ( found_flee_dest ) {
+							break;
+						}
+						for ( const float dist : flee_distances ) {
+							const Vector3 test_target = self->currentOrigin + ( r_dir_test * dist );
+							Vector3 probe_ground = {};
+							// StepProbe sweeps native analytical shape, checking step-ups over stairs/curbs and downward slopes
+							if ( SVG_MMove_StepProbe( self->currentOrigin, self->mins, self->maxs, test_target, self, &probe_ground, self->pathNavigationState.policy.max_step_height, self->pathNavigationState.policy.max_drop_height ) ) {
+								const float distFromMeSqr = QM_Vector3DistanceSqr( self->currentOrigin, probe_ground );
+								if ( distFromMeSqr >= ( 48.0f * 48.0f ) ) {
+									const int32_t face_idx = Nav_FindClosestFaceInLeaf( Vector3DP( probe_ground ) );
+									if ( face_idx >= 0 && static_cast<size_t>( face_idx ) < g_nav_faces.size() ) {
+										flee_goal = probe_ground;
+										found_flee_dest = true;
+										break;
+									}
+								}
+							}
+						}
+					}
+
+					if ( found_flee_dest ) {
+						self->goalentity = nullptr;
+						self->MoveAStarToOrigin( flee_goal );
+						// Rate-limit cover query to 500ms so monster continuously seeks fresh cover as it transitions rooms
+						self->stateCover.nextExposureCheckTime = level.time + 500_ms;
+					} else {
+						self->velocity.x = self->velocity.y = 0.0f;
+						self->monsterMove.state.velocity.x = self->monsterMove.state.velocity.y = 0.0f;
+						self->stateCover.nextExposureCheckTime = level.time + 1000_ms;
+						self->stateCover.nextRetreatProbeTime = level.time + 500_ms;
+					}
+				}
 			} else {
-				self->velocity.x = self->velocity.y = 0.0f;
-				self->monsterMove.state.velocity.x = self->monsterMove.state.velocity.y = 0.0f;
+				// Continue navigating along the current committed retreat path
+				self->MoveAStarToOrigin( self->pathNavigationState.lastGoal.origin );
 			}
 		}
 		int32_t blockedMask = 0;
@@ -1531,8 +1734,9 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_HideInCover
 	/**
 	*	Navigate to the active cover spot or hold and crouch behind it.
 	**/
-	const float dist_to_cover_2d = std::sqrt( QM_Vector2DistanceSqr( self->stateCover.coverWorldPos, self->currentOrigin ) );
-	constexpr float arrival_threshold = 28.0f;
+	const Vector3DP to_cover = Vector3DP( self->stateCover.coverWorldPos ) - Vector3DP( self->currentOrigin );
+	const double dist_to_cover_2d = std::sqrt( ( to_cover.x * to_cover.x ) + ( to_cover.y * to_cover.y ) );
+	constexpr double arrival_threshold = 28.0;
 
 	if ( !self->stateCover.isHidingInCover && dist_to_cover_2d <= arrival_threshold ) {
 		// Arrived at cover: latch hiding state so entity does not flap back and forth in yaw/movement.
@@ -1561,14 +1765,14 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_HideInCover
 		// If vision of the entity is obstructed behind cover, randomly peek around interpolating yaw from and to various directions, pretending to be scared!
 		const nav_cover_point_t *cp = Nav_GetCoverPoint( self->stateCover.activeCoverIdx );
 		if ( cp ) {
-			Vector3 w_pos = {}, w_normal = {};
-			if ( Nav_GetCoverPointWorld( *cp, &w_pos, &w_normal ) ) {
-				const float base_yaw = QM_Vector3ToYaw( w_normal );
+			Vector3DP w_posDP = {}, w_normalDP = {};
+			if ( Nav_GetCoverPointWorldDP( *cp, &w_posDP, &w_normalDP ) ) {
+				const float base_yaw = static_cast<float>( QM_Vector3ToYawDP( w_normalDP ) );
 
 				// Pick a new nervous look direction at randomized intervals (400ms - 900ms)
 				if ( level.time >= self->stateCover.nextPeekTime ) {
 					// Random peek angle offset between -55 and +55 degrees relative to cover outward normal
-					const float angle_offset = crandom_openf() * 55.0f; // random_open( -55.0f, 55.0f );
+					const float angle_offset = crandom_openf() * 55.0f;
 					self->stateCover.peekTargetYaw = QM_AngleMod( base_yaw + angle_offset );
 					self->stateCover.nextPeekTime = level.time + random_time( 400_ms, 900_ms );
 				}
@@ -1650,6 +1854,18 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Idle )( svg
 		self->stateNavigationTrail.targetEntity = nullptr;
 		self->goalentity = nullptr;
 		self->ResetNavigationPath( );
+	}
+
+	/**
+	*	Check active crowd / tactical squad movement orders:
+	**/
+	if ( self->crowd.crowdID >= 0 ) {
+		const svg_crowd_group_t *crowdGroup = SVG_Crowd_GetGroup( self->crowd.crowdID );
+		if ( crowdGroup && ( crowdGroup->isMoving || self->crowd.slotIndex >= 0 ) ) {
+			Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::CrowdFormation );
+			svg_monster_testdummy_debug_t::onThink_CrowdFormation( self );
+			return;
+		}
 	}
 
 	if ( !self->isActivated ) {
@@ -1742,6 +1958,122 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Idle )( svg
 	*	Set the nextThink to Idle so we keep looking for the player or their trail instead of trying to pursue a non-visible target.
 	**/
 	Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
+	self->nextthink = level.time + FRAME_TIME_MS;
+}
+
+//=============================================================================================
+
+/**
+*	@brief	Handles movement, station-keeping, and tactical cover for entities in a squad formation.
+*	@param	self	Test dummy entity executing think cycle.
+**/
+DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_CrowdFormation )( svg_monster_testdummy_debug_t *self ) -> void {
+	/**
+	*	Sanity checks / early returns: ensure entity pointer is valid and alive.
+	**/
+	if ( !self->GenericThinkBegin() ) {
+		return;
+	}
+
+	/**
+	*	Validate active crowd membership:
+	*	If no longer assigned to any crowd group, immediately return to standard idle lookout.
+	**/
+	if ( self->crowd.crowdID < 0 ) {
+		Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
+		self->nextthink = level.time + FRAME_TIME_MS;
+		return;
+	}
+
+	// Retrieve active crowd coordination group record.
+	const svg_crowd_group_t *group = SVG_Crowd_GetGroup( self->crowd.crowdID );
+	if ( !group ) {
+		Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
+		self->nextthink = level.time + FRAME_TIME_MS;
+		return;
+	}
+
+	const Vector3 goalOrigin = self->crowd.assignedGoalOrigin;
+	const double arrivalRadius = ( group->params.arrivalRadius > 0.0 ) ? std::max( group->params.arrivalRadius, group->params.separationRadius ) : CROWD_DEFAULT_ARRIVAL_RADIUS;
+
+	// Vector to assigned formation slot
+	Vector3 toGoal = goalOrigin - self->currentOrigin;
+	const double zDiff = std::fabs( toGoal.z );
+	toGoal.z = 0.0f;
+	const double dist2D = QM_Vector3Length( toGoal );
+
+	/**
+	*	Arrival check: determine whether we have arrived within the slot tolerance circle.
+	**/
+	if ( dist2D <= arrivalRadius && zDiff <= CROWD_ARRIVAL_MAX_Z_DIFF ) {
+		self->crowd.reachedGoal = true;
+	} else if ( dist2D <= ( arrivalRadius * CROWD_BLOCKED_ARRIVAL_RADIUS_FACTOR ) && zDiff <= CROWD_ARRIVAL_MAX_Z_DIFF ) {
+		// If agent was halted/blocked near the slot (e.g. against walls or adjacent teammates), treat as arrived.
+		const double horizSpeedSq = ( self->velocity.x * self->velocity.x ) + ( self->velocity.y * self->velocity.y );
+		if ( horizSpeedSq < 16.0 ) {
+			self->crowd.reachedGoal = true;
+		}
+	}
+
+	/**
+	*	Behavior execution: arrived station-keeping vs en-route navigation.
+	**/
+	if ( self->crowd.reachedGoal ) {
+		// Stop horizontal movement
+		self->velocity.x = 0.0f;
+		self->velocity.y = 0.0f;
+		self->monsterMove.state.velocity.x = 0.0f;
+		self->monsterMove.state.velocity.y = 0.0f;
+
+		// Orient to slot's prescribed relative heading (or match group heading)
+		double desiredYaw = group->currentHeadingYaw;
+		if ( self->crowd.slotIndex >= 0 && self->crowd.slotIndex < static_cast<int32_t>( group->slots.size() ) ) {
+			desiredYaw = QM_AngleMod( group->currentHeadingYaw + group->slots[ self->crowd.slotIndex ].relativeYawDeg );
+		}
+		self->ideal_yaw = static_cast<float>( desiredYaw );
+		SVG_MMove_FaceIdealYaw( self, self->ideal_yaw, 45.0f );
+
+		// If occupying a tactical cover point, crouch into ducked idle
+		if ( self->crowd.activeCoverIdx >= 0 ) {
+			self->UpdateAnim( 5 ); // DUCK_IDLE
+			self->mins = DUMMY_BBOX_DUCKED_MINS;
+			self->maxs = DUMMY_BBOX_DUCKED_MAXS;
+			self->viewheight = static_cast<float>( DUMMY_VIEWHEIGHT_DUCKED );
+		} else {
+			self->UpdateAnim( 1 ); // IDLE
+			self->mins = DUMMY_BBOX_STANDUP_MINS;
+			self->maxs = DUMMY_BBOX_STANDUP_MAXS;
+			self->viewheight = static_cast<float>( DUMMY_VIEWHEIGHT_STANDUP );
+		}
+	} else {
+		/**
+		*	En route: drive movement to assigned slot using navigation mesh.
+		*	Pass force = false to allow ComputePathTo to reuse the cached path corridor!
+		**/
+		self->mins = DUMMY_BBOX_STANDUP_MINS;
+		self->maxs = DUMMY_BBOX_STANDUP_MAXS;
+		self->viewheight = static_cast<float>( DUMMY_VIEWHEIGHT_STANDUP );
+
+		self->MoveAStarToOrigin( goalOrigin, false );
+	}
+
+	// Execute standard physics slide move and angle synchronization.
+	int32_t blockedMask = MM_SLIDEMOVEFLAG_NONE;
+	self->GenericThinkFinish( true, blockedMask );
+	SVG_Util_SetEntityAngles( self, self->currentAngles, true );
+
+	// Throttle think frequency when arrived and located far from the player to conserve CPU.
+	if ( self->crowd.reachedGoal ) {
+		const svg_base_edict_t *player = g_edict_pool.EdictForNumber( 1 );
+		if ( player && SVG_Entity_IsActive( player ) ) {
+			const double distToPlayerSq = QM_Vector3DistanceSqr( self->currentOrigin, player->currentOrigin );
+			if ( distToPlayerSq > ( CROWD_DORMANT_THROTTLE_DIST * CROWD_DORMANT_THROTTLE_DIST ) ) {
+				self->nextthink = level.time + CROWD_THROTTLE_THINK_INTERVAL;
+				return;
+			}
+		}
+	}
+
 	self->nextthink = level.time + FRAME_TIME_MS;
 }
 

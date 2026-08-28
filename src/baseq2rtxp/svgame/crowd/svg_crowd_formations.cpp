@@ -55,12 +55,14 @@ void SVG_Crowd_GenerateLineSlots( const size_t memberCount, const svg_crowd_para
 			// Center leader position.
 			slot.localOffset = Vector3DP{ 0.0, 0.0, 0.0 };
 			slot.role = crowd_member_role_t::ROLE_LEADER;
+			slot.relativeYawDeg = 0.0;
 		} else {
 			// Alternate sides: odd indices go left (-X), even indices go right (+X).
 			const int32_t pairIdx = static_cast<int32_t>( ( i + 1 ) / 2 );
 			const double side = ( ( i % 2 ) == 1 ) ? -1.0 : 1.0;
 			slot.localOffset = Vector3DP{ side * pairIdx * spacing, 0.0, 0.0 };
 			slot.role = ( side < 0.0 ) ? crowd_member_role_t::ROLE_FLANK_LEFT : crowd_member_role_t::ROLE_FLANK_RIGHT;
+			slot.relativeYawDeg = ( side < 0.0 ) ? -15.0 : 15.0;
 		}
 
 		outSlots.push_back( slot );
@@ -91,6 +93,7 @@ void SVG_Crowd_GenerateArrowSlots( const size_t memberCount, const svg_crowd_par
 			// Spearhead / Point leader at the apex.
 			slot.localOffset = Vector3DP{ 0.0, 0.0, 0.0 };
 			slot.role = crowd_member_role_t::ROLE_POINT;
+			slot.relativeYawDeg = 0.0;
 		} else {
 			// Stagger backward along -Y and outward along +/-X.
 			const int32_t tier = static_cast<int32_t>( ( i + 1 ) / 2 );
@@ -100,6 +103,7 @@ void SVG_Crowd_GenerateArrowSlots( const size_t memberCount, const svg_crowd_par
 
 			slot.localOffset = Vector3DP{ offsetX, offsetY, 0.0 };
 			slot.role = ( side < 0.0 ) ? crowd_member_role_t::ROLE_FLANK_LEFT : crowd_member_role_t::ROLE_FLANK_RIGHT;
+			slot.relativeYawDeg = ( side < 0.0 ) ? -30.0 : 30.0;
 		}
 
 		outSlots.push_back( slot );
@@ -127,6 +131,7 @@ void SVG_Crowd_GenerateCircleFilledSlots( const size_t memberCount, const svg_cr
 	centerSlot.slotIndex = 0;
 	centerSlot.localOffset = Vector3DP{ 0.0, 0.0, 0.0 };
 	centerSlot.role = crowd_member_role_t::ROLE_LEADER;
+	centerSlot.relativeYawDeg = 0.0;
 	outSlots.push_back( centerSlot );
 
 	size_t remaining = memberCount - 1;
@@ -155,6 +160,8 @@ void SVG_Crowd_GenerateCircleFilledSlots( const size_t memberCount, const svg_cr
 			slot.slotIndex = currentSlotIdx++;
 			slot.localOffset = Vector3DP{ offsetX, offsetY, 0.0 };
 			slot.role = crowd_member_role_t::ROLE_CENTER;
+			// Face outward radially from circle center
+			slot.relativeYawDeg = QM_AngleMod( angle * ( 180.0 / QM_PI ) - 90.0 );
 			outSlots.push_back( slot );
 		}
 
@@ -186,6 +193,7 @@ void SVG_Crowd_GenerateDashedLineSlots( const size_t memberCount, const svg_crow
 		if ( i == 0 ) {
 			slot.localOffset = Vector3DP{ 0.0, 0.0, 0.0 };
 			slot.role = crowd_member_role_t::ROLE_LEADER;
+			slot.relativeYawDeg = 0.0;
 		} else {
 			const int32_t pairIdx = static_cast<int32_t>( ( i + 1 ) / 2 );
 			const double side = ( ( i % 2 ) == 1 ) ? -1.0 : 1.0;
@@ -194,6 +202,7 @@ void SVG_Crowd_GenerateDashedLineSlots( const size_t memberCount, const svg_crow
 
 			slot.localOffset = Vector3DP{ side * pairIdx * latSpacing, rowOffset, 0.0 };
 			slot.role = ( side < 0.0 ) ? crowd_member_role_t::ROLE_FLANK_LEFT : crowd_member_role_t::ROLE_FLANK_RIGHT;
+			slot.relativeYawDeg = ( side < 0.0 ) ? -20.0 : 20.0;
 		}
 
 		outSlots.push_back( slot );
@@ -225,6 +234,8 @@ void SVG_Crowd_GeneratePerimeterSlots( const size_t memberCount, const svg_crowd
 		slot.slotIndex = static_cast<int32_t>( i );
 		slot.localOffset = Vector3DP{ offsetX, offsetY, 0.0 };
 		slot.role = ( i == 0 ) ? crowd_member_role_t::ROLE_POINT : crowd_member_role_t::ROLE_CENTER;
+		// Face inward toward the encircled target
+		slot.relativeYawDeg = QM_AngleMod( ( angle * ( 180.0 / QM_PI ) ) + 90.0 );
 		outSlots.push_back( slot );
 	}
 }
@@ -252,14 +263,206 @@ void SVG_Crowd_GenerateColumnSlots( const size_t memberCount, const svg_crowd_pa
 
 		if ( i == 0 ) {
 			slot.role = crowd_member_role_t::ROLE_POINT;
+			slot.relativeYawDeg = 0.0;
 		} else if ( i == memberCount - 1 ) {
 			slot.role = crowd_member_role_t::ROLE_REAR_GUARD;
+			slot.relativeYawDeg = 180.0;
 		} else {
 			slot.role = crowd_member_role_t::ROLE_CENTER;
+			slot.relativeYawDeg = ( ( i % 2 ) == 1 ) ? -15.0 : 15.0;
 		}
 
 		outSlots.push_back( slot );
 	}
+}
+
+/**
+*	@brief	Generate local slot offsets for a double-column staggered patrol march.
+*	@param	memberCount	Number of squad members to place.
+*	@param	params		Formation spacing parameters.
+*	@param	outSlots	[out] Array of computed local slots.
+**/
+void SVG_Crowd_GenerateStaggeredColumnSlots( const size_t memberCount, const svg_crowd_params_t &params, std::vector<svg_crowd_slot_t> &outSlots ) {
+	outSlots.clear();
+	if ( memberCount == 0 ) {
+		return;
+	}
+
+	outSlots.reserve( memberCount );
+	const double latSpacing = ( params.lateralSpacing > 0.0 ) ? params.lateralSpacing : 48.0;
+	const double longSpacing = ( params.longitudinalSpacing > 0.0 ) ? params.longitudinalSpacing : 64.0;
+
+	for ( size_t i = 0; i < memberCount; i++ ) {
+		svg_crowd_slot_t slot;
+		slot.slotIndex = static_cast<int32_t>( i );
+
+		if ( i == 0 ) {
+			// Spearhead point-man.
+			slot.localOffset = Vector3DP{ 0.0, 0.0, 0.0 };
+			slot.role = crowd_member_role_t::ROLE_POINT;
+			slot.relativeYawDeg = 0.0;
+		} else {
+			const int32_t row = static_cast<int32_t>( ( i + 1 ) / 2 );
+			const bool isLeft = ( ( i % 2 ) == 1 );
+			const double side = isLeft ? -1.0 : 1.0;
+			// Stagger right column half a row behind left column
+			const double staggerOffset = isLeft ? 0.0 : ( -0.5 * longSpacing );
+			const double offsetX = side * 0.5 * latSpacing;
+			const double offsetY = ( -row * longSpacing ) + staggerOffset;
+
+			slot.localOffset = Vector3DP{ offsetX, offsetY, 0.0 };
+			if ( i == memberCount - 1 ) {
+				slot.role = crowd_member_role_t::ROLE_REAR_GUARD;
+				slot.relativeYawDeg = 180.0;
+			} else {
+				slot.role = isLeft ? crowd_member_role_t::ROLE_FLANK_LEFT : crowd_member_role_t::ROLE_FLANK_RIGHT;
+				slot.relativeYawDeg = isLeft ? -25.0 : 25.0;
+			}
+		}
+
+		outSlots.push_back( slot );
+	}
+}
+
+/**
+*	@brief	Generate local slot offsets for a 4-point diamond / 5-point box formation.
+*	@param	memberCount	Number of squad members to place.
+*	@param	params		Formation spacing parameters.
+*	@param	outSlots	[out] Array of computed local slots.
+**/
+void SVG_Crowd_GenerateBoxDiamondSlots( const size_t memberCount, const svg_crowd_params_t &params, std::vector<svg_crowd_slot_t> &outSlots ) {
+	outSlots.clear();
+	if ( memberCount == 0 ) {
+		return;
+	}
+
+	outSlots.reserve( memberCount );
+	const double latSpacing = ( params.lateralSpacing > 0.0 ) ? params.lateralSpacing : 64.0;
+	const double longSpacing = ( params.longitudinalSpacing > 0.0 ) ? params.longitudinalSpacing : 64.0;
+
+	for ( size_t i = 0; i < memberCount; i++ ) {
+		svg_crowd_slot_t slot;
+		slot.slotIndex = static_cast<int32_t>( i );
+
+		switch ( i ) {
+			case 0:
+				// Point / Apex forward
+				slot.localOffset = Vector3DP{ 0.0, longSpacing, 0.0 };
+				slot.role = crowd_member_role_t::ROLE_POINT;
+				slot.relativeYawDeg = 0.0;
+				break;
+			case 1:
+				// Left wing
+				slot.localOffset = Vector3DP{ -latSpacing, 0.0, 0.0 };
+				slot.role = crowd_member_role_t::ROLE_FLANK_LEFT;
+				slot.relativeYawDeg = -90.0;
+				break;
+			case 2:
+				// Right wing
+				slot.localOffset = Vector3DP{ latSpacing, 0.0, 0.0 };
+				slot.role = crowd_member_role_t::ROLE_FLANK_RIGHT;
+				slot.relativeYawDeg = 90.0;
+				break;
+			case 3:
+				// Rear guard
+				slot.localOffset = Vector3DP{ 0.0, -longSpacing, 0.0 };
+				slot.role = crowd_member_role_t::ROLE_REAR_GUARD;
+				slot.relativeYawDeg = 180.0;
+				break;
+			case 4:
+				// Center anchor / Leader
+				slot.localOffset = Vector3DP{ 0.0, 0.0, 0.0 };
+				slot.role = crowd_member_role_t::ROLE_LEADER;
+				slot.relativeYawDeg = 0.0;
+				break;
+			default: {
+				// Additional members expand outer perimeter
+				const int32_t extraIdx = static_cast<int32_t>( i - 4 );
+				const double tier = 1.0 + ( extraIdx * 0.4 );
+				const double side = ( ( extraIdx % 2 ) == 1 ) ? -1.0 : 1.0;
+				slot.localOffset = Vector3DP{ side * latSpacing * tier, -longSpacing * ( 0.5 * tier ), 0.0 };
+				slot.role = crowd_member_role_t::ROLE_CENTER;
+				slot.relativeYawDeg = side * 45.0;
+				break;
+			}
+		}
+
+		outSlots.push_back( slot );
+	}
+}
+
+/**
+*	@brief	Generate local slot offsets for a slanted echelon formation.
+*	@param	memberCount	Number of squad members to place.
+*	@param	params		Formation spacing parameters.
+*	@param	leftFlank	True for echelon left, false for echelon right.
+*	@param	outSlots	[out] Array of computed local slots.
+**/
+void SVG_Crowd_GenerateEchelonSlots( const size_t memberCount, const svg_crowd_params_t &params, const bool leftFlank, std::vector<svg_crowd_slot_t> &outSlots ) {
+	outSlots.clear();
+	if ( memberCount == 0 ) {
+		return;
+	}
+
+	outSlots.reserve( memberCount );
+	const double latSpacing = ( params.lateralSpacing > 0.0 ) ? params.lateralSpacing : 64.0;
+	const double longSpacing = ( params.longitudinalSpacing > 0.0 ) ? params.longitudinalSpacing : 64.0;
+	const double side = leftFlank ? -1.0 : 1.0;
+
+	for ( size_t i = 0; i < memberCount; i++ ) {
+		svg_crowd_slot_t slot;
+		slot.slotIndex = static_cast<int32_t>( i );
+
+		if ( i == 0 ) {
+			slot.localOffset = Vector3DP{ 0.0, 0.0, 0.0 };
+			slot.role = crowd_member_role_t::ROLE_POINT;
+			slot.relativeYawDeg = 0.0;
+		} else {
+			slot.localOffset = Vector3DP{ side * static_cast<double>( i ) * latSpacing, -static_cast<double>( i ) * longSpacing, 0.0 };
+			if ( i == memberCount - 1 ) {
+				slot.role = crowd_member_role_t::ROLE_REAR_GUARD;
+				slot.relativeYawDeg = 180.0;
+			} else {
+				slot.role = leftFlank ? crowd_member_role_t::ROLE_FLANK_LEFT : crowd_member_role_t::ROLE_FLANK_RIGHT;
+				slot.relativeYawDeg = side * 35.0;
+			}
+		}
+
+		outSlots.push_back( slot );
+	}
+}
+
+/**
+*	@brief	Compute walkable corridor clearance width around a world position on the navmesh.
+*	@param	worldOrigin		Query position in world space.
+*	@param	desiredWidth	Default unconstrained formation width.
+*	@return	Constrained width allowed by navmesh boundaries (at least 24 units).
+**/
+double SVG_Crowd_ComputeCorridorClearance( const Vector3DP &worldOrigin, const double desiredWidth ) {
+	if ( g_nav_faces.empty() ) {
+		return desiredWidth;
+	}
+
+	// Locate the navmesh face enclosing or closest to worldOrigin.
+	// Prefer quick strict KD-leaf test at origin, falling back to feet offset if query position is elevated.
+	int32_t polyIdx = Nav_FindFaceInLeafStrict( worldOrigin );
+	if ( polyIdx < 0 || polyIdx >= static_cast<int32_t>( g_nav_faces.size() ) ) {
+		Vector3DP feetOrigin = worldOrigin;
+		feetOrigin.z -= CROWD_SLOT_FEET_SNAP_OFFSET_Z;
+		polyIdx = Nav_FindFaceInLeafStrict( feetOrigin );
+	}
+
+	// If face located within local KD-leaf, query clearance corridor.
+	if ( polyIdx >= 0 && polyIdx < static_cast<int32_t>( g_nav_faces.size() ) ) {
+		const nav_face_t &face = g_nav_faces[ polyIdx ];
+		if ( face.clearance > 0.0 ) {
+			// Approximate traversable corridor diameter is clearance * 2.0
+			const double availableWidth = face.clearance * 2.0;
+			return std::max( CROWD_DEFAULT_MIN_CORRIDOR_SPACING, std::min( desiredWidth, availableWidth ) );
+		}
+	}
+
+	return desiredWidth;
 }
 
 /**
@@ -288,6 +491,18 @@ void SVG_Crowd_GenerateFormationSlots( const crowd_chase_target_type_t style, co
 			break;
 		case crowd_chase_target_type_t::CROWD_STYLE_COLUMN_MARCH:
 			SVG_Crowd_GenerateColumnSlots( memberCount, params, outSlots );
+			break;
+		case crowd_chase_target_type_t::CROWD_STYLE_STAGGERED_COLUMN:
+			SVG_Crowd_GenerateStaggeredColumnSlots( memberCount, params, outSlots );
+			break;
+		case crowd_chase_target_type_t::CROWD_STYLE_BOX_DIAMOND:
+			SVG_Crowd_GenerateBoxDiamondSlots( memberCount, params, outSlots );
+			break;
+		case crowd_chase_target_type_t::CROWD_STYLE_ECHELON_LEFT:
+			SVG_Crowd_GenerateEchelonSlots( memberCount, params, true, outSlots );
+			break;
+		case crowd_chase_target_type_t::CROWD_STYLE_ECHELON_RIGHT:
+			SVG_Crowd_GenerateEchelonSlots( memberCount, params, false, outSlots );
 			break;
 		case crowd_chase_target_type_t::CROWD_STYLE_TACTICAL_COVER:
 		default:
@@ -351,23 +566,30 @@ void SVG_Crowd_SnapSlotsToNavMesh( std::vector<svg_crowd_slot_t> &slots, const d
 	}
 
 	for ( svg_crowd_slot_t &slot : slots ) {
-		// Attempt to locate a directly enclosing walkable navmesh polygon.
-		const int32_t polyIdx = Nav_FindPolyInLeaf( slot.worldPosition );
+		// Attempt to locate a directly enclosing walkable navmesh polygon within the local KD-leaf.
+		int32_t polyIdx = Nav_FindFaceInLeafStrict( slot.worldPosition );
+		if ( polyIdx < 0 || polyIdx >= static_cast<int32_t>( g_nav_faces.size() ) ) {
+			// Fallback: test with feet elevation offset in case slot is slightly above walkable surface.
+			Vector3DP feetPos = slot.worldPosition;
+			feetPos.z -= CROWD_SLOT_FEET_SNAP_OFFSET_Z;
+			polyIdx = Nav_FindFaceInLeafStrict( feetPos );
+		}
+
+		// If a valid enclosing face was found in the local KD-leaf, project Z onto face plane.
 		if ( polyIdx >= 0 && polyIdx < static_cast<int32_t>( g_nav_faces.size() ) ) {
-			slot.worldPosition = g_nav_faces[ polyIdx ].center;
+			const nav_face_t &face = g_nav_faces[ polyIdx ];
+			if ( std::fabs( face.normal.z ) > 0.001 ) {
+				const Vector3DP v0 = g_nav_vertices[ g_nav_halfedges[ face.first_edge_idx ].vertex_idx ];
+				const double d = QM_Vector3DotProductDP( v0, face.normal );
+				slot.worldPosition.z = ( d - ( slot.worldPosition.x * face.normal.x + slot.worldPosition.y * face.normal.y ) ) / face.normal.z;
+			}
 			slot.isNavmeshValid = true;
 			continue;
 		}
 
-		// Fallback: search closest walkable polygon in KD-tree.
-		const int32_t closestPolyIdx = Nav_FindClosestPolyGlobal( slot.worldPosition );
-		if ( closestPolyIdx >= 0 && closestPolyIdx < static_cast<int32_t>( g_nav_faces.size() ) ) {
-			slot.worldPosition = g_nav_faces[ closestPolyIdx ].center;
-			slot.isNavmeshValid = true;
-		} else {
-			// Keep computed world position with invalid navmesh flag so AI can still attempt fallback movement.
-			slot.isNavmeshValid = false;
-		}
+		// Slot lands outside walkable mesh: mark invalid so caller clamps to anchor origin.
+		// Never call Nav_FindClosestPolyGlobal here to avoid expensive O(num_faces) full-level searches.
+		slot.isNavmeshValid = false;
 	}
 }
 
@@ -454,3 +676,68 @@ void SVG_Crowd_AssignMembersToSlots( const std::vector<Vector3> &memberOrigins, 
 	}
 	SVG_Crowd_AssignMembersToSlots( memberOriginsDP, slots, outMemberToSlotMap );
 }
+
+/**
+*	@brief		Assign crowd members to formation slots with hysteresis to prevent thrashing between frames.
+*	@param	memberOrigins		Current feet origins of the crowd member entities (Vector3DP).
+*	@param	slots				Target formation slot definitions.
+*	@param	previousSlotMap		Previous frame's slot assignments for each member (or -1 if new).
+*	@param	outMemberToSlotMap	[out] Mapping from member index (0..N-1) to assigned slot index (0..N-1).
+*	@param	hysteresisDist		Bonus distance threshold (default: 48.0 units) to favor holding current slot.
+**/
+void SVG_Crowd_AssignMembersToSlotsHysteresis( const std::vector<Vector3DP> &memberOrigins, const std::vector<svg_crowd_slot_t> &slots, const std::vector<int32_t> &previousSlotMap, std::vector<int32_t> &outMemberToSlotMap, const double hysteresisDist ) {
+	const size_t count = memberOrigins.size();
+	outMemberToSlotMap.clear();
+	outMemberToSlotMap.resize( count, -1 );
+
+	if ( count == 0 || slots.empty() ) {
+		return;
+	}
+
+	std::vector<bool> slotClaimed( slots.size(), false );
+	const double hystBonusSq = hysteresisDist * hysteresisDist;
+
+	struct candidate_match_t {
+		int32_t memberIdx = -1;
+		int32_t slotIdx = -1;
+		double effectiveDistSq = std::numeric_limits<double>::max();
+	};
+
+	std::vector<candidate_match_t> allPairs;
+	allPairs.reserve( count * slots.size() );
+
+	for ( size_t m = 0; m < count; m++ ) {
+		const int32_t prevSlot = ( m < previousSlotMap.size() ) ? previousSlotMap[ m ] : -1;
+		for ( size_t s = 0; s < slots.size(); s++ ) {
+			double distSq = QM_Vector3DistanceSqrDP( memberOrigins[ m ], slots[ s ].worldPosition );
+			// Apply hysteresis: if the member previously held this slot, discount the effective distance
+			// so the assignment algorithm is sticky and does not thrash on small orientation changes.
+			if ( static_cast<int32_t>( s ) == prevSlot ) {
+				distSq = ( distSq > hystBonusSq ) ? ( distSq - hystBonusSq ) : 0.0;
+			}
+			allPairs.push_back( candidate_match_t{ static_cast<int32_t>( m ), static_cast<int32_t>( s ), distSq } );
+		}
+	}
+
+	// Sort candidate pairings ascending by effective squared distance.
+	std::sort( allPairs.begin(), allPairs.end(), []( const candidate_match_t &a, const candidate_match_t &b ) {
+		return a.effectiveDistSq < b.effectiveDistSq;
+	} );
+
+	std::vector<bool> memberAssigned( count, false );
+	size_t assignedCount = 0;
+
+	for ( const candidate_match_t &pair : allPairs ) {
+		if ( assignedCount >= count ) {
+			break;
+		}
+
+		if ( !memberAssigned[ pair.memberIdx ] && !slotClaimed[ pair.slotIdx ] ) {
+			memberAssigned[ pair.memberIdx ] = true;
+			slotClaimed[ pair.slotIdx ] = true;
+			outMemberToSlotMap[ pair.memberIdx ] = pair.slotIdx;
+			assignedCount++;
+		}
+	}
+}
+

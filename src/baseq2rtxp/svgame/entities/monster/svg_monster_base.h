@@ -272,6 +272,45 @@ struct svg_monster_base_t : public svg_base_edict_t {
 	*	@param	blockedMask	Slide move blocked flags for the current think frame.
 	**/
 	void UpdateBlockedNavigationRecovery( const int32_t blockedMask );
+	/**
+	*	@brief	Custom edge cost evaluator for A* navigation pathfinding.
+	*	@details Allows individual monster classes or states to bias path choices (e.g. preferring stairs/ramps,
+	*			applying path commitment hysteresis to prevent bifurcation jitter, avoiding hazards).
+	*	@param	fromFaceIdx	Source polygon index.
+	*	@param	toFaceIdx	Target polygon index.
+	*	@param	he			Half-edge connecting fromFace to toFace.
+	*	@param	baseCost	Standard geometric cost (distance * slope * clearance).
+	*	@return	Adjusted edge traversal cost.
+	**/
+	virtual double OnNavEvaluateEdgeCost( const int32_t fromFaceIdx, const int32_t toFaceIdx, const nav_halfedge_t &he, const double baseCost );
+	/**
+	*	@brief	Static bridge dispatching nav_path_policy_t edge cost callbacks to monster instances.
+	**/
+	static double NavEdgeCostCallbackBridge( int32_t fromFaceIdx, int32_t toFaceIdx, const nav_halfedge_t &he, double baseCost, svg_monster_base_t *monster );
+
+	/**
+	*	@brief	Safely cast an edict pointer to svg_monster_base_t using the TypeInfo system.
+	*	@param	ent	Entity pointer to cast.
+	*	@return	Pointer to svg_monster_base_t if ent is valid and derives from svg_monster_base_t, else nullptr.
+	**/
+	static inline svg_monster_base_t *FromEdict( svg_base_edict_t *ent ) {
+		if ( ent != nullptr && ent->GetTypeInfo()->IsSubClassType<svg_monster_base_t>() ) {
+			return static_cast<svg_monster_base_t*>( ent );
+		}
+		return nullptr;
+	}
+
+	/**
+	*	@brief	Safely cast a const edict pointer to const svg_monster_base_t using the TypeInfo system.
+	*	@param	ent	Entity pointer to cast.
+	*	@return	Const pointer to svg_monster_base_t if ent is valid and derives from svg_monster_base_t, else nullptr.
+	**/
+	static inline const svg_monster_base_t *FromEdict( const svg_base_edict_t *ent ) {
+		if ( ent != nullptr && ent->GetTypeInfo()->IsSubClassType<svg_monster_base_t>() ) {
+			return static_cast<const svg_monster_base_t*>( ent );
+		}
+		return nullptr;
+	}
 
 	/**
 	*

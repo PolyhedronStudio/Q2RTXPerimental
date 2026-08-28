@@ -394,8 +394,64 @@ int32_t Nav_FindPolyInLeaf( const Vector3DP &point ) {
 	if ( bestInsideFace != -1 ) {
 		return bestInsideFace;
 	}
+
 	// Perform global search if the candidate faces in the KD-tree leaf hint did not contain the point.
 	return Nav_FindClosestPolyGlobal( point );
+}
+
+/**
+*	@brief	Locate the navmesh polygon enclosing a world-space point strictly within its local KD-leaf.
+*	@note	Unlike Nav_FindPolyInLeaf, this function strictly never falls back to Nav_FindClosestPolyGlobal.
+*			If the point is not contained within any face of the resolved KD-tree leaf, it returns -1 immediately in O(log N).
+*	@param	point	Query position in world space (Vector3DP).
+*	@return	Face index if contained within a leaf face, or -1 otherwise.
+**/
+int32_t Nav_FindFaceInLeafStrict( const Vector3DP &point ) {
+	const int32_t leafIdx = Nav_FindLeafNode( point );
+	if ( leafIdx < 0 ) {
+		return -1;
+	}
+
+	const nav_kdtree_node_t &leaf = g_nav_nodes[ leafIdx ];
+	const int32_t firstFaceIdx = leaf.first_face_id;
+	if ( firstFaceIdx == -1 || firstFaceIdx >= static_cast< int32_t >( g_nav_faces.size() ) ) {
+		return -1;
+	}
+
+	//! Monotonically incrementing query identifier for mailboxing deduplication.
+	static uint32_t s_strict_query_id = 1;
+	const uint32_t current_query_id = ++s_strict_query_id;
+	if ( s_strict_query_id == 0 ) {
+		s_strict_query_id = 1;
+	}
+
+	int32_t bestInsideFace = -1;
+	double bestInsideDist = 64.0;
+
+	for ( int32_t i = 0; i < leaf.num_faces; ++i ) {
+		const int32_t faceIdx = firstFaceIdx + i;
+		if ( faceIdx >= static_cast< int32_t >( g_nav_faces.size() ) ) {
+			break;
+		}
+
+		const nav_face_t &face = g_nav_faces[ faceIdx ];
+
+		if ( face.last_query_id == current_query_id ) {
+			continue;
+		}
+		face.last_query_id = current_query_id;
+
+		const Vector3DP v0 = g_nav_vertices[ g_nav_halfedges[ face.first_edge_idx ].vertex_idx ];
+		const double plane_dist = QM_Vector3DotProductDP( v0, face.normal );
+		const double d = std::fabs( QM_Vector3DotProductDP( point, face.normal ) - plane_dist );
+
+		if ( d < bestInsideDist && Nav_PointInsideFace2D( point, face ) ) {
+			bestInsideDist = d;
+			bestInsideFace = faceIdx;
+		}
+	}
+
+	return bestInsideFace;
 }
 
 /**
@@ -617,7 +673,12 @@ bool Nav_FindPath( int32_t startFace, int32_t goalFace, std::vector<int32_t> &ou
 			}
 
 			const double edgeDistance = QM_Vector3DistanceDP( faceCurrent.center, faceNeighbor.center );
-			const double tentativeGScore = gScore[ current ] + edgeDistance * slopePenalty * clearancePenalty;
+			double edgeCost = edgeDistance * slopePenalty * clearancePenalty;
+			// Allow entity-specific edge cost customization (stair preference, corridor hysteresis)
+			if ( policy.edge_cost_callback != nullptr ) {
+				edgeCost = policy.edge_cost_callback( current, neighborIdx, he, edgeCost, policy.edge_cost_monster );
+			}
+			const double tentativeGScore = gScore[ current ] + edgeCost;
 
 			if ( gScore.find( neighborIdx ) == gScore.end() || tentativeGScore < gScore[ neighborIdx ] ) {
 				cameFrom[ neighborIdx ] = current;
@@ -1123,9 +1184,9 @@ int32_t Nav_FindClosestFaceInLeaf( const Vector3DP &point ) {
 		const nav_face_t &face = g_nav_faces[ leafFace ];
 		if ( Nav_PointInsideFace2D( point, face ) ) {
 			const Vector3DP v0 = g_nav_vertices[ g_nav_halfedges[ face.first_edge_idx ].vertex_idx ];
-			const float planeDist = static_cast< float >( QM_Vector3DotProductDP( v0, face.normal ) );
-			const float verticalDist = std::fabs( static_cast< float >( QM_Vector3DotProductDP( point, face.normal ) ) - planeDist );
-			if ( verticalDist <= 64.0f ) {
+			const double planeDist = QM_Vector3DotProductDP( v0, face.normal );
+			const double verticalDist = std::fabs( QM_Vector3DotProductDP( point, face.normal ) - planeDist );
+			if ( verticalDist <= 64.0 ) {
 				return leafFace;
 			}
 		}
@@ -1181,6 +1242,9 @@ static void Nav_EnforceConvexCornerWaypoints( const std::vector<int32_t> &path, 
 	wpMin = wpMin - Vector3DP{ NAV_CORNER_SEARCH_PADDING_XY, NAV_CORNER_SEARCH_PADDING_XY, NAV_CORNER_SEARCH_PADDING_Z };
 	wpMax = wpMax + Vector3DP{ NAV_CORNER_SEARCH_PADDING_XY, NAV_CORNER_SEARCH_PADDING_XY, NAV_CORNER_SEARCH_PADDING_Z };
 
+	// Build fast lookup set of faces in the active path corridor to exclude unrelated corners from other rooms.
+	std::unordered_set<int32_t> pathFaces( path.begin(), path.end() );
+
 	for ( const auto &c : s_nav_cached_corners ) {
 		if ( c.vertex.x < wpMin.x || c.vertex.x > wpMax.x ||
 			 c.vertex.y < wpMin.y || c.vertex.y > wpMax.y ||
@@ -1192,10 +1256,26 @@ static void Nav_EnforceConvexCornerWaypoints( const std::vector<int32_t> &path, 
 		Vector3DP standoffMid = c.vertex + c.bisectorNorm * standoffDist;
 		standoffMid.z = c.vertex.z;
 
-		// Ensure the standoff point actually lies on a valid walkable navigation mesh face:
+		// Ensure the standoff point actually lies on a valid walkable navigation mesh face within the local leaf:
 		const int32_t faceIdx = Nav_FindClosestFaceInLeaf( standoffMid );
 		if ( faceIdx == -1 || !Nav_PointInsideFace2D( standoffMid, g_nav_faces[ faceIdx ] ) ) {
 			continue; // Standoff is outside the walkable navigation mesh (e.g. over a cliff or inside a wall)
+		}
+
+		// Verify the resolved face belongs to the active path corridor or an immediate neighbor face:
+		bool faceInCorridor = ( pathFaces.find( faceIdx ) != pathFaces.end() );
+		if ( !faceInCorridor ) {
+			const nav_face_t &face = g_nav_faces[ faceIdx ];
+			for ( int32_t e = 0; e < face.num_edges; ++e ) {
+				const nav_halfedge_t &he = g_nav_halfedges[ face.first_edge_idx + e ];
+				if ( he.twin_idx != -1 && pathFaces.find( g_nav_halfedges[ he.twin_idx ].face_idx ) != pathFaces.end() ) {
+					faceInCorridor = true;
+					break;
+				}
+			}
+		}
+		if ( !faceInCorridor ) {
+			continue; // Standoff is in an unrelated room or on the opposite side of a wall
 		}
 
 		corridorCorners.push_back( { c.vertex, standoffMid, standoffDist } );
@@ -1216,11 +1296,31 @@ static void Nav_EnforceConvexCornerWaypoints( const std::vector<int32_t> &path, 
 			const double dx = waypoints[ i ].x - corner.vertex.x;
 			const double dy = waypoints[ i ].y - corner.vertex.y;
 			if ( ( dx * dx + dy * dy ) < NAV_CORNER_SNAP_RADIUS_SQR && std::fabs( waypoints[ i ].z - corner.vertex.z ) <= NAV_MAX_STEP_HEIGHT ) {
-				waypoints[ i ] = corner.standoffMid;
-				if ( forcedWaypoints != nullptr && i < forcedWaypoints->size() ) {
-					( *forcedWaypoints )[ i ] = true;
+				// Line-of-sight verification: ensure snapping does not place the waypoint across a solid brush
+				bool snapSafe = true;
+				const Vector3 testMid = static_cast<Vector3>( corner.standoffMid ) + Vector3{ 0.0f, 0.0f, static_cast<float>( NAV_MAX_STEP_HEIGHT ) };
+				if ( i > 0 ) {
+					const Vector3 testPrev = static_cast<Vector3>( waypoints[ i - 1 ] ) + Vector3{ 0.0f, 0.0f, static_cast<float>( NAV_MAX_STEP_HEIGHT ) };
+					const svg_trace_t tr = SVG_Trace( testPrev, vec3_origin, vec3_origin, testMid, nullptr, CM_CONTENTMASK_SOLID );
+					if ( tr.fraction < 1.0f || tr.startsolid || tr.allsolid ) {
+						snapSafe = false;
+					}
 				}
-				break;
+				if ( snapSafe && i + 1 < waypoints.size() ) {
+					const Vector3 testNext = static_cast<Vector3>( waypoints[ i + 1 ] ) + Vector3{ 0.0f, 0.0f, static_cast<float>( NAV_MAX_STEP_HEIGHT ) };
+					const svg_trace_t tr = SVG_Trace( testMid, vec3_origin, vec3_origin, testNext, nullptr, CM_CONTENTMASK_SOLID );
+					if ( tr.fraction < 1.0f || tr.startsolid || tr.allsolid ) {
+						snapSafe = false;
+					}
+				}
+
+				if ( snapSafe ) {
+					waypoints[ i ] = corner.standoffMid;
+					if ( forcedWaypoints != nullptr && i < forcedWaypoints->size() ) {
+						( *forcedWaypoints )[ i ] = true;
+					}
+					break;
+				}
 			}
 		}
 	}
@@ -1299,6 +1399,21 @@ static void Nav_EnforceConvexCornerWaypoints( const std::vector<int32_t> &path, 
 
 					for ( const auto &sc : segmentCorners ) {
 						if ( refinedWaypoints.empty() || QM_Vector3DistanceSqrDP( refinedWaypoints.back(), sc.corner->standoffMid ) > NAV_CORNER_DUPLICATE_TOLERANCE_SQR ) {
+							// Line-of-sight verification: segment refinedWaypoints.back() -> standoff and standoff -> p1 must NOT cut through solid brushes
+							const Vector3 tracePrev = static_cast<Vector3>( refinedWaypoints.back() ) + Vector3{ 0.0f, 0.0f, static_cast<float>( NAV_MAX_STEP_HEIGHT ) };
+							const Vector3 traceMid = static_cast<Vector3>( sc.corner->standoffMid ) + Vector3{ 0.0f, 0.0f, static_cast<float>( NAV_MAX_STEP_HEIGHT ) };
+							const Vector3 traceNext = static_cast<Vector3>( p1 ) + Vector3{ 0.0f, 0.0f, static_cast<float>( NAV_MAX_STEP_HEIGHT ) };
+
+							const svg_trace_t tr1 = SVG_Trace( tracePrev, vec3_origin, vec3_origin, traceMid, nullptr, CM_CONTENTMASK_SOLID );
+							if ( tr1.fraction < 1.0f || tr1.startsolid || tr1.allsolid ) {
+								continue; // Path through brush; do not insert!
+							}
+
+							const svg_trace_t tr2 = SVG_Trace( traceMid, vec3_origin, vec3_origin, traceNext, nullptr, CM_CONTENTMASK_SOLID );
+							if ( tr2.fraction < 1.0f || tr2.startsolid || tr2.allsolid ) {
+								continue; // Path through brush; do not insert!
+							}
+
 							refinedWaypoints.push_back( sc.corner->standoffMid );
 							if ( forcedWaypoints != nullptr ) {
 								refinedForced.push_back( true );

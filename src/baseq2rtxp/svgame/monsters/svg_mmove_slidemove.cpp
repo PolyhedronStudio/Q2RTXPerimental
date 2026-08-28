@@ -314,8 +314,30 @@ const mm_slide_move_flags_t SVG_MMove_SlideMove( Vector3 &origin, Vector3 &veloc
 		* If the clipped velocity magnitude is below the stop threshold, stop sliding.
 		**/
 		if ( QM_Vector3LengthSqr( clipVelocity ) < ( MM_STOP_EPSILON * MM_STOP_EPSILON ) ) {
-			velocity = {};
-			break;
+			// Dynamic Entity Deflection: If blocked head-on by a living entity (player or monster),
+			// deflect along the contact plane tangent away from the blocking entity's center rather than halting dead.
+			if ( trace.ent && ( trace.ent->client || ( ( trace.ent->svFlags & SVF_MONSTER ) != 0 ) ) ) {
+				const float origSpeed = QM_Vector3Length( original_velocity );
+				if ( origSpeed > 10.0f && numplanes > 0 ) {
+					const Vector3 normal = planes[ 0 ];
+					Vector3 tangent = Vector3{ -normal.y, normal.x, 0.0f };
+					const float tangentLen = QM_Vector3Length( tangent );
+					if ( tangentLen > 0.001f ) {
+						tangent = tangent * ( 1.0f / tangentLen );
+						const Vector3 offset = origin - trace.ent->currentOrigin;
+						const float side = ( offset.x * tangent.x ) + ( offset.y * tangent.y );
+						if ( side < 0.0f ) {
+							tangent = tangent * -1.0f;
+						}
+						clipVelocity = tangent * origSpeed;
+					}
+				}
+			}
+
+			if ( QM_Vector3LengthSqr( clipVelocity ) < ( MM_STOP_EPSILON * MM_STOP_EPSILON ) ) {
+				velocity = {};
+				break;
+			}
 		}
 
 		// Commit the resolved slide direction and continue with the remaining frame time.

@@ -68,6 +68,39 @@ void SVG_Crowd_GeneratePerimeterSlots( const size_t memberCount, const svg_crowd
 void SVG_Crowd_GenerateColumnSlots( const size_t memberCount, const svg_crowd_params_t &params, std::vector<svg_crowd_slot_t> &outSlots );
 
 /**
+*	@brief	Generate local slot offsets for a double-column staggered patrol march.
+*	@param	memberCount	Number of squad members to place.
+*	@param	params		Formation spacing parameters.
+*	@param	outSlots	[out] Array of computed local slots.
+**/
+void SVG_Crowd_GenerateStaggeredColumnSlots( const size_t memberCount, const svg_crowd_params_t &params, std::vector<svg_crowd_slot_t> &outSlots );
+
+/**
+*	@brief	Generate local slot offsets for a 4-point diamond / 5-point box formation.
+*	@param	memberCount	Number of squad members to place.
+*	@param	params		Formation spacing parameters.
+*	@param	outSlots	[out] Array of computed local slots.
+**/
+void SVG_Crowd_GenerateBoxDiamondSlots( const size_t memberCount, const svg_crowd_params_t &params, std::vector<svg_crowd_slot_t> &outSlots );
+
+/**
+*	@brief	Generate local slot offsets for a slanted echelon formation.
+*	@param	memberCount	Number of squad members to place.
+*	@param	params		Formation spacing parameters.
+*	@param	leftFlank	True for echelon left, false for echelon right.
+*	@param	outSlots	[out] Array of computed local slots.
+**/
+void SVG_Crowd_GenerateEchelonSlots( const size_t memberCount, const svg_crowd_params_t &params, const bool leftFlank, std::vector<svg_crowd_slot_t> &outSlots );
+
+/**
+*	@brief	Compute walkable corridor clearance width around a world position on the navmesh.
+*	@param	worldOrigin		Query position in world space.
+*	@param	desiredWidth	Default unconstrained formation width.
+*	@return	Constrained width allowed by navmesh boundaries (at least 24 units).
+**/
+double SVG_Crowd_ComputeCorridorClearance( const Vector3DP &worldOrigin, const double desiredWidth );
+
+/**
 *	@brief	Master dispatcher: generate local slots for any given crowd style.
 *	@param	style		Formation style identifier.
 *	@param	memberCount	Number of squad members to place.
@@ -122,3 +155,13 @@ void SVG_Crowd_AssignMembersToSlots( const std::vector<Vector3DP> &memberOrigins
 *	@param	outMemberToSlotMap	[out] Mapping from member index (0..N-1) to assigned slot index (0..N-1).
 **/
 void SVG_Crowd_AssignMembersToSlots( const std::vector<Vector3> &memberOrigins, const std::vector<svg_crowd_slot_t> &slots, std::vector<int32_t> &outMemberToSlotMap );
+
+/**
+*	@brief		Assign crowd members to formation slots with hysteresis to prevent thrashing between frames.
+*	@param	memberOrigins		Current feet origins of the crowd member entities (Vector3DP).
+*	@param	slots				Target formation slot definitions.
+*	@param	previousSlotMap		Previous frame's slot assignments for each member (or -1 if new).
+*	@param	outMemberToSlotMap	[out] Mapping from member index (0..N-1) to assigned slot index (0..N-1).
+*	@param	hysteresisDist		Bonus distance threshold (default: 48.0 units) to favor holding current slot.
+**/
+void SVG_Crowd_AssignMembersToSlotsHysteresis( const std::vector<Vector3DP> &memberOrigins, const std::vector<svg_crowd_slot_t> &slots, const std::vector<int32_t> &previousSlotMap, std::vector<int32_t> &outMemberToSlotMap, const double hysteresisDist = 48.0 );
