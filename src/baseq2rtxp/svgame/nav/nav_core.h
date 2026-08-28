@@ -10,15 +10,17 @@
 #define NAV7_VERSION 5
 
 //! Upper bound for the number of generated nav faces kept in memory.
-constexpr int32_t MAX_NAV_FACES = 262144;
+constexpr int32_t NAV_MAX_FACES = 262144;
 //! Upper bound for the number of generated half-edges kept in memory.
-constexpr int32_t MAX_NAV_HALFEDGES = 1048576;
+constexpr int32_t NAV_MAX_HALFEDGES = 1048576;
 //! Upper bound for the number of generated vertices kept in memory.
-constexpr int32_t MAX_NAV_VERTICES = 524288;
+constexpr int32_t NAV_MAX_VERTICES = 524288;
 //! Upper bound for KD-tree nodes allocated during nav generation.
-constexpr int32_t MAX_NAV_KDTREE_NODES = 16777216;
+constexpr int32_t NAV_MAX_KDTREE_NODES = 16777216;
 //! Upper bound for BSP leaf links recorded during generation.
-constexpr int32_t MAX_NAV_LEAF_LINKS = 16384;
+constexpr int32_t NAV_MAX_LEAF_LINKS = 16384;
+
+
 
 //! Maximum step height in Quake units that AI may step up without extra logic.
 constexpr float NAV_MAX_STEP_HEIGHT = PHYS_STEP_MAX_SIZE + PHYS_STEP_GROUND_DIST;

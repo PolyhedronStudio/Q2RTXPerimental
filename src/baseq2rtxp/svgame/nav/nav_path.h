@@ -12,6 +12,62 @@ static constexpr float NAV_DROPOFF_MAX_SIZE = 196.0f;
 static constexpr float WAYPOINT_EPS_SQR = 4.0f * 4.0f;
 //! Squared epsilon used for portal crossing checks.
 static constexpr float PORTAL_EPS_SQR = 16.0f * 16.0f;
+
+//! Extra clearance buffer added to agent radius for portal insetting away from solid walls.
+static constexpr double NAV_PORTAL_CLEARANCE_MARGIN = 4.0;
+
+//! Extra clearance buffer added to agent radius for convex obstacle corner standoffs.
+static constexpr double NAV_CORNER_CLEARANCE_MARGIN = 12.0;
+
+//! Maximum vertex proximity distance for two half-edges to share a corner vertex.
+static constexpr double NAV_CORNER_VERTEX_EPSILON = 4.0;
+//! Squared vertex proximity distance for two half-edges to share a corner vertex.
+static constexpr double NAV_CORNER_VERTEX_EPSILON_SQR = NAV_CORNER_VERTEX_EPSILON * NAV_CORNER_VERTEX_EPSILON;
+
+//! Maximum dot product between solid edge directions to qualify as a corner turn (>= 10 degrees, supporting circular/curved brushes).
+static constexpr double NAV_CORNER_STRAIGHT_WALL_MAX_DOT = -0.985;
+
+//! Maximum scale factor applied to the corner bisector standoff on acute angles to prevent excessive push-out.
+static constexpr double NAV_CORNER_MAX_BISECTOR_RATIO = 2.5;
+
+//! Minimum projection magnitude of portal direction onto wall normal to prevent division by near-zero.
+static constexpr double NAV_PORTAL_MIN_NORMAL_PROJECTION = 0.15;
+
+//! Minimum vertical delta between adjacent nav faces or waypoints to qualify as a vertical step transition (stair, curb, or ledge).
+static constexpr double NAV_STEP_MIN_VERTICAL_DELTA = 0.5;
+
+//! Minimum vertical step height difference for neighbor landing platform verification.
+static constexpr double NAV_STEP_LANDING_MIN_DELTA = 0.5;
+
+//! Extra forward runway distance margin added to agent radius when landing on platforms from stairways.
+static constexpr double NAV_STEP_RUNWAY_MARGIN = 12.0;
+
+//! Maximum normal Z value for a nav face to qualify as an inclined ramp/slope surface.
+static constexpr double NAV_RAMP_MAX_NORMAL_Z = 0.99;
+
+//! Spatial deduplication radius for obstacle corners across the map.
+static constexpr double NAV_CORNER_DEDUPLICATION_RADIUS = 8.0;
+//! Squared spatial deduplication radius for obstacle corners across the map.
+static constexpr double NAV_CORNER_DEDUPLICATION_RADIUS_SQR = NAV_CORNER_DEDUPLICATION_RADIUS * NAV_CORNER_DEDUPLICATION_RADIUS;
+
+//! Snap distance threshold within which an unforced waypoint snaps to a corner standoff midpoint.
+static constexpr double NAV_CORNER_SNAP_RADIUS = 24.0;
+//! Squared snap distance threshold within which an unforced waypoint snaps to a corner standoff midpoint.
+static constexpr double NAV_CORNER_SNAP_RADIUS_SQR = NAV_CORNER_SNAP_RADIUS * NAV_CORNER_SNAP_RADIUS;
+
+//! Minimum and maximum parametric range along a segment for corner standoff insertion.
+static constexpr double NAV_CORNER_SEGMENT_MIN_T = 0.05;
+static constexpr double NAV_CORNER_SEGMENT_MAX_T = 0.95;
+
+//! Tolerance distance threshold to avoid inserting duplicate standoff waypoints too close to existing endpoints.
+static constexpr double NAV_CORNER_DUPLICATE_TOLERANCE = 8.0;
+//! Squared tolerance distance threshold to avoid inserting duplicate standoff waypoints too close to existing endpoints.
+static constexpr double NAV_CORNER_DUPLICATE_TOLERANCE_SQR = NAV_CORNER_DUPLICATE_TOLERANCE * NAV_CORNER_DUPLICATE_TOLERANCE;
+
+//! Horizontal expansion bounds for gathering relevant obstacle corners along the path corridor.
+static constexpr double NAV_CORNER_SEARCH_PADDING_XY = 160.0;
+//! Vertical expansion bounds for gathering relevant obstacle corners along the path corridor.
+static constexpr double NAV_CORNER_SEARCH_PADDING_Z = 64.0;
 /**
 *	@brief	Path policy describing movement limits and traversal preferences.
 *	@note	These values are consumed by the nav pathfinder and the movement steering code.
@@ -88,6 +144,18 @@ inline bool Nav_PointInsideFace2D( const Vector3 &point, const nav_face_t &face 
 }
 
 /**
+*	@brief	Compute squared 2D perpendicular distance from point p to line segment (a -> b).
+*	@param	p	Query point in world space.
+*	@param	a	First segment endpoint in world space.
+*	@param	b	Second segment endpoint in world space.
+*	@return	Squared 2D Euclidean distance between p and the closest point on segment ab.
+**/
+double Nav_DistancePointToSegment2DSqr( const Vector3DP &p, const Vector3DP &a, const Vector3DP &b );
+inline double Nav_DistancePointToSegment2DSqr( const Vector3 &p, const Vector3 &a, const Vector3 &b ) {
+	return Nav_DistancePointToSegment2DSqr( Vector3DP( p ), Vector3DP( a ), Vector3DP( b ) );
+}
+
+/**
 *	@brief	Return the nav face that actually contains a point.
 *	@param	point World-space position.
 *	@return	Index of the face, or -1 if none was found.
@@ -153,6 +221,16 @@ void Nav_LogLastPathDiagnostics( void );
 int32_t Nav_FindClosestPolyGlobal( const Vector3DP &point );
 inline int32_t Nav_FindClosestPolyGlobal( const Vector3 &point ) {
 	return Nav_FindClosestPolyGlobal( Vector3DP( point ) );
+}
+
+/**
+*	@brief	Find closest nav face in the current BSP leaf with fallback to global KD-tree.
+*	@param	point	Query position in feet-origin space.
+*	@return	Index of closest nav face or -1.
+**/
+int32_t Nav_FindClosestFaceInLeaf( const Vector3DP &point );
+inline int32_t Nav_FindClosestFaceInLeaf( const Vector3 &point ) {
+	return Nav_FindClosestFaceInLeaf( Vector3DP( point ) );
 }
 
 /**

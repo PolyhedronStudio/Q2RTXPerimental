@@ -23,6 +23,53 @@
 #include "svgame/nav/nav_path.h"
 #include "svgame/nav/nav_cover_query.h"
 
+//! Arrival radius for standard intermediate path waypoints.
+static constexpr double MONSTER_NAV_WAYPOINT_REACH_RADIUS = 16.0;
+//! Arrival radius squared for standard intermediate path waypoints.
+static constexpr double MONSTER_NAV_WAYPOINT_REACH_RADIUS_SQR = MONSTER_NAV_WAYPOINT_REACH_RADIUS * MONSTER_NAV_WAYPOINT_REACH_RADIUS;
+
+//! Tighter arrival radius for forced corner standoff waypoints to ensure rounding the apex.
+static constexpr double MONSTER_NAV_SHARP_CORNER_REACH_RADIUS = 12.0;
+//! Tighter arrival radius squared for forced corner standoff waypoints to ensure rounding the apex.
+static constexpr double MONSTER_NAV_SHARP_CORNER_REACH_RADIUS_SQR = MONSTER_NAV_SHARP_CORNER_REACH_RADIUS * MONSTER_NAV_SHARP_CORNER_REACH_RADIUS;
+
+//! Pure-pursuit lookahead distance along subsequent path segments for gentle turns.
+static constexpr double MONSTER_NAV_LOOKAHEAD_DISTANCE = 24.0;
+
+//! Outward normal bias factor added to wall-parallel sliding direction to steer around corner apexes.
+static constexpr double MONSTER_NAV_CORNER_DEFLECTION_BIAS = 0.35;
+
+//! Lateral corridor width tolerance buffer added to entity radius (corridorDist = R_agent * 2.0 + MARGIN).
+static constexpr double MONSTER_NAV_CORRIDOR_MARGIN = 8.0;
+
+//! Maximum vertical step-up tolerance allowed above NAV_MAX_STEP_HEIGHT for path continuity.
+static constexpr double MONSTER_NAV_VERTICAL_STEP_TOLERANCE = 6.0;
+
+//! Minimum vertical delta for an agent to treat a path waypoint as a vertical step-up or step-down.
+static constexpr double MONSTER_NAV_STEP_MIN_DELTA = 0.5;
+
+//! Vertical tolerance around target elevation to consider an agent having physically landed on a step surface.
+static constexpr double MONSTER_NAV_STEP_ARRIVAL_TOLERANCE = 2.0;
+
+//! Proximity deadband distance to active waypoint within which steering looks forward to the subsequent waypoint to prevent yaw jitter.
+static constexpr double MONSTER_NAV_WAYPOINT_DEADBAND = 4.0;
+
+//! Dot product threshold between incoming and outgoing segment directions to qualify as a gentle turn (<= 30 degrees).
+static constexpr double MONSTER_NAV_GENTLE_TURN_MIN_DOT = 0.866;
+
+//! Maximum allowed vertical elevation difference to final goal position to consider arrived.
+static constexpr double MONSTER_NAV_FINAL_GOAL_MAX_Z_DELTA = 32.0;
+
+//! Angular deviation threshold in degrees beyond which speed scaling begins decelerating into turns.
+static constexpr double MONSTER_NAV_CORNER_DECEL_THRESHOLD_DEG = 35.0;
+
+//! Minimum speed scale floor during sharp corner turns.
+static constexpr double MONSTER_NAV_CORNER_DECEL_MIN_SPEED_SCALE = 0.40;
+
+//! Minimum time interval between full path recalculations when the goal is stationary.
+static constexpr QMTime MONSTER_NAV_PATH_RECALC_MIN_INTERVAL = 400_ms;
+
+
 /**
 *	@brief	Base entity class for all monsters.
 *	@details	Provides shared navigation pathfinding, waypoint progression,

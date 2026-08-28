@@ -762,16 +762,53 @@ static void Nav_EnsureVertexBoundaryTable() {
 	}
 }
 
+
 /**
- *	@brief	Clip a shared portal to the agent-clearance corridor of both adjacent faces in double precision.
- **/
-static bool Nav_ClipPortalForAgentClearance( const int32_t faceAIdx, const int32_t faceBIdx, const Vector3DP &portalLeft, const Vector3DP &portalRight, const double clearance, Vector3DP *outLeft, Vector3DP *outRight ) {
+*	@brief	Compute squared 2D perpendicular distance from point p to line segment (a -> b).
+*	@param	p	Query point in world space.
+*	@param	a	First segment endpoint in world space.
+*	@param	b	Second segment endpoint in world space.
+*	@return	Squared 2D Euclidean distance between p and the closest point on segment ab.
+**/
+double Nav_DistancePointToSegment2DSqr( const Vector3DP &p, const Vector3DP &a, const Vector3DP &b ) {
+	Vector3DP ab = b - a;
+	ab.z = 0.0;
+	const double abLen2 = ab.x * ab.x + ab.y * ab.y;
+	if ( abLen2 <= 0.0001 ) {
+		const double dx = p.x - a.x;
+		const double dy = p.y - a.y;
+		return dx * dx + dy * dy;
+	}
+	Vector3DP ap = p - a;
+	ap.z = 0.0;
+	const double t = QM_Clamp( ( ap.x * ab.x + ap.y * ab.y ) / abLen2, 0.0, 1.0 );
+	const Vector3DP proj = a + ab * t;
+	const double dx = p.x - proj.x;
+	const double dy = p.y - proj.y;
+	return dx * dx + dy * dy;
+}
+
+/**
+*	@brief	Clip a shared portal to the agent-clearance corridor of both adjacent faces in double precision.
+*	@param	faceAIdx			Index of first adjacent face.
+*	@param	faceBIdx			Index of second adjacent face.
+*	@param	portalLeft			Input left portal endpoint relative to traversal.
+*	@param	portalRight			Input right portal endpoint relative to traversal.
+*	@param	clearance			Required agent clearance distance.
+*	@param	outLeft				[out] Output receiving the clipped left endpoint.
+*	@param	outRight			[out] Output receiving the clipped right endpoint.
+*	@param	outIsNarrowPortal	[out,optional] Output set to true if portal was clamped to midpoint due to narrowness.
+*	@return	True if a valid clipped portal segment was produced.
+**/
+static bool Nav_ClipPortalForAgentClearance( const int32_t faceAIdx, const int32_t faceBIdx, const Vector3DP &portalLeft, const Vector3DP &portalRight, const double clearance, Vector3DP *outLeft, Vector3DP *outRight, bool *outIsNarrowPortal = nullptr ) {
 	if ( outLeft == nullptr || outRight == nullptr || clearance < 0.0 || faceAIdx < 0 || faceBIdx < 0 ||
 		static_cast<size_t>( faceAIdx ) >= g_nav_faces.size() || static_cast<size_t>( faceBIdx ) >= g_nav_faces.size() ) {
 		return false;
 	}
 
-	Nav_EnsureVertexBoundaryTable();
+	if ( outIsNarrowPortal != nullptr ) {
+		*outIsNarrowPortal = false;
+	}
 
 	Vector3DP portalDirection = portalLeft - portalRight;
 	portalDirection.z = 0.0;
@@ -781,15 +818,43 @@ static bool Nav_ClipPortalForAgentClearance( const int32_t faceAIdx, const int32
 	}
 	portalDirection = portalDirection * ( 1.0 / portalLength );
 
-	auto CheckPointTouchesSolidBoundary = []( const Vector3DP &pt ) -> bool {
-		for ( size_t vIdx = 0; vIdx < s_nav_vertex_is_boundary.size(); ++vIdx ) {
-			if ( s_nav_vertex_is_boundary[ vIdx ] != 0 ) {
-				const Vector3DP &bv = g_nav_vertices[ vIdx ];
-				if ( std::fabs( pt.z - bv.z ) <= NAV_MAX_STEP_HEIGHT ) {
-					const double dx = pt.x - bv.x;
-					const double dy = pt.y - bv.y;
-					if ( ( dx * dx + dy * dy ) <= 16.0 ) {
-						return true;
+	const nav_face_t &faceA = g_nav_faces[ faceAIdx ];
+	const nav_face_t &faceB = g_nav_faces[ faceBIdx ];
+
+	/**
+	*	Strict O(1) local boundary check: test if a portal endpoint touches any solid half-edge
+	*	belonging directly to faceA or faceB, and extract the 2D inward wall normal.
+	*	Avoids global mesh sweeps across thousands of edges.
+	**/
+	auto FindTouchingSolidBoundaryNormal = [&]( const Vector3DP &pt, const nav_face_t &face, Vector3DP *outNormal ) -> bool {
+		for ( int32_t e = 0; e < face.num_edges; ++e ) {
+			const nav_halfedge_t &he = g_nav_halfedges[ face.first_edge_idx + e ];
+			const bool isSolid = ( he.twin_idx == -1 || ( he.flags & NAV_EDGE_DISABLED ) != 0 || std::fabs( he.z_diff ) > NAV_MAX_STEP_HEIGHT );
+			if ( isSolid ) {
+				const Vector3DP &v0 = g_nav_vertices[ he.vertex_idx ];
+				const Vector3DP &v1 = g_nav_vertices[ g_nav_halfedges[ he.next_idx ].vertex_idx ];
+
+				// Check vertical proximity within step height
+				const double edgeMinZ = std::min( v0.z, v1.z ) - NAV_MAX_STEP_HEIGHT;
+				const double edgeMaxZ = std::max( v0.z, v1.z ) + NAV_MAX_STEP_HEIGHT;
+				if ( pt.z >= edgeMinZ && pt.z <= edgeMaxZ ) {
+					// Check 2D distance to the solid boundary line segment
+					const double distSqr = Nav_DistancePointToSegment2DSqr( pt, v0, v1 );
+					if ( distSqr <= NAV_CORNER_VERTEX_EPSILON_SQR ) {
+						Vector3DP d = v1 - v0;
+						d.z = 0.0;
+						const double len = QM_Vector3LengthDP( d );
+						if ( len > 0.001 ) {
+							const Vector3DP u = d * ( 1.0 / len );
+							Vector3DP inNorm{ -u.y, u.x, 0.0 };
+							Vector3DP toCenter = face.center - v0;
+							toCenter.z = 0.0;
+							if ( QM_Vector3DotProductDP( inNorm, toCenter ) < 0.0 ) {
+								inNorm = inNorm * -1.0;
+							}
+							*outNormal = inNorm;
+							return true;
+						}
 					}
 				}
 			}
@@ -797,23 +862,46 @@ static bool Nav_ClipPortalForAgentClearance( const int32_t faceAIdx, const int32
 		return false;
 	};
 
-	const bool rightTouchesWall = CheckPointTouchesSolidBoundary( portalRight );
-	const bool leftTouchesWall = CheckPointTouchesSolidBoundary( portalLeft );
+	Vector3DP wallNormalRight = {};
+	Vector3DP wallNormalLeft = {};
+	const bool rightTouchesWall = FindTouchingSolidBoundaryNormal( portalRight, faceA, &wallNormalRight ) ||
+	                              FindTouchingSolidBoundaryNormal( portalRight, faceB, &wallNormalRight );
+	const bool leftTouchesWall = FindTouchingSolidBoundaryNormal( portalLeft, faceA, &wallNormalLeft ) ||
+	                             FindTouchingSolidBoundaryNormal( portalLeft, faceB, &wallNormalLeft );
 
-	double minT = rightTouchesWall ? clearance : 0.0;
-	double maxT = leftTouchesWall ? ( portalLength - clearance ) : portalLength;
+	/**
+	*	Closed-form angle-projected perpendicular wall clearance:
+	*	t_min = clearance / max(NAV_PORTAL_MIN_NORMAL_PROJECTION, |u . n_wall|)
+	*	Guarantees the actual perpendicular distance from the resulting point to the solid wall
+	*	matches the required clearance distance, regardless of the portal's oblique angle theta.
+	**/
+	double minT = 0.0;
+	if ( rightTouchesWall ) {
+		const double projRight = std::fabs( QM_Vector3DotProductDP( portalDirection, wallNormalRight ) );
+		minT = clearance / std::max( NAV_PORTAL_MIN_NORMAL_PROJECTION, projRight );
+	}
+
+	double maxT = portalLength;
+	if ( leftTouchesWall ) {
+		const double projLeft = std::fabs( QM_Vector3DotProductDP( portalDirection * -1.0, wallNormalLeft ) );
+		maxT = portalLength - ( clearance / std::max( NAV_PORTAL_MIN_NORMAL_PROJECTION, projLeft ) );
+	}
 
 	// Clamp to midpoint if portal is narrow
 	if ( minT >= maxT ) {
 		const double midT = portalLength * 0.5;
 		*outRight = portalRight + portalDirection * midT;
 		*outLeft = *outRight;
+		if ( outIsNarrowPortal != nullptr ) {
+			*outIsNarrowPortal = true;
+		}
 		return true;
 	}
 
 	*outRight = portalRight + portalDirection * minT;
 	*outLeft = portalRight + portalDirection * maxT;
 	return true;
+
 }
 
 
@@ -834,27 +922,6 @@ static bool Nav_SegmentsIntersect2D( const Vector3DP &p1, const Vector3DP &p2, c
 	const double d4 = Nav_TriArea2D( p1, p2, p4 );
 	return ( ( ( d1 > 0.001 && d2 < -0.001 ) || ( d1 < -0.001 && d2 > 0.001 ) ) &&
 	         ( ( d3 > 0.001 && d4 < -0.001 ) || ( d3 < -0.001 && d4 > 0.001 ) ) );
-}
-
-/**
-*	@brief	Compute squared 2D perpendicular distance from point p to line segment (a -> b).
-**/
-static double Nav_DistancePointToSegment2DSqr( const Vector3DP &p, const Vector3DP &a, const Vector3DP &b ) {
-	Vector3DP ab = b - a;
-	ab.z = 0.0;
-	const double abLen2 = ab.x * ab.x + ab.y * ab.y;
-	if ( abLen2 <= 0.0001 ) {
-		const double dx = p.x - a.x;
-		const double dy = p.y - a.y;
-		return dx * dx + dy * dy;
-	}
-	Vector3DP ap = p - a;
-	ap.z = 0.0;
-	const double t = QM_Clamp( ( ap.x * ab.x + ap.y * ab.y ) / abLen2, 0.0, 1.0 );
-	const Vector3DP proj = a + ab * t;
-	const double dx = p.x - proj.x;
-	const double dy = p.y - proj.y;
-	return dx * dx + dy * dy;
 }
 
 /**
@@ -922,7 +989,7 @@ static void Nav_EnsureObstacleCornersTable() {
 
 		for ( int32_t e = 0; e < face.num_edges; e++ ) {
 			const nav_halfedge_t &he = g_nav_halfedges[ face.first_edge_idx + e ];
-			const bool isSolid = ( he.twin_idx == -1 || ( he.flags & NAV_EDGE_DISABLED ) != 0 || he.z_diff > NAV_MAX_STEP_HEIGHT );
+			const bool isSolid = ( he.twin_idx == -1 || ( he.flags & NAV_EDGE_DISABLED ) != 0 || std::fabs( he.z_diff ) > NAV_MAX_STEP_HEIGHT );
 			if ( isSolid ) {
 				const int32_t idx0 = he.vertex_idx;
 				const int32_t idx1 = g_nav_halfedges[ he.next_idx ].vertex_idx;
@@ -954,34 +1021,31 @@ static void Nav_EnsureObstacleCornersTable() {
 		for ( size_t j = i + 1; j < solidEdges.size(); ++j ) {
 			const auto &e2 = solidEdges[ j ];
 
-			if ( std::fabs( e1.v0.z - e2.v0.z ) > NAV_MAX_STEP_HEIGHT || std::fabs( e1.v1.z - e2.v1.z ) > NAV_MAX_STEP_HEIGHT ) {
-				continue; // Ignore edges on different vertical levels
-			}
-
+			// Find shared corner vertex between the two solid boundary edges
 			Vector3DP vCorner = {};
-			Vector3DP d1 = {};
-			Vector3DP d2 = {};
+			Vector3DP farPt1 = {};
+			Vector3DP farPt2 = {};
 			bool sharesVertex = false;
 
-			if ( e1.v1_idx == e2.v0_idx || QM_Vector3DistanceSqrDP( e1.v1, e2.v0 ) < 1.0 ) {
-				vCorner = e1.v1;
-				d1 = e1.v0 - vCorner;
-				d2 = e2.v1 - vCorner;
+			if ( e1.v1_idx == e2.v0_idx || ( QM_Vector3DistanceSqrDP( e1.v1, e2.v0 ) <= NAV_CORNER_VERTEX_EPSILON_SQR && std::fabs( e1.v1.z - e2.v0.z ) <= NAV_CORNER_VERTEX_EPSILON ) ) {
+				vCorner = ( e1.v1 + e2.v0 ) * 0.5;
+				farPt1 = e1.v0;
+				farPt2 = e2.v1;
 				sharesVertex = true;
-			} else if ( e1.v1_idx == e2.v1_idx || QM_Vector3DistanceSqrDP( e1.v1, e2.v1 ) < 1.0 ) {
-				vCorner = e1.v1;
-				d1 = e1.v0 - vCorner;
-				d2 = e2.v0 - vCorner;
+			} else if ( e1.v1_idx == e2.v1_idx || ( QM_Vector3DistanceSqrDP( e1.v1, e2.v1 ) <= NAV_CORNER_VERTEX_EPSILON_SQR && std::fabs( e1.v1.z - e2.v1.z ) <= NAV_CORNER_VERTEX_EPSILON ) ) {
+				vCorner = ( e1.v1 + e2.v1 ) * 0.5;
+				farPt1 = e1.v0;
+				farPt2 = e2.v0;
 				sharesVertex = true;
-			} else if ( e1.v0_idx == e2.v0_idx || QM_Vector3DistanceSqrDP( e1.v0, e2.v0 ) < 1.0 ) {
-				vCorner = e1.v0;
-				d1 = e1.v1 - vCorner;
-				d2 = e2.v1 - vCorner;
+			} else if ( e1.v0_idx == e2.v0_idx || ( QM_Vector3DistanceSqrDP( e1.v0, e2.v0 ) <= NAV_CORNER_VERTEX_EPSILON_SQR && std::fabs( e1.v0.z - e2.v0.z ) <= NAV_CORNER_VERTEX_EPSILON ) ) {
+				vCorner = ( e1.v0 + e2.v0 ) * 0.5;
+				farPt1 = e1.v1;
+				farPt2 = e2.v1;
 				sharesVertex = true;
-			} else if ( e1.v0_idx == e2.v1_idx || QM_Vector3DistanceSqrDP( e1.v0, e2.v1 ) < 1.0 ) {
-				vCorner = e1.v0;
-				d1 = e1.v1 - vCorner;
-				d2 = e2.v0 - vCorner;
+			} else if ( e1.v0_idx == e2.v1_idx || ( QM_Vector3DistanceSqrDP( e1.v0, e2.v1 ) <= NAV_CORNER_VERTEX_EPSILON_SQR && std::fabs( e1.v0.z - e2.v1.z ) <= NAV_CORNER_VERTEX_EPSILON ) ) {
+				vCorner = ( e1.v0 + e2.v1 ) * 0.5;
+				farPt1 = e1.v1;
+				farPt2 = e2.v0;
 				sharesVertex = true;
 			}
 
@@ -989,6 +1053,8 @@ static void Nav_EnsureObstacleCornersTable() {
 				continue;
 			}
 
+			Vector3DP d1 = farPt1 - vCorner;
+			Vector3DP d2 = farPt2 - vCorner;
 			d1.z = 0.0;
 			d2.z = 0.0;
 			const double len1 = QM_Vector3LengthDP( d1 );
@@ -999,9 +1065,9 @@ static void Nav_EnsureObstacleCornersTable() {
 			const Vector3DP u1 = d1 * ( 1.0 / len1 );
 			const Vector3DP u2 = d2 * ( 1.0 / len2 );
 
-			// Check if two solid edges form a true turn (not a continuous straight wall, turn angle >= 35 deg):
+			// Check if two solid edges form a true turn (not a continuous straight wall, turn angle >= 31.8 deg):
 			const double wallTurnDot = QM_Vector3DotProductDP( u1, u2 );
-			if ( wallTurnDot < -0.85 ) {
+			if ( wallTurnDot < NAV_CORNER_STRAIGHT_WALL_MAX_DOT ) {
 				continue; // Straight continuous wall
 			}
 
@@ -1016,13 +1082,20 @@ static void Nav_EnsureObstacleCornersTable() {
 			}
 			const Vector3DP bisectorNorm = bisector * ( 1.0 / bisectorLen );
 
+			// Convexity Invariant: The angle bisector of a convex obstacle corner points OUT into the open floor,
+			// which is opposite to the boundary edges (b . u1 <= 0 and b . u2 <= 0).
+			// Concave interior room corners have the bisector pointing into the corner cone (b . u > 0) and must be excluded.
+			if ( QM_Vector3DotProductDP( bisectorNorm, u1 ) > 0.001 || QM_Vector3DotProductDP( bisectorNorm, u2 ) > 0.001 ) {
+				continue; // Concave room corner or flat wall
+			}
+
 			const double dotN = std::clamp( QM_Vector3DotProductDP( n1, n2 ), -1.0, 1.0 );
 			const double cosHalf = std::sqrt( std::max( 0.001, ( 1.0 + dotN ) * 0.5 ) );
 
 			// Deduplicate corners spatially:
 			bool duplicate = false;
 			for ( const auto &existing : s_nav_cached_corners ) {
-				if ( QM_Vector3DistanceSqrDP( existing.vertex, vCorner ) < ( 24.0 * 24.0 ) &&
+				if ( QM_Vector3DistanceSqrDP( existing.vertex, vCorner ) < NAV_CORNER_DEDUPLICATION_RADIUS_SQR &&
 					 std::fabs( existing.vertex.z - vCorner.z ) <= NAV_MAX_STEP_HEIGHT ) {
 					duplicate = true;
 					break;
@@ -1033,6 +1106,35 @@ static void Nav_EnsureObstacleCornersTable() {
 			}
 		}
 	}
+}
+
+/**
+*	@brief	Find closest nav face in the current BSP leaf with fallback to global KD-tree.
+*	@param	point	Query position in feet-origin space.
+*	@return	Index of closest nav face or -1.
+**/
+int32_t Nav_FindClosestFaceInLeaf( const Vector3DP &point ) {
+	/**
+	*	Prefer local KD-tree face lookup for stable corner progression.
+	*	Verify 2D containment and vertical proximity to ensure a valid surface.
+	**/
+	const int32_t leafFace = Nav_FindPolyInLeaf( point );
+	if ( leafFace >= 0 && static_cast< size_t >( leafFace ) < g_nav_faces.size() ) {
+		const nav_face_t &face = g_nav_faces[ leafFace ];
+		if ( Nav_PointInsideFace2D( point, face ) ) {
+			const Vector3DP v0 = g_nav_vertices[ g_nav_halfedges[ face.first_edge_idx ].vertex_idx ];
+			const float planeDist = static_cast< float >( QM_Vector3DotProductDP( v0, face.normal ) );
+			const float verticalDist = std::fabs( static_cast< float >( QM_Vector3DotProductDP( point, face.normal ) ) - planeDist );
+			if ( verticalDist <= 64.0f ) {
+				return leafFace;
+			}
+		}
+	}
+
+	/**
+	*	Fallback to global closest poly lookup.
+	**/
+	return Nav_FindClosestPolyGlobal( point );
 }
 
 /**
@@ -1055,17 +1157,13 @@ static void Nav_EnforceConvexCornerWaypoints( const std::vector<int32_t> &path, 
 	}
 
 	// Base standoff clearance distance scaled dynamically by entity bounding box radius (mins/maxs half-width).
-	// Defaults to 24.0 units when agent radius is unspecified or zero: standard Quake II / idTech 2 entity
-	// half-width bounding box is 16.0 units (e.g. mins=[-16, -16, -24], maxs=[16, 16, 32]), with an added
-	// 8.0-unit safety margin (16.0 + 8.0 = 24.0) to ensure complete clearance around convex obstacle corners.
-	const double requiredClearance = ( agentRadius > 0.0 ) ? ( agentRadius + 8.0 ) : 24.0;
+	// Uses standard entity default (16.0) plus NAV_CORNER_CLEARANCE_MARGIN (12.0) = 28.0 units when radius is unspecified.
+	const double requiredClearance = ( agentRadius > 0.0 ) ? ( agentRadius + NAV_CORNER_CLEARANCE_MARGIN ) : ( 16.0 + NAV_CORNER_CLEARANCE_MARGIN );
 
 	// 1. Gather precomputed corners relevant to the path 3D bounding box:
 	struct corner_info_t {
 		Vector3DP vertex;
-		Vector3DP standoffIn;
 		Vector3DP standoffMid;
-		Vector3DP standoffOut;
 		double standoffDist = 0.0;
 	};
 	std::vector<corner_info_t> corridorCorners;
@@ -1080,8 +1178,8 @@ static void Nav_EnforceConvexCornerWaypoints( const std::vector<int32_t> &path, 
 		wpMax.y = std::max( wpMax.y, wp.y );
 		wpMax.z = std::max( wpMax.z, wp.z );
 	}
-	wpMin = wpMin - Vector3DP{ 160.0, 160.0, 64.0 };
-	wpMax = wpMax + Vector3DP{ 160.0, 160.0, 64.0 };
+	wpMin = wpMin - Vector3DP{ NAV_CORNER_SEARCH_PADDING_XY, NAV_CORNER_SEARCH_PADDING_XY, NAV_CORNER_SEARCH_PADDING_Z };
+	wpMax = wpMax + Vector3DP{ NAV_CORNER_SEARCH_PADDING_XY, NAV_CORNER_SEARCH_PADDING_XY, NAV_CORNER_SEARCH_PADDING_Z };
 
 	for ( const auto &c : s_nav_cached_corners ) {
 		if ( c.vertex.x < wpMin.x || c.vertex.x > wpMax.x ||
@@ -1090,16 +1188,17 @@ static void Nav_EnforceConvexCornerWaypoints( const std::vector<int32_t> &path, 
 			continue;
 		}
 
-		const double standoffDist = std::min( requiredClearance * 2.5, requiredClearance / c.bisectorCosHalf );
+		const double standoffDist = std::min( requiredClearance * NAV_CORNER_MAX_BISECTOR_RATIO, requiredClearance / c.bisectorCosHalf );
 		Vector3DP standoffMid = c.vertex + c.bisectorNorm * standoffDist;
 		standoffMid.z = c.vertex.z;
 
-		Vector3DP standoffIn = c.vertex + c.u1 * requiredClearance + c.n1 * requiredClearance;
-		standoffIn.z = c.vertex.z;
-		Vector3DP standoffOut = c.vertex + c.u2 * requiredClearance + c.n2 * requiredClearance;
-		standoffOut.z = c.vertex.z;
+		// Ensure the standoff point actually lies on a valid walkable navigation mesh face:
+		const int32_t faceIdx = Nav_FindClosestFaceInLeaf( standoffMid );
+		if ( faceIdx == -1 || !Nav_PointInsideFace2D( standoffMid, g_nav_faces[ faceIdx ] ) ) {
+			continue; // Standoff is outside the walkable navigation mesh (e.g. over a cliff or inside a wall)
+		}
 
-		corridorCorners.push_back( { c.vertex, standoffIn, standoffMid, standoffOut, standoffDist } );
+		corridorCorners.push_back( { c.vertex, standoffMid, standoffDist } );
 	}
 
 	if ( corridorCorners.empty() ) {
@@ -1110,13 +1209,13 @@ static void Nav_EnforceConvexCornerWaypoints( const std::vector<int32_t> &path, 
 	for ( size_t i = 0; i < waypoints.size(); ++i ) {
 		const bool isForced = ( forcedWaypoints != nullptr && i < forcedWaypoints->size() && ( *forcedWaypoints )[ i ] );
 		if ( isForced ) {
-			continue;
+			continue; // Forced stair waypoints and doorways must remain strictly centered and never snapped to wall standoffs
 		}
 
 		for ( const auto &corner : corridorCorners ) {
 			const double dx = waypoints[ i ].x - corner.vertex.x;
 			const double dy = waypoints[ i ].y - corner.vertex.y;
-			if ( ( dx * dx + dy * dy ) < ( 24.0 * 24.0 ) && std::fabs( waypoints[ i ].z - corner.vertex.z ) <= NAV_MAX_STEP_HEIGHT ) {
+			if ( ( dx * dx + dy * dy ) < NAV_CORNER_SNAP_RADIUS_SQR && std::fabs( waypoints[ i ].z - corner.vertex.z ) <= NAV_MAX_STEP_HEIGHT ) {
 				waypoints[ i ] = corner.standoffMid;
 				if ( forcedWaypoints != nullptr && i < forcedWaypoints->size() ) {
 					( *forcedWaypoints )[ i ] = true;
@@ -1129,9 +1228,9 @@ static void Nav_EnforceConvexCornerWaypoints( const std::vector<int32_t> &path, 
 	// 4. Single-pass insertion of standoff waypoints for segments that violate corner clearance:
 	std::vector<Vector3DP> refinedWaypoints;
 	std::vector<bool> refinedForced;
-	refinedWaypoints.reserve( waypoints.size() + corridorCorners.size() * 3 );
+	refinedWaypoints.reserve( waypoints.size() + corridorCorners.size() );
 	if ( forcedWaypoints != nullptr ) {
-		refinedForced.reserve( waypoints.size() + corridorCorners.size() * 3 );
+		refinedForced.reserve( waypoints.size() + corridorCorners.size() );
 	}
 
 	for ( size_t i = 0; i < waypoints.size(); ++i ) {
@@ -1144,6 +1243,14 @@ static void Nav_EnforceConvexCornerWaypoints( const std::vector<int32_t> &path, 
 			const Vector3DP &p0 = waypoints[ i ];
 			const Vector3DP &p1 = waypoints[ i + 1 ];
 
+			// If this segment traverses a vertical step transition (stairs, curb, or ledge),
+			// do NOT deflect it with corner standoffs. Stairway waypoints must remain strictly aligned to step centers.
+			const bool isP0Forced = ( forcedWaypoints != nullptr && i < forcedWaypoints->size() && ( *forcedWaypoints )[ i ] );
+			const bool isP1Forced = ( forcedWaypoints != nullptr && i + 1 < forcedWaypoints->size() && ( *forcedWaypoints )[ i + 1 ] );
+			if ( ( isP0Forced || isP1Forced ) && std::fabs( p1.z - p0.z ) >= NAV_STEP_MIN_VERTICAL_DELTA ) {
+				continue;
+			}
+
 			Vector3DP segDir = p1 - p0;
 			segDir.z = 0.0;
 			const double segLen = QM_Vector3LengthDP( segDir );
@@ -1151,7 +1258,11 @@ static void Nav_EnforceConvexCornerWaypoints( const std::vector<int32_t> &path, 
 			if ( segLen > 0.001 ) {
 				const Vector3DP segDirNorm = segDir * ( 1.0 / segLen );
 
-				const corner_info_t *bestCorner = nullptr;
+				struct segment_corner_t {
+					double t = 0.0;
+					const corner_info_t *corner = nullptr;
+				};
+				std::vector<segment_corner_t> segmentCorners;
 
 				for ( const auto &corner : corridorCorners ) {
 					const double segMinZ = std::min( p0.z, p1.z ) - NAV_MAX_STEP_HEIGHT;
@@ -1164,41 +1275,34 @@ static void Nav_EnforceConvexCornerWaypoints( const std::vector<int32_t> &path, 
 					toCorner.z = 0.0;
 					const double t = ( toCorner.x * segDirNorm.x + toCorner.y * segDirNorm.y ) / segLen;
 
-					if ( t > 0.05 && t < 0.95 ) {
+					if ( t > NAV_CORNER_SEGMENT_MIN_T && t < NAV_CORNER_SEGMENT_MAX_T ) {
 						const Vector3DP proj = p0 + segDirNorm * ( t * segLen );
 						const double dist2DSqr = ( corner.vertex.x - proj.x ) * ( corner.vertex.x - proj.x ) +
 												 ( corner.vertex.y - proj.y ) * ( corner.vertex.y - proj.y );
 
 						if ( dist2DSqr < ( corner.standoffDist * corner.standoffDist ) ) {
-							if ( QM_Vector3DistanceSqrDP( p0, corner.standoffMid ) > ( 16.0 * 16.0 ) &&
-								 QM_Vector3DistanceSqrDP( p1, corner.standoffMid ) > ( 16.0 * 16.0 ) ) {
-								bestCorner = &corner;
-								break;
+							if ( QM_Vector3DistanceSqrDP( p0, corner.standoffMid ) > NAV_CORNER_DUPLICATE_TOLERANCE_SQR &&
+								 QM_Vector3DistanceSqrDP( p1, corner.standoffMid ) > NAV_CORNER_DUPLICATE_TOLERANCE_SQR ) {
+								segmentCorners.push_back( { t, &corner } );
 							}
 						}
 					}
 				}
 
-				if ( bestCorner != nullptr ) {
-					// Insert approach node if far enough from p0
-					if ( QM_Vector3DistanceSqrDP( p0, bestCorner->standoffIn ) > ( 16.0 * 16.0 ) ) {
-						refinedWaypoints.push_back( bestCorner->standoffIn );
-						if ( forcedWaypoints != nullptr ) {
-							refinedForced.push_back( false );
-						}
-					}
+				if ( !segmentCorners.empty() ) {
+					// Sort all violated obstacle corners along the segment from start (t=0) to end (t=1).
+					// For curved or circular sets of brushes, this automatically creates an ordered arc of waypoints
+					// wrapping smoothly around the curve with guaranteed agent clearance at every step.
+					std::sort( segmentCorners.begin(), segmentCorners.end(), []( const segment_corner_t &a, const segment_corner_t &b ) {
+						return a.t < b.t;
+					} );
 
-					// Insert corner diagonal midpoint as a forced constraint to preserve corner clearance
-					refinedWaypoints.push_back( bestCorner->standoffMid );
-					if ( forcedWaypoints != nullptr ) {
-						refinedForced.push_back( true );
-					}
-
-					// Insert exit node if far enough from p1
-					if ( QM_Vector3DistanceSqrDP( p1, bestCorner->standoffOut ) > ( 16.0 * 16.0 ) ) {
-						refinedWaypoints.push_back( bestCorner->standoffOut );
-						if ( forcedWaypoints != nullptr ) {
-							refinedForced.push_back( false );
+					for ( const auto &sc : segmentCorners ) {
+						if ( refinedWaypoints.empty() || QM_Vector3DistanceSqrDP( refinedWaypoints.back(), sc.corner->standoffMid ) > NAV_CORNER_DUPLICATE_TOLERANCE_SQR ) {
+							refinedWaypoints.push_back( sc.corner->standoffMid );
+							if ( forcedWaypoints != nullptr ) {
+								refinedForced.push_back( true );
+							}
 						}
 					}
 				}
@@ -1287,8 +1391,9 @@ bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3DP &startPos
 			}
 
 			const nav_face_t &nextFace = g_nav_faces[ next_face_idx ];
-			const double verticalDelta = std::max( std::fabs( stepRise ), std::fabs( nextFace.center.z - face.center.z ) );
-			const bool isStepTransition = ( verticalDelta >= 4.0 && verticalDelta <= NAV_MAX_STEP_HEIGHT );
+			const bool isRampTransition = ( face.normal.z < NAV_RAMP_MAX_NORMAL_Z || nextFace.normal.z < NAV_RAMP_MAX_NORMAL_Z );
+			const double verticalDelta = isRampTransition ? 0.0 : std::max( std::fabs( stepRise ), std::fabs( nextFace.center.z - face.center.z ) );
+			const bool isStepTransition = !isRampTransition && ( verticalDelta >= NAV_STEP_MIN_VERTICAL_DELTA && verticalDelta <= NAV_MAX_STEP_HEIGHT );
 			const bool isDynamicPortal = face.entity_id != ENTITYNUM_NONE || face.transition_entity_id != ENTITYNUM_NONE ||
 				nextFace.entity_id != ENTITYNUM_NONE || nextFace.transition_entity_id != ENTITYNUM_NONE;
 
@@ -1328,8 +1433,9 @@ bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3DP &startPos
 						const nav_halfedge_t &nhe = g_nav_halfedges[ nextFace.first_edge_idx + ne ];
 						if ( nhe.twin_idx != -1 ) {
 							const nav_face_t &twinFace = g_nav_faces[ g_nav_halfedges[ nhe.twin_idx ].face_idx ];
-							const double neighborDelta = std::max( std::fabs( nhe.z_diff ), std::fabs( twinFace.center.z - nextFace.center.z ) );
-							if ( neighborDelta >= 4.0 && neighborDelta <= NAV_MAX_STEP_HEIGHT ) {
+							const bool neighborIsRamp = ( nextFace.normal.z < NAV_RAMP_MAX_NORMAL_Z || twinFace.normal.z < NAV_RAMP_MAX_NORMAL_Z );
+							const double neighborDelta = neighborIsRamp ? 0.0 : std::max( std::fabs( nhe.z_diff ), std::fabs( twinFace.center.z - nextFace.center.z ) );
+							if ( !neighborIsRamp && neighborDelta >= NAV_STEP_LANDING_MIN_DELTA && neighborDelta <= NAV_MAX_STEP_HEIGHT ) {
 								nextIsStep = true;
 								break;
 							}
@@ -1337,15 +1443,18 @@ bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3DP &startPos
 					}
 
 					if ( !nextIsStep ) {
-						const double runwayDist = ( agentRadius > 0.0 ) ? ( agentRadius + 12.0 ) : 28.0;
+						const double runwayDist = ( agentRadius > 0.0 ) ? ( agentRadius + NAV_STEP_RUNWAY_MARGIN ) : ( 16.0 + NAV_STEP_RUNWAY_MARGIN );
 						Vector3DP runwayPoint = mid + fwd * runwayDist;
 						runwayPoint.z = nextFace.center.z;
 
-						funnel_portal_t runwayPortal;
-						runwayPortal.left = runwayPoint;
-						runwayPortal.right = runwayPoint;
-						runwayPortal.force_waypoint = true;
-						portals.push_back( runwayPortal );
+						// Only insert runway landing if the point physically lies within the landing face polygon
+						if ( Nav_PointInsideFace2D( runwayPoint, nextFace ) ) {
+							funnel_portal_t runwayPortal;
+							runwayPortal.left = runwayPoint;
+							runwayPortal.right = runwayPoint;
+							runwayPortal.force_waypoint = true;
+							portals.push_back( runwayPortal );
+						}
 					}
 				}
 			} else {
@@ -1355,15 +1464,17 @@ bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3DP &startPos
 				**/
 				Vector3DP clippedLeft = rawLeft;
 				Vector3DP clippedRight = rawRight;
-				const double clearanceDist = ( agentRadius > 0.0 ) ? ( agentRadius + 4.0 ) : 20.0;
-				if ( Nav_ClipPortalForAgentClearance( face_idx, next_face_idx, rawLeft, rawRight, clearanceDist, &clippedLeft, &clippedRight ) ) {
+				bool isNarrowPortal = false;
+				const double clearanceDist = ( agentRadius > 0.0 ) ? ( agentRadius + NAV_PORTAL_CLEARANCE_MARGIN ) : ( 16.0 + NAV_PORTAL_CLEARANCE_MARGIN );
+				if ( Nav_ClipPortalForAgentClearance( face_idx, next_face_idx, rawLeft, rawRight, clearanceDist, &clippedLeft, &clippedRight, &isNarrowPortal ) ) {
 					portal.left = clippedLeft;
 					portal.right = clippedRight;
+					portal.force_waypoint = isNarrowPortal;
 				} else {
 					portal.left = rawLeft;
 					portal.right = rawRight;
+					portal.force_waypoint = false;
 				}
-				portal.force_waypoint = false;
 				portals.push_back( portal );
 			}
 		} else {

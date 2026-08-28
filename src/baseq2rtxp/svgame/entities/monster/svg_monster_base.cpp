@@ -21,34 +21,6 @@
 #include "svgame/monsters/svg_mmove.h"
 #include "svgame/monsters/svg_mmove_slidemove.h"
 
-/**
-*	@brief	Find closest nav face in the current BSP leaf with fallback to global KD-tree.
-*	@param	point	Query position in feet-origin space.
-*	@return	Index of closest nav face or -1.
-**/
-static int32_t Nav_FindClosestFaceInLeaf( const Vector3 &point ) {
-	/**
-	*	Prefer local KD-tree face lookup for stable corner progression.
-	*	Verify 2D containment and vertical proximity to ensure a valid surface.
-	**/
-	const int32_t leafFace = Nav_FindPolyInLeaf( point );
-	if ( leafFace >= 0 && static_cast<size_t>( leafFace ) < g_nav_faces.size() ) {
-		const nav_face_t &face = g_nav_faces[ leafFace ];
-		if ( Nav_PointInsideFace2D( point, face ) ) {
-			const Vector3DP v0 = g_nav_vertices[ g_nav_halfedges[ face.first_edge_idx ].vertex_idx ];
-			const float planeDist = static_cast<float>( QM_Vector3DotProductDP( v0, face.normal ) );
-			const float verticalDist = std::fabs( static_cast<float>( QM_Vector3DotProductDP( Vector3DP( point ), face.normal ) ) - planeDist );
-			if ( verticalDist <= 64.0f ) {
-				return leafFace;
-			}
-		}
-	}
-
-	/**
-	*	Fallback to global closest poly lookup.
-	**/
-	return Nav_FindClosestPolyGlobal( point );
-}
 
 /**
 *	@brief	Reconstructs the object, optionally retaining the entityDictionary.
@@ -245,6 +217,24 @@ svg_monster_base_t::PathComputeResult svg_monster_base_t::ComputePathTo( const V
 		targetFeet.z += this->goalentity->mins.z;
 	}
 
+	/**
+	*	Dynamically derive physical agent dimensions from entity bounding box with canonical fallbacks:
+	*	PHYS_DEFAULT_BBOX_STANDUP_MINS = { -16., -16., -36. }, PHYS_DEFAULT_BBOX_STANDUP_MAXS = { 16., 16., 36. },
+	*	PHYS_DEFAULT_VIEWHEIGHT_STANDUP = 30.
+	**/
+	const double rawRadiusX = std::max( std::abs( static_cast<double>( this->mins.x ) ), std::abs( static_cast<double>( this->maxs.x ) ) );
+	const double rawRadiusY = std::max( std::abs( static_cast<double>( this->mins.y ) ), std::abs( static_cast<double>( this->maxs.y ) ) );
+	const double rawRadius = std::max( rawRadiusX, rawRadiusY );
+	constexpr double defaultRadius = 16.0; // max(|PHYS_DEFAULT_BBOX_STANDUP_MINS.x|, |PHYS_DEFAULT_BBOX_STANDUP_MAXS.x|)
+	const double agentRadius = ( rawRadius > 0.0 ) ? rawRadius : defaultRadius;
+	const double agentRadiusSqr = agentRadius * agentRadius;
+
+	const double rawHeight = static_cast<double>( this->maxs.z - this->mins.z );
+	constexpr double defaultHeight = 72.0; // PHYS_DEFAULT_BBOX_STANDUP_MAXS.z - PHYS_DEFAULT_BBOX_STANDUP_MINS.z
+	const double agentHeight = ( rawHeight > 0.0 ) ? rawHeight : defaultHeight;
+
+	const double effectiveViewHeight = ( this->viewheight > 0.0f ) ? static_cast<double>( this->viewheight ) : PHYS_DEFAULT_VIEWHEIGHT_STANDUP;
+
 	const int32_t startFace = Nav_FindClosestFaceInLeaf( myFeet );
 	const int32_t goalFace = Nav_FindClosestFaceInLeaf( targetFeet );
 
@@ -255,23 +245,103 @@ svg_monster_base_t::PathComputeResult svg_monster_base_t::ComputePathTo( const V
 	const bool targetMoved = ( QM_Vector3DistanceSqr( target, pathNavigationState.lastGoal.origin ) > ( 48.0f * 48.0f ) );
 	const bool pathEmpty = navPath.empty() || stringPulledPath.empty();
 
-	// Check if entity is still on the current path corridor
+	/**
+	*	Check if entity remains on or physically intersecting the active navigation path corridor.
+	*	We avoid strict 1-polygon point checks that break when a 32-unit-wide capsule crosses polygon boundaries.
+	**/
 	bool stillOnPath = false;
 	if ( !navPath.empty() && pathPos < navPath.size() ) {
 		const int32_t currentFace = startFace;
 		const int32_t startCheck = std::max<int32_t>( 0, static_cast<int32_t>( pathPos ) - 1 );
 		const int32_t endCheck = std::min<int32_t>( static_cast<int32_t>( navPath.size() ) - 1, static_cast<int32_t>( pathPos ) + 4 );
+
+		// 1) Direct polygon containment or 2D capsule disk intersection with corridor faces
+		const Vector3DP feetPosDP = Vector3DP( myFeet );
 		for ( int32_t i = startCheck; i <= endCheck; ++i ) {
-			if ( navPath[ i ] == currentFace ) {
+			const int32_t faceIdx = navPath[ i ];
+			if ( faceIdx < 0 || static_cast<size_t>( faceIdx ) >= g_nav_faces.size() ) {
+				continue;
+			}
+
+			if ( faceIdx == currentFace ) {
 				stillOnPath = true;
 				break;
+			}
+
+			const nav_face_t &face = g_nav_faces[ faceIdx ];
+			// Check if the agent's circular footprint overlaps the corridor face
+			if ( Nav_PointInsideFace2D( feetPosDP, face ) ) {
+				stillOnPath = true;
+				break;
+			}
+
+			// Boundary edge proximity: if closest point on any face edge is within agent radius, capsule intersects
+			for ( int32_t e = 0; e < face.num_edges; ++e ) {
+				const nav_halfedge_t &he = g_nav_halfedges[ face.first_edge_idx + e ];
+				const Vector3DP &v0 = g_nav_vertices[ he.vertex_idx ];
+				const Vector3DP &v1 = g_nav_vertices[ g_nav_halfedges[ he.next_idx ].vertex_idx ];
+				if ( Nav_DistancePointToSegment2DSqr( feetPosDP, v0, v1 ) <= agentRadiusSqr ) {
+					stillOnPath = true;
+					break;
+				}
+			}
+			if ( stillOnPath ) {
+				break;
+			}
+		}
+
+		// 2) Topological neighbor tolerance: check if currentFace shares a boundary half-edge with any corridor face
+		if ( !stillOnPath && currentFace >= 0 && static_cast<size_t>( currentFace ) < g_nav_faces.size() ) {
+			for ( int32_t i = startCheck; i <= endCheck && !stillOnPath; ++i ) {
+				const int32_t faceIdx = navPath[ i ];
+				if ( faceIdx < 0 || static_cast<size_t>( faceIdx ) >= g_nav_faces.size() ) {
+					continue;
+				}
+
+				const nav_face_t &corridorFace = g_nav_faces[ faceIdx ];
+				for ( int32_t e = 0; e < corridorFace.num_edges; ++e ) {
+					const nav_halfedge_t &he = g_nav_halfedges[ corridorFace.first_edge_idx + e ];
+					if ( he.twin_idx != -1 && g_nav_halfedges[ he.twin_idx ].face_idx == currentFace ) {
+						stillOnPath = true;
+						break;
+					}
+				}
 			}
 		}
 	}
 
-	// Reuse active path while entity remains on corridor and target has not moved significantly
-	if ( !force && !pathEmpty && stillOnPath && !targetMoved ) {
-		return PathComputeResult::ReusedCached;
+	// 3) Physical polyline segment proximity: test distance from agent feet to the active string-pulled segment
+	if ( !stillOnPath && !stringPulledPath.empty() ) {
+		const size_t k = std::min( stringPathPos, stringPulledPath.size() - 1 );
+		const size_t prevIdx = ( k > 0 ) ? ( k - 1 ) : 0;
+		const Vector3DP &wpPrev = stringPulledPath[ prevIdx ];
+		const Vector3DP &wpCurr = stringPulledPath[ k ];
+
+		const double corridorLateralDist = agentRadius * 2.0 + MONSTER_NAV_CORRIDOR_MARGIN;
+		const double corridorLateralDistSqr = corridorLateralDist * corridorLateralDist;
+		constexpr double maxVerticalTolerance = static_cast<double>( NAV_MAX_STEP_HEIGHT ) + MONSTER_NAV_VERTICAL_STEP_TOLERANCE;
+
+		const double distToSegSqr = Nav_DistancePointToSegment2DSqr( Vector3DP( myFeet ), wpPrev, wpCurr );
+		const double zDelta = std::fabs( static_cast<double>( myFeet.z ) - wpCurr.z );
+		if ( distToSegSqr <= corridorLateralDistSqr && zDelta <= maxVerticalTolerance ) {
+			stillOnPath = true;
+		}
+	}
+
+	/**
+	*	Anti-Chattering Path Commitment Hysteresis:
+	*	When the destination has not moved, enforce a minimum recalculation interval (400 ms).
+	*	This allows the agent sufficient time (traveling ~88 units at 220 u/s) to clear the
+	*	2*R_agent (32 unit) bifurcation decision manifold, decisively making the chosen route shorter
+	*	and permanently preventing high-frequency 10-Hz flip-flopping across polygon boundaries.
+	**/
+	const bool cooldownElapsed = ( ( level.time - lastPathCalcTime ) >= MONSTER_NAV_PATH_RECALC_MIN_INTERVAL );
+
+	// Reuse active path while entity remains on or near corridor and target has not moved significantly
+	if ( !force && !pathEmpty && !targetMoved ) {
+		if ( stillOnPath || !cooldownElapsed ) {
+			return PathComputeResult::ReusedCached;
+		}
 	}
 
 	navPath.clear();
@@ -280,14 +350,17 @@ svg_monster_base_t::PathComputeResult svg_monster_base_t::ComputePathTo( const V
 	pathPos = 0;
 	stringPathPos = 0;
 
-	const float agentRadius = static_cast<float>( std::max( std::abs( this->mins.x ), std::abs( this->maxs.x ) ) );
+	nav_path_policy_t pathPolicy = pathNavigationState.policy;
+	if ( pathPolicy.agent_radius <= 0.0 ) {
+		pathPolicy.agent_radius = static_cast<float>( agentRadius );
+	}
 
-	if ( Nav_FindPath( startFace, goalFace, navPath, pathNavigationState.policy ) ) {
+	if ( Nav_FindPath( startFace, goalFace, navPath, pathPolicy ) ) {
 		pathNavigationState.lastGoal.origin = target;
 		pathNavigationState.lastGoal.isValid = true;
 		lastPathCalcTime = level.time;
 
-		Nav_StringPull( navPath, Vector3DP( myFeet ), Vector3DP( targetFeet ), static_cast<double>( agentRadius ), stringPulledPath, &stringPulledWaypointForced, this->mins, this->maxs, static_cast<int32_t>( SVG_MMove_GetNativeShape( this ) ) );
+		Nav_StringPull( navPath, Vector3DP( myFeet ), Vector3DP( targetFeet ), agentRadius, stringPulledPath, &stringPulledWaypointForced, this->mins, this->maxs, static_cast<int32_t>( SVG_MMove_GetNativeShape( this ) ) );
 
 		if ( stringPulledPath.size() >= 2 ) {
 			stringPathPos = 1;
@@ -363,12 +436,21 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 	}
 
 	/**
-	*	Detect ramp/slope surface.
+	*	Detect ramp/slope surface:
+	*	Check whether either the agent's current nav face or the active waypoint face is inclined.
 	**/
 	bool onRamp = false;
 	if ( currentFace >= 0 && static_cast<size_t>( currentFace ) < g_nav_faces.size() ) {
-		if ( g_nav_faces[ currentFace ].normal.z < 0.99 ) {
+		if ( g_nav_faces[ currentFace ].normal.z < NAV_RAMP_MAX_NORMAL_Z ) {
 			onRamp = true;
+		}
+	}
+	if ( !onRamp && stringPathPos < stringPulledPath.size() ) {
+		const int32_t wpFace = Nav_FindClosestFaceInLeaf( stringPulledPath[ stringPathPos ] );
+		if ( wpFace >= 0 && static_cast<size_t>( wpFace ) < g_nav_faces.size() ) {
+			if ( g_nav_faces[ wpFace ].normal.z < NAV_RAMP_MAX_NORMAL_Z ) {
+				onRamp = true;
+			}
 		}
 	}
 
@@ -390,12 +472,21 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 		toWp.z = 0.0;
 		const double dist2DSqr = QM_Vector3DotProductDP( toWp, toWp );
 
-		// Vertical step-up constraint: if target exceeds max step height (NAV_MAX_STEP_HEIGHT), wait until elevated
-		const bool isClimbBarrier = ( zDiff > NAV_MAX_STEP_HEIGHT ) && !onRamp;
-		const bool hasSteppedUp = !isClimbBarrier || ( myFeetDP.z >= currentWp.z - 4.0 );
-
 		// Check if current waypoint is a forced constraint (corner standoff, stair crossing)
 		const bool isForcedWp = ( stringPathPos < stringPulledWaypointForced.size() && stringPulledWaypointForced[ stringPathPos ] );
+
+		// Vertical step transition arrival verification:
+		// Only forced stair step-ups require waiting for physical vertical elevation changes,
+		// because turning before elevating slides the agent into the step riser.
+		// Step-downs, flat ground, and ramps allow advancing past the edge to continue traversal onto the lower surface.
+		if ( isForcedWp && !onRamp ) {
+			if ( zDiff > NAV_STEP_MIN_VERTICAL_DELTA ) {
+				// Step-up: hold waypoint until entity has physically stepped up onto the tread
+				if ( myFeetDP.z < currentWp.z - MONSTER_NAV_VERTICAL_STEP_TOLERANCE ) {
+					break;
+				}
+			}
+		}
 
 		// Check turn angle at W_k:
 		bool isSharpTurn = isForcedWp;
@@ -410,24 +501,25 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 			const double outLen = QM_Vector3LengthDP( outDir );
 			if ( inLen > 0.001 && outLen > 0.001 ) {
 				const double turnDot = QM_Vector3DotProductDP( inDir * ( 1.0 / inLen ), outDir * ( 1.0 / outLen ) );
-				// If turn angle is 30 degrees or sharper, treat as a sharp turn
-				if ( turnDot < 0.866 ) {
+				// If turn angle is sharper than 30 degrees, treat as a sharp turn
+				if ( turnDot < MONSTER_NAV_GENTLE_TURN_MIN_DOT ) {
 					isSharpTurn = true;
 				}
 			}
 		}
 
-		// 1) Arrival radius around intermediate waypoint (strict 12.0 units on sharp corners or forced constraints)
-		const double reachRadiusSqr = isSharpTurn ? ( 12.0 * 12.0 ) : ( 16.0 * 16.0 );
+		// 1) Arrival radius around intermediate waypoint (strict arrival on sharp corners or forced constraints)
+		const double reachRadiusSqr = isSharpTurn ? MONSTER_NAV_SHARP_CORNER_REACH_RADIUS_SQR : MONSTER_NAV_WAYPOINT_REACH_RADIUS_SQR;
 		const bool withinRadius = ( dist2DSqr <= reachRadiusSqr );
 
-		// 2) Passed waypoint plane along the incoming segment (only allowed on straight, unforced sections)
+		// 2) Passed waypoint plane along the incoming segment (only allowed on straight, unforced, flat/ramp sections)
 		bool passedPlane = false;
-		if ( !isSharpTurn && !isForcedWp && stringPathPos > 0 ) {
+		if ( !isSharpTurn && !isForcedWp && stringPathPos > 0 && ( onRamp || std::fabs( zDiff ) <= MONSTER_NAV_STEP_MIN_DELTA ) ) {
 			const Vector3DP prevWp = stringPulledPath[ stringPathPos - 1 ];
 			Vector3DP inSegDir = currentWp - prevWp;
 			inSegDir.z = 0.0;
 			const double inSegLen = QM_Vector3LengthDP( inSegDir );
+
 			if ( inSegLen > 0.001 ) {
 				inSegDir = inSegDir * ( 1.0 / inSegLen );
 				Vector3DP fromTarget = myFeetDP - currentWp;
@@ -435,13 +527,32 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 				const double forwardPast = QM_Vector3DotProductDP( fromTarget, inSegDir );
 				const double lateralDistSqr = QM_Vector3DotProductDP( fromTarget, fromTarget ) - ( forwardPast * forwardPast );
 				// Crossed the plane of W_k while remaining within the corridor lateral bounds
-				if ( forwardPast >= 0.0 && lateralDistSqr <= ( 12.0 * 12.0 ) && dist2DSqr <= ( 16.0 * 16.0 ) ) {
+				if ( forwardPast >= 0.0 && lateralDistSqr <= MONSTER_NAV_SHARP_CORNER_REACH_RADIUS_SQR && dist2DSqr <= MONSTER_NAV_WAYPOINT_REACH_RADIUS_SQR ) {
 					passedPlane = true;
 				}
 			}
 		}
 
-		if ( ( withinRadius || passedPlane ) && hasSteppedUp ) {
+		if ( withinRadius ) {
+			++stringPathPos;
+			continue;
+		}
+
+		if ( passedPlane ) {
+			// When passing by W_k along a straight flat section, verify that moving directly toward
+			// W_{k+1} is physically unobstructed before cutting over to the next segment early.
+			if ( stringPathPos + 1 < stringPulledPath.size() ) {
+				const Vector3DP &nextWp = stringPulledPath[ stringPathPos + 1 ];
+				const Vector3 traceStart = currentOrigin;
+				Vector3 traceEnd = static_cast<Vector3>( nextWp );
+				traceEnd.z -= this->mins.z;
+				const svg_trace_t tr = SVG_MMove_Trace( traceStart, mins, maxs, traceEnd, this, CM_CONTENTMASK_SOLID, SVG_MMove_GetNativeShape( this ) );
+				if ( tr.fraction < 1.0f || tr.startsolid || tr.allsolid ) {
+					// Direct corridor to W_{k+1} is occluded; continue steering towards W_k until withinRadius
+					break;
+				}
+			}
+
 			++stringPathPos;
 			continue;
 		}
@@ -455,7 +566,7 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 		Vector3DP toFinal = finalGoalWp - myFeetDP;
 		const double finalZDiff = toFinal.z;
 		toFinal.z = 0.0;
-		if ( QM_Vector3DotProductDP( toFinal, toFinal ) <= ( 16.0 * 16.0 ) && std::fabs( finalZDiff ) <= 32.0 ) {
+		if ( QM_Vector3DotProductDP( toFinal, toFinal ) <= MONSTER_NAV_WAYPOINT_REACH_RADIUS_SQR && std::fabs( finalZDiff ) <= MONSTER_NAV_FINAL_GOAL_MAX_Z_DELTA ) {
 			return false; // Arrived at destination
 		}
 	}
@@ -475,10 +586,9 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 	const double distToTarget = QM_Vector3LengthDP( toTarget );
 
 	Vector3DP steerTarget = targetWp;
-	constexpr double LOOKAHEAD_DIST = 24.0;
 
 	const bool isTargetForced = ( k < stringPulledWaypointForced.size() && stringPulledWaypointForced[ k ] );
-	if ( !isTargetForced && distToTarget < LOOKAHEAD_DIST && k + 1 < stringPulledPath.size() ) {
+	if ( !isTargetForced && distToTarget < MONSTER_NAV_LOOKAHEAD_DISTANCE && k + 1 < stringPulledPath.size() ) {
 		const size_t prevIdx = ( k > 0 ) ? ( k - 1 ) : 0;
 		const Vector3DP prevWp = stringPulledPath[ prevIdx ];
 		Vector3DP currSeg = targetWp - prevWp;
@@ -495,9 +605,9 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 			const Vector3DP nextSegNorm = nextSeg * ( 1.0 / nextSegLen );
 			const double turnDot = QM_Vector3DotProductDP( currSegNorm, nextSegNorm );
 
-			// Only blend forward across gentle turns (< 30 degrees); sharp turns must round W_k directly
-			if ( turnDot > 0.866 ) {
-				const double advance = std::min( LOOKAHEAD_DIST - distToTarget, nextSegLen * 0.5 );
+			// Only blend forward across gentle turns (< 30 degrees) on flat ground or ramps; sharp turns and stair steps must round W_k directly
+			if ( turnDot > MONSTER_NAV_GENTLE_TURN_MIN_DOT && ( onRamp || std::fabs( nextWp.z - targetWp.z ) <= MONSTER_NAV_STEP_MIN_DELTA ) ) {
+				const double advance = std::min( MONSTER_NAV_LOOKAHEAD_DISTANCE - distToTarget, nextSegLen * 0.5 );
 				steerTarget = targetWp + nextSegNorm * advance;
 			}
 		}
@@ -510,13 +620,46 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 	toSteer.z = 0.0;
 	const double steerDist = QM_Vector3LengthDP( toSteer );
 
-	if ( steerDist > 0.001 ) {
+	// Precompute normalized direction vector corresponding to current ideal_yaw as fallback:
+	const double yawRad = static_cast<double>( ideal_yaw ) * ( QM_PI / 180.0 );
+	const Vector3DP forwardYawDir( std::cos( yawRad ), std::sin( yawRad ), 0.0 );
+
+	// Identify whether the entity is at a forced step-up riser actively waiting for feet elevation:
+	const bool awaitingStepUp = ( isTargetForced && !onRamp && ( targetWp.z - myFeetDP.z ) > MONSTER_NAV_STEP_MIN_DELTA );
+
+	// Case 1: Outside proximity deadband — steer directly towards the lookahead target.
+	// Condition check: Entity is >= MONSTER_NAV_WAYPOINT_DEADBAND (4.0 units) from steerTarget,
+	// safely away from the (0, 0) division singularity where micro-fluctuations flip yaw angles.
+	if ( steerDist >= MONSTER_NAV_WAYPOINT_DEADBAND ) {
 		*outMoveDir = toSteer * ( 1.0 / steerDist );
-	} else if ( distToTarget > 0.001 ) {
-		*outMoveDir = toTarget * ( 1.0 / distToTarget );
-	} else {
-		*outMoveDir = Vector3DP{ 1.0, 0.0, 0.0 };
 	}
+	// Case 2: Inside deadband of an intermediate waypoint (flat ground, gentle turns, ramps, or step-downs).
+	// Condition check: Entity is within 4.0 units of W_k, not waiting for step-up elevation, and has a subsequent waypoint (k + 1 < size).
+	// Steer forward toward the subsequent waypoint W_{k+1} so the agent smoothly rounds the point without orbiting W_k.
+	else if ( !awaitingStepUp && k + 1 < stringPulledPath.size() ) {
+		Vector3DP toNext = stringPulledPath[ k + 1 ] - myFeetDP;
+		toNext.z = 0.0;
+		const double nextDist = QM_Vector3LengthDP( toNext );
+		*outMoveDir = ( nextDist > 0.001 ) ? ( toNext * ( 1.0 / nextDist ) ) : forwardYawDir;
+	}
+	// Case 3: Inside deadband at a step-up riser, actively awaiting vertical elevation.
+	// Condition check: Entity is at the riser boundary (steerDist < 4.0) but feet have not yet stepped up onto the tread.
+	// Rather than turning toward W_{k+1} (which would glance off the riser or turn sideways into walls),
+	// drive forward across the riser along the incoming segment direction (k > 0) so StepSlideMove can step up.
+	else if ( awaitingStepUp && k > 0 ) {
+		Vector3DP segFwd = targetWp - stringPulledPath[ k - 1 ];
+		segFwd.z = 0.0;
+		const double segFwdLen = QM_Vector3LengthDP( segFwd );
+		*outMoveDir = ( segFwdLen > 0.001 ) ? ( segFwd * ( 1.0 / segFwdLen ) ) : forwardYawDir;
+	}
+	// Case 4: Final destination reached, or first waypoint awaiting step-up without prior history.
+	// Condition check: No subsequent waypoint exists (k + 1 >= size); the entity is within deadband of its final arrival point.
+	// Preserve the current facing direction (forwardYawDir) to prevent 360-degree jitter across the final destination.
+	else {
+		*outMoveDir = forwardYawDir;
+	}
+
+
 
 	/**
 	*	Smooth corner deceleration when turning sharply towards the lookahead target.
@@ -526,8 +669,8 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 	const double yawDeltaAbs = std::fabs( QM_AngleDelta( steerYaw, currentYaw ) );
 
 	double speedScale = 1.0;
-	if ( yawDeltaAbs > 35.0 ) {
-		speedScale = std::max( 0.40, ( 180.0 - yawDeltaAbs ) / 145.0 );
+	if ( yawDeltaAbs > MONSTER_NAV_CORNER_DECEL_THRESHOLD_DEG ) {
+		speedScale = std::max( MONSTER_NAV_CORNER_DECEL_MIN_SPEED_SCALE, ( 180.0 - yawDeltaAbs ) / ( 180.0 - MONSTER_NAV_CORNER_DECEL_THRESHOLD_DEG ) );
 	}
 	*outSpeedScale = speedScale;
 

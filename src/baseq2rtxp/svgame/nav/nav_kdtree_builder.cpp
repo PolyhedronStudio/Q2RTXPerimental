@@ -53,9 +53,9 @@ static int32_t BuildKDNode( int32_t firstFaceIdx, int32_t faceCount, int32_t dep
 		return -1;
 	}
 	// Safety check: ensure total KD-tree node allocations do not exceed maximum capacity limit.
-	if ( g_nav_nodes.size() >= MAX_NAV_KDTREE_NODES ) {
+	if ( g_nav_nodes.size() >= NAV_MAX_KDTREE_NODES ) {
 		// Log warning to server console if capacity limit is reached.
-		gi.dprintf( "WARNING: MAX_NAV_KDTREE_NODES reached!\n" );
+		gi.dprintf( "WARNING: NAV_MAX_KDTREE_NODES reached!\n" );
 		// Return invalid index on allocation overflow to protect memory integrity.
 		return -1;
 	}
