@@ -557,10 +557,12 @@ void SVG_Crowd_TransformLocalSlotsToWorld( const Vector3 &anchorOrigin, const do
 
 /**
 *	@brief		Project and snap all formation slot world positions onto valid walkable navmesh polygons.
-*	@param	slots		[in/out] Formation slots to clamp/project.
-*	@param	agentRadius	Radius of agents for wall standoff checking.
+*	@param	slots			[in/out] Formation slots to clamp/project.
+*	@param	anchorOrigin	World-space formation center used for geometric line-of-sight rejection
+*							of slots that project through solid brush walls.
+*	@param	agentRadius		Radius of agents for wall standoff checking.
 **/
-void SVG_Crowd_SnapSlotsToNavMesh( std::vector<svg_crowd_slot_t> &slots, const double agentRadius ) {
+void SVG_Crowd_SnapSlotsToNavMesh( std::vector<svg_crowd_slot_t> &slots, const Vector3DP &anchorOrigin, const double agentRadius ) {
 	if ( g_nav_faces.empty() ) {
 		return;
 	}
@@ -583,6 +585,16 @@ void SVG_Crowd_SnapSlotsToNavMesh( std::vector<svg_crowd_slot_t> &slots, const d
 				const double d = QM_Vector3DotProductDP( v0, face.normal );
 				slot.worldPosition.z = ( d - ( slot.worldPosition.x * face.normal.x + slot.worldPosition.y * face.normal.y ) ) / face.normal.z;
 			}
+
+			// Geometric line-of-sight from formation anchor to slot:
+			// Reject slots that project through solid brush walls even though they land on valid navmesh.
+			// This prevents radial formations (circle_filled, perimeter, etc.) from placing goals behind
+			// walls that are only reachable via long detours through narrow doorways.
+			if ( !Nav_HasGeometricLineOfSight2D( anchorOrigin, slot.worldPosition, agentRadius ) ) {
+				slot.isNavmeshValid = false;
+				continue;
+			}
+
 			slot.isNavmeshValid = true;
 			continue;
 		}

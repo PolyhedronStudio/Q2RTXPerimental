@@ -89,6 +89,13 @@ void SVG_Crowd_Init( void );
 void SVG_Crowd_Shutdown( void );
 
 /**
+*	@brief	Synchronize crowd group registries with active entities in the edict pool.
+*	@note	Invoked after map spawn and savegame load to rebuild crowd group records
+*			from entity states without wiping individual member assignments.
+**/
+void SVG_Crowd_SyncFromEntities( void );
+
+/**
 *	@brief	Execute per-frame crowd coordination, slot updates, and staggered pathing.
 **/
 void SVG_Crowd_Frame( void );
@@ -229,6 +236,15 @@ bool SVG_Crowd_ComputeMutualSeparation( const int32_t entityNumber, Vector3DP *o
 *	@return	True if a non-zero separation force was calculated.
 **/
 bool SVG_Crowd_ComputeMutualSeparation( const svg_base_edict_t *ent, Vector3DP *outSeparationForce );
+
+/**
+*	@brief		Compute speed throttling scale for trailing squad members to yield to leading teammates in narrow corridors.
+*	@param	entityNumber	Query entity number.
+*	@param	moveDir			Normalized 2D horizontal movement direction towards active waypoint.
+*	@param	outSpeedScale	[out] Multiplier applied to frame velocity [0.0..1.0] to maintain following distance.
+*	@return	True if a leading teammate was found directly ahead in the travel corridor.
+**/
+bool SVG_Crowd_ComputeTeammateFollowSpeedScale( const int32_t entityNumber, const Vector3DP &moveDir, double *outSpeedScale );
 
 /**
 *	@brief	Render debug visualization for all active crowd groups and formation slots.

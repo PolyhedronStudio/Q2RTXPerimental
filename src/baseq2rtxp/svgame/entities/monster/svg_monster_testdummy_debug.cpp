@@ -437,10 +437,25 @@ const bool svg_monster_testdummy_debug_t::KeyValue( const cm_entity_t *keyValueP
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_monster_testdummy_debug_t, onSpawn )( svg_monster_testdummy_debug_t *self ) -> void {
 	Super::onSpawn( self );
 
-	// Apply map-defined crowd parameters to the global crowd manager if this dummy belongs to a valid crowd.
-	// Since TrenchBroom usually applies these keys uniformly, any dummy can safely initialize the group's params.
-	if ( self->crowd.crowdID > 0 ) {
-		SVG_Crowd_SetCrowdParams( self->crowd.crowdID, self->initialCrowdParams );
+	/**
+	*	Register member with crowd manager if assigned to a crowd group.
+	**/
+	// Register into squad or civilian group and configure parameters.
+	if ( self->crowd.crowdID >= 0 ) {
+		const int32_t cid = self->crowd.crowdID;
+		const crowd_member_role_t role = self->crowd.role;
+		SVG_Crowd_RegisterMember( self, cid );
+		// Preserve role parsed from entity key values if explicitly assigned.
+		if ( role != crowd_member_role_t::ROLE_UNASSIGNED ) {
+			self->crowd.role = role;
+		}
+		// Apply map-defined crowd parameters and initial style to the squad group.
+		if ( cid > 0 ) {
+			SVG_Crowd_SetCrowdParams( cid, self->initialCrowdParams );
+			if ( self->initialCrowdStyle != crowd_chase_target_type_t::CROWD_STYLE_ARROW ) {
+				SVG_Crowd_SetCrowdStyle( cid, self->initialCrowdStyle );
+			}
+		}
 	}
 
 	/**
@@ -2010,7 +2025,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_CrowdFormat
 	} else if ( dist2D <= ( arrivalRadius * CROWD_BLOCKED_ARRIVAL_RADIUS_FACTOR ) && zDiff <= CROWD_ARRIVAL_MAX_Z_DIFF ) {
 		// If agent was halted/blocked near the slot (e.g. against walls or adjacent teammates), treat as arrived.
 		const double horizSpeedSq = ( self->velocity.x * self->velocity.x ) + ( self->velocity.y * self->velocity.y );
-		if ( horizSpeedSq < 16.0 ) {
+		if ( horizSpeedSq < CROWD_BLOCKED_STATIONARY_SPEED_SQ ) {
 			self->crowd.reachedGoal = true;
 		}
 	}

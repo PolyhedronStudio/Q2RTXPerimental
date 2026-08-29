@@ -51,7 +51,7 @@ static constexpr double NAV_CORNER_DEDUPLICATION_RADIUS = 8.0;
 static constexpr double NAV_CORNER_DEDUPLICATION_RADIUS_SQR = NAV_CORNER_DEDUPLICATION_RADIUS * NAV_CORNER_DEDUPLICATION_RADIUS;
 
 //! Snap distance threshold within which an unforced waypoint snaps to a corner standoff midpoint.
-static constexpr double NAV_CORNER_SNAP_RADIUS = 24.0;
+static constexpr double NAV_CORNER_SNAP_RADIUS = 32.0;
 //! Squared snap distance threshold within which an unforced waypoint snaps to a corner standoff midpoint.
 static constexpr double NAV_CORNER_SNAP_RADIUS_SQR = NAV_CORNER_SNAP_RADIUS * NAV_CORNER_SNAP_RADIUS;
 
@@ -68,6 +68,67 @@ static constexpr double NAV_CORNER_DUPLICATE_TOLERANCE_SQR = NAV_CORNER_DUPLICAT
 static constexpr double NAV_CORNER_SEARCH_PADDING_XY = 160.0;
 //! Vertical expansion bounds for gathering relevant obstacle corners along the path corridor.
 static constexpr double NAV_CORNER_SEARCH_PADDING_Z = 64.0;
+
+//! Default fallback agent horizontal radius used when an entity radius is unspecified.
+static constexpr double NAV_DEFAULT_AGENT_RADIUS = 16.0;
+
+//! Minimum vertical step riser height difference to classify a nav edge as a solid obstacle boundary.
+static constexpr double NAV_SOLID_EDGE_MIN_Z_DIFF = 2.0;
+
+//! Vertical step height tolerance padding for corner and boundary edge vertical proximity tests.
+static constexpr double NAV_STEP_HEIGHT_PADDING = 4.0;
+
+//! Distance nudge along outward bisector or segment normal to prevent probe traces from starting solid on brush faces.
+static constexpr double NAV_PROBE_START_NUDGE = 1.5;
+
+//! Minimum segment length threshold required to apply start/end point nudging.
+static constexpr double NAV_SEGMENT_NUDGE_MIN_LENGTH = 3.0;
+
+//! Distance nudge along segment direction away from endpoints to prevent line-of-sight probe startsolid on walls.
+static constexpr double NAV_SEGMENT_ENDPOINT_NUDGE = 2.0;
+
+//! Vertical Z offset applied to line-of-sight corner and standoff probe traces.
+static constexpr double NAV_CORNER_PROBE_Z_OFFSET = 8.0;
+
+//! Maximum dot product threshold between consecutive segment directions to prune collinear intermediate waypoints.
+static constexpr double NAV_COLLINEAR_MAX_DOT = 0.985;
+
+//! Spatial grid cell size (units) for O(1) expected time collision and line-of-sight queries.
+static constexpr double NAV_SPATIAL_GRID_CELL_SIZE = 128.0;
+//! Reciprocal of spatial grid cell size for fast floor conversion.
+static constexpr double NAV_SPATIAL_GRID_INV_CELL_SIZE = 1.0 / NAV_SPATIAL_GRID_CELL_SIZE;
+
+//! Maximum probe distance multiplier along corner bisector to measure channel width.
+static constexpr double NAV_CORNER_BISECTOR_PROBE_RATIO = 2.5;
+
+//! Threshold ratio of standoff distance under which an opposing wall is considered constricting.
+static constexpr double NAV_CORNER_NARROW_CHANNEL_RATIO = 1.5;
+
+//! Proximity ratio of corner standoff distance to consider an obstacle corner relevant to a path corridor segment.
+static constexpr double NAV_CORNER_CORRIDOR_PROXIMITY_RATIO = 1.5;
+//! Squared proximity ratio of corner standoff distance to consider an obstacle corner relevant to a path corridor segment.
+static constexpr double NAV_CORNER_CORRIDOR_PROXIMITY_RATIO_SQR = NAV_CORNER_CORRIDOR_PROXIMITY_RATIO * NAV_CORNER_CORRIDOR_PROXIMITY_RATIO;
+
+//! Minimum valid distance along ray to consider an obstacle hit (ignoring self-origin).
+static constexpr double NAV_RAY_MIN_HIT_DISTANCE = 1.0;
+
+//! Epsilon cross-product magnitude threshold for 2D parallel ray and segment intersection.
+static constexpr double NAV_RAY_PARALLEL_EPSILON = 0.000001;
+
+//! Standoff contraction scale factors tested when standard standoff is constrained.
+static constexpr double NAV_STANDOFF_SCALE_FULL = 1.0;
+static constexpr double NAV_STANDOFF_SCALE_SEVENTY_FIVE = 0.75;
+static constexpr double NAV_STANDOFF_SCALE_HALF = 0.5;
+
+//! Default maximum step-up height for kinematic physical probing.
+static constexpr float NAV_PROBE_DEFAULT_MAX_STEP_HEIGHT = 18.25f;
+//! Default maximum drop-down height for kinematic physical probing.
+static constexpr float NAV_PROBE_DEFAULT_MAX_DROP_HEIGHT = 128.0f;
+
+//! Tolerance ratio multiplier of waypoint reach radius to verify full swept probe completion.
+static constexpr double NAV_PROBE_ARRIVAL_TOLERANCE_RATIO = 2.0;
+//! Squared tolerance ratio multiplier of waypoint reach radius to verify full swept probe completion.
+static constexpr double NAV_PROBE_ARRIVAL_TOLERANCE_RATIO_SQR = NAV_PROBE_ARRIVAL_TOLERANCE_RATIO * NAV_PROBE_ARRIVAL_TOLERANCE_RATIO;
 
 //! Forward declaration of half-edge descriptor for path evaluation callback.
 struct nav_halfedge_t;
@@ -283,6 +344,16 @@ inline bool Nav_GetPortalEndpoints( int32_t faceA, int32_t faceB, Vector3 *outV0
 	return ok;
 }
 
+
+/**
+*	@brief	Test if a 2D segment has unobstructed geometric line-of-sight through the navmesh
+*			without intersecting or penetrating any solid boundary obstacle edges.
+*	@param	p0					Segment start position in double precision.
+*	@param	p1					Segment end position in double precision.
+*	@param	clearanceMargin		Required clearance distance from obstacle edges (agentRadius + margin).
+*	@return	True if segment maintains clearance from all solid boundary edges.
+**/
+bool Nav_HasGeometricLineOfSight2D( const Vector3DP &p0, const Vector3DP &p1, const double clearanceMargin = 0.0 );
 
 /**
 *	@brief	Build a smoothed string-pulled path using the Funnel algorithm in full double precision.

@@ -99,6 +99,8 @@ static constexpr double CROWD_DEFAULT_MIN_CORRIDOR_SPACING = 24.0;
 static constexpr double CROWD_ARRIVAL_MAX_Z_DIFF = 48.0;
 //! Multiplier applied to arrival radius when testing if a stationary/blocked agent has reached its slot.
 static constexpr double CROWD_BLOCKED_ARRIVAL_RADIUS_FACTOR = 1.5;
+//! Minimum horizontal speed squared under which a blocked crowd member is considered stationary.
+static constexpr double CROWD_BLOCKED_STATIONARY_SPEED_SQ = 16.0;
 //! Minimum distance the target entity must move before a follow formation is eligible to rebuild.
 static constexpr double CROWD_FOLLOW_REBUILD_MIN_DIST = 96.0;
 //! Minimum elapsed time interval between follow formation slot recalculations.
@@ -107,6 +109,16 @@ static constexpr QMTime CROWD_FOLLOW_REBUILD_MIN_INTERVAL = 500_ms;
 static constexpr double CROWD_SLOT_FEET_SNAP_OFFSET_Z = 24.0;
 //! Distance threshold to player beyond which arrived crowd members throttle their think frequency.
 static constexpr double CROWD_DORMANT_THROTTLE_DIST = 1500.0;
+//! Default agent horizontal radius in world units used for crowd formation clearances.
+static constexpr double CROWD_DEFAULT_AGENT_RADIUS = 16.0;
+//! Minimum longitudinal separation distance between squad members along a travel corridor.
+static constexpr double CROWD_FOLLOW_MIN_SEPARATION = 40.0;
+//! Distance range over which trailing squad members smoothly decelerate behind a leading teammate.
+static constexpr double CROWD_FOLLOW_SLOWDOWN_RANGE = 32.0;
+//! Half-width corridor threshold under which teammates directly ahead trigger longitudinal yielding.
+static constexpr double CROWD_CORRIDOR_LATERAL_THRESHOLD = 32.0;
+//! Safety standoff margin from solid obstacle boundary walls when applying mutual separation.
+static constexpr double CROWD_WALL_STANDOFF_MARGIN = 8.0;
 //! Low-frequency think interval for arrived crowd members located far away from the player.
 static constexpr QMTime CROWD_THROTTLE_THINK_INTERVAL = 100_ms;
 

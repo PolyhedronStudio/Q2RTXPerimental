@@ -69,6 +69,9 @@ static constexpr double MONSTER_NAV_CORNER_DECEL_MIN_SPEED_SCALE = 0.40;
 //! Minimum time interval between full path recalculations when the goal is stationary.
 static constexpr QMTime MONSTER_NAV_PATH_RECALC_MIN_INTERVAL = 400_ms;
 
+//! Minimum time interval before retrying a failed path search to prevent exhaustive search thrashing.
+static constexpr QMTime MONSTER_NAV_PATH_FAIL_RECALC_INTERVAL = 600_ms;
+
 
 /**
 *	@brief	Base entity class for all monsters.

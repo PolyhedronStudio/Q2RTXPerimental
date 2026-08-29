@@ -19,6 +19,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/svg_local.h"
 // Save related types.
 #include "svgame/svg_save.h"
+#include "svgame/crowd/svg_crowd_manager.h"
 
 #include "svgame/svg_clients.h"
 #include "svgame/svg_edict_pool.h"
@@ -629,6 +630,12 @@ void SVG_ReadLevel(const char *filename)
 	// The collision model's portal booleans are not persisted by the level save.
 	// Rebuild portal states from entities' refcounts so the world collision reflects saved state.
 	RestoreAreaPortalStatesFromEntities();
+
+	/**
+	*	Synchronize crowd group state with all restored savegame entities.
+	**/
+	// Rebuild active crowd group records from restored entity crowd states.
+	SVG_Crowd_SyncFromEntities();
 
 	#if 0
     // Initialize navigation runtime seam after load-level entity restore.

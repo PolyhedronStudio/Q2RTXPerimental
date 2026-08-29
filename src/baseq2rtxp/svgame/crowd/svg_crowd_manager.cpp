@@ -164,6 +164,62 @@ void SVG_Crowd_Shutdown( void ) {
 }
 
 /**
+*	@brief	Synchronize crowd group registries with active entities in the edict pool.
+*	@note	Invoked after map spawn and savegame load to rebuild crowd group records
+*			from entity states without wiping individual member assignments.
+**/
+void SVG_Crowd_SyncFromEntities( void ) {
+	/**
+	*	Iterate through all active entities in the pool and register any
+	*	entities configured with a non-negative crowd identifier.
+	**/
+	// Iterate through all potential edicts allocated in the pool.
+	for ( int32_t i = 1; i < globals.edictPool->num_edicts; i++ ) {
+		svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i );
+
+		// Skip invalid, inactive, unassigned, or deceased entities.
+		if ( !ent || !SVG_Entity_IsActive( ent ) || ent->crowd.crowdID < 0 || ent->health <= 0 ) {
+			continue;
+		}
+
+		const int32_t cid = ent->crowd.crowdID;
+
+		/**
+		*	Ensure crowd group record exists in global registry.
+		**/
+		// Check if group record is missing from registry and instantiate if necessary.
+		if ( g_crowd_groups.find( cid ) == g_crowd_groups.end() ) {
+			svg_crowd_group_t group;
+			group.crowdID = cid;
+			group.style = ( cid == 0 ) ? crowd_chase_target_type_t::CROWD_STYLE_SURROUND_PERIMETER : crowd_chase_target_type_t::CROWD_STYLE_ARROW;
+			group.leaderEntityNumber = ent->crowd.leaderEntityNumber;
+			g_crowd_groups[ cid ] = group;
+		} else if ( ent->crowd.leaderEntityNumber != ENTITYNUM_NONE && g_crowd_groups[ cid ].leaderEntityNumber == ENTITYNUM_NONE ) {
+			// Restore group leader designation from entity state if not already set.
+			g_crowd_groups[ cid ].leaderEntityNumber = ent->crowd.leaderEntityNumber;
+		}
+
+		/**
+		*	Track entity number in group memberEntityNumbers list.
+		**/
+		// Register entity number in cached group member list if not already tracked.
+		auto &membersList = g_crowd_groups[ cid ].memberEntityNumbers;
+		if ( std::find( membersList.begin(), membersList.end(), ent->s.number ) == membersList.end() ) {
+			membersList.push_back( ent->s.number );
+		}
+
+		/**
+		*	Update monster entity custom skin visuals to match crowd group.
+		**/
+		// Apply custom skin if this entity derives from svg_monster_base_t.
+		if ( ent->GetTypeInfo()->IsSubClassType<svg_monster_base_t>() ) {
+			ent->s.renderfx |= RF_CUSTOMSKIN;
+			ent->s.skinnum = svg_monster_testdummy_debug_t::GetCrowdSkinImageIndex( cid );
+		}
+	}
+}
+
+/**
 *	@brief	Register an entity as a member of a specific crowd group by entity number.
 *	@param	entityNumber	Entity number to register.
 *	@param	crowdID			Crowd identifier.
@@ -439,6 +495,89 @@ bool SVG_Crowd_ComputeMutualSeparation( const svg_base_edict_t *ent, Vector3DP *
 }
 
 /**
+*	@brief		Compute speed throttling scale for trailing squad members to yield to leading teammates in narrow corridors.
+*	@details	Projects displacements to teammates onto our forward movement direction. If a teammate is directly ahead
+*				in our travel corridor (within half-width lateral threshold), scales speed down smoothly to 0.0 as distance
+*				approaches CROWD_FOLLOW_MIN_SEPARATION to prevent chokepoint queuing jams.
+*	@param	entityNumber	Query entity number.
+*	@param	moveDir			Normalized 2D horizontal movement direction towards active waypoint.
+*	@param	outSpeedScale	[out] Multiplier applied to frame velocity [0.0..1.0] to maintain following distance.
+*	@return	True if a leading teammate was found directly ahead in the travel corridor.
+**/
+bool SVG_Crowd_ComputeTeammateFollowSpeedScale( const int32_t entityNumber, const Vector3DP &moveDir, double *outSpeedScale ) {
+	if ( !outSpeedScale || entityNumber < 1 || entityNumber >= globals.edictPool->num_edicts ) {
+		return false;
+	}
+	*outSpeedScale = 1.0;
+
+	const svg_base_edict_t *selfEnt = g_edict_pool.EdictForNumber( entityNumber );
+	if ( !selfEnt || !SVG_Entity_IsActive( selfEnt ) || selfEnt->crowd.crowdID < 0 ) {
+		return false;
+	}
+
+	const int32_t crowdID = selfEnt->crowd.crowdID;
+	const svg_crowd_group_t *group = SVG_Crowd_GetGroup( crowdID );
+	if ( !group || group->memberEntityNumbers.empty() ) {
+		return false;
+	}
+
+	const Vector3DP myOrigin( selfEnt->currentOrigin );
+	double minScale = 1.0;
+	bool foundLeaderAhead = false;
+
+	static constexpr double corridorLateralSqr = CROWD_CORRIDOR_LATERAL_THRESHOLD * CROWD_CORRIDOR_LATERAL_THRESHOLD;
+	static constexpr double maxAheadDist = CROWD_FOLLOW_MIN_SEPARATION + CROWD_FOLLOW_SLOWDOWN_RANGE;
+
+	for ( const int32_t otherNum : group->memberEntityNumbers ) {
+		if ( otherNum == entityNumber ) {
+			continue;
+		}
+		if ( otherNum < 1 || otherNum >= globals.edictPool->num_edicts ) {
+			continue;
+		}
+		const svg_base_edict_t *other = g_edict_pool.EdictForNumber( otherNum );
+		if ( !other || !SVG_Entity_IsActive( other ) || other->health <= 0 ) {
+			continue;
+		}
+
+		const Vector3DP otherOrigin( other->currentOrigin );
+		Vector3DP diff = otherOrigin - myOrigin;
+		diff.z = 0.0;
+
+		// Project displacement onto our forward movement direction to determine longitudinal distance ahead.
+		const double aheadDist = diff.x * moveDir.x + diff.y * moveDir.y;
+		if ( aheadDist <= 0.0 || aheadDist > maxAheadDist ) {
+			continue;
+		}
+
+		// Vertical proximity check within maximum step height to ensure teammates are on the same floor level.
+		if ( std::fabs( otherOrigin.z - myOrigin.z ) > static_cast<double>( NAV_MAX_STEP_HEIGHT ) ) {
+			continue;
+		}
+
+		// Compute perpendicular lateral distance squared from our travel centerline.
+		const double distSq = QM_Vector3LengthSqrDP( diff );
+		const double lateralDistSq = distSq - ( aheadDist * aheadDist );
+		if ( lateralDistSq > corridorLateralSqr ) {
+			continue; // Teammate is off to the side outside our travel corridor lane
+		}
+
+		// Teammate is directly ahead in our corridor lane: calculate smooth deceleration scale.
+		foundLeaderAhead = true;
+		if ( aheadDist <= CROWD_FOLLOW_MIN_SEPARATION ) {
+			minScale = 0.0;
+			break; // Too close: stop completely to yield to teammate ahead
+		}
+
+		const double scale = ( aheadDist - CROWD_FOLLOW_MIN_SEPARATION ) / CROWD_FOLLOW_SLOWDOWN_RANGE;
+		minScale = std::min( minScale, scale );
+	}
+
+	*outSpeedScale = minScale;
+	return foundLeaderAhead;
+}
+
+/**
 *	Tactical Cover Allocation:
 **/
 
@@ -531,7 +670,7 @@ static void SVG_Crowd_AllocateTacticalCover( svg_crowd_group_t &group, const std
 		std::vector<svg_crowd_slot_t> fallbackSlots;
 		SVG_Crowd_GenerateArrowSlots( needed, group.params, fallbackSlots );
 		SVG_Crowd_TransformLocalSlotsToWorld( destOrigin, group.currentHeadingYaw, fallbackSlots );
-		SVG_Crowd_SnapSlotsToNavMesh( fallbackSlots );
+		SVG_Crowd_SnapSlotsToNavMesh( fallbackSlots, destOrigin );
 
 		for ( size_t k = 0; k < fallbackSlots.size(); k++ ) {
 			fallbackSlots[ k ].slotIndex = static_cast<int32_t>( outSlots.size() );
@@ -594,7 +733,7 @@ bool MoveAStarCrowdOrigin( const int32_t crowdID, const Vector3DP &origin, const
 	} else {
 		SVG_Crowd_GenerateFormationSlots( style, members.size(), effectiveParams, group.slots );
 		SVG_Crowd_TransformLocalSlotsToWorld( origin, group.currentHeadingYaw, group.slots );
-		SVG_Crowd_SnapSlotsToNavMesh( group.slots );
+		SVG_Crowd_SnapSlotsToNavMesh( group.slots, origin );
 
 		// Clamp any off-mesh slots directly to the valid anchor origin to prevent navigation errors.
 		for ( svg_crowd_slot_t &slot : group.slots ) {
@@ -744,7 +883,7 @@ bool MoveAStarFollowEntity( const int32_t crowdID, const int32_t targetEntityNum
 	} else {
 		SVG_Crowd_GenerateFormationSlots( style, members.size(), effectiveParams, group.slots );
 		SVG_Crowd_TransformLocalSlotsToWorld( Vector3DP( targetEnt->currentOrigin ), group.currentHeadingYaw, group.slots );
-		SVG_Crowd_SnapSlotsToNavMesh( group.slots );
+		SVG_Crowd_SnapSlotsToNavMesh( group.slots, Vector3DP( targetEnt->currentOrigin ) );
 
 		// Clamp any off-mesh slots directly to the target origin to ensure walkable coordinates.
 		for ( svg_crowd_slot_t &slot : group.slots ) {

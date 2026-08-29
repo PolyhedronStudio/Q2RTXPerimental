@@ -30,6 +30,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/player/svg_player_trail.h"
 
 #include "svg_save.h"
+#include "svgame/crowd/svg_crowd_manager.h"
 
 #include "svg_lua.h"
 
@@ -700,6 +701,12 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
 	// This must happen after the edict pool and clients are allocated so the
 	// trail entities can be allocated from the edict pool.
 	PlayerTrail_Init();
+
+	/**
+	*	Synchronize crowd group state with all map-spawned entities.
+	**/
+	// Rebuild and register active crowd groups for any map entities initialized with crowdID.
+	SVG_Crowd_SyncFromEntities();
 
 	/**
 	*	Navigation System Initialization and NavMesh Loading:

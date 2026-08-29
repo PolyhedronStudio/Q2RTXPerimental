@@ -131,10 +131,12 @@ void SVG_Crowd_TransformLocalSlotsToWorld( const Vector3 &anchorOrigin, const do
 
 /**
 *	@brief		Project and snap all formation slot world positions onto valid walkable navmesh polygons.
-*	@param	slots		[in/out] Formation slots to clamp/project.
-*	@param	agentRadius	Radius of agents for wall standoff checking.
+*	@param	slots			[in/out] Formation slots to clamp/project.
+*	@param	anchorOrigin	World-space formation center used for geometric line-of-sight rejection
+*							of slots that project through solid brush walls.
+*	@param	agentRadius		Radius of agents for wall standoff checking.
 **/
-void SVG_Crowd_SnapSlotsToNavMesh( std::vector<svg_crowd_slot_t> &slots, const double agentRadius = 16.0 );
+void SVG_Crowd_SnapSlotsToNavMesh( std::vector<svg_crowd_slot_t> &slots, const Vector3DP &anchorOrigin, const double agentRadius = CROWD_DEFAULT_AGENT_RADIUS );
 
 /**
 *	Anti-Crossover Slot Assignment:
