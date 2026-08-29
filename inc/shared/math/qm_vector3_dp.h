@@ -182,20 +182,6 @@ inline Vector3DP QM_Vector3NormalizeDP( const Vector3DP &v ) {
     return { 0.0, 0.0, 0.0 };
 }
 
-// Calculate 2D square distance between two double-precision vectors
-QM_API_CONSTEXPR inline double QM_Vector2DistanceSqrDP( const Vector3DP &v1, const Vector3DP &v2 ) {
-    const double dx = v2.x - v1.x;
-    const double dy = v2.y - v1.y;
-    return ( dx * dx + dy * dy );
-}
-
-// Calculate 2D distance between two double-precision vectors
-inline double QM_Vector2DistanceDP( const Vector3DP &v1, const Vector3DP &v2 ) {
-    const double dx = v2.x - v1.x;
-    const double dy = v2.y - v1.y;
-    return std::sqrt( dx * dx + dy * dy );
-}
-
 // Calculate yaw angle in degrees from a double-precision direction vector
 inline double QM_Vector3ToYawDP( const Vector3DP &vec ) {
     double yaw;

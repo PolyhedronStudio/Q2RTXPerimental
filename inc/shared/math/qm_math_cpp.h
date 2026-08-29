@@ -755,6 +755,11 @@ struct qm_is_same_template_type<Type, Type> : std::true_type {};
 #include "shared/math/qm_vector3.h"
 #include "shared/math/qm_vector3_dp.h"
 
+//----------------------------------------------------------------------------------
+// Module Functions Definition - Vector2 double-precision helpers.
+//----------------------------------------------------------------------------------
+#include "shared/math/qm_vector2_dp.h"
+
 const int32_t DirToByte( const Vector3 &dir );
 void ByteToDir( const int32_t index, Vector3 &dir );
 
