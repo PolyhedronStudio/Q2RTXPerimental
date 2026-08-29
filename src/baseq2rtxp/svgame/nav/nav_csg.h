@@ -20,6 +20,15 @@
 **/
 constexpr int32_t MAX_WINDING_POINTS = 1024;
 
+//! Minimum bounding-box spatial extent (width or depth) below which a polygon is considered a degenerate sliver.
+static constexpr double NAV_SLIVER_MIN_EXTENT = 2.0;
+
+//! Minimum surface area below which a polygon is considered a degenerate numerical artifact.
+static constexpr double NAV_SLIVER_MIN_AREA = 4.0;
+
+//! Minimum feature width (2 * area / perimeter) below which a polygon is discarded as a narrow sliver.
+static constexpr double NAV_SLIVER_MIN_FEATURE_WIDTH = 2.0;
+
 /**
 *	@brief		Winding representation of a convex polygon used during CSG plane splitting and coplanar merging.
 *	@details	Encapsulates a dynamic 3D double-precision vertex perimeter backed by `nav_vector_t<Vector3DP>`

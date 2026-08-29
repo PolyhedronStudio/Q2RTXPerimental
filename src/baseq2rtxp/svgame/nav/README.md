@@ -1,105 +1,176 @@
-# Navigation System (NavMesh & Pathing)
+# Navigation System (NavMesh, Pathfinding & Movement Agents)
 
-This directory contains the navigation mesh (NavMesh) generation and A* pathfinding system for ServerGame entities. The system extracts walkable geometry directly from the BSP collision model, builds an optimized half-edge mesh and KD-Tree for fast spatial queries, and provides a flexible pathing API for AI movement.
-
-## 1. NavMesh Generation (Chronological Order)
-
-The NavMesh generation is an asynchronous process designed to extract walkable floors from the map's geometry without halting the server. The workflow occurs in the following chronological order:
-
-### A. Initialization & Asynchronous Trigger
-*   **Command**: The process is manually initiated via `Nav_GenerateCommand()`, which subsequently invokes `Nav_StartAsyncGeneration()`.
-*   **Thread**: To avoid stalling the main game loop, generation is offloaded to a background worker thread. You can query its progress via `Nav_StatusCommand()`.
-
-### B. BSP Geometry Extraction (`Nav_DoExtractionWork`)
-*   **Collision Model**: The generator accesses the global collision model (`cm_t`) and its BSP cache.
-*   **Brush Filtering**: It iterates through all BSP brushes, strictly filtering for `CONTENTS_SOLID`, `CONTENTS_DETAIL`, and `CONTENTS_MONSTERCLIP` brushes.
-*   **Walkable Surface Filtering**: For every brush side, it checks the surface normal. Only planes with a Z normal >= `NAV_MIN_WALKABLE_Z` (0.65) are considered walkable floors.
-*   **Winding Construction**: It constructs a base polygon (winding) for the walkable plane and chops it against all other sides of the parent brush to ensure the polygon perfectly fits the brush's convex volume.
-*   **Boolean Subtraction**: Polygons are clipped against other intersecting solid brushes to remove overlapping areas (e.g., pillars resting on the floor). The resulting convex fragments become raw `nav_poly_t` structures.
-
-### C. Topology Construction (`Nav_BuildHalfEdgeMesh`)
-*   **Vertex Welding**: The system gathers all raw polygon vertices and welds nearby points to form a unified vertex array (`g_nav_vertices`).
-*   **Half-Edge Linking**: The raw polygons are converted into a Half-Edge data structure (`nav_halfedge_t` and `nav_face_t`). Each edge knows its twin (the edge of an adjacent polygon). 
-*   **Height Deltas**: During twin linking, vertical differences (`z_diff`) are recorded. This allows the mesh to represent stairs and drop-offs continuously.
-
-### D. Spatial Partitioning & Optimization (`Nav_BuildKDTree`)
-*   **KD-Tree Generation**: A 3D KD-Tree (`nav_kdtree_node_t`) is constructed, subdividing the faces along the X, Y, or Z axis. This provides $O(\log N)$ spatial queries when locating which face a 3D point belongs to.
-*   **BSP Leaf Mapping**: For even faster $O(1)$ lookups, the system creates a mapping (`nav_leaf_link_t`) between traditional BSP leaf IDs and NavMesh faces. If an entity knows its current BSP leaf, it can instantly look up the subset of faces contained within that leaf.
-
-### E. Persistence (`nav_persistence.cpp`)
-*   **Saving**: The compiled navigation data is serialized and saved to disk as a `.nav7` file format containing a magic header (`NAV7_MAGIC`), the map's BSP checksum, and flat arrays of vertices, half-edges, faces, and KD-Tree nodes.
-*   **Versioning**: `NAV7_VERSION` is bumped whenever nav extraction semantics change so stale cache files are rejected and regenerated.
+A high-performance, deterministic navigation and kinematic locomotion pipeline for AI agents. Built around a double-precision half-edge navigation mesh, KD-Tree accelerated spatial queries, corridor-constrained Funnel string pulling with convex corner standoffs, and custom step-slide capsule physics.
 
 ---
 
-## 2. Pathing System (A* Navigation)
+## The BAAS Framework
 
-Once the NavMesh is loaded into memory, AI entities can query it to find paths to targets. The pathing system enforces movement rules through a customizable policy.
-
-### A. Localization
-Before an entity can find a path, it must determine which nav face it is currently standing on:
-*   `Nav_FindPolyInLeaf(point)`: Uses the KD-Tree (or BSP leaf shortcuts) to find the face containing the 3D point. It performs a 2D projection check and a vertical distance threshold.
-*   `Nav_FindClosestPolyGlobal(point)`: A slower fallback that searches globally if the entity has somehow drifted entirely off the mesh.
-
-### B. Policy Definition (`nav_path_policy_t`)
-The pathfinding algorithms accept a policy struct that defines what the entity is physically capable of:
-*   **Step Height** (`max_step_height`): Maximum height the entity can step up (e.g., 18.25 units).
-*   **Drop Height** (`max_drop_height`): Maximum safe drop distance before pathing considers a cliff lethal.
-*   **Gap Jumping** (`allow_gap_jumping` / `max_jump_distance`): Whether the entity can jump across disjointed faces.
-*   **Clearance**: Avoidance thresholds.
-
-### C. A* Path Search (`Nav_FindPath`)
-*   The system runs an A* (A-Star) search across the half-edge mesh from the `startFace` to the `goalFace`.
-*   During neighbor expansion, it checks the shared twin edge and validates the `z_diff` against the entity's `nav_path_policy_t` to see if a step or drop is legal.
-*   It outputs a sequence of `int32_t` face IDs representing the successful path.
-
-### D. Portal Traversal (`Nav_GetPortalEndpoints`)
-*   As the entity moves along the face sequence, it needs specific 3D coordinates to steer towards.
-*   `Nav_GetPortalEndpoints` calculates the shared edge (portal) between the current face and the next face, outputting the two vertices (`outV0`, `outV1`).
-*   The entity uses these endpoints to compute a portal midpoint or use string-pulling (funnel algorithm) to walk smoothly to the next polygon.
+```
+[ BAKE ]       BSP Brushes -> CSG Extraction -> Half-Edge Mesh + KD-Tree -> .nav7 Cache
+   │
+[ ACTIVATE ]   svg_monster_base_t -> nav_path_policy_t -> Capsule Collision Hull
+   │
+[ ASSIGN ]     Nav_FindReachableFaceInLeaf -> A* Graph Search -> Nav_StringPull
+   │
+[ SIMULATE ]   Waypoint Steering -> SVG_MMove_StepSlideMove -> Crowd & Stuck Recovery
+```
 
 ---
 
-## 3. External API Usage (How-To for Entities)
+## 1. Bake: Navigation Mesh Generation
 
-Below is an example of how an entity should interact with the navigation system to request and follow a path.
+The NavMesh compiler extracts walkable planar surfaces directly from the BSP collision model asynchronously without halting the game loop.
+
+### Workflow
+* **Console Command**: Execute `nav_generate` in the developer console. Generation runs on a background worker thread (`Nav_StartAsyncGeneration`).
+* **Status Query**: Check progress via `nav_status`.
+* **Persistence**: Once compilation finishes, the mesh serializes to `maps/<mapname>.nav7`. On map load, the engine checks `NAV7_VERSION` and the BSP checksum to load cached data instantly or trigger an automatic rebuild.
+
+### Pipeline Stages
+1. **Brush Filtering & Surface Extraction**: Iterates all BSP brushes containing `CONTENTS_SOLID`, `CONTENTS_DETAIL`, or `CONTENTS_MONSTERCLIP`. Surface planes with normal $Z \ge \text{NAV\_MIN\_WALKABLE\_Z}$ ($0.65$, max slope $\approx 49.5^\circ$) are carved into convex polygon windings.
+2. **CSG Boolean Subtraction & Sliver Dissolution**: Walkable windings are clipped against intersecting solid geometry (pillars, curbs). Polygons with feature width $2 \times \text{area} / \text{perimeter} < 2.0\,\text{units}$ or bounding extent $< 2.0\,\text{units}$ are dissolved to eliminate degenerate edge artifacts.
+3. **Half-Edge Topology & Step Linkage**: Vertices are welded within spatial tolerance. Twin half-edges are linked, recording vertical delta ($z_{\text{diff}}$) to distinguish flat coplanar transitions from traversable stairs ($z_{\text{diff}} \le 18.25\,\text{units}$) and lethal cliffs.
+4. **Spatial Partitioning**: Constructs a balanced 3D KD-Tree (`nav_kdtree_node_t`) over face centroids and builds a direct mapping (`nav_leaf_link_t`) between engine BSP leaf indices and NavMesh polygons for $O(1)$ runtime localization.
+
+---
+
+## 2. Activate: Agent Configuration & Spawning
+
+Agents derive from `svg_monster_base_t` and configure kinematic boundaries, physical capsule hulls, and movement capabilities via `nav_path_policy_t`.
+
+### Key Components
+* **Collision Model**: Navigation agents use `SOLID_CAPSULE` (typically mins `{-16, -16, -24}`, maxs `{16, 16, 40}`).
+* **Policy Parameters**:
+  * `agent_radius`: Physical capsule radius (e.g. $16.0\,\text{units}$).
+  * `max_step_height`: Maximum vertical rise the agent can step up (standard engine default: $18.25\,\text{units}$).
+  * `max_drop_height`: Maximum safe step-down drop (default: $128.0\,\text{units}$).
+  * `waypoint_radius`: Radius threshold to consider an intermediate waypoint reached (default: $24.0\,\text{units}$).
+* **Locomotion State**: Managed by `svg_monster_move_t`, containing velocity, ground surface normals, ground entities, and step recovery counters.
+
+---
+
+## 3. Assign: Target Assignment & Path Planning
+
+Issue navigation goals programmatically or via AI state transitions using `ComputePathTo`.
+
+### Pathfinding Pipeline
+1. **Localization**: Resolves start and goal origins to navmesh face indices via KD-Tree lookups:
+   ```cpp
+   int32_t startFace = Nav_FindReachableFaceInLeaf( currentOrigin, goalFace, agentRadius );
+   ```
+2. **A\* Topological Graph Search** (`Nav_FindPath`):
+   * Searches the half-edge graph evaluating traversal cost:
+     $$\text{Cost} = \text{Distance} \times \text{SlopePenalty} \times \text{ClearancePenalty}$$
+   * Portals narrower than `NAV_ABSOLUTE_MIN_PORTAL_PASSAGE_WIDTH` ($20.0\,\text{units}$) are rejected to prevent routing into impassable geometry.
+3. **Double-Precision Funnel String Pulling** (`Nav_StringPull`):
+   * Clips raw mesh portals against adjacent obstacle walls and corners.
+   * Runs the Simple, Stupid Funnel Algorithm (SSFA) to produce a minimum-distance polyline.
+   * **Convex Corner Decoupling**: Analytically computes obstacle corner angle bisectors and inserts outward standoff waypoints (`Nav_EnforceConvexCornerWaypoints`), ensuring agents round sharp corners with guaranteed capsule clearance.
+   * **Collinear Decimation**: Simplifies redundant straight-line points while enforcing strict line-of-sight verification before pruning.
+
+---
+
+## 4. Simulate: Game Loop Execution & Kinematics
+
+Navigation simulation runs within the entity's server tick (`ThinkFinish` / physics integration).
+
+### Execution Steps
+1. **Waypoint Steering** (`ComputePathSteering`):
+   * Tracks active path index `stringPathPos`.
+   * Computes normalized 2D direction toward target waypoint $W_k$.
+   * **Deadband Gating**: Within $4.0\,\text{units}$ of intermediate waypoints, looks ahead to $W_{k+1}$ to eliminate $180^\circ$ yaw flutter.
+   * **Corner Gating**: Restricts switching planes on sharp corners ($> 30^\circ$) until the agent has cleared the approach side of the corner apex.
+2. **Kinematic Locomotion** (`SVG_MMove_StepSlideMove`):
+   * **NOTE**: The engine does **NOT** use legacy `SV_WalkMove`. Locomotion strictly executes through `SVG_MMove_StepSlideMove` in `svg_mmove_slidemove.cpp`.
+   * Integrates horizontal velocity, performs multi-plane surface sliding, and automatically attempts step-up sweeps ($18.25\,\text{units}$) when encountering curbs, stairs, or inclines.
+3. **Dynamic Avoidance & Unstick Recovery**:
+   * Squad members integrate with the Crowd Manager for formation slotting and steering separation.
+   * If an agent is blocked by world geometry for $\ge 32$ consecutive frames, `UpdateBlockedNavigationRecovery` nudges the entity outward along the contact wall normal and forces an immediate A\* path recalculation.
+
+---
+
+## Production C++ Implementation Example
 
 ```cpp
+#include "svgame/svg_local.h"
+#include "svgame/entities/monster/svg_monster_base.h"
 #include "svgame/nav/nav_path.h"
+#include "svgame/monsters/svg_mmove.h"
 
-// 1. Define movement capabilities for the entity
-nav_path_policy_t policy;
-policy.max_step_height = 18.25f;
-policy.max_drop_height = 128.0f;
-policy.allow_gap_jumping = true;
-policy.waypoint_radius = 32.0f;
+/**
+*	@brief	Minimal production navigation agent demonstrating the BAAS workflow.
+**/
+class svg_nav_agent_example_t : public svg_monster_base_t {
+public:
+	svg_nav_agent_example_t() = default;
+	virtual ~svg_nav_agent_example_t() = default;
 
-// 2. Localize the entity and its target onto the NavMesh
-int32_t startFace = Nav_FindPolyInLeaf( entity->s.origin );
-int32_t goalFace = Nav_FindPolyInLeaf( target_origin );
+	/**
+	*	@brief	Activate: Initialize agent bounds, collision hull, and path policy.
+	**/
+	void Spawn() {
+		// 1. Physical collision setup.
+		this->solid = SOLID_CAPSULE;
+		this->movetype = MOVETYPE_STEP;
+		this->mins = Vector3{ -16.0f, -16.0f, -24.0f };
+		this->maxs = Vector3{  16.0f,  16.0f,  40.0f };
 
-if ( startFace == -1 || goalFace == -1 ) {
-    // Entity or target is off the NavMesh
-    return false;
-}
+		// 2. Navigation policy configuration.
+		this->pathNavigationState.policy.agent_radius = 16.0;
+		this->pathNavigationState.policy.max_step_height = 18.25f;
+		this->pathNavigationState.policy.max_drop_height = 128.0f;
+		this->pathNavigationState.policy.waypoint_radius = 24.0f;
+	}
 
-// 3. Request an A* path
-std::vector<int32_t> facePath;
-bool success = Nav_FindPath( startFace, goalFace, facePath, policy );
+	/**
+	*	@brief	Assign: Command the agent to navigate to a target destination.
+	*	@param	destinationWorld	3D target coordinate in feet-origin space.
+	*	@return	True if a valid NavMesh path was calculated.
+	**/
+	bool MoveTo( const Vector3 &destinationWorld ) {
+		return this->ComputePathTo( destinationWorld, this->pathNavigationState.policy );
+	}
 
-if ( success && facePath.size() > 1 ) {
-    // 4. Extract the portal to the immediate next face in the path
-    int32_t currentFace = facePath[0];
-    int32_t nextFace = facePath[1];
-    
-    Vector3 portalEdgeStart, portalEdgeEnd;
-    if ( Nav_GetPortalEndpoints( currentFace, nextFace, &portalEdgeStart, &portalEdgeEnd ) ) {
-        // Calculate the center of the portal to walk towards
-        Vector3 portalMidpoint = QM_Vector3Scale( QM_Vector3Add( portalEdgeStart, portalEdgeEnd ), 0.5f );
-        
-        // Steer the entity towards 'portalMidpoint'
-        Vector3 moveDir = QM_Vector3Normalize( QM_Vector3Subtract( portalMidpoint, entity->s.origin ) );
-        
-        // ... apply moveDir to entity velocity ...
-    }
-}
+	/**
+	*	@brief	Simulate: Per-frame steering, physics step, and waypoint progression.
+	**/
+	void Think() {
+		// 1. Verify active path.
+		if ( this->stringPulledPath.empty() || this->stringPathPos >= this->stringPulledPath.size() ) {
+			return;
+		}
+
+		// 2. Compute active steering direction and speed scaling.
+		Vector3DP moveDir2D{};
+		float speedScale = 1.0f;
+		if ( !this->ComputePathSteering( &moveDir2D, &speedScale ) ) {
+			// Arrived at destination.
+			this->ResetNavigationPath();
+			return;
+		}
+
+		// 3. Update yaw orientation.
+		this->ideal_yaw = QM_Vector3ToYawDP( moveDir2D );
+		SVG_MMove_FaceIdealYaw( this, this->ideal_yaw, 360.0f );
+
+		// 4. Kinematic step slide-move simulation (no SV_WalkMove).
+		const float moveSpeed = 200.0f * speedScale;
+		this->velocity.x = static_cast<float>( moveDir2D.x ) * moveSpeed;
+		this->velocity.y = static_cast<float>( moveDir2D.y ) * moveSpeed;
+
+		SVG_MMove_StepSlideMove( &this->monsterMove.state, this->velocity, this );
+	}
+};
+```
+
+---
+
+## Debugging & Visual Diagnostics
+
+| Cvar | Value | Description |
+| :--- | :---: | :--- |
+| `nav_debug_draw` | `1` | Renders global NavMesh wireframes and polygon boundaries. |
+| `nav_debug_path` | `1` | Visualizes active A\* corridors, traversed/future waypoints, and corner standoffs. |
+| `nav_debug_corners` | `1` | Displays cached convex obstacle corner vertices and outward angle bisectors. |
+| `nav_status` | *N/A* | Prints memory usage, face/edge counts, and active worker thread status to console. |

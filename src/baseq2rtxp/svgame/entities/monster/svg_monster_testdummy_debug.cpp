@@ -2022,12 +2022,22 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_CrowdFormat
 	**/
 	if ( dist2D <= arrivalRadius && zDiff <= CROWD_ARRIVAL_MAX_Z_DIFF ) {
 		self->crowd.reachedGoal = true;
+		self->crowd.blockedStartTime = 0_ms;
 	} else if ( dist2D <= ( arrivalRadius * CROWD_BLOCKED_ARRIVAL_RADIUS_FACTOR ) && zDiff <= CROWD_ARRIVAL_MAX_Z_DIFF ) {
-		// If agent was halted/blocked near the slot (e.g. against walls or adjacent teammates), treat as arrived.
+		// Only treat as arrived if the agent has been continuously stalled near its slot for a sustained duration (2.5s)
 		const double horizSpeedSq = ( self->velocity.x * self->velocity.x ) + ( self->velocity.y * self->velocity.y );
 		if ( horizSpeedSq < CROWD_BLOCKED_STATIONARY_SPEED_SQ ) {
-			self->crowd.reachedGoal = true;
+			if ( self->crowd.blockedStartTime == 0_ms ) {
+				self->crowd.blockedStartTime = level.time;
+			} else if ( ( level.time - self->crowd.blockedStartTime ) >= CROWD_BLOCKED_ARRIVAL_STALL_TIME ) {
+				self->crowd.reachedGoal = true;
+			}
+		} else {
+			self->crowd.blockedStartTime = 0_ms;
 		}
+	} else {
+		self->crowd.reachedGoal = false;
+		self->crowd.blockedStartTime = 0_ms;
 	}
 
 	/**

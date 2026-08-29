@@ -698,7 +698,9 @@ bool Nav_FindPath( int32_t startFace, int32_t goalFace, std::vector<int32_t> &ou
 				? s_nav_edge_portal_widths[ heIdx ]
 				: 0.0;
 
-			if ( portalWidth2D < 0.1 ) {
+			// Reject portals narrower than the absolute physical passage threshold (20.0 units for a 32-unit capsule):
+			// an agent cannot physically traverse a narrow sliver without penetrating adjacent world geometry.
+			if ( portalWidth2D < NAV_ABSOLUTE_MIN_PORTAL_PASSAGE_WIDTH && !policy.ignore_disabled_edges ) {
 				s_nav_last_path_diagnostics.rejected_narrow_portal++;
 				continue;
 			}
@@ -712,7 +714,14 @@ bool Nav_FindPath( int32_t startFace, int32_t goalFace, std::vector<int32_t> &ou
 			// so A* strongly favors wide open polygon corridors away from small brush corners.
 			double clearancePenalty = 1.0;
 			const double minDesiredWidth = ( policy.agent_radius > 0.0 ) ? ( policy.agent_radius * 2.0 + 16.0 ) : 48.0;
-			if ( portalWidth2D < minDesiredWidth && !policy.ignore_disabled_edges ) {
+			const double minPassableWidth = ( policy.agent_radius > 0.0 ) ? ( policy.agent_radius * 2.0 - 4.0 ) : 28.0;
+
+			if ( portalWidth2D < minPassableWidth && !policy.ignore_disabled_edges ) {
+				// Heavily penalize sliver portals narrower than the agent's physical collision hull
+				// so A* will never choose a tight CSG sliver along an obstacle wall when an open route exists.
+				const double deficit = minPassableWidth - portalWidth2D;
+				clearancePenalty = 50.0 + ( deficit / minPassableWidth ) * 150.0;
+			} else if ( portalWidth2D < minDesiredWidth && !policy.ignore_disabled_edges ) {
 				const double deficit = minDesiredWidth - portalWidth2D;
 				clearancePenalty = 2.0 + ( deficit / minDesiredWidth ) * 10.0;
 			}
@@ -1389,21 +1398,47 @@ static bool Nav_ClipPortalForAgentClearance( const int32_t faceAIdx, const int32
 
 	/**
 	*	1. Exact Circular Clearance Arc Insetting for Convex Obstacle Corners:
-	*	For every convex corner C in the map within vertical step height of this portal:
+	*	Retrieve nearby obstacle corners in O(1) expected time via the 2D spatial hash grid.
 	*	If a portal endpoint falls within the clearance disk of radius `cornerClearance` centered at C,
 	*	analytically solve the ray-circle exit intersection and advance the portal endpoint onto the clearance arc.
 	**/
-	for ( const auto &c : s_nav_cached_corners ) {
+	const double boxMinX = std::min( portalRight.x, portalLeft.x ) - cornerClearance;
+	const double boxMaxX = std::max( portalRight.x, portalLeft.x ) + cornerClearance;
+	const double boxMinY = std::min( portalRight.y, portalLeft.y ) - cornerClearance;
+	const double boxMaxY = std::max( portalRight.y, portalLeft.y ) + cornerClearance;
+
+	const int32_t minCX = static_cast<int32_t>( std::floor( boxMinX * NAV_SPATIAL_GRID_INV_CELL_SIZE ) );
+	const int32_t maxCX = static_cast<int32_t>( std::floor( boxMaxX * NAV_SPATIAL_GRID_INV_CELL_SIZE ) );
+	const int32_t minCY = static_cast<int32_t>( std::floor( boxMinY * NAV_SPATIAL_GRID_INV_CELL_SIZE ) );
+	const int32_t maxCY = static_cast<int32_t>( std::floor( boxMaxY * NAV_SPATIAL_GRID_INV_CELL_SIZE ) );
+
+	const uint32_t cornerToken = ++s_nav_spatial_corner_counter;
+	std::vector<const nav_cached_corner_t *> localCorners;
+	localCorners.reserve( 8 );
+
+	for ( int32_t cy = minCY; cy <= maxCY; ++cy ) {
+		for ( int32_t cx = minCX; cx <= maxCX; ++cx ) {
+			const auto it = s_nav_spatial_grid_corners.find( Nav_SpatialGridKey( cx, cy ) );
+			if ( it == s_nav_spatial_grid_corners.end() ) {
+				continue;
+			}
+			for ( const int32_t cIdx : it->second ) {
+				if ( s_nav_cached_corner_query_tokens[ cIdx ] == cornerToken ) {
+					continue;
+				}
+				s_nav_cached_corner_query_tokens[ cIdx ] = cornerToken;
+				localCorners.push_back( &s_nav_cached_corners[ cIdx ] );
+			}
+		}
+	}
+
+	for ( const auto *cornerPtr : localCorners ) {
+		const auto &c = *cornerPtr;
 		// Check vertical proximity within step height
 		if ( std::fabs( c.vertex.z - portalZ ) > ( NAV_MAX_STEP_HEIGHT + NAV_STEP_HEIGHT_PADDING ) ) {
 			continue;
 		}
 
-		// Distance check from corner to portal bounding box in 2D
-		const double boxMinX = std::min( portalRight.x, portalLeft.x ) - cornerClearance;
-		const double boxMaxX = std::max( portalRight.x, portalLeft.x ) + cornerClearance;
-		const double boxMinY = std::min( portalRight.y, portalLeft.y ) - cornerClearance;
-		const double boxMaxY = std::max( portalRight.y, portalLeft.y ) + cornerClearance;
 		if ( c.vertex.x < boxMinX || c.vertex.x > boxMaxX || c.vertex.y < boxMinY || c.vertex.y > boxMaxY ) {
 			continue;
 		}
@@ -1554,25 +1589,107 @@ static bool Nav_ClipPortalForAgentClearance( const int32_t faceAIdx, const int32
 int32_t Nav_FindClosestFaceInLeaf( const Vector3DP &point ) {
 	/**
 	*	Prefer local KD-tree face lookup for stable corner progression.
-	*	Verify 2D containment and vertical proximity to ensure a valid surface.
 	**/
 	const int32_t leafFace = Nav_FindPolyInLeaf( point );
 	if ( leafFace >= 0 && static_cast< size_t >( leafFace ) < g_nav_faces.size() ) {
-		const nav_face_t &face = g_nav_faces[ leafFace ];
-		if ( Nav_PointInsideFace2D( point, face ) ) {
-			const Vector3DP v0 = g_nav_vertices[ g_nav_halfedges[ face.first_edge_idx ].vertex_idx ];
-			const double planeDist = QM_Vector3DotProductDP( v0, face.normal );
-			const double verticalDist = std::fabs( QM_Vector3DotProductDP( point, face.normal ) - planeDist );
-			if ( verticalDist <= 64.0 ) {
-				return leafFace;
+		return leafFace;
+	}
+
+	/**
+	*	Fallback to global closest poly lookup only if leaf search completely failed.
+	**/
+	return Nav_FindClosestPolyGlobal( point );
+}
+
+/**
+*	@brief	Get the connected component partition ID of a navigation face.
+*	@param	faceIdx	Index of the nav face.
+*	@return	Component identifier, or -1 if invalid.
+**/
+int32_t Nav_GetFaceComponent( const int32_t faceIdx ) {
+	if ( faceIdx >= 0 && static_cast<size_t>( faceIdx ) < s_nav_face_components.size() ) {
+		return s_nav_face_components[ faceIdx ];
+	}
+	return -1;
+}
+
+/**
+*	@brief	Find the closest nav face in the local KD-leaf that shares the connected component of targetFace.
+*	@details	If the face directly under point is an isolated sliver or disconnected polygon, searches
+*				candidate faces in the leaf (and neighboring connected faces) that overlap the agent's
+*				capsule footprint, preventing agents from becoming stranded on degenerate boundary slivers.
+*	@param	point		Query position in feet-origin space.
+*	@param	targetFace	Target/goal navigation face to match component reachability against.
+*	@param	agentRadius	Physical hull radius of the agent (mins/maxs half-width).
+*	@return	Index of closest reachable nav face, or standard closest face if no component match found.
+**/
+int32_t Nav_FindReachableFaceInLeaf( const Vector3DP &point, const int32_t targetFace, const double agentRadius ) {
+	const int32_t primaryFace = Nav_FindClosestFaceInLeaf( point );
+	if ( primaryFace < 0 || targetFace < 0 ||
+		 static_cast<size_t>( primaryFace ) >= s_nav_face_components.size() ||
+		 static_cast<size_t>( targetFace ) >= s_nav_face_components.size() ) {
+		return primaryFace;
+	}
+
+	const int32_t targetComp = s_nav_face_components[ targetFace ];
+	if ( targetComp >= 0 && s_nav_face_components[ primaryFace ] == targetComp ) {
+		return primaryFace;
+	}
+
+	// Primary face is either disconnected or on a different component (e.g. an isolated sliver polygon).
+	// Search candidate faces in the local KD-tree leaf that are reachable to targetComp and overlap the agent's hull.
+	const int32_t leafIdx = Nav_FindLeafNode( point );
+	if ( leafIdx >= 0 && leafIdx < static_cast<int32_t>( g_nav_nodes.size() ) ) {
+		const nav_kdtree_node_t &leaf = g_nav_nodes[ leafIdx ];
+		const int32_t firstFaceIdx = leaf.first_face_id;
+		const double maxFootprintRadius = ( agentRadius > 0.0 ) ? ( agentRadius * 2.0 ) : 32.0;
+		const double maxFootprintDistSqr = maxFootprintRadius * maxFootprintRadius;
+
+		int32_t bestReachableFace = -1;
+		double bestDistSqr = 999999.0;
+
+		for ( int32_t i = 0; i < leaf.num_faces; ++i ) {
+			const int32_t candFaceIdx = firstFaceIdx + i;
+			if ( candFaceIdx < 0 || static_cast<size_t>( candFaceIdx ) >= g_nav_faces.size() ) {
+				break;
+			}
+			if ( static_cast<size_t>( candFaceIdx ) < s_nav_face_components.size() && s_nav_face_components[ candFaceIdx ] == targetComp ) {
+				const nav_face_t &candFace = g_nav_faces[ candFaceIdx ];
+				if ( Nav_PointInsideFace2D( point, candFace ) ) {
+					return candFaceIdx;
+				}
+				const double dx = point.x - candFace.center.x;
+				const double dy = point.y - candFace.center.y;
+				const double distSqr = dx * dx + dy * dy;
+				if ( distSqr <= maxFootprintDistSqr && distSqr < bestDistSqr ) {
+					bestDistSqr = distSqr;
+					bestReachableFace = candFaceIdx;
+				}
+			}
+		}
+
+		if ( bestReachableFace != -1 ) {
+			return bestReachableFace;
+		}
+	}
+
+	// Secondary check: half-edge neighbors of primaryFace that belong to targetComp.
+	if ( primaryFace >= 0 && static_cast<size_t>( primaryFace ) < g_nav_faces.size() ) {
+		const nav_face_t &pf = g_nav_faces[ primaryFace ];
+		for ( int32_t e = 0; e < pf.num_edges; ++e ) {
+			const nav_halfedge_t &he = g_nav_halfedges[ pf.first_edge_idx + e ];
+			if ( he.twin_idx != -1 ) {
+				const int32_t nbrFace = g_nav_halfedges[ he.twin_idx ].face_idx;
+				if ( nbrFace >= 0 && static_cast<size_t>( nbrFace ) < s_nav_face_components.size() ) {
+					if ( s_nav_face_components[ nbrFace ] == targetComp ) {
+						return nbrFace;
+					}
+				}
 			}
 		}
 	}
 
-	/**
-	*	Fallback to global closest poly lookup.
-	**/
-	return Nav_FindClosestPolyGlobal( point );
+	return primaryFace;
 }
 
 /**
@@ -1746,7 +1863,9 @@ static void Nav_EnforceConvexCornerWaypoints( const std::vector<int32_t> &path, 
 		}
 
 		// Ensure standoff is connected to the corner through open space (not through a solid brush into another room):
-		if ( !Nav_HasGeometricLineOfSight2D( c.vertex, standoffMid, 0.0 ) ) {
+		// Offset test start by 1.0 unit along bisectorNorm so the test does not self-intersect the corner vertex edges.
+		const Vector3DP testStart = c.vertex + c.bisectorNorm * 1.0;
+		if ( !Nav_HasGeometricLineOfSight2D( testStart, standoffMid, 0.0 ) ) {
 			continue;
 		}
 
@@ -1817,31 +1936,51 @@ static void Nav_EnforceConvexCornerWaypoints( const std::vector<int32_t> &path, 
 				// Test the initial standoff midpoint first, then try contracted standoffs if constrained by an opposite wall
 				for ( const double scale : { NAV_STANDOFF_SCALE_FULL, NAV_STANDOFF_SCALE_SEVENTY_FIVE, NAV_STANDOFF_SCALE_HALF } ) {
 					const double testDist = corner.standoffDist * scale;
-					const double minDist = ( agentRadius > 0.0 ) ? ( agentRadius * NAV_STANDOFF_SCALE_SEVENTY_FIVE ) : ( NAV_DEFAULT_AGENT_RADIUS * NAV_STANDOFF_SCALE_SEVENTY_FIVE );
+					const double minDist = ( agentRadius > 0.0 ) ? ( agentRadius + NAV_STANDOFF_MIN_HULL_CLEARANCE_MARGIN ) : ( NAV_DEFAULT_AGENT_RADIUS + NAV_STANDOFF_MIN_HULL_CLEARANCE_MARGIN );
 					if ( testDist < minDist ) {
 						break;
 					}
 
 					Vector3DP candMid = corner.vertex + corner.bisectorNorm * testDist;
 					candMid.z = waypoints[ i ].z;
-					const int32_t candFaceIdx = Nav_FindClosestFaceInLeaf( candMid );
-					if ( candFaceIdx != -1 && Nav_PointInsideFace2D( candMid, g_nav_faces[ candFaceIdx ] ) ) {
+					int32_t candFaceIdx = Nav_FindFaceInLeafStrict( candMid );
+					if ( candFaceIdx < 0 ) {
+						Vector3DP feetTest = candMid;
+						feetTest.z -= NAV_STANDOFF_FEET_SNAP_OFFSET_Z;
+						candFaceIdx = Nav_FindFaceInLeafStrict( feetTest );
+					}
+
+					if ( candFaceIdx >= 0 && candFaceIdx < static_cast<int32_t>( g_nav_faces.size() ) ) {
 						const nav_face_t &face = g_nav_faces[ candFaceIdx ];
 						if ( std::fabs( face.normal.z ) > 0.001 ) {
 							const Vector3DP v0 = g_nav_vertices[ g_nav_halfedges[ face.first_edge_idx ].vertex_idx ];
 							const double planeD = QM_Vector3DotProductDP( v0, face.normal );
 							candMid.z = ( planeD - face.normal.x * candMid.x - face.normal.y * candMid.y ) / face.normal.z;
 						}
+					} else {
+						continue;
 					}
 
 					bool candSafe = true;
 					if ( i > 0 ) {
-						if ( !Nav_HasGeometricLineOfSight2D( waypoints[ i - 1 ], candMid, 0.0 ) ) {
+						Vector3DP segDir = candMid - waypoints[ i - 1 ];
+						segDir.z = 0.0;
+						const double segLen = QM_Vector3LengthDP( segDir );
+						const Vector3DP testStart = ( segLen > NAV_SEGMENT_NUDGE_MIN_LENGTH )
+							? ( waypoints[ i - 1 ] + segDir * ( NAV_PROBE_START_NUDGE / segLen ) )
+							: waypoints[ i - 1 ];
+						if ( !Nav_HasGeometricLineOfSight2D( testStart, candMid, 0.0 ) ) {
 							candSafe = false;
 						}
 					}
 					if ( candSafe && i + 1 < waypoints.size() ) {
-						if ( !Nav_HasGeometricLineOfSight2D( candMid, waypoints[ i + 1 ], 0.0 ) ) {
+						Vector3DP segDir = waypoints[ i + 1 ] - candMid;
+						segDir.z = 0.0;
+						const double segLen = QM_Vector3LengthDP( segDir );
+						const Vector3DP testEnd = ( segLen > NAV_SEGMENT_NUDGE_MIN_LENGTH )
+							? ( waypoints[ i + 1 ] - segDir * ( NAV_PROBE_START_NUDGE / segLen ) )
+							: waypoints[ i + 1 ];
+						if ( !Nav_HasGeometricLineOfSight2D( candMid, testEnd, 0.0 ) ) {
 							candSafe = false;
 						}
 					}
@@ -1914,7 +2053,7 @@ static void Nav_EnforceConvexCornerWaypoints( const std::vector<int32_t> &path, 
 					toCorner.z = 0.0;
 					const double t = ( toCorner.x * segDirNorm.x + toCorner.y * segDirNorm.y ) / segLen;
 
-					if ( t > NAV_CORNER_SEGMENT_MIN_T && t < NAV_CORNER_SEGMENT_MAX_T ) {
+					if ( t > NAV_CORNER_SEGMENT_START_MIN_T && t < NAV_CORNER_SEGMENT_MAX_T ) {
 						const Vector3DP proj = p0 + segDirNorm * ( t * segLen );
 						const double dist2DSqr = ( corner.vertex.x - proj.x ) * ( corner.vertex.x - proj.x ) +
 												 ( corner.vertex.y - proj.y ) * ( corner.vertex.y - proj.y );
@@ -1948,25 +2087,49 @@ static void Nav_EnforceConvexCornerWaypoints( const std::vector<int32_t> &path, 
 
 							for ( const double scale : { NAV_STANDOFF_SCALE_FULL, NAV_STANDOFF_SCALE_SEVENTY_FIVE, NAV_STANDOFF_SCALE_HALF } ) {
 								const double testDist = sc.corner->standoffDist * scale;
-								const double minDist = ( agentRadius > 0.0 ) ? ( agentRadius * NAV_STANDOFF_SCALE_SEVENTY_FIVE ) : ( NAV_DEFAULT_AGENT_RADIUS * NAV_STANDOFF_SCALE_SEVENTY_FIVE );
+								const double minDist = ( agentRadius > 0.0 ) ? ( agentRadius + NAV_STANDOFF_MIN_HULL_CLEARANCE_MARGIN ) : ( NAV_DEFAULT_AGENT_RADIUS + NAV_STANDOFF_MIN_HULL_CLEARANCE_MARGIN );
 								if ( testDist < minDist ) {
 									break;
 								}
 
 								Vector3DP candMid = sc.corner->vertex + sc.corner->bisectorNorm * testDist;
 								candMid.z = p0.z + ( p1.z - p0.z ) * sc.t;
-								const int32_t candFaceIdx = Nav_FindClosestFaceInLeaf( candMid );
-								if ( candFaceIdx != -1 && Nav_PointInsideFace2D( candMid, g_nav_faces[ candFaceIdx ] ) ) {
+								int32_t candFaceIdx = Nav_FindFaceInLeafStrict( candMid );
+								if ( candFaceIdx < 0 ) {
+									Vector3DP feetTest = candMid;
+									feetTest.z -= NAV_STANDOFF_FEET_SNAP_OFFSET_Z;
+									candFaceIdx = Nav_FindFaceInLeafStrict( feetTest );
+								}
+
+								if ( candFaceIdx >= 0 && candFaceIdx < static_cast<int32_t>( g_nav_faces.size() ) ) {
 									const nav_face_t &face = g_nav_faces[ candFaceIdx ];
 									if ( std::fabs( face.normal.z ) > 0.001 ) {
 										const Vector3DP v0 = g_nav_vertices[ g_nav_halfedges[ face.first_edge_idx ].vertex_idx ];
 										const double planeD = QM_Vector3DotProductDP( v0, face.normal );
 										candMid.z = ( planeD - face.normal.x * candMid.x - face.normal.y * candMid.y ) / face.normal.z;
 									}
+								} else {
+									continue;
 								}
 
-								if ( !Nav_HasGeometricLineOfSight2D( refinedWaypoints.back(), candMid, 0.0 ) ||
-									 !Nav_HasGeometricLineOfSight2D( candMid, p1, 0.0 ) ) {
+								// Line-of-sight verification: ensure candMid is cleanly reachable from previous waypoint.
+								Vector3DP segFromPrev = candMid - refinedWaypoints.back();
+								segFromPrev.z = 0.0;
+								const double segFromPrevLen = QM_Vector3LengthDP( segFromPrev );
+								const Vector3DP testStart = ( segFromPrevLen > NAV_SEGMENT_NUDGE_MIN_LENGTH )
+									? ( refinedWaypoints.back() + segFromPrev * ( NAV_PROBE_START_NUDGE / segFromPrevLen ) )
+									: refinedWaypoints.back();
+								if ( !Nav_HasGeometricLineOfSight2D( testStart, candMid, 0.0 ) ) {
+									continue;
+								}
+
+								Vector3DP segToNext = p1 - candMid;
+								segToNext.z = 0.0;
+								const double segToNextLen = QM_Vector3LengthDP( segToNext );
+								const Vector3DP testEnd = ( segToNextLen > NAV_SEGMENT_NUDGE_MIN_LENGTH )
+									? ( p1 - segToNext * ( NAV_PROBE_START_NUDGE / segToNextLen ) )
+									: p1;
+								if ( !Nav_HasGeometricLineOfSight2D( candMid, testEnd, 0.0 ) ) {
 									continue;
 								}
 
@@ -2368,9 +2531,13 @@ bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3DP &startPos
 					const Vector3DP u2 = d2 * ( 1.0 / len2 );
 					const double dot = QM_Vector3DotProductDP( u1, u2 );
 
-					// If path continues in virtually the same direction (within ~10 deg), prune intermediate point:
+					// If path continues in virtually the same direction (within ~10 deg), verify that the direct
+					// segment (prev -> next) maintains unobstructed geometric clearance through obstacle geometry before pruning:
 					if ( dot > NAV_COLLINEAR_MAX_DOT ) {
-						continue;
+						const double clearance = ( agentRadius > 0.0 ) ? agentRadius : NAV_DEFAULT_AGENT_RADIUS;
+						if ( Nav_HasGeometricLineOfSight2D( prev, next, clearance ) ) {
+							continue;
+						}
 					}
 				}
 

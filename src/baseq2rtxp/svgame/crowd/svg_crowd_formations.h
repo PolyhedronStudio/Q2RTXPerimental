@@ -139,6 +139,29 @@ void SVG_Crowd_TransformLocalSlotsToWorld( const Vector3 &anchorOrigin, const do
 void SVG_Crowd_SnapSlotsToNavMesh( std::vector<svg_crowd_slot_t> &slots, const Vector3DP &anchorOrigin, const double agentRadius = CROWD_DEFAULT_AGENT_RADIUS );
 
 /**
+*	@brief		Resolve off-mesh, in-wall, and mutually colliding formation slots into distinct column ranks.
+*	@details	Guarantees that every slot is on a valid walkable navmesh surface and no two slots share
+*				the same coordinate or violate mutual separation distance.
+*	@param	slots			[in/out] Formation slots to validate and space out.
+*	@param	anchorOrigin	Formation center anchor in Vector3DP.
+*	@param	headingYawDeg	Forward movement heading in degrees.
+*	@param	minSeparation	Minimum physical separation distance required between distinct slot centers.
+*	@param	guidePath		Optional navigation guide path from squad approach to destination used
+*							to curve trailing column slots along curved corridors, ramps, and staircases.
+**/
+void SVG_Crowd_ResolveSlotCollisionsAndInvalidSlots( std::vector<svg_crowd_slot_t> &slots, const Vector3DP &anchorOrigin, const double headingYawDeg, const double minSeparation = CROWD_DEFAULT_SEPARATION_RADIUS, const double agentRadius = CROWD_DEFAULT_AGENT_RADIUS, const std::vector<Vector3DP> *guidePath = nullptr );
+
+/**
+*	@brief		Sort formation slots so that slots deepest along the ingress vector are indexed first.
+*	@details	Enforces that the earliest-arriving agents navigate to the back of an enclosed area
+*				(bunker, room, corridor) so they never block subsequent incoming agents.
+*	@param	slots			[in/out] Formation slots to order by ingress depth.
+*	@param	destOrigin		Destination center origin in Vector3DP.
+*	@param	ingressDir		Normalized approach direction vector in Vector3DP (from squad towards destination).
+**/
+void SVG_Crowd_SortSlotsByIngressDepth( std::vector<svg_crowd_slot_t> &slots, const Vector3DP &destOrigin, const Vector3DP &ingressDir );
+
+/**
 *	Anti-Crossover Slot Assignment:
 **/
 
@@ -167,3 +190,18 @@ void SVG_Crowd_AssignMembersToSlots( const std::vector<Vector3> &memberOrigins, 
 *	@param	hysteresisDist		Bonus distance threshold (default: 48.0 units) to favor holding current slot.
 **/
 void SVG_Crowd_AssignMembersToSlotsHysteresis( const std::vector<Vector3DP> &memberOrigins, const std::vector<svg_crowd_slot_t> &slots, const std::vector<int32_t> &previousSlotMap, std::vector<int32_t> &outMemberToSlotMap, const double hysteresisDist = 48.0 );
+
+/**
+*	@brief		Assign crowd members to formation slots ordered strictly by ingress depth and approach progress.
+*	@details	Ensures leading squad members take deepest slots at the back of rooms/corridors,
+*				while trailing members take shallow slots at the entrance, preventing deadlocks and crossover congestion.
+*	@param	memberOrigins		Current feet origins of crowd members in Vector3DP.
+*	@param	slots				Target formation slot definitions.
+*	@param	previousSlotMap		Previous frame's slot assignments for each member (or -1 if new).
+*	@param	outMemberToSlotMap	[out] Mapping from member index (0..N-1) to assigned slot index (0..N-1).
+*	@param	destOrigin			Destination center origin in Vector3DP.
+*	@param	ingressDir			Normalized approach direction vector in Vector3DP (from squad towards destination).
+*	@param	hysteresisDist		Bonus distance threshold to favor holding current slot.
+**/
+void SVG_Crowd_AssignMembersToSlotsIngress( const std::vector<Vector3DP> &memberOrigins, const std::vector<svg_crowd_slot_t> &slots, const std::vector<int32_t> &previousSlotMap, std::vector<int32_t> &outMemberToSlotMap, const Vector3DP &destOrigin, const Vector3DP &ingressDir, const double hysteresisDist = 48.0 );
+

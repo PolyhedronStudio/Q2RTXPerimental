@@ -238,15 +238,50 @@ svg_monster_base_t::PathComputeResult svg_monster_base_t::ComputePathTo( const V
 
 	const double effectiveViewHeight = ( this->viewheight > 0.0f ) ? static_cast<double>( this->viewheight ) : PHYS_DEFAULT_VIEWHEIGHT_STANDUP;
 
-	const int32_t startFace = Nav_FindClosestFaceInLeaf( myFeetDP );
-	const int32_t goalFace = Nav_FindClosestFaceInLeaf( targetFeetDP );
+	const bool targetMoved = ( QM_Vector3DistanceSqr( target, pathNavigationState.lastGoal.origin ) > ( 48.0f * 48.0f ) );
+	const bool pathEmpty = navPath.empty() || stringPulledPath.empty();
+
+	// 0) Fast O(1) topological face lookup: check if entity remains on its active path face or direct neighbors
+	int32_t startFace = -1;
+	if ( !navPath.empty() && pathPos < navPath.size() ) {
+		const int32_t candIdx = navPath[ pathPos ];
+		if ( candIdx >= 0 && static_cast<size_t>( candIdx ) < g_nav_faces.size() ) {
+			const nav_face_t &candFace = g_nav_faces[ candIdx ];
+			if ( Nav_PointInsideFace2D( myFeetDP, candFace ) ) {
+				startFace = candIdx;
+			} else {
+				for ( int32_t e = 0; e < candFace.num_edges; ++e ) {
+					const nav_halfedge_t &he = g_nav_halfedges[ candFace.first_edge_idx + e ];
+					if ( he.twin_idx != -1 ) {
+						const int32_t nbrIdx = g_nav_halfedges[ he.twin_idx ].face_idx;
+						if ( nbrIdx >= 0 && static_cast<size_t>( nbrIdx ) < g_nav_faces.size() ) {
+							if ( Nav_PointInsideFace2D( myFeetDP, g_nav_faces[ nbrIdx ] ) ) {
+								startFace = nbrIdx;
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	// Goal face lookup: reuse destination face if target is unchanged, avoiding KD-leaf scan
+	int32_t goalFace = -1;
+	if ( !targetMoved && !navPath.empty() ) {
+		goalFace = navPath.back();
+	} else {
+		goalFace = Nav_FindClosestFaceInLeaf( targetFeetDP );
+	}
+
+	if ( startFace == -1 ) {
+		startFace = Nav_FindReachableFaceInLeaf( myFeetDP, goalFace, agentRadius );
+	} else if ( goalFace >= 0 && Nav_GetFaceComponent( startFace ) != Nav_GetFaceComponent( goalFace ) ) {
+		startFace = Nav_FindReachableFaceInLeaf( myFeetDP, goalFace, agentRadius );
+	}
 
 	if ( startFace == -1 || goalFace == -1 ) {
 		return PathComputeResult::Failed;
 	}
-
-	const bool targetMoved = ( QM_Vector3DistanceSqr( target, pathNavigationState.lastGoal.origin ) > ( 48.0f * 48.0f ) );
-	const bool pathEmpty = navPath.empty() || stringPulledPath.empty();
 
 	/**
 	*	Check if entity remains on or physically intersecting the active navigation path corridor.
@@ -333,20 +368,19 @@ svg_monster_base_t::PathComputeResult svg_monster_base_t::ComputePathTo( const V
 
 	/**
 	*	Anti-Chattering Path Commitment Hysteresis & Failure Cooldown:
-	*	When the destination has not moved, enforce a minimum recalculation interval (400 ms for valid paths,
-	*	600 ms for failed queries). This decisively stops high-frequency A* spam when targets are unreachable
-	*	or when agents navigate along bifurcation decision boundaries.
+	*	If the destination has not moved, and the agent is still physically on its active path corridor,
+	*	reuse the cached path corridor indefinitely! Only recalculate if off-path, target moved, or path is empty.
 	**/
+	if ( !force && !targetMoved && stillOnPath && !pathEmpty ) {
+		return PathComputeResult::ReusedCached;
+	}
+
 	const QMTime requiredCooldown = pathEmpty ? MONSTER_NAV_PATH_FAIL_RECALC_INTERVAL : MONSTER_NAV_PATH_RECALC_MIN_INTERVAL;
 	const bool cooldownElapsed = ( ( level.time - lastPathCalcTime ) >= requiredCooldown );
 
-	// Reuse active path or honor failure cooldown while target has not moved significantly:
+	// When a recalculation is actually required, enforce minimum cooldown interval to prevent high-frequency A* thrashing:
 	if ( !force && !targetMoved && !cooldownElapsed ) {
-		if ( !pathEmpty ) {
-			return PathComputeResult::ReusedCached;
-		}
-		// Failure cooldown active: target has not moved and previous search failed recently; do not thrash A*!
-		return PathComputeResult::Failed;
+		return pathEmpty ? PathComputeResult::Failed : PathComputeResult::ReusedCached;
 	}
 
 	navPath.clear();
@@ -362,7 +396,16 @@ svg_monster_base_t::PathComputeResult svg_monster_base_t::ComputePathTo( const V
 	pathPolicy.edge_cost_callback = &svg_monster_base_t::NavEdgeCostCallbackBridge;
 	pathPolicy.edge_cost_monster = this;
 
-	if ( Nav_FindPath( startFace, goalFace, navPath, pathPolicy ) ) {
+	bool pathFound = Nav_FindPath( startFace, goalFace, navPath, pathPolicy );
+	if ( !pathFound ) {
+		const int32_t altStartFace = Nav_FindReachableFaceInLeaf( myFeetDP, goalFace, agentRadius );
+		if ( altStartFace != -1 && altStartFace != startFace ) {
+			startFace = altStartFace;
+			pathFound = Nav_FindPath( startFace, goalFace, navPath, pathPolicy );
+		}
+	}
+
+	if ( pathFound ) {
 		pathNavigationState.lastGoal.origin = target;
 		pathNavigationState.lastGoal.isValid = true;
 		lastPathCalcTime = level.time;
@@ -507,7 +550,7 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 		}
 
 		// Check turn angle at W_k:
-		bool isSharpTurn = isForcedWp;
+		bool isSharpTurn = false;
 		if ( stringPathPos > 0 && stringPathPos + 1 < stringPulledPath.size() ) {
 			const Vector3DP prevWp = stringPulledPath[ stringPathPos - 1 ];
 			const Vector3DP nextWp = stringPulledPath[ stringPathPos + 1 ];
@@ -524,18 +567,53 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 					isSharpTurn = true;
 				}
 			}
+		} else if ( isForcedWp ) {
+			isSharpTurn = true;
+		}
+
+		// Compute longitudinal distance along incoming segment past W_k:
+		double forwardPast = 0.0;
+		if ( stringPathPos > 0 ) {
+			const Vector3DP prevWp = stringPulledPath[ stringPathPos - 1 ];
+			Vector3DP inSegDir = currentWp - prevWp;
+			inSegDir.z = 0.0;
+			const double inSegLen = QM_Vector3LengthDP( inSegDir );
+			if ( inSegLen > 0.001 ) {
+				inSegDir = inSegDir * ( 1.0 / inSegLen );
+				Vector3DP fromTarget = myFeetDP - currentWp;
+				fromTarget.z = 0.0;
+				forwardPast = QM_Vector3DotProductDP( fromTarget, inSegDir );
+			}
 		}
 
 		// 1) Arrival radius around intermediate waypoint:
-		// On sharp turns and forced corner standoffs, use a tight arrival radius so the entity actually reaches
-		// the safe standoff position and rounds the corner cleanly before steering into the next corridor leg.
-		const double reachRadius = isSharpTurn ? MONSTER_NAV_SHARP_CORNER_REACH_RADIUS : MONSTER_NAV_WAYPOINT_REACH_RADIUS;
+		// On sharp turns and tight corner standoffs, ensure the arrival radius is at least large enough
+		// to accommodate the entity's physical collision hull radius (plus clearance).
+		const double minHullReach = ( agentRadius > 0.0 ) ? ( agentRadius + MONSTER_NAV_CORNER_HULL_CLEARANCE_MARGIN ) : ( NAV_DEFAULT_AGENT_RADIUS + MONSTER_NAV_CORNER_HULL_CLEARANCE_MARGIN );
+		const double sharpReach = std::max( MONSTER_NAV_SHARP_CORNER_REACH_RADIUS, minHullReach );
+		const double reachRadius = isSharpTurn ? sharpReach : MONSTER_NAV_WAYPOINT_REACH_RADIUS;
 		const double reachRadiusSqr = reachRadius * reachRadius;
-		const bool withinRadius = ( dist2DSqr <= reachRadiusSqr );
+		bool withinRadius = ( dist2DSqr <= reachRadiusSqr );
 
-		// 2) Passed waypoint plane along the incoming segment (only allowed on straight, unforced, flat/ramp sections)
+		// Corner switching plane gating:
+		// At a sharp turn around an obstacle corner standoff (isSharpTurn), an agent must NOT advance prematurely
+		// while still on the approach side of the corner (forwardPast < 0.0) unless it already has guaranteed
+		// physical clearance (agentRadius) to the subsequent waypoint W_{k+1}.
+		// Advancing prematurely on the approach side forces the agent to turn into the solid corner brush!
+		// Note: Forced stair step and doorway waypoints must NOT be gated here, as stair flight boundary edges
+		// naturally lie within agentRadius of the step center and would falsely block stair progression.
+		if ( withinRadius && isSharpTurn && stringPathPos + 1 < stringPulledPath.size() ) {
+			const Vector3DP &nextWp = stringPulledPath[ stringPathPos + 1 ];
+			const double losClearance = ( agentRadius > 0.0 ) ? agentRadius : NAV_DEFAULT_AGENT_RADIUS;
+			if ( forwardPast < 0.0 && !Nav_HasGeometricLineOfSight2D( myFeetDP, nextWp, losClearance ) ) {
+				withinRadius = false;
+			}
+		}
+
+		// 2) Passed waypoint plane along the incoming segment:
+		// Allows smooth progression along straight corridors and across doorway portals without stalling.
 		bool passedPlane = false;
-		if ( !isSharpTurn && !isForcedWp && stringPathPos > 0 && ( onRamp || std::fabs( zDiff ) <= MONSTER_NAV_STEP_MIN_DELTA ) ) {
+		if ( stringPathPos > 0 && ( onRamp || std::fabs( zDiff ) <= MONSTER_NAV_STEP_MIN_DELTA ) ) {
 			const Vector3DP prevWp = stringPulledPath[ stringPathPos - 1 ];
 			Vector3DP inSegDir = currentWp - prevWp;
 			inSegDir.z = 0.0;
@@ -545,27 +623,48 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 				inSegDir = inSegDir * ( 1.0 / inSegLen );
 				Vector3DP fromTarget = myFeetDP - currentWp;
 				fromTarget.z = 0.0;
-				const double forwardPast = QM_Vector3DotProductDP( fromTarget, inSegDir );
 				const double lateralDistSqr = QM_Vector3DotProductDP( fromTarget, fromTarget ) - ( forwardPast * forwardPast );
-				// Crossed the plane of W_k while remaining within the corridor lateral bounds
-				if ( forwardPast >= 0.0 && lateralDistSqr <= MONSTER_NAV_SHARP_CORNER_REACH_RADIUS_SQR && dist2DSqr <= MONSTER_NAV_WAYPOINT_REACH_RADIUS_SQR ) {
-					passedPlane = true;
+
+				// For unforced gentle turns: standard corridor bounds
+				if ( !isSharpTurn && !isForcedWp ) {
+					if ( forwardPast >= 0.0 && lateralDistSqr <= MONSTER_NAV_SHARP_CORNER_REACH_RADIUS_SQR && dist2DSqr <= MONSTER_NAV_WAYPOINT_REACH_RADIUS_SQR ) {
+						passedPlane = true;
+					}
 				}
+				// For forced doorway/corridor portals on flat ground: allow advancing if forward past the threshold plane
+				// and within traversable doorway clearance, preventing chokepoint deadlocks.
+				else if ( isForcedWp ) {
+					if ( forwardPast >= 0.0 && lateralDistSqr <= MONSTER_NAV_DOORWAY_PLANE_ADVANCE_MAX_LATERAL_SQR && dist2DSqr <= MONSTER_NAV_DOORWAY_PLANE_ADVANCE_MAX_DIST_SQR ) {
+						passedPlane = true;
+					}
+				}
+			}
+		}
+
+		// 3) Corner clearance advancement:
+		// If the entity is within proximate clearance of W_k, not blocked against a wall, and the subsequent
+		// waypoint W_{k+1} has guaranteed physical capsule clearance (agentRadius) around the corner,
+		// allow advancing past W_k to round the corner cleanly without wedging on the physical corner brush.
+		if ( !withinRadius && !passedPlane && !hasRecentWallBlockNormal && stringPathPos + 1 < stringPulledPath.size() ) {
+			const bool isNearCornerWp = ( dist2DSqr <= MONSTER_NAV_CORNER_BRUSH_CLEARANCE_DIST_SQR );
+			if ( isNearCornerWp && Nav_HasGeometricLineOfSight2D( myFeetDP, stringPulledPath[ stringPathPos + 1 ], agentRadius ) ) {
+				passedPlane = true;
 			}
 		}
 
 		if ( withinRadius ) {
 			++stringPathPos;
-			continue;
+			break; // Advance at most one waypoint per frame to prevent runaway skipping
 		}
 
 		if ( passedPlane ) {
-			// When passing by W_k along a straight flat section, verify both:
-			// 1. Exact 2D geometric line-of-sight through all obstacle edges in O(1) time access
+			// When passing by W_k along a straight flat section or rounding a corner, verify both:
+			// 1. Exact 2D geometric line-of-sight through all obstacle edges with full agentRadius collision hull clearance
 			// 2. Physical kinematic step probe over curbs, stairs, and slopes using SVG_MMove_Probe
 			if ( stringPathPos + 1 < stringPulledPath.size() ) {
 				const Vector3DP &nextWp = stringPulledPath[ stringPathPos + 1 ];
-				if ( !Nav_HasGeometricLineOfSight2D( myFeetDP, nextWp, agentRadius ) ) {
+				const double losClearance = ( agentRadius > 0.0 ) ? agentRadius : NAV_DEFAULT_AGENT_RADIUS;
+				if ( !Nav_HasGeometricLineOfSight2D( myFeetDP, nextWp, losClearance ) ) {
 					// Direct line to W_{k+1} is occluded by an obstacle edge; continue steering towards W_k until withinRadius
 					break;
 				}
@@ -590,7 +689,7 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 			}
 
 			++stringPathPos;
-			continue;
+			break; // Advance at most one waypoint per frame on plane progression to prevent runaway skipping
 		}
 
 		break;
@@ -767,6 +866,34 @@ const bool svg_monster_base_t::StepMoveToGoal( const Vector3 &goalOrigin ) {
 				}
 			}
 		}
+
+		// 3. Squad formation speed regulation: rubber-band followers to maintain rank relative to the leader
+		const svg_crowd_group_t *group = SVG_Crowd_GetGroup( this->crowd.crowdID );
+		if ( group && group->isMoving && !this->crowd.reachedGoal ) {
+			const svg_base_edict_t *leader = group->GetLeaderEntity();
+			if ( !leader && this->crowd.slotIndex != 0 ) {
+				for ( const int32_t memberNum : group->memberEntityNumbers ) {
+					const svg_base_edict_t *ent = g_edict_pool.EdictForNumber( memberNum );
+					if ( ent && ent->crowd.slotIndex == 0 ) {
+						leader = ent;
+						break;
+					}
+				}
+			}
+
+			if ( leader && leader != this && SVG_Entity_IsActive( leader ) && !leader->crowd.reachedGoal ) {
+				const double leaderDistToDest = QM_Vector2DistanceDP( Vector2DP( leader->currentOrigin ), Vector2DP( group->destinationOrigin ) );
+				const double myDistToDest = QM_Vector2DistanceDP( Vector2DP( this->currentOrigin ), Vector2DP( group->destinationOrigin ) );
+
+				if ( myDistToDest > ( leaderDistToDest + CROWD_SLOT_CATCHUP_DISTANCE ) ) {
+					// Trailing behind the leader: catch-up sprint
+					speedScale *= CROWD_CATCHUP_SPEED_SCALE;
+				} else if ( myDistToDest < ( leaderDistToDest - CROWD_SLOT_FOLLOW_TOLERANCE ) ) {
+					// Surging ahead of the moving leader: throttle back to stay in rank
+					speedScale *= CROWD_SLOWDOWN_SPEED_SCALE;
+				}
+			}
+		}
 	}
 
 	ideal_yaw = static_cast<float>( QM_Vector3ToYawDP( moveDirDP ) );
@@ -852,34 +979,26 @@ void svg_monster_base_t::UpdateBlockedNavigationRecovery( const int32_t blockedM
 		return;
 	}
 
-	// Capture wall contact normal for navigation diagnostics
+	// Capture wall contact normal for navigation diagnostics (only against static world geometry)
 	hasRecentWallBlockNormal = false;
 	bool blockedByWorldGeometry = false;
 	for ( uint32_t i = 0; i < monsterMove.touchTraces.numberOfTraces; i++ ) {
 		const svg_trace_t &touchTrace = monsterMove.touchTraces.traces[ i ];
-		if ( touchTrace.plane.normal[ 2 ] < MM_MIN_WALL_NORMAL_Z ) {
-			recentWallBlockNormal = Vector3{ touchTrace.plane.normal[ 0 ], touchTrace.plane.normal[ 1 ], touchTrace.plane.normal[ 2 ] };
-			hasRecentWallBlockNormal = true;
-			lastWallBlockTime = level.time;
-		}
-		// Check if collision contact was with world geometry (ent is nullptr or worldspawn entity 0)
-		if ( touchTrace.ent == nullptr || touchTrace.ent->s.number == 0 ) {
+		const bool isWorld = ( touchTrace.ent == nullptr || touchTrace.ent->s.number == 0 );
+		if ( isWorld ) {
 			blockedByWorldGeometry = true;
+			if ( touchTrace.plane.normal[ 2 ] < MM_MIN_WALL_NORMAL_Z ) {
+				recentWallBlockNormal = Vector3{ touchTrace.plane.normal[ 0 ], touchTrace.plane.normal[ 1 ], touchTrace.plane.normal[ 2 ] };
+				hasRecentWallBlockNormal = true;
+				lastWallBlockTime = level.time;
+			}
 		}
-	}
-
-	if ( isHardBlockedThisFrame ) {
-		ResetNavigationPath();
-		lastPathCalcTime = 0_ms;
-		consecutiveBlockedFrames = 0;
-		lastBlockedFrameTime = level.time;
-		return;
 	}
 
 	// If the entity is only in collision contact with fellow squad members / other dynamic entities rather than
 	// solid world architecture, do not increment consecutiveBlockedFrames to wipe the navigation path.
 	// Clearing and recalculating A* every 8 frames while queued behind a teammate thrashes CPU and causes severe FPS drops!
-	if ( !blockedByWorldGeometry && this->crowd.crowdID >= 0 ) {
+	if ( !blockedByWorldGeometry && !isHardBlockedThisFrame && this->crowd.crowdID >= 0 ) {
 		consecutiveBlockedFrames = 0;
 		return;
 	}
@@ -895,8 +1014,13 @@ void svg_monster_base_t::UpdateBlockedNavigationRecovery( const int32_t blockedM
 	}
 	lastBlockedFrameTime = level.time;
 
-	static constexpr int32_t STUCK_RECOVER_BLOCKED_FRAMES = 8;
-	if ( consecutiveBlockedFrames >= STUCK_RECOVER_BLOCKED_FRAMES ) {
+	if ( isHardBlockedThisFrame || consecutiveBlockedFrames >= MONSTER_NAV_STUCK_RECOVER_BLOCKED_FRAMES ) {
+		// Nudge entity slightly outward along blocking wall normal to dislodge from doorframe creases
+		if ( hasRecentWallBlockNormal ) {
+			const Vector3 unstickOrigin = this->currentOrigin + ( recentWallBlockNormal * MONSTER_NAV_STUCK_WALL_NUDGE_DIST );
+			SVG_Util_SetEntityOrigin( this, unstickOrigin, true );
+			monsterMove.state.origin = unstickOrigin;
+		}
 		ResetNavigationPath();
 		lastPathCalcTime = 0_ms;
 		consecutiveBlockedFrames = 0;

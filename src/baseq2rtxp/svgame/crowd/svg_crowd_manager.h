@@ -54,6 +54,8 @@ struct svg_crowd_group_t {
 	std::vector<Vector3DP> sharedLeaderPath = {};
 	//! Calculated formation slots (in world space).
 	std::vector<svg_crowd_slot_t> slots = {};
+	//! Normalized horizontal approach vector towards destinationOrigin.
+	Vector3DP ingressDirection = { 0.0, 0.0, 0.0 };
 	//! Entity numbers of members actively registered to this group.
 	std::vector<int32_t> memberEntityNumbers = {};
 	//! Server timestamp when current order began.
@@ -245,6 +247,13 @@ bool SVG_Crowd_ComputeMutualSeparation( const svg_base_edict_t *ent, Vector3DP *
 *	@return	True if a leading teammate was found directly ahead in the travel corridor.
 **/
 bool SVG_Crowd_ComputeTeammateFollowSpeedScale( const int32_t entityNumber, const Vector3DP &moveDir, double *outSpeedScale );
+
+/**
+*	@brief	Dynamically optimize slot assignments among crowd members to eliminate crossing trajectories.
+*	@param	group	Active crowd coordination group.
+*	@param	members	List of active squad member entities.
+**/
+void SVG_Crowd_OptimizeSlotAssignments( svg_crowd_group_t &group, const std::vector<svg_base_edict_t*> &members );
 
 /**
 *	@brief	Render debug visualization for all active crowd groups and formation slots.

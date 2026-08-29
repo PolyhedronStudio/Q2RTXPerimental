@@ -31,6 +31,18 @@ enum nav_cover_peek_flags_t : uint8_t {
 	NAV_COVER_PEEK_CORNER = 1 << 3
 };
 
+//! Eye elevation offset in world units for testing sightlines while peeking over low cover.
+static constexpr double NAV_COVER_STAND_PEEK_EYE_Z = 52.0;
+
+//! Eye elevation offset in world units for testing lateral step-out sightlines.
+static constexpr double NAV_COVER_LATERAL_PEEK_EYE_Z = 48.0;
+
+//! Lateral displacement distance along the wall tangent when testing tactical peek capability.
+static constexpr double NAV_COVER_PEEK_OFFSET_DIST = 28.0;
+
+//! Minimum trace fraction clearance required along the lateral step-out vector before testing threat sightline.
+static constexpr double NAV_COVER_PEEK_MIN_CLEAR_FRACTION = 0.75;
+
 /**
 *	@brief	Dynamic behavior and attachment flags for mover-bound cover points.
 **/

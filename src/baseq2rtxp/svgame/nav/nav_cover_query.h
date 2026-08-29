@@ -13,13 +13,15 @@
 *	@param	min_cover_type		Posture requirement filter (NAV_COVER_LOW, NAV_COVER_HIGH, or NAV_COVER_NONE).
 *	@param	threat_forward		Optional normalized horizontal forward direction the threat is facing (Vector3DP).
 *	@param	max_results			Maximum number of candidate cover points to collect (default: 12).
+*	@param	require_engagement_los	When true (Aggressive mood), requires offensive peek/engagement sightlines to the threat.
 *	@return	True when one or more suitable cover points were found.
 **/
 const bool Nav_FindCoverPoints( const Vector3DP &search_origin, const Vector3DP &threat_origin,
 	const double radius, const int32_t requester_ent, std::vector<int32_t> *out_cover_indices,
 	const nav_cover_type_t min_cover_type = NAV_COVER_NONE,
 	const Vector3DP &threat_forward = Vector3DP{ 0.0, 0.0, 0.0 },
-	const size_t max_results = 12 );
+	const size_t max_results = 12,
+	const bool require_engagement_los = false );
 
 /**
 *	@brief		Find valid cover points protecting against a threat within a search radius (single-precision wrapper).
@@ -29,12 +31,14 @@ const bool Nav_FindCoverPoints( const Vector3DP &search_origin, const Vector3DP 
 *	@param	requester_ent		Entity ID requesting cover (used to filter claim reservations).
 *	@param	out_cover_indices	[out] List of valid cover point indices ranked by tactical score.
 *	@param	min_cover_type		Posture requirement filter (NAV_COVER_LOW, NAV_COVER_HIGH, or NAV_COVER_NONE for any posture).
+*	@param	require_engagement_los	When true, requires offensive peek sightlines to threat.
 *	@return	True when one or more suitable cover points were found.
 **/
 inline const bool Nav_FindCoverPoints( const Vector3 &search_origin, const Vector3 &threat_origin,
 	const float radius, const int32_t requester_ent, std::vector<int32_t> *out_cover_indices,
-	const nav_cover_type_t min_cover_type = NAV_COVER_NONE ) {
-	return Nav_FindCoverPoints( Vector3DP( search_origin ), Vector3DP( threat_origin ), static_cast<double>( radius ), requester_ent, out_cover_indices, min_cover_type );
+	const nav_cover_type_t min_cover_type = NAV_COVER_NONE,
+	const bool require_engagement_los = false ) {
+	return Nav_FindCoverPoints( Vector3DP( search_origin ), Vector3DP( threat_origin ), static_cast<double>( radius ), requester_ent, out_cover_indices, min_cover_type, Vector3DP{ 0.0, 0.0, 0.0 }, 12, require_engagement_los );
 }
 
 /**
@@ -42,19 +46,21 @@ inline const bool Nav_FindCoverPoints( const Vector3 &search_origin, const Vecto
 *	@param	cover_idx			Index into the global cover points array.
 *	@param	threat_origin		Position of the threat to evaluate against in Vector3DP.
 *	@param	perform_trace_check	When true, performs a line-of-sight trace to verify occlusion.
+*	@param	require_engagement_los	When true, requires offensive peek/engagement sightlines to the threat.
 *	@return	Score between 0.0f (no cover/exposed) and 1.0f (ideal directional occlusion).
 **/
-const float Nav_EvaluateCoverForThreat( const int32_t cover_idx, const Vector3DP &threat_origin, const bool perform_trace_check = true );
+const float Nav_EvaluateCoverForThreat( const int32_t cover_idx, const Vector3DP &threat_origin, const bool perform_trace_check = true, const bool require_engagement_los = false );
 
 /**
 *	@brief		Evaluate the tactical protection score of a specific cover point against a threat (single-precision wrapper).
 *	@param	cover_idx			Index into the global cover points array.
 *	@param	threat_origin		Position of the threat to evaluate against.
 *	@param	perform_trace_check	When true, performs a line-of-sight trace to verify occlusion.
+*	@param	require_engagement_los	When true, requires offensive peek/engagement sightlines to the threat.
 *	@return	Score between 0.0f (no cover/exposed) and 1.0f (ideal directional occlusion).
 **/
-inline const float Nav_EvaluateCoverForThreat( const int32_t cover_idx, const Vector3 &threat_origin, const bool perform_trace_check = true ) {
-	return Nav_EvaluateCoverForThreat( cover_idx, Vector3DP( threat_origin ), perform_trace_check );
+inline const float Nav_EvaluateCoverForThreat( const int32_t cover_idx, const Vector3 &threat_origin, const bool perform_trace_check = true, const bool require_engagement_los = false ) {
+	return Nav_EvaluateCoverForThreat( cover_idx, Vector3DP( threat_origin ), perform_trace_check, require_engagement_los );
 }
 
 /**

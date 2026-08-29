@@ -994,9 +994,12 @@ void Nav_DissolveSlivers() {
 		nav_aabb_t box;
 		box.Clear();
 		double area = 0.0;
+		double perimeter = 0.0;
 		for ( int32_t i = 0; i < poly.num_vertices; i++ ) {
 			const Vector3DP &p = poly.vertices[ i ];
+			const Vector3DP &nextP = poly.vertices[ ( i + 1 ) % poly.num_vertices ];
 			box.AddPoint( p );
+			perimeter += QM_Vector3DistanceDP( p, nextP );
 			if ( i >= 2 ) {
 				Vector3DP e1 = Vector3DP( poly.vertices[ i - 1 ] ) - Vector3DP( poly.vertices[ 0 ] );
 				Vector3DP e2 = Vector3DP( p ) - Vector3DP( poly.vertices[ 0 ] );
@@ -1007,9 +1010,10 @@ void Nav_DissolveSlivers() {
 		const double extent_x = box.maxs.x - box.mins.x;
 		const double extent_y = box.maxs.y - box.mins.y;
 		const double min_extent = std::min<double>( extent_x, extent_y );
+		const double feature_width = ( perimeter > 0.001 ) ? ( 2.0 * area / perimeter ) : 0.0;
 
-		// Filter out degenerate numerical artifacts (min_extent < 0.5 units or area < 1.0)
-		if ( min_extent < 0.5 || area < 1.0 ) {
+		// Filter out degenerate numerical artifacts and razor-thin boundary slivers
+		if ( min_extent < NAV_SLIVER_MIN_EXTENT || area < NAV_SLIVER_MIN_AREA || feature_width < NAV_SLIVER_MIN_FEATURE_WIDTH ) {
 			discarded_degenerates++;
 			continue;
 		}

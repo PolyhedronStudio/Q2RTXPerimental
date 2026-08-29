@@ -57,6 +57,7 @@ static constexpr double NAV_CORNER_SNAP_RADIUS_SQR = NAV_CORNER_SNAP_RADIUS * NA
 
 //! Minimum and maximum parametric range along a segment for corner standoff insertion.
 static constexpr double NAV_CORNER_SEGMENT_MIN_T = 0.05;
+static constexpr double NAV_CORNER_SEGMENT_START_MIN_T = 0.01;
 static constexpr double NAV_CORNER_SEGMENT_MAX_T = 0.95;
 
 //! Tolerance distance threshold to avoid inserting duplicate standoff waypoints too close to existing endpoints.
@@ -119,6 +120,15 @@ static constexpr double NAV_RAY_PARALLEL_EPSILON = 0.000001;
 static constexpr double NAV_STANDOFF_SCALE_FULL = 1.0;
 static constexpr double NAV_STANDOFF_SCALE_SEVENTY_FIVE = 0.75;
 static constexpr double NAV_STANDOFF_SCALE_HALF = 0.5;
+
+//! Minimum clearance margin added to entity radius for corner standoff placement to prevent hull wall contact.
+static constexpr double NAV_STANDOFF_MIN_HULL_CLEARANCE_MARGIN = 4.0;
+
+//! Absolute minimum portal width (units) physically passable by any entity collision hull.
+static constexpr double NAV_ABSOLUTE_MIN_PORTAL_PASSAGE_WIDTH = 20.0;
+
+//! Vertical downward offset used when attempting KD-leaf face lookups at feet level during corner standoff tests.
+static constexpr double NAV_STANDOFF_FEET_SNAP_OFFSET_Z = 18.0;
 
 //! Default maximum step-up height for kinematic physical probing.
 static constexpr float NAV_PROBE_DEFAULT_MAX_STEP_HEIGHT = 18.25f;
@@ -323,6 +333,28 @@ inline int32_t Nav_FindClosestPolyGlobal( const Vector3 &point ) {
 int32_t Nav_FindClosestFaceInLeaf( const Vector3DP &point );
 inline int32_t Nav_FindClosestFaceInLeaf( const Vector3 &point ) {
 	return Nav_FindClosestFaceInLeaf( Vector3DP( point ) );
+}
+
+/**
+*	@brief	Get the connected component partition ID of a navigation face.
+*	@param	faceIdx	Index of the nav face.
+*	@return	Component identifier, or -1 if invalid.
+**/
+int32_t Nav_GetFaceComponent( const int32_t faceIdx );
+
+/**
+*	@brief	Find the closest nav face in the local KD-leaf that shares the connected component of targetFace.
+*	@details	If the face directly under point is an isolated sliver or disconnected polygon, searches
+*				candidate faces in the leaf (and neighboring connected faces) that overlap the agent's
+*				capsule footprint, preventing agents from becoming stranded on degenerate boundary slivers.
+*	@param	point		Query position in feet-origin space.
+*	@param	targetFace	Target/goal navigation face to match component reachability against.
+*	@param	agentRadius	Physical hull radius of the agent (mins/maxs half-width).
+*	@return	Index of closest reachable nav face, or standard closest face if no component match found.
+**/
+int32_t Nav_FindReachableFaceInLeaf( const Vector3DP &point, const int32_t targetFace, const double agentRadius );
+inline int32_t Nav_FindReachableFaceInLeaf( const Vector3 &point, const int32_t targetFace, const double agentRadius ) {
+	return Nav_FindReachableFaceInLeaf( Vector3DP( point ), targetFace, agentRadius );
 }
 
 /**

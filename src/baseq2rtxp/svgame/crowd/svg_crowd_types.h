@@ -98,7 +98,7 @@ static constexpr double CROWD_DEFAULT_MIN_CORRIDOR_SPACING = 24.0;
 //! Maximum allowable vertical Z difference for satisfying formation slot arrival.
 static constexpr double CROWD_ARRIVAL_MAX_Z_DIFF = 48.0;
 //! Multiplier applied to arrival radius when testing if a stationary/blocked agent has reached its slot.
-static constexpr double CROWD_BLOCKED_ARRIVAL_RADIUS_FACTOR = 1.5;
+static constexpr double CROWD_BLOCKED_ARRIVAL_RADIUS_FACTOR = 2.0;
 //! Minimum horizontal speed squared under which a blocked crowd member is considered stationary.
 static constexpr double CROWD_BLOCKED_STATIONARY_SPEED_SQ = 16.0;
 //! Minimum distance the target entity must move before a follow formation is eligible to rebuild.
@@ -119,8 +119,65 @@ static constexpr double CROWD_FOLLOW_SLOWDOWN_RANGE = 32.0;
 static constexpr double CROWD_CORRIDOR_LATERAL_THRESHOLD = 32.0;
 //! Safety standoff margin from solid obstacle boundary walls when applying mutual separation.
 static constexpr double CROWD_WALL_STANDOFF_MARGIN = 8.0;
+//! Speed multiplier applied when an en-route squad member has fallen behind its assigned slot.
+static constexpr double CROWD_CATCHUP_SPEED_SCALE = 1.15;
+//! Speed multiplier applied when an en-route squad member has advanced ahead of its assigned slot.
+static constexpr double CROWD_SLOWDOWN_SPEED_SCALE = 0.80;
+//! Minimum crawl speed scale when decelerating behind a leading teammate in a travel corridor.
+static constexpr double CROWD_FOLLOW_CRAWL_SPEED_SCALE = 0.50;
+//! Distance threshold from assigned slot within which an en-route squad member is considered in-rank.
+static constexpr double CROWD_SLOT_FOLLOW_TOLERANCE = 24.0;
+//! Distance threshold beyond which an en-route squad member engages catch-up sprint.
+static constexpr double CROWD_SLOT_CATCHUP_DISTANCE = 48.0;
+//! Minimum duration an agent must be stalled near its slot before declaring blocked arrival.
+static constexpr QMTime CROWD_BLOCKED_ARRIVAL_STALL_TIME = 500_ms;
 //! Low-frequency think interval for arrived crowd members located far away from the player.
 static constexpr QMTime CROWD_THROTTLE_THINK_INTERVAL = 100_ms;
+
+//! Physical separation margin added to two agent diameters to guarantee non-overlapping formation slots.
+static constexpr double CROWD_SLOT_MIN_SEPARATION_MARGIN = 12.0;
+
+//! Distance improvement threshold required to trigger a dynamic 2-Opt slot swap between moving members.
+static constexpr double CROWD_SWAP_HYSTERESIS_MOVING = 16.0;
+
+//! Distance improvement threshold required to trigger a dynamic 2-Opt slot swap when a member has already arrived.
+static constexpr double CROWD_SWAP_HYSTERESIS_ARRIVED = 48.0;
+
+//! Maximum iterations executed per frame during dynamic 2-Opt slot assignment optimization.
+static constexpr int32_t CROWD_MAX_OPTIMIZE_ITERS = 8;
+
+//! Maximum iterations executed during initial ingress-depth 2-Opt slot optimization.
+static constexpr int32_t CROWD_MAX_INGRESS_2OPT_ITERS = 16;
+
+//! Rank window searched around candidate depth rank during ingress slot matching.
+static constexpr size_t CROWD_INGRESS_RANK_WINDOW = 4;
+
+//! Weight multiplier applied to rank differential relative to lateral offset in ingress slot scoring.
+static constexpr double CROWD_INGRESS_RANK_WEIGHT = 20.0;
+
+//! Lateral offset multiplier applied to column ranks when searching for alternative walkable slot positions.
+static constexpr double CROWD_COLUMN_LATERAL_OFFSET_RATIO = 0.5;
+
+//! Maximum sequential column ranks searched backwards along the approach corridor when resolving invalid slots.
+static constexpr int32_t CROWD_MAX_COLUMN_SEARCH_RANKS = 64;
+
+//! Number of candidate radial angles tested when adaptively packing invalid slots inside interior rooms.
+static constexpr int32_t CROWD_INTERIOR_PACKING_ANGLES = 12;
+
+//! Step increment in radians between candidate radial angles during interior room packing.
+static constexpr double CROWD_INTERIOR_PACKING_ANGLE_STEP = ( 2.0 * QM_PI ) / static_cast<double>( CROWD_INTERIOR_PACKING_ANGLES );
+
+//! Vertical upward trace clearance offset above feet origin to verify unobstructed slot line-of-sight.
+static constexpr double CROWD_SLOT_TRACE_CLEARANCE_OFFSET_Z = 18.0;
+
+//! Trace fraction threshold required to declare a formation slot location physically unobstructed.
+static constexpr float CROWD_SLOT_TRACE_FRACTION_THRESHOLD = 0.99f;
+
+//! Tactical cover fallback offset distance behind squad centroid away from threat.
+static constexpr double CROWD_TACTICAL_COVER_RESERVE_OFFSET = 48.0;
+
+//! Tolerance distance in world units for preserving ingress depth monotonicity during slot assignment and 2-Opt.
+static constexpr double CROWD_INGRESS_ORDER_TOLERANCE = 16.0;
 
 /**
 *	@brief	Parameters controlling formation geometry, spacing, and tactical thresholds.
@@ -198,6 +255,8 @@ struct crowd_t {
 	QMTime maxTimeToSeek = 0_ms;
 	//! Last server time when an A* route was computed (for staggered updates).
 	QMTime lastPathCalcTime = 0_ms;
+	//! Timestamp when an agent first became stationary while stalled near its assigned slot.
+	QMTime blockedStartTime = 0_ms;
 	//! True when the agent has reached within the arrival threshold of its assigned slot/cover.
 	bool reachedGoal = false;
 };

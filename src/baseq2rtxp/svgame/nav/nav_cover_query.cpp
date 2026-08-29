@@ -373,9 +373,10 @@ void Nav_SetCoverPointCooldown( const int32_t cover_idx, const QMTime duration )
 *	@param	cover_idx			Index into the global cover points array.
 *	@param	threat_origin		Position of the threat to evaluate against in Vector3DP.
 *	@param	perform_trace_check	When true, performs a line-of-sight trace to verify occlusion.
+*	@param	require_engagement_los	When true (Aggressive mood), requires offensive peek/engagement sightlines to the threat.
 *	@return	Score between 0.0f (no cover/exposed) and 1.0f (ideal directional occlusion).
 **/
-const float Nav_EvaluateCoverForThreat( const int32_t cover_idx, const Vector3DP &threat_origin, const bool perform_trace_check ) {
+const float Nav_EvaluateCoverForThreat( const int32_t cover_idx, const Vector3DP &threat_origin, const bool perform_trace_check, const bool require_engagement_los ) {
 	/**
 	*	Validate cover point pointer.
 	**/
@@ -392,8 +393,8 @@ const float Nav_EvaluateCoverForThreat( const int32_t cover_idx, const Vector3DP
 	/**
 	*	Resolve world-space coordinates in double precision (Vector3DP).
 	**/
-	Vector3DP world_pos = {}, world_normal = {};
-	if ( !Nav_GetCoverPointWorldDP( *cover, &world_pos, &world_normal ) ) {
+	Vector3DP world_pos = {}, world_normal = {}, world_tangent = {};
+	if ( !Nav_GetCoverPointWorldDP( *cover, &world_pos, &world_normal, &world_tangent ) ) {
 		return 0.0f;
 	}
 
@@ -413,6 +414,59 @@ const float Nav_EvaluateCoverForThreat( const int32_t cover_idx, const Vector3DP
 		}
 
 		// Occluded! The solid world geometry blocks direct sight/fire.
+		// If caller does not require offensive engagement LOS (e.g. scared mood seeking pure defensive sanctuary),
+		// defensive protection alone is sufficient:
+		if ( !require_engagement_los ) {
+			return 1.0f;
+		}
+
+		/**
+		*	Offensive Engagement / Peek Sightline Verification (Aggressive Mood):
+		*	Verify that the agent can actively acquire line of sight to the threat
+		*	from a tactical peek posture (peeking over low cover, or stepping out around high cover/corners).
+		**/
+		bool hasEngagementLOS = false;
+
+		// Option A: Peek over top (low cover obstacles or explicit peek over flag).
+		if ( cover->cover_type == NAV_COVER_LOW || ( cover->peek_flags & NAV_COVER_PEEK_OVER ) != 0 ) {
+			const Vector3DP stand_eye = world_pos + Vector3DP{ 0.0, 0.0, NAV_COVER_STAND_PEEK_EYE_Z };
+			const svg_trace_t tr_stand = SVG_Trace( QM_Vector3FromDP( stand_eye ), vec3_origin, vec3_origin, QM_Vector3FromDP( threat_eye ), nullptr, CM_CONTENTMASK_SOLID );
+			if ( tr_stand.fraction >= 1.0f ) {
+				hasEngagementLOS = true;
+			}
+		}
+
+		// Option B: Step out / peek laterally around corners along the wall tangent.
+		if ( !hasEngagementLOS ) {
+			const double tanLenSq = QM_Vector3LengthSqrDP( world_tangent );
+			if ( tanLenSq > 0.001 ) {
+				const Vector3DP tanNorm = QM_Vector3NormalizeDP( world_tangent );
+
+				// Test lateral peek left and peek right:
+				for ( const double side : { 1.0, -1.0 } ) {
+					const Vector3DP peekPos = world_pos + ( tanNorm * ( side * NAV_COVER_PEEK_OFFSET_DIST ) ) + Vector3DP{ 0.0, 0.0, NAV_COVER_LATERAL_PEEK_EYE_Z };
+
+					// Verify the peek position itself is in open space (not embedded in a solid wall):
+					const svg_trace_t tr_step = SVG_Trace( QM_Vector3FromDP( eye_pos ), vec3_origin, vec3_origin, QM_Vector3FromDP( peekPos ), nullptr, CM_CONTENTMASK_SOLID );
+					if ( tr_step.startsolid || static_cast<double>( tr_step.fraction ) < NAV_COVER_PEEK_MIN_CLEAR_FRACTION ) {
+						continue; // Blocked by wall, cannot step out in this direction
+					}
+
+					// Verify clear line of sight from the peek position to the threat:
+					const svg_trace_t tr_peek = SVG_Trace( tr_step.endpos, vec3_origin, vec3_origin, QM_Vector3FromDP( threat_eye ), nullptr, CM_CONTENTMASK_SOLID );
+					if ( tr_peek.fraction >= 1.0f ) {
+						hasEngagementLOS = true;
+						break;
+					}
+				}
+			}
+		}
+
+		// If the cover spot is completely blind (no sightline to threat in any posture), reject it for aggressive combatants:
+		if ( !hasEngagementLOS ) {
+			return 0.0f;
+		}
+
 		return 1.0f;
 	}
 
@@ -449,13 +503,15 @@ struct nav_cover_candidate_t {
 *	@param	min_cover_type		Posture requirement filter (NAV_COVER_LOW, NAV_COVER_HIGH, or NAV_COVER_NONE).
 *	@param	threat_forward		Optional normalized horizontal forward direction the threat is facing (Vector3DP).
 *	@param	max_results			Maximum number of candidate cover points to collect (default: 12).
+*	@param	require_engagement_los	When true (Aggressive mood), requires offensive peek/engagement sightlines to the threat.
 *	@return	True when one or more suitable cover points were found.
 **/
 const bool Nav_FindCoverPoints( const Vector3DP &search_origin, const Vector3DP &threat_origin,
 	const double radius, const int32_t requester_ent, std::vector<int32_t> *out_cover_indices,
 	const nav_cover_type_t min_cover_type,
 	const Vector3DP &threat_forward,
-	const size_t max_results ) {
+	const size_t max_results,
+	const bool require_engagement_los ) {
 	/**
 	*	Sanity checks: Ensure output pointer and cover points list are valid.
 	**/
@@ -616,7 +672,7 @@ const bool Nav_FindCoverPoints( const Vector3DP &search_origin, const Vector3DP 
 	for ( const auto &cand : candidates ) {
 		if ( traces_performed < max_traces ) {
 			traces_performed++;
-			const float trace_prot = Nav_EvaluateCoverForThreat( cand.index, threat_origin, true );
+			const float trace_prot = Nav_EvaluateCoverForThreat( cand.index, threat_origin, true, require_engagement_los );
 			if ( trace_prot > 0.0f ) {
 				out_cover_indices->push_back( cand.index );
 				// If we have collected enough confirmed occluded spots, early exit narrow phase!
@@ -629,8 +685,9 @@ const bool Nav_FindCoverPoints( const Vector3DP &search_origin, const Vector3DP 
 		}
 	}
 
-	// If narrow-phase filtered out all points due to open terrain, fall back to best broad-phase point.
-	if ( out_cover_indices->empty() && !candidates.empty() ) {
+	// If narrow-phase filtered out all points due to open terrain, fall back to best broad-phase point
+	// ONLY when purely defensive cover is sought (not when offensive engagement LOS is strictly required).
+	if ( out_cover_indices->empty() && !candidates.empty() && !require_engagement_los ) {
 		out_cover_indices->push_back( candidates[ 0 ].index );
 	}
 

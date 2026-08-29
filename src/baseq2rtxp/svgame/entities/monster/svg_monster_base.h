@@ -72,6 +72,30 @@ static constexpr QMTime MONSTER_NAV_PATH_RECALC_MIN_INTERVAL = 400_ms;
 //! Minimum time interval before retrying a failed path search to prevent exhaustive search thrashing.
 static constexpr QMTime MONSTER_NAV_PATH_FAIL_RECALC_INTERVAL = 600_ms;
 
+//! Clearance margin added to entity radius for sharp corner waypoint arrival checks.
+static constexpr double MONSTER_NAV_CORNER_HULL_CLEARANCE_MARGIN = 4.0;
+
+//! Maximum lateral displacement allowed when advancing past a forced doorway plane.
+static constexpr double MONSTER_NAV_DOORWAY_PLANE_ADVANCE_MAX_LATERAL = 24.0;
+//! Squared maximum lateral displacement allowed when advancing past a forced doorway plane.
+static constexpr double MONSTER_NAV_DOORWAY_PLANE_ADVANCE_MAX_LATERAL_SQR = MONSTER_NAV_DOORWAY_PLANE_ADVANCE_MAX_LATERAL * MONSTER_NAV_DOORWAY_PLANE_ADVANCE_MAX_LATERAL;
+
+//! Maximum distance to waypoint allowed when advancing past a forced doorway plane.
+static constexpr double MONSTER_NAV_DOORWAY_PLANE_ADVANCE_MAX_DIST = 36.0;
+//! Squared maximum distance to waypoint allowed when advancing past a forced doorway plane.
+static constexpr double MONSTER_NAV_DOORWAY_PLANE_ADVANCE_MAX_DIST_SQR = MONSTER_NAV_DOORWAY_PLANE_ADVANCE_MAX_DIST * MONSTER_NAV_DOORWAY_PLANE_ADVANCE_MAX_DIST;
+
+//! Maximum distance to a corner waypoint to allow advancing past when in contact with world geometry.
+static constexpr double MONSTER_NAV_CORNER_BRUSH_CLEARANCE_DIST = 22.0;
+//! Squared maximum distance to a corner waypoint to allow advancing past when in contact with world geometry.
+static constexpr double MONSTER_NAV_CORNER_BRUSH_CLEARANCE_DIST_SQR = MONSTER_NAV_CORNER_BRUSH_CLEARANCE_DIST * MONSTER_NAV_CORNER_BRUSH_CLEARANCE_DIST;
+
+//! Consecutive blocked frames required before triggering navigation recovery.
+static constexpr int32_t MONSTER_NAV_STUCK_RECOVER_BLOCKED_FRAMES = 32;
+
+//! Physical nudge distance outward along blocking wall normal to dislodge from corner creases.
+static constexpr float MONSTER_NAV_STUCK_WALL_NUDGE_DIST = 2.0f;
+
 
 /**
 *	@brief	Base entity class for all monsters.

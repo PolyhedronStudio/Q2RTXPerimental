@@ -470,6 +470,30 @@ bool SVG_Crowd_ComputeMutualSeparation( const int32_t entityNumber, Vector3DP *o
 			const Vector3DP pushDir = diff * ( 1.0 / dist );
 			separationAcc = separationAcc + ( pushDir * pushWeight );
 			neighborCount++;
+
+			// If self is moving and other teammate is directly ahead on a collision course,
+			// compute lateral (perpendicular) avoidance force to smoothly steer around teammate's capsule.
+			const Vector3DP selfVel( selfEnt->velocity );
+			const double velSq = selfVel.x * selfVel.x + selfVel.y * selfVel.y;
+			if ( velSq > 16.0 ) {
+				const double invVel = 1.0 / std::sqrt( velSq );
+				const Vector3DP fwdDir = { selfVel.x * invVel, selfVel.y * invVel, 0.0 };
+				const Vector3DP rightDir = { fwdDir.y, -fwdDir.x, 0.0 };
+
+				const Vector3DP toOther = otherOrigin - myOrigin;
+				const double dLong = toOther.x * fwdDir.x + toOther.y * fwdDir.y;
+				const double dLat = toOther.x * rightDir.x + toOther.y * rightDir.y;
+
+				constexpr double lateralHullLimit = ( CROWD_DEFAULT_AGENT_RADIUS * 2.0 ) + 8.0;
+				if ( dLong > 0.0 && dLong < sepRadius && std::fabs( dLat ) < lateralHullLimit ) {
+					// Steer laterally away from the teammate's relative side (left if teammate on right, right if on left)
+					const double steerSign = ( dLat >= 0.0 ) ? -1.0 : 1.0;
+					const double latWeight = ( lateralHullLimit - std::fabs( dLat ) ) / lateralHullLimit;
+					const double longWeight = ( sepRadius - dLong ) / sepRadius;
+					const Vector3DP latPush = rightDir * ( steerSign * latWeight * longWeight * 1.5 );
+					separationAcc = separationAcc + latPush;
+				}
+			}
 		}
 	}
 
@@ -539,6 +563,11 @@ bool SVG_Crowd_ComputeTeammateFollowSpeedScale( const int32_t entityNumber, cons
 		if ( !other || !SVG_Entity_IsActive( other ) || other->health <= 0 ) {
 			continue;
 		}
+		// If the teammate ahead has already reached its assigned slot and parked,
+		// it is stationary station-keeping; do not throttle moving members attempting to reach their slots.
+		if ( other->crowd.reachedGoal ) {
+			continue;
+		}
 
 		const Vector3DP otherOrigin( other->currentOrigin );
 		Vector3DP diff = otherOrigin - myOrigin;
@@ -565,12 +594,11 @@ bool SVG_Crowd_ComputeTeammateFollowSpeedScale( const int32_t entityNumber, cons
 		// Teammate is directly ahead in our corridor lane: calculate smooth deceleration scale.
 		foundLeaderAhead = true;
 		if ( aheadDist <= CROWD_FOLLOW_MIN_SEPARATION ) {
-			minScale = 0.0;
-			break; // Too close: stop completely to yield to teammate ahead
+			minScale = std::min( minScale, CROWD_FOLLOW_CRAWL_SPEED_SCALE );
+		} else {
+			const double scale = std::clamp( ( aheadDist - CROWD_FOLLOW_MIN_SEPARATION ) / CROWD_FOLLOW_SLOWDOWN_RANGE, CROWD_FOLLOW_CRAWL_SPEED_SCALE, 1.0 );
+			minScale = std::min( minScale, scale );
 		}
-
-		const double scale = ( aheadDist - CROWD_FOLLOW_MIN_SEPARATION ) / CROWD_FOLLOW_SLOWDOWN_RANGE;
-		minScale = std::min( minScale, scale );
 	}
 
 	*outSpeedScale = minScale;
@@ -601,12 +629,28 @@ static void SVG_Crowd_AllocateTacticalCover( svg_crowd_group_t &group, const std
 
 	// Calculate collective squad centroid in Vector3DP.
 	const Vector3DP centroid = SVG_Crowd_ComputeCentroid( members );
-	const Vector3 searchOrigin = QM_Vector3FromDP( centroid );
-	const Vector3 threatOrigin = QM_Vector3FromDP( destOrigin );
+	const Vector3DP searchOrigin = ( centroid );
+	const Vector3DP threatOrigin = ( destOrigin );
+
+	/**
+	*	Determine tactical temperament from squad members:
+	*	- MOOD_TYPE_AGGRESSIVE / NORMAL: Strictly requires offensive peek/engagement sightlines to the threat.
+	*	- MOOD_TYPE_SCARED: Seeks pure defensive protection (hiding spots, enclosed rooms, bunkers).
+	**/
+	bool requireEngagementLOS = true;
+	for ( const svg_base_edict_t *member : members ) {
+		if ( member && member->GetTypeInfo()->IsSubClassType<svg_monster_base_t>() ) {
+			const svg_monster_testdummy_debug_t *dummy = static_cast<const svg_monster_testdummy_debug_t*>( member );
+			if ( dummy->mood == svg_monster_mood_type_t::MOOD_TYPE_SCARED ) {
+				requireEngagementLOS = false;
+				break;
+			}
+		}
+	}
 
 	// Query available tactical cover candidates.
 	std::vector<int32_t> candidateIndices;
-	Nav_FindCoverPoints( searchOrigin, threatOrigin, static_cast<float>( maxDist ), -1, &candidateIndices );
+	Nav_FindCoverPoints( searchOrigin, threatOrigin, static_cast<float>( maxDist ), -1, &candidateIndices, NAV_COVER_NONE, Vector3DP{ 0.0, 0.0, 0.0 }, 12, requireEngagementLOS );
 
 	// Separate candidates based on distance and spatial anti-clustering.
 	std::vector<int32_t> selectedCoverIndices;
@@ -664,19 +708,38 @@ static void SVG_Crowd_AllocateTacticalCover( svg_crowd_group_t &group, const std
 		outSlots.push_back( slot );
 	}
 
-	// If fewer cover points than members were found, pad remaining slots using arrow formation.
+	// If fewer cover points than members were found, pad remaining slots with defensive reserve slots behind the cover line.
 	if ( outSlots.size() < count ) {
 		const size_t needed = count - outSlots.size();
 		std::vector<svg_crowd_slot_t> fallbackSlots;
 		SVG_Crowd_GenerateArrowSlots( needed, group.params, fallbackSlots );
-		SVG_Crowd_TransformLocalSlotsToWorld( destOrigin, group.currentHeadingYaw, fallbackSlots );
-		SVG_Crowd_SnapSlotsToNavMesh( fallbackSlots, destOrigin );
+
+		// Compute defensive reserve anchor facing threatOrigin:
+		Vector3DP toThreat = destOrigin - centroid;
+		toThreat.z = 0.0;
+		const double toThreatLen = QM_Vector3LengthDP( toThreat );
+		const double reserveHeadingYaw = ( toThreatLen > 0.001 ) ? QM_Vector3ToYawDP( toThreat ) : group.currentHeadingYaw;
+
+		// Offset reserve anchor behind squad centroid away from threat:
+		Vector3DP reserveAnchor = centroid;
+		if ( toThreatLen > 0.001 ) {
+			reserveAnchor = centroid - ( toThreat * ( CROWD_TACTICAL_COVER_RESERVE_OFFSET / toThreatLen ) );
+		}
+
+		const double minSlotSeparation = std::max( ( CROWD_DEFAULT_AGENT_RADIUS * 2.0 ) + CROWD_SLOT_MIN_SEPARATION_MARGIN, group.params.lateralSpacing );
+		SVG_Crowd_TransformLocalSlotsToWorld( reserveAnchor, reserveHeadingYaw, fallbackSlots );
+		SVG_Crowd_SnapSlotsToNavMesh( fallbackSlots, reserveAnchor );
+		SVG_Crowd_ResolveSlotCollisionsAndInvalidSlots( fallbackSlots, reserveAnchor, reserveHeadingYaw, minSlotSeparation, CROWD_DEFAULT_AGENT_RADIUS );
 
 		for ( size_t k = 0; k < fallbackSlots.size(); k++ ) {
 			fallbackSlots[ k ].slotIndex = static_cast<int32_t>( outSlots.size() );
 			outSlots.push_back( fallbackSlots[ k ] );
 		}
 	}
+
+	// Final pass: ensure all allocated slots (cover and fallback) are mutually separated and on valid navmesh
+	const double minSlotSeparation = std::max( ( CROWD_DEFAULT_AGENT_RADIUS * 2.0 ) + CROWD_SLOT_MIN_SEPARATION_MARGIN, group.params.lateralSpacing );
+	SVG_Crowd_ResolveSlotCollisionsAndInvalidSlots( outSlots, centroid, group.currentHeadingYaw, minSlotSeparation, CROWD_DEFAULT_AGENT_RADIUS );
 }
 
 /**
@@ -715,6 +778,28 @@ bool MoveAStarCrowdOrigin( const int32_t crowdID, const Vector3DP &origin, const
 	const Vector3DP centroid = SVG_Crowd_ComputeCentroid( members );
 	group.currentHeadingYaw = SVG_Crowd_CalculateHeadingYaw( centroid, origin, nullptr, params );
 
+	// Compute navigation guide path from squad centroid to destination to follow curved corridors, ramps, and staircases.
+	std::vector<Vector3DP> guidePath;
+	const int32_t startFace = Nav_FindFaceInLeafStrict( centroid );
+	const int32_t goalFace = Nav_FindFaceInLeafStrict( origin );
+	if ( startFace >= 0 && goalFace >= 0 && !g_nav_faces.empty() ) {
+		std::vector<int32_t> navPathFaces;
+		nav_path_policy_t guidePolicy;
+		guidePolicy.agent_radius = static_cast<float>( CROWD_DEFAULT_AGENT_RADIUS );
+		if ( Nav_FindPath( startFace, goalFace, navPathFaces, guidePolicy ) ) {
+			std::vector<bool> forcedWps;
+			Nav_StringPull( navPathFaces, centroid, origin, CROWD_DEFAULT_AGENT_RADIUS, guidePath, &forcedWps );
+			// If guide path has at least 2 points, derive heading yaw from the final corridor segment entering origin
+			if ( guidePath.size() >= 2 ) {
+				Vector3DP inSeg = guidePath.back() - guidePath[ guidePath.size() - 2 ];
+				inSeg.z = 0.0;
+				if ( QM_Vector3LengthDP( inSeg ) > 0.001 ) {
+					group.currentHeadingYaw = QM_Vector3ToYawDP( inSeg );
+				}
+			}
+		}
+	}
+
 	// Calculate dynamic corridor clearance and squeeze factor if enabled.
 	svg_crowd_params_t effectiveParams = params;
 	if ( params.enableCorridorSqueeze ) {
@@ -723,6 +808,7 @@ bool MoveAStarCrowdOrigin( const int32_t crowdID, const Vector3DP &origin, const
 		const double squeeze = ( desiredWidth > 0.0 ) ? std::clamp( clearance / desiredWidth, 0.2, 1.0 ) : 1.0;
 		group.dynamicSqueezeFactor = squeeze;
 		effectiveParams.lateralSpacing = std::max( params.minCorridorSpacing, params.lateralSpacing * squeeze );
+		effectiveParams.longitudinalSpacing = std::max( params.minCorridorSpacing, params.longitudinalSpacing * squeeze );
 	} else {
 		group.dynamicSqueezeFactor = 1.0;
 	}
@@ -734,13 +820,31 @@ bool MoveAStarCrowdOrigin( const int32_t crowdID, const Vector3DP &origin, const
 		SVG_Crowd_GenerateFormationSlots( style, members.size(), effectiveParams, group.slots );
 		SVG_Crowd_TransformLocalSlotsToWorld( origin, group.currentHeadingYaw, group.slots );
 		SVG_Crowd_SnapSlotsToNavMesh( group.slots, origin );
+		const double minPhysicalSeparation = ( CROWD_DEFAULT_AGENT_RADIUS * 2.0 ) + 4.0;
+		const double minSlotSeparation = std::max( minPhysicalSeparation, std::min( effectiveParams.lateralSpacing, effectiveParams.longitudinalSpacing ) );
+		SVG_Crowd_ResolveSlotCollisionsAndInvalidSlots( group.slots, origin, group.currentHeadingYaw, minSlotSeparation, CROWD_DEFAULT_AGENT_RADIUS, guidePath.empty() ? nullptr : &guidePath );
 
-		// Clamp any off-mesh slots directly to the valid anchor origin to prevent navigation errors.
-		for ( svg_crowd_slot_t &slot : group.slots ) {
-			if ( !slot.isNavmeshValid ) {
-				slot.worldPosition = origin;
-				slot.isNavmeshValid = true;
+		// Sort slots deepest-first along squad ingress approach vector ONLY when entering
+		// an enclosed corridor/room where squeeze is active and approach distance is significant (> 128 units).
+		// In open space or local maneuvers, forcing ingress depth ordering creates an artificial 1D ranking
+		// that causes agents' paths to criss-cross and deadlock.
+		const double distToDest = QM_Vector3DistanceDP( origin, centroid );
+		const bool isConstrainedIngress = ( params.enableCorridorSqueeze && group.dynamicSqueezeFactor < 0.95 && distToDest > 128.0 );
+
+		if ( isConstrainedIngress ) {
+			Vector3DP ingressDir = origin - centroid;
+			if ( guidePath.size() >= 2 ) {
+				ingressDir = guidePath.back() - guidePath[ guidePath.size() - 2 ];
 			}
+			ingressDir.z = 0.0;
+			if ( QM_Vector3LengthDP( ingressDir ) > 0.001 ) {
+				group.ingressDirection = QM_Vector3NormalizeDP( ingressDir );
+				SVG_Crowd_SortSlotsByIngressDepth( group.slots, origin, group.ingressDirection );
+			} else {
+				group.ingressDirection = Vector3DP{ 0.0, 0.0, 0.0 };
+			}
+		} else {
+			group.ingressDirection = Vector3DP{ 0.0, 0.0, 0.0 };
 		}
 	}
 
@@ -751,15 +855,17 @@ bool MoveAStarCrowdOrigin( const int32_t crowdID, const Vector3DP &origin, const
 		memberOrigins.emplace_back( ent->currentOrigin );
 	}
 
-	// Build previous slot mapping for sticky hysteresis.
+	// For discrete destination move orders, start with a fresh geometric slate (no hysteresis)
+	// so agents are matched purely by current geometry without carrying over obsolete historical slot ranks.
 	std::vector<int32_t> previousSlotMap( members.size(), -1 );
-	for ( size_t i = 0; i < members.size(); i++ ) {
-		previousSlotMap[ i ] = members[ i ]->crowd.slotIndex;
-	}
 
-	// Match members to formation slots using hysteresis-based anti-crossover assignment.
+	// Match members to formation slots using ingress-depth and approach progress ordering.
 	std::vector<int32_t> slotMapping;
-	SVG_Crowd_AssignMembersToSlotsHysteresis( memberOrigins, group.slots, previousSlotMap, slotMapping );
+	if ( QM_Vector3LengthDP( group.ingressDirection ) > 0.001 ) {
+		SVG_Crowd_AssignMembersToSlotsIngress( memberOrigins, group.slots, previousSlotMap, slotMapping, origin, group.ingressDirection );
+	} else {
+		SVG_Crowd_AssignMembersToSlotsHysteresis( memberOrigins, group.slots, previousSlotMap, slotMapping );
+	}
 
 	// Ensure squad leader receives slot 0 (Point / Lead) if designated.
 	if ( group.leaderEntityNumber != ENTITYNUM_NONE && !group.slots.empty() ) {
@@ -874,6 +980,7 @@ bool MoveAStarFollowEntity( const int32_t crowdID, const int32_t targetEntityNum
 		const double squeeze = ( desiredWidth > 0.0 ) ? std::clamp( clearance / desiredWidth, 0.2, 1.0 ) : 1.0;
 		group.dynamicSqueezeFactor = squeeze;
 		effectiveParams.lateralSpacing = std::max( params.minCorridorSpacing, params.lateralSpacing * squeeze );
+		effectiveParams.longitudinalSpacing = std::max( params.minCorridorSpacing, params.longitudinalSpacing * squeeze );
 	} else {
 		group.dynamicSqueezeFactor = 1.0;
 	}
@@ -884,13 +991,24 @@ bool MoveAStarFollowEntity( const int32_t crowdID, const int32_t targetEntityNum
 		SVG_Crowd_GenerateFormationSlots( style, members.size(), effectiveParams, group.slots );
 		SVG_Crowd_TransformLocalSlotsToWorld( Vector3DP( targetEnt->currentOrigin ), group.currentHeadingYaw, group.slots );
 		SVG_Crowd_SnapSlotsToNavMesh( group.slots, Vector3DP( targetEnt->currentOrigin ) );
+		const double minPhysicalSeparation = ( CROWD_DEFAULT_AGENT_RADIUS * 2.0 ) + 4.0;
+		const double minSlotSeparation = std::max( minPhysicalSeparation, std::min( effectiveParams.lateralSpacing, effectiveParams.longitudinalSpacing ) );
+		SVG_Crowd_ResolveSlotCollisionsAndInvalidSlots( group.slots, Vector3DP( targetEnt->currentOrigin ), group.currentHeadingYaw, minSlotSeparation, CROWD_DEFAULT_AGENT_RADIUS );
 
-		// Clamp any off-mesh slots directly to the target origin to ensure walkable coordinates.
-		for ( svg_crowd_slot_t &slot : group.slots ) {
-			if ( !slot.isNavmeshValid ) {
-				slot.worldPosition = Vector3DP( targetEnt->currentOrigin );
-				slot.isNavmeshValid = true;
+		const double distToDest = QM_Vector3DistanceDP( Vector3DP( targetEnt->currentOrigin ), centroid );
+		const bool isConstrainedIngress = ( params.enableCorridorSqueeze && group.dynamicSqueezeFactor < 0.95 && distToDest > 128.0 );
+
+		if ( isConstrainedIngress ) {
+			Vector3DP ingressDir = Vector3DP( targetEnt->currentOrigin ) - centroid;
+			ingressDir.z = 0.0;
+			if ( QM_Vector3LengthDP( ingressDir ) > 0.001 ) {
+				group.ingressDirection = QM_Vector3NormalizeDP( ingressDir );
+				SVG_Crowd_SortSlotsByIngressDepth( group.slots, Vector3DP( targetEnt->currentOrigin ), group.ingressDirection );
+			} else {
+				group.ingressDirection = Vector3DP{ 0.0, 0.0, 0.0 };
 			}
+		} else {
+			group.ingressDirection = Vector3DP{ 0.0, 0.0, 0.0 };
 		}
 	}
 
@@ -905,9 +1023,13 @@ bool MoveAStarFollowEntity( const int32_t crowdID, const int32_t targetEntityNum
 		previousSlotMap[ i ] = members[ i ]->crowd.slotIndex;
 	}
 
-	// Match members to formation slots using hysteresis-based anti-crossover assignment.
+	// Match members to formation slots using ingress-depth and approach progress ordering.
 	std::vector<int32_t> slotMapping;
-	SVG_Crowd_AssignMembersToSlotsHysteresis( memberOrigins, group.slots, previousSlotMap, slotMapping );
+	if ( QM_Vector3LengthDP( group.ingressDirection ) > 0.001 ) {
+		SVG_Crowd_AssignMembersToSlotsIngress( memberOrigins, group.slots, previousSlotMap, slotMapping, Vector3DP( targetEnt->currentOrigin ), group.ingressDirection );
+	} else {
+		SVG_Crowd_AssignMembersToSlotsHysteresis( memberOrigins, group.slots, previousSlotMap, slotMapping );
+	}
 
 	// Ensure squad leader receives slot 0 (Point / Lead) if designated.
 	if ( group.leaderEntityNumber != ENTITYNUM_NONE && !group.slots.empty() ) {
@@ -1055,6 +1177,167 @@ svg_crowd_group_t *SVG_Crowd_GetGroup( const int32_t crowdID ) {
 **/
 
 /**
+*	@brief	Dynamically optimize slot assignments among crowd members to eliminate crossing trajectories.
+*	@details	Executes continuous 2-Opt pairwise distance optimization based on the triangle inequality theorem:
+*				whenever two trajectory segments intersect, swapping their goals strictly reduces the sum of
+*				distances and strictly eliminates the intersection.
+*	@param	group	Active crowd coordination group.
+*	@param	members	List of active squad member entities.
+**/
+void SVG_Crowd_OptimizeSlotAssignments( svg_crowd_group_t &group, const std::vector<svg_base_edict_t*> &members ) {
+	/**
+	*	Sanity checks: ensure group has at least two members and valid formation slots.
+	**/
+	const size_t count = members.size();
+	if ( count <= 1 || group.slots.empty() ) {
+		return;
+	}
+
+	const double arrivalRadius = ( group.params.arrivalRadius > 0.0 ) ? group.params.arrivalRadius : CROWD_DEFAULT_ARRIVAL_RADIUS;
+
+	bool swapped = true;
+	int32_t iter = 0;
+
+	while ( swapped && iter < CROWD_MAX_OPTIMIZE_ITERS ) {
+		swapped = false;
+		iter++;
+
+		for ( size_t i = 0; i < count; i++ ) {
+			svg_base_edict_t *memberA = members[ i ];
+			if ( !memberA || !SVG_Entity_IsActive( memberA ) || memberA->health <= 0 ) {
+				continue;
+			}
+			// Protect designated squad leader if point slot 0 is assigned
+			if ( group.leaderEntityNumber != ENTITYNUM_NONE && memberA->s.number == group.leaderEntityNumber ) {
+				continue;
+			}
+
+			const int32_t slotIdxA = memberA->crowd.slotIndex;
+			if ( slotIdxA < 0 || slotIdxA >= static_cast<int32_t>( group.slots.size() ) ) {
+				continue;
+			}
+
+			const Vector3DP posA( memberA->currentOrigin );
+			const Vector3DP goalA = group.slots[ slotIdxA ].worldPosition;
+
+			for ( size_t j = i + 1; j < count; j++ ) {
+				svg_base_edict_t *memberB = members[ j ];
+				if ( !memberB || !SVG_Entity_IsActive( memberB ) || memberB->health <= 0 ) {
+					continue;
+				}
+				if ( group.leaderEntityNumber != ENTITYNUM_NONE && memberB->s.number == group.leaderEntityNumber ) {
+					continue;
+				}
+
+				const int32_t slotIdxB = memberB->crowd.slotIndex;
+				if ( slotIdxB < 0 || slotIdxB >= static_cast<int32_t>( group.slots.size() ) ) {
+					continue;
+				}
+
+				// If both members have already reached their slots, do not swap.
+				if ( memberA->crowd.reachedGoal && memberB->crowd.reachedGoal ) {
+					continue;
+				}
+
+				// If one member has arrived, allow swapping ONLY if the arrived member is directly blocking
+				// the moving member from reaching a deeper slot, allowing the arrived member to step forward.
+				if ( memberA->crowd.reachedGoal || memberB->crowd.reachedGoal ) {
+					svg_base_edict_t *arrivedMember = memberA->crowd.reachedGoal ? memberA : memberB;
+					svg_base_edict_t *movingMember = memberA->crowd.reachedGoal ? memberB : memberA;
+					const Vector3DP arrivedPos( arrivedMember->currentOrigin );
+					const Vector3DP movingPos( movingMember->currentOrigin );
+					const double distBetween = QM_Vector3DistanceDP( arrivedPos, movingPos );
+
+					// Only allow yield if moving member is pressing against the arrived member
+					constexpr double maxYieldTouchDist = ( CROWD_DEFAULT_AGENT_RADIUS * 2.0 ) + 12.0;
+					if ( distBetween > maxYieldTouchDist ) {
+						continue;
+					}
+
+					// And arrived member must have clean line of sight to advance to moving member's goal
+					const int32_t movingSlot = movingMember->crowd.slotIndex;
+					if ( movingSlot < 0 || movingSlot >= static_cast<int32_t>( group.slots.size() ) ) {
+						continue;
+					}
+					if ( !Nav_HasGeometricLineOfSight2D( arrivedPos, group.slots[ movingSlot ].worldPosition, CROWD_DEFAULT_AGENT_RADIUS ) ) {
+						continue;
+					}
+				}
+
+				const Vector3DP posB( memberB->currentOrigin );
+				const Vector3DP goalB = group.slots[ slotIdxB ].worldPosition;
+
+				// If group has an active ingress direction, enforce ingress monotonicity:
+				// After swap, memberA receives goalB (depthB) and memberB receives goalA (depthA).
+				// A swap is invalid if it would give a trailing member a deeper slot than a leading member.
+				if ( QM_Vector3LengthSqrDP( group.ingressDirection ) > 0.001 ) {
+					const Vector3DP &fwdNorm = group.ingressDirection;
+					const double progA = QM_Vector3DotProductDP( posA - group.destinationOrigin, fwdNorm );
+					const double progB = QM_Vector3DotProductDP( posB - group.destinationOrigin, fwdNorm );
+					const double depthA = QM_Vector3DotProductDP( goalA - group.destinationOrigin, fwdNorm );
+					const double depthB = QM_Vector3DotProductDP( goalB - group.destinationOrigin, fwdNorm );
+
+					// Reject swap if it would give the trailing member a deeper slot than the leading member:
+					if ( progA > ( progB + CROWD_INGRESS_ORDER_TOLERANCE ) && depthB < ( depthA - CROWD_INGRESS_ORDER_TOLERANCE ) ) {
+						continue;
+					}
+					if ( progB > ( progA + CROWD_INGRESS_ORDER_TOLERANCE ) && depthA < ( depthB - CROWD_INGRESS_ORDER_TOLERANCE ) ) {
+						continue;
+					}
+				}
+
+				const double currDistSq = QM_Vector3DistanceSqrDP( posA, goalA ) + QM_Vector3DistanceSqrDP( posB, goalB );
+				const double swapDistSq = QM_Vector3DistanceSqrDP( posA, goalB ) + QM_Vector3DistanceSqrDP( posB, goalA );
+
+				// Reject swap if candidate goal is occluded by a solid brush wall from the agent's current position,
+				// while the other member already has unobstructed line-of-sight inside the room/structure
+				if ( !Nav_HasGeometricLineOfSight2D( posA, goalB, CROWD_DEFAULT_AGENT_RADIUS ) && Nav_HasGeometricLineOfSight2D( posB, goalB, CROWD_DEFAULT_AGENT_RADIUS ) ) {
+					continue;
+				}
+				if ( !Nav_HasGeometricLineOfSight2D( posB, goalA, CROWD_DEFAULT_AGENT_RADIUS ) && Nav_HasGeometricLineOfSight2D( posA, goalA, CROWD_DEFAULT_AGENT_RADIUS ) ) {
+					continue;
+				}
+
+				constexpr double hysteresisSq = CROWD_SWAP_HYSTERESIS_MOVING * CROWD_SWAP_HYSTERESIS_MOVING;
+				if ( swapDistSq + hysteresisSq < currDistSq ) {
+					// Swap slot indices and roles
+					std::swap( memberA->crowd.slotIndex, memberB->crowd.slotIndex );
+					std::swap( memberA->crowd.role, memberB->crowd.role );
+
+					// If tactical cover, swap active cover leases
+					if ( memberA->crowd.activeCoverIdx >= 0 || memberB->crowd.activeCoverIdx >= 0 ) {
+						std::swap( memberA->crowd.activeCoverIdx, memberB->crowd.activeCoverIdx );
+					}
+
+					memberA->crowd.assignedGoalOrigin = QM_Vector3FromDP( goalB );
+					memberB->crowd.assignedGoalOrigin = QM_Vector3FromDP( goalA );
+
+					// Recompute arrival status symmetrically
+					const double arrivedThresh = arrivalRadius * CROWD_BLOCKED_ARRIVAL_RADIUS_FACTOR;
+					const double distA = QM_Vector3DistanceDP( posA, goalB );
+					memberA->crowd.reachedGoal = ( distA <= arrivedThresh );
+					if ( memberA->crowd.reachedGoal ) {
+						memberA->velocity = { 0.0f, 0.0f, 0.0f };
+					}
+
+					const double distB = QM_Vector3DistanceDP( posB, goalA );
+					memberB->crowd.reachedGoal = ( distB <= arrivedThresh );
+					if ( memberB->crowd.reachedGoal ) {
+						memberB->velocity = { 0.0f, 0.0f, 0.0f };
+					}
+
+					// Trigger immediate path re-steer to new slot
+					memberA->crowd.lastPathCalcTime = 0_ms;
+					memberB->crowd.lastPathCalcTime = 0_ms;
+
+					swapped = true;
+				}
+			}
+		}
+	}
+}
+
+/**
 *	@brief	Execute per-frame crowd coordination, slot updates, and staggered pathing.
 **/
 void SVG_Crowd_Frame( void ) {
@@ -1074,21 +1357,19 @@ void SVG_Crowd_Frame( void ) {
 
 		const double arrivalRadius = ( group.params.arrivalRadius > 0.0 ) ? group.params.arrivalRadius : CROWD_DEFAULT_ARRIVAL_RADIUS;
 
-		// Check member arrival states.
+		// Dynamically untangle crossing trajectories and optimize slot assignments among members
+		SVG_Crowd_OptimizeSlotAssignments( group, members );
+
+		// Check member arrival states symmetrically.
 		bool allArrived = true;
 		for ( svg_base_edict_t *member : members ) {
 			const double distToSlot = QM_Vector3DistanceDP( Vector3DP( member->currentOrigin ), Vector3DP( member->crowd.assignedGoalOrigin ) );
 			if ( distToSlot <= arrivalRadius ) {
 				member->crowd.reachedGoal = true;
-			} else {
+			}
+			if ( !member->crowd.reachedGoal ) {
 				allArrived = false;
 			}
-		}
-
-		// If all members of a static move order have arrived, mark group as no longer moving.
-		if ( group.targetEntityNumber == ENTITYNUM_NONE && allArrived ) {
-			group.isMoving = false;
-			continue;
 		}
 
 		// If following a target entity by entity number, check if formation needs rebuilding.
@@ -1107,6 +1388,13 @@ void SVG_Crowd_Frame( void ) {
 				group.lastTargetEntityOrigin = Vector3DP( targetEnt->currentOrigin );
 				group.lastTargetEntityUpdateTime = level.time;
 				MoveAStarFollowEntity( group.crowdID, group.targetEntityNumber, group.style, group.params );
+			}
+		} else {
+			// Static destination move order:
+			// If all members have arrived at their destination slots, mark group as no longer moving.
+			if ( allArrived ) {
+				group.isMoving = false;
+				continue;
 			}
 		}
 	}
