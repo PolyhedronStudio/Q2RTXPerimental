@@ -29,7 +29,7 @@ void RecomputeNavPolygonCenter( nav_poly_t &poly ) {
 	// Check if the polygon contains no vertices to prevent division by zero.
 	if ( poly.num_vertices <= 0 ) {
 		// Reset center to zero vector for degenerate or empty polygons to avoid uninitialized memory.
-		poly.center = { 0.0, 0.0, 0.0 };
+		poly.center = Vector3DP{ 0.0, 0.0, 0.0 };
 		return;
 	}
 

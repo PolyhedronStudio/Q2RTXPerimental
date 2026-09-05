@@ -736,7 +736,7 @@ void Nav_DebugDrawNPCPaths( void ) {
 		}
 
 		// Check if entity is a monster testdummy with active navigation path data.
-		if ( !ent->classname || strcmp( ent->classname, "monster_testdummy_debug" ) != 0 ) {
+		if ( !ent->GetTypeInfo()->IsSubClassType<svg_monster_testdummy_debug_t>() ) {
 			continue;
 		}
 

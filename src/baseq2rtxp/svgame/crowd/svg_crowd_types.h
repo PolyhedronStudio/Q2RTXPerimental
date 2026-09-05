@@ -129,10 +129,38 @@ static constexpr double CROWD_FOLLOW_CRAWL_SPEED_SCALE = 0.50;
 static constexpr double CROWD_SLOT_FOLLOW_TOLERANCE = 24.0;
 //! Distance threshold beyond which an en-route squad member engages catch-up sprint.
 static constexpr double CROWD_SLOT_CATCHUP_DISTANCE = 48.0;
+//! Minimum longitudinal offset along movement direction within which a teammate is considered alongside or ahead for abreast deconfliction.
+//! Must be non-negative (>= 0.0) so an advancing squad member never falsely yields to a teammate trailing behind its position.
+static constexpr double CROWD_ABREAST_AHEAD_TOLERANCE_LONGITUDINAL = 0.0;
 //! Minimum duration an agent must be stalled near its slot before declaring blocked arrival.
-static constexpr QMTime CROWD_BLOCKED_ARRIVAL_STALL_TIME = 500_ms;
+static constexpr QMTime CROWD_BLOCKED_ARRIVAL_STALL_TIME = 2500_ms;
+//! Minimum elapsed travel time an agent must be actively en route before becoming eligible to declare blocked arrival.
+//! Prevents freshly dispatched agents from prematurely aborting during initial squad sorting or chokepoint queuing.
+static constexpr QMTime CROWD_BLOCKED_ARRIVAL_MIN_TIME_EN_ROUTE = 5000_ms;
 //! Low-frequency think interval for arrived crowd members located far away from the player.
 static constexpr QMTime CROWD_THROTTLE_THINK_INTERVAL = 100_ms;
+
+//! Minimum navigable corridor width required to support two agents walking abreast (3 agent diameters = 96 units).
+//! Corridors below this threshold require single-file serialization.
+static constexpr double CROWD_MIN_TWO_AGENT_ABREAST_WIDTH = CROWD_DEFAULT_AGENT_RADIUS * 2.0 * 3.0;
+//! Minimum radial clearance from obstacle boundary required to support two agents walking abreast (48 units).
+static constexpr double CROWD_MIN_TWO_AGENT_ABREAST_CLEARANCE = CROWD_MIN_TWO_AGENT_ABREAST_WIDTH * 0.5;
+
+//! Maximum arrival allowance factor applied to arrivalRadius for en-route stall validation.
+//! Agents further than arrivalRadius * this factor from their assigned slot cannot declare arrival.
+static constexpr double CROWD_EN_ROUTE_MAX_ARRIVAL_ALLOWANCE_FACTOR = 1.5;
+
+//! Maximum longitudinal depth in world units along the arrival approach vector when packing column slots at destination.
+static constexpr double CROWD_DESTINATION_COLUMN_MAX_DEPTH = 96.0;
+
+//! Maximum fraction of total guide path length allowed for reverse column slot sampling at destination.
+static constexpr double CROWD_COLUMN_PATH_MAX_FRACTION = 0.15;
+
+//! Proximity multiplier applied to arrivalRadius for validating destination sector presence before permitting stall arrival.
+static constexpr double CROWD_DESTINATION_ARRIVAL_PROXIMITY_MULT = 3.0;
+
+//! Minimum rolling speed scale when following or sliding past a station-keeping teammate.
+static constexpr double CROWD_FOLLOW_ROLLING_MIN_SCALE = 0.65;
 
 //! Physical separation margin added to two agent diameters to guarantee non-overlapping formation slots.
 static constexpr double CROWD_SLOT_MIN_SEPARATION_MARGIN = 12.0;
@@ -145,6 +173,39 @@ static constexpr double CROWD_SWAP_HYSTERESIS_ARRIVED = 48.0;
 
 //! Maximum iterations executed per frame during dynamic 2-Opt slot assignment optimization.
 static constexpr int32_t CROWD_MAX_OPTIMIZE_ITERS = 8;
+
+/**
+*
+*
+*	Polygon-Based Room Contour Encirclement Constants:
+*	Used by the room-contour plotting path in SVG_Crowd_FitCircularFormationToRoom
+*	to erode walkable room polygons, fit an encirclement contour, carve portal
+*	keep-out lanes, and relocate blocked slot candidates along the contour.
+*
+*
+**/
+//! Extra safety margin (in addition to agent radius) eroded inward from room polygon edges when computing the walkable interior region.
+static constexpr double CROWD_ROOM_CONTOUR_WALL_MARGIN = 12.0;
+//! Extra lateral margin added around each portal aperture when carving the doorway keep-out lane on the encirclement contour.
+static constexpr double CROWD_ROOM_CONTOUR_PORTAL_LANE_MARGIN = 24.0;
+//! Room width/depth aspect ratio above which a rounded-rectangle contour is preferred over a pure circle.
+static constexpr double CROWD_ROOM_RECTANGULAR_ASPECT = 1.25;
+//! Minimum corner arc radius in world units used when fitting a rounded-rectangle contour inside a rectangular room.
+static constexpr double CROWD_ROOM_CONTOUR_MIN_CORNER_RADIUS = 24.0;
+//! Maximum number of alternating +/- arc steps tried when relocating a blocked contour sample along the ring.
+static constexpr int32_t CROWD_ROOM_CONTOUR_MAX_RELOCATE_STEPS = 6;
+//! Minimum arc spacing in world units between adjacent encirclement slot samples along the contour.
+static constexpr double CROWD_ROOM_CONTOUR_MIN_ARC_SPACING = 48.0;
+//! Minimum ring radius in world units for the encirclement contour inside a room.
+static constexpr double CROWD_ROOM_CONTOUR_MIN_RING_RADIUS = 48.0;
+//! Buffer added to the agent hull diameter when computing area-fill grid spacing so plotted slots stay outside the runtime mutual-separation trigger radius.
+static constexpr double CROWD_ROOM_FILL_SPACING_BUFFER = 8.0;
+//! Lane half-width margin around the portal->centroid doorway corridor where no fill cells are plotted, keeping ingress/egress walkable.
+static constexpr double CROWD_ROOM_FILL_DOOR_LANE_MARGIN = 20.0;
+//! Outward step distance in world units between compressed doorway-threshold overflow queue positions.
+static constexpr double CROWD_ROOM_OVERFLOW_QUEUE_STEP = 48.0;
+//! Maximum number of compressed overflow queue positions attempted outside the doorway before falling back to the reverse-path queue.
+static constexpr int32_t CROWD_ROOM_OVERFLOW_QUEUE_MAX = 8;
 
 //! Maximum iterations executed during initial ingress-depth 2-Opt slot optimization.
 static constexpr int32_t CROWD_MAX_INGRESS_2OPT_ITERS = 16;
@@ -162,7 +223,7 @@ static constexpr double CROWD_COLUMN_LATERAL_OFFSET_RATIO = 0.5;
 static constexpr int32_t CROWD_MAX_COLUMN_SEARCH_RANKS = 64;
 
 //! Number of candidate radial angles tested when adaptively packing invalid slots inside interior rooms.
-static constexpr int32_t CROWD_INTERIOR_PACKING_ANGLES = 12;
+static constexpr int32_t CROWD_INTERIOR_PACKING_ANGLES = 36;
 
 //! Step increment in radians between candidate radial angles during interior room packing.
 static constexpr double CROWD_INTERIOR_PACKING_ANGLE_STEP = ( 2.0 * QM_PI ) / static_cast<double>( CROWD_INTERIOR_PACKING_ANGLES );
@@ -178,6 +239,110 @@ static constexpr double CROWD_TACTICAL_COVER_RESERVE_OFFSET = 48.0;
 
 //! Tolerance distance in world units for preserving ingress depth monotonicity during slot assignment and 2-Opt.
 static constexpr double CROWD_INGRESS_ORDER_TOLERANCE = 16.0;
+
+//! Physical safety clearance margin in world units added to two agent radii during high-density interior room packing.
+static constexpr double CROWD_INTERIOR_PACKING_CLEARANCE_MARGIN = 4.0;
+
+//! Minimum radius in world units for perimeter/circle formations to prevent central crowding.
+static constexpr double CROWD_PERIMETER_MIN_RADIUS = 48.0;
+
+//! Angle offset in degrees to rotate perimeter slots to face inward toward encircled anchor origin.
+static constexpr double CROWD_PERIMETER_INWARD_FACE_OFFSET_DEG = 90.0;
+
+//! Multiplier applied to arrival radius to establish an exit hysteresis deadband and prevent station-keeping chatter.
+static constexpr double CROWD_ARRIVAL_EXIT_HYSTERESIS_FACTOR = 2.25;
+
+//! Angular boundary range in degrees for mapping Left Flank role in perimeter formations.
+static constexpr double CROWD_ROLE_LEFT_MIN_DEG = 45.0;
+static constexpr double CROWD_ROLE_LEFT_MAX_DEG = 135.0;
+
+//! Angular boundary range in degrees for mapping Rear Guard role in perimeter formations.
+static constexpr double CROWD_ROLE_REAR_MIN_DEG = 135.0;
+static constexpr double CROWD_ROLE_REAR_MAX_DEG = 225.0;
+
+//! Angular boundary range in degrees for mapping Right Flank role in perimeter formations.
+static constexpr double CROWD_ROLE_RIGHT_MIN_DEG = 225.0;
+static constexpr double CROWD_ROLE_RIGHT_MAX_DEG = 315.0;
+
+//! Squeeze factor threshold below which ingress/egress is considered corridor-constrained.
+static constexpr double CROWD_CONSTRAINED_INGRESS_SQUEEZE_THRESHOLD = 0.95;
+
+//! Maximum aperture width in world units for a passage/portal to be classified as a constrained bottleneck.
+static constexpr double CROWD_PORTAL_BOTTLENECK_MAX_WIDTH = 128.0;
+
+//! Scale factor applied to portal aperture width to derive the dynamic inflow keep-out radius.
+static constexpr double CROWD_PORTAL_KEEPOUT_SCALE = 0.50;
+
+//! Minimum agent separation multiplier applied for doorway bottleneck keep-out zones.
+static constexpr double CROWD_PORTAL_SEPARATION_KEEPOUT_SCALE = 0.80;
+
+//! Absolute clearance margin in world units added to dynamic agent radius for doorway portal keep-out.
+static constexpr double CROWD_PORTAL_KEEPOUT_AGENT_MARGIN = 12.0;
+
+//! Minimum absolute doorway keep-out clearance radius in world units.
+static constexpr double CROWD_PORTAL_KEEPOUT_MIN_RADIUS = 28.0;
+
+//! Maximum upper clamp in world units for dynamic portal keep-out radii to prevent over-constraining small rooms.
+static constexpr double CROWD_PORTAL_KEEPOUT_MAX_RADIUS = 36.0;
+
+//! Linear projection margin in world units along approach direction beyond portal to classify polygons as exterior terrain.
+static constexpr double CROWD_PORTAL_EXTERIOR_PRUNE_MARGIN = 16.0;
+
+//! Minimum number of radial probe wall contacts required to classify destination as an enclosed interior room.
+static constexpr int32_t CROWD_ROOM_PROBE_MIN_WALL_HITS = 2;
+
+//! Maximum distance in world units to wall contact for enclosed interior classification.
+static constexpr double CROWD_ROOM_PROBE_ENCLOSED_WALL_DIST = 300.0;
+
+//! Minimum radial ring initial offset scale for room flood fill defense rings.
+static constexpr double CROWD_ROOM_PACKING_INNER_RING_SCALE = 0.85;
+
+//! Minimum number of radial sample points per concentric packing ring.
+static constexpr int32_t CROWD_ROOM_PACKING_MIN_RING_SAMPLES = 3;
+
+//! Maximum navigable clearance in world units below which an area (room or corridor) is treated as constrained.
+static constexpr double CROWD_CONSTRAINED_AREA_CLEARANCE_LIMIT = 128.0;
+
+//! Minimum horizontal speed squared in world units/sec below which an agent is treated as stationary for 2-Opt velocity vector alignment.
+static constexpr double CROWD_SWAP_MIN_SPEED_SQR = 100.0;
+
+/**
+*	@brief	Tactical fallback and behavioral capability bitflags for crowd squads and individual monsters.
+*	@details Controls which adaptive fallback strategies, stare-halt mechanics, corridor collapses,
+*			cover stashing, or rear-guard buffers are activated when terrain geometry constrains ideal formations.
+**/
+enum crowd_tactical_flags_t : uint32_t {
+	//! No fallback tactics enabled; strictly enforce nominal formation geometry.
+	CROWD_TACTICAL_FLAG_NONE = 0,
+	//! Collapse formation to single-file / staggered column along the A* guide path when entering narrow passages.
+	CROWD_TACTICAL_FLAG_CORRIDOR_COLUMN = BIT( 0 ),
+	//! Perform O(1) bounded topological cellular room packing when enclosed in tight/irregular rooms.
+	CROWD_TACTICAL_FLAG_CELLULAR_ROOM_PACK = BIT( 1 ),
+	//! Stash excess squad members who cannot fit in the primary room into nearby occluded tactical cover nodes.
+	CROWD_TACTICAL_FLAG_COVER_OVERFLOW = BIT( 2 ),
+	//! Establish a rear-guard staging queue outside chokepoints / doorways when destination room is at full capacity.
+	CROWD_TACTICAL_FLAG_REAR_GUARD_BUFFER = BIT( 3 ),
+	//! Halt and freeze in place upon reaching a waypoint when actively stared at by the player ("Weeping Angel").
+	CROWD_TACTICAL_FLAG_STARE_HALT_WAYPOINT = BIT( 4 ),
+	//! Orient outward in a 360-degree perimeter shield when holding station around a central VIP/leader.
+	CROWD_TACTICAL_FLAG_RADIAL_DEFENSE_RING = BIT( 5 ),
+	//! Enable progressive rolling headway in corridors and doorways to prevent stop-and-go queue stalling.
+	CROWD_TACTICAL_FLAG_ROLLING_QUEUE_HEADWAY = BIT( 6 ),
+	//! Disallow stationary slot parking in doorways or chokepoints to ensure portals remain clear for traffic.
+	CROWD_TACTICAL_FLAG_PREVENT_CHOKEPOINT_PARKING = BIT( 7 ),
+
+	//! Default tactical preset: enables all adaptive terrain fallbacks, headway regulation, and chokepoint protection.
+	CROWD_TACTICAL_FLAG_DEFAULT = CROWD_TACTICAL_FLAG_CORRIDOR_COLUMN |
+	                              CROWD_TACTICAL_FLAG_CELLULAR_ROOM_PACK |
+	                              CROWD_TACTICAL_FLAG_COVER_OVERFLOW |
+	                              CROWD_TACTICAL_FLAG_REAR_GUARD_BUFFER |
+	                              CROWD_TACTICAL_FLAG_RADIAL_DEFENSE_RING |
+	                              CROWD_TACTICAL_FLAG_ROLLING_QUEUE_HEADWAY |
+	                              CROWD_TACTICAL_FLAG_PREVENT_CHOKEPOINT_PARKING,
+
+	//! Comprehensive preset enabling all behaviors including the reactive stare-halt mechanic.
+	CROWD_TACTICAL_FLAG_ALL = CROWD_TACTICAL_FLAG_DEFAULT | CROWD_TACTICAL_FLAG_STARE_HALT_WAYPOINT
+};
 
 /**
 *	@brief	Parameters controlling formation geometry, spacing, and tactical thresholds.
@@ -211,6 +376,21 @@ struct svg_crowd_params_t {
 	double separationRadius = CROWD_DEFAULT_SEPARATION_RADIUS;
 	//! Weight strength of mutual separation steering force [0.0..1.0].
 	double separationStrength = CROWD_DEFAULT_SEPARATION_STRENGTH;
+	//! Configurable tactical behavior and adaptive fallback bitflags (see crowd_tactical_flags_t).
+	uint32_t tacticalFlags = CROWD_TACTICAL_FLAG_DEFAULT;
+
+	//! Check whether a specific tactical bitflag is set.
+	inline const bool HasTacticalFlag( const uint32_t flag ) const {
+		return ( tacticalFlags & flag ) != 0;
+	}
+	//! Enable or disable a specific tactical bitflag.
+	inline void SetTacticalFlag( const uint32_t flag, const bool enabled = true ) {
+		if ( enabled ) {
+			tacticalFlags |= flag;
+		} else {
+			tacticalFlags &= ~flag;
+		}
+	}
 };
 
 /**
@@ -257,6 +437,10 @@ struct crowd_t {
 	QMTime lastPathCalcTime = 0_ms;
 	//! Timestamp when an agent first became stationary while stalled near its assigned slot.
 	QMTime blockedStartTime = 0_ms;
+	//! Stable zero-based order in the active serialized doorway queue (-1 when no queue applies).
+	int32_t ingressQueueRank = -1;
+	//! True once this member owns or has consumed the active doorway reservation.
+	bool ingressReleased = true;
 	//! True when the agent has reached within the arrival threshold of its assigned slot/cover.
 	bool reachedGoal = false;
 };

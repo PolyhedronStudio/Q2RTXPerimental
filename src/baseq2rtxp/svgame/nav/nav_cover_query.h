@@ -24,6 +24,19 @@ const bool Nav_FindCoverPoints( const Vector3DP &search_origin, const Vector3DP 
 	const bool require_engagement_los = false );
 
 /**
+*	@brief	Query raw local cover point indices inside a 2D radius without threat scoring or global fallback.
+*	@param	search_origin		Center origin of the local spatial query in Vector3DP.
+*	@param	radius				Maximum 2D search radius in world units.
+*	@param	out_cover_indices	[out] List of local cover point indices sorted by distance from search_origin.
+*	@param	max_results			Maximum number of indices to return.
+*	@return	True when at least one local cover point was found.
+*	@note	This is intended for geometric systems such as doorway staging that need nearby
+*			stand cells, not tactical threat-relative cover ranking.
+**/
+const bool Nav_QueryCoverPointsRadius( const Vector3DP &search_origin, const double radius,
+	std::vector<int32_t> *out_cover_indices, const size_t max_results = 64 );
+
+/**
 *	@brief		Find valid cover points protecting against a threat within a search radius (single-precision wrapper).
 *	@param	search_origin		Center origin of the search area.
 *	@param	threat_origin		Position of the enemy/threat to seek cover from.

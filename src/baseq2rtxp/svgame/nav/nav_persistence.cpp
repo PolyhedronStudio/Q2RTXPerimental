@@ -132,6 +132,7 @@ bool Nav_Load( const char *filepath ) {
     }
 
     Nav_RebuildCoverSpatialIndex();
+    Nav_BuildSpatialRegionsAndPortals();
 
     fclose(f);
     gi.dprintf("NavMesh Loaded from %s successfully (Faces: %d, Nodes: %d, Cover Points: %d).\n", 

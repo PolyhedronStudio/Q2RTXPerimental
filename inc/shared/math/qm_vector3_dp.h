@@ -22,7 +22,7 @@ struct Vector3DP {
         this->z = 0.0;
     }
     
-    template<typename T, typename = std::enable_if_t<std::is_floating_point_v<T> || std::is_integral_v<T>>>
+    template<typename T, typename = std::enable_if_t<std::is_floating_point_v<double>|| std::is_floating_point_v<float> || std::is_integral_v<T>>>
     [[nodiscard]] constexpr inline Vector3DP( const T x, const T y, const T z ) {
         this->x = static_cast<double>( x );
         this->y = static_cast<double>( y );
@@ -58,6 +58,93 @@ struct Vector3DP {
 
     [[nodiscard]] constexpr inline Vector3DP operator-() const {
         return { -x, -y, -z };
+    }
+
+    /**
+    *   @brief  Assign a single-precision Vector3 to this double-precision Vector3DP.
+    *   @param  v   Source single-precision vector.
+    *   @return Reference to this vector.
+    **/
+    constexpr inline Vector3DP &operator=( const Vector3 &v ) {
+        this->x = static_cast<double>( v.x );
+        this->y = static_cast<double>( v.y );
+        this->z = static_cast<double>( v.z );
+        return *this;
+    }
+
+    /**
+    *   @brief  Add another Vector3DP into this vector.
+    *   @param  right   Right-hand vector to add.
+    *   @return Reference to this vector.
+    **/
+    constexpr inline Vector3DP &operator+=( const Vector3DP &right ) {
+        this->x += right.x;
+        this->y += right.y;
+        this->z += right.z;
+        return *this;
+    }
+
+    /**
+    *   @brief  Subtract another Vector3DP from this vector.
+    *   @param  right   Right-hand vector to subtract.
+    *   @return Reference to this vector.
+    **/
+    constexpr inline Vector3DP &operator-=( const Vector3DP &right ) {
+        this->x -= right.x;
+        this->y -= right.y;
+        this->z -= right.z;
+        return *this;
+    }
+
+    /**
+    *   @brief  Scale this vector by a double scalar.
+    *   @param  scalar  Double-precision scale factor.
+    *   @return Reference to this vector.
+    **/
+    constexpr inline Vector3DP &operator*=( const double scalar ) {
+        this->x *= scalar;
+        this->y *= scalar;
+        this->z *= scalar;
+        return *this;
+    }
+
+    /**
+    *   @brief  Divide this vector by a double scalar.
+    *   @param  scalar  Double-precision divisor.
+    *   @return Reference to this vector.
+    **/
+    constexpr inline Vector3DP &operator/=( const double scalar ) {
+        const double inv = 1.0 / scalar;
+        this->x *= inv;
+        this->y *= inv;
+        this->z *= inv;
+        return *this;
+    }
+
+    /**
+    *   @brief  Scale this vector by a float scalar.
+    *   @param  scalar  Single-precision scale factor.
+    *   @return Reference to this vector.
+    **/
+    constexpr inline Vector3DP &operator*=( const float scalar ) {
+        const double s = static_cast<double>( scalar );
+        this->x *= s;
+        this->y *= s;
+        this->z *= s;
+        return *this;
+    }
+
+    /**
+    *   @brief  Divide this vector by a float scalar.
+    *   @param  scalar  Single-precision divisor.
+    *   @return Reference to this vector.
+    **/
+    constexpr inline Vector3DP &operator/=( const float scalar ) {
+        const double inv = 1.0 / static_cast<double>( scalar );
+        this->x *= inv;
+        this->y *= inv;
+        this->z *= inv;
+        return *this;
     }
 };
 
@@ -164,12 +251,26 @@ QM_API double QM_Vector3DistanceDP( const Vector3DP &v1, const Vector3DP &v2 ) {
     return std::sqrt( dx * dx + dy * dy + dz * dz );
 }
 
+// Calculate double-precision 2D distance between two double-precision vectors in XY plane
+QM_API double QM_Vector3Distance2DDP( const Vector3DP &v1, const Vector3DP &v2 ) {
+    const double dx = v2.x - v1.x;
+    const double dy = v2.y - v1.y;
+    return std::sqrt( dx * dx + dy * dy );
+}
+
 // Calculate square distance between two double-precision vectors
 QM_API_CONSTEXPR double QM_Vector3DistanceSqrDP( const Vector3DP &v1, const Vector3DP &v2 ) {
     const double dx = v2.x - v1.x;
     const double dy = v2.y - v1.y;
     const double dz = v2.z - v1.z;
     return ( dx * dx + dy * dy + dz * dz );
+}
+
+// Calculate square 2D distance between two double-precision vectors in XY plane
+QM_API_CONSTEXPR double QM_Vector3Distance2DSqrDP( const Vector3DP &v1, const Vector3DP &v2 ) {
+    const double dx = v2.x - v1.x;
+    const double dy = v2.y - v1.y;
+    return ( dx * dx + dy * dy );
 }
 
 // Normalize double-precision vector
@@ -199,4 +300,68 @@ inline double QM_Vector3ToYawDP( const Vector3DP &vec ) {
         }
     }
     return yaw;
+}
+
+/**
+*	@brief	Vector3DP double-precision 'AngleVectors' method for Euler angle transformation.
+*	@param	angles	[in] Euler angles in degrees (PITCH = 0, YAW = 1, ROLL = 2).
+*	@param	forward	[out] Normalized forward directional vector in Vector3DP.
+*	@param	right	[out] Normalized right directional vector in Vector3DP.
+*	@param	up		[out] Normalized up directional vector in Vector3DP.
+**/
+inline void QM_AngleVectorsDP( const Vector3DP &angles, Vector3DP *forward, Vector3DP *right, Vector3DP *up ) {
+	const double deg2rad = QM_PI / 180.0;
+	const double angleYaw = angles.y * deg2rad;
+	const double sy = std::sin( angleYaw );
+	const double cy = std::cos( angleYaw );
+	const double anglePitch = angles.x * deg2rad;
+	const double sp = std::sin( anglePitch );
+	const double cp = std::cos( anglePitch );
+	const double angleRoll = angles.z * deg2rad;
+	const double sr = std::sin( angleRoll );
+	const double cr = std::cos( angleRoll );
+
+	if ( forward ) {
+		forward->x = cp * cy;
+		forward->y = cp * sy;
+		forward->z = -sp;
+	}
+	if ( right ) {
+		right->x = ( -1.0 * sr * sp * cy + -1.0 * cr * -sy );
+		right->y = ( -1.0 * sr * sp * sy + -1.0 * cr * cy );
+		right->z = -1.0 * sr * cp;
+	}
+	if ( up ) {
+		up->x = ( cr * sp * cy + -sr * -sy );
+		up->y = ( cr * sp * sy + -sr * cy );
+		up->z = cr * cp;
+	}
+}
+
+/**
+*	@brief	AngleMod the entire Vector3DP in double precision.
+*	@param	v	Vector3DP of angles in degrees.
+*	@return	Vector3DP with every component wrapped into [0, 360).
+**/
+inline Vector3DP QM_Vector3AngleModDP( const Vector3DP &v ) {
+	return Vector3DP{
+		QM_AngleMod( v.x ),
+		QM_AngleMod( v.y ),
+		QM_AngleMod( v.z )
+	};
+}
+
+/**
+*	@brief	Spherical/Euler linear interpolation between two Vector3DP Euler angles in degrees.
+*	@param	angleVec2	Target Euler angle vector in degrees.
+*	@param	angleVec1	Source Euler angle vector in degrees.
+*	@param	fraction	Interpolation fraction [0.0..1.0].
+*	@return	Interpolated Vector3DP angle vector in degrees.
+**/
+inline Vector3DP QM_Vector3LerpAnglesDP( const Vector3DP &angleVec2, const Vector3DP &angleVec1, const double fraction ) {
+	return Vector3DP{
+		QM_LerpAngle( angleVec2.x, angleVec1.x, fraction ),
+		QM_LerpAngle( angleVec2.y, angleVec1.y, fraction ),
+		QM_LerpAngle( angleVec2.z, angleVec1.z, fraction )
+	};
 }

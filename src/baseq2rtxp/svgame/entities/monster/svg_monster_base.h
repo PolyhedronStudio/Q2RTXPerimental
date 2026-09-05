@@ -54,6 +54,14 @@ static constexpr double MONSTER_NAV_STEP_ARRIVAL_TOLERANCE = 2.0;
 //! Proximity deadband distance to active waypoint within which steering looks forward to the subsequent waypoint to prevent yaw jitter.
 static constexpr double MONSTER_NAV_WAYPOINT_DEADBAND = 4.0;
 
+//! Minimum squared length of a 2D direction vector to be considered non-degenerate.
+static constexpr double MONSTER_NAV_DIR_EPS_SQR = 0.0001;
+
+//! Minimum corridor width required for two agents to walk abreast without collision (3 * agent diameter = 96.0 units).
+static constexpr double MONSTER_NAV_MIN_TWO_AGENT_ABREAST_WIDTH = CROWD_DEFAULT_AGENT_RADIUS * 2.0 * 3.0;
+//! Minimum radial clearance from obstacle boundary required for two agents to walk abreast (48.0 units).
+static constexpr double MONSTER_NAV_MIN_TWO_AGENT_ABREAST_CLEARANCE = MONSTER_NAV_MIN_TWO_AGENT_ABREAST_WIDTH * 0.5;
+
 //! Dot product threshold between incoming and outgoing segment directions to qualify as a gentle turn (<= 30 degrees).
 static constexpr double MONSTER_NAV_GENTLE_TURN_MIN_DOT = 0.866;
 
@@ -95,6 +103,16 @@ static constexpr int32_t MONSTER_NAV_STUCK_RECOVER_BLOCKED_FRAMES = 32;
 
 //! Physical nudge distance outward along blocking wall normal to dislodge from corner creases.
 static constexpr float MONSTER_NAV_STUCK_WALL_NUDGE_DIST = 2.0f;
+
+//! Multiplier applied to agent radius to determine the distance threshold for proportional arc clearance.
+static constexpr double MONSTER_NAV_ARC_CLEARANCE_DIST_MULT = 2.0;
+
+//! Proportional clearance fraction tested for closely-spaced intermediate arc waypoints.
+static constexpr double MONSTER_NAV_ARC_CLEARANCE_RATIO = 0.4;
+
+//! Multiplier applied to agent hull radius when validating 2D line-of-sight clearance into the corner departure zone.
+//! Guarantees that steering direction never switches to the next waypoint until the physical capsule has cleared the corner brush.
+static constexpr double MONSTER_NAV_DEPARTURE_CLEARANCE_SCALE = 1.0;
 
 
 /**
@@ -219,6 +237,32 @@ struct svg_monster_base_t : public svg_base_edict_t {
 	bool hasRecentWallBlockNormal = false;
 	//! Server time when recentWallBlockNormal was last updated.
 	QMTime lastWallBlockTime = 0_ms;
+	//! Whether the next slide move should suppress entity deflection while queueing behind a teammate.
+	bool suppressEntityDeflectionThisFrame = false;
+	//! Configurable tactical behavior and adaptive fallback bitflags (see crowd_tactical_flags_t).
+	uint32_t crowdTacticalFlags = CROWD_TACTICAL_FLAG_DEFAULT;
+
+	/**
+	*	@brief	Check whether a specific tactical behavior bitflag is active for this monster.
+	*	@param	flag	Flag bitmask to check (see crowd_tactical_flags_t).
+	*	@return	True if the flag bit is set.
+	**/
+	inline const bool HasTacticalBehaviorFlag( const uint32_t flag ) const {
+		return ( crowdTacticalFlags & flag ) != 0;
+	}
+	/**
+	*	@brief	Enable or disable a specific tactical behavior bitflag for this monster.
+	*	@param	flag	Flag bitmask to modify (see crowd_tactical_flags_t).
+	*	@param	enabled	True to enable the flag, false to clear.
+	**/
+	inline void SetTacticalBehaviorFlag( const uint32_t flag, const bool enabled = true ) {
+		if ( enabled ) {
+			crowdTacticalFlags |= flag;
+		} else {
+			crowdTacticalFlags &= ~flag;
+		}
+	}
+
 	//! KD-Tree caching
 	int32_t cachedLeaf = -1;
 	int32_t cachedPoly = -1;
@@ -299,6 +343,23 @@ struct svg_monster_base_t : public svg_base_edict_t {
 	*	@param	blockedMask	Slide move blocked flags for the current think frame.
 	**/
 	void UpdateBlockedNavigationRecovery( const int32_t blockedMask );
+	/**
+	*	@brief	Invoked when an intermediate path waypoint or final destination is reached and advanced during navigation.
+	*	@param	waypointIndex	Index of the reached waypoint in stringPulledPath.
+	*	@param	waypointPos		World-space coordinates of the reached waypoint in Vector3DP.
+	*	@param	isFinalGoal		True if the reached waypoint represents the final path destination.
+	*	@note	Derived monster classes override this callback to trigger tactical state shifts,
+	*			stare-halt mechanics, ambushes, cover queries, animation transitions, or custom environmental reactions.
+	**/
+	virtual void OnWaypointReached( const size_t waypointIndex, const Vector3DP &waypointPos, const bool isFinalGoal );
+	/**
+	*	@brief	Invoked when a designated tactical cover point is successfully reached.
+	*	@param	coverIndex	Index of the reached cover point in g_nav_cover_points.
+	*	@param	coverPos	World-space coordinates of the reached cover point in Vector3.
+	*	@note	Derived monster classes override this method to transition into crouched hiding,
+	*			peek-shooting, or ambush states.
+	**/
+	virtual void OnCoverPointReached( const int32_t coverIndex, const Vector3 &coverPos );
 	/**
 	*	@brief	Custom edge cost evaluator for A* navigation pathfinding.
 	*	@details Allows individual monster classes or states to bias path choices (e.g. preferring stairs/ramps,

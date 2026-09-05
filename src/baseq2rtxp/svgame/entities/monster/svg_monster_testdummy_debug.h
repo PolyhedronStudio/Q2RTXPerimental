@@ -260,6 +260,41 @@ struct svg_monster_testdummy_debug_t : public svg_monster_base_t {
 	double OnNavEvaluateEdgeCost( const int32_t fromFaceIdx, const int32_t toFaceIdx, const nav_halfedge_t &he, const double baseCost ) override;
 
 	/**
+	*	@brief	State tracking for the "stare-halt" waypoint reaction example.
+	*	@details Demonstrates how monsters can alter their behaviors when reaching specific waypoints,
+	*			halting when actively stared at by the player and resuming pursuit once the player looks away.
+	**/
+	struct StateStareHalt_t {
+		//! Whether the stare-halt waypoint reaction option is enabled for this monster.
+		bool enableStareHalt = false;
+		//! Whether the monster is currently halted/frozen because the player is actively staring at it.
+		bool isHaltedByStare = false;
+		//! Timestamp when the stare-halt was first triggered.
+		QMTime haltStartTime = 0_ms;
+		//! Total count of waypoints where stare-halt checks were evaluated.
+		int32_t waypointsCheckedCount = 0;
+	} stateStareHalt = {};
+
+	/**
+	*	@brief	Determines whether a player entity is actively looking/staring directly at this monster.
+	*	@details Evaluates both view-cone alignment (field-of-view dot product) and unobstructed ray line-of-sight.
+	*	@param	player	Pointer to the player/client edict to test.
+	*	@param	fovDotThreshold	Minimum cosine dot product threshold (default 0.7071f ~ 45-degree half-cone).
+	*	@return	True if the player's view vector is centered on this monster and unobstructed by solid geometry.
+	**/
+	const bool IsPlayerStaringAtMe( const svg_base_edict_t *player, const float fovDotThreshold = 0.7071f ) const;
+
+	/**
+	*	@brief	Invoked when an intermediate path waypoint or final destination is reached and advanced during navigation.
+	*	@details Implements the example requirement: when a waypoint is reached while pursuing the player,
+	*			evaluates whether the player is staring at the monster and immediately halts movement if so.
+	*	@param	waypointIndex	Index of the reached waypoint in stringPulledPath.
+	*	@param	waypointPos		World-space coordinates of the reached waypoint in Vector3DP.
+	*	@param	isFinalGoal		True if the reached waypoint represents the final path destination.
+	**/
+	virtual void OnWaypointReached( const size_t waypointIndex, const Vector3DP &waypointPos, const bool isFinalGoal ) override;
+
+	/**
 	*	@brief	Checks for audible sounds and transitions to InvestigateSound if a fresh one is found.
 	*	@return	True if a sound was heard and state changed, false otherwise.
 	**/

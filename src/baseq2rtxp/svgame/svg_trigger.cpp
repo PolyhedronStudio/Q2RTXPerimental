@@ -18,10 +18,12 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/svg_local.h"
 #include "svgame/svg_entity_events.h"
 #include "svgame/svg_trigger.h"
-#include "svgame/svg_utils.h"
-
 #include "svgame/svg_lua.h"
 #include "svgame/lua/svg_lua_gamelib.hpp"
+
+#include "svgame/entities/func/svg_func_door.h"
+#include "svgame/entities/func/svg_func_door_rotating.h"
+#include "svgame/entities/func/svg_func_areaportal.h"
 
 
 
@@ -224,8 +226,8 @@ void SVG_UseTargets( svg_base_edict_t *ent, svg_base_edict_t *activator, const e
         svg_base_edict_t *fireTargetEntity = nullptr;
         while ( ( fireTargetEntity = SVG_Entities_Find( fireTargetEntity, q_offsetof( svg_base_edict_t, targetname ), (const char *)ent->targetNames.target ) ) ) {
             // Doors fire area portals in a specific way
-            if ( !Q_stricmp( (const char *)fireTargetEntity->classname, "func_areaportal" )
-                && ( !Q_stricmp( (const char *)ent->classname, "func_door" ) || !Q_stricmp( (const char *)ent->classname, "func_door_rotating" ) ) ) {
+            if ( fireTargetEntity->GetTypeInfo()->IsSubClassType<svg_func_areaportal_t>()
+                && ( ent->GetTypeInfo()->IsSubClassType<svg_func_door_t>() || ent->GetTypeInfo()->IsSubClassType<svg_func_door_rotating_t>() ) ) {
                 continue;
             }
 

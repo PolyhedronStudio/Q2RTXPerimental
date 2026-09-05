@@ -39,6 +39,10 @@ static constexpr double NAV_STEP_MIN_VERTICAL_DELTA = 0.5;
 //! Minimum vertical step height difference for neighbor landing platform verification.
 static constexpr double NAV_STEP_LANDING_MIN_DELTA = 0.5;
 
+//! Minimum vertical elevation difference between two forced waypoints to classify them as an internal stair step transition.
+//! Segments entering the staircase from an unforced floor waypoint do not meet this threshold and retain corner standoffs.
+static constexpr double NAV_STAIR_INTERNAL_STEP_MIN_VERTICAL_DELTA = 4.0;
+
 //! Extra forward runway distance margin added to agent radius when landing on platforms from stairways.
 static constexpr double NAV_STEP_RUNWAY_MARGIN = 12.0;
 
@@ -64,6 +68,24 @@ static constexpr double NAV_CORNER_SEGMENT_MAX_T = 0.95;
 static constexpr double NAV_CORNER_DUPLICATE_TOLERANCE = 8.0;
 //! Squared tolerance distance threshold to avoid inserting duplicate standoff waypoints too close to existing endpoints.
 static constexpr double NAV_CORNER_DUPLICATE_TOLERANCE_SQR = NAV_CORNER_DUPLICATE_TOLERANCE * NAV_CORNER_DUPLICATE_TOLERANCE;
+
+//! Along-wall tangential offset for corner arc entry and exit standoff waypoints.
+static constexpr double NAV_CORNER_ARC_TANGENT_OFFSET = 24.0;
+//! Minimum angular turn threshold (dot product between adjacent obstacle walls) to generate an arc (~45 deg or sharper).
+static constexpr double NAV_CORNER_ARC_MIN_TURN_DOT = 0.7071;
+
+//! Maximum spacing between adjacent obstacle corners to be treated as a compound corner.
+static constexpr double NAV_COMPOUND_CORNER_MAX_SPACING = 48.0;
+//! Squared maximum spacing between adjacent obstacle corners to be treated as a compound corner.
+static constexpr double NAV_COMPOUND_CORNER_MAX_SPACING_SQR = NAV_COMPOUND_CORNER_MAX_SPACING * NAV_COMPOUND_CORNER_MAX_SPACING;
+
+//! Minimum horizontal separation distance between consecutive arc waypoints to prevent degenerate clustering.
+static constexpr double NAV_CORNER_ARC_MIN_SEPARATION = 16.0;
+//! Squared minimum horizontal separation distance between consecutive arc waypoints.
+static constexpr double NAV_CORNER_ARC_MIN_SEPARATION_SQR = NAV_CORNER_ARC_MIN_SEPARATION * NAV_CORNER_ARC_MIN_SEPARATION;
+
+//! Forward probe distance outward from an un-twinned boundary edge to classify solid walls vs open-air drop-offs.
+static constexpr double NAV_BOUNDARY_WALL_PROBE_DIST = 24.0;
 
 //! Horizontal expansion bounds for gathering relevant obstacle corners along the path corridor.
 static constexpr double NAV_CORNER_SEARCH_PADDING_XY = 160.0;
@@ -211,6 +233,8 @@ struct nav_path_policy_t {
 	nav_path_edge_cost_fptr edge_cost_callback = nullptr;
 	//! Monster entity instance passed to edge_cost_callback.
 	svg_monster_base_t *edge_cost_monster = nullptr;
+	//! Allow dynamic lateral deflection when bumping into other living entities in SlideMove (disabled in tight crowd queues).
+	bool allow_entity_deflection = true;
 };
 /**
 *	@brief	Walk the KD-tree to locate the leaf node that contains a point.
@@ -376,6 +400,71 @@ inline bool Nav_GetPortalEndpoints( int32_t faceA, int32_t faceB, Vector3 *outV0
 	return ok;
 }
 
+
+/**
+*	@brief	Detailed outcome of a 2D half-edge topological raycast query across the navigation mesh.
+**/
+struct nav_raycast_result_t {
+	//! True if the ray terminated at a solid perimeter wall or outer map boundary.
+	bool hitSolidWall = false;
+	//! True if the ray intersected a transition portal / doorway aperture linking adjacent zones.
+	bool hitPortal = false;
+	//! True if the ray intersected an elevated drop-off ledge or cliff edge.
+	bool hitDropoff = false;
+	//! Distance in world units from ray origin to the intersection point.
+	double hitDistance = 0.0;
+	//! World-space 3D coordinates of the intersection point.
+	Vector3DP hitPoint = {};
+	//! Outward surface normal of the intersected edge pointing back toward the ray origin.
+	Vector3DP hitNormal = {};
+	//! Navmesh face index where the intersection occurred (-1 if none).
+	int32_t hitFaceIndex = -1;
+	//! Specific half-edge index in g_nav_halfedges that was intersected (-1 if none).
+	int32_t hitHalfedgeIndex = -1;
+	//! Topological zone classification of the room/region where the ray terminated or originated.
+	nav_zone_type_t zone_type = ZONE_TYPE_OPEN_SPACE;
+	//! Classification of the intersected portal aperture (if hitPortal is true).
+	nav_portal_type_t portal_type = PORTAL_TYPE_OPEN_APERTURE;
+	//! Destination room ID on the other side of the intersected portal (-1 if solid or unassigned).
+	int32_t targetRoomId = -1;
+	//! Dynamic entity number associated with the portal edge (e.g. func_door, func_wall), or ENTITYNUM_NONE.
+	int32_t portalEntityNumber = ENTITYNUM_NONE;
+};
+
+/**
+*	@brief	Perform a high-performance 2D raycast across the navigation mesh half-edge graph.
+*	@param	start			Ray origin in double-precision world coordinates.
+*	@param	dirNorm			Normalized 2D ray direction vector (dirNorm.z = 0.0).
+*	@param	maxDistance		Maximum ray traversal distance in world units.
+*	@param	outResult		[out] Pointer to result struct storing hit distance, normal, zone type, and portal metadata.
+*	@return	True if an intersection occurred within maxDistance.
+**/
+bool Nav_RaycastHalfEdge2D( const Vector3DP &start, const Vector3DP &dirNorm, const double maxDistance, nav_raycast_result_t *outResult );
+
+/**
+*	@brief	Perform a 2D circle cast (continuous cylinder/capsule sweep) across the navigation mesh half-edge graph.
+*	@param	start			Sweep origin in double-precision world coordinates.
+*	@param	dirNorm			Normalized 2D sweep direction vector (dirNorm.z = 0.0).
+*	@param	maxDistance		Maximum sweep distance in world units.
+*	@param	agentRadius		Agent cylinder/capsule collision radius in world units (e.g. 16.0).
+*	@param	outResult		[out] Pointer to result struct storing hit distance, normal, zone type, and portal metadata.
+*	@return	True if an intersection occurred within maxDistance.
+**/
+bool Nav_CircleCastHalfEdge2D( const Vector3DP &start, const Vector3DP &dirNorm, const double maxDistance, const double agentRadius, nav_raycast_result_t *outResult );
+
+/**
+*	@brief	Omnidirectional 2D room profile scanner utilizing half-edge raycasting.
+*	@param	anchor			Room center anchor origin in double-precision world coordinates.
+*	@param	maxRadius		Maximum search radius for boundary walls in world units.
+*	@param	numRays			Number of radial angular probes (e.g. 16 or 24).
+*	@param	outDoorYaw		[out] Discovered primary doorway orientation yaw in degrees.
+*	@param	outHasDoor		[out] True if a valid doorway portal / aperture was identified.
+*	@param	outMinWallDist	[out] Minimum solid perimeter wall distance in world units.
+*	@param	outAvgWallDist	[out] Average solid perimeter wall distance in world units.
+*	@param	outZoneType		[out] Topological zone type of the room/zone.
+*	@param	agentRadius		Optional agent collision radius for hull-swept boundary clearance.
+**/
+void Nav_RaycastRoomBoundary2D( const Vector3DP &anchor, const double maxRadius, const int32_t numRays, double *outDoorYaw, bool *outHasDoor, double *outMinWallDist, double *outAvgWallDist, nav_zone_type_t *outZoneType, const double agentRadius = 0.0 );
 
 /**
 *	@brief	Test if a 2D segment has unobstructed geometric line-of-sight through the navmesh

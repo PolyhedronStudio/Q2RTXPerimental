@@ -40,6 +40,9 @@ static void Nav_AsyncGenerationWork( void *arg ) {
 	// Extract precalculated tactical cover points from boundary edges (0.92 -> 0.99).
 	Nav_GenerateCoverPoints();
 
+	// Decompose topological spatial regions, rooms, corridors, and portals.
+	Nav_BuildSpatialRegionsAndPortals();
+
 	// Mark the job as complete in the progress snapshot.
 	Nav_SetGenerationProgress( 1.0f, "Completed" );
 	s_gen_progress.current_time_ms = gi.GetRealTime();

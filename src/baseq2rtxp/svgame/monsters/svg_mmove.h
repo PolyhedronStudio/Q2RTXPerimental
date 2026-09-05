@@ -62,9 +62,9 @@ static constexpr double MM_MAX_STEP_HEIGHT	= PHYS_STEP_MAX_SIZE;
 //! Offset for distance to account for between step and ground.
 static constexpr double MM_STEP_GROUND_DIST	= PHYS_STEP_GROUND_DIST;
 //! Default maximum step-up height for analytical probe traces.
-static constexpr float MM_PROBE_DEFAULT_MAX_STEP_HEIGHT = 18.25f;
+static constexpr double MM_PROBE_DEFAULT_MAX_STEP_HEIGHT = 18.25;
 //! Default maximum drop-down height for analytical probe traces.
-static constexpr float MM_PROBE_DEFAULT_MAX_DROP_HEIGHT = 128.0f;
+static constexpr double MM_PROBE_DEFAULT_MAX_DROP_HEIGHT = 128.0;
 
 
 /**
@@ -149,14 +149,14 @@ typedef struct mmove_state_s {
     //! Gravity to apply.
     int16_t gravity;
 
-    //! Origin.
-    Vector3		origin;
-    //! Velocity.
-    Vector3		velocity;
-    //! Previous Origin.
-    Vector3     previousOrigin;
-    //! Previous Velocity.
-    Vector3		previousVelocity;
+    //! Origin in high-precision double coordinates.
+    Vector3DP	origin;
+    //! Velocity in high-precision double coordinates.
+    Vector3DP	velocity;
+    //! Previous Origin in high-precision double coordinates.
+    Vector3DP	previousOrigin;
+    //! Previous Velocity in high-precision double coordinates.
+    Vector3DP	previousVelocity;
 } mmove_state_t;
 
 
@@ -222,8 +222,8 @@ typedef struct mm_move_s {
     struct {
         //! If clipped to stair.
         bool clipped;
-        //! Height of step.
-        float height;
+        //! Height of step in double precision.
+        double height;
     } step;
 
 	//! A pointer to the navigation movement policy being used for this move, if any.
@@ -259,30 +259,56 @@ enum mm_trace_shape_t {
 const mm_trace_shape_t SVG_MMove_GetNativeShape( const svg_base_edict_t *passEntity );
 
 /**
- * @brief Determines the mask to use and returns a trace doing so. If spectating, it'll return clip instead.
+ * @brief Determines the mask to use and returns a trace doing so in double precision. If spectating, it'll return clip instead.
  **/
-const svg_trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, svg_base_edict_t *passEntity, cm_contents_t contentMask = CONTENTS_NONE, mm_trace_shape_t shape = MM_SHAPE_AUTO );
+const svg_trace_t SVG_MMove_Trace( const Vector3DP &start, const Vector3 &mins, const Vector3 &maxs, const Vector3DP &end, svg_base_edict_t *passEntity, cm_contents_t contentMask = CONTENTS_NONE, mm_trace_shape_t shape = MM_SHAPE_AUTO );
 
 /**
-*	@brief	Perform a step-aware and slope-aware swept trace probe using the mover's native analytical shape.
-*	@details Sweeps from start toward end, attempting to step up vertical obstacles (stairs/curbs up to maxStepHeight)
-*			and trace down to landing treads across descending stairs or slopes (up to maxDropHeight).
+ * @brief Single-precision adapter for SVG_MMove_Trace.
+ **/
+inline const svg_trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, svg_base_edict_t *passEntity, cm_contents_t contentMask = CONTENTS_NONE, mm_trace_shape_t shape = MM_SHAPE_AUTO ) {
+	return SVG_MMove_Trace( Vector3DP( start ), mins, maxs, Vector3DP( end ), passEntity, contentMask, shape );
+}
+
+/**
+*	@brief		Perform a step-aware and slope-aware swept trace probe using the mover's native analytical shape in double precision.
+*	@details	Sweeps from start toward end, attempting to step up vertical obstacles (stairs/curbs up to maxStepHeight)
+*				and trace down to landing treads across descending stairs or slopes (up to maxDropHeight).
 *	@param	start			Starting position in world space.
 *	@param	mins			Bounding box minimums.
 *	@param	maxs			Bounding box maximums.
 *	@param	end				Target probe destination in world space.
 *	@param	passEntity		Monster entity to ignore during trace.
 *	@param	outEndpos		[out] Furthest reachable ground position.
-*	@param	maxStepHeight	Maximum step-up height (defaults to 18.25f).
-*	@param	maxDropHeight	Maximum step-down drop height (defaults to 128.0f).
+*	@param	maxStepHeight	Maximum step-up height (defaults to 18.25).
+*	@param	maxDropHeight	Maximum step-down drop height (defaults to 128.0).
 *	@return	True if progress was made towards end (fraction > 0.1), false if immediately blocked.
 **/
-const bool SVG_MMove_StepProbe( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, svg_base_edict_t *passEntity, Vector3 *outEndpos, const float maxStepHeight = MM_PROBE_DEFAULT_MAX_STEP_HEIGHT, const float maxDropHeight = MM_PROBE_DEFAULT_MAX_DROP_HEIGHT );
+const bool SVG_MMove_StepProbe( const Vector3DP &start, const Vector3 &mins, const Vector3 &maxs, const Vector3DP &end, svg_base_edict_t *passEntity, Vector3DP *outEndpos, const double maxStepHeight = MM_PROBE_DEFAULT_MAX_STEP_HEIGHT, const double maxDropHeight = MM_PROBE_DEFAULT_MAX_DROP_HEIGHT );
 
 /**
-*	@brief	Alias for SVG_MMove_StepProbe: perform a step-aware and slope-aware swept trace probe using the mover's native analytical shape.
+*	@brief	Single-precision adapter for SVG_MMove_StepProbe.
 **/
-inline const bool SVG_MMove_Probe( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, svg_base_edict_t *passEntity, Vector3 *outEndpos, const float maxStepHeight = MM_PROBE_DEFAULT_MAX_STEP_HEIGHT, const float maxDropHeight = MM_PROBE_DEFAULT_MAX_DROP_HEIGHT ) {
+inline const bool SVG_MMove_StepProbe( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, svg_base_edict_t *passEntity, Vector3 *outEndpos, const float maxStepHeight = static_cast<float>( MM_PROBE_DEFAULT_MAX_STEP_HEIGHT ), const float maxDropHeight = static_cast<float>( MM_PROBE_DEFAULT_MAX_DROP_HEIGHT ) ) {
+	Vector3DP dpOut;
+	const bool res = SVG_MMove_StepProbe( Vector3DP( start ), mins, maxs, Vector3DP( end ), passEntity, &dpOut, static_cast<double>( maxStepHeight ), static_cast<double>( maxDropHeight ) );
+	if ( outEndpos ) {
+		*outEndpos = QM_Vector3FromDP( dpOut );
+	}
+	return res;
+}
+
+/**
+*	@brief	Alias for SVG_MMove_StepProbe in double precision.
+**/
+inline const bool SVG_MMove_Probe( const Vector3DP &start, const Vector3 &mins, const Vector3 &maxs, const Vector3DP &end, svg_base_edict_t *passEntity, Vector3DP *outEndpos, const double maxStepHeight = MM_PROBE_DEFAULT_MAX_STEP_HEIGHT, const double maxDropHeight = MM_PROBE_DEFAULT_MAX_DROP_HEIGHT ) {
+	return SVG_MMove_StepProbe( start, mins, maxs, end, passEntity, outEndpos, maxStepHeight, maxDropHeight );
+}
+
+/**
+*	@brief	Single-precision alias for SVG_MMove_Probe.
+**/
+inline const bool SVG_MMove_Probe( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, svg_base_edict_t *passEntity, Vector3 *outEndpos, const float maxStepHeight = static_cast<float>( MM_PROBE_DEFAULT_MAX_STEP_HEIGHT ), const float maxDropHeight = static_cast<float>( MM_PROBE_DEFAULT_MAX_DROP_HEIGHT ) ) {
 	return SVG_MMove_StepProbe( start, mins, maxs, end, passEntity, outEndpos, maxStepHeight, maxDropHeight );
 }
 

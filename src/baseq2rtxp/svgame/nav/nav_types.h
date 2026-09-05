@@ -1,3 +1,23 @@
+/********************************************************************
+*
+*
+*	ServerGame: Navigation System Types.
+*
+*	Contains the following, which, professionally would be described 
+*	as a: `Navmesh Spatial Acceleration Structure`
+*
+*	More specifically, the tree itself is best called:
+*	•	``Face-Based KD-tree``
+*	•	``KD-tree with AABB Node Bounds``
+*	•	``Spatial Partitioning Hierarchy over Nav Faces``
+*
+*	If you want the most accurate technical phrasing:
+*
+*	A `Static Face-Based Spatial Index` implemented as an `Axis-Aligned KD-tree with Per-Node Bounding Boxes`.
+*	So it is `not` just a `Plain KD-tree` and not a `Pure AABB` tree either; it is a `KD-Tree-Based Spatial Acceleration Structure`.
+* 
+* 
+********************************************************************/
 #pragma once
 
 #include "nav_core.h"
@@ -9,17 +29,20 @@
 *	@brief	Axis-Aligned Bounding Box (AABB) helper structure for 3D geometric queries.
 **/
 struct nav_aabb_t {
+	// Our double-precision infinity constant
+	static constexpr double inf = std::numeric_limits<double>::infinity();
+
 	//! Minimum bounds extent along X, Y, and Z.
-	Vector3DP mins = { 1e30, 1e30, 1e30 };
+	Vector3DP mins = { inf, inf, inf };
 	//! Maximum bounds extent along X, Y, and Z.
-	Vector3DP maxs = { -1e30, -1e30, -1e30 };
+	Vector3DP maxs = { -inf, -inf, -inf };
 
 	/**
 	*	@brief	Reset bounding box extents to inverted infinite bounds.
 	**/
 	inline void Clear() {
-		mins = { 1e30, 1e30, 1e30 };
-		maxs = { -1e30, -1e30, -1e30 };
+		mins = Vector3DP{ inf, inf, inf };
+		maxs = Vector3DP{ -inf, -inf, -inf };
 	}
 
 	/**
@@ -120,9 +143,99 @@ struct nav_halfedge_t {
 * @brief Bitmask flags for half-edges to control runtime traversal.
 **/
 enum nav_edge_flags_t : uint32_t {
-    NAV_EDGE_NONE = 0,
-    //! This edge is temporarily blocked (e.g. a closed door) and cannot be traversed.
-    NAV_EDGE_DISABLED = 1 << 0
+	NAV_EDGE_NONE = 0,
+	//! This edge is temporarily blocked (e.g. a closed door) and cannot be traversed.
+	NAV_EDGE_DISABLED = 1 << 0,
+	//! This boundary edge represents a solid barrier rising upward from the face (wall/obstacle).
+	NAV_EDGE_WALL = 1 << 1,
+	//! This boundary edge represents an elevated drop-off or cliff dropping down into lower space.
+	NAV_EDGE_DROPOFF = 1 << 2
+};
+
+/**
+*	@brief	Topological classification of navmesh spatial regions and rooms.
+**/
+enum nav_zone_type_t : uint8_t {
+	//! Unbounded open exterior courtyard or field.
+	ZONE_TYPE_OPEN_SPACE = 0,
+	//! Enclosed interior room bounded by solid walls and doorway portals.
+	ZONE_TYPE_ROOM_ENCLOSED = 1,
+	//! Horizontal flat passage / hallway connecting zones.
+	ZONE_TYPE_CORRIDOR_FLAT = 2,
+	//! Stepped staircase corridor (discrete vertical step risers >= 16 units).
+	ZONE_TYPE_CORRIDOR_STAIRS = 3,
+	//! Smooth sloped / inclined ramp passage (gradient >= 5 degrees).
+	ZONE_TYPE_CORRIDOR_RAMP = 4,
+	//! Single-portal dead-end niche or tactical defensive nook.
+	ZONE_TYPE_ALCOVE = 5,
+	//! Elevated catwalk, roof, or ledge with perimeter drop-off edges.
+	ZONE_TYPE_ELEVATED_PLATFORM = 6
+};
+
+/**
+*	@brief	Classification of transition apertures and bottleneck boundaries between adjacent zones.
+**/
+enum nav_portal_type_t : uint8_t {
+	//! Open geometric archway / doorway with no dynamic entity.
+	PORTAL_TYPE_OPEN_APERTURE = 0,
+	//! Dynamic sliding or rotating door (func_door / func_door_rotating).
+	PORTAL_TYPE_DOOR_ENTITY = 1,
+	//! Dynamic / togglable or destructible wall brush (func_wall).
+	PORTAL_TYPE_FUNC_WALL = 2,
+	//! Vertical elevator or lift platform (func_plat).
+	PORTAL_TYPE_ELEVATOR_PLAT = 3
+};
+
+/**
+*	@brief	Transition portal boundary record linking adjacent spatial zones.
+**/
+struct nav_portal_t {
+	//! Unique portal identifier.
+	int32_t portal_id = -1;
+	//! Classification of the transition boundary.
+	nav_portal_type_t portal_type = PORTAL_TYPE_OPEN_APERTURE;
+	//! Source zone index from which this portal exits.
+	int32_t from_room_id = -1;
+	//! Destination zone index which this portal enters.
+	int32_t to_room_id = -1;
+	//! Associated boundary half-edge index in g_nav_halfedges.
+	int32_t halfedge_idx = -1;
+	//! Associated dynamic entity number (e.g. for func_door or func_wall), or ENTITYNUM_NONE.
+	int32_t entity_number = ENTITYNUM_NONE;
+	//! World-space center point of the portal aperture.
+	Vector3DP center = {};
+	//! Unit normal pointing across the portal from from_room_id toward to_room_id.
+	Vector3DP normal = {};
+	//! Clearance width across the portal opening in units.
+	double width = 0.0;
+	//! Runtime passability flag (e.g. false if a door is closed or locked).
+	bool is_passable = true;
+};
+
+/**
+*	@brief	Spatial room / region record containing precalculated topological and geometric properties.
+**/
+struct nav_room_t {
+	//! Unique room identifier and index inside g_nav_rooms.
+	int32_t room_id = -1;
+	//! Topological classification of this spatial zone.
+	nav_zone_type_t zone_type = ZONE_TYPE_ROOM_ENCLOSED;
+	//! Geometric centroid of the floor surface.
+	Vector3DP centroid = {};
+	//! Axis-aligned bounding box enclosing all faces in this zone.
+	nav_aabb_t bounds = {};
+	//! Indices of all nav faces comprising this room/zone.
+	std::vector<int32_t> face_indices;
+	//! Indices of all boundary portals linking this room to other zones.
+	std::vector<int32_t> portal_indices;
+	//! Average floor elevation.
+	double avg_elevation = 0.0;
+	//! Maximum vertical height difference across the floor surface.
+	double max_elevation_delta = 0.0;
+	//! Precalculated physical interior wall standoffs from centroid along principal directions.
+	double wall_standoff_back = 0.0;
+	double wall_standoff_left = 0.0;
+	double wall_standoff_right = 0.0;
 };
 
 /**
@@ -151,6 +264,8 @@ struct nav_face_t {
     uint32_t brush_id = 0;
     //! Surface contents and material flags (e.g., CONTENTS_SOLID, CM_SURFACE_NO_NAVMESH).
     uint32_t surface_flags = 0;
+    //! Topological spatial room / zone index this face belongs to (-1 if unassigned).
+    int32_t room_id = -1;
     //! Mailbox query identifier to prevent redundant narrow-phase testing across adjacent leaves.
     mutable uint32_t last_query_id = 0;
 };

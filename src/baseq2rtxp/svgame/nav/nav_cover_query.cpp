@@ -143,6 +143,17 @@ static nav_cover_grid_t s_cover_grid = {};
 //! List of currently claimed cover point indices for fast O(C) reservation queries.
 static std::vector<int32_t> s_active_claimed_cover_indices = {};
 
+//! Candidate cover point record with precomputed tactical score.
+struct nav_cover_candidate_t {
+	int32_t index = -1;
+	float score = 0.0f;
+};
+
+//! Persistent static buffer for broad-phase grid cover point candidate queries.
+static std::vector<int32_t> s_cover_grid_candidates;
+//! Persistent static buffer for ranked tactical cover candidates.
+static std::vector<nav_cover_candidate_t> s_cover_candidates;
+
 /**
 *	@brief		Build or rebuild the 2D spatial grid acceleration index for tactical cover points.
 **/
@@ -157,6 +168,103 @@ void Nav_RebuildCoverSpatialIndex( void ) {
 void Nav_ClearCoverSpatialIndex( void ) {
 	s_cover_grid.Clear();
 	s_active_claimed_cover_indices.clear();
+}
+
+/**
+*	@brief	Query local cover point indices inside a 2D radius without threat scoring.
+*	@param	search_origin		Center origin of the local spatial query in Vector3DP.
+*	@param	radius				Maximum 2D search radius in world units.
+*	@param	out_cover_indices	[out] List of local cover point indices sorted by distance from search_origin.
+*	@param	max_results			Maximum number of indices to return.
+*	@return	True when at least one local cover point was found.
+*	@note	Unlike Nav_FindCoverPoints, this function never falls back to the whole
+*			global cover list. Doorway staging must fail locally and let its own
+*			geometric fallback run instead of importing unrelated cover from another room.
+**/
+const bool Nav_QueryCoverPointsRadius( const Vector3DP &search_origin, const double radius,
+	std::vector<int32_t> *out_cover_indices, const size_t max_results ) {
+	/**
+	*	Sanity checks: require a destination vector, existing generated cover, and a finite local radius.
+	**/
+	if ( out_cover_indices == nullptr || g_nav_cover_points.empty() || radius <= 0.0 || max_results == 0 ) {
+		return false;
+	}
+
+	// Clear the caller-owned output before any early exit.
+	out_cover_indices->clear();
+
+	/**
+	*	Ensure the O(1)-style spatial grid exists before querying neighborhood cells.
+	**/
+	if ( s_cover_grid.cells.empty() ) {
+		Nav_RebuildCoverSpatialIndex();
+	}
+	if ( s_cover_grid.cells.empty() ) {
+		return false;
+	}
+
+	/**
+	*	Gather local grid-cell candidates and rank only the actual points inside the radius.
+	**/
+	s_cover_grid_candidates.clear();
+	if ( s_cover_grid_candidates.capacity() < max_results ) {
+		s_cover_grid_candidates.reserve( max_results );
+	}
+	s_cover_grid.QueryRadius( search_origin, radius, s_cover_grid_candidates );
+	if ( s_cover_grid_candidates.empty() ) {
+		return false;
+	}
+
+	// Reuse the tactical candidate buffer for a compact distance-ranked local result list.
+	s_cover_candidates.clear();
+	if ( s_cover_candidates.capacity() < s_cover_grid_candidates.size() ) {
+		s_cover_candidates.reserve( s_cover_grid_candidates.size() );
+	}
+
+	const double radiusSqr = radius * radius;
+	for ( const int32_t coverIndex : s_cover_grid_candidates ) {
+		// Reject stale indices before resolving dynamic/world-space cover geometry.
+		if ( coverIndex < 0 || coverIndex >= static_cast<int32_t>( g_nav_cover_points.size() ) ) {
+			continue;
+		}
+
+		const nav_cover_point_t &coverPoint = g_nav_cover_points[ coverIndex ];
+		Vector3DP worldPosition = {};
+		Vector3DP worldNormal = {};
+		if ( !Nav_GetCoverPointWorldDP( coverPoint, &worldPosition, &worldNormal ) ) {
+			continue;
+		}
+
+		// Keep the public query strictly local in 2D; detailed room/normal filtering remains caller-owned.
+		const double distSqr = QM_Vector3Distance2DSqrDP( worldPosition, search_origin );
+		if ( distSqr > radiusSqr ) {
+			continue;
+		}
+
+		s_cover_candidates.push_back( nav_cover_candidate_t{ coverIndex, static_cast<float>( distSqr ) } );
+	}
+	if ( s_cover_candidates.empty() ) {
+		return false;
+	}
+
+	std::sort( s_cover_candidates.begin(), s_cover_candidates.end(), []( const nav_cover_candidate_t &a, const nav_cover_candidate_t &b ) {
+		// Lower squared distance is preferred for deterministic local neighborhood ordering.
+		if ( std::fabs( a.score - b.score ) > 0.001f ) {
+			return a.score < b.score;
+		}
+		return a.index < b.index;
+	} );
+
+	/**
+	*	Copy the bounded result set for the caller.
+	**/
+	const size_t resultCount = std::min( max_results, s_cover_candidates.size() );
+	out_cover_indices->reserve( resultCount );
+	for ( size_t resultIndex = 0; resultIndex < resultCount; resultIndex++ ) {
+		out_cover_indices->push_back( s_cover_candidates[ resultIndex ].index );
+	}
+
+	return !out_cover_indices->empty();
 }
 
 /**
@@ -485,13 +593,7 @@ const float Nav_EvaluateCoverForThreat( const int32_t cover_idx, const Vector3DP
 	return static_cast<float>( std::clamp( wall_alignment, -1.0, 1.0 ) );
 }
 
-/**
-*	@brief		Candidate cover point scoring helper.
-**/
-struct nav_cover_candidate_t {
-	int32_t index = -1;
-	float score = 0.0f;
-};
+
 
 /**
 *	@brief		Find valid cover points protecting against a threat within a search radius (Vector3DP double precision).
@@ -536,26 +638,31 @@ const bool Nav_FindCoverPoints( const Vector3DP &search_origin, const Vector3DP 
 	/**
 	*	Phase 1: Fast Spatial Grid Query (O(1) localized candidate collection in Vector3DP).
 	**/
-	std::vector<int32_t> grid_candidates = {};
-	s_cover_grid.QueryRadius( search_origin, radius, grid_candidates );
+	s_cover_grid_candidates.clear();
+	if ( s_cover_grid_candidates.capacity() < 128 ) {
+		s_cover_grid_candidates.reserve( 128 );
+	}
+	s_cover_grid.QueryRadius( search_origin, radius, s_cover_grid_candidates );
 
 	// Fallback to full iteration if spatial grid query returned no cells.
-	if ( grid_candidates.empty() ) {
-		grid_candidates.resize( g_nav_cover_points.size() );
+	if ( s_cover_grid_candidates.empty() ) {
+		s_cover_grid_candidates.resize( g_nav_cover_points.size() );
 		for ( size_t i = 0; i < g_nav_cover_points.size(); i++ ) {
-			grid_candidates[ i ] = static_cast<int32_t>( i );
+			s_cover_grid_candidates[ i ] = static_cast<int32_t>( i );
 		}
 	}
 
-	std::vector<nav_cover_candidate_t> candidates = {};
-	candidates.reserve( 32 );
+	s_cover_candidates.clear();
+	if ( s_cover_candidates.capacity() < 64 ) {
+		s_cover_candidates.reserve( 64 );
+	}
 
 	const bool has_threat_forward = ( QM_Vector3LengthSqrDP( threat_forward ) > 0.001 );
 
 	/**
 	*	Phase 2: Fast Zero-Raycast Broad-Phase Filter & Tactical Scoring (Vector3DP precision).
 	**/
-	for ( const int32_t cp_idx : grid_candidates ) {
+	for ( const int32_t cp_idx : s_cover_grid_candidates ) {
 		if ( cp_idx < 0 || cp_idx >= static_cast<int32_t>( g_nav_cover_points.size() ) ) {
 			continue;
 		}
@@ -648,18 +755,18 @@ const bool Nav_FindCoverPoints( const Vector3DP &search_origin, const Vector3DP 
 			score += 150.0;
 		}
 
-		candidates.push_back( { cp_idx, static_cast<float>( score ) } );
+		s_cover_candidates.push_back( { cp_idx, static_cast<float>( score ) } );
 	}
 
 	// Return false if no suitable cover points passed broad-phase filtering.
-	if ( candidates.empty() ) {
+	if ( s_cover_candidates.empty() ) {
 		return false;
 	}
 
 	/**
 	*	Phase 3: Rank candidate cover points by score descending.
 	**/
-	std::sort( candidates.begin(), candidates.end(), []( const nav_cover_candidate_t &a, const nav_cover_candidate_t &b ) {
+	std::sort( s_cover_candidates.begin(), s_cover_candidates.end(), []( const nav_cover_candidate_t &a, const nav_cover_candidate_t &b ) {
 		return a.score > b.score;
 	} );
 
@@ -669,7 +776,7 @@ const bool Nav_FindCoverPoints( const Vector3DP &search_origin, const Vector3DP 
 	const size_t max_traces = std::max<size_t>( 16, max_results * 2 );
 	size_t traces_performed = 0;
 
-	for ( const auto &cand : candidates ) {
+	for ( const auto &cand : s_cover_candidates ) {
 		if ( traces_performed < max_traces ) {
 			traces_performed++;
 			const float trace_prot = Nav_EvaluateCoverForThreat( cand.index, threat_origin, true, require_engagement_los );
@@ -687,8 +794,8 @@ const bool Nav_FindCoverPoints( const Vector3DP &search_origin, const Vector3DP 
 
 	// If narrow-phase filtered out all points due to open terrain, fall back to best broad-phase point
 	// ONLY when purely defensive cover is sought (not when offensive engagement LOS is strictly required).
-	if ( out_cover_indices->empty() && !candidates.empty() && !require_engagement_los ) {
-		out_cover_indices->push_back( candidates[ 0 ].index );
+	if ( out_cover_indices->empty() && !s_cover_candidates.empty() && !require_engagement_los ) {
+		out_cover_indices->push_back( s_cover_candidates[ 0 ].index );
 	}
 
 	return !out_cover_indices->empty();

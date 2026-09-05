@@ -11,9 +11,9 @@
 static constexpr int32_t MM_MAX_CLIP_PLANES = 16;
 
 //! Can't step up onto very steep slopes
-static constexpr float MM_MIN_STEP_NORMAL = 0.7f;
+static constexpr double MM_MIN_STEP_NORMAL = 0.7;
 //! Minimal Z Normal for testing whether something is legitimately a "WALL".
-static constexpr float MM_MIN_WALL_NORMAL_Z = 0.03125;
+static constexpr double MM_MIN_WALL_NORMAL_Z = 0.03125;
 
 //! Velocity has not been clipped by a Floor, nor any Wall/Step.
 static constexpr int32_t MM_VELOCITY_CLIPPED_NONE = BIT( 0 );
@@ -24,9 +24,19 @@ static constexpr int32_t MM_VELOCITY_CLIPPED_WALL_OR_STEP = BIT( 2 );
 
 
 /**
-*	@brief	Clips the velocity to surface normal.
+*	@brief	Clips the velocity to surface normal in double precision.
 **/
-const int32_t SVG_MMove_ClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const float overbounce );
+const int32_t SVG_MMove_ClipVelocity( const Vector3DP &in, const Vector3DP &normal, Vector3DP &out, const double overbounce );
+
+/**
+*	@brief	Single-precision adapter for SVG_MMove_ClipVelocity.
+**/
+inline const int32_t SVG_MMove_ClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const float overbounce ) {
+	Vector3DP dpOut;
+	const int32_t res = SVG_MMove_ClipVelocity( Vector3DP( in ), Vector3DP( normal ), dpOut, static_cast<double>( overbounce ) );
+	out = QM_Vector3FromDP( dpOut );
+	return res;
+}
 
 /**
 *	@brief	As long as numberOfTraces does not exceed MAX_TOUCH_TRACES, and there is not a duplicate trace registered,
@@ -34,7 +44,21 @@ const int32_t SVG_MMove_ClipVelocity( const Vector3 &in, const Vector3 &normal, 
 **/
 void SVG_MMove_RegisterTouchTrace( mm_touch_trace_list_t &touchTraceList, svg_trace_t &trace );
 
+struct nav_path_policy_t;
+
 /**
-*	@brief	Attempts to trace clip into velocity direction for the current frametime.
+*	@brief	Attempts to trace clip into velocity direction for the current frametime in double precision.
 **/
-const mm_slide_move_flags_t SVG_MMove_SlideMove( Vector3 &origin, Vector3 &velocity, const float frametime, const Vector3 &mins, const Vector3 &maxs, svg_base_edict_t *passEntity, mm_touch_trace_list_t &touch_traces, const bool has_time, mm_trace_shape_t override_shape = MM_SHAPE_AUTO );
+const mm_slide_move_flags_t SVG_MMove_SlideMove( Vector3DP &origin, Vector3DP &velocity, const double frametime, const Vector3 &mins, const Vector3 &maxs, svg_base_edict_t *passEntity, mm_touch_trace_list_t &touch_traces, const bool has_time, mm_trace_shape_t override_shape = MM_SHAPE_AUTO, const nav_path_policy_t *navPolicy = nullptr );
+
+/**
+*	@brief	Single-precision adapter for SVG_MMove_SlideMove.
+**/
+inline const mm_slide_move_flags_t SVG_MMove_SlideMove( Vector3 &origin, Vector3 &velocity, const float frametime, const Vector3 &mins, const Vector3 &maxs, svg_base_edict_t *passEntity, mm_touch_trace_list_t &touch_traces, const bool has_time, mm_trace_shape_t override_shape = MM_SHAPE_AUTO, const nav_path_policy_t *navPolicy = nullptr ) {
+	Vector3DP dpOrigin( origin );
+	Vector3DP dpVelocity( velocity );
+	const mm_slide_move_flags_t result = SVG_MMove_SlideMove( dpOrigin, dpVelocity, static_cast<double>( frametime ), mins, maxs, passEntity, touch_traces, has_time, override_shape, navPolicy );
+	origin = QM_Vector3FromDP( dpOrigin );
+	velocity = QM_Vector3FromDP( dpVelocity );
+	return result;
+}

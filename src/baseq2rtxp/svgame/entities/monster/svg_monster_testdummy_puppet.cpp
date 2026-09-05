@@ -178,10 +178,10 @@ static void Puppet_RunSlideMove( svg_monster_testdummy_puppet_t *self ) {
             .mm_flags = ( self->groundInfo.entityNumber != ENTITYNUM_NONE ? MMF_ON_GROUND : 0 ),
             .mm_time = 0,
             .gravity = ( int16_t )( self->gravity * sv_gravity->value ),
-            .origin = self->currentOrigin,
-            .velocity = self->velocity,
-            .previousOrigin = self->currentOrigin,
-            .previousVelocity = self->velocity,
+            .origin = Vector3DP( self->currentOrigin ),
+            .velocity = Vector3DP( self->velocity ),
+            .previousOrigin = Vector3DP( self->currentOrigin ),
+            .previousVelocity = Vector3DP( self->velocity ),
         },
         .ground = self->groundInfo,
         .liquid = self->liquidInfo,
@@ -190,7 +190,7 @@ static void Puppet_RunSlideMove( svg_monster_testdummy_puppet_t *self ) {
     SVG_MMove_SlideMove(
         monsterMove.state.origin,
         monsterMove.state.velocity,
-        ( float )monsterMove.frameTime,
+        monsterMove.frameTime,
         monsterMove.mins,
         monsterMove.maxs,
         monsterMove.monster,
@@ -199,7 +199,7 @@ static void Puppet_RunSlideMove( svg_monster_testdummy_puppet_t *self ) {
     );
 
     SVG_Util_SetEntityOrigin( self, monsterMove.state.origin, true );
-    self->velocity = monsterMove.state.velocity;
+    self->velocity = QM_Vector3FromDP( monsterMove.state.velocity );
     gi.linkentity( self );
 }
 

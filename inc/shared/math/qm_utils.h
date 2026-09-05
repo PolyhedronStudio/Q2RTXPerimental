@@ -115,18 +115,13 @@ QM_API_CONSTEXPR T QM_Lerp( const T1 &start, const T2 &end, const T3 &amount ) {
 **/
 template<typename T>
 QM_API_CONSTEXPR T QM_LerpAngle( const T &angle2, const T &angle1, const T &fraction ) {
-    //T _angle1 = angle1;
-    //if ( angle1 - angle2 > 180. ) {
-    //    _angle1 -= 360.;
-    //}
-    //if ( angle1 - angle2 < -180 ) {
-    //    _angle1 += 360;
-    //}
-    return angle2 + fraction * (
-        ( angle1 - angle2 > static_cast<T>( 180. ) ? angle1 -= static_cast<T>(360.) : angle1 ) 
-        - ( angle1 - angle2 < -static_cast<T>( 180. ) ? angle1 += static_cast<T>(360.) : angle1 )
-        - angle2 
-    );
+    T a1 = angle1;
+    if ( a1 - angle2 > static_cast<T>( 180.0 ) ) {
+        a1 -= static_cast<T>( 360.0 );
+    } else if ( a1 - angle2 < -static_cast<T>( 180.0 ) ) {
+        a1 += static_cast<T>( 360.0 );
+    }
+    return angle2 + ( a1 - angle2 ) * fraction;
 }
 
 

@@ -425,6 +425,15 @@ const bool svg_monster_testdummy_debug_t::KeyValue( const cm_entity_t *keyValueP
 	} else if ( keyStr == "crowd_arrival_radius" && ( keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) ) {
 		this->initialCrowdParams.arrivalRadius = static_cast<double>( keyValuePair->value );
 		return true;
+	} else if ( keyStr == "stare_halt" && ( keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) ) {
+		this->stateStareHalt.enableStareHalt = ( keyValuePair->integer != 0 );
+		this->SetTacticalBehaviorFlag( CROWD_TACTICAL_FLAG_STARE_HALT_WAYPOINT, ( keyValuePair->integer != 0 ) );
+		return true;
+	} else if ( ( keyStr == "tactical_flags" || keyStr == "crowd_tactical_flags" ) && ( keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) ) {
+		this->crowdTacticalFlags = static_cast<uint32_t>( keyValuePair->integer );
+		this->initialCrowdParams.tacticalFlags = this->crowdTacticalFlags;
+		this->stateStareHalt.enableStareHalt = this->HasTacticalBehaviorFlag( CROWD_TACTICAL_FLAG_STARE_HALT_WAYPOINT );
+		return true;
 	}
 
 	return Super::KeyValue( keyValuePair, errorStr );
@@ -448,6 +457,9 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_monster_testdummy_debug_t, onSpawn )( svg_mons
 		// Preserve role parsed from entity key values if explicitly assigned.
 		if ( role != crowd_member_role_t::ROLE_UNASSIGNED ) {
 			self->crowd.role = role;
+			if ( role == crowd_member_role_t::ROLE_LEADER ) {
+				SVG_Crowd_SetLeader( cid, self->s.number );
+			}
 		}
 		// Apply map-defined crowd parameters and initial style to the squad group.
 		if ( cid > 0 ) {
@@ -590,15 +602,15 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_monster_testdummy_debug_t, onSpawn )( svg_mons
 			.mins = self->mins,
 			.maxs = self->maxs,
 			.state = {
-			.mm_type = MM_NORMAL,
-			// Ensure mm_flags uses the expected 16-bit storage without narrowing warnings.
-			.mm_flags = static_cast<uint16_t>( self->groundInfo.entityNumber != ENTITYNUM_NONE ? MMF_ON_GROUND : MMF_NONE ),
+				.mm_type = MM_NORMAL,
+				// Ensure mm_flags uses the expected 16-bit storage without narrowing warnings.
+				.mm_flags = static_cast<uint16_t>( self->groundInfo.entityNumber != ENTITYNUM_NONE ? MMF_ON_GROUND : MMF_NONE ),
 				.mm_time = 0,
 				.gravity = ( int16_t )( self->gravity * sv_gravity->value ),
-				.origin = self->currentOrigin,
-				.velocity = self->velocity,
-				.previousOrigin = self->currentOrigin,
-				.previousVelocity = self->velocity,
+				.origin = Vector3DP( self->currentOrigin ),
+				.velocity = Vector3DP( self->velocity ),
+				.previousOrigin = Vector3DP( self->currentOrigin ),
+				.previousVelocity = Vector3DP( self->velocity ),
 			},
 			.ground = self->groundInfo,
 			.liquid = self->liquidInfo,
@@ -968,6 +980,80 @@ bool svg_monster_testdummy_debug_t::CheckForAudibleSounds() {
 }
 
 /**
+*	@brief	Determines whether a player entity is actively looking/staring directly at this monster.
+*	@details Evaluates both view-cone alignment (field-of-view dot product) and unobstructed ray line-of-sight.
+*	@param	player	Pointer to the player/client edict to test.
+*	@param	fovDotThreshold	Minimum cosine dot product threshold (default 0.7071f ~ 45-degree half-cone).
+*	@return	True if the player's view vector is centered on this monster and unobstructed by solid geometry.
+**/
+const bool svg_monster_testdummy_debug_t::IsPlayerStaringAtMe( const svg_base_edict_t *player, const float fovDotThreshold ) const {
+	/**
+	*	Sanity checks: ensure player is valid and active.
+	**/
+	if ( !player || !player->client || !SVG_Entity_IsActive( player ) || player->health <= 0 ) {
+		return false;
+	}
+
+	// 1. Calculate player's eye origin in world coordinates.
+	const Vector3 playerEye = player->currentOrigin + Vector3{ 0.0f, 0.0f, static_cast<float>( player->viewheight ) };
+
+	// 2. Calculate monster target focal point (chest/head height).
+	const Vector3 monsterCenter = this->currentOrigin + Vector3{ 0.0f, 0.0f, static_cast<float>( this->viewheight * 0.8f ) };
+
+	// 3. Compute vector from player's eyes to monster center.
+	const Vector3 toMonster = monsterCenter - playerEye;
+	const float dist = QM_Vector3Length( toMonster );
+	if ( dist <= 0.001f ) {
+		return true;
+	}
+	const Vector3 dirToMonster = toMonster * ( 1.0f / dist );
+
+	// 4. Extract player forward view vector from viewMove/client state.
+	Vector3 playerForward{};
+	QM_AngleVectors( player->client->viewMove.viewAngles, &playerForward, nullptr, nullptr );
+
+	// 5. Evaluate view cone dot product (cosine of gaze angle).
+	const float viewDot = QM_Vector3DotProduct( playerForward, dirToMonster );
+	if ( viewDot < fovDotThreshold ) {
+		return false; // Monster is outside the player's direct field-of-view
+	}
+
+	// 6. Perform physical raycast trace to verify clear line-of-sight (unobstructed by walls).
+	const svg_trace_t tr = SVG_Trace( playerEye, vec3_origin, vec3_origin, monsterCenter, player, CM_CONTENTMASK_SOLID | CM_CONTENTMASK_OPAQUE );
+	if ( tr.fraction >= 0.99f || tr.entityNumber == this->s.number ) {
+		return true; // Unobstructed direct gaze!
+	}
+
+	return false;
+}
+
+/**
+*	@brief	Invoked when an intermediate path waypoint or final destination is reached and advanced during navigation.
+*	@param	waypointIndex	Index of the reached waypoint in stringPulledPath.
+*	@param	waypointPos		World-space coordinates of the reached waypoint in Vector3DP.
+*	@param	isFinalGoal		True if the reached waypoint represents the final path destination.
+**/
+void svg_monster_testdummy_debug_t::OnWaypointReached( const size_t waypointIndex, const Vector3DP &waypointPos, const bool isFinalGoal ) {
+	( void )waypointIndex;
+	( void )waypointPos;
+	( void )isFinalGoal;
+
+	this->stateStareHalt.waypointsCheckedCount++;
+
+	// If the stare-halt option is enabled and we have a valid activator/player target:
+	if ( this->stateStareHalt.enableStareHalt && this->activator != nullptr ) {
+		// Check if the player is actively staring at us at this waypoint milestone:
+		if ( this->IsPlayerStaringAtMe( this->activator ) ) {
+			this->stateStareHalt.isHaltedByStare = true;
+			this->stateStareHalt.haltStartTime = level.time;
+			this->velocity.x = this->velocity.y = 0.0f;
+			this->monsterMove.state.velocity.x = this->monsterMove.state.velocity.y = 0.0;
+			this->UpdateAnim( 1 ); // IDLE
+		}
+	}
+}
+
+/**
 *	@brief	A* specific thinker: always attempt async A* to activator if present(and if it goes LOS, sets think to onThink_AStarPursuitTrail.), otherwise go idle.
 *
 *	@details	Will always check for player presence first, and if not present will check for trail presence.
@@ -998,6 +1084,29 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarToPlay
         Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::HideInCover );
         svg_monster_testdummy_debug_t::onThink_HideInCover( self );
         return;
+    }
+
+    // Stare-halt option: if enabled and the player is currently staring at the monster,
+    // halt and freeze in place until the player moves ahead or looks away.
+    if ( self->stateStareHalt.enableStareHalt && self->activator ) {
+        const bool isStaring = self->IsPlayerStaringAtMe( self->activator );
+        if ( isStaring ) {
+            self->stateStareHalt.isHaltedByStare = true;
+            self->velocity.x = 0.0f;
+            self->velocity.y = 0.0f;
+            self->monsterMove.state.velocity.x = 0.0;
+            self->monsterMove.state.velocity.y = 0.0;
+            self->UpdateAnim( 1 ); // IDLE
+
+            int32_t blockedMask = MM_SLIDEMOVEFLAG_NONE;
+            self->GenericThinkFinish( true, blockedMask );
+            SVG_Util_SetEntityAngles( self, self->currentAngles, true );
+            self->nextthink = level.time + FRAME_TIME_MS;
+            return;
+        } else {
+            // Player is no longer staring: release halt and continue pursuit!
+            self->stateStareHalt.isHaltedByStare = false;
+        }
     }
 
     const bool activatorVisible = SVG_Entity_IsVisible( self, self->activator );
@@ -1234,6 +1343,11 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Investigate
 
 //=================================================================================================
 
+//! Persistent static buffer for valid scored tactical cover candidates.
+static std::vector<std::pair<int32_t, double>> s_testdummy_valid_scored;
+//! Persistent static buffer for local tactical cover query candidates.
+static std::vector<int32_t> s_testdummy_candidate_indices;
+
 /**
 *	@brief		Find the best tactical cover point prioritizing crouch cover over standing cover (Vector3DP precision).
 *	@param	threat_origin	Position of the enemy/player to hide from in Vector3DP.
@@ -1351,34 +1465,40 @@ const int32_t svg_monster_testdummy_debug_t::FindBestScaredCover( const Vector3D
 	};
 
 	auto PickBestCandidate = [&]( const std::vector<int32_t> &indices ) -> int32_t {
-		std::vector<std::pair<int32_t, double>> valid_scored = {};
+		s_testdummy_valid_scored.clear();
+		if ( s_testdummy_valid_scored.capacity() < 32 ) {
+			s_testdummy_valid_scored.reserve( 32 );
+		}
 		for ( const int32_t idx : indices ) {
 			double s = 0.0;
 			if ( EvaluateCandidate( idx, &s ) ) {
-				valid_scored.push_back( { idx, s } );
+				s_testdummy_valid_scored.push_back( { idx, s } );
 			}
 		}
 
-		if ( valid_scored.empty() ) {
+		if ( s_testdummy_valid_scored.empty() ) {
 			return -1;
 		}
 
-		std::sort( valid_scored.begin(), valid_scored.end(), []( const auto &a, const auto &b ) {
+		std::sort( s_testdummy_valid_scored.begin(), s_testdummy_valid_scored.end(), []( const auto &a, const auto &b ) {
 			return a.second > b.second;
 		} );
 
 		// Pick randomly among top 2 best candidates to add slight natural variety without picking poor spots.
-		const int32_t top_count = std::min<int32_t>( 2, static_cast<int32_t>( valid_scored.size() ) );
+		const int32_t top_count = std::min<int32_t>( 2, static_cast<int32_t>( s_testdummy_valid_scored.size() ) );
 		const int32_t chosen = ( top_count > 1 ) ? irandom( top_count ) : 0;
-		return valid_scored[ chosen ].first;
+		return s_testdummy_valid_scored[ chosen ].first;
 	};
 
 	/**
 	*	Phase 1: Local Search (radius 768.0, centered on agent, all postures).
 	**/
-	std::vector<int32_t> candidate_indices = {};
-	if ( Nav_FindCoverPoints( monster_origin, threat_origin, 768.0, s.number, &candidate_indices, NAV_COVER_NONE, threat_forward, 16 ) ) {
-		const int32_t chosen = PickBestCandidate( candidate_indices );
+	s_testdummy_candidate_indices.clear();
+	if ( s_testdummy_candidate_indices.capacity() < 32 ) {
+		s_testdummy_candidate_indices.reserve( 32 );
+	}
+	if ( Nav_FindCoverPoints( monster_origin, threat_origin, 768.0, s.number, &s_testdummy_candidate_indices, NAV_COVER_NONE, threat_forward, 16 ) ) {
+		const int32_t chosen = PickBestCandidate( s_testdummy_candidate_indices );
 		if ( chosen >= 0 ) {
 			return chosen;
 		}
@@ -1387,8 +1507,8 @@ const int32_t svg_monster_testdummy_debug_t::FindBestScaredCover( const Vector3D
 	/**
 	*	Phase 2: Medium Vicinity Search (radius 1536.0, centered on agent, all postures).
 	**/
-	if ( Nav_FindCoverPoints( monster_origin, threat_origin, 1536.0, s.number, &candidate_indices, NAV_COVER_NONE, threat_forward, 24 ) ) {
-		const int32_t chosen = PickBestCandidate( candidate_indices );
+	if ( Nav_FindCoverPoints( monster_origin, threat_origin, 1536.0, s.number, &s_testdummy_candidate_indices, NAV_COVER_NONE, threat_forward, 24 ) ) {
+		const int32_t chosen = PickBestCandidate( s_testdummy_candidate_indices );
 		if ( chosen >= 0 ) {
 			return chosen;
 		}
@@ -1397,8 +1517,8 @@ const int32_t svg_monster_testdummy_debug_t::FindBestScaredCover( const Vector3D
 	/**
 	*	Phase 3: Deep World-Wide Search (radius 3072.0, centered on agent, all postures).
 	**/
-	if ( Nav_FindCoverPoints( monster_origin, threat_origin, 3072.0, s.number, &candidate_indices, NAV_COVER_NONE, threat_forward, 32 ) ) {
-		const int32_t chosen = PickBestCandidate( candidate_indices );
+	if ( Nav_FindCoverPoints( monster_origin, threat_origin, 3072.0, s.number, &s_testdummy_candidate_indices, NAV_COVER_NONE, threat_forward, 32 ) ) {
+		const int32_t chosen = PickBestCandidate( s_testdummy_candidate_indices );
 		if ( chosen >= 0 ) {
 			return chosen;
 		}
@@ -1702,15 +1822,15 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_HideInCover
 							break;
 						}
 						for ( const float dist : flee_distances ) {
-							const Vector3 test_target = self->currentOrigin + ( r_dir_test * dist );
-							Vector3 probe_ground = {};
+							const Vector3DP test_target = Vector3DP( self->currentOrigin ) + ( Vector3DP( r_dir_test ) * static_cast<double>( dist ) );
+							Vector3DP probe_ground = {};
 							// StepProbe sweeps native analytical shape, checking step-ups over stairs/curbs and downward slopes
-							if ( SVG_MMove_StepProbe( self->currentOrigin, self->mins, self->maxs, test_target, self, &probe_ground, self->pathNavigationState.policy.max_step_height, self->pathNavigationState.policy.max_drop_height ) ) {
-								const float distFromMeSqr = QM_Vector3DistanceSqr( self->currentOrigin, probe_ground );
-								if ( distFromMeSqr >= ( 48.0f * 48.0f ) ) {
-									const int32_t face_idx = Nav_FindClosestFaceInLeaf( Vector3DP( probe_ground ) );
+							if ( SVG_MMove_StepProbe( Vector3DP( self->currentOrigin ), self->mins, self->maxs, test_target, self, &probe_ground, self->pathNavigationState.policy.max_step_height, self->pathNavigationState.policy.max_drop_height ) ) {
+								const double distFromMeSqr = QM_Vector3DistanceSqrDP( Vector3DP( self->currentOrigin ), probe_ground );
+								if ( distFromMeSqr >= ( 48.0 * 48.0 ) ) {
+									const int32_t face_idx = Nav_FindClosestFaceInLeaf( probe_ground );
 									if ( face_idx >= 0 && static_cast<size_t>( face_idx ) < g_nav_faces.size() ) {
-										flee_goal = probe_ground;
+										flee_goal = QM_Vector3FromDP( probe_ground );
 										found_flee_dest = true;
 										break;
 									}
@@ -2009,35 +2129,80 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_CrowdFormat
 	}
 
 	const Vector3 goalOrigin = self->crowd.assignedGoalOrigin;
-	const double arrivalRadius = ( group->params.arrivalRadius > 0.0 ) ? std::max( group->params.arrivalRadius, group->params.separationRadius ) : CROWD_DEFAULT_ARRIVAL_RADIUS;
+	const double configuredArrivalRadius = ( group->params.arrivalRadius > 0.0 ) ? group->params.arrivalRadius : CROWD_DEFAULT_ARRIVAL_RADIUS;
+	const double lateralSpacing = ( group->params.lateralSpacing > 0.0 ) ? group->params.lateralSpacing : CROWD_DEFAULT_LATERAL_SPACING;
+	const double longitudinalSpacing = ( group->params.longitudinalSpacing > 0.0 ) ? group->params.longitudinalSpacing : CROWD_DEFAULT_LONGITUDINAL_SPACING;
+	const double minCorridorSpacing = ( group->params.minCorridorSpacing > 0.0 ) ? group->params.minCorridorSpacing : CROWD_DEFAULT_MIN_CORRIDOR_SPACING;
+	const double slotSpacing = std::max( minCorridorSpacing, std::min( lateralSpacing, longitudinalSpacing ) );
+	const double rawSelfRadius = static_cast<double>( self->maxs.x - self->mins.x ) * 0.5;
+	const double selfRadius = ( rawSelfRadius > 0.0 ) ? rawSelfRadius : CROWD_DEFAULT_AGENT_RADIUS;
 
-	// Vector to assigned formation slot
-	Vector3 toGoal = goalOrigin - self->currentOrigin;
+	// Vector to assigned formation slot from agent feet (ground contact elevation)
+	Vector3 myFeet = self->currentOrigin;
+	myFeet.z += self->mins.z;
+	Vector3 toGoal = goalOrigin - myFeet;
 	const double zDiff = std::fabs( toGoal.z );
 	toGoal.z = 0.0f;
 	const double dist2D = QM_Vector3Length( toGoal );
 
 	/**
 	*	Arrival check: determine whether we have arrived within the slot tolerance circle.
+	*	Uses strict entrance and exit thresholds (hysteresis deadband) to eliminate boundary
+	*	chatter between arrived station-keeping and en-route navigation.
 	**/
-	if ( dist2D <= arrivalRadius && zDiff <= CROWD_ARRIVAL_MAX_Z_DIFF ) {
-		self->crowd.reachedGoal = true;
-		self->crowd.blockedStartTime = 0_ms;
-	} else if ( dist2D <= ( arrivalRadius * CROWD_BLOCKED_ARRIVAL_RADIUS_FACTOR ) && zDiff <= CROWD_ARRIVAL_MAX_Z_DIFF ) {
-		// Only treat as arrived if the agent has been continuously stalled near its slot for a sustained duration (2.5s)
-		const double horizSpeedSq = ( self->velocity.x * self->velocity.x ) + ( self->velocity.y * self->velocity.y );
-		if ( horizSpeedSq < CROWD_BLOCKED_STATIONARY_SPEED_SQ ) {
-			if ( self->crowd.blockedStartTime == 0_ms ) {
-				self->crowd.blockedStartTime = level.time;
-			} else if ( ( level.time - self->crowd.blockedStartTime ) >= CROWD_BLOCKED_ARRIVAL_STALL_TIME ) {
-				self->crowd.reachedGoal = true;
+	const double arrivalFloor = std::min( configuredArrivalRadius, selfRadius * 0.75 );
+	// Staging and admission share one tolerance so station keeping cannot strand a queue owner off its cell.
+	const double enterArrivalRadius = group->hasSerializedIngress ? CROWD_INGRESS_ARRIVAL_RADIUS :
+		std::max( arrivalFloor, std::min( configuredArrivalRadius, std::min( slotSpacing * 0.35, selfRadius * 1.25 ) ) );
+	const double exitArrivalRadius = enterArrivalRadius * 1.35;
+
+	// Check if entity is currently situated inside a narrow doorway, staircase, or single-file bottleneck (< 96 units width):
+	bool isInsideChokepoint = false;
+	const bool preventChokepointParking = self->HasTacticalBehaviorFlag( CROWD_TACTICAL_FLAG_PREVENT_CHOKEPOINT_PARKING ) || group->params.HasTacticalFlag( CROWD_TACTICAL_FLAG_PREVENT_CHOKEPOINT_PARKING );
+	if ( preventChokepointParking ) {
+		const int32_t myFaceIdx = Nav_FindFaceInLeafStrict( self->currentOrigin );
+		if ( myFaceIdx >= 0 && myFaceIdx < static_cast<int32_t>( g_nav_faces.size() ) ) {
+			isInsideChokepoint = ( g_nav_faces[ myFaceIdx ].clearance > 0.0 && g_nav_faces[ myFaceIdx ].clearance < CROWD_MIN_TWO_AGENT_ABREAST_CLEARANCE );
+		}
+	}
+
+	// If this is the final unresolved squad member, allow near-goal settle even on narrow faces.
+	// This avoids endless squeeze loops between wall and teammate when no trailing members still need lane throughput.
+	bool isLastUnresolvedMember = false;
+	if ( isInsideChokepoint ) {
+		int32_t unresolvedCount = 0;
+		for ( const int32_t memberNum : group->memberEntityNumbers ) {
+			const svg_base_edict_t *memberEnt = g_edict_pool.EdictForNumber( memberNum );
+			if ( !memberEnt || !SVG_Entity_IsActive( memberEnt ) || memberEnt->health <= 0 ) {
+				continue;
 			}
-		} else {
+			// A member parked at an exterior ingress hold point is still unresolved for final formation occupancy.
+			if ( !memberEnt->crowd.reachedGoal || !memberEnt->crowd.ingressReleased ) {
+				unresolvedCount++;
+				if ( unresolvedCount > 1 ) {
+					break;
+				}
+			}
+		}
+		isLastUnresolvedMember = ( unresolvedCount <= 1 );
+	}
+
+	const Vector3 startOrigin = self->currentOrigin;
+
+	if ( self->crowd.reachedGoal ) {
+		// Station-keeping: remain arrived unless pushed far beyond the exit hysteresis circle
+		if ( dist2D > exitArrivalRadius || zDiff > CROWD_ARRIVAL_MAX_Z_DIFF ) {
+			self->crowd.reachedGoal = false;
 			self->crowd.blockedStartTime = 0_ms;
 		}
 	} else {
-		self->crowd.reachedGoal = false;
-		self->crowd.blockedStartTime = 0_ms;
+		// En route: enter arrived state when inside entrance arrival radius
+		if ( dist2D <= enterArrivalRadius && zDiff <= CROWD_ARRIVAL_MAX_Z_DIFF ) {
+			self->crowd.reachedGoal = true;
+			self->crowd.blockedStartTime = 0_ms;
+		} else {
+			self->crowd.reachedGoal = false;
+		}
 	}
 
 	/**
@@ -2047,15 +2212,17 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_CrowdFormat
 		// Stop horizontal movement
 		self->velocity.x = 0.0f;
 		self->velocity.y = 0.0f;
-		self->monsterMove.state.velocity.x = 0.0f;
-		self->monsterMove.state.velocity.y = 0.0f;
+		self->monsterMove.state.velocity.x = 0.0;
+		self->monsterMove.state.velocity.y = 0.0;
 
-		// Orient to slot's prescribed relative heading (or match group heading)
+		// Orient to slot's prescribed relative heading (or match group heading).
+		// Uses precalculated deterministic slot angles to prevent floating-point yaw oscillation:
 		double desiredYaw = group->currentHeadingYaw;
 		if ( self->crowd.slotIndex >= 0 && self->crowd.slotIndex < static_cast<int32_t>( group->slots.size() ) ) {
-			desiredYaw = QM_AngleMod( group->currentHeadingYaw + group->slots[ self->crowd.slotIndex ].relativeYawDeg );
+			const svg_crowd_slot_t &mySlot = group->slots[ self->crowd.slotIndex ];
+			desiredYaw = group->currentHeadingYaw + mySlot.relativeYawDeg;
 		}
-		self->ideal_yaw = static_cast<float>( desiredYaw );
+		self->ideal_yaw = static_cast<float>( QM_AngleMod( desiredYaw ) );
 		SVG_MMove_FaceIdealYaw( self, self->ideal_yaw, 45.0f );
 
 		// If occupying a tactical cover point, crouch into ducked idle
@@ -2086,6 +2253,46 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_CrowdFormat
 	int32_t blockedMask = MM_SLIDEMOVEFLAG_NONE;
 	self->GenericThinkFinish( true, blockedMask );
 	SVG_Util_SetEntityAngles( self, self->currentAngles, true );
+
+	// Physical displacement & stall detection:
+	// Measure actual 2D world displacement achieved during this think frame rather than commanded velocity:
+	const double frameMoveDistSq = static_cast<double>( ( self->currentOrigin.x - startOrigin.x ) * ( self->currentOrigin.x - startOrigin.x ) +
+														( self->currentOrigin.y - startOrigin.y ) * ( self->currentOrigin.y - startOrigin.y ) );
+
+	// Measure true geometric progress toward the assigned slot; lateral shuffling without goal closure counts as stalled.
+	Vector3 endFeet = self->currentOrigin;
+	endFeet.z += self->mins.z;
+	Vector3 endToGoal = goalOrigin - endFeet;
+	const double endZDiff = std::fabs( endToGoal.z );
+	endToGoal.z = 0.0f;
+	const double endDist2D = QM_Vector3Length( endToGoal );
+	const double goalProgress2D = dist2D - endDist2D;
+	const bool hasGoalProgress = ( goalProgress2D > 0.25 );
+
+	if ( !self->crowd.reachedGoal ) {
+		// Allow blocked settle only for the final unresolved member inside a narrow chokepoint.
+		const bool allowBlockedArrivalInNarrowSpace = ( isInsideChokepoint && isLastUnresolvedMember );
+
+		// If near destination slot and unable to make geometric progress, settle after short stall timeout.
+		if ( allowBlockedArrivalInNarrowSpace && endDist2D <= exitArrivalRadius && endZDiff <= CROWD_ARRIVAL_MAX_Z_DIFF && !hasGoalProgress ) {
+			if ( self->crowd.blockedStartTime == 0_ms ) {
+				self->crowd.blockedStartTime = level.time;
+			} else if ( ( level.time - self->crowd.blockedStartTime ) >= 300_ms ) {
+				self->crowd.reachedGoal = true;
+				self->velocity.x = 0.0f;
+				self->velocity.y = 0.0f;
+				self->monsterMove.state.velocity.x = 0.0;
+				self->monsterMove.state.velocity.y = 0.0;
+			}
+		} else if ( hasGoalProgress ) {
+			self->crowd.blockedStartTime = 0_ms;
+		}
+
+		// If the monster is blocked or failing to progress to goal, force IDLE animation.
+		if ( !hasGoalProgress || ( blockedMask & ( MM_SLIDEMOVEFLAG_BLOCKED | MM_SLIDEMOVEFLAG_TRAPPED ) ) != 0 ) {
+			self->UpdateAnim( 1 ); // IDLE
+		}
+	}
 
 	// Throttle think frequency when arrived and located far from the player to conserve CPU.
 	if ( self->crowd.reachedGoal ) {

@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="520" viewBox="0 0 760 520" font-family="Consolas, monospace" font-size="12">
+  <style>
+    .lbl { fill: #e8e8e8; }
+    .dim { fill: #9a9a9a; font-size: 10px; }
+    .title { fill: #ffffff; font-size: 15px; font-weight: bold; }
+  </style>
+
+  <!-- background -->
+  <rect x="0" y="0" width="760" height="520" fill="#14171c"/>
+  <text class="title" x="24" y="32">Polygon-Based Room Contour Encirclement</text>
+  <text class="dim" x="24" y="50">SVG_Crowd_FitCircularFormationToRoom — room contour path</text>
+
+  <!-- room bounds (AABB) -->
+  <rect x="120" y="90" width="460" height="340" fill="#1d2733" stroke="#4a6a8a" stroke-width="2" stroke-dasharray="6 4"/>
+  <text class="dim" x="126" y="84">room-&gt;bounds (AABB)</text>
+
+  <!-- walkable polygons -->
+  <polygon points="150,120 550,120 550,400 150,400" fill="#254a35" stroke="#3f8f5f" stroke-width="2"/>
+  <text class="dim" x="160" y="114">walkable room faces (nav_room_t::face_indices)</text>
+
+  <!-- eroded region -->
+  <polygon points="182,152 518,152 518,368 182,368" fill="#2f6a4a" stroke="#7fd6a4" stroke-width="2" stroke-dasharray="3 3"/>
+  <text class="dim" x="188" y="146">eroded by agentRadius + CROWD_ROOM_CONTOUR_WALL_MARGIN</text>
+
+  <!-- doorway portal (gap on right wall) -->
+  <rect x="550" y="230" width="30" height="60" fill="#14171c"/>
+  <line x1="550" y1="230" x2="550" y2="290" stroke="#e0b040" stroke-width="3"/>
+  <text class="dim" x="560" y="224">portal (doorway)</text>
+
+  <!-- keep-out sector -->
+  <path d="M 350 260 L 555 232 A 205 205 0 0 1 555 288 Z" fill="#b04030" fill-opacity="0.35" stroke="#e06050" stroke-width="1.5"/>
+  <text class="lbl" x="430" y="210" fill="#e06050">keep-out sector</text>
+  <text class="dim" x="430" y="224">asin((portal.width/2 + r + lane) / ringRadius)</text>
+
+  <!-- encirclement contour (circle) -->
+  <circle cx="350" cy="260" r="105" fill="none" stroke="#ffd75e" stroke-width="2.5"/>
+  <text class="dim" x="250" y="165">encirclement contour (circle: aspect &lt;= threshold)</text>
+
+  <!-- centroid / leader -->
+  <circle cx="350" cy="260" r="7" fill="#6ec1ff" stroke="#ffffff" stroke-width="1.5"/>
+  <text class="lbl" x="362" y="256">slot 0: leader @ centroid</text>
+
+  <!-- ring slots -->
+  <g fill="#ffd75e" stroke="#14171c" stroke-width="1.5">
+    <circle cx="350" cy="155" r="6"/>
+    <circle cx="441" cy="208" r="6"/>
+    <circle cx="441" cy="312" r="6"/>
+    <circle cx="350" cy="365" r="6"/>
+    <circle cx="259" cy="312" r="6"/>
+    <circle cx="259" cy="208" r="6"/>
+  </g>
+  <text class="dim" x="248" y="392">ring slots: arc-length samples, outward yaw</text>
+
+  <!-- relocated slot example -->
+  <circle cx="455" cy="260" r="6" fill="none" stroke="#ff8080" stroke-width="2" stroke-dasharray="2 2"/>
+  <path d="M 455 260 A 105 105 0 0 1 441 208" fill="none" stroke="#ff8080" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text class="dim" x="462" y="250" fill="#ff8080">blocked → slide ±k arc steps</text>
+
+  <!-- step probe -->
+  <line x1="350" y1="260" x2="259" y2="312" stroke="#6ec1ff" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <text class="dim" x="270" y="285" fill="#6ec1ff">SVG_MMove_StepProbe</text>
+
+  <!-- legend -->
+  <g transform="translate(600, 110)">
+    <rect x="0" y="0" width="140" height="150" fill="#10141a" stroke="#333c46"/>
+    <text class="lbl" x="10" y="20">Legend</text>
+    <rect x="10" y="32" width="14" height="10" fill="#254a35"/><text class="dim" x="30" y="41">walkable polys</text>
+    <rect x="10" y="50" width="14" height="10" fill="#2f6a4a"/><text class="dim" x="30" y="59">eroded region</text>
+    <line x1="10" y1="76" x2="24" y2="76" stroke="#ffd75e" stroke-width="2.5"/><text class="dim" x="30" y="80">contour</text>
+    <rect x="10" y="90" width="14" height="10" fill="#b04030" fill-opacity="0.4"/><text class="dim" x="30" y="99">portal keep-out</text>
+    <circle cx="17" cy="116" r="5" fill="#6ec1ff"/><text class="dim" x="30" y="120">leader slot</text>
+    <circle cx="17" cy="136" r="5" fill="#ffd75e"/><text class="dim" x="30" y="140">ring slot</text>
+  </g>
+
+  <defs>
+    <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#ff8080"/>
+    </marker>
+  </defs>
+
+  <!-- footer -->
+  <text class="dim" x="24" y="500">Rectangular rooms (aspect &gt; CROWD_ROOM_RECTANGULAR_ASPECT) use a rounded-rectangle contour inset into the bounds instead of a circle.</text>
+</svg>

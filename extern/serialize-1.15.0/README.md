@@ -1,6 +1,6 @@
-[![Build status](https://github.com/mas-bandwidth/serialize/workflows/CI/badge.svg)](https://github.com/mas-bandwidth/serialize/actions?query=workflow%3ACI)
-
 # Introduction
+
+[![CI](https://github.com/mas-bandwidth/serialize/actions/workflows/ci.yml/badge.svg)](https://github.com/mas-bandwidth/serialize/actions/workflows/ci.yml)
 
 **serialize** is a simple bitpacking serializer for C++.
 
@@ -12,8 +12,10 @@ It has the following features:
 * Serialize any integer value from [1,64] bits writing only that number of bits to the buffer
 * Serialize signed integer values with [min,max] writing only the required bits to the buffer
 * Serialize floats, doubles, compressed floats, strings, byte arrays, and integers relative to another integer
+* Serialize fixed point values with a compile time Q format and [min,max] bounds in whole units, writing only the required bits — round trips are exact, unlike compressed floats. Wide formats like Q112.16 work on every platform
+* Serialize 128 bit unsigned integers on every platform: native __int128 where the compiler has it, an emulated signed/unsigned pair where it doesn't, byte-identical on the wire
 * Alignment support so you can align your bitstream to a byte boundary whenever you want
-* Template-based serialization system lets you write one function that does both read and write
+* Optional template-based serialization so you can write one function that handles both read and write
 
 # Usage
 
@@ -106,7 +108,39 @@ struct RigidBody
 };
 ```
 
-See [example.cpp](example.cpp) for more examples.
+Fixed point values serialize exactly. The Q format and the bounds are compile time constants, and only the bits the range requires go on the wire:
+
+```c++
+struct Player
+{
+    int64_t position_x;                     // Q48.16 fixed point, in ±8192 whole units
+    int64_t position_y;
+    int64_t position_z;
+    serialize::uint128_t entity_id;         // 128 bit globally unique id
+    serialize::int128_t sector_offset;      // ranged 128 bit integer
+
+    template <typename Stream> bool Serialize( Stream & stream )
+    {
+        serialize_fixed( stream, position_x, 48, 16, -8192, +8192 );
+        serialize_fixed( stream, position_y, 48, 16, -8192, +8192 );
+        serialize_fixed( stream, position_z, 48, 16, -8192, +8192 );
+        serialize_uint128( stream, entity_id );
+        serialize_int128( stream, sector_offset, -(serialize::int128_t(1) << 70), +(serialize::int128_t(1) << 70) );
+        return true;
+    }
+};
+```
+
+`serialize_uint128` is a raw 128 bit field and always costs 128 bits. `serialize_int128` is the ranged form: it costs only the bits its range needs, and where that range fits 64 bits the bytes are identical to `serialize_int64`. Both work on every platform, including compilers with no native `__int128`.
+
+See [example.cpp](example.cpp) for more.
+
+# Limitations
+
+* Write buffer sizes must be a multiple of 8 bytes, because the bit writer flushes qwords to memory. Bytes past the end of the written data are only ever written as zeros. Buffers do not need any particular alignment: all memory access goes through memcpy.
+* Read buffer sizes may be any number of bytes, but the underlying allocation must extend at least 8 bytes past the end of the packet data, because the bit reader loads 64 bit windows at byte granularity. The bytes past the end are loaded but never interpreted.
+* Buffer sizes are effectively unlimited, because bit counts are stored in 64 bit signed integers.
+* Wide strings are serialized as 32 bits per character, so streams are compatible between platforms with 2 and 4 byte wchar_t, but code points above 0xFFFF are not translated between UTF-16 and UTF-32 platforms.
 
 # Author
 
@@ -119,3 +153,11 @@ If you find this software useful, [please consider sponsoring it](https://github
 # License
 
 [BSD 3-Clause license](https://opensource.org/licenses/BSD-3-Clause).
+
+## Crediting
+
+If you use this library in a product, please credit it in your product credits:
+
+> serialize - Glenn Fiedler and Rowan Claude
+
+The license doesn't require this. It's an official request, and honoring it is appreciated. Fair credit keeps open source honest.

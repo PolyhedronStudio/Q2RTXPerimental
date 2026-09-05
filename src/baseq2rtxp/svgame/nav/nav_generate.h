@@ -24,6 +24,10 @@ extern std::vector<nav_halfedge_t> g_nav_halfedges;
 extern std::vector<std::vector<int32_t>> g_nav_entity_edges;
 //! Packed face array used by the half-edge mesh.
 extern std::vector<nav_face_t> g_nav_faces;
+//! Topological room records decomposed from bottleneck apertures and portals.
+extern std::vector<nav_room_t> g_nav_rooms;
+//! Inter-zone transition portal records linking adjacent rooms and corridors.
+extern std::vector<nav_portal_t> g_nav_portals;
 
 //! KD-tree nodes generated for spatial queries.
 extern nav_vector_t<nav_kdtree_node_t> g_nav_nodes;
@@ -58,6 +62,47 @@ void Nav_DoExtractionWork();
 *	@brief	Build the half-edge mesh from the extracted polygons.
 **/
 void Nav_BuildHalfEdgeMesh();
+
+/**
+*	@brief	Build topological spatial regions, corridors, alcoves, and transition portals across the navmesh.
+*	@note	Called immediately after KD-tree construction and post-load deserialization for O(1) zone queries.
+**/
+void Nav_BuildSpatialRegionsAndPortals();
+
+/**
+*	@brief	Query the topological spatial room/zone record containing the given world position.
+*	@param	pos	World position query.
+*	@return	Pointer to the enclosing nav_room_t, or nullptr if unassigned/outside mesh.
+**/
+const nav_room_t *Nav_GetRoomForPoint( const Vector3DP &pos );
+
+/**
+*	@brief	Query the topological zone type of the given world position.
+*	@param	pos	World position query.
+*	@return	Topological zone type (e.g. ZONE_TYPE_ROOM_ENCLOSED, ZONE_TYPE_CORRIDOR_STAIRS, etc.).
+**/
+nav_zone_type_t Nav_GetZoneTypeForPoint( const Vector3DP &pos );
+
+/**
+*	@brief	Retrieve all boundary transition portals connected to the given room index.
+*	@param	room_id		Room identifier.
+*	@param	outPortals	[out] Vector to populate with pointers to connected nav_portal_t records.
+**/
+void Nav_GetRoomPortals( const int32_t room_id, std::vector<const nav_portal_t*> &outPortals );
+
+/**
+*	@brief	Check whether the given position is located inside an enclosed interior room.
+*	@param	pos	World position query.
+*	@return	True if pos lies within a ZONE_TYPE_ROOM_ENCLOSED zone.
+**/
+bool Nav_IsPointInEnclosedRoom( const Vector3DP &pos );
+
+/**
+*	@brief	Retrieve average riser step height for a staircase corridor zone.
+*	@param	room_id	Room identifier.
+*	@return	Average step height in world units (defaults to NAV_MAX_STEP_HEIGHT if flat).
+**/
+double Nav_GetStairCorridorStepHeight( const int32_t room_id );
 
 /**
 *	@brief	Validate half-edge and KD-tree ownership invariants.

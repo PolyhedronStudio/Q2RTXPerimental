@@ -76,6 +76,12 @@ inline static void SVG_DebugDraw_Cylinder( const Vector3 &start, const Vector3 &
 **/
 void SVG_Util_SetEntityOrigin( svg_base_edict_t *ent, const Vector3 &origin, const bool assignToEntityState = true );
 /**
+*	@brief	Double precision overload for setting an entity's origin from Vector3DP.
+**/
+inline void SVG_Util_SetEntityOrigin( svg_base_edict_t *ent, const Vector3DP &origin, const bool assignToEntityState = true ) {
+	SVG_Util_SetEntityOrigin( ent, QM_Vector3FromDP( origin ), assignToEntityState );
+}
+/**
 *	@brief	Use to properly set an entity's angles. It will always assign to the authoritative
 *			``ent->currentAngles``, which is used for physics and linking.
 *
@@ -282,6 +288,94 @@ static inline const float SVG_GetEntityBoundingRadius( const svg_base_edict_t *e
 			return QM_Vector3Length( extents );
 		}
 	}
+}
+
+/**
+*	@brief		Compute the exact world-space feet / ground-contact point based on entity solid primitive shape.
+*	@details	Applies distinct mathematical geometry for each SOLID_ shape type to eliminate vertical floor jitter:
+*				- SOLID_BBOX: Planar bottom face at origin.z + mins.z.
+*				- SOLID_CYLINDER: Planar circular disk base at origin.z + mins.z.
+*				- SOLID_CAPSULE: Hemispherical bottom cap apex at origin.z + mins.z (or slope contact tangent if normal provided).
+*				- SOLID_SPHERE: Geometric bounds midpoint minus spherical radius, correctly offsetting asymmetric bounding boxes.
+*	@param	origin			World-space entity origin.
+*	@param	mins			Entity collision bounding box minimums.
+*	@param	maxs			Entity collision bounding box maximums.
+*	@param	solid			Entity solid primitive type (SOLID_CAPSULE, SOLID_CYLINDER, SOLID_SPHERE, SOLID_BBOX).
+*	@param	groundNormal	Optional surface normal of the floor or slope for tangent contact calculation.
+*	@return	Exact 3D world-space feet / ground-contact coordinate.
+**/
+static inline const Vector3 SVG_GetEntityFeetOrigin( const Vector3 &origin, const Vector3 &mins, const Vector3 &maxs, const int32_t solid, const Vector3 *groundNormal = nullptr ) {
+	switch ( solid ) {
+		case SOLID_CAPSULE: {
+			if ( groundNormal && groundNormal->z > 0.0f ) {
+				const float fullHalfHeight = std::fabs( maxs.z - mins.z ) * 0.5f;
+				const float radius = std::max( std::fabs( maxs.x ), std::fabs( maxs.y ) );
+				const float halfHeight = std::max( 0.0f, fullHalfHeight - radius );
+				const float centerOffsetZ = ( mins.z + maxs.z ) * 0.5f;
+				const float hemiCenterZ = origin.z + centerOffsetZ - halfHeight;
+				return Vector3{ origin.x, origin.y, hemiCenterZ } - ( *groundNormal * radius );
+			}
+			return Vector3{ origin.x, origin.y, origin.z + mins.z };
+		}
+		case SOLID_CYLINDER: {
+			return Vector3{ origin.x, origin.y, origin.z + mins.z };
+		}
+		case SOLID_SPHERE: {
+			const float centerOffsetZ = ( mins.z + maxs.z ) * 0.5f;
+			const float radius = std::max( std::max( std::fabs( mins.x ), std::fabs( maxs.x ) ),
+										   std::max( std::max( std::fabs( mins.y ), std::fabs( maxs.y ) ),
+													 std::max( std::fabs( mins.z ), std::fabs( maxs.z ) ) ) );
+			if ( groundNormal && groundNormal->z > 0.0f ) {
+				const Vector3 sphereCenter{ origin.x, origin.y, origin.z + centerOffsetZ };
+				return sphereCenter - ( *groundNormal * radius );
+			}
+			return Vector3{ origin.x, origin.y, origin.z + centerOffsetZ - radius };
+		}
+		default: {
+			return Vector3{ origin.x, origin.y, origin.z + mins.z };
+		}
+	}
+}
+
+/**
+*	@brief	Double-precision variant of SVG_GetEntityFeetOrigin for navigation and KD-tree queries.
+*	@param	origin			World-space entity origin in double-precision.
+*	@param	mins			Entity collision bounding box minimums.
+*	@param	maxs			Entity collision bounding box maximums.
+*	@param	solid			Entity solid primitive type.
+*	@param	groundNormal	Optional surface normal of the floor or slope.
+*	@return	Exact 3D world-space feet coordinate in Vector3DP.
+**/
+static inline const Vector3DP SVG_GetEntityFeetOriginDP( const Vector3DP &origin, const Vector3 &mins, const Vector3 &maxs, const int32_t solid, const Vector3 *groundNormal = nullptr ) {
+	const Vector3 spOrigin = QM_Vector3FromDP( origin );
+	const Vector3 feetSP = SVG_GetEntityFeetOrigin( spOrigin, mins, maxs, solid, groundNormal );
+	return Vector3DP{ static_cast<double>( feetSP.x ), static_cast<double>( feetSP.y ), static_cast<double>( feetSP.z ) };
+}
+
+/**
+*	@brief	Convenience overload deriving feet origin directly from an entity edict.
+*	@param	ent				Entity edict pointer to evaluate.
+*	@param	groundNormal	Optional surface normal of the floor or slope.
+*	@return	Exact 3D world-space feet coordinate in Vector3.
+**/
+static inline const Vector3 SVG_GetEntityFeetOrigin( const svg_base_edict_t *ent, const Vector3 *groundNormal = nullptr ) {
+	if ( !ent ) {
+		return QM_Vector3Zero();
+	}
+	return SVG_GetEntityFeetOrigin( ent->currentOrigin, ent->mins, ent->maxs, ent->solid, groundNormal );
+}
+
+/**
+*	@brief	Convenience double-precision overload deriving feet origin directly from an entity edict.
+*	@param	ent				Entity edict pointer to evaluate.
+*	@param	groundNormal	Optional surface normal of the floor or slope.
+*	@return	Exact 3D world-space feet coordinate in Vector3DP.
+**/
+static inline const Vector3DP SVG_GetEntityFeetOriginDP( const svg_base_edict_t *ent, const Vector3 *groundNormal = nullptr ) {
+	if ( !ent ) {
+		return Vector3DP{ 0.0, 0.0, 0.0 };
+	}
+	return SVG_GetEntityFeetOriginDP( Vector3DP( ent->currentOrigin ), ent->mins, ent->maxs, ent->solid, groundNormal );
 }
 
 

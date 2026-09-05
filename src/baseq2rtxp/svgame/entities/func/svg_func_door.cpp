@@ -144,7 +144,7 @@ void svg_func_door_t::SetAreaPortal( const bool isOpen, const bool forceState ) 
 	while ( ( func_area = SVG_Entities_Find( func_area, q_offsetof( svg_base_edict_t, targetname.ptr ), ( const char * )targetNames.target ) ) ) {
 		const bool isAreaPortal =
 			( func_area->s.entityType == ET_AREA_PORTAL ) ||
-			( func_area->classname && strcmp( ( const char * )func_area->classname, "func_areaportal" ) == 0 );
+			( func_area->GetTypeInfo()->IsSubClassType<svg_func_areaportal_t>() );
 
 		if ( !isAreaPortal ) {
 			continue;
@@ -735,7 +735,7 @@ DEFINE_MEMBER_CALLBACK_USE( svg_func_door_t, onUse )( svg_func_door_t *self, svg
     // Get some info.
     const bool isToggle = SVG_HasSpawnFlags( self, svg_func_door_t::SPAWNFLAG_TOGGLE );
     const bool isBothDirections = SVG_HasSpawnFlags( self, svg_func_door_t::SPAWNFLAG_BOTH_DIRECTIONS );
-    const bool isRotating = strcmp( (const char *)self->classname, "func_door_rotating" ) == 0;
+    const bool isRotating = self->GetTypeInfo()->IsSubClassType<svg_func_door_rotating_t>();
     const bool isReversed = SVG_HasSpawnFlags( self, svg_func_door_t::SPAWNFLAG_REVERSE );
 
     // Default sign, multiplied by -1 later on in case we're on the other side.

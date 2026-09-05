@@ -26,6 +26,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "svgame/entities/svg_player_edict.h"
 #include "svgame/entities/svg_worldspawn_edict.h"
+#include "svgame/entities/func/svg_func_areaportal.h"
 
 #include "svgame/player/svg_player_client.h"
 
@@ -58,7 +59,7 @@ static void SVG_RestoreAreaPortalStatesFromEntities() {
 
 		const bool isAreaPortal =
 			( ent->s.entityType == ET_AREA_PORTAL ) ||
-			( ent->classname && strcmp( ( const char * )ent->classname, "func_areaportal" ) == 0 );
+			( ent->GetTypeInfo()->IsSubClassType<svg_func_areaportal_t>() );
 
 		if ( !isAreaPortal ) {
 			continue;
@@ -295,7 +296,7 @@ static void RestoreAreaPortalStatesFromEntities() {
 		// Determine whether this entity represents an area portal.
 		const bool isAreaPortal =
 			( ent->s.entityType == ET_AREA_PORTAL ) ||
-			( ent->classname && strcmp( ( const char * )ent->classname, "func_areaportal" ) == 0 );
+			( ent->GetTypeInfo()->IsSubClassType<svg_func_areaportal_t>() );
 
 		// If not an area portal, continue.
 		if ( !isAreaPortal ) {

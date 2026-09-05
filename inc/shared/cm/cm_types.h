@@ -80,6 +80,9 @@ typedef enum cm_contents_s {
     CONTENTS_WATER = BIT( 5 ),
     CONTENTS_MIST = BIT( 6 ),
 
+	//! <WID>: Brush is not taken into account for the navmesh generation, but is still solid for collision detection. This is useful for decorative brushes or other non-navigable geometry.
+	CONTENTS_NO_NAVMESH = BIT( 7 ),
+
     // Remaining contents are non-visible, and don't eat brushes.
     CONTENTS_NO_WATERJUMP = BIT( 13 ),      // [Paril-KEX] This brush cannot be waterjumped out of.
     CONTENTS_PROJECTILECLIP = BIT( 14 ),    // [Paril-KEX] Projectiles will collide with this.

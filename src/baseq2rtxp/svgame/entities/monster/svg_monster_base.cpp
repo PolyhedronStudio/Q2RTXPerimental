@@ -16,6 +16,7 @@
 #include "svgame/svg_entity_events.h"
 #include "svgame/entities/monster/svg_monster_base.h"
 #include "svgame/nav/nav_debug.h"
+#include "svgame/nav/nav_generate.h"
 
 // Monster move and slide move.
 #include "svgame/monsters/svg_mmove.h"
@@ -45,6 +46,7 @@ void svg_monster_base_t::Reset( const bool retainDictionary ) {
 	recentWallBlockNormal = { 0.0f, 0.0f, 0.0f };
 	hasRecentWallBlockNormal = false;
 	lastWallBlockTime = 0_ms;
+	suppressEntityDeflectionThisFrame = false;
 	cachedLeaf = -1;
 	cachedPoly = -1;
 }
@@ -102,7 +104,47 @@ const bool svg_monster_base_t::GenericThinkBegin() {
 const bool svg_monster_base_t::GenericThinkFinish( const bool processSlideMove, int32_t &blockedMask ) {
 	blockedMask = ( processSlideMove ? ProcessSlideMove() : MM_SLIDEMOVEFLAG_NONE );
 
-	velocity = monsterMove.state.velocity;
+	/**
+	*	Enforce the finite serialized doorway aperture after collision resolution.
+	*	SlideMove may rotate velocity, so test the exact stop-plane intersection and
+	*	block only crossings whose lateral coordinate lies inside the reserved opening.
+	**/
+	const svg_crowd_group_t *ingressGroup = ( crowd.crowdID >= 0 ) ? SVG_Crowd_GetGroup( crowd.crowdID ) : nullptr;
+	if ( ingressGroup != nullptr && ingressGroup->hasSerializedIngress && !crowd.ingressReleased ) {
+		const Vector3DP previousOrigin( currentOrigin );
+		const double previousDepth = QM_Vector3DotProductDP( previousOrigin - ingressGroup->ingressPortalOrigin, ingressGroup->ingressPortalInward );
+		const double stopDepth = -ingressGroup->ingressReleaseDepth;
+		const double resolvedDepth = QM_Vector3DotProductDP( monsterMove.state.origin - ingressGroup->ingressPortalOrigin, ingressGroup->ingressPortalInward );
+		const Vector3DP portalTangent{ ingressGroup->ingressPortalInward.y, -ingressGroup->ingressPortalInward.x, 0.0 };
+		const double reservedHalfSpan = ingressGroup->ingressPortalHalfWidth + ingressGroup->ingressReleaseDepth;
+		bool crossesReservedAperture = false;
+
+		// Interpolate lateral position exactly where this frame crosses the exterior stop plane.
+		if ( previousDepth <= stopDepth && resolvedDepth > stopDepth ) {
+			const double crossingFraction = std::clamp(
+				( stopDepth - previousDepth ) / ( resolvedDepth - previousDepth ), 0.0, 1.0 );
+			const double previousLateral = QM_Vector3DotProductDP(
+				previousOrigin - ingressGroup->ingressPortalOrigin, portalTangent );
+			const double resolvedLateral = QM_Vector3DotProductDP(
+				monsterMove.state.origin - ingressGroup->ingressPortalOrigin, portalTangent );
+			const double crossingLateral = previousLateral +
+				( ( resolvedLateral - previousLateral ) * crossingFraction );
+			crossesReservedAperture = std::fabs( crossingLateral ) < reservedHalfSpan;
+		}
+
+		// Project only a true aperture crossing; side-wall marshalling beyond the plane remains legal.
+		if ( crossesReservedAperture ) {
+			monsterMove.state.origin = monsterMove.state.origin -
+				( ingressGroup->ingressPortalInward * ( resolvedDepth - stopDepth ) );
+			const double resolvedInwardSpeed = QM_Vector3DotProductDP( monsterMove.state.velocity, ingressGroup->ingressPortalInward );
+			if ( resolvedInwardSpeed > 0.0 ) {
+				monsterMove.state.velocity = monsterMove.state.velocity -
+					( ingressGroup->ingressPortalInward * resolvedInwardSpeed );
+			}
+		}
+	}
+
+	velocity = QM_Vector3FromDP( monsterMove.state.velocity );
 	groundInfo = monsterMove.ground;
 	liquidInfo = monsterMove.liquid;
 	SVG_Util_SetEntityOrigin( this, monsterMove.state.origin, true );
@@ -128,19 +170,58 @@ const int32_t svg_monster_base_t::ProcessSlideMove() {
 	monsterMove.maxs = maxs;
 	monsterMove.ground = groundInfo;
 	monsterMove.liquid = liquidInfo;
-	monsterMove.navPolicy = &pathNavigationState.policy;
 
-	const int32_t blockedMask = SVG_MMove_StepSlideMove( &monsterMove, pathNavigationState.policy );
-	UpdateBlockedNavigationRecovery( blockedMask );
+	/**
+	*	Clone the cached nav policy so queueing can temporarily disable entity deflection
+	*	without mutating the persistent A* policy used by future path queries.
+	**/
+	nav_path_policy_t slidePolicy = pathNavigationState.policy;
+	slidePolicy.allow_entity_deflection = !suppressEntityDeflectionThisFrame;
+	monsterMove.navPolicy = &slidePolicy;
+
+	const int32_t blockedMask = SVG_MMove_StepSlideMove( &monsterMove, slidePolicy );
+	monsterMove.navPolicy = &pathNavigationState.policy;
+	suppressEntityDeflectionThisFrame = false;
+	UpdateBlockedNavigationRecovery( blockedMask);
 	return blockedMask;
 }
 
 /**
-*	@brief	Recategorizes the entity's ground/liquid and ground states.
+*	@brief	Refresh ground support using the same analytical hull as movement.
+*	@note	An AABB support test can start inside a slope underneath a valid capsule,
+*			leaving stale airborne state and disabling navigation steering indefinitely.
 **/
 const void svg_monster_base_t::RecategorizeGroundAndLiquidState() {
-	const cm_contents_t mask = SVG_GetClipMask( this );
-	M_CheckGround( this, mask );
+	/**
+	*	Flying/swimming actors retain their existing ground policy; grounded movers
+	*	probe a quarter unit downward with their native hull, without relocating them.
+	**/
+	if ( !( flags & ( FL_SWIM | FL_FLY ) ) ) {
+		groundInfo.entityNumber = ENTITYNUM_NONE;
+		// Fast upward motion represents a jump, not a supported walking contact.
+		if ( velocity.z <= 100.0f ) {
+			const Vector3DP start( currentOrigin );
+			const svg_trace_t support = SVG_MMove_Trace( start, mins, maxs,
+				start - Vector3DP{ 0.0, 0.0, 0.25 }, this, SVG_GetClipMask( this ), SVG_MMove_GetNativeShape( this ) );
+			// Accept only a real walkable contact; a miss must clear stale ground state.
+			if ( !support.startsolid && !support.allsolid && support.fraction < 1.0f &&
+				 support.plane.normal[ 2 ] >= NAV_MIN_WALKABLE_Z ) {
+				groundInfo.entityNumber = support.entityNumber;
+				groundInfo.entityLinkCount = support.ent != nullptr ? support.ent->linkCount : 0;
+				groundInfo.material = support.material;
+				groundInfo.contents = support.contents;
+				// Some analytical contacts have no surface descriptor.
+				if ( support.surface != nullptr ) {
+					groundInfo.surface = *support.surface;
+				}
+				// Slope clipping from the previous frame is not an intentional jump impulse.
+				velocity.z = 0.0f;
+			}
+		}
+	}
+	/**
+	*	Liquid classification remains independent of the collision primitive.
+	**/
 	M_CatagorizePosition( this, currentOrigin, liquidInfo.level, liquidInfo.type );
 }
 
@@ -212,12 +293,11 @@ const int32_t svg_monster_base_t::FindCurrentPoly() {
 *	@return	Path evaluation result state.
 **/
 svg_monster_base_t::PathComputeResult svg_monster_base_t::ComputePathTo( const Vector3 &target, const bool force ) {
-	Vector3DP myFeetDP = Vector3DP( currentOrigin );
-	myFeetDP.z += static_cast<double>( this->mins.z );
+	const Vector3DP myFeetDP = SVG_GetEntityFeetOriginDP( this );
 
 	Vector3DP targetFeetDP = Vector3DP( target );
 	if ( this->goalentity != nullptr && QM_Vector3DistanceSqr( target, this->goalentity->currentOrigin ) < ( 8.0f * 8.0f ) ) {
-		targetFeetDP.z += static_cast<double>( this->goalentity->mins.z );
+		targetFeetDP = SVG_GetEntityFeetOriginDP( this->goalentity );
 	}
 
 	/**
@@ -265,12 +345,25 @@ svg_monster_base_t::PathComputeResult svg_monster_base_t::ComputePathTo( const V
 			}
 		}
 	}
-	// Goal face lookup: reuse destination face if target is unchanged, avoiding KD-leaf scan
+	/**
+	*	Resolve the destination face conservatively before any path search.
+	*	Strict containment prevents a staging cell near a seam, doorway, or slope
+	*	from snapping to a different room component and making the monster appear
+	*	idle at spawn.
+	**/
 	int32_t goalFace = -1;
 	if ( !targetMoved && !navPath.empty() ) {
 		goalFace = navPath.back();
 	} else {
-		goalFace = Nav_FindClosestFaceInLeaf( targetFeetDP );
+		goalFace = Nav_FindFaceInLeafStrict( targetFeetDP );
+		if ( goalFace < 0 ) {
+			Vector3DP loweredTargetFeetDP = targetFeetDP;
+			loweredTargetFeetDP.z -= NAV_STANDOFF_FEET_SNAP_OFFSET_Z;
+			goalFace = Nav_FindFaceInLeafStrict( loweredTargetFeetDP );
+		}
+		if ( goalFace < 0 ) {
+			goalFace = Nav_FindClosestFaceInLeaf( targetFeetDP );
+		}
 	}
 
 	if ( startFace == -1 ) {
@@ -279,21 +372,82 @@ svg_monster_base_t::PathComputeResult svg_monster_base_t::ComputePathTo( const V
 		startFace = Nav_FindReachableFaceInLeaf( myFeetDP, goalFace, agentRadius );
 	}
 
+	/**
+	*	If the recovered start face and tentative goal still disagree by connected
+	*	component, search the goal leaf for a face reachable from the start. This is
+	*	the inverse of the start-face repair above and fixes near-wall staging points
+	*	that initially resolve onto the wrong side of a doorway seam.
+	**/
+	if ( startFace != -1 &&
+		 goalFace != -1 &&
+		 Nav_GetFaceComponent( startFace ) != Nav_GetFaceComponent( goalFace ) ) {
+		const int32_t reachableGoalFace = Nav_FindReachableFaceInLeaf( targetFeetDP, startFace, agentRadius );
+		if ( reachableGoalFace != -1 ) {
+			goalFace = reachableGoalFace;
+		}
+	}
+
 	if ( startFace == -1 || goalFace == -1 ) {
 		return PathComputeResult::Failed;
 	}
 
 	/**
 	*	Check if entity remains on or physically intersecting the active navigation path corridor.
-	*	We avoid strict 1-polygon point checks that break when a 32-unit-wide capsule crosses polygon boundaries.
+	*	Adheres strictly to O(1) time complexity by testing bounded local windows and active segment geometry.
 	**/
 	bool stillOnPath = false;
-	if ( !navPath.empty() && pathPos < navPath.size() ) {
-		const int32_t currentFace = startFace;
-		const int32_t startCheck = std::max<int32_t>( 0, static_cast<int32_t>( pathPos ) - 1 );
-		const int32_t endCheck = std::min<int32_t>( static_cast<int32_t>( navPath.size() ) - 1, static_cast<int32_t>( pathPos ) + 4 );
 
-		// 1) Direct polygon containment or 2D capsule disk intersection with corridor faces
+	// 1) Fast O(1) polyline segment proximity: test distance from agent feet to the active string-pulled segments.
+	// Evaluates the active waypoint W_k, the incoming segment [prevIdx, k], and the outgoing segment [k, k + 1].
+	if ( !stringPulledPath.empty() ) {
+		const size_t k = std::min( stringPathPos, stringPulledPath.size() - 1 );
+		const size_t prevIdx = ( k > 0 ) ? ( k - 1 ) : 0;
+		const Vector3DP &wpCurr = stringPulledPath[ k ];
+
+		const double corridorLateralDist = agentRadius * 2.0 + MONSTER_NAV_CORRIDOR_MARGIN;
+		const double corridorLateralDistSqr = corridorLateralDist * corridorLateralDist;
+		const nav_zone_type_t currentZone = Nav_GetZoneTypeForPoint( myFeetDP );
+		const double maxVerticalTolerance = ( currentZone == ZONE_TYPE_CORRIDOR_STAIRS )
+			? ( static_cast<double>( NAV_MAX_STEP_HEIGHT ) * 1.5 + MONSTER_NAV_VERTICAL_STEP_TOLERANCE )
+			: ( static_cast<double>( NAV_MAX_STEP_HEIGHT ) + MONSTER_NAV_VERTICAL_STEP_TOLERANCE );
+
+		// Distance to active waypoint W_k:
+		const double dxWp = myFeetDP.x - wpCurr.x;
+		const double dyWp = myFeetDP.y - wpCurr.y;
+		const double distToWpSqr = ( dxWp * dxWp ) + ( dyWp * dyWp );
+		const double zDeltaWp = std::fabs( myFeetDP.z - wpCurr.z );
+		if ( distToWpSqr <= corridorLateralDistSqr && zDeltaWp <= maxVerticalTolerance ) {
+			stillOnPath = true;
+		}
+
+		// Distance to incoming segment [prevIdx, k]:
+		if ( !stillOnPath && k > 0 ) {
+			const Vector3DP &wpPrev = stringPulledPath[ prevIdx ];
+			const double distToSegSqr = Nav_DistancePointToSegment2DSqr( myFeetDP, wpPrev, wpCurr );
+			const double zDeltaSeg = std::fabs( myFeetDP.z - wpCurr.z );
+			if ( distToSegSqr <= corridorLateralDistSqr && zDeltaSeg <= maxVerticalTolerance ) {
+				stillOnPath = true;
+			}
+		}
+
+		// Distance to outgoing segment [k, k + 1]:
+		if ( !stillOnPath && k + 1 < stringPulledPath.size() ) {
+			const Vector3DP &wpNext = stringPulledPath[ k + 1 ];
+			const double distToNextSegSqr = Nav_DistancePointToSegment2DSqr( myFeetDP, wpCurr, wpNext );
+			const double zDeltaNextSeg = std::fabs( myFeetDP.z - wpNext.z );
+			if ( distToNextSegSqr <= corridorLateralDistSqr && zDeltaNextSeg <= maxVerticalTolerance ) {
+				stillOnPath = true;
+			}
+		}
+	}
+
+	// 2) Fast O(1) topological corridor face check (fallback if segment proximity misses during wide turns):
+	if ( !stillOnPath && !navPath.empty() && pathPos < navPath.size() ) {
+		const int32_t currentFace = startFace;
+		const int32_t startCheck = std::max<int32_t>( 0, static_cast<int32_t>( pathPos ) - 2 );
+		const int32_t endCheck = std::min<int32_t>( static_cast<int32_t>( navPath.size() ) - 1, static_cast<int32_t>( pathPos ) + 8 );
+
+		// Direct polygon containment or 2D capsule disk intersection with corridor faces
 		const Vector3DP &feetPosDP = myFeetDP;
 		for ( int32_t i = startCheck; i <= endCheck; ++i ) {
 			const int32_t faceIdx = navPath[ i ];
@@ -328,7 +482,7 @@ svg_monster_base_t::PathComputeResult svg_monster_base_t::ComputePathTo( const V
 			}
 		}
 
-		// 2) Topological neighbor tolerance: check if currentFace shares a boundary half-edge with any corridor face
+		// Topological neighbor tolerance: check if currentFace shares a boundary half-edge with any corridor face
 		if ( !stillOnPath && currentFace >= 0 && static_cast<size_t>( currentFace ) < g_nav_faces.size() ) {
 			for ( int32_t i = startCheck; i <= endCheck && !stillOnPath; ++i ) {
 				const int32_t faceIdx = navPath[ i ];
@@ -345,24 +499,6 @@ svg_monster_base_t::PathComputeResult svg_monster_base_t::ComputePathTo( const V
 					}
 				}
 			}
-		}
-	}
-
-	// 3) Physical polyline segment proximity: test distance from agent feet to the active string-pulled segment
-	if ( !stillOnPath && !stringPulledPath.empty() ) {
-		const size_t k = std::min( stringPathPos, stringPulledPath.size() - 1 );
-		const size_t prevIdx = ( k > 0 ) ? ( k - 1 ) : 0;
-		const Vector3DP &wpPrev = stringPulledPath[ prevIdx ];
-		const Vector3DP &wpCurr = stringPulledPath[ k ];
-
-		const double corridorLateralDist = agentRadius * 2.0 + MONSTER_NAV_CORRIDOR_MARGIN;
-		const double corridorLateralDistSqr = corridorLateralDist * corridorLateralDist;
-		constexpr double maxVerticalTolerance = static_cast<double>( NAV_MAX_STEP_HEIGHT ) + MONSTER_NAV_VERTICAL_STEP_TOLERANCE;
-
-		const double distToSegSqr = Nav_DistancePointToSegment2DSqr( myFeetDP, wpPrev, wpCurr );
-		const double zDelta = std::fabs( myFeetDP.z - wpCurr.z );
-		if ( distToSegSqr <= corridorLateralDistSqr && zDelta <= maxVerticalTolerance ) {
-			stillOnPath = true;
 		}
 	}
 
@@ -412,7 +548,18 @@ svg_monster_base_t::PathComputeResult svg_monster_base_t::ComputePathTo( const V
 
 		Nav_StringPull( navPath, myFeetDP, targetFeetDP, agentRadius, stringPulledPath, &stringPulledWaypointForced, this->mins, this->maxs, static_cast<int32_t>( SVG_MMove_GetNativeShape( this ) ) );
 
-		if ( stringPulledPath.size() >= 2 ) {
+		if ( stringPulledPath.size() >= 3 ) {
+			const double dx01 = myFeetDP.x - stringPulledPath[ 1 ].x;
+			const double dy01 = myFeetDP.y - stringPulledPath[ 1 ].y;
+			const double dist01Sqr = ( dx01 * dx01 ) + ( dy01 * dy01 );
+			// If W_1 is already within the entity's physical capsule footprint (agentRadius),
+			// immediately advance to W_2 so the agent continues forward momentum without turning to chase its feet:
+			if ( dist01Sqr <= agentRadiusSqr ) {
+				stringPathPos = 2;
+			} else {
+				stringPathPos = 1;
+			}
+		} else if ( stringPulledPath.size() >= 2 ) {
 			stringPathPos = 1;
 		} else {
 			stringPathPos = 0;
@@ -442,8 +589,10 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 		return false;
 	}
 
-	Vector3DP myFeetDP = Vector3DP( currentOrigin );
-	myFeetDP.z += static_cast<double>( this->mins.z );
+	const Vector3DP myFeetDP = SVG_GetEntityFeetOriginDP( this );
+	// Serialized ingress must physically follow mandatory corner points, not blend across the doorway jamb.
+	const svg_crowd_group_t *pathCrowd = crowd.crowdID >= 0 ? SVG_Crowd_GetGroup( crowd.crowdID ) : nullptr;
+	const bool serializedIngressPath = pathCrowd != nullptr && pathCrowd->hasSerializedIngress && crowd.ingressReleased;
 
 	/**
 	*	Direct goal fallback when no string-pulled path polyline is available.
@@ -454,14 +603,15 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 		const double verticalDist = std::fabs( toGoal.z );
 		toGoal.z = 0.0;
 		const double dist2D = QM_Vector3LengthDP( toGoal );
-		if ( dist2D <= 16.0 && verticalDist <= 32.0 ) {
+		const double fallbackReachRadius = ( this->maxs.x > 0.0f ) ? static_cast<double>( this->maxs.x ) : NAV_DEFAULT_AGENT_RADIUS;
+		if ( dist2D <= fallbackReachRadius && verticalDist <= MONSTER_NAV_FINAL_GOAL_MAX_Z_DELTA ) {
 			return false;
 		}
 
 		// Prevent blind wall walking: only move directly if there is unobstructed entity swept line-of-sight through world geometry
-		const Vector3 startTrace = currentOrigin;
-		Vector3 endTrace = static_cast<Vector3>( finalGoal );
-		endTrace.z -= this->mins.z;
+		const Vector3DP startTrace = Vector3DP( currentOrigin );
+		Vector3DP endTrace = finalGoal;
+		endTrace.z -= static_cast<double>( this->mins.z );
 		const svg_trace_t losTr = SVG_MMove_Trace( startTrace, this->mins, this->maxs, endTrace, this, CM_CONTENTMASK_SOLID, MM_SHAPE_AUTO );
 		if ( losTr.fraction < 1.0f || losTr.startsolid || losTr.allsolid ) {
 			return false;
@@ -478,7 +628,7 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 	const int32_t currentFace = Nav_FindClosestFaceInLeaf( myFeetDP );
 	if ( !navPath.empty() && currentFace != -1 ) {
 		const int32_t localStart = std::max<int32_t>( 0, static_cast<int32_t>( pathPos ) - 2 );
-		const int32_t localEnd = std::min<int32_t>( static_cast<int32_t>( navPath.size() ) - 1, static_cast<int32_t>( pathPos ) + 6 );
+		const int32_t localEnd = std::min<int32_t>( static_cast<int32_t>( navPath.size() ) - 1, static_cast<int32_t>( pathPos ) + 8 );
 		for ( int32_t i = localStart; i <= localEnd; i++ ) {
 			if ( navPath[ i ] == currentFace ) {
 				if ( i > static_cast<int32_t>( pathPos ) ) {
@@ -525,8 +675,10 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 	/**
 	*	Waypoint arrival & segment advancement:
 	*	Advances stringPathPos as each intermediate waypoint is reached or passed along its incoming segment.
+	*	Bounded to at most 2 waypoint advancements per frame (O(1)) to prevent 1-frame position lag on closely-spaced arc points.
 	**/
-	while ( stringPathPos < stringPulledPath.size() - 1 ) {
+	int32_t advancedWaypointsCount = 0;
+	while ( stringPathPos < stringPulledPath.size() - 1 && advancedWaypointsCount < 2 ) {
 		const Vector3DP currentWp = stringPulledPath[ stringPathPos ];
 		Vector3DP toWp = currentWp - myFeetDP;
 		const double zDiff = toWp.z;
@@ -591,7 +743,8 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 		// to accommodate the entity's physical collision hull radius (plus clearance).
 		const double minHullReach = ( agentRadius > 0.0 ) ? ( agentRadius + MONSTER_NAV_CORNER_HULL_CLEARANCE_MARGIN ) : ( NAV_DEFAULT_AGENT_RADIUS + MONSTER_NAV_CORNER_HULL_CLEARANCE_MARGIN );
 		const double sharpReach = std::max( MONSTER_NAV_SHARP_CORNER_REACH_RADIUS, minHullReach );
-		const double reachRadius = isSharpTurn ? sharpReach : MONSTER_NAV_WAYPOINT_REACH_RADIUS;
+		const double reachRadius = serializedIngressPath && isForcedWp ? CROWD_INGRESS_ARRIVAL_RADIUS :
+			( isSharpTurn ? sharpReach : MONSTER_NAV_WAYPOINT_REACH_RADIUS );
 		const double reachRadiusSqr = reachRadius * reachRadius;
 		bool withinRadius = ( dist2DSqr <= reachRadiusSqr );
 
@@ -602,9 +755,16 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 		// Advancing prematurely on the approach side forces the agent to turn into the solid corner brush!
 		// Note: Forced stair step and doorway waypoints must NOT be gated here, as stair flight boundary edges
 		// naturally lie within agentRadius of the step center and would falsely block stair progression.
-		if ( withinRadius && isSharpTurn && stringPathPos + 1 < stringPulledPath.size() ) {
+		if ( withinRadius && isSharpTurn && !isForcedWp && stringPathPos + 1 < stringPulledPath.size() ) {
 			const Vector3DP &nextWp = stringPulledPath[ stringPathPos + 1 ];
-			const double losClearance = ( agentRadius > 0.0 ) ? agentRadius : NAV_DEFAULT_AGENT_RADIUS;
+			Vector3DP toNextWp = nextWp - myFeetDP;
+			toNextWp.z = 0.0;
+			const double segDistToNext = QM_Vector3LengthDP( toNextWp );
+			const double baseClearance = ( agentRadius > 0.0 ) ? agentRadius : NAV_DEFAULT_AGENT_RADIUS;
+			const double proportionalThreshold = baseClearance * MONSTER_NAV_ARC_CLEARANCE_DIST_MULT;
+			const double losClearance = ( segDistToNext < proportionalThreshold )
+				? std::min( baseClearance, segDistToNext * MONSTER_NAV_ARC_CLEARANCE_RATIO )
+				: baseClearance;
 			if ( forwardPast < 0.0 && !Nav_HasGeometricLineOfSight2D( myFeetDP, nextWp, losClearance ) ) {
 				withinRadius = false;
 			}
@@ -625,16 +785,22 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 				fromTarget.z = 0.0;
 				const double lateralDistSqr = QM_Vector3DotProductDP( fromTarget, fromTarget ) - ( forwardPast * forwardPast );
 
-				// For unforced gentle turns: standard corridor bounds
+				// For unforced gentle turns: standard corridor bounds along travel segment
 				if ( !isSharpTurn && !isForcedWp ) {
-					if ( forwardPast >= 0.0 && lateralDistSqr <= MONSTER_NAV_SHARP_CORNER_REACH_RADIUS_SQR && dist2DSqr <= MONSTER_NAV_WAYPOINT_REACH_RADIUS_SQR ) {
+					if ( forwardPast >= 0.0 && lateralDistSqr <= MONSTER_NAV_SHARP_CORNER_REACH_RADIUS_SQR ) {
+						passedPlane = true;
+					}
+				}
+				// For sharp corner turns: allow advancing if forward past the corner plane and within corner reach bounds
+				else if ( isSharpTurn ) {
+					if ( forwardPast >= 0.0 && dist2DSqr <= ( sharpReach * sharpReach * 2.25 ) ) {
 						passedPlane = true;
 					}
 				}
 				// For forced doorway/corridor portals on flat ground: allow advancing if forward past the threshold plane
 				// and within traversable doorway clearance, preventing chokepoint deadlocks.
 				else if ( isForcedWp ) {
-					if ( forwardPast >= 0.0 && lateralDistSqr <= MONSTER_NAV_DOORWAY_PLANE_ADVANCE_MAX_LATERAL_SQR && dist2DSqr <= MONSTER_NAV_DOORWAY_PLANE_ADVANCE_MAX_DIST_SQR ) {
+					if ( forwardPast >= 0.0 && lateralDistSqr <= MONSTER_NAV_DOORWAY_PLANE_ADVANCE_MAX_LATERAL_SQR ) {
 						passedPlane = true;
 					}
 				}
@@ -642,19 +808,37 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 		}
 
 		// 3) Corner clearance advancement:
-		// If the entity is within proximate clearance of W_k, not blocked against a wall, and the subsequent
+		// If the entity has reached or passed the corner switching plane (forwardPast >= 0.0 or within margin),
+		// is within proximate clearance of W_k, not blocked against a wall, and the subsequent
 		// waypoint W_{k+1} has guaranteed physical capsule clearance (agentRadius) around the corner,
 		// allow advancing past W_k to round the corner cleanly without wedging on the physical corner brush.
+		// Note: On sharp turns (isSharpTurn), an entity must NOT advance while still on the approach side
+		// (forwardPast < -MONSTER_NAV_CORNER_HULL_CLEARANCE_MARGIN), as premature advancement forces the agent
+		// to turn into the solid corner brush before reaching the standoff waypoint.
 		if ( !withinRadius && !passedPlane && !hasRecentWallBlockNormal && stringPathPos + 1 < stringPulledPath.size() ) {
 			const bool isNearCornerWp = ( dist2DSqr <= MONSTER_NAV_CORNER_BRUSH_CLEARANCE_DIST_SQR );
-			if ( isNearCornerWp && Nav_HasGeometricLineOfSight2D( myFeetDP, stringPulledPath[ stringPathPos + 1 ], agentRadius ) ) {
+			const bool hasReachedPlane = ( !isSharpTurn || forwardPast >= -MONSTER_NAV_CORNER_HULL_CLEARANCE_MARGIN );
+			const Vector3DP &nextWp = stringPulledPath[ stringPathPos + 1 ];
+			Vector3DP toNextWp = nextWp - myFeetDP;
+			toNextWp.z = 0.0;
+			const double segDistToNext = QM_Vector3LengthDP( toNextWp );
+			const double baseClearance = ( agentRadius > 0.0 ) ? agentRadius : NAV_DEFAULT_AGENT_RADIUS;
+			const double proportionalThreshold = baseClearance * MONSTER_NAV_ARC_CLEARANCE_DIST_MULT;
+			const double losClearance = ( segDistToNext < proportionalThreshold )
+				? std::min( baseClearance, segDistToNext * MONSTER_NAV_ARC_CLEARANCE_RATIO )
+				: baseClearance;
+			if ( isNearCornerWp && hasReachedPlane && Nav_HasGeometricLineOfSight2D( myFeetDP, nextWp, losClearance ) ) {
 				passedPlane = true;
 			}
 		}
 
 		if ( withinRadius ) {
+			const size_t reachedIdx = stringPathPos;
+			const Vector3DP reachedPos = stringPulledPath[ reachedIdx ];
 			++stringPathPos;
-			break; // Advance at most one waypoint per frame to prevent runaway skipping
+			++advancedWaypointsCount;
+			this->OnWaypointReached( reachedIdx, reachedPos, false );
+			continue; // Re-evaluate next waypoint in bounded loop to prevent 1-frame position lag
 		}
 
 		if ( passedPlane ) {
@@ -663,33 +847,44 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 			// 2. Physical kinematic step probe over curbs, stairs, and slopes using SVG_MMove_Probe
 			if ( stringPathPos + 1 < stringPulledPath.size() ) {
 				const Vector3DP &nextWp = stringPulledPath[ stringPathPos + 1 ];
-				const double losClearance = ( agentRadius > 0.0 ) ? agentRadius : NAV_DEFAULT_AGENT_RADIUS;
+				Vector3DP toNextWp = nextWp - myFeetDP;
+				toNextWp.z = 0.0;
+				const double segDistToNext = QM_Vector3LengthDP( toNextWp );
+				const double baseClearance = ( agentRadius > 0.0 ) ? agentRadius : NAV_DEFAULT_AGENT_RADIUS;
+				const double proportionalThreshold = baseClearance * MONSTER_NAV_ARC_CLEARANCE_DIST_MULT;
+				const double losClearance = ( segDistToNext < proportionalThreshold )
+					? std::min( baseClearance, segDistToNext * MONSTER_NAV_ARC_CLEARANCE_RATIO )
+					: baseClearance;
 				if ( !Nav_HasGeometricLineOfSight2D( myFeetDP, nextWp, losClearance ) ) {
 					// Direct line to W_{k+1} is occluded by an obstacle edge; continue steering towards W_k until withinRadius
 					break;
 				}
 
-				Vector3 probeGround = {};
-				Vector3 nextOrigin = static_cast<Vector3>( nextWp );
-				nextOrigin.z -= this->mins.z;
-				const float maxStep = ( this->pathNavigationState.policy.max_step_height > 0.0f ) ? this->pathNavigationState.policy.max_step_height : NAV_PROBE_DEFAULT_MAX_STEP_HEIGHT;
-				const float maxDrop = ( this->pathNavigationState.policy.max_drop_height > 0.0f ) ? this->pathNavigationState.policy.max_drop_height : NAV_PROBE_DEFAULT_MAX_DROP_HEIGHT;
-				if ( !SVG_MMove_Probe( currentOrigin, mins, maxs, nextOrigin, this, &probeGround, maxStep, maxDrop ) ) {
+				Vector3DP probeGround = {};
+				Vector3DP nextOrigin = nextWp;
+				nextOrigin.z -= static_cast<double>( this->mins.z );
+				const double maxStep = ( this->pathNavigationState.policy.max_step_height > 0.0 ) ? this->pathNavigationState.policy.max_step_height : NAV_PROBE_DEFAULT_MAX_STEP_HEIGHT;
+				const double maxDrop = ( this->pathNavigationState.policy.max_drop_height > 0.0 ) ? this->pathNavigationState.policy.max_drop_height : NAV_PROBE_DEFAULT_MAX_DROP_HEIGHT;
+				if ( !SVG_MMove_Probe( Vector3DP( currentOrigin ), mins, maxs, nextOrigin, this, &probeGround, maxStep, maxDrop ) ) {
 					// Physical step/slope probe blocked; continue steering towards W_k until withinRadius
 					break;
 				}
 
 				// Ensure probe actually completed traversable progress to nextWp (not blocked after only 15% into a ramp/wall)
-				Vector3 toProbeDest = nextOrigin - probeGround;
-				toProbeDest.z = 0.0f;
+				Vector3DP toProbeDest = nextOrigin - probeGround;
+				toProbeDest.z = 0.0;
 				if ( ( toProbeDest.x * toProbeDest.x + toProbeDest.y * toProbeDest.y ) > ( reachRadiusSqr * NAV_PROBE_ARRIVAL_TOLERANCE_RATIO_SQR ) ) {
 					// Incomplete probe progress to next waypoint; continue steering to current waypoint
 					break;
 				}
 			}
 
+			const size_t reachedIdx = stringPathPos;
+			const Vector3DP reachedPos = stringPulledPath[ reachedIdx ];
 			++stringPathPos;
-			break; // Advance at most one waypoint per frame on plane progression to prevent runaway skipping
+			++advancedWaypointsCount;
+			this->OnWaypointReached( reachedIdx, reachedPos, false );
+			continue; // Re-evaluate next waypoint in bounded loop to prevent 1-frame position lag
 		}
 
 		break;
@@ -701,7 +896,13 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 		Vector3DP toFinal = finalGoalWp - myFeetDP;
 		const double finalZDiff = toFinal.z;
 		toFinal.z = 0.0;
-		if ( QM_Vector3DotProductDP( toFinal, toFinal ) <= MONSTER_NAV_WAYPOINT_REACH_RADIUS_SQR && std::fabs( finalZDiff ) <= MONSTER_NAV_FINAL_GOAL_MAX_Z_DELTA ) {
+		// The low-level path follower must not stop outside the crowd's tighter
+		// staging tolerance, or station keeping and doorway admission can never agree.
+		const svg_crowd_group_t *arrivalGroup = crowd.crowdID >= 0 ? SVG_Crowd_GetGroup( crowd.crowdID ) : nullptr;
+		const double finalArrivalRadius = arrivalGroup != nullptr && arrivalGroup->hasSerializedIngress ?
+			CROWD_INGRESS_ARRIVAL_RADIUS : MONSTER_NAV_WAYPOINT_REACH_RADIUS;
+		if ( QM_Vector3DotProductDP( toFinal, toFinal ) <= finalArrivalRadius * finalArrivalRadius && std::fabs( finalZDiff ) <= MONSTER_NAV_FINAL_GOAL_MAX_Z_DELTA ) {
+			this->OnWaypointReached( stringPulledPath.size() - 1, finalGoalWp, true );
 			return false; // Arrived at destination
 		}
 	}
@@ -740,8 +941,8 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 			const Vector3DP nextSegNorm = nextSeg * ( 1.0 / nextSegLen );
 			const double turnDot = QM_Vector3DotProductDP( currSegNorm, nextSegNorm );
 
-			// Only blend forward across gentle turns (< 30 degrees) on flat ground or ramps; sharp turns and stair steps must round W_k directly
-			if ( turnDot > MONSTER_NAV_GENTLE_TURN_MIN_DOT && ( onRamp || std::fabs( nextWp.z - targetWp.z ) <= MONSTER_NAV_STEP_MIN_DELTA ) ) {
+			// Blend forward across gentle turns and intermediate arc waypoints (~45 deg) on flat ground or ramps:
+			if ( turnDot > NAV_CORNER_ARC_MIN_TURN_DOT && ( onRamp || std::fabs( nextWp.z - targetWp.z ) <= MONSTER_NAV_STEP_MIN_DELTA ) ) {
 				const double advance = std::min( MONSTER_NAV_LOOKAHEAD_DISTANCE - distToTarget, nextSegLen * NAV_STANDOFF_SCALE_HALF );
 				const Vector3DP blendedTarget = targetWp + nextSegNorm * advance;
 				// Maintain clear line-of-sight to blended target before cutting forward early:
@@ -766,13 +967,181 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 	// Identify whether the entity is at a forced step-up riser actively waiting for feet elevation:
 	const bool awaitingStepUp = ( isTargetForced && !onRamp && ( targetWp.z - myFeetDP.z ) > MONSTER_NAV_STEP_MIN_DELTA );
 
-	// Case 1: Outside proximity deadband — steer directly towards the lookahead target.
+	// Check whether entity has progressed into the departure zone of W_k toward W_{k+1}:
+	bool inDepartureZone = false;
+	if ( !awaitingStepUp && !isTargetForced && k + 1 < stringPulledPath.size() ) {
+		const Vector3DP nextWp = stringPulledPath[ k + 1 ];
+		Vector3DP toNext = nextWp - targetWp;
+		toNext.z = 0.0;
+		const double toNextLen = QM_Vector3LengthDP( toNext );
+
+		if ( k > 0 && toNextLen > 0.001 ) {
+			const Vector3DP prevWp = stringPulledPath[ k - 1 ];
+			Vector3DP inSegDir = targetWp - prevWp;
+			inSegDir.z = 0.0;
+			const double inSegLen = QM_Vector3LengthDP( inSegDir );
+
+			if ( inSegLen > 0.001 ) {
+				const Vector3DP uIn = inSegDir * ( 1.0 / inSegLen );
+				const Vector3DP uOut = toNext * ( 1.0 / toNextLen );
+
+				// Radial corner switching plane between incoming and outgoing segments:
+				Vector3DP switchNorm = uIn + uOut;
+				switchNorm.z = 0.0;
+				const double switchLen = QM_Vector3LengthDP( switchNorm );
+				if ( switchLen > 0.001 ) {
+					switchNorm = switchNorm * ( 1.0 / switchLen );
+					Vector3DP fromTarget = myFeetDP - targetWp;
+					fromTarget.z = 0.0;
+					// Entity has physically crossed past the switching plane into the departure zone:
+					if ( QM_Vector3DotProductDP( fromTarget, switchNorm ) >= 0.0 ) {
+						inDepartureZone = true;
+					}
+				}
+			}
+		}
+
+		// Proximity fallback: if entity is closer to W_{k+1} than W_k and within arrival reach:
+		if ( !inDepartureZone && toNextLen > 0.001 ) {
+			Vector3DP toNextFromFeet = nextWp - myFeetDP;
+			toNextFromFeet.z = 0.0;
+			const double distToNext = QM_Vector3LengthDP( toNextFromFeet );
+			if ( distToNext < distToTarget && distToTarget <= ( MONSTER_NAV_WAYPOINT_REACH_RADIUS * 2.0 ) ) {
+				inDepartureZone = true;
+			}
+		}
+
+		// Geometric line-of-sight validation: when candidate departure zone is active near an obstacle corner,
+		// ensure entity has unobstructed 2D line-of-sight clearance to nextWp with full agent collision radius.
+		// If line-of-sight is obstructed by a corner brush, do not cut early into the corner; continue steering
+		// to current waypoint W_k (which is the standoff arc point) until the corner is physically cleared:
+		if ( inDepartureZone ) {
+			if ( !Nav_HasGeometricLineOfSight2D( myFeetDP, nextWp, agentRadius * MONSTER_NAV_DEPARTURE_CLEARANCE_SCALE ) ) {
+				inDepartureZone = false;
+			}
+		}
+	}
+
+	// Case 1: If entity has progressed into the departure zone of W_k and there is a subsequent
+	// waypoint (k + 1 < size), steer forward toward W_{k+1} rather than steering backward toward W_k
+	// (which would trigger a 180-degree yaw flip).
+	if ( inDepartureZone ) {
+		Vector3DP toNext = stringPulledPath[ k + 1 ] - myFeetDP;
+		toNext.z = 0.0;
+		const double nextDist = QM_Vector3LengthDP( toNext );
+		*outMoveDir = ( nextDist > 0.001 ) ? ( toNext * ( 1.0 / nextDist ) ) : forwardYawDir;
+	}
+	// Case 2: At a step-up riser, actively awaiting vertical elevation.
+	// Condition check: Entity is at or past the riser boundary along the stair flight ascending direction.
+	// Rather than steering backward or falling into yaw-lock singularities, drive strictly forward
+	// across the riser along the flight ascent direction so StepSlideMove can step up.
+	else if ( awaitingStepUp ) {
+		// Determine the forward flight ascending direction:
+		Vector3DP stepDir = { 0.0, 0.0, 0.0 };
+		if ( k + 1 < stringPulledPath.size() ) {
+			stepDir = stringPulledPath[ k + 1 ] - targetWp;
+			stepDir.z = 0.0;
+		}
+		if ( QM_Vector3LengthSqrDP( stepDir ) < MONSTER_NAV_DIR_EPS_SQR && k > 0 ) {
+			stepDir = targetWp - stringPulledPath[ k - 1 ];
+			stepDir.z = 0.0;
+		}
+		if ( QM_Vector3LengthSqrDP( stepDir ) < MONSTER_NAV_DIR_EPS_SQR ) {
+			stepDir = targetWp - myFeetDP;
+			stepDir.z = 0.0;
+		}
+		const double stepDirLen = QM_Vector3LengthDP( stepDir );
+		const Vector3DP uStep = ( stepDirLen > 0.001 ) ? ( stepDir * ( 1.0 / stepDirLen ) ) : forwardYawDir;
+
+		// Check if entity has reached or crossed the riser plane along flight direction:
+		Vector3DP fromTarget = myFeetDP - targetWp;
+		fromTarget.z = 0.0;
+		const double fwdPast = QM_Vector3DotProductDP( fromTarget, uStep );
+
+		// If at or past the riser (within deadband or forward), drive strictly forward across the riser:
+		if ( fwdPast >= -MONSTER_NAV_WAYPOINT_DEADBAND || steerDist < MONSTER_NAV_WAYPOINT_DEADBAND ) {
+			*outMoveDir = uStep;
+		} else {
+			// Still approaching the riser: steer directly toward the step waypoint
+			*outMoveDir = ( steerDist > 0.001 ) ? ( toSteer * ( 1.0 / steerDist ) ) : uStep;
+		}
+	}
+	// Mandatory ingress corners require their exact approach direction. The old
+	// bisector/monotonicity shortcuts could skip a distant corner and drive into a jamb.
+	else if ( isTargetForced ) {
+		*outMoveDir = steerDist > 0.001 ? toSteer * ( 1.0 / steerDist ) : forwardYawDir;
+	}
+	// Case 3: Outside proximity deadband — steer towards lookahead target with corner transit bisector protection.
 	// Condition check: Entity is >= MONSTER_NAV_WAYPOINT_DEADBAND (4.0 units) from steerTarget,
 	// safely away from the (0, 0) division singularity where micro-fluctuations flip yaw angles.
-	if ( steerDist >= MONSTER_NAV_WAYPOINT_DEADBAND ) {
-		*outMoveDir = toSteer * ( 1.0 / steerDist );
+	else if ( steerDist >= MONSTER_NAV_WAYPOINT_DEADBAND ) {
+		Vector3DP candDir = toSteer * ( 1.0 / steerDist );
+
+		// Corner standoff transit protection:
+		// When approaching or stepping adjacent to an intermediate corner waypoint W_k,
+		// ensure candDir does not pull the entity backward against incoming flow or sideways into the corner obstacle.
+		if ( k > 0 && k + 1 < stringPulledPath.size() ) {
+			const Vector3DP prevWp = stringPulledPath[ k - 1 ];
+			Vector3DP inSegDir = targetWp - prevWp;
+			inSegDir.z = 0.0;
+			const double inSegLen = QM_Vector3LengthDP( inSegDir );
+
+			const Vector3DP nextWp = stringPulledPath[ k + 1 ];
+			Vector3DP toNext = nextWp - targetWp;
+			toNext.z = 0.0;
+			const double toNextLen = QM_Vector3LengthDP( toNext );
+
+			if ( inSegLen > 0.001 && toNextLen > 0.001 ) {
+				const Vector3DP uIn = inSegDir * ( 1.0 / inSegLen );
+				const Vector3DP uOut = toNext * ( 1.0 / toNextLen );
+
+				// Corner transit progression blend: as the agent approaches or rounds intermediate corner waypoint W_k,
+				// smoothly blend steering from direct waypoint heading towards the outgoing segment tangent uOut.
+				// This guarantees smooth continuous yaw rotation around convex corner obstacles without threshold chatter:
+				const double minHullReach = ( agentRadius > 0.0 ) ? ( agentRadius + MONSTER_NAV_CORNER_HULL_CLEARANCE_MARGIN ) : ( NAV_DEFAULT_AGENT_RADIUS + MONSTER_NAV_CORNER_HULL_CLEARANCE_MARGIN );
+				const double sharpReach = std::max( MONSTER_NAV_SHARP_CORNER_REACH_RADIUS, minHullReach );
+
+				if ( distToTarget <= sharpReach ) {
+					const double blendFrac = std::clamp( 1.0 - ( distToTarget / sharpReach ), 0.0, 1.0 );
+					Vector3DP blendedSteer = ( candDir * ( 1.0 - blendFrac ) ) + ( uOut * blendFrac );
+					blendedSteer.z = 0.0;
+					const double blendedSteerLen = QM_Vector3LengthDP( blendedSteer );
+					if ( blendedSteerLen > 0.001 ) {
+						candDir = blendedSteer * ( 1.0 / blendedSteerLen );
+					}
+				}
+			}
+		}
+
+		// Forward monotonicity guard: if the direct vector to targetWp pulls backward against incoming travel flow
+		// (because the entity has already crossed past W_k into the departure quadrant), clamp steering to outgoing flow:
+		if ( k + 1 < stringPulledPath.size() ) {
+			const Vector3DP nextWp = stringPulledPath[ k + 1 ];
+			Vector3DP toNext = nextWp - targetWp;
+			toNext.z = 0.0;
+			const double toNextLen = QM_Vector3LengthDP( toNext );
+			if ( toNextLen > 0.001 ) {
+				const Vector3DP uOut = toNext * ( 1.0 / toNextLen );
+				if ( k > 0 ) {
+					const Vector3DP prevWp = stringPulledPath[ k - 1 ];
+					Vector3DP inSegDir = targetWp - prevWp;
+					inSegDir.z = 0.0;
+					const double inSegLen = QM_Vector3LengthDP( inSegDir );
+					if ( inSegLen > 0.001 ) {
+						const Vector3DP uIn = inSegDir * ( 1.0 / inSegLen );
+						if ( QM_Vector3DotProductDP( candDir, uIn ) < 0.0 ) {
+							candDir = uOut;
+						}
+					}
+				} else if ( QM_Vector3DotProductDP( candDir, uOut ) < 0.0 ) {
+					candDir = uOut;
+				}
+			}
+		}
+
+		*outMoveDir = candDir;
 	}
-	// Case 2: Inside deadband of an intermediate waypoint (flat ground, gentle turns, ramps, or step-downs).
+	// Case 4: Inside deadband of an intermediate waypoint (flat ground, gentle turns, ramps, or step-downs).
 	// Condition check: Entity is within 4.0 units of W_k, not waiting for step-up elevation, and has a subsequent waypoint (k + 1 < size).
 	// Steer forward toward the subsequent waypoint W_{k+1} so the agent smoothly rounds the point without orbiting W_k.
 	else if ( !awaitingStepUp && k + 1 < stringPulledPath.size() ) {
@@ -781,17 +1150,7 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 		const double nextDist = QM_Vector3LengthDP( toNext );
 		*outMoveDir = ( nextDist > 0.001 ) ? ( toNext * ( 1.0 / nextDist ) ) : forwardYawDir;
 	}
-	// Case 3: Inside deadband at a step-up riser, actively awaiting vertical elevation.
-	// Condition check: Entity is at the riser boundary (steerDist < 4.0) but feet have not yet stepped up onto the tread.
-	// Rather than turning toward W_{k+1} (which would glance off the riser or turn sideways into walls),
-	// drive forward across the riser along the incoming segment direction (k > 0) so StepSlideMove can step up.
-	else if ( awaitingStepUp && k > 0 ) {
-		Vector3DP segFwd = targetWp - stringPulledPath[ k - 1 ];
-		segFwd.z = 0.0;
-		const double segFwdLen = QM_Vector3LengthDP( segFwd );
-		*outMoveDir = ( segFwdLen > 0.001 ) ? ( segFwd * ( 1.0 / segFwdLen ) ) : forwardYawDir;
-	}
-	// Case 4: Final destination reached, or first waypoint awaiting step-up without prior history.
+	// Case 5: Final destination reached.
 	// Condition check: No subsequent waypoint exists (k + 1 >= size); the entity is within deadband of its final arrival point.
 	// Preserve the current facing direction (forwardYawDir) to prevent 360-degree jitter across the final destination.
 	else {
@@ -822,8 +1181,7 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 *	@return	True if entity moved, false if arrived or stopped.
 **/
 const bool svg_monster_base_t::StepMoveToGoal( const Vector3 &goalOrigin ) {
-	const Vector3DP goalOriginDP = Vector3DP( goalOrigin );
-
+	const Vector3DP goalOriginDP( goalOrigin );
 	Vector3DP moveDirDP = {};
 	double speedScale = 1.0;
 
@@ -845,31 +1203,52 @@ const bool svg_monster_base_t::StepMoveToGoal( const Vector3 &goalOrigin ) {
 
 		// 1. Teammate queueing deceleration: if a leading squad member is directly ahead in our corridor lane,
 		// yield speed to maintain safe following distance and prevent chokepoint / doorway jamming.
+		suppressEntityDeflectionThisFrame = false;
 		double followScale = 1.0;
-		if ( SVG_Crowd_ComputeTeammateFollowSpeedScale( this->s.number, moveDirDP, &followScale ) ) {
+		bool strictQueueing = false;
+		const bool foundLeaderAhead = SVG_Crowd_ComputeTeammateFollowSpeedScale( this->s.number, moveDirDP, &followScale, &strictQueueing );
+		if ( foundLeaderAhead ) {
 			speedScale *= followScale;
+			// Disable entity deflection only for strict doorway/chokepoint queues; allow room-entry flow otherwise.
+			suppressEntityDeflectionThisFrame = strictQueueing;
 		}
 
-		// 2. Mutual soft separation repulsion between adjacent teammates:
-		Vector3DP sepForce{ 0.0, 0.0, 0.0 };
-		if ( SVG_Crowd_ComputeMutualSeparation( this->s.number, &sepForce ) ) {
-			Vector3DP blendedDir = moveDirDP + sepForce;
-			const double blendedLen = QM_Vector3LengthDP( blendedDir );
-			if ( blendedLen > 0.001 ) {
-				const Vector3DP candDir = blendedDir * ( 1.0 / blendedLen );
-				// Wall clearance verification: ensure lateral separation force does NOT deflect the entity
-				// directly into a solid obstacle boundary (e.g. doorframe or corridor wall).
-				const Vector3DP myFeetDP( currentOrigin );
-				const Vector3DP probeEnd = myFeetDP + candDir * ( agentRadius + CROWD_WALL_STANDOFF_MARGIN );
-				if ( Nav_HasGeometricLineOfSight2D( myFeetDP, probeEnd, 0.0 ) ) {
-					moveDirDP = candDir;
+		// 2. Mutual soft separation repulsion between adjacent teammates.
+		// Strict queueing agents must stay centered on the lane so they do not side-slip around the blocker.
+		if ( !strictQueueing ) {
+			Vector3DP sepForce{ 0.0, 0.0, 0.0 };
+			if ( SVG_Crowd_ComputeMutualSeparation( this->s.number, &sepForce ) ) {
+				const Vector3DP myFeetDP = SVG_GetEntityFeetOriginDP( this );
+				// Extract purely lateral separation perpendicular to moveDirDP to avoid flipping moveDir backwards:
+				const double forwardSep = QM_Vector3DotProductDP( sepForce, moveDirDP );
+				const Vector3DP lateralSep = sepForce - ( moveDirDP * forwardSep );
+
+				// Dampen lateral separation when close to destination or when speed is throttled to prevent yaw jitter:
+				const double distToGoal = QM_Vector3Distance2DDP( myFeetDP, goalOriginDP );
+				const double proximityDampening = std::clamp( distToGoal / 48.0, 0.0, 1.0 );
+				const double sepDampening = ( speedScale < 0.5 ) ? ( speedScale * 2.0 * proximityDampening ) : proximityDampening;
+				Vector3DP blendedDir = moveDirDP + ( lateralSep * ( 0.5 * sepDampening ) );
+				const double blendedLen = QM_Vector3LengthDP( blendedDir );
+				if ( blendedLen > 0.001 ) {
+					const Vector3DP candDir = blendedDir * ( 1.0 / blendedLen );
+					// Ensure candidate direction preserves forward progress (within 45 degrees of moveDirDP):
+					if ( QM_Vector3DotProductDP( candDir, moveDirDP) >= 0.707 ) {
+						const Vector3DP probeEnd = myFeetDP + candDir * ( agentRadius + CROWD_WALL_STANDOFF_MARGIN );
+						// Use physical kinematic probe with the agent's hull to ensure separation doesn't push us into a solid wall.
+						Vector3DP dummyEndpos = {};
+						const double maxStep = ( this->pathNavigationState.policy.max_step_height > 0.0 ) ? this->pathNavigationState.policy.max_step_height : NAV_PROBE_DEFAULT_MAX_STEP_HEIGHT;
+						const double maxDrop = ( this->pathNavigationState.policy.max_drop_height > 0.0 ) ? this->pathNavigationState.policy.max_drop_height : NAV_PROBE_DEFAULT_MAX_DROP_HEIGHT;
+						if ( SVG_MMove_Probe( myFeetDP, this->mins, this->maxs, probeEnd, this, &dummyEndpos, maxStep, maxDrop ) ) {
+							moveDirDP = candDir;
+						}
+					}
 				}
 			}
 		}
 
 		// 3. Squad formation speed regulation: rubber-band followers to maintain rank relative to the leader
 		const svg_crowd_group_t *group = SVG_Crowd_GetGroup( this->crowd.crowdID );
-		if ( group && group->isMoving && !this->crowd.reachedGoal ) {
+		if ( group && group->isMoving && !group->hasSerializedIngress && !this->crowd.reachedGoal ) {
 			const svg_base_edict_t *leader = group->GetLeaderEntity();
 			if ( !leader && this->crowd.slotIndex != 0 ) {
 				for ( const int32_t memberNum : group->memberEntityNumbers ) {
@@ -882,25 +1261,27 @@ const bool svg_monster_base_t::StepMoveToGoal( const Vector3 &goalOrigin ) {
 			}
 
 			if ( leader && leader != this && SVG_Entity_IsActive( leader ) && !leader->crowd.reachedGoal ) {
-				const double leaderDistToDest = QM_Vector2DistanceDP( Vector2DP( leader->currentOrigin ), Vector2DP( group->destinationOrigin ) );
-				const double myDistToDest = QM_Vector2DistanceDP( Vector2DP( this->currentOrigin ), Vector2DP( group->destinationOrigin ) );
+				const double leaderZDelta = std::fabs( leader->currentOrigin.z - this->currentOrigin.z );
+				// Only apply 2D planar rubber-banding when on the same elevation level; on stairs or ramps,
+				// corridor follow speed throttling in SVG_Crowd_ComputeTeammateFollowSpeedScale governs spacing:
+				if ( leaderZDelta < static_cast<double>( NAV_STEP_MIN_VERTICAL_DELTA ) ) {
+					const double leaderDistToDest = QM_Vector2DistanceDP( Vector2DP( leader->currentOrigin ), Vector2DP( group->destinationOrigin ) );
+					const double myDistToDest = QM_Vector2DistanceDP( Vector2DP( this->currentOrigin ), Vector2DP( group->destinationOrigin ) );
 
-				if ( myDistToDest > ( leaderDistToDest + CROWD_SLOT_CATCHUP_DISTANCE ) ) {
-					// Trailing behind the leader: catch-up sprint
-					speedScale *= CROWD_CATCHUP_SPEED_SCALE;
-				} else if ( myDistToDest < ( leaderDistToDest - CROWD_SLOT_FOLLOW_TOLERANCE ) ) {
-					// Surging ahead of the moving leader: throttle back to stay in rank
-					speedScale *= CROWD_SLOWDOWN_SPEED_SCALE;
+					if ( myDistToDest > ( leaderDistToDest + CROWD_SLOT_CATCHUP_DISTANCE ) ) {
+						// Trailing behind the leader: catch-up sprint
+						speedScale *= CROWD_CATCHUP_SPEED_SCALE;
+					} else if ( myDistToDest < ( leaderDistToDest - CROWD_SLOT_FOLLOW_TOLERANCE ) ) {
+						// Surging ahead of the moving leader: throttle back to stay in rank
+						speedScale *= CROWD_SLOWDOWN_SPEED_SCALE;
+					}
 				}
 			}
 		}
 	}
 
-	ideal_yaw = static_cast<float>( QM_Vector3ToYawDP( moveDirDP ) );
-	SVG_MMove_FaceIdealYaw( this, ideal_yaw, 45.0f );
-
 	// If yielding to a leading teammate directly ahead, come to a complete standstill:
-	if ( speedScale <= 0.001 ) {
+	if ( speedScale <= 0.01 ) {
 		velocity.x = 0.0f;
 		velocity.y = 0.0f;
 		monsterMove.state.velocity.x = 0.0f;
@@ -912,12 +1293,84 @@ const bool svg_monster_base_t::StepMoveToGoal( const Vector3 &goalOrigin ) {
 	constexpr double baseFrameVelocity = 220.0;
 	const double frameVelocity = baseFrameVelocity * speedScale;
 
-	const Vector3DP velocityDP = moveDirDP * frameVelocity;
+	Vector3DP velocityDP = moveDirDP * frameVelocity;
+
+	/**
+	*	Enforce the finite serialized-ingress aperture after every steering contribution.
+	*	Unreleased agents may approach the stop plane and move beyond it beside the room;
+	*	only a predicted crossing through the doorway's lateral hull span is constrained.
+	**/
+	const svg_crowd_group_t *ingressGroup = ( this->crowd.crowdID >= 0 ) ? SVG_Crowd_GetGroup( this->crowd.crowdID ) : nullptr;
+	if ( ingressGroup != nullptr && ingressGroup->hasSerializedIngress && !this->crowd.ingressReleased ) {
+		const Vector3DP currentFeet = SVG_GetEntityFeetOriginDP( this );
+		const double currentDepth = QM_Vector3DotProductDP( currentFeet - ingressGroup->ingressPortalOrigin, ingressGroup->ingressPortalInward );
+		const double stopDepth = -ingressGroup->ingressReleaseDepth;
+		const double frameSeconds = FRAME_TIME_S.Seconds();
+		const double inwardSpeed = QM_Vector3DotProductDP( velocityDP, ingressGroup->ingressPortalInward );
+		const double predictedDepth = currentDepth + ( inwardSpeed * frameSeconds );
+		const Vector3DP portalTangent{ ingressGroup->ingressPortalInward.y, -ingressGroup->ingressPortalInward.x, 0.0 };
+		const double currentLateral = QM_Vector3DotProductDP(
+			currentFeet - ingressGroup->ingressPortalOrigin, portalTangent );
+		const double lateralSpeed = QM_Vector3DotProductDP( velocityDP, portalTangent );
+		const double reservedHalfSpan = ingressGroup->ingressPortalHalfWidth + ingressGroup->ingressReleaseDepth;
+		bool crossesReservedAperture = false;
+
+		// Evaluate the continuous velocity segment at its stop-plane intersection to prevent diagonal tunnelling.
+		if ( frameSeconds > 0.0 && currentDepth <= stopDepth && predictedDepth > stopDepth ) {
+			const double crossingFraction = std::clamp(
+				( stopDepth - currentDepth ) / ( predictedDepth - currentDepth ), 0.0, 1.0 );
+			const double crossingLateral = currentLateral +
+				( lateralSpeed * frameSeconds * crossingFraction );
+			crossesReservedAperture = std::fabs( crossingLateral ) < reservedHalfSpan;
+		}
+
+		// Limit only the inward speed that would cross the reserved finite aperture this frame.
+		if ( crossesReservedAperture ) {
+			const double maximumInwardSpeed = std::clamp(
+				( stopDepth - currentDepth ) / frameSeconds, -frameVelocity, frameVelocity );
+			if ( inwardSpeed > maximumInwardSpeed ) {
+				velocityDP = velocityDP -
+					( ingressGroup->ingressPortalInward * ( inwardSpeed - maximumInwardSpeed ) );
+			}
+		}
+
+		// Preserve the configured speed ceiling after the half-space projection rotates the velocity vector.
+		const double constrainedSpeed = std::sqrt( ( velocityDP.x * velocityDP.x ) + ( velocityDP.y * velocityDP.y ) );
+		if ( constrainedSpeed > frameVelocity && constrainedSpeed > 0.001 ) {
+			velocityDP = velocityDP * ( frameVelocity / constrainedSpeed );
+		}
+	}
+
+	const double actualFrameVelocity = std::sqrt( ( velocityDP.x * velocityDP.x ) + ( velocityDP.y * velocityDP.y ) );
+	if ( this->crowd.crowdID >= 0 && this->crowd.slotIndex >= 0 ) {
+		const svg_crowd_group_t *grp = SVG_Crowd_GetGroup( this->crowd.crowdID );
+		const double distToGoal = QM_Vector3Distance2DDP( SVG_GetEntityFeetOriginDP( this ), goalOriginDP );
+		if ( distToGoal < 24.0 && grp && this->crowd.slotIndex < static_cast<int32_t>( grp->slots.size() ) ) {
+			const svg_crowd_slot_t &mySlot = grp->slots[ this->crowd.slotIndex ];
+			ideal_yaw = static_cast<float>( QM_AngleMod( grp->currentHeadingYaw + mySlot.relativeYawDeg ) );
+		} else if ( actualFrameVelocity > 1.0 ) {
+			const Vector3DP facingDir = velocityDP * ( 1.0 / actualFrameVelocity );
+			ideal_yaw = static_cast<float>( QM_Vector3ToYawDP( facingDir ) );
+		}
+	} else if ( actualFrameVelocity > 1.0 ) {
+		const Vector3DP facingDir = velocityDP * ( 1.0 / actualFrameVelocity );
+		ideal_yaw = static_cast<float>( QM_Vector3ToYawDP( facingDir ) );
+	}
+	SVG_MMove_FaceIdealYaw( this, ideal_yaw, 45.0f );
+
 	velocity.x = static_cast<float>( velocityDP.x );
 	velocity.y = static_cast<float>( velocityDP.y );
 	monsterMove.state.velocity.x = velocity.x;
 	monsterMove.state.velocity.y = velocity.y;
-	UpdateAnim( 4 ); // RUN
+
+	// Cohesive animation state: select smooth animation tier based on computed frame velocity:
+	if ( actualFrameVelocity < 40.0 ) {
+		UpdateAnim( 1 ); // IDLE
+	} else if ( actualFrameVelocity < 140.0 ) {
+		UpdateAnim( 2 ); // WALK
+	} else {
+		UpdateAnim( 4 ); // RUN
+	}
 	return true;
 }
 
@@ -1015,11 +1468,14 @@ void svg_monster_base_t::UpdateBlockedNavigationRecovery( const int32_t blockedM
 	lastBlockedFrameTime = level.time;
 
 	if ( isHardBlockedThisFrame || consecutiveBlockedFrames >= MONSTER_NAV_STUCK_RECOVER_BLOCKED_FRAMES ) {
-		// Nudge entity slightly outward along blocking wall normal to dislodge from doorframe creases
+		// Nudge entity slightly outward along blocking wall normal to dislodge from doorframe creases if free space exists
 		if ( hasRecentWallBlockNormal ) {
 			const Vector3 unstickOrigin = this->currentOrigin + ( recentWallBlockNormal * MONSTER_NAV_STUCK_WALL_NUDGE_DIST );
-			SVG_Util_SetEntityOrigin( this, unstickOrigin, true );
-			monsterMove.state.origin = unstickOrigin;
+			const svg_trace_t unstickTr = SVG_MMove_Trace( Vector3DP( this->currentOrigin ), this->mins, this->maxs, Vector3DP( unstickOrigin ), this, CM_CONTENTMASK_SOLID, MM_SHAPE_AUTO );
+			if ( !unstickTr.startsolid && !unstickTr.allsolid && unstickTr.fraction >= 0.99f ) {
+				SVG_Util_SetEntityOrigin( this, unstickOrigin, true );
+				monsterMove.state.origin = unstickOrigin;
+			}
 		}
 		ResetNavigationPath();
 		lastPathCalcTime = 0_ms;
@@ -1067,4 +1523,28 @@ double svg_monster_base_t::OnNavEvaluateEdgeCost( const int32_t fromFaceIdx, con
 	}
 
 	return cost;
+}
+
+/**
+*	@brief	Invoked when an intermediate path waypoint or final destination is reached and advanced during navigation.
+*	@param	waypointIndex	Index of the reached waypoint in stringPulledPath.
+*	@param	waypointPos		World-space coordinates of the reached waypoint in Vector3DP.
+*	@param	isFinalGoal		True if the reached waypoint represents the final path destination.
+**/
+void svg_monster_base_t::OnWaypointReached( const size_t waypointIndex, const Vector3DP &waypointPos, const bool isFinalGoal ) {
+	// Base implementation is a no-op; derived monster classes override this to react to waypoint milestones.
+	( void )waypointIndex;
+	( void )waypointPos;
+	( void )isFinalGoal;
+}
+
+/**
+*	@brief	Invoked when a designated tactical cover point is successfully reached.
+*	@param	coverIndex	Index of the reached cover point in g_nav_cover_points.
+*	@param	coverPos	World-space coordinates of the reached cover point in Vector3.
+**/
+void svg_monster_base_t::OnCoverPointReached( const int32_t coverIndex, const Vector3 &coverPos ) {
+	// Base implementation is a no-op; derived monster classes override this to react to cover arrivals.
+	( void )coverIndex;
+	( void )coverPos;
 }

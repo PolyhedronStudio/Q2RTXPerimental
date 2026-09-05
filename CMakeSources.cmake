@@ -233,6 +233,7 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/info/svg_info_player_intermission.cpp
 	baseq2rtxp/svgame/entities/info/svg_info_player_start.cpp
 
+    baseq2rtxp/svgame/entities/light/svg_light_brush.cpp
 	baseq2rtxp/svgame/entities/light/svg_light_light.cpp
 	baseq2rtxp/svgame/entities/light/svg_light_spotlight.cpp
 
@@ -400,6 +401,7 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/info/svg_info_notnull.h
 	baseq2rtxp/svgame/entities/info/svg_info_null.h
 
+    baseq2rtxp/svgame/entities/light/svg_light_brush.h
 	baseq2rtxp/svgame/entities/light/svg_light_light.h
 	baseq2rtxp/svgame/entities/light/svg_light_spotlight.h
 

@@ -26,7 +26,7 @@ set_target_properties( luac PROPERTIES EXCLUDE_FROM_ALL TRUE)
 ##  BitPacker: https://github.com/mas-bandwidth/serialize
 ####
 add_library(mas-bandwith-serialize INTERFACE)
-target_include_directories(mas-bandwith-serialize INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/serialize-main-d1cc320)
+target_include_directories(mas-bandwith-serialize INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/serialize-1.15.0)
 #target_include_directories(liblua-5.4.7 PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/liblua-5.4.7> $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/liblua-5.4.7>)
 
 ####

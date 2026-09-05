@@ -6,6 +6,7 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_utils.h"
 #include "nav_generate.h"
 #include "nav_cover_generate.h"
 #include "nav_path.h"
@@ -24,6 +25,7 @@
 #include "svgame/entities/func/svg_func_door_rotating.h"
 #include "svgame/entities/func/svg_func_rotating.h"
 #include "svgame/entities/func/svg_func_wall.h"
+#include "svgame/entities/func/svg_func_plat.h"
 #include "svgame/entities/func/svg_func_areaportal.h"
 
 
@@ -40,6 +42,10 @@ std::vector<Vector3DP> g_nav_vertices;
 std::vector<nav_halfedge_t> g_nav_halfedges;
 //! Half-edge mesh global faces data
 std::vector<nav_face_t> g_nav_faces;
+//! Topological room records decomposed from bottleneck apertures and portals.
+std::vector<nav_room_t> g_nav_rooms;
+//! Inter-zone transition portal records linking adjacent rooms and corridors.
+std::vector<nav_portal_t> g_nav_portals;
 //! Entity graph traversal edge sets
 std::vector<std::vector<int32_t>> g_nav_entity_edges;
 
@@ -83,6 +89,8 @@ struct nav_generation_diagnostics_t {
 	int32_t contained_dynamic_clip_skips = 0;
 	//! Number of dynamic origin helper brushes excluded during model brush collection.
 	int32_t dynamic_origin_brushes_skipped = 0;
+	//! Number of brushes excluded from navmesh generation due to CONTENTS_NO_NAVMESH flag.
+	int32_t no_navmesh_brushes_skipped = 0;
 	//! Number of non-origin dynamic brush instances collected for extraction.
 	int32_t dynamic_brushes_collected = 0;
 	//! Number of linked dynamic/world portal pairs registered for runtime state updates.
@@ -117,13 +125,14 @@ static void ResetNavGenerationDiagnostics( void ) {
 static void LogNavGenerationDiagnostics( const char *stage ) {
 	// Emit aggregate stage diagnostic summary to server developer console.
 	gi.dprintf(
-		"NavMesh Diagnostics [%s]: extracted=%d dynamicExtracted=%d dynamicEntities=%d dynamicBrushes=%d dynamicOriginSkips=%d partitionInput=%d acceptedSplits=%d rejectedSplits=%d dynamicPreserved=%d transitionPreserved=%d containedClipSkips=%d transitionPortals=%d worldSplices=%d dynamicSplices=%d\n",
+		"NavMesh Diagnostics [%s]: extracted=%d dynamicExtracted=%d dynamicEntities=%d dynamicBrushes=%d dynamicOriginSkips=%d noNavMeshSkips=%d partitionInput=%d acceptedSplits=%d rejectedSplits=%d dynamicPreserved=%d transitionPreserved=%d containedClipSkips=%d transitionPortals=%d worldSplices=%d dynamicSplices=%d\n",
 		stage,
 		s_nav_generation_diagnostics.extracted_polys,
 		s_nav_generation_diagnostics.extracted_dynamic_polys,
 		s_nav_generation_diagnostics.extracted_dynamic_entities,
 		s_nav_generation_diagnostics.dynamic_brushes_collected,
 		s_nav_generation_diagnostics.dynamic_origin_brushes_skipped,
+		s_nav_generation_diagnostics.no_navmesh_brushes_skipped,
 		s_nav_generation_diagnostics.partition_input_polys,
 		s_nav_generation_diagnostics.partition_accepted_splits,
 		s_nav_generation_diagnostics.partition_rejected_splits,
@@ -555,6 +564,8 @@ void Nav_Clear() {
 	g_nav_vertices.clear();
 	g_nav_halfedges.clear();
 	g_nav_faces.clear();
+	g_nav_rooms.clear();
+	g_nav_portals.clear();
 	g_nav_entity_edges.clear();
 	g_nav_nodes.clear();
 	g_nav_leaf_links.clear();
@@ -1428,6 +1439,12 @@ static void CollectModelBrushes( bsp_t *bsp, mnode_t *node, const int32_t model_
 					continue;
 				}
 
+				// Check if the brush has CONTENTS_NO_NAVMESH set; if so, skip it completely so it has no impact on the navmesh.
+				if ( ( b->contents & CONTENTS_NO_NAVMESH ) != 0 ) {
+					s_nav_generation_diagnostics.no_navmesh_brushes_skipped++;
+					continue;
+				}
+
 				// A brush can be referenced by several leaves; emit it once for this runtime model instance.
 				if ( !seen_brushes[ brush_num ] ) {
 					seen_brushes[ brush_num ] = true;
@@ -1829,7 +1846,10 @@ void Nav_DoExtractionWork() {
 	std::unordered_map<int64_t, std::vector<int32_t>> obstacle_spatial_grid;
 	for ( size_t i = 0; i < brush_instances.size(); i++ ) {
 		const mbrush_t *br = &bsp->brushes[ brush_instances[ i ].brush_num ];
-		if ( !( br->contents & ( CONTENTS_SOLID | CONTENTS_DETAIL | CONTENTS_MONSTERCLIP ) ) ) continue;
+		// Check if the brush is a solid/detail/monsterclip obstacle and not excluded from navmesh.
+		if ( !( br->contents & ( CONTENTS_SOLID | CONTENTS_DETAIL | CONTENTS_MONSTERCLIP ) ) || ( br->contents & CONTENTS_NO_NAVMESH ) != 0 ) {
+			continue;
+		}
 		if ( IsOriginBrush( br ) || IsDynamicTransitionBrush( brush_instances[ i ] ) ) continue;
 		if ( !brush_info[ i ].has_bounds ) continue;
 
@@ -1866,8 +1886,8 @@ void Nav_DoExtractionWork() {
 			continue;
 		}
 
-		// Skip brushes that are not walk-blocking contributors.
-		if ( !( b->contents & ( CONTENTS_SOLID | CONTENTS_DETAIL | CONTENTS_MONSTERCLIP ) ) ) {
+		// Skip brushes that are not walk-blocking contributors or are flagged to be excluded from navmesh.
+		if ( !( b->contents & ( CONTENTS_SOLID | CONTENTS_DETAIL | CONTENTS_MONSTERCLIP ) ) || ( b->contents & CONTENTS_NO_NAVMESH ) != 0 ) {
 			continue;
 		}
 		// Track brush class split for diagnostics.
@@ -1979,7 +1999,8 @@ void Nav_DoExtractionWork() {
 					}
 
 					mbrush_t *other_b = &bsp->brushes[ other_instance.brush_num ];
-					if ( !( other_b->contents & ( CONTENTS_SOLID | CONTENTS_DETAIL | CONTENTS_MONSTERCLIP ) ) ) {
+					// Skip non-walk-blocking brushes or brushes excluded from navmesh.
+					if ( !( other_b->contents & ( CONTENTS_SOLID | CONTENTS_DETAIL | CONTENTS_MONSTERCLIP ) ) || ( other_b->contents & CONTENTS_NO_NAVMESH ) != 0 ) {
 						continue;
 					}
 
@@ -2054,6 +2075,11 @@ void Nav_DoExtractionWork() {
 					}
 
 					mbrush_t *other_b = &bsp->brushes[ other_instance.brush_num ];
+					// Skip brushes flagged to be excluded from navmesh.
+					if ( ( other_b->contents & CONTENTS_NO_NAVMESH ) != 0 ) {
+						continue;
+					}
+
 					SubtractBrushFromWindings( fragments, other_b, other_instance, normal, brush_info[ other_instance_index ].active_planes, brush_info[ other_instance_index ].has_bounds, other_mins, other_maxs );
 
 					if ( fragments.empty() ) {
@@ -3608,3 +3634,433 @@ bool Nav_ValidateTopology( const char *stage ) {
 		failure_count );
 	return failure_count == 0;
 }
+
+/**
+*	@brief	Build topological spatial regions, corridors, alcoves, and transition portals across the navmesh.
+*	@note	Decomposes the navmesh into distinct spatial zones bounded by doorways, apertures, func_wall, and clearance bottlenecks.
+**/
+void Nav_BuildSpatialRegionsAndPortals() {
+	//! Clearance threshold for identifying bottleneck apertures between open spaces.
+	static constexpr double NAV_PORTAL_NARROW_CLEARANCE = 64.0;
+	//! Minimum clearance for narrow constriction pairs.
+	static constexpr double NAV_PORTAL_TIGHT_CLEARANCE = 48.0;
+	//! Maximum width across an open aperture to be classified as a transition portal.
+	static constexpr double NAV_PORTAL_MAX_APERTURE_WIDTH = 128.0;
+	//! Maximum span for single-portal dead-end clusters to be classified as alcoves.
+	static constexpr double NAV_ZONE_ALCOVE_MAX_SPAN = 250.0;
+	//! Minimum aspect ratio to classify linear spaces as corridors.
+	static constexpr double NAV_ZONE_CORRIDOR_ASPECT_RATIO = 1.5;
+	//! Minimum aspect ratio for flat corridors.
+	static constexpr double NAV_ZONE_CORRIDOR_FLAT_ASPECT_RATIO = 1.8;
+	//! Maximum width across flat corridors.
+	static constexpr double NAV_ZONE_CORRIDOR_MAX_WIDTH = 160.0;
+	//! Maximum bounding box span for enclosed rooms.
+	static constexpr double NAV_ZONE_ROOM_MAX_SPAN = 1200.0;
+	//! Maximum distance for hull traces measuring interior wall standoffs.
+	static constexpr double NAV_WALL_STANDOFF_TRACE_DIST = 600.0;
+	//! Vertical trace offset above room centroid for wall standoff sweeps.
+	static constexpr double NAV_WALL_STANDOFF_TRACE_OFFSET_Z = 16.0;
+	//! Default fallback standoff distance when no solid wall is encountered.
+	static constexpr double NAV_WALL_STANDOFF_DEFAULT_DIST = 160.0;
+	//! Minimum elevation difference to classify a corridor as a stepped staircase.
+	static constexpr double NAV_ZONE_STAIRS_MIN_ELEVATION_DELTA = 16.0;
+	//! Minimum elevation difference to classify a corridor as an inclined ramp.
+	static constexpr double NAV_ZONE_RAMP_MIN_ELEVATION_DELTA = 8.0;
+
+	/**
+	*	Sanity checks: ensure valid mesh topology is loaded.
+	**/
+	if ( g_nav_faces.empty() || g_nav_halfedges.empty() || g_nav_vertices.empty() ) {
+		return;
+	}
+
+	/**
+	*	Reset existing spatial region and portal records.
+	**/
+	g_nav_rooms.clear();
+	g_nav_portals.clear();
+
+	for ( size_t i = 0; i < g_nav_faces.size(); i++ ) {
+		g_nav_faces[ i ].room_id = -1;
+	}
+
+	/**
+	*	Identify transition half-edges that serve as zone boundaries (Portals).
+	*	A half-edge is a portal boundary if:
+	*	1. It links to a dynamic entity (func_door, func_door_rotating, func_wall, func_plat).
+	*	2. It represents a narrow geometric bottleneck aperture (< 128 units width/clearance).
+	**/
+	const size_t numHalfedges = g_nav_halfedges.size();
+	std::vector<bool> isPortalHalfedge( numHalfedges, false );
+	std::vector<nav_portal_type_t> portalTypes( numHalfedges, PORTAL_TYPE_OPEN_APERTURE );
+	std::vector<int32_t> portalEntities( numHalfedges, ENTITYNUM_NONE );
+
+	for ( size_t e = 0; e < numHalfedges; e++ ) {
+		const nav_halfedge_t &he = g_nav_halfedges[ e ];
+		if ( he.face_idx < 0 || he.twin_idx < 0 ) {
+			continue; // Outer boundary edge
+		}
+
+		// Check for dynamic entity transitions (func_door, func_door_rotating, func_wall, func_plat):
+		if ( he.edge_entity_id != ENTITYNUM_NONE ) {
+			isPortalHalfedge[ e ] = true;
+			portalEntities[ e ] = he.edge_entity_id;
+			const svg_base_edict_t *ent = g_edict_pool.EdictForNumber( he.edge_entity_id );
+			if ( ent != nullptr ) {
+				if ( ent->GetTypeInfo()->IsSubClassType<svg_func_wall_t>() ) {
+					portalTypes[ e ] = PORTAL_TYPE_FUNC_WALL;
+				} else if ( ent->GetTypeInfo()->IsSubClassType<svg_func_door_t>() || ent->GetTypeInfo()->IsSubClassType<svg_func_door_rotating_t>() ) {
+					portalTypes[ e ] = PORTAL_TYPE_DOOR_ENTITY;
+				} else if ( ent->GetTypeInfo()->IsSubClassType<svg_func_plat_t>() ) {
+					portalTypes[ e ] = PORTAL_TYPE_ELEVATOR_PLAT;
+				} else {
+					portalTypes[ e ] = PORTAL_TYPE_DOOR_ENTITY;
+				}
+			} else {
+				portalTypes[ e ] = PORTAL_TYPE_DOOR_ENTITY;
+			}
+			continue;
+		}
+
+		// Check for geometric constriction bottlenecks or vertical step/stair/ramp transitions:
+		const nav_halfedge_t &twin = g_nav_halfedges[ he.twin_idx ];
+		if ( he.face_idx >= 0 && twin.face_idx >= 0 && he.face_idx != twin.face_idx ) {
+			const nav_face_t &faceA = g_nav_faces[ he.face_idx ];
+			const nav_face_t &faceB = g_nav_faces[ twin.face_idx ];
+
+			const Vector3DP &v0 = g_nav_vertices[ he.vertex_idx ];
+			const Vector3DP &v1 = g_nav_vertices[ twin.vertex_idx ];
+			const double edgeLen = QM_Vector3Distance2DDP( v0, v1 );
+
+			// Check if endpoints touch solid boundary walls (true doorway aperture):
+			bool v0IsWall = false;
+			bool v1IsWall = false;
+			for ( int32_t ae = 0; ae < faceA.num_edges; ae++ ) {
+				const nav_halfedge_t &ahe = g_nav_halfedges[ faceA.first_edge_idx + ae ];
+				if ( ahe.twin_idx < 0 || ahe.z_diff > NAV_MAX_STEP_HEIGHT || ahe.z_diff < -NAV_MAX_STEP_HEIGHT ) {
+					const int32_t aNext = ahe.next_idx;
+					const int32_t vNext = ( aNext >= 0 && aNext < static_cast<int32_t>( g_nav_halfedges.size() ) ) ? g_nav_halfedges[ aNext ].vertex_idx : -1;
+					if ( ahe.vertex_idx == he.vertex_idx || vNext == he.vertex_idx ) {
+						v0IsWall = true;
+					}
+					if ( ahe.vertex_idx == twin.vertex_idx || vNext == twin.vertex_idx ) {
+						v1IsWall = true;
+					}
+				}
+			}
+			for ( int32_t be = 0; be < faceB.num_edges; be++ ) {
+				const nav_halfedge_t &bhe = g_nav_halfedges[ faceB.first_edge_idx + be ];
+				if ( bhe.twin_idx < 0 || bhe.z_diff > NAV_MAX_STEP_HEIGHT || bhe.z_diff < -NAV_MAX_STEP_HEIGHT ) {
+					const int32_t bNext = bhe.next_idx;
+					const int32_t vNext = ( bNext >= 0 && bNext < static_cast<int32_t>( g_nav_halfedges.size() ) ) ? g_nav_halfedges[ bNext ].vertex_idx : -1;
+					if ( bhe.vertex_idx == he.vertex_idx || vNext == he.vertex_idx ) {
+						v0IsWall = true;
+					}
+					if ( bhe.vertex_idx == twin.vertex_idx || vNext == twin.vertex_idx ) {
+						v1IsWall = true;
+					}
+				}
+			}
+
+			// Portal threshold: either face has narrow clearance (< 64 units radius) while connecting to open space,
+			// or vertical height difference across the seam indicates a step-down/staircase/ramp entrance,
+			// or the shared edge is a true doorway opening connecting solid boundary walls:
+			const double minClearance = std::min( faceA.clearance, faceB.clearance );
+			const double maxClearance = std::max( faceA.clearance, faceB.clearance );
+			const double verticalDelta = std::fabs( he.z_diff );
+			const bool isDoorwayAperture = ( v0IsWall && v1IsWall && edgeLen <= NAV_PORTAL_MAX_APERTURE_WIDTH );
+
+			if ( isDoorwayAperture ||
+			     ( minClearance < NAV_PORTAL_NARROW_CLEARANCE && maxClearance >= NAV_PORTAL_NARROW_CLEARANCE ) ||
+			     ( faceA.clearance < NAV_PORTAL_TIGHT_CLEARANCE && faceB.clearance < NAV_PORTAL_TIGHT_CLEARANCE && ( faceA.num_edges <= 4 || faceB.num_edges <= 4 ) ) ||
+			     ( verticalDelta >= 12.0 && verticalDelta <= static_cast<double>( NAV_MAX_STEP_HEIGHT ) ) ) {
+				isPortalHalfedge[ e ] = true;
+				isPortalHalfedge[ he.twin_idx ] = true;
+				portalTypes[ e ] = ( verticalDelta >= 12.0 ) ? PORTAL_TYPE_OPEN_APERTURE : PORTAL_TYPE_OPEN_APERTURE;
+				portalTypes[ he.twin_idx ] = portalTypes[ e ];
+			}
+		}
+	}
+
+	/**
+	*	Flood-fill contiguous face clusters bounded by portal half-edges to form discrete spatial rooms/zones.
+	**/
+	std::vector<int32_t> bfsQueue;
+	bfsQueue.reserve( g_nav_faces.size() );
+
+	for ( int32_t startFace = 0; startFace < static_cast<int32_t>( g_nav_faces.size() ); startFace++ ) {
+		if ( g_nav_faces[ startFace ].room_id >= 0 ) {
+			continue; // Already assigned to a zone
+		}
+
+		const int32_t newRoomId = static_cast<int32_t>( g_nav_rooms.size() );
+		nav_room_t room = {};
+		room.room_id = newRoomId;
+
+		bfsQueue.clear();
+		bfsQueue.push_back( startFace );
+		g_nav_faces[ startFace ].room_id = newRoomId;
+		room.face_indices.push_back( startFace );
+
+		size_t qHead = 0;
+		while ( qHead < bfsQueue.size() ) {
+			const int32_t curFaceIdx = bfsQueue[ qHead++ ];
+			const nav_face_t &curFace = g_nav_faces[ curFaceIdx ];
+
+			int32_t curEdge = curFace.first_edge_idx;
+			for ( int32_t e = 0; e < curFace.num_edges; e++ ) {
+				if ( curEdge < 0 || curEdge >= static_cast<int32_t>( g_nav_halfedges.size() ) ) {
+					break;
+				}
+				const nav_halfedge_t &he = g_nav_halfedges[ curEdge ];
+
+				if ( isPortalHalfedge[ curEdge ] ) {
+					// Boundary portal reached: do not cross into adjacent zone
+					curEdge = he.next_idx;
+					continue;
+				}
+
+				if ( he.twin_idx >= 0 && he.twin_idx < static_cast<int32_t>( g_nav_halfedges.size() ) ) {
+					const nav_halfedge_t &twin = g_nav_halfedges[ he.twin_idx ];
+					const int32_t neighborFace = twin.face_idx;
+
+					if ( neighborFace >= 0 && neighborFace < static_cast<int32_t>( g_nav_faces.size() ) ) {
+						if ( g_nav_faces[ neighborFace ].room_id < 0 ) {
+							g_nav_faces[ neighborFace ].room_id = newRoomId;
+							room.face_indices.push_back( neighborFace );
+							bfsQueue.push_back( neighborFace );
+						}
+					}
+				}
+				curEdge = he.next_idx;
+			}
+		}
+
+		/**
+		*	Calculate room spatial bounds, exact area-weighted geometric centroid, and elevation statistics.
+		**/
+		room.bounds.Clear();
+		double minElevation = std::numeric_limits<double>::infinity();
+		double maxElevation = -std::numeric_limits<double>::infinity();
+		double sumElevation = 0.0;
+		double totalRoomArea = 0.0;
+		Vector3DP weightedCentroidSum = { 0.0, 0.0, 0.0 };
+
+		for ( const int32_t fIdx : room.face_indices ) {
+			const nav_face_t &face = g_nav_faces[ fIdx ];
+			room.bounds.AddPoint( face.center );
+
+			minElevation = std::min( minElevation, face.center.z );
+			maxElevation = std::max( maxElevation, face.center.z );
+			sumElevation += face.center.z;
+
+			// Compute exact 3D polygon area and sub-triangle centroids:
+			if ( face.num_edges >= 3 && face.first_edge_idx >= 0 ) {
+				const Vector3DP &v0 = g_nav_vertices[ g_nav_halfedges[ face.first_edge_idx ].vertex_idx ];
+				for ( int32_t e = 1; e + 1 < face.num_edges; e++ ) {
+					const Vector3DP &v1 = g_nav_vertices[ g_nav_halfedges[ face.first_edge_idx + e ].vertex_idx ];
+					const Vector3DP &v2 = g_nav_vertices[ g_nav_halfedges[ face.first_edge_idx + e + 1 ].vertex_idx ];
+					const double triArea = 0.5 * QM_Vector3LengthDP( QM_Vector3CrossProductDP( v1 - v0, v2 - v0 ) );
+					const Vector3DP triCenter = ( v0 + v1 + v2 ) * ( 1.0 / 3.0 );
+					totalRoomArea += triArea;
+					weightedCentroidSum = weightedCentroidSum + ( triCenter * triArea );
+				}
+			}
+
+			int32_t curEdge = face.first_edge_idx;
+			for ( int32_t e = 0; e < face.num_edges; e++ ) {
+				if ( curEdge < 0 || curEdge >= static_cast<int32_t>( g_nav_halfedges.size() ) ) {
+					break;
+				}
+				const nav_halfedge_t &he = g_nav_halfedges[ curEdge ];
+				if ( he.vertex_idx >= 0 && he.vertex_idx < static_cast<int32_t>( g_nav_vertices.size() ) ) {
+					room.bounds.AddPoint( g_nav_vertices[ he.vertex_idx ] );
+				}
+				curEdge = he.next_idx;
+			}
+		}
+
+		if ( totalRoomArea > 0.001 ) {
+			room.centroid = weightedCentroidSum * ( 1.0 / totalRoomArea );
+		} else {
+			room.centroid = ( room.bounds.mins + room.bounds.maxs ) * 0.5;
+		}
+
+		const double faceCountInv = 1.0 / static_cast<double>( std::max<size_t>( 1, room.face_indices.size() ) );
+		room.avg_elevation = sumElevation * faceCountInv;
+		room.max_elevation_delta = maxElevation - minElevation;
+
+		g_nav_rooms.push_back( room );
+	}
+
+	/**
+	*	Construct discrete nav_portal_t records linking adjacent rooms across portal half-edges.
+	**/
+	for ( size_t e = 0; e < numHalfedges; e++ ) {
+		if ( !isPortalHalfedge[ e ] ) {
+			continue;
+		}
+		const nav_halfedge_t &he = g_nav_halfedges[ e ];
+		if ( he.twin_idx < 0 || static_cast<size_t>( he.twin_idx ) <= e ) {
+			continue; // Process each twin pair exactly once
+		}
+		const nav_halfedge_t &twin = g_nav_halfedges[ he.twin_idx ];
+
+		const int32_t faceA = he.face_idx;
+		const int32_t faceB = twin.face_idx;
+		if ( faceA < 0 || faceB < 0 ) {
+			continue;
+		}
+
+		const int32_t roomA = g_nav_faces[ faceA ].room_id;
+		const int32_t roomB = g_nav_faces[ faceB ].room_id;
+		if ( roomA < 0 || roomB < 0 || roomA == roomB ) {
+			continue;
+		}
+
+		const Vector3DP &v0 = g_nav_vertices[ he.vertex_idx ];
+		const Vector3DP &v1 = g_nav_vertices[ twin.vertex_idx ];
+
+		nav_portal_t portal = {};
+		portal.portal_id = static_cast<int32_t>( g_nav_portals.size() );
+		portal.portal_type = portalTypes[ e ];
+		portal.from_room_id = roomA;
+		portal.to_room_id = roomB;
+		portal.halfedge_idx = static_cast<int32_t>( e );
+		portal.entity_number = portalEntities[ e ];
+		portal.center = ( v0 + v1 ) * 0.5;
+		portal.width = QM_Vector3Distance2DDP( v0, v1 );
+
+		Vector3DP edgeVec = v1 - v0;
+		edgeVec.z = 0.0;
+		if ( QM_Vector3LengthDP( edgeVec ) > 0.001 ) {
+			edgeVec = QM_Vector3NormalizeDP( edgeVec );
+			portal.normal = Vector3DP{ -edgeVec.y, edgeVec.x, 0.0 };
+		}
+		portal.is_passable = true;
+
+		const int32_t pIdx = portal.portal_id;
+		g_nav_rooms[ roomA ].portal_indices.push_back( pIdx );
+		g_nav_rooms[ roomB ].portal_indices.push_back( pIdx );
+		g_nav_portals.push_back( portal );
+	}
+
+	/**
+	*	Classify topological zone types and precompute wall standoff metrics.
+	**/
+	for ( nav_room_t &room : g_nav_rooms ) {
+		const double widthX = room.bounds.maxs.x - room.bounds.mins.x;
+		const double widthY = room.bounds.maxs.y - room.bounds.mins.y;
+		const double maxSpan = std::max( widthX, widthY );
+		const double minSpan = std::min( widthX, widthY );
+
+		if ( room.portal_indices.size() == 1 && room.face_indices.size() <= 4 && maxSpan < NAV_ZONE_ALCOVE_MAX_SPAN ) {
+			room.zone_type = ZONE_TYPE_ALCOVE;
+		} else if ( room.max_elevation_delta >= NAV_ZONE_STAIRS_MIN_ELEVATION_DELTA && ( maxSpan / std::max( 1.0, minSpan ) ) >= NAV_ZONE_CORRIDOR_ASPECT_RATIO ) {
+			room.zone_type = ZONE_TYPE_CORRIDOR_STAIRS;
+		} else if ( room.max_elevation_delta >= NAV_ZONE_RAMP_MIN_ELEVATION_DELTA && ( maxSpan / std::max( 1.0, minSpan ) ) >= NAV_ZONE_CORRIDOR_ASPECT_RATIO ) {
+			room.zone_type = ZONE_TYPE_CORRIDOR_RAMP;
+		} else if ( room.portal_indices.size() >= 2 && minSpan < NAV_ZONE_CORRIDOR_MAX_WIDTH && ( maxSpan / std::max( 1.0, minSpan ) ) >= NAV_ZONE_CORRIDOR_FLAT_ASPECT_RATIO ) {
+			room.zone_type = ZONE_TYPE_CORRIDOR_FLAT;
+		} else if ( !room.portal_indices.empty() && maxSpan < NAV_ZONE_ROOM_MAX_SPAN ) {
+			room.zone_type = ZONE_TYPE_ROOM_ENCLOSED;
+		} else {
+			room.zone_type = ZONE_TYPE_OPEN_SPACE;
+		}
+
+		// Precompute interior wall standoffs using 2D half-edge topological raycasts:
+		nav_raycast_result_t resBack = {};
+		nav_raycast_result_t resLeft = {};
+		nav_raycast_result_t resRight = {};
+
+		Nav_RaycastHalfEdge2D( room.centroid, Vector3DP{ 0.0, 1.0, 0.0 }, NAV_WALL_STANDOFF_TRACE_DIST, &resBack );
+		Nav_RaycastHalfEdge2D( room.centroid, Vector3DP{ -1.0, 0.0, 0.0 }, NAV_WALL_STANDOFF_TRACE_DIST, &resLeft );
+		Nav_RaycastHalfEdge2D( room.centroid, Vector3DP{ 1.0, 0.0, 0.0 }, NAV_WALL_STANDOFF_TRACE_DIST, &resRight );
+
+		room.wall_standoff_back = resBack.hitSolidWall ? resBack.hitDistance : ( resBack.hitDistance < NAV_WALL_STANDOFF_TRACE_DIST ? resBack.hitDistance : NAV_WALL_STANDOFF_DEFAULT_DIST );
+		room.wall_standoff_left = resLeft.hitSolidWall ? resLeft.hitDistance : ( resLeft.hitDistance < NAV_WALL_STANDOFF_TRACE_DIST ? resLeft.hitDistance : NAV_WALL_STANDOFF_DEFAULT_DIST );
+		room.wall_standoff_right = resRight.hitSolidWall ? resRight.hitDistance : ( resRight.hitDistance < NAV_WALL_STANDOFF_TRACE_DIST ? resRight.hitDistance : NAV_WALL_STANDOFF_DEFAULT_DIST );
+	}
+
+	gi.dprintf( "NavMesh Spatial Decomposition: Discovered %d rooms/zones and %d transition portals.\n",
+		static_cast<int32_t>( g_nav_rooms.size() ),
+		static_cast<int32_t>( g_nav_portals.size() ) );
+}
+
+/**
+*	@brief	Query the topological spatial room/zone record containing the given world position.
+*	@param	pos	World position query.
+*	@return	Pointer to the enclosing nav_room_t, or nullptr if unassigned/outside mesh.
+**/
+const nav_room_t *Nav_GetRoomForPoint( const Vector3DP &pos ) {
+	int32_t faceIdx = Nav_FindFaceInLeafStrict( pos );
+	if ( faceIdx < 0 || faceIdx >= static_cast<int32_t>( g_nav_faces.size() ) ) {
+		Vector3DP feetPos = pos;
+		feetPos.z -= CROWD_SLOT_FEET_SNAP_OFFSET_Z;
+		faceIdx = Nav_FindFaceInLeafStrict( feetPos );
+	}
+	if ( faceIdx < 0 || faceIdx >= static_cast<int32_t>( g_nav_faces.size() ) ) {
+		faceIdx = Nav_FindClosestFaceInLeaf( pos );
+	}
+	if ( faceIdx >= 0 && faceIdx < static_cast<int32_t>( g_nav_faces.size() ) ) {
+		const int32_t roomId = g_nav_faces[ faceIdx ].room_id;
+		if ( roomId >= 0 && roomId < static_cast<int32_t>( g_nav_rooms.size() ) ) {
+			return &g_nav_rooms[ roomId ];
+		}
+	}
+	return nullptr;
+}
+
+/**
+*	@brief	Query the topological zone type of the given world position.
+*	@param	pos	World position query.
+*	@return	Topological zone type (e.g. ZONE_TYPE_ROOM_ENCLOSED, ZONE_TYPE_CORRIDOR_STAIRS, etc.).
+**/
+nav_zone_type_t Nav_GetZoneTypeForPoint( const Vector3DP &pos ) {
+	const nav_room_t *room = Nav_GetRoomForPoint( pos );
+	return room ? room->zone_type : ZONE_TYPE_OPEN_SPACE;
+}
+
+/**
+*	@brief	Retrieve all boundary transition portals connected to the given room index.
+*	@param	room_id		Room identifier.
+*	@param	outPortals	[out] Vector to populate with pointers to connected nav_portal_t records.
+**/
+void Nav_GetRoomPortals( const int32_t room_id, std::vector<const nav_portal_t*> &outPortals ) {
+	outPortals.clear();
+	if ( room_id >= 0 && room_id < static_cast<int32_t>( g_nav_rooms.size() ) ) {
+		const nav_room_t &room = g_nav_rooms[ room_id ];
+		outPortals.reserve( room.portal_indices.size() );
+		for ( const int32_t pIdx : room.portal_indices ) {
+			if ( pIdx >= 0 && pIdx < static_cast<int32_t>( g_nav_portals.size() ) ) {
+				outPortals.push_back( &g_nav_portals[ pIdx ] );
+			}
+		}
+	}
+}
+
+/**
+*	@brief	Check whether the given position is located inside an enclosed interior room.
+*	@param	pos	World position query.
+*	@return	True if pos lies within a ZONE_TYPE_ROOM_ENCLOSED or ZONE_TYPE_ALCOVE zone.
+**/
+bool Nav_IsPointInEnclosedRoom( const Vector3DP &pos ) {
+	const nav_room_t *room = Nav_GetRoomForPoint( pos );
+	return ( room != nullptr && ( room->zone_type == ZONE_TYPE_ROOM_ENCLOSED || room->zone_type == ZONE_TYPE_ALCOVE ) );
+}
+
+/**
+*	@brief	Retrieve average riser step height for a staircase corridor zone.
+*	@param	room_id	Room identifier.
+*	@return	Average step height in world units (defaults to NAV_MAX_STEP_HEIGHT if flat).
+**/
+double Nav_GetStairCorridorStepHeight( const int32_t room_id ) {
+	if ( room_id >= 0 && room_id < static_cast<int32_t>( g_nav_rooms.size() ) ) {
+		const nav_room_t &room = g_nav_rooms[ room_id ];
+		if ( room.zone_type == ZONE_TYPE_CORRIDOR_STAIRS ) {
+			return std::clamp( room.max_elevation_delta / std::max<double>( 1.0, static_cast<double>( room.face_indices.size() ) ), 8.0, static_cast<double>( NAV_MAX_STEP_HEIGHT ) );
+		}
+	}
+	return static_cast<double>( NAV_MAX_STEP_HEIGHT );
+}
+

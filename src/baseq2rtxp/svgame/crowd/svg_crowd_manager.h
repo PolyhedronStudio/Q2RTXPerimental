@@ -25,6 +25,21 @@
 // Forward declarations.
 struct svg_base_edict_t;
 
+//! Common staging/entry tolerance shared by crowd arrival and monster station keeping.
+static constexpr double CROWD_INGRESS_ARRIVAL_RADIUS = 8.0;
+
+/**
+*	@brief	Lifecycle phases for deterministic single-aperture crowd ingress.
+**/
+enum class crowd_ingress_phase_t : uint8_t {
+	//! No serialized doorway operation is active.
+	INACTIVE = 0,
+	//! Every queued member is moving to a distinct exterior wall-adjacent staging slot.
+	MARSHALLING,
+	//! One queue member at a time owns the doorway and moves to its immutable final slot.
+	ADMISSION
+};
+
 /**
 *	@brief	Active crowd/crew group coordination record.
 **/
@@ -56,6 +71,28 @@ struct svg_crowd_group_t {
 	std::vector<svg_crowd_slot_t> slots = {};
 	//! Normalized horizontal approach vector towards destinationOrigin.
 	Vector3DP ingressDirection = { 0.0, 0.0, 0.0 };
+	//! Center of the constrained doorway currently controlled by serialized ingress.
+	Vector3DP ingressPortalOrigin = { 0.0, 0.0, 0.0 };
+	//! Unit normal pointing from the doorway into the destination room.
+	Vector3DP ingressPortalInward = { 0.0, 0.0, 0.0 };
+	//! Half-width of the finite doorway aperture used for exact lateral hull-clearance tests.
+	double ingressPortalHalfWidth = 0.0;
+	//! Frozen front-to-back entity order for the current doorway reservation queue.
+	std::vector<int32_t> ingressQueueEntityNumbers = {};
+	//! Exterior staging position indexed directly by ingress queue rank.
+	std::vector<Vector3DP> ingressStagingPositions = {};
+	//! Immutable geometric row for plotting; ownership recovery may reorder the reservation records.
+	std::vector<Vector3DP> ingressStagingLine = {};
+	//! O(1) index of the member currently owning the doorway reservation.
+	int32_t ingressQueueHead = 0;
+	//! O(1) cursor retained for ingress phase bookkeeping while admission is queue-head gated.
+	int32_t ingressMarshalCursor = 0;
+	//! Server timestamp when the current queue head began waiting for its staging cell or final room slot.
+	QMTime ingressQueueHeadStartTime = 0_ms;
+	//! Signed interior depth that completely clears an agent hull beyond the portal plane.
+	double ingressReleaseDepth = 0.0;
+	//! Current two-phase doorway protocol state.
+	crowd_ingress_phase_t ingressPhase = crowd_ingress_phase_t::INACTIVE;
 	//! Entity numbers of members actively registered to this group.
 	std::vector<int32_t> memberEntityNumbers = {};
 	//! Server timestamp when current order began.
@@ -66,6 +103,8 @@ struct svg_crowd_group_t {
 	QMTime lastTargetEntityUpdateTime = 0_ms;
 	//! Whether the crowd is actively moving towards orders.
 	bool isMoving = false;
+	//! True while the destination doorway is being consumed as a single-capacity resource.
+	bool hasSerializedIngress = false;
 
 	/**
 	*	@brief	Safely resolve the target entity being followed.
@@ -241,12 +280,13 @@ bool SVG_Crowd_ComputeMutualSeparation( const svg_base_edict_t *ent, Vector3DP *
 
 /**
 *	@brief		Compute speed throttling scale for trailing squad members to yield to leading teammates in narrow corridors.
-*	@param	entityNumber	Query entity number.
-*	@param	moveDir			Normalized 2D horizontal movement direction towards active waypoint.
-*	@param	outSpeedScale	[out] Multiplier applied to frame velocity [0.0..1.0] to maintain following distance.
+*	@param	entityNumber			Query entity number.
+*	@param	moveDir				Normalized 2D horizontal movement direction towards active waypoint.
+*	@param	outSpeedScale			[out] Multiplier applied to frame velocity [0.0..1.0] to maintain following distance.
+*	@param	outStrictQueueing		[out] Optional flag set when throttling was caused by strict bottleneck/doorway single-file queueing.
 *	@return	True if a leading teammate was found directly ahead in the travel corridor.
 **/
-bool SVG_Crowd_ComputeTeammateFollowSpeedScale( const int32_t entityNumber, const Vector3DP &moveDir, double *outSpeedScale );
+bool SVG_Crowd_ComputeTeammateFollowSpeedScale( const int32_t entityNumber, const Vector3DP &moveDir, double *outSpeedScale, bool *outStrictQueueing = nullptr );
 
 /**
 *	@brief	Dynamically optimize slot assignments among crowd members to eliminate crossing trajectories.

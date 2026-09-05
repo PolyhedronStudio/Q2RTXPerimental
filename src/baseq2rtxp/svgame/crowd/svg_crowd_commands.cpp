@@ -17,6 +17,7 @@
 #include "svgame/entities/monster/svg_monster_base.h"
 #include "svgame/svg_edict_pool.h"
 #include "svgame/svg_utils.h"
+#include "svgame/monsters/svg_mmove.h"
 #include "shared/math/qm_vector3_dp.h"
 
 #include <cstdlib>
@@ -60,8 +61,26 @@ static bool SVG_Crowd_TraceCrosshair( Vector3DP *outEndPos, svg_base_edict_t **o
 		return false;
 	}
 
+	Vector3 hitPos = tr.endpos;
+
+	// If the crosshair hit a vertical or steep wall (e.g. aiming at an interior room wall, doorway jamb, or barrier),
+	// step into the walkable volume along the wall plane normal and drop a vertical trace to find the floor surface:
+	if ( tr.plane.normal[ 2 ] < NAV_MIN_WALKABLE_Z ) {
+		//! Wall standoff distance in world units when projecting floor trace from vertical wall impact.
+		static constexpr float CROWD_WALL_TRACE_STANDOFF = 16.0f;
+		//! Maximum vertical drop distance in world units to search for walkable floor below wall impact.
+		static constexpr float CROWD_WALL_FLOOR_DROP_DIST = 1024.0f;
+
+		const Vector3 floorProbeStart = QM_Vector3MultiplyAdd( hitPos, CROWD_WALL_TRACE_STANDOFF, tr.plane.normal );
+		const Vector3 floorProbeEnd = QM_Vector3Add( floorProbeStart, Vector3{ 0.0f, 0.0f, -CROWD_WALL_FLOOR_DROP_DIST } );
+		const svg_trace_t floorTr = SVG_Trace( floorProbeStart, qm_vector3_null, qm_vector3_null, floorProbeEnd, player, CM_CONTENTMASK_SOLID );
+		if ( floorTr.fraction < 1.0f && !floorTr.startsolid && floorTr.plane.normal[ 2 ] >= NAV_MIN_WALKABLE_Z ) {
+			hitPos = floorTr.endpos;
+		}
+	}
+
 	if ( outEndPos ) {
-		*outEndPos = Vector3DP( tr.endpos );
+		*outEndPos = Vector3DP( hitPos );
 	}
 	if ( outHitEnt ) {
 		*outHitEnt = ( tr.ent && tr.ent->inUse && tr.ent != player ) ? tr.ent : nullptr;
@@ -509,6 +528,77 @@ static void SVG_Command_CrowdList_f( void ) {
 }
 
 /**
+*	@brief	Print staging, slot and navigation state for the requested crowd.
+*	@note	Runs only on explicit `sv crowd_status <id>` requests; adds no per-frame logging.
+**/
+static void SVG_Command_CrowdStatus_f( void ) {
+	/**
+	*	Resolve the requested group before inspecting its direct member registry.
+	**/
+	const int32_t crowdID = std::atoi( SVG_Crowd_Argv( 0 ) );
+	const svg_crowd_group_t *group = SVG_Crowd_GetGroup( crowdID );
+	// Missing groups have no state to report.
+	if ( group == nullptr ) {
+		gi.dprintf( "[crowd status] group=%" PRId32 " missing\n", crowdID );
+		return;
+	}
+	gi.dprintf( "[crowd status] group=%" PRId32 " moving=%d ingress=%d head=%" PRId32 "/%zu portal=(%.2f %.2f %.2f) inward=(%.3f %.3f) width=%.2f\n",
+		crowdID, group->isMoving, group->hasSerializedIngress, group->ingressQueueHead,
+		group->ingressQueueEntityNumbers.size(), group->ingressPortalOrigin.x,
+		group->ingressPortalOrigin.y, group->ingressPortalOrigin.z,
+		group->ingressPortalInward.x, group->ingressPortalInward.y, group->ingressPortalHalfWidth * 2.0 );
+	/**
+	*	Report physical feet positions alongside targets so off-slot stalls are observable.
+	**/
+	for ( const int32_t entityNumber : group->memberEntityNumbers ) {
+		svg_base_edict_t *member = g_edict_pool.EdictForNumber( entityNumber );
+		// Ignore dead or removed members while retaining stable entity numbers in the log.
+		if ( member == nullptr || !SVG_Entity_IsActive( member ) || member->health <= 0 ) {
+			continue;
+		}
+		const Vector3DP feet = SVG_GetEntityFeetOriginDP( member );
+		const Vector3 &goal = member->crowd.assignedGoalOrigin;
+		const svg_monster_base_t *monster = dynamic_cast<svg_monster_base_t*>( member );
+		gi.dprintf( "[crowd member] ent=%" PRId32 " rank=%" PRId32 " slot=%" PRId32 " released=%d arrived=%d feet=(%.2f %.2f %.2f) goal=(%.2f %.2f %.2f) path=%zu/%zu nextthink=%" PRIu64 "\n",
+			entityNumber, member->crowd.ingressQueueRank, member->crowd.slotIndex,
+			member->crowd.ingressReleased, member->crowd.reachedGoal,
+			feet.x, feet.y, feet.z, goal.x, goal.y, goal.z,
+			monster != nullptr ? monster->stringPathPos : size_t{ 0 },
+			monster != nullptr ? monster->stringPulledPath.size() : size_t{ 0 },
+			static_cast<uint64_t>( member->nextthink.Milliseconds() ) );
+		// Show the active path waypoint as well as the distant assignment to distinguish steering stalls.
+		if ( monster != nullptr && monster->stringPathPos < monster->stringPulledPath.size() ) {
+			const Vector3DP &waypoint = monster->stringPulledPath[ monster->stringPathPos ];
+			gi.dprintf( "[crowd waypoint] ent=%" PRId32 " next=(%.2f %.2f %.2f) velocity=(%.2f %.2f %.2f)\n",
+				entityNumber, waypoint.x, waypoint.y, waypoint.z, member->velocity.x, member->velocity.y, member->velocity.z );
+			gi.dprintf( "[crowd ground] ent=%" PRId32 " support=%" PRId32 " grounded=%d final=(%.2f %.2f %.2f)\n",
+				entityNumber, member->groundInfo.entityNumber, ( monster->monsterMove.state.mm_flags & MMF_ON_GROUND ) != 0,
+				monster->stringPulledPath.back().x, monster->stringPulledPath.back().y, monster->stringPulledPath.back().z );
+			gi.dprintf( "[crowd input] ent=%" PRId32 " velocity=(%.2f %.2f %.2f)\n", entityNumber,
+				monster->monsterMove.state.previousVelocity.x, monster->monsterMove.state.previousVelocity.y,
+				monster->monsterMove.state.previousVelocity.z );
+			// The reservation owner's full route makes premature corner cutting observable.
+			if ( member->crowd.ingressReleased && !member->crowd.reachedGoal ) {
+				for ( size_t index = 0; index < monster->stringPulledPath.size(); index++ ) {
+					const Vector3DP &point = monster->stringPulledPath[ index ];
+					gi.dprintf( "[crowd route] ent=%" PRId32 " index=%zu point=(%.2f %.2f %.2f) forced=%d\n",
+						entityNumber, index, point.x, point.y, point.z,
+						index < monster->stringPulledWaypointForced.size() && monster->stringPulledWaypointForced[ index ] );
+				}
+			}
+			// A read-only sweep identifies physical obstructions independently of navmesh connectivity.
+			Vector3DP nextCenter = waypoint;
+			nextCenter.z -= static_cast<double>( member->mins.z );
+			const svg_trace_t trace = SVG_MMove_Trace( Vector3DP( member->currentOrigin ), member->mins, member->maxs,
+				nextCenter, member, CONTENTS_NONE, SVG_MMove_GetNativeShape( member ) );
+			gi.dprintf( "[crowd sweep] ent=%" PRId32 " fraction=%.4f solid=%d/%d hit=%" PRId32 " brush=%" PRId32 " normal=(%.3f %.3f %.3f)\n",
+				entityNumber, trace.fraction, trace.startsolid, trace.allsolid,
+				trace.entityNumber, trace.brushID, trace.plane.normal[ 0 ], trace.plane.normal[ 1 ], trace.plane.normal[ 2 ] );
+		}
+	}
+}
+
+/**
 *	@brief	Register all crowd developer console commands.
 **/
 void SVG_Crowd_RegisterCommands( void ) {
@@ -525,10 +615,11 @@ bool SVG_Crowd_ServerCommand( const char *cmd ) {
 		return false;
 	}
 
-	if ( Q_stricmp( cmd, "crowd_move" ) == 0 ) {
+	if ( Q_stricmp( cmd, "crowd_move" ) == 0 || Q_stricmp( cmd, "crowd_mode" ) == 0 ||
+		 Q_stricmp( cmd, "move_crowd" ) == 0 || Q_stricmp( cmd, "movecrowd" ) == 0 ) {
 		SVG_Command_CrowdMove_f();
 		return true;
-	} else if ( Q_stricmp( cmd, "crowd_follow" ) == 0 ) {
+	} else if ( Q_stricmp( cmd, "crowd_follow" ) == 0 || Q_stricmp( cmd, "follow_crowd" ) == 0 || Q_stricmp( cmd, "followcrowd" ) == 0 ) {
 		SVG_Command_CrowdFollow_f();
 		return true;
 	} else if ( Q_stricmp( cmd, "crowd_style" ) == 0 ) {
@@ -546,8 +637,10 @@ bool SVG_Crowd_ServerCommand( const char *cmd ) {
 	} else if ( Q_stricmp( cmd, "crowd_list" ) == 0 ) {
 		SVG_Command_CrowdList_f();
 		return true;
+	} else if ( Q_stricmp( cmd, "crowd_status" ) == 0 ) {
+		SVG_Command_CrowdStatus_f();
+		return true;
 	}
 
 	return false;
 }
-

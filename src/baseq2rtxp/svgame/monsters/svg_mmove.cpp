@@ -88,7 +88,7 @@ const mm_trace_shape_t SVG_MMove_GetNativeShape( const svg_base_edict_t *passEnt
 * @note Analytical engine traces use center-space coordinates, so the asymmetric bounds offset
 *       is applied before the sweep and removed from the returned endpoint.
 **/
-const svg_trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, svg_base_edict_t *passEntity, cm_contents_t contentMask, mm_trace_shape_t shape ) {
+const svg_trace_t SVG_MMove_Trace( const Vector3DP &start, const Vector3 &mins, const Vector3 &maxs, const Vector3DP &end, svg_base_edict_t *passEntity, cm_contents_t contentMask, mm_trace_shape_t shape ) {
 	if ( contentMask == CONTENTS_NONE ) {
 		contentMask = CM_CONTENTMASK_MONSTERSOLID;
 	}
@@ -97,11 +97,11 @@ const svg_trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, co
 	const float radius = ( maxs.x - mins.x ) * 0.5f;
 	const float fullHalfHeight = ( maxs.z - mins.z ) * 0.5f;
 	const float capsuleHalfHeight = std::max( 0.0f, fullHalfHeight - radius );
-	const float centerOffsetZ = ( mins.z + maxs.z ) * 0.5f;
+	const double centerOffsetZ = static_cast<double>( mins.z + maxs.z ) * 0.5;
 
-	Vector3 capStart = start;
+	Vector3DP capStart = start;
 	capStart.z += centerOffsetZ;
-	Vector3 capEnd = end;
+	Vector3DP capEnd = end;
 	capEnd.z += centerOffsetZ;
 
 	/**
@@ -116,31 +116,33 @@ const svg_trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, co
 	**/
 	// Trace against the world and all entities (including BSPs).
 	svg_trace_t tr;
+	const Vector3 capStartV3 = QM_Vector3FromDP( capStart );
+	const Vector3 capEndV3 = QM_Vector3FromDP( capEnd );
 	if ( shape == MM_SHAPE_CYLINDER ) {
-		tr = SVG_TraceCylinder( capStart, radius, fullHalfHeight, capEnd, passEntity, contentMask );
+		tr = SVG_TraceCylinder( capStartV3, radius, fullHalfHeight, capEndV3, passEntity, contentMask );
 	} else {
-		tr = SVG_TraceCapsule( capStart, radius, capsuleHalfHeight, capEnd, passEntity, contentMask );
+		tr = SVG_TraceCapsule( capStartV3, radius, capsuleHalfHeight, capEndV3, passEntity, contentMask );
 	}
 	#if defined( SVG_DEBUG_STAIR_TRACES )
-	SVG_MMove_DebugTrace( shape == MM_SHAPE_CYLINDER ? "Cylinder" : "Capsule", capStart, capEnd, tr, radius, shape == MM_SHAPE_CYLINDER ? fullHalfHeight : capsuleHalfHeight );
+	SVG_MMove_DebugTrace( shape == MM_SHAPE_CYLINDER ? "Cylinder" : "Capsule", capStartV3, capEndV3, tr, radius, shape == MM_SHAPE_CYLINDER ? fullHalfHeight : capsuleHalfHeight );
 	#endif
-	tr.endpos.z -= centerOffsetZ;
+	tr.endpos.z -= static_cast<float>( centerOffsetZ );
 	return tr;
 }
 
 /**
-*	@brief	Perform a step-aware and slope-aware swept trace probe using the mover's native analytical shape.
+*	@brief	Perform a step-aware and slope-aware swept trace probe using the mover's native analytical shape in double precision.
 *	@param	start			Starting position in world space.
 *	@param	mins			Bounding box minimums.
 *	@param	maxs			Bounding box maximums.
 *	@param	end				Target probe destination in world space.
 *	@param	passEntity		Monster entity to ignore during trace.
 *	@param	outEndpos		[out] Furthest reachable ground position.
-*	@param	maxStepHeight	Maximum step-up height (defaults to 18.25f).
-*	@param	maxDropHeight	Maximum step-down drop height (defaults to 128.0f).
+*	@param	maxStepHeight	Maximum step-up height (defaults to 18.25).
+*	@param	maxDropHeight	Maximum step-down drop height (defaults to 128.0).
 *	@return	True if progress was made towards end (fraction > 0.1), false if immediately blocked.
 **/
-const bool SVG_MMove_StepProbe( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, svg_base_edict_t *passEntity, Vector3 *outEndpos, const float maxStepHeight, const float maxDropHeight ) {
+const bool SVG_MMove_StepProbe( const Vector3DP &start, const Vector3 &mins, const Vector3 &maxs, const Vector3DP &end, svg_base_edict_t *passEntity, Vector3DP *outEndpos, const double maxStepHeight, const double maxDropHeight ) {
 	/**
 	*	Sanity checks / output pointer validation.
 	**/
@@ -164,46 +166,46 @@ const bool SVG_MMove_StepProbe( const Vector3 &start, const Vector3 &mins, const
 	*	2. If destination reached cleanly, check ground underneath to handle slopes / downward stairs.
 	**/
 	if ( directTr.fraction >= 1.0f ) {
-		Vector3 downFloor = directTr.endpos;
+		Vector3DP downFloor = Vector3DP( directTr.endpos );
 		downFloor.z -= maxDropHeight;
-		const svg_trace_t downTr = SVG_MMove_Trace( directTr.endpos, mins, maxs, downFloor, passEntity, CM_CONTENTMASK_SOLID, nativeShape );
-		if ( !downTr.allsolid && !downTr.startsolid && downTr.fraction < 1.0f && downTr.plane.normal[ 2 ] >= 0.7f ) {
-			*outEndpos = downTr.endpos;
+		const svg_trace_t downTr = SVG_MMove_Trace( Vector3DP( directTr.endpos ), mins, maxs, downFloor, passEntity, CM_CONTENTMASK_SOLID, nativeShape );
+		if ( !downTr.allsolid && !downTr.startsolid && downTr.fraction < 1.0f && static_cast<double>( downTr.plane.normal[ 2 ] ) >= 0.7 ) {
+			*outEndpos = Vector3DP( downTr.endpos );
 			return true;
 		}
-		*outEndpos = directTr.endpos;
+		*outEndpos = Vector3DP( directTr.endpos );
 		return true;
 	}
 
 	/**
-	*	3. If contact was a walkable ramp/slope surface (normal.z >= 0.7f), accept progress along the slope.
+	*	3. If contact was a walkable ramp/slope surface (normal.z >= 0.7), accept progress along the slope.
 	**/
-	if ( directTr.fraction > 0.15f && directTr.plane.normal[ 2 ] >= 0.7f ) {
-		*outEndpos = directTr.endpos;
+	if ( directTr.fraction > 0.15f && static_cast<double>( directTr.plane.normal[ 2 ] ) >= 0.7 ) {
+		*outEndpos = Vector3DP( directTr.endpos );
 		return true;
 	}
 
 	/**
 	*	4. If blocked by a vertical step riser or curb (stairs, step-up), attempt a step-up probe.
 	**/
-	Vector3 stepStart = start;
+	Vector3DP stepStart = start;
 	stepStart.z += maxStepHeight;
 	const svg_trace_t upTr = SVG_MMove_Trace( start, mins, maxs, stepStart, passEntity, CM_CONTENTMASK_SOLID, nativeShape );
 	if ( !upTr.allsolid && !upTr.startsolid && upTr.fraction > 0.2f ) {
 		// Calculate actual overhead step clearance achieved
-		const float actualStepUp = ( upTr.endpos.z - start.z );
-		Vector3 elevatedEnd = end;
+		const double actualStepUp = ( static_cast<double>( upTr.endpos.z ) - start.z );
+		Vector3DP elevatedEnd = end;
 		elevatedEnd.z += actualStepUp;
 
 		// Sweep forward at elevated step height
-		const svg_trace_t fwdTr = SVG_MMove_Trace( upTr.endpos, mins, maxs, elevatedEnd, passEntity, CM_CONTENTMASK_SOLID, nativeShape );
+		const svg_trace_t fwdTr = SVG_MMove_Trace( Vector3DP( upTr.endpos ), mins, maxs, elevatedEnd, passEntity, CM_CONTENTMASK_SOLID, nativeShape );
 		if ( !fwdTr.allsolid && !fwdTr.startsolid && fwdTr.fraction > directTr.fraction ) {
 			// Sweep down to find the stair tread or floor landing
-			Vector3 downFloor = fwdTr.endpos;
+			Vector3DP downFloor = Vector3DP( fwdTr.endpos );
 			downFloor.z -= ( actualStepUp + maxDropHeight );
-			const svg_trace_t groundTr = SVG_MMove_Trace( fwdTr.endpos, mins, maxs, downFloor, passEntity, CM_CONTENTMASK_SOLID, nativeShape );
-			if ( !groundTr.allsolid && !groundTr.startsolid && groundTr.fraction < 1.0f && groundTr.plane.normal[ 2 ] >= 0.7f ) {
-				*outEndpos = groundTr.endpos;
+			const svg_trace_t groundTr = SVG_MMove_Trace( Vector3DP( fwdTr.endpos ), mins, maxs, downFloor, passEntity, CM_CONTENTMASK_SOLID, nativeShape );
+			if ( !groundTr.allsolid && !groundTr.startsolid && groundTr.fraction < 1.0f && static_cast<double>( groundTr.plane.normal[ 2 ] ) >= 0.7 ) {
+				*outEndpos = Vector3DP( groundTr.endpos );
 				return true;
 			}
 		}
@@ -212,16 +214,16 @@ const bool SVG_MMove_StepProbe( const Vector3 &start, const Vector3 &mins, const
 	/**
 	*	5. Fallback: return baseline contact if non-trivial progress was made onto walkable ground.
 	**/
-	if ( QM_Vector3DistanceSqr( start, directTr.endpos ) >= ( 32.0f * 32.0f ) ) {
-		Vector3 downFloor = directTr.endpos;
+	if ( QM_Vector3DistanceSqrDP( start, Vector3DP( directTr.endpos ) ) >= ( 32.0 * 32.0 ) ) {
+		Vector3DP downFloor = Vector3DP( directTr.endpos );
 		downFloor.z -= maxDropHeight;
-		const svg_trace_t downTr = SVG_MMove_Trace( directTr.endpos, mins, maxs, downFloor, passEntity, CM_CONTENTMASK_SOLID, nativeShape );
-		if ( !downTr.allsolid && !downTr.startsolid && downTr.fraction < 1.0f && downTr.plane.normal[ 2 ] >= 0.7f ) {
-			Vector3 safePos = downTr.endpos;
+		const svg_trace_t downTr = SVG_MMove_Trace( Vector3DP( directTr.endpos ), mins, maxs, downFloor, passEntity, CM_CONTENTMASK_SOLID, nativeShape );
+		if ( !downTr.allsolid && !downTr.startsolid && downTr.fraction < 1.0f && static_cast<double>( downTr.plane.normal[ 2 ] ) >= 0.7 ) {
+			Vector3DP safePos = Vector3DP( downTr.endpos );
 			// If we impacted a vertical wall or steep slope, offset outward away from the wall
-			if ( directTr.plane.normal[ 2 ] < 0.7f ) {
-				safePos.x += directTr.plane.normal[ 0 ] * 16.0f;
-				safePos.y += directTr.plane.normal[ 1 ] * 16.0f;
+			if ( static_cast<double>( directTr.plane.normal[ 2 ] ) < 0.7 ) {
+				safePos.x += static_cast<double>( directTr.plane.normal[ 0 ] ) * 16.0;
+				safePos.y += static_cast<double>( directTr.plane.normal[ 1 ] ) * 16.0;
 			}
 			*outEndpos = safePos;
 			return true;
@@ -263,7 +265,7 @@ static bool MMove_CheckStep( const mm_move_t *monsterMove, const svg_trace_t *tr
 	* 	Accept the trace only when the contacted surface still behaves like a step-up
 	* 	rather than a wall or a too-steep landing.
 	**/
-	if ( trace->plane.normal[ 2 ] >= minStepNormal ) {
+	if ( static_cast<double>( trace->plane.normal[ 2 ] ) >= minStepNormal ) {
 		return true;
 	}
 
@@ -276,10 +278,10 @@ static bool MMove_CheckStep( const mm_move_t *monsterMove, const svg_trace_t *tr
 **/
 static void MMove_StepDown( mm_move_t *monsterMove, const svg_trace_t *trace ) {
 	// Apply the trace endpos as the new origin.
-	monsterMove->state.origin = trace->endpos;
+	monsterMove->state.origin = Vector3DP( trace->endpos );
 
 	// Determine the step height based on the new, and previous origin.
-	const float step_height = monsterMove->state.origin.z - monsterMove->state.previousOrigin.z;
+	const double step_height = monsterMove->state.origin.z - monsterMove->state.previousOrigin.z;
 
 	// If its absolute(-/+) value >= PM_STEP_MIN_SIZE(14.0) then we got an official step.
 	
@@ -288,7 +290,7 @@ static void MMove_StepDown( mm_move_t *monsterMove, const svg_trace_t *trace ) {
 	if ( monsterMove->navPolicy ) {
 		minStepSize = monsterMove->navPolicy->min_step_height;
 	}
-	if ( fabsf( step_height ) >= minStepSize ) {
+	if ( std::fabs( step_height ) >= minStepSize ) {
 		// Store non absolute but exact step height.
 		monsterMove->step.height = step_height;
 	}
@@ -310,21 +312,21 @@ static void MMove_StepDown( mm_move_t *monsterMove, const svg_trace_t *trace ) {
 **/
 const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, const nav_path_policy_t &policy ) {
 	svg_trace_t trace = {};
-	Vector3 startOrigin = monsterMove->state.previousOrigin = monsterMove->state.origin;
-	Vector3 startVelocity = monsterMove->state.previousVelocity = monsterMove->state.velocity;
+	Vector3DP startOrigin = monsterMove->state.previousOrigin = monsterMove->state.origin;
+	Vector3DP startVelocity = monsterMove->state.previousVelocity = monsterMove->state.velocity;
 
 	/**
 	* Resolve the mover shape once so the initial slide and every step candidate use identical geometry.
 	**/
 	const mm_trace_shape_t movementShape = SVG_MMove_GetNativeShape( monsterMove->monster );
 
-	// Perform an actual 'Step Slide'.
-	const mm_slide_move_flags_t groundBlockedMask = SVG_MMove_SlideMove( monsterMove->state.origin, monsterMove->state.velocity, monsterMove->frameTime, monsterMove->mins, monsterMove->maxs, monsterMove->monster, monsterMove->touchTraces, false /* monsterMove->hasTime */, movementShape );
+	// Perform an actual 'Step Slide' in double precision.
+	const mm_slide_move_flags_t groundBlockedMask = SVG_MMove_SlideMove( monsterMove->state.origin, monsterMove->state.velocity, monsterMove->frameTime, monsterMove->mins, monsterMove->maxs, monsterMove->monster, monsterMove->touchTraces, false /* monsterMove->hasTime */, movementShape, monsterMove->navPolicy );
 	mm_slide_move_flags_t blockedMask = groundBlockedMask;
 
-	// Store for downward move XY.
-	Vector3 downOrigin = monsterMove->state.origin;
-	Vector3 downVelocity = monsterMove->state.velocity;
+	// Store for downward move XY in double precision.
+	Vector3DP downOrigin = monsterMove->state.origin;
+	Vector3DP downVelocity = monsterMove->state.velocity;
 	bool acceptedStepUp = false;
 
 	// Get max step size.
@@ -334,26 +336,26 @@ const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, con
 	}
 
 	// Perform 'up-trace' to see whether we can step up at all
-	Vector3 up = startOrigin + Vector3{ 0., 0., maxStepSize };
+	Vector3DP up = startOrigin + Vector3DP{ 0.0, 0.0, maxStepSize };
 	// Use the same native shape as the initial slide so the step candidate cannot change clearance semantics.
 	trace = SVG_MMove_Trace( startOrigin, monsterMove->mins, monsterMove->maxs, up, monsterMove->monster, CONTENTS_NONE, movementShape );
 	if ( trace.allsolid ) {
 		return blockedMask; // can't step up
 	}
 
-	// Determine step size to test with.
-	const float stepSize = trace.endpos[ 2 ] - startOrigin.z;
+	// Determine step size to test with in double precision.
+	const double stepSize = static_cast<double>( trace.endpos[ 2 ] ) - startOrigin.z;
 
 	// We can step up. Try sliding above.
-	monsterMove->state.origin = trace.endpos;
+	monsterMove->state.origin = Vector3DP( trace.endpos );
 	monsterMove->state.velocity = startVelocity;
 
 	// Perform the elevated slide with the same shape so a capsule cannot become a cylinder at the stair seam.
-	const mm_slide_move_flags_t elevatedBlockedMask = SVG_MMove_SlideMove( monsterMove->state.origin, monsterMove->state.velocity, monsterMove->frameTime, monsterMove->mins, monsterMove->maxs, monsterMove->monster, monsterMove->touchTraces, false /* monsterMove->hasTime */, movementShape );
+	const mm_slide_move_flags_t elevatedBlockedMask = SVG_MMove_SlideMove( monsterMove->state.origin, monsterMove->state.velocity, monsterMove->frameTime, monsterMove->mins, monsterMove->maxs, monsterMove->monster, monsterMove->touchTraces, false /* monsterMove->hasTime */, movementShape, monsterMove->navPolicy );
 
 	// Push down the final amount.
-	Vector3 down = monsterMove->state.origin;
-	down.z -= stepSize + (float)MM_STEP_GROUND_DIST;
+	Vector3DP down = monsterMove->state.origin;
+	down.z -= stepSize + MM_STEP_GROUND_DIST;
 
 	// Trace down to the step floor with the same mover shape.
 	trace = SVG_MMove_Trace( monsterMove->state.origin, monsterMove->mins, monsterMove->maxs, down, monsterMove->monster, CONTENTS_NONE, movementShape );
@@ -361,7 +363,7 @@ const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, con
 		// WID: Use proper stair step checking.
 		if ( MMove_CheckStep( monsterMove, &trace ) ) {
 			// Only an upwards jump is a stair clip.
-			if ( monsterMove->state.velocity.z > 0.f ) {
+			if ( monsterMove->state.velocity.z > 0.0 ) {
 				monsterMove->step.clipped = true;
 			}
 			// Step down to the new found ground.
@@ -371,15 +373,16 @@ const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, con
 
 	up = monsterMove->state.origin;
 
-	// Decide which one went farther, use 'Vector2Length', ignore the Z axis.
-	const float down_dist = ( downOrigin.x - startOrigin.x ) * ( downOrigin.x - startOrigin.x ) + ( downOrigin.y - startOrigin.y ) * ( downOrigin.y - startOrigin.y );
-	const float up_dist = ( up.x - startOrigin.x ) * ( up.x - startOrigin.x ) + ( up.y - startOrigin.y ) * ( up.y - startOrigin.y );
+	// Decide which one went farther, use 'Vector2Length', ignore the Z axis in double precision.
+	const double down_dist = ( downOrigin.x - startOrigin.x ) * ( downOrigin.x - startOrigin.x ) + ( downOrigin.y - startOrigin.y ) * ( downOrigin.y - startOrigin.y );
+	const double up_dist = ( up.x - startOrigin.x ) * ( up.x - startOrigin.x ) + ( up.y - startOrigin.y ) * ( up.y - startOrigin.y );
 
 	// The elevated candidate is valid only when the downward probe found a
-	// walkable landing surface. A missed/all-solid probe must restore the
-	// original slide result; otherwise the temporary step-up becomes a jump.
-	const float minStepNormal = monsterMove->navPolicy ? monsterMove->navPolicy->min_step_normal : MM_MIN_STEP_NORMAL;
-	const bool hasWalkableLanding = !trace.allsolid && trace.fraction < 1.f && trace.plane.normal[ 2 ] >= minStepNormal;
+	// walkable static world landing surface. Stepping onto other dynamic entities (monsters)
+	// is strictly disallowed so agents do not phase through each other's hulls:
+	const double minStepNormal = monsterMove->navPolicy ? monsterMove->navPolicy->min_step_normal : MM_MIN_STEP_NORMAL;
+	const bool isStaticWorldLanding = ( trace.ent == nullptr || trace.ent->s.number == 0 );
+	const bool hasWalkableLanding = !trace.allsolid && trace.fraction < 1.0f && isStaticWorldLanding && static_cast<double>( trace.plane.normal[ 2 ] ) >= minStepNormal;
 	if ( down_dist > up_dist || !hasWalkableLanding ) {
 		monsterMove->state.origin = downOrigin;
 		monsterMove->state.velocity = downVelocity;
@@ -401,10 +404,10 @@ const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, con
 
 	// Paril: step down stairs/slopes
 	if ( !acceptedStepUp && ( monsterMove->state.mm_flags & MMF_ON_GROUND ) && !( monsterMove->state.mm_flags & MMF_ON_LADDER ) &&
-        ( monsterMove->liquid.level < cm_liquid_level_t::LIQUID_WAIST || ( /*!( pm->cmd.buttons & BUTTON_JUMP ) &&*/ monsterMove->state.velocity.z <= 0 ) ) ) {
+        ( monsterMove->liquid.level < cm_liquid_level_t::LIQUID_WAIST || ( /*!( pm->cmd.buttons & BUTTON_JUMP ) &&*/ monsterMove->state.velocity.z <= 0.0 ) ) ) {
         // Use policy for step height.
-		Vector3 downOffset = { 0.f, 0.f, (float)policy.max_obstruction_jump_height };
-        Vector3 down = QM_Vector3Subtract(monsterMove->state.origin, downOffset);
+		const Vector3DP downOffset = { 0.0, 0.0, static_cast<double>( policy.max_obstruction_jump_height ) };
+        Vector3DP down = monsterMove->state.origin - downOffset;
 		// Keep the slope-follow/down-step probe on the resolved mover shape for continuity.
 		trace = SVG_MMove_Trace( monsterMove->state.origin, monsterMove->mins, monsterMove->maxs, down, monsterMove->monster, CONTENTS_NONE, movementShape );
 
@@ -414,39 +417,15 @@ const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, con
 			// Step down stairs:
 			MMove_StepDown( monsterMove, &trace );
 		// We're expecting it to be a slope, step down the slope instead:
-		} else if ( trace.fraction < 1.f ) {
-			monsterMove->state.origin = trace.endpos;
+		} else if ( trace.fraction < 1.0f ) {
+			monsterMove->state.origin = Vector3DP( trace.endpos );
 		}
 	}
 
-	//if ( monsterMove->state.gravity > 0 ) {
-	//	monsterMove->state.velocity.z = 0;
-	//} else {
-	//	monsterMove->state.velocity.z -= monsterMove->state.gravity * monsterMove->frameTime;
-	//}
-
-    // Apply gravity after having stored original startVelocity.
+    // Apply gravity after having stored original startVelocity in double precision.
     if ( !( monsterMove->state.mm_flags & MMF_ON_GROUND ) ) {
-        const float oldZ = monsterMove->state.velocity.z;
-        const float delta = ( float )monsterMove->state.gravity * ( float )monsterMove->frameTime;
+        const double delta = static_cast<double>( monsterMove->state.gravity ) * monsterMove->frameTime;
         monsterMove->state.velocity.z -= delta;
-		#if 0
-		// Limit logging to once per server frame to reduce spam.
-        static int32_t s_last_mmove_log_frame = -1;
-        if ( monsterMove->monster && level.frameNumber != s_last_mmove_log_frame ) {
-            s_last_mmove_log_frame = level.frameNumber;
-            const double timeSec = level.time.Seconds<double>();
-            gi.dprintf( "[DEBUG][%f frame=%d] SVG_MMove_StepSlideMove: ent=%d gravity=%d frameTime=%.6f delta=%.6f oldZ=%.6f newZ=%.6f\n",
-                timeSec,
-                level.frameNumber,
-                monsterMove->monster->s.number,
-                ( int )monsterMove->state.gravity,
-                monsterMove->frameTime,
-                delta,
-                oldZ,
-                monsterMove->state.velocity.z );
-        }
-		#endif
     }
 
 	return blockedMask;
@@ -482,21 +461,21 @@ void SVG_MMove_FaceIdealYaw( svg_base_edict_t *ent, const float idealYaw, const 
 		return;
 	}
 
-	double yawAngleMove = idealYaw - currentYawAngle;
+	// Calculate delta normalized to [-180, +180] degrees:
+	double yawAngleMove = QM_AngleDelta( static_cast<double>( idealYaw ), static_cast<double>( currentYawAngle ) );
 
-	// Prevent the monster from rotating a full circle around the yaw.
-	// Do so by keeping angles between -180/+180, depending on whether ideal yaw is higher or lower than current.
-	yawAngleMove = QM_Wrap( yawAngleMove, -180., 180. );
-	#if 0
-	if (ideal > current) { if ( yawAngleMove >= 180 ) { yawAngleMove = yawAngleMove - 360; } } else { if ( yawAngleMove <= -180 ) { yawAngleMove = yawAngleMove + 360; } }
-	#endif
-	// Clamp the yaw move speed.
-	yawAngleMove = QM_Clamp( yawAngleMove, (double) - yawSpeed, (double)yawSpeed );
-	#if 0
-	if (move > 0) { if ( yawAngleMove > yawSpeed ) { yawAngleMove = yawSpeed; } } else { if ( yawAngleMove < -yawSpeed ) { yawAngleMove = -yawSpeed; }
-	#endif
-	// AngleMod the final resulting angles.
-	ent->currentAngles[ YAW ] = QM_AngleMod( currentYawAngle + yawAngleMove );
+	// Deadband snap: if within 0.5 degrees of ideal yaw, snap directly to eliminate sub-degree oscillation
+	if ( std::fabs( yawAngleMove ) < 0.5 ) {
+		ent->currentAngles[ YAW ] = QM_AngleMod( idealYaw );
+		SVG_Util_SetEntityAngles( ent, ent->currentAngles, true );
+		return;
+	}
+
+	// Clamp the yaw move speed to max yaw speed per frame:
+	yawAngleMove = QM_Clamp( yawAngleMove, -static_cast<double>( yawSpeed ), static_cast<double>( yawSpeed ) );
+
+	// AngleMod the final resulting angles into [0, 360):
+	ent->currentAngles[ YAW ] = QM_AngleMod( static_cast<float>( currentYawAngle + yawAngleMove ) );
 
 	// Keep render/network state synchronized with the authoritative currentAngles update.
 	SVG_Util_SetEntityAngles( ent, ent->currentAngles, true );

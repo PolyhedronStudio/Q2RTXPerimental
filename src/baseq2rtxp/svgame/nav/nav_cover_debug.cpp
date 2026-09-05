@@ -1,4 +1,3 @@
-//! Tactical cover point debug rendering and visualization routines.
 /********************************************************************
 *
 *
