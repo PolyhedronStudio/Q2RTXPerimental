@@ -415,7 +415,7 @@ Ideally this list would never exist, but in this world we can't have it all so, 
 	sometimes not show the player model and not play sound properly.
 
 ---
-## V0.0.7 TODO:
+## V0.0.8 TODO:
 These items are to be done before we can call it a day for v0.0.7.
 ### Add:
 - [ ] Ensure the weapon model material is an actual 'chrome'/'metal' PBR material.
@@ -438,7 +438,8 @@ These items are to be done before we can call it a day for v0.0.6.
 - [ ] Create a basic deathmatch map, weapons and ammo scattered around, with a set of "custom" PBR materials. ( We got no "buy" menu yet. )
 - [ ] Two proper game modes to choose from, deathmatch and team deathmatch.
 - [ ] Add a basic hostage rescue gamemode, which will be the first gamemode to be implemented.
-	- [ ] This requires a minimal UI to be implemented.
+	- [\] This requires a minimal UI to be implemented.
+		- [ ] Still needs the menu implementation.
 	- [ ] Change the monster_testdummy to an actual hostage monster that we can activate for it to follow us around, and which we can rescue at the end of the map.
 	- [ ] Check physics.cpp because we got MOVETYPE_ROOTMOTION, we want to combine the logic of the monster_testdummy that it holds right now, with the movetype, and abstract it away so our monster code remains clean. Yes..._
 ### Fix:
