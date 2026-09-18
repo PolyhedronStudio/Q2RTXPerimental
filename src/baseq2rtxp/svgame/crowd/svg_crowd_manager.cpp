@@ -12,6 +12,8 @@
 ********************************************************************/
 #include "svgame/crowd/svg_crowd_manager.h"
 #include "svgame/crowd/svg_crowd_formations.h"
+#include "svgame/crowd/svg_squad_coordinator.h"
+#include "svgame/nav/nav_sector_graph.h"
 #include "svgame/entities/svg_base_edict.h"
 #include "svgame/entities/monster/svg_monster_base.h"
 #include "svgame/entities/monster/svg_monster_testdummy_debug.h"
@@ -59,7 +61,7 @@ static constexpr double CROWD_BOTTLENECK_WAYPOINT_PROXIMITY = 96.0;
 static constexpr double CROWD_BOTTLENECK_WAYPOINT_PROXIMITY_SQR = CROWD_BOTTLENECK_WAYPOINT_PROXIMITY * CROWD_BOTTLENECK_WAYPOINT_PROXIMITY;
 
 //! Distance delta threshold in world units to determine clear right-of-way priority at bottleneck passages.
-static constexpr double CROWD_BOTTLENECK_DISTANCE_EPSILON = 4.0;
+static constexpr double CROWD_BOTTLENECK_DISTANCE_EPSILON = 0.1;
 
 //! Influence zone radius from a doorway bottleneck within which single-file zipper queueing is active.
 static constexpr double CROWD_BOTTLENECK_ZONE_INFLUENCE_DIST = 140.0;
@@ -72,6 +74,17 @@ static constexpr double CROWD_BOTTLENECK_CRAWL_HEADWAY_DIST = 72.0;
 
 //! Throttled frame velocity scale applied to trailing agents pacing in single file behind a bottleneck leader.
 static constexpr double CROWD_BOTTLENECK_CRAWL_SPEED_SCALE = 0.35;
+
+//! Clearance distance in world units past a doorway bottleneck waypoint beyond which a crossing leader has cleared the aperture.
+static constexpr double CROWD_BOTTLENECK_APERTURE_CLEAR_DIST = 48.0;
+
+//! Threshold hold distance in world units from a doorway bottleneck waypoint where waiting agents halt outside the aperture.
+//! Set to 72.0 units so an agent holding at the threshold line leaves the 48-unit aperture zone completely unobstructed.
+static constexpr double CROWD_BOTTLENECK_THRESHOLD_HOLD_DIST = 72.0;
+
+//! Funnel distance in world units from a doorway bottleneck waypoint within which zipper deconfliction engages.
+//! Matches CROWD_BOTTLENECK_ZONE_INFLUENCE_DIST (140.0) so converging followers decelerate early and zipper into single file.
+static constexpr double CROWD_BOTTLENECK_FUNNEL_DIST = 140.0;
 
 
 
@@ -214,6 +227,37 @@ static void SVG_Crowd_ResetSerializedIngress( svg_crowd_group_t &group, const st
 		}
 		member->crowd.ingressQueueRank = -1;
 		member->crowd.ingressReleased = true;
+	}
+}
+
+/**
+*	@brief	Reset group-owned serialized room egress state and restore member egress permissions.
+*	@param	group	Active crowd coordination group.
+*	@param	members	List of active squad member entities.
+**/
+static void SVG_Crowd_ResetSerializedEgress( svg_crowd_group_t &group, const std::vector<svg_base_edict_t*> &members ) {
+	/**
+	*	Reset group-owned egress portal state.
+	**/
+	group.egressPortalOrigin = Vector3DP{ 0.0, 0.0, 0.0 };
+	group.egressPortalOutward = Vector3DP{ 0.0, 0.0, 0.0 };
+	group.egressPortalHalfWidth = 0.0;
+	group.egressQueueEntityNumbers.clear();
+	group.egressQueueHead = 0;
+	group.egressQueueHeadStartTime = 0_ms;
+	group.egressNextReleaseTime = 0_ms;
+	group.hasSerializedEgress = false;
+
+	/**
+	*	Reset per-member direct-access egress queue metadata.
+	**/
+	for ( svg_base_edict_t *member : members ) {
+		// Ignore stale entity pointers while rebuilding an order.
+		if ( member == nullptr ) {
+			continue;
+		}
+		member->crowd.egressQueueRank = -1;
+		member->crowd.egressReleased = true;
 	}
 }
 
@@ -1088,13 +1132,25 @@ static bool SVG_Crowd_UpdateSerializedIngress( svg_crowd_group_t &group ) {
 			std::fabs( activeFeet.z - stagingGoal.z ) <= CROWD_ARRIVAL_MAX_Z_DIFF;
 		// Preserve the reservation until the head is physically occupying its plotted exterior cell.
 		if ( !stagingPositionMatches ) {
+			// Compute proximity of the queue head to the destination staging zone.
+			const double distHeadToStagingSq = QM_Vector3Distance2DSqrDP( activeFeet, stagingGoal );
+			const double stagingInfluenceRadius = CROWD_BOTTLENECK_ZONE_INFLUENCE_DIST;
+			const bool headNearStaging = ( distHeadToStagingSq <= stagingInfluenceRadius * stagingInfluenceRadius );
+
+			// While the queue head is traversing across the map towards the staging area,
+			// it is making normal travel progress and must not time out on the 2.5s wait timer.
+			// Keep refreshing ingressQueueHeadStartTime so the wait timeout only elapses once proximate.
+			if ( !headNearStaging ) {
+				group.ingressQueueHeadStartTime = level.time;
+			}
+
 			//! Maximum stationary interval before an unreachable staging owner yields its queue rank.
 			static constexpr QMTime CROWD_INGRESS_STAGING_STALL_TIMEOUT = 1500_ms;
 			//! Maximum queue-head wait even when path failure leaves blockedStartTime unset.
 			static constexpr QMTime CROWD_INGRESS_STAGING_WAIT_TIMEOUT = 2500_ms;
 			const bool stagingOwnerStalled = activeMember->crowd.blockedStartTime.Milliseconds() > 0 &&
 				( level.time - activeMember->crowd.blockedStartTime ) >= CROWD_INGRESS_STAGING_STALL_TIMEOUT;
-			const bool stagingOwnerTimedOut = group.ingressQueueHeadStartTime.Milliseconds() > 0 &&
+			const bool stagingOwnerTimedOut = headNearStaging && group.ingressQueueHeadStartTime.Milliseconds() > 0 &&
 				( level.time - group.ingressQueueHeadStartTime ) >= CROWD_INGRESS_STAGING_WAIT_TIMEOUT;
 			if ( !stagingOwnerStalled && !stagingOwnerTimedOut ) {
 				return true;
@@ -1195,6 +1251,397 @@ static bool SVG_Crowd_UpdateSerializedIngress( svg_crowd_group_t &group ) {
 }
 
 /**
+*	@brief		Configure serialized in-order room egress when a squad is departing an enclosed room/zone through a narrow doorway.
+*	@param	group			Active crowd coordination group record.
+*	@param	members			Living squad members executing this movement command.
+*	@param	guidePath		Piecewise-linear navigation corridor from squad centroid to destination.
+*	@param	navPathFaces	Sequence of navigation mesh faces connecting start to destination.
+*	@param	startRoom		Origin room/zone containing squad centroid (nullptr if unclassified).
+*	@param	destRoom		Destination room/zone containing final goal (nullptr if unclassified).
+*	@param	centroid		Collective centroid of the squad at command dispatch time.
+*	@return	True if serialized room egress was successfully configured; false otherwise.
+**/
+static bool SVG_Crowd_ConfigureSerializedEgress( svg_crowd_group_t &group, const std::vector<svg_base_edict_t*> &members, const std::vector<Vector3DP> &guidePath, const std::vector<int32_t> &navPathFaces, const nav_room_t *startRoom, const nav_room_t *destRoom, const Vector3DP &centroid ) {
+	/**
+	*	Sanity check: single-member squads never congest doorways; require at least two members.
+	**/
+	if ( members.size() <= 1 ) {
+		return false;
+	}
+
+	/**
+	*	If destination is inside the exact same enclosed room as start, no room egress occurs.
+	**/
+	if ( startRoom != nullptr && destRoom != nullptr && startRoom->room_id == destRoom->room_id ) {
+		return false;
+	}
+
+	Vector3DP exitPortalPoint = {};
+	Vector3DP exitPortalOutward = {};
+	double exitPortalWidth = 0.0;
+	bool hasExitPortal = false;
+
+	/**
+	*	Method 1: Identify the exact room-exit transition edge along the A* nav face sequence.
+	*	The first face transition where faceA belongs to startRoom and faceB does not
+	*	is authoritative for the physical doorway traversed by this order.
+	**/
+	if ( startRoom != nullptr && navPathFaces.size() >= 2 ) {
+		// Traverse faces from route start looking for the boundary leaving startRoom.
+		for ( size_t i = 0; i + 1 < navPathFaces.size(); i++ ) {
+			const int32_t faceAIndex = navPathFaces[ i ];
+			const int32_t faceBIndex = navPathFaces[ i + 1 ];
+			if ( faceAIndex < 0 || faceBIndex < 0 ||
+				 faceAIndex >= static_cast<int32_t>( g_nav_faces.size() ) ||
+				 faceBIndex >= static_cast<int32_t>( g_nav_faces.size() ) ) {
+				continue;
+			}
+			const nav_face_t &faceA = g_nav_faces[ faceAIndex ];
+			const nav_face_t &faceB = g_nav_faces[ faceBIndex ];
+			if ( faceA.room_id == startRoom->room_id && faceB.room_id != startRoom->room_id ) {
+				// Search the half-edge boundary loop of faceA for the transition into faceB.
+				int32_t edgeIndex = faceA.first_edge_idx;
+				for ( int32_t edgeOffset = 0; edgeOffset < faceA.num_edges; edgeOffset++ ) {
+					if ( edgeIndex < 0 || edgeIndex >= static_cast<int32_t>( g_nav_halfedges.size() ) ) {
+						break;
+					}
+					const nav_halfedge_t &he = g_nav_halfedges[ edgeIndex ];
+					if ( he.twin_idx >= 0 && he.twin_idx < static_cast<int32_t>( g_nav_halfedges.size() ) &&
+						 g_nav_halfedges[ he.twin_idx ].face_idx == faceBIndex ) {
+						if ( he.vertex_idx >= 0 && he.vertex_idx < static_cast<int32_t>( g_nav_vertices.size() ) &&
+							 he.next_idx >= 0 && he.next_idx < static_cast<int32_t>( g_nav_halfedges.size() ) ) {
+							const int32_t endVertexIndex = g_nav_halfedges[ he.next_idx ].vertex_idx;
+							if ( endVertexIndex >= 0 && endVertexIndex < static_cast<int32_t>( g_nav_vertices.size() ) ) {
+								const Vector3DP &vStart = g_nav_vertices[ he.vertex_idx ];
+								const Vector3DP &vEnd = g_nav_vertices[ endVertexIndex ];
+								exitPortalPoint = ( vStart + vEnd ) * 0.5;
+								exitPortalWidth = QM_Vector3Distance2DDP( vStart, vEnd );
+								Vector3DP outward = faceB.center - faceA.center;
+								outward.z = 0.0;
+								exitPortalOutward = ( QM_Vector3LengthSqrDP( outward ) > 0.0001 )
+									? QM_Vector3NormalizeDP( outward )
+									: Vector3DP{ 1.0, 0.0, 0.0 };
+								hasExitPortal = ( exitPortalWidth > 0.001 );
+								break;
+							}
+						}
+					}
+					edgeIndex = he.next_idx;
+				}
+				if ( hasExitPortal ) {
+					break;
+				}
+
+				// Fallback: check precomputed boundary portals belonging to startRoom.
+				for ( const int32_t portalIndex : startRoom->portal_indices ) {
+					if ( portalIndex < 0 || portalIndex >= static_cast<int32_t>( g_nav_portals.size() ) ) {
+						continue;
+					}
+					const nav_portal_t &routePortal = g_nav_portals[ portalIndex ];
+					if ( routePortal.halfedge_idx < 0 ||
+						 routePortal.halfedge_idx >= static_cast<int32_t>( g_nav_halfedges.size() ) ) {
+						continue;
+					}
+					const nav_halfedge_t &portalHalfedge = g_nav_halfedges[ routePortal.halfedge_idx ];
+					if ( portalHalfedge.twin_idx < 0 ||
+						 portalHalfedge.twin_idx >= static_cast<int32_t>( g_nav_halfedges.size() ) ) {
+						continue;
+					}
+					const int32_t portalFaceA = portalHalfedge.face_idx;
+					const int32_t portalFaceB = g_nav_halfedges[ portalHalfedge.twin_idx ].face_idx;
+					if ( ( portalFaceA == faceAIndex && portalFaceB == faceBIndex ) ||
+						 ( portalFaceA == faceBIndex && portalFaceB == faceAIndex ) ) {
+						exitPortalPoint = routePortal.center;
+						exitPortalWidth = routePortal.width;
+						Vector3DP outward = faceB.center - faceA.center;
+						outward.z = 0.0;
+						exitPortalOutward = ( QM_Vector3LengthSqrDP( outward ) > 0.0001 )
+							? QM_Vector3NormalizeDP( outward )
+							: routePortal.normal;
+						hasExitPortal = true;
+						break;
+					}
+				}
+				if ( hasExitPortal ) {
+					break;
+				}
+			}
+		}
+	}
+
+	/**
+	*	Method 2: If topological face transitions did not yield a portal, check startRoom's portals
+	*	for the one nearest the initial guide corridor segment.
+	**/
+	if ( !hasExitPortal && startRoom != nullptr && !startRoom->portal_indices.empty() ) {
+		double bestDistanceSq = std::numeric_limits<double>::max();
+		for ( const int32_t portalIndex : startRoom->portal_indices ) {
+			if ( portalIndex < 0 || portalIndex >= static_cast<int32_t>( g_nav_portals.size() ) ) {
+				continue;
+			}
+			const nav_portal_t &portal = g_nav_portals[ portalIndex ];
+			double dSq = QM_Vector3Distance2DSqrDP( centroid, portal.center );
+			if ( guidePath.size() >= 2 ) {
+				const Vector3DP &segmentStart = guidePath[ 0 ];
+				const Vector3DP &segmentEnd = guidePath[ 1 ];
+				const Vector3DP segment = segmentEnd - segmentStart;
+				const double segmentLengthSq = QM_Vector3LengthSqrDP( segment );
+				if ( segmentLengthSq > 0.0001 ) {
+					const double t = std::clamp(
+						QM_Vector3DotProductDP( portal.center - segmentStart, segment ) / segmentLengthSq, 0.0, 1.0 );
+					const Vector3DP projection = segmentStart + ( segment * t );
+					dSq = QM_Vector3Distance2DSqrDP( portal.center, projection );
+				}
+			}
+			if ( dSq < bestDistanceSq ) {
+				bestDistanceSq = dSq;
+				exitPortalPoint = portal.center;
+				exitPortalWidth = portal.width;
+				exitPortalOutward = portal.normal;
+				hasExitPortal = true;
+			}
+		}
+	}
+
+	/**
+	*	Method 3: Geometric fallback for initial corridor chokepoint within 350 units of centroid.
+	*	Detects doorway bottleneck when spatial room metadata is missing or unassigned.
+	**/
+	if ( !hasExitPortal && guidePath.size() >= 2 ) {
+		for ( size_t pointIndex = 0; pointIndex + 1 < guidePath.size() && pointIndex < 3; pointIndex++ ) {
+			const double distFromCentroid = QM_Vector3Distance2DDP( centroid, guidePath[ pointIndex + 1 ] );
+			if ( distFromCentroid > 350.0 ) {
+				break;
+			}
+			const int32_t faceIndex = Nav_FindFaceInLeafStrict( guidePath[ pointIndex + 1 ] );
+			if ( faceIndex >= 0 && faceIndex < static_cast<int32_t>( g_nav_faces.size() ) ) {
+				const double clearance = g_nav_faces[ faceIndex ].clearance * 2.0;
+				if ( clearance > 0.0 && clearance < CROWD_PORTAL_BOTTLENECK_MAX_WIDTH ) {
+					exitPortalPoint = guidePath[ pointIndex + 1 ];
+					exitPortalWidth = clearance;
+					Vector3DP outward = guidePath[ pointIndex + 1 ] - guidePath[ pointIndex ];
+					outward.z = 0.0;
+					exitPortalOutward = ( QM_Vector3LengthSqrDP( outward ) > 0.0001 )
+						? QM_Vector3NormalizeDP( outward )
+						: Vector3DP{ 1.0, 0.0, 0.0 };
+					hasExitPortal = true;
+					break;
+				}
+			}
+		}
+	}
+
+	/**
+	*	Reject if no doorway portal was identified or if the aperture is sufficiently wide (>= 128u)
+	*	that members can exit abreast without wedging.
+	**/
+	if ( !hasExitPortal || exitPortalWidth >= CROWD_PORTAL_BOTTLENECK_MAX_WIDTH ) {
+		return false;
+	}
+
+	/**
+	*	Ensure the outward normal points away from the squad centroid into the corridor.
+	**/
+	exitPortalOutward.z = 0.0;
+	if ( QM_Vector3LengthSqrDP( exitPortalOutward ) > 0.0001 ) {
+		exitPortalOutward = QM_Vector3NormalizeDP( exitPortalOutward );
+	} else {
+		exitPortalOutward = Vector3DP{ 1.0, 0.0, 0.0 };
+	}
+	const Vector3DP centroidToPortal = exitPortalPoint - centroid;
+	if ( QM_Vector3DotProductDP( centroidToPortal, exitPortalOutward ) < 0.0 ) {
+		exitPortalOutward = exitPortalOutward * -1.0;
+	}
+
+	/**
+	*	Gather living squad members and compute their distance to the exit portal.
+	**/
+	struct svg_crowd_egress_candidate_t {
+		svg_base_edict_t *member = nullptr;
+		double distanceToDoorway = 0.0;
+	};
+	std::vector<svg_crowd_egress_candidate_t> rankedCandidates;
+	rankedCandidates.reserve( members.size() );
+
+	// Inspect each squad member to build the candidate egress list.
+	for ( svg_base_edict_t *member : members ) {
+		if ( member == nullptr || !SVG_Entity_IsActive( member ) || member->health <= 0 ) {
+			continue;
+		}
+		const Vector3DP feet = SVG_GetEntityFeetOriginDP( member );
+		const double distance2D = QM_Vector3Distance2DDP( feet, exitPortalPoint );
+		rankedCandidates.push_back( { member, distance2D } );
+	}
+
+	if ( rankedCandidates.size() <= 1 ) {
+		return false;
+	}
+
+	/**
+	*	Sort members in ascending order of proximity to the exit doorway:
+	*	Rank 0 is closest to the exit and steps out first with zero obstruction;
+	*	higher ranks are progressively further back and hold station until released.
+	**/
+	std::sort( rankedCandidates.begin(), rankedCandidates.end(), []( const svg_crowd_egress_candidate_t &a, const svg_crowd_egress_candidate_t &b ) {
+		if ( std::fabs( a.distanceToDoorway - b.distanceToDoorway ) > 0.001 ) {
+			return a.distanceToDoorway < b.distanceToDoorway;
+		}
+		return a.member->s.number < b.member->s.number;
+	} );
+
+	/**
+	*	Commit group egress state.
+	**/
+	group.hasSerializedEgress = true;
+	group.egressPortalOrigin = exitPortalPoint;
+	group.egressPortalOutward = exitPortalOutward;
+	group.egressPortalHalfWidth = std::max( CROWD_DEFAULT_AGENT_RADIUS, exitPortalWidth * 0.5 );
+	group.egressQueueHead = 0;
+	group.egressQueueHeadStartTime = level.time;
+	group.egressNextReleaseTime = 0_ms;
+	group.egressQueueEntityNumbers.clear();
+	group.egressQueueEntityNumbers.reserve( rankedCandidates.size() );
+
+	/**
+	*	Assign egress queue rank: release the lead member immediately; followers hold in place.
+	**/
+	for ( size_t rank = 0; rank < rankedCandidates.size(); rank++ ) {
+		svg_base_edict_t *member = rankedCandidates[ rank ].member;
+		group.egressQueueEntityNumbers.push_back( member->s.number );
+		member->crowd.egressQueueRank = static_cast<int32_t>( rank );
+		if ( rank == 0 ) {
+			member->crowd.egressReleased = true;
+			SVG_Crowd_ResetMemberNavigation( member );
+		} else {
+			member->crowd.egressReleased = false;
+		}
+	}
+
+	return true;
+}
+
+/**
+*	@brief	Advance serialized room egress queue when the current head clears the exit doorway, dies, or stalls.
+*	@param	group	Active crowd coordination group.
+*	@return	True while unreleased egress queue members remain or head is traversing the exit doorway.
+*	@note	Strictly O(1) amortized runtime per frame: inspects only the single active queue head entity.
+**/
+static bool SVG_Crowd_UpdateSerializedEgress( svg_crowd_group_t &group ) {
+	/**
+	*	Sanity check: validate active egress state before indexed access.
+	**/
+	if ( !group.hasSerializedEgress ) {
+		return false;
+	}
+
+	const int32_t queueCount = static_cast<int32_t>( group.egressQueueEntityNumbers.size() );
+	if ( group.egressQueueHead < 0 || group.egressQueueHead >= queueCount ) {
+		group.hasSerializedEgress = false;
+		return false;
+	}
+
+	/**
+	*	Instant dead member queue shift: if the active queue head is dead or invalid,
+	*	immediately advance past it on this exact tick without any delay or timeout.
+	**/
+	while ( group.egressQueueHead < queueCount ) {
+		const int32_t candidateEntityNumber = group.egressQueueEntityNumbers[ group.egressQueueHead ];
+		svg_base_edict_t *candidateMember = ( candidateEntityNumber >= 1 && candidateEntityNumber < globals.edictPool->num_edicts )
+			? g_edict_pool.EdictForNumber( candidateEntityNumber )
+			: nullptr;
+
+		// If this member is alive and active, it is the valid active queue head.
+		if ( candidateMember != nullptr && SVG_Entity_IsActive( candidateMember ) && candidateMember->health > 0 ) {
+			break;
+		}
+
+		// Active member is dead or removed: shift queue immediately on this tick.
+		group.egressQueueHead++;
+		group.egressQueueHeadStartTime = level.time;
+
+		// Release the next member in line immediately if one exists.
+		if ( group.egressQueueHead < queueCount ) {
+			const int32_t nextEntityNumber = group.egressQueueEntityNumbers[ group.egressQueueHead ];
+			svg_base_edict_t *nextMember = ( nextEntityNumber >= 1 && nextEntityNumber < globals.edictPool->num_edicts )
+				? g_edict_pool.EdictForNumber( nextEntityNumber )
+				: nullptr;
+			if ( nextMember != nullptr && SVG_Entity_IsActive( nextMember ) && nextMember->health > 0 ) {
+				nextMember->crowd.egressReleased = true;
+				SVG_Crowd_ResetMemberNavigation( nextMember );
+			}
+		}
+	}
+
+	// If all members were traversed or dead, room egress is complete.
+	if ( group.egressQueueHead >= queueCount ) {
+		group.hasSerializedEgress = false;
+		return false;
+	}
+
+	const int32_t activeEntityNumber = group.egressQueueEntityNumbers[ group.egressQueueHead ];
+	svg_base_edict_t *activeMember = g_edict_pool.EdictForNumber( activeEntityNumber );
+	if ( activeMember == nullptr ) {
+		group.hasSerializedEgress = false;
+		return false;
+	}
+
+	/**
+	*	Calculate analytical outward depth of active head beyond the exit doorway plane.
+	**/
+	const Vector3DP activeFeet = SVG_GetEntityFeetOriginDP( activeMember );
+	const double outwardDepth = QM_Vector3DotProductDP( activeFeet - group.egressPortalOrigin, group.egressPortalOutward );
+	constexpr double minClearanceDepth = 16.0;
+	const double requiredClearance = std::max( minClearanceDepth, CROWD_DEFAULT_AGENT_RADIUS * CROWD_EGRESS_CLEARANCE_RADIUS_SCALE );
+
+	bool releaseNext = false;
+	if ( outwardDepth >= requiredClearance ) {
+		// Active head has physically cleared the doorway aperture into the corridor.
+		releaseNext = true;
+	} else {
+		// Watchdog fail-safes for alive-but-wedged members:
+		const bool activeStalled = activeMember->crowd.blockedStartTime.Milliseconds() > 0 &&
+			( level.time - activeMember->crowd.blockedStartTime ) >= CROWD_EGRESS_ACTIVE_STALL_TIMEOUT;
+		const bool transitTimedOut = group.egressQueueHeadStartTime.Milliseconds() > 0 &&
+			( level.time - group.egressQueueHeadStartTime ) >= CROWD_EGRESS_TRANSIT_TIMEOUT;
+
+		if ( activeStalled || transitTimedOut ) {
+			releaseNext = true;
+		}
+	}
+
+	/**
+	*	Advance to next queue rank if doorway clearance or watchdog timeout is satisfied.
+	**/
+	if ( releaseNext ) {
+		group.egressQueueHead++;
+		group.egressQueueHeadStartTime = level.time;
+
+		if ( group.egressQueueHead < queueCount ) {
+			const int32_t nextEntityNumber = group.egressQueueEntityNumbers[ group.egressQueueHead ];
+			svg_base_edict_t *nextMember = ( nextEntityNumber >= 1 && nextEntityNumber < globals.edictPool->num_edicts )
+				? g_edict_pool.EdictForNumber( nextEntityNumber )
+				: nullptr;
+
+			if ( nextMember != nullptr && SVG_Entity_IsActive( nextMember ) && nextMember->health > 0 ) {
+				nextMember->crowd.egressReleased = true;
+				SVG_Crowd_ResetMemberNavigation( nextMember );
+			}
+			gi.dprintf( "[crowd egress release] crowd=%" PRId32 " rank=%" PRId32 " ent=%" PRId32 " time=%" PRId64 "ms\n",
+				group.crowdID, group.egressQueueHead, nextEntityNumber, level.time.Milliseconds() );
+			return true;
+		} else {
+			// All squad members have been released AND the final member has cleared the exit doorway!
+			group.hasSerializedEgress = false;
+			gi.dprintf( "[crowd egress complete] crowd=%" PRId32 " all members cleared exit room time=%" PRId64 "ms\n",
+				group.crowdID, level.time.Milliseconds() );
+			return false;
+		}
+	}
+
+	return true;
+}
+
+/**
 *	Public Lifecycle Functions:
 **/
 
@@ -1208,6 +1655,7 @@ void SVG_Crowd_Init( void ) {
 	s_crowd_cover_max_dist = gi.cvar( "s_crowd_cover_max_dist", "768", 0 );
 
 	g_crowd_groups.clear();
+	SVG_Squad_Init();
 }
 
 /**
@@ -1224,6 +1672,7 @@ void SVG_Crowd_Shutdown( void ) {
 	}
 
 	g_crowd_groups.clear();
+	SVG_Squad_Shutdown();
 }
 
 /**
@@ -1321,6 +1770,8 @@ void SVG_Crowd_RegisterMember( svg_base_edict_t *ent, const int32_t crowdID ) {
 	ent->crowd.reachedGoal = false;
 	ent->crowd.ingressQueueRank = -1;
 	ent->crowd.ingressReleased = true;
+	ent->crowd.egressQueueRank = -1;
+	ent->crowd.egressReleased = true;
 	ent->crowd.activeCoverIdx = -1;
 	ent->crowd.startTimeForSeeking = level.time;
 	ent->crowd.lastPathCalcTime = 0_ms;
@@ -1347,6 +1798,9 @@ void SVG_Crowd_RegisterMember( svg_base_edict_t *ent, const int32_t crowdID ) {
 		if ( std::find( membersList.begin(), membersList.end(), ent->s.number ) == membersList.end() ) {
 			membersList.push_back( ent->s.number );
 		}
+
+		// Sync with decentralized tactical squad coordinator.
+		SVG_Squad_RegisterMember( crowdID, ent->s.number );
 	}
 }
 
@@ -1379,6 +1833,7 @@ void SVG_Crowd_UnregisterMember( svg_base_edict_t *ent ) {
 	// Remove from group memberEntityNumbers list.
 	const int32_t oldCrowdID = ent->crowd.crowdID;
 	if ( oldCrowdID >= 0 ) {
+		SVG_Squad_UnregisterMember( oldCrowdID, ent->s.number );
 		auto it = g_crowd_groups.find( oldCrowdID );
 		if ( it != g_crowd_groups.end() ) {
 			auto &membersList = it->second.memberEntityNumbers;
@@ -1393,6 +1848,8 @@ void SVG_Crowd_UnregisterMember( svg_base_edict_t *ent ) {
 	ent->crowd.reachedGoal = false;
 	ent->crowd.ingressQueueRank = -1;
 	ent->crowd.ingressReleased = true;
+	ent->crowd.egressQueueRank = -1;
+	ent->crowd.egressReleased = true;
 
 	/**
 	*	Reset custom skin for monster entities to neutral grey upon unregistering.
@@ -1470,6 +1927,7 @@ void SVG_Crowd_SetLeader( const int32_t crowdID, const int32_t leaderEntityNumbe
 		return;
 	}
 	group->leaderEntityNumber = leaderEntityNumber;
+	SVG_Squad_SetLeader( crowdID, leaderEntityNumber );
 
 	std::vector<svg_base_edict_t*> members;
 	SVG_Crowd_GetCrowdMembers( crowdID, members );
@@ -1559,6 +2017,15 @@ bool SVG_Crowd_ComputeMutualSeparation( const int32_t entityNumber, Vector3DP *o
 		diff.z = 0.0;
 		const double distSq = QM_Vector3LengthSqrDP( diff );
 
+		// A released egress member must not be repelled by an unreleased teammate holding station in the room,
+		// unless their physical collision hulls are actively intersecting/overlapping (distSq < combinedHullRadiusSq).
+		// When overlapping, soft separation force must push the released agent clear to break the allsolid trap.
+		if ( group->hasSerializedEgress && selfEnt->crowd.egressReleased && !other->crowd.egressReleased ) {
+			if ( distSq >= ( combinedHullRadius * combinedHullRadius ) ) {
+				continue;
+			}
+		}
+
 		if ( distSq < sepRadiusSq && distSq > 0.0001 ) {
 			const double dist = std::sqrt( distSq );
 			const double pushWeight = ( sepRadius - dist ) / sepRadius;
@@ -1628,7 +2095,31 @@ bool SVG_Crowd_ComputeTeammateFollowSpeedScale( const int32_t entityNumber, cons
 	static constexpr double corridorLateralSqr = CROWD_CORRIDOR_LATERAL_THRESHOLD * CROWD_CORRIDOR_LATERAL_THRESHOLD;
 	static constexpr double maxAheadDist = CROWD_FOLLOW_MIN_SEPARATION + CROWD_FOLLOW_SLOWDOWN_RANGE;
 
+	const double rawRadiusSelf = static_cast<double>( ( selfEnt->maxs.x - selfEnt->mins.x ) * 0.5f );
+	const double selfRadius = ( rawRadiusSelf > 0.0 ) ? rawRadiusSelf : CROWD_DEFAULT_AGENT_RADIUS;
+	const int32_t mySlot = ( selfEnt->crowd.slotIndex >= 0 ) ? selfEnt->crowd.slotIndex : entityNumber;
+	const svg_monster_base_t *selfMonster = dynamic_cast<const svg_monster_base_t*>( selfEnt );
 
+	const size_t selfWpIdx = ( selfMonster != nullptr && !selfMonster->stringPulledPath.empty() ) ?
+		std::min( selfMonster->stringPathPos, selfMonster->stringPulledPath.size() - 1 ) : 0;
+	const bool hasSelfWp = ( selfMonster != nullptr && !selfMonster->stringPulledPath.empty() );
+	const Vector3DP &selfWp = hasSelfWp ? selfMonster->stringPulledPath[ selfWpIdx ] : myOrigin;
+	const double distSelfToWp = hasSelfWp ? QM_Vector3Distance2DDP( myOrigin, selfWp ) : 999999.0;
+
+	// Precompute whether self origin and active waypoint reside in a narrow corridor (< 96 units).
+	// Computing this once per agent outside the teammate loop guarantees strict O(1) pairwise arbitration.
+	const int32_t myFaceIdx = Nav_FindFaceInLeafStrict( myOrigin );
+	const bool isMyFaceNarrow = ( myFaceIdx >= 0 && myFaceIdx < static_cast<int32_t>( g_nav_faces.size() ) ) &&
+		( g_nav_faces[ myFaceIdx ].clearance < CROWD_MIN_TWO_AGENT_ABREAST_CLEARANCE );
+
+	const int32_t wpFaceIdx = hasSelfWp ? Nav_FindFaceInLeafStrict( selfWp ) : -1;
+	const bool isWpFaceNarrow = ( wpFaceIdx >= 0 && wpFaceIdx < static_cast<int32_t>( g_nav_faces.size() ) ) &&
+		( g_nav_faces[ wpFaceIdx ].clearance < CROWD_MIN_TWO_AGENT_ABREAST_CLEARANCE );
+	// Self is only traversing a bottleneck if physically standing on a narrow face (< 96u)
+	// or approaching within the immediate bottleneck funnel (<= 80u).
+	// Distant agents in an open room (> 80u) are not constrained by the bottleneck.
+	const bool isNearNarrowWp = isWpFaceNarrow && ( distSelfToWp <= CROWD_BOTTLENECK_FUNNEL_DIST );
+	const bool isBottleneckTraverse = isMyFaceNarrow || isNearNarrowWp;
 
 	for ( const int32_t otherNum : group->memberEntityNumbers ) {
 		if ( otherNum == entityNumber ) {
@@ -1646,9 +2137,10 @@ bool SVG_Crowd_ComputeTeammateFollowSpeedScale( const int32_t entityNumber, cons
 		if ( group->hasSerializedIngress && selfEnt->crowd.ingressReleased && !other->crowd.ingressReleased ) {
 			continue;
 		}
-		const double rawRadiusSelf = static_cast<double>( ( selfEnt->maxs.x - selfEnt->mins.x ) * 0.5f );
-		const double selfRadius = ( rawRadiusSelf > 0.0 ) ? rawRadiusSelf : CROWD_DEFAULT_AGENT_RADIUS;
-
+		// An unreleased egress member is holding station in formation; do not yield to an unreleased teammate behind us in the egress queue.
+		if ( group->hasSerializedEgress && selfEnt->crowd.egressReleased && !other->crowd.egressReleased ) {
+			continue;
+		}
 		const double rawRadiusOther = static_cast<double>( ( other->maxs.x - other->mins.x ) * 0.5f );
 		const double otherRadius = ( rawRadiusOther > 0.0 ) ? rawRadiusOther : CROWD_DEFAULT_AGENT_RADIUS;
 		const double combinedRadius = selfRadius + otherRadius;
@@ -1675,33 +2167,29 @@ bool SVG_Crowd_ComputeTeammateFollowSpeedScale( const int32_t entityNumber, cons
 		// 1. Dynamic Bottleneck & Passage Waypoint Convergence Arbitration:
 		// When entering or exiting a room through a narrow doorway/passage (< 96 units), multiple agents
 		// converging from different angles must zipper in single file without jamming against the door jambs.
-		const svg_monster_base_t *selfMonster = dynamic_cast<const svg_monster_base_t*>( selfEnt );
 		const svg_monster_base_t *otherMonster = dynamic_cast<const svg_monster_base_t*>( other );
 
-		if ( selfMonster && otherMonster && !selfMonster->stringPulledPath.empty() && !otherMonster->stringPulledPath.empty() ) {
-			const size_t selfWpIdx = std::min( selfMonster->stringPathPos, selfMonster->stringPulledPath.size() - 1 );
+		if ( hasSelfWp && otherMonster != nullptr && !otherMonster->stringPulledPath.empty() && ( isWpFaceNarrow || isMyFaceNarrow ) ) {
 			const size_t otherWpIdx = std::min( otherMonster->stringPathPos, otherMonster->stringPulledPath.size() - 1 );
-			const Vector3DP &selfWp = selfMonster->stringPulledPath[ selfWpIdx ];
 			const Vector3DP &otherWp = otherMonster->stringPulledPath[ otherWpIdx ];
 
 			// If active waypoints converge on the same passage bottleneck (< 96 units apart):
 			if ( QM_Vector3Distance2DSqrDP( selfWp, otherWp ) < CROWD_BOTTLENECK_WAYPOINT_PROXIMITY_SQR ) {
-				const double distSelfToWp = QM_Vector3Distance2DDP( myOrigin, selfWp );
 				const double distOtherToWp = QM_Vector3Distance2DDP( otherOrigin, otherWp );
 
-				const int32_t mySlot = ( selfEnt->crowd.slotIndex >= 0 ) ? selfEnt->crowd.slotIndex : entityNumber;
-				const int32_t otherSlot = ( other->crowd.slotIndex >= 0 ) ? other->crowd.slotIndex : otherNum;
-				const bool hasOrderedSlots = ( selfEnt->crowd.slotIndex >= 0 && other->crowd.slotIndex >= 0 && selfEnt->crowd.slotIndex != other->crowd.slotIndex );
+				const bool hasEgressRank = ( group->hasSerializedEgress && selfEnt->crowd.egressQueueRank >= 0 && other->crowd.egressQueueRank >= 0 );
+				const bool hasIngressRank = ( group->hasSerializedIngress && selfEnt->crowd.ingressQueueRank >= 0 && other->crowd.ingressQueueRank >= 0 );
+				const bool otherHasQueuePriority = hasEgressRank ? ( other->crowd.egressQueueRank < selfEnt->crowd.egressQueueRank ) :
+					( hasIngressRank ? ( other->crowd.ingressQueueRank < selfEnt->crowd.ingressQueueRank ) : ( otherNum < entityNumber ) );
 
 				/**
 				*	Side-aware right-of-way arbitration (priority-inversion free).
 				*	Classify each agent by which side of the aperture plane it currently occupies
 				*	using the signed projection onto the inward flow direction. An agent that has
-				*	already crossed INTO the room NEVER yields to one still outside: that reversal
-				*	is the exact wedge where a crossing member stops inside the doorway and an
-				*	approaching member waits on it forever. Among agents on the SAME side, the one
-				*	physically nearer the shared waypoint goes first (self-correcting, O(1)); slot
-				*	index only breaks exact-distance ties.
+				*	already crossed past the doorway waypoint proceeds unconditionally and is NEVER
+				*	yielded to once it has cleared the physical aperture (< 48u). Among agents on the
+				*	same side, the one physically nearer the shared waypoint proceeds first, queue
+				*	rank and entity number breaking ties.
 				**/
 				const Vector3DP selfToWp = selfWp - myOrigin;
 				const Vector3DP otherToWp = otherWp - otherOrigin;
@@ -1711,28 +2199,30 @@ bool SVG_Crowd_ComputeTeammateFollowSpeedScale( const int32_t entityNumber, cons
 				const bool selfInside = ( selfAlong < 0.0 );
 				const bool otherInside = ( otherAlong < 0.0 );
 
-				/**
-				*	Purely physical, asymmetric right-of-way.
-				*	An agent that has crossed INTO the room (past the shared waypoint) proceeds
-				*	unconditionally and is NEVER yielded to once it is clear of the aperture —
-				*	yielding to a deep insider freezes an outsider inside the lane and corks the
-				*	doorway. The ONLY yield an outsider honors is to an insider still physically
-				*	occupying the aperture (still near the waypoint). Among outsiders, the one
-				*	nearer the waypoint proceeds first, slot index breaking exact ties. This keeps
-				*	the lane draining forward and is O(1) per pair.
-				**/
 				bool otherHasRightOfWay = false;
 				if ( selfInside != otherInside ) {
-					// Only yield to an insider that is STILL in the aperture; a deep insider
-					// is already clear and must not hold up the queue behind it.
-					otherHasRightOfWay = otherInside && ( distOtherToWp < CROWD_BOTTLENECK_ZONE_INFLUENCE_DIST );
+					// Only yield to an insider that is STILL physically inside the aperture.
+					// Once the leader clears the aperture (>= 48u), the doorway is open.
+					otherHasRightOfWay = otherInside && ( distOtherToWp < CROWD_BOTTLENECK_APERTURE_CLEAR_DIST );
 				} else {
-					// Same side: nearer to the shared waypoint wins; slot order breaks ties.
-					otherHasRightOfWay = ( distOtherToWp < ( distSelfToWp - CROWD_BOTTLENECK_DISTANCE_EPSILON ) ) ||
-										( std::fabs( distOtherToWp - distSelfToWp ) <= CROWD_BOTTLENECK_DISTANCE_EPSILON && hasOrderedSlots && otherSlot < mySlot );
+					// Same side: strictly nearer to the shared waypoint wins (priority-inversion free)!
+					if ( distOtherToWp < ( distSelfToWp - CROWD_BOTTLENECK_DISTANCE_EPSILON ) ) {
+						otherHasRightOfWay = true;
+					} else if ( distSelfToWp < ( distOtherToWp - CROWD_BOTTLENECK_DISTANCE_EPSILON ) ) {
+						otherHasRightOfWay = false;
+					} else {
+						otherHasRightOfWay = otherHasQueuePriority;
+					}
 				}
 
-				if ( otherHasRightOfWay && distOtherToWp < CROWD_BOTTLENECK_ZONE_INFLUENCE_DIST ) {
+				// If other teammate is blocked by world geometry, do not yield right-of-way to a stuck agent:
+				const bool otherIsBlocked = other->crowd.blockedStartTime.Milliseconds() > 0 &&
+					( level.time - other->crowd.blockedStartTime ) >= 500_ms;
+				if ( otherIsBlocked ) {
+					otherHasRightOfWay = false;
+				}
+
+				if ( otherHasRightOfWay ) {
 					/**
 					*	Queue-slot cork exemption:
 					*	Members assigned an overflow-queue slot OUTSIDE the room (goal deeper than the
@@ -1751,27 +2241,20 @@ bool SVG_Crowd_ComputeTeammateFollowSpeedScale( const int32_t entityNumber, cons
 						// relative to the ingress flow direction.
 						selfIsExteriorQueue = ( along < -CROWD_BOTTLENECK_STOP_HEADWAY_DIST );
 					}
-					// Leading teammate is currently entering or crossing the doorway passage:
-					if ( !selfIsExteriorQueue && distSelfToWp < ( distOtherToWp + CROWD_BOTTLENECK_STOP_HEADWAY_DIST ) ) {
-						/**
-						*	Yield WITHOUT hard-stopping. A full stop (minScale = 0.0) parks this
-						*	agent's hull inside the ingress lane and physically corks the aperture
-						*	for every member queued behind it, recreating the very deadlock the
-						*	yield is meant to avoid. Instead, yield as a minimal crawl: the agent
-						*	concedes priority to the crossing insider yet keeps drifting forward at
-						*	a trickle, so the moment the insider clears the aperture this agent
-						*	immediately follows through instead of having to accelerate from a
-						*	dead stop while boxed in. Strict queueing still suppresses lateral
-						*	separation / deflection so the agent stays centered on the lane.
-						**/
+
+					// Leading teammate is currently inside the doorway aperture:
+					const bool leaderInAperture = ( distOtherToWp < CROWD_BOTTLENECK_APERTURE_CLEAR_DIST );
+
+					if ( !selfIsExteriorQueue && leaderInAperture && distSelfToWp <= CROWD_BOTTLENECK_THRESHOLD_HOLD_DIST ) {
+						// Self is at the doorway threshold: hold outside the aperture until leader clears!
 						foundLeaderAhead = true;
 						strictQueueing = true;
-						minScale = std::min( minScale, CROWD_BOTTLENECK_CRAWL_SPEED_SCALE );
+						minScale = 0.0;
 						continue;
-					} else if ( distSelfToWp < ( distOtherToWp + CROWD_BOTTLENECK_CRAWL_HEADWAY_DIST ) ) {
-						// Smooth single-file queue deceleration:
+					} else if ( distSelfToWp <= CROWD_BOTTLENECK_FUNNEL_DIST ) {
+						// Self is approaching in the funnel: decelerate to single-file crawl speed
+						// so the leader pulls ahead and agents zipper into single file before reaching the doorway!
 						foundLeaderAhead = true;
-						strictQueueing = true;
 						minScale = std::min( minScale, CROWD_BOTTLENECK_CRAWL_SPEED_SCALE );
 						continue;
 					}
@@ -1784,27 +2267,49 @@ bool SVG_Crowd_ComputeTeammateFollowSpeedScale( const int32_t entityNumber, cons
 		const double zDelta = std::fabs( otherOrigin.z - myOrigin.z );
 
 		// Check if we or the teammate are currently traversing a narrow corridor or tight staircase:
-		bool isNarrowOrStairs = false;
-		if ( zDelta >= static_cast<double>( NAV_MAX_STEP_HEIGHT ) ) {
-			isNarrowOrStairs = true;
-		} else {
-			const int32_t myFaceIdx = Nav_FindFaceInLeafStrict( myOrigin );
-			if ( myFaceIdx >= 0 && myFaceIdx < static_cast<int32_t>( g_nav_faces.size() ) ) {
-				isNarrowOrStairs = ( g_nav_faces[ myFaceIdx ].clearance < CROWD_MIN_TWO_AGENT_ABREAST_CLEARANCE );
-			}
-		}
+		const bool isNarrowOrStairs = isBottleneckTraverse || ( zDelta >= static_cast<double>( NAV_MAX_STEP_HEIGHT ) );
 
-		// Abreast deconfliction: when entering a narrow corridor or tight bottleneck (< 96 units)
-		// incapable of supporting two agents abreast, the lower-priority member yields to let the
-		// lead rank enter the chokepoint first in single file.
+		// Abreast deconfliction: when entering a narrow corridor or tight bottleneck (< 96 units),
+		// or when converging on a shared doorway/passage, two agents abreast cannot both fit.
+		// The lower-priority member yields to let the nearer/lead rank enter the chokepoint first in single file.
 		const bool isHorizontalAbreast = ( zDelta < NAV_STEP_MIN_VERTICAL_DELTA );
-		if ( isNarrowOrStairs && isHorizontalAbreast && distSq < CROWD_ABREAST_DECONFLICT_DIST_SQR && aheadDist >= -CROWD_ABREAST_AHEAD_TOLERANCE_LONGITUDINAL && aheadDist < combinedRadius ) {
-			const int32_t mySlot = ( selfEnt->crowd.slotIndex >= 0 ) ? selfEnt->crowd.slotIndex : entityNumber;
-			const int32_t otherSlot = ( other->crowd.slotIndex >= 0 ) ? other->crowd.slotIndex : otherNum;
-			if ( mySlot > otherSlot ) {
+		const bool isBottleneckConvergence = ( hasSelfWp && otherMonster != nullptr &&
+			!otherMonster->stringPulledPath.empty() && ( isWpFaceNarrow || isMyFaceNarrow ) &&
+			( QM_Vector3Distance2DSqrDP( selfWp, otherMonster->stringPulledPath[ std::min( otherMonster->stringPathPos, otherMonster->stringPulledPath.size() - 1 ) ] ) < CROWD_BOTTLENECK_WAYPOINT_PROXIMITY_SQR ) );
+		// Bottleneck convergence only funnels agents when within the funnel distance (<= 140 units) to the chokepoint:
+		const bool isInBottleneckFunnel = isBottleneckConvergence && ( distSelfToWp <= CROWD_BOTTLENECK_FUNNEL_DIST );
+		const bool isNarrowFunnel = isNarrowOrStairs || isInBottleneckFunnel;
+
+		if ( isNarrowFunnel && isHorizontalAbreast && distSq < CROWD_ABREAST_DECONFLICT_DIST_SQR && aheadDist >= -CROWD_ABREAST_AHEAD_TOLERANCE_LONGITUDINAL && aheadDist < combinedRadius ) {
+			const bool hasEgressRank = ( group->hasSerializedEgress && selfEnt->crowd.egressQueueRank >= 0 && other->crowd.egressQueueRank >= 0 );
+			const bool hasIngressRank = ( group->hasSerializedIngress && selfEnt->crowd.ingressQueueRank >= 0 && other->crowd.ingressQueueRank >= 0 );
+			const bool otherHasPriority = hasEgressRank ? ( other->crowd.egressQueueRank < selfEnt->crowd.egressQueueRank ) :
+				( hasIngressRank ? ( other->crowd.ingressQueueRank < selfEnt->crowd.ingressQueueRank ) : ( otherNum < entityNumber ) );
+
+			bool shouldYieldAbreast = false;
+			if ( isBottleneckConvergence ) {
+				// In a doorway funnel, the agent physically further from the shared doorway yields:
+				const Vector3DP &oWp = otherMonster->stringPulledPath[ std::min( otherMonster->stringPathPos, otherMonster->stringPulledPath.size() - 1 ) ];
+				const double dOther = QM_Vector3Distance2DDP( otherOrigin, oWp );
+				if ( distSelfToWp > ( dOther + CROWD_BOTTLENECK_DISTANCE_EPSILON ) ) {
+					shouldYieldAbreast = true;
+				} else if ( std::fabs( distSelfToWp - dOther) <= CROWD_BOTTLENECK_DISTANCE_EPSILON ) {
+					shouldYieldAbreast = otherHasPriority;
+				}
+			} else {
+				shouldYieldAbreast = otherHasPriority;
+			}
+
+			if ( shouldYieldAbreast ) {
 				foundLeaderAhead = true;
-				strictQueueing = true;
-				minScale = 0.0;
+				// At the doorway threshold (<= 72u), full halt to let lead rank enter first.
+				// In the approach funnel (72u - 140u), throttle to crawl speed (0.35) so agents zipper seamlessly into single file:
+				if ( distSelfToWp <= CROWD_BOTTLENECK_THRESHOLD_HOLD_DIST ) {
+					strictQueueing = true;
+					minScale = 0.0;
+				} else {
+					minScale = std::min( minScale, CROWD_BOTTLENECK_CRAWL_SPEED_SCALE );
+				}
 				continue;
 			}
 		}
@@ -1836,11 +2341,11 @@ bool SVG_Crowd_ComputeTeammateFollowSpeedScale( const int32_t entityNumber, cons
 
 			if ( dotCourse < CROWD_HEADON_COURSE_DOT_THRESHOLD ) {
 				// Opposing collision course: determine right-of-way priority.
-				// Priority order: lower slot index (lead ranks), then lower entity number as strict tie-breaker.
-				const int32_t mySlot = ( selfEnt->crowd.slotIndex >= 0 ) ? selfEnt->crowd.slotIndex : entityNumber;
-				const int32_t otherSlot = ( other->crowd.slotIndex >= 0 ) ? other->crowd.slotIndex : otherNum;
-
-				const bool selfHasPriority = ( mySlot < otherSlot );
+				// Priority order: lower queue rank / entity number as strict tie-breaker.
+				const bool hasEgressRank = ( group->hasSerializedEgress && selfEnt->crowd.egressQueueRank >= 0 && other->crowd.egressQueueRank >= 0 );
+				const bool hasIngressRank = ( group->hasSerializedIngress && selfEnt->crowd.ingressQueueRank >= 0 && other->crowd.ingressQueueRank >= 0 );
+				const bool selfHasPriority = hasEgressRank ? ( selfEnt->crowd.egressQueueRank < other->crowd.egressQueueRank ) :
+					( hasIngressRank ? ( selfEnt->crowd.ingressQueueRank < other->crowd.ingressQueueRank ) : ( entityNumber < otherNum ) );
 				if ( !selfHasPriority ) {
 					// Self has lower priority: yield right-of-way and stop to let the oncoming teammate clear the corridor.
 					foundLeaderAhead = true;
@@ -1883,17 +2388,30 @@ bool SVG_Crowd_ComputeTeammateFollowSpeedScale( const int32_t entityNumber, cons
 			}
 		} else {
 			// Teammate ahead is actively moving along the corridor:
-			// Maintain rolling minimum crawl scale so followers never deadlock in tight clusters and stream smoothly in single file:
-			if ( aheadDist <= combinedRadius ) {
-				scale = CROWD_FOLLOW_ROLLING_MIN_SCALE;
-			} else if ( aheadDist <= stopSeparation ) {
-				const double frac = std::clamp( ( aheadDist - combinedRadius ) / ( stopSeparation - combinedRadius ), 0.0, 1.0 );
-				scale = CROWD_FOLLOW_ROLLING_MIN_SCALE + ( frac * ( CROWD_FOLLOW_CRAWL_SPEED_SCALE - CROWD_FOLLOW_ROLLING_MIN_SCALE ) );
-			} else if ( aheadDist <= crawlSeparation ) {
-				const double frac = ( aheadDist - stopSeparation ) / ( crawlSeparation - stopSeparation );
-				scale = CROWD_FOLLOW_CRAWL_SPEED_SCALE + frac * ( 1.0 - CROWD_FOLLOW_CRAWL_SPEED_SCALE );
+			// In narrow passages or strict doorway queues, trailing agents must halt at stopSeparation
+			// so they do not push into the back of the leader and wedge them against the aperture:
+			if ( isNarrowFunnel || strictQueueing ) {
+				if ( aheadDist <= stopSeparation ) {
+					scale = 0.0;
+				} else if ( aheadDist <= crawlSeparation ) {
+					const double frac = ( aheadDist - stopSeparation ) / ( crawlSeparation - stopSeparation );
+					scale = frac * CROWD_FOLLOW_CRAWL_SPEED_SCALE;
+				} else {
+					scale = 1.0;
+				}
 			} else {
-				scale = 1.0;
+				// Open terrain: maintain rolling minimum crawl scale so followers never deadlock in tight clusters and stream smoothly in single file:
+				if ( aheadDist <= combinedRadius ) {
+					scale = CROWD_FOLLOW_ROLLING_MIN_SCALE;
+				} else if ( aheadDist <= stopSeparation ) {
+					const double frac = std::clamp( ( aheadDist - combinedRadius ) / ( stopSeparation - combinedRadius ), 0.0, 1.0 );
+					scale = CROWD_FOLLOW_ROLLING_MIN_SCALE + ( frac * ( CROWD_FOLLOW_CRAWL_SPEED_SCALE - CROWD_FOLLOW_ROLLING_MIN_SCALE ) );
+				} else if ( aheadDist <= crawlSeparation ) {
+					const double frac = ( aheadDist - stopSeparation ) / ( crawlSeparation - stopSeparation );
+					scale = CROWD_FOLLOW_CRAWL_SPEED_SCALE + frac * ( 1.0 - CROWD_FOLLOW_CRAWL_SPEED_SCALE );
+				} else {
+					scale = 1.0;
+				}
 			}
 		}
 		minScale = std::min( minScale, scale );
@@ -2074,7 +2592,9 @@ bool MoveAStarCrowdOrigin( const int32_t crowdID, const Vector3DP &origin, const
 	group.targetEntityNumber = ENTITYNUM_NONE;
 	group.orderStartTime = level.time;
 	group.isMoving = true;
+	SVG_Squad_SetCommand( crowdID, origin, style, params );
 	SVG_Crowd_ResetSerializedIngress( group, members );
+	SVG_Crowd_ResetSerializedEgress( group, members );
 
 	// Calculate collective squad centroid in Vector3DP.
 	const Vector3DP centroid = SVG_Crowd_ComputeCentroid( members );
@@ -2888,6 +3408,33 @@ bool MoveAStarCrowdOrigin( const int32_t crowdID, const Vector3DP &origin, const
 			ingressConfigured ? 1 : 0, group.ingressQueueEntityNumbers.size() );
 	}
 
+	/**
+	*	Configure serialized in-order room egress when departing an enclosed room/zone through a narrow doorway.
+	**/
+	if ( members.size() > 1 ) {
+		const nav_room_t *startRoom = Nav_GetRoomForPoint( centroid );
+		if ( startRoom == nullptr && startFace >= 0 && startFace < static_cast<int32_t>( g_nav_faces.size() ) ) {
+			const int32_t startRoomID = g_nav_faces[ startFace ].room_id;
+			if ( startRoomID >= 0 && startRoomID < static_cast<int32_t>( g_nav_rooms.size() ) ) {
+				startRoom = &g_nav_rooms[ startRoomID ];
+			}
+		}
+		if ( startRoom == nullptr ) {
+			for ( const svg_base_edict_t *m : members ) {
+				if ( m != nullptr && SVG_Entity_IsActive( m ) ) {
+					startRoom = Nav_GetRoomForPoint( SVG_GetEntityFeetOriginDP( m ) );
+					if ( startRoom != nullptr ) {
+						break;
+					}
+				}
+			}
+		}
+		const bool egressConfigured = SVG_Crowd_ConfigureSerializedEgress( group, members, guidePath, navPathFaces, startRoom, destRoom, centroid );
+		gi.dprintf( "[crowd egress] crowd=%" PRId32 " start_room=%" PRId32 " members=%zu configured=%d queue=%zu\n",
+			group.crowdID, startRoom != nullptr ? startRoom->room_id : -1, members.size(),
+			egressConfigured ? 1 : 0, group.egressQueueEntityNumbers.size() );
+	}
+
 	return true;
 }
 
@@ -2937,6 +3484,7 @@ bool MoveAStarFollowEntity( const int32_t crowdID, const int32_t targetEntityNum
 	group.orderStartTime = level.time;
 	group.isMoving = true;
 	SVG_Crowd_ResetSerializedIngress( group, members );
+	SVG_Crowd_ResetSerializedEgress( group, members );
 
 	const Vector3DP centroid = SVG_Crowd_ComputeCentroid( members );
 	group.currentHeadingYaw = SVG_Crowd_CalculateHeadingYaw( centroid, Vector3DP( targetEnt->currentOrigin ), targetEnt, params );
@@ -3211,6 +3759,7 @@ void SVG_Crowd_SetCrowdParams( const int32_t crowdID, const svg_crowd_params_t &
 *	@param	crowdID	Crowd identifier.
 **/
 void SVG_Crowd_StopCrowd( const int32_t crowdID ) {
+	SVG_Squad_Stop( crowdID );
 	auto it = g_crowd_groups.find( crowdID );
 	if ( it != g_crowd_groups.end() ) {
 		it->second.isMoving = false;
@@ -3223,6 +3772,12 @@ void SVG_Crowd_StopCrowd( const int32_t crowdID ) {
 		it->second.ingressQueueHead = 0;
 		it->second.ingressMarshalCursor = 0;
 		it->second.ingressQueueHeadStartTime = 0_ms;
+		it->second.hasSerializedEgress = false;
+		it->second.egressPortalHalfWidth = 0.0;
+		it->second.egressQueueEntityNumbers.clear();
+		it->second.egressQueueHead = 0;
+		it->second.egressQueueHeadStartTime = 0_ms;
+		it->second.egressNextReleaseTime = 0_ms;
 	}
 
 	std::vector<svg_base_edict_t*> members;
@@ -3235,6 +3790,8 @@ void SVG_Crowd_StopCrowd( const int32_t crowdID ) {
 		}
 		member->crowd.ingressQueueRank = -1;
 		member->crowd.ingressReleased = true;
+		member->crowd.egressQueueRank = -1;
+		member->crowd.egressReleased = true;
 		member->crowd.reachedGoal = true;
 	}
 }
@@ -3461,6 +4018,100 @@ static bool SVG_Crowd_ResolveStalledMemberOcclusion( svg_crowd_group_t &group, c
 }
 
 /**
+*	@brief		Compact formation slot assignments upon crowd member death to eliminate vacant interior holes.
+*	@details	Detects deceased squad members and reassigns living members occupying peripheral/outermost
+*				slots into vacant core/interior slots, collapsing the formation compactly with zero gaps.
+*	@param	group			Active crowd coordination group.
+*	@param	livingMembers	List of active living squad member entities.
+*	@return	True if one or more formation slots were compacted; false otherwise.
+*	@note		Strictly O(M) where M is squad size; executes only when member count decreases below slot count.
+**/
+static bool SVG_Crowd_CompactFormationSlotsOnMemberDeath( svg_crowd_group_t &group, const std::vector<svg_base_edict_t*> &livingMembers ) {
+	/**
+	*	Sanity checks: requires an active moving group with multiple slots and living members.
+	**/
+	if ( !group.isMoving || group.slots.empty() || livingMembers.empty() ) {
+		return false;
+	}
+
+	// If living member count matches or exceeds slot count, all slots are claimed; no compaction required.
+	if ( livingMembers.size() >= group.slots.size() ) {
+		return false;
+	}
+
+	/**
+	*	Catalog all slot indices currently claimed by living members.
+	**/
+	std::vector<bool> slotClaimed( group.slots.size(), false );
+	for ( const svg_base_edict_t *member : livingMembers ) {
+		if ( member != nullptr && member->crowd.slotIndex >= 0 && member->crowd.slotIndex < static_cast<int32_t>( group.slots.size() ) ) {
+			slotClaimed[ member->crowd.slotIndex ] = true;
+		}
+	}
+
+	bool anyCompacted = false;
+
+	/**
+	*	Iteratively shift living members from highest/outermost slot indices into lowest vacant core slots.
+	**/
+	for ( size_t coreSlotIdx = 0; coreSlotIdx < livingMembers.size(); coreSlotIdx++ ) {
+		// If this core slot is already claimed, proceed to next slot.
+		if ( slotClaimed[ coreSlotIdx ] ) {
+			continue;
+		}
+
+		// Find the living member occupying the highest claimed slot index above coreSlotIdx.
+		int32_t highestClaimedIdx = -1;
+		svg_base_edict_t *outermostMember = nullptr;
+
+		for ( svg_base_edict_t *candidate : livingMembers ) {
+			if ( candidate != nullptr && candidate->crowd.slotIndex > static_cast<int32_t>( coreSlotIdx ) ) {
+				if ( candidate->crowd.slotIndex > highestClaimedIdx ) {
+					highestClaimedIdx = candidate->crowd.slotIndex;
+					outermostMember = candidate;
+				}
+			}
+		}
+
+		// If no living member occupies a higher slot, compaction is complete.
+		if ( outermostMember == nullptr || highestClaimedIdx < 0 ) {
+			break;
+		}
+
+		/**
+		*	Shift the outermost living member into the vacant core slot.
+		**/
+		const int32_t oldSlotIdx = outermostMember->crowd.slotIndex;
+		outermostMember->crowd.slotIndex = static_cast<int32_t>( coreSlotIdx );
+		outermostMember->crowd.role = group.slots[ coreSlotIdx ].role;
+
+		// If member is moving towards final formation slots (or ingress is released), update goal origin.
+		if ( !group.hasSerializedIngress || outermostMember->crowd.ingressReleased ) {
+			outermostMember->crowd.assignedGoalOrigin = QM_Vector3FromDP( group.slots[ coreSlotIdx ].worldPosition );
+			outermostMember->crowd.reachedGoal = false;
+			SVG_Crowd_ResetMemberNavigation( outermostMember );
+		}
+
+		// Update claimed state for the shifted slots.
+		slotClaimed[ coreSlotIdx ] = true;
+		slotClaimed[ oldSlotIdx ] = false;
+		anyCompacted = true;
+
+		gi.dprintf( "[crowd compaction] crowd=%" PRId32 " ent=%" PRId32 " shifted slot %" PRId32 " -> %" PRId32 "\n",
+			group.crowdID, outermostMember->s.number, oldSlotIdx, static_cast<int32_t>( coreSlotIdx ) );
+	}
+
+	/**
+	*	Truncate orphan peripheral slots beyond the living member count to preserve compactness.
+	**/
+	if ( anyCompacted && group.slots.size() > livingMembers.size() ) {
+		group.slots.resize( livingMembers.size() );
+	}
+
+	return anyCompacted;
+}
+
+/**
 *	@brief	Dynamically optimize slot assignments among crowd members to eliminate crossing trajectories.
 *	@details	Executes continuous 2-Opt pairwise distance optimization based on the triangle inequality theorem:
 *				whenever two trajectory segments intersect, swapping their goals strictly reduces the sum of
@@ -3670,6 +4321,11 @@ void SVG_Crowd_OptimizeSlotAssignments( svg_crowd_group_t &group, const std::vec
 *	@brief	Execute per-frame crowd coordination, slot updates, and staggered pathing.
 **/
 void SVG_Crowd_Frame( void ) {
+	/**
+	*	Update decentralized tactical squads, bottleneck adaptation, and compaction.
+	**/
+	SVG_Squad_Update();
+
 	// Process each active moving crowd group.
 	for ( auto &pair : g_crowd_groups ) {
 		svg_crowd_group_t &group = pair.second;
@@ -3697,6 +4353,10 @@ void SVG_Crowd_Frame( void ) {
 		*	Advance at most one O(1) doorway reservation before evaluating arrival state.
 		**/
 		const bool serializedIngressPending = SVG_Crowd_UpdateSerializedIngress( group );
+		const bool serializedEgressPending = SVG_Crowd_UpdateSerializedEgress( group );
+
+		// Compact formation slots if any squad member died during transit to eliminate vacant interior holes.
+		SVG_Crowd_CompactFormationSlotsOnMemberDeath( group, members );
 
 		// Dynamically untangle crossing trajectories and optimize slot assignments among members
 		SVG_Crowd_OptimizeSlotAssignments( group, members );
@@ -3746,8 +4406,8 @@ void SVG_Crowd_Frame( void ) {
 			}
 		}
 
-		// Exterior hold-point occupancy is not final formation completion.
-		if ( serializedIngressPending ) {
+		// Exterior hold-point occupancy or pending room egress is not final formation completion.
+		if ( serializedIngressPending || serializedEgressPending ) {
 			allArrived = false;
 		}
 
@@ -3903,9 +4563,11 @@ void SVG_Crowd_DebugDraw( void ) {
 			if ( member->crowd.slotIndex >= 0 && member->crowd.slotIndex < static_cast<int32_t>( group.slots.size() ) ) {
 				const Vector3 assignedGoal = member->crowd.assignedGoalOrigin;
 				const Vector3 slotPos = QM_Vector3FromDP( group.slots[ member->crowd.slotIndex ].worldPosition );
-				const uint32_t activeGoalColor = member->crowd.ingressReleased
-					? MakeColor( 51, 204, 255, 220 )
-					: MakeColor( 255, 0, 220, 220 );
+				const uint32_t activeGoalColor = ( !member->crowd.egressReleased )
+					? MakeColor( 255, 140, 0, 220 )
+					: ( member->crowd.ingressReleased
+						? MakeColor( 51, 204, 255, 220 )
+						: MakeColor( 255, 0, 220, 220 ) );
 				// Current-to-assigned shows the path target actually consumed by this member.
 				SVG_Nav_DebugDraw_AddLine( member->currentOrigin, assignedGoal, activeGoalColor,
 					SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE, 2.0f );
@@ -3917,6 +4579,13 @@ void SVG_Crowd_DebugDraw( void ) {
 						SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE, 1.5f );
 				}
 			}
+		}
+
+		// Draw egress exit portal aperture in orange.
+		if ( group.hasSerializedEgress ) {
+			const Vector3 egressPortalWorld = QM_Vector3FromDP( group.egressPortalOrigin );
+			SVG_Nav_DebugDraw_AddSphere( egressPortalWorld, 12.0f, MakeColor( 255, 140, 0, 255 ),
+				SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE, 2.5f );
 		}
 	}
 }

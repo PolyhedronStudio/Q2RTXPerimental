@@ -1993,10 +1993,14 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Idle )( svg
 
 	/**
 	*	Check active crowd / tactical squad movement orders:
+	*	Only transition to crowd formation when the assigned group is actively moving,
+	*	preventing uncommanded pathfinding to default (0, 0, 0) coordinates.
 	**/
 	if ( self->crowd.crowdID >= 0 ) {
+		// Retrieve group record for our assigned crowd identifier.
 		const svg_crowd_group_t *crowdGroup = SVG_Crowd_GetGroup( self->crowd.crowdID );
-		if ( crowdGroup && ( crowdGroup->isMoving || self->crowd.slotIndex >= 0 ) ) {
+		// Transition to crowd formation only when the group is actively moving under an issued order.
+		if ( crowdGroup != nullptr && crowdGroup->isMoving ) {
 			Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::CrowdFormation );
 			svg_monster_testdummy_debug_t::onThink_CrowdFormation( self );
 			return;
@@ -2111,8 +2115,9 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_CrowdFormat
 	}
 
 	/**
-	*	Validate active crowd membership:
-	*	If no longer assigned to any crowd group, immediately return to standard idle lookout.
+	*	Validate active crowd membership and movement order:
+	*	If no longer assigned to any crowd group or group has ceased active movement,
+	*	immediately return to standard idle lookout.
 	**/
 	if ( self->crowd.crowdID < 0 ) {
 		Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
@@ -2122,8 +2127,25 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_CrowdFormat
 
 	// Retrieve active crowd coordination group record.
 	const svg_crowd_group_t *group = SVG_Crowd_GetGroup( self->crowd.crowdID );
-	if ( !group ) {
+	// If the crowd group record does not exist or is not actively moving under an order, revert to idle.
+	if ( group == nullptr || !group->isMoving ) {
 		Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
+		self->nextthink = level.time + FRAME_TIME_MS;
+		return;
+	}
+
+	/**
+	*	Hold station in place while waiting in the serialized room egress queue.
+	*	Members exit one-by-one rapidly in proximity order; unreleased members stand idle in formation.
+	**/
+	if ( group->hasSerializedEgress && !self->crowd.egressReleased ) {
+		self->velocity.x = 0.0f;
+		self->velocity.y = 0.0f;
+		self->monsterMove.state.velocity.x = 0.0;
+		self->monsterMove.state.velocity.y = 0.0;
+		self->UpdateAnim( 1 ); // IDLE
+		int32_t blockedMask = MM_SLIDEMOVEFLAG_NONE;
+		self->GenericThinkFinish( false, blockedMask );
 		self->nextthink = level.time + FRAME_TIME_MS;
 		return;
 	}
@@ -2176,8 +2198,8 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_CrowdFormat
 			if ( !memberEnt || !SVG_Entity_IsActive( memberEnt ) || memberEnt->health <= 0 ) {
 				continue;
 			}
-			// A member parked at an exterior ingress hold point is still unresolved for final formation occupancy.
-			if ( !memberEnt->crowd.reachedGoal || !memberEnt->crowd.ingressReleased ) {
+			// A member parked at an exterior ingress hold point or queued for room egress is still unresolved for final formation occupancy.
+			if ( !memberEnt->crowd.reachedGoal || !memberEnt->crowd.ingressReleased || !memberEnt->crowd.egressReleased ) {
 				unresolvedCount++;
 				if ( unresolvedCount > 1 ) {
 					break;

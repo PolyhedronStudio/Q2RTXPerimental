@@ -542,10 +542,11 @@ static void SVG_Command_CrowdStatus_f( void ) {
 		gi.dprintf( "[crowd status] group=%" PRId32 " missing\n", crowdID );
 		return;
 	}
-	gi.dprintf( "[crowd status] group=%" PRId32 " moving=%d ingress=%d head=%" PRId32 "/%zu portal=(%.2f %.2f %.2f) inward=(%.3f %.3f) width=%.2f\n",
-		crowdID, group->isMoving, group->hasSerializedIngress, group->ingressQueueHead,
-		group->ingressQueueEntityNumbers.size(), group->ingressPortalOrigin.x,
-		group->ingressPortalOrigin.y, group->ingressPortalOrigin.z,
+	gi.dprintf( "[crowd status] group=%" PRId32 " moving=%d ingress=%d egress=%d inHead=%" PRId32 "/%zu egHead=%" PRId32 "/%zu portal=(%.2f %.2f %.2f) inward=(%.3f %.3f) width=%.2f\n",
+		crowdID, group->isMoving, group->hasSerializedIngress, group->hasSerializedEgress,
+		group->ingressQueueHead, group->ingressQueueEntityNumbers.size(),
+		group->egressQueueHead, group->egressQueueEntityNumbers.size(),
+		group->ingressPortalOrigin.x, group->ingressPortalOrigin.y, group->ingressPortalOrigin.z,
 		group->ingressPortalInward.x, group->ingressPortalInward.y, group->ingressPortalHalfWidth * 2.0 );
 	/**
 	*	Report physical feet positions alongside targets so off-slot stalls are observable.
@@ -559,9 +560,9 @@ static void SVG_Command_CrowdStatus_f( void ) {
 		const Vector3DP feet = SVG_GetEntityFeetOriginDP( member );
 		const Vector3 &goal = member->crowd.assignedGoalOrigin;
 		const svg_monster_base_t *monster = dynamic_cast<svg_monster_base_t*>( member );
-		gi.dprintf( "[crowd member] ent=%" PRId32 " rank=%" PRId32 " slot=%" PRId32 " released=%d arrived=%d feet=(%.2f %.2f %.2f) goal=(%.2f %.2f %.2f) path=%zu/%zu nextthink=%" PRIu64 "\n",
-			entityNumber, member->crowd.ingressQueueRank, member->crowd.slotIndex,
-			member->crowd.ingressReleased, member->crowd.reachedGoal,
+		gi.dprintf( "[crowd member] ent=%" PRId32 " inRank=%" PRId32 " egRank=%" PRId32 " slot=%" PRId32 " inRel=%d egRel=%d arrived=%d feet=(%.2f %.2f %.2f) goal=(%.2f %.2f %.2f) path=%zu/%zu nextthink=%" PRIu64 "\n",
+			entityNumber, member->crowd.ingressQueueRank, member->crowd.egressQueueRank, member->crowd.slotIndex,
+			member->crowd.ingressReleased, member->crowd.egressReleased, member->crowd.reachedGoal,
 			feet.x, feet.y, feet.z, goal.x, goal.y, goal.z,
 			monster != nullptr ? monster->stringPathPos : size_t{ 0 },
 			monster != nullptr ? monster->stringPulledPath.size() : size_t{ 0 },

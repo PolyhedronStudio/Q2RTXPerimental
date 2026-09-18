@@ -105,6 +105,22 @@ struct svg_crowd_group_t {
 	bool isMoving = false;
 	//! True while the destination doorway is being consumed as a single-capacity resource.
 	bool hasSerializedIngress = false;
+	//! Center of the constrained doorway currently controlled by serialized room egress.
+	Vector3DP egressPortalOrigin = { 0.0, 0.0, 0.0 };
+	//! Unit normal pointing from inside the origin room outward through the exit doorway.
+	Vector3DP egressPortalOutward = { 0.0, 0.0, 0.0 };
+	//! Half-width of the exit doorway aperture.
+	double egressPortalHalfWidth = 0.0;
+	//! Ordered entity numbers of crowd members queued for egress (closest to exit door first).
+	std::vector<int32_t> egressQueueEntityNumbers = {};
+	//! O(1) index of the member currently at the head of the egress release queue.
+	int32_t egressQueueHead = 0;
+	//! Server timestamp when the current queue head began waiting to clear the exit doorway.
+	QMTime egressQueueHeadStartTime = 0_ms;
+	//! Server timestamp when the next egress queue member is eligible for rapid release.
+	QMTime egressNextReleaseTime = 0_ms;
+	//! True while the origin room doorway is being exited via serialized in-order egress.
+	bool hasSerializedEgress = false;
 
 	/**
 	*	@brief	Safely resolve the target entity being followed.

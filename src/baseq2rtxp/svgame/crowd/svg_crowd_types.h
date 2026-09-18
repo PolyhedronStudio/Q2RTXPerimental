@@ -270,6 +270,18 @@ static constexpr double CROWD_CONSTRAINED_INGRESS_SQUEEZE_THRESHOLD = 0.95;
 //! Maximum aperture width in world units for a passage/portal to be classified as a constrained bottleneck.
 static constexpr double CROWD_PORTAL_BOTTLENECK_MAX_WIDTH = 128.0;
 
+//! Maximum stationary stall interval before an obstructed egress leader releases the next member as fail-safe.
+static constexpr QMTime CROWD_EGRESS_ACTIVE_STALL_TIMEOUT = 2000_ms;
+
+//! Maximum egress transit timeout before releasing the next member if the active head is delayed.
+static constexpr QMTime CROWD_EGRESS_TRANSIT_TIMEOUT = 5000_ms;
+
+//! Hull radius multiplier required to clear the doorway aperture plane before releasing the next egress member.
+static constexpr double CROWD_EGRESS_CLEARANCE_RADIUS_SCALE = 1.5;
+
+//! Rapid release time interval between successive squad members during serialized room egress.
+static constexpr QMTime CROWD_EGRESS_RAPID_RELEASE_INTERVAL = 250_ms;
+
 //! Scale factor applied to portal aperture width to derive the dynamic inflow keep-out radius.
 static constexpr double CROWD_PORTAL_KEEPOUT_SCALE = 0.50;
 
@@ -441,6 +453,10 @@ struct crowd_t {
 	int32_t ingressQueueRank = -1;
 	//! True once this member owns or has consumed the active doorway reservation.
 	bool ingressReleased = true;
+	//! Stable zero-based order in the active serialized room egress queue (-1 when no egress queue applies).
+	int32_t egressQueueRank = -1;
+	//! True once this member is released to exit the origin room.
+	bool egressReleased = true;
 	//! True when the agent has reached within the arrival threshold of its assigned slot/cover.
 	bool reachedGoal = false;
 };

@@ -8,6 +8,7 @@
 #include "svgame/svg_local.h"
 #include "svgame/svg_utils.h"
 #include "nav_generate.h"
+#include "nav_sector_graph.h"
 #include "nav_cover_generate.h"
 #include "nav_path.h"
 #include "nav_thread.h"
@@ -571,6 +572,7 @@ void Nav_Clear() {
 	g_nav_leaf_links.clear();
 	g_nav_leaf_poly_ids.clear();
 	Nav_ClearCoverPoints();
+	Nav_SectorGraph_Clear();
 
 	// Log memory clear message to server console.
 	gi.dprintf( "NavMesh memory cleared.\n" );
@@ -3985,6 +3987,11 @@ void Nav_BuildSpatialRegionsAndPortals() {
 	gi.dprintf( "NavMesh Spatial Decomposition: Discovered %d rooms/zones and %d transition portals.\n",
 		static_cast<int32_t>( g_nav_rooms.size() ),
 		static_cast<int32_t>( g_nav_portals.size() ) );
+
+	/**
+	*	Build discrete topological NavSector graph and precalculate all-pairs shortest paths.
+	**/
+	Nav_SectorGraph_Build();
 }
 
 /**

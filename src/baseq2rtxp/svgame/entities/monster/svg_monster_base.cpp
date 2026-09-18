@@ -22,8 +22,10 @@
 #include "svgame/monsters/svg_mmove.h"
 #include "svgame/monsters/svg_mmove_slidemove.h"
 
-// Crowd coordination.
+// Crowd and squad coordination.
 #include "svgame/crowd/svg_crowd_manager.h"
+#include "svgame/crowd/svg_squad_coordinator.h"
+#include "svgame/nav/nav_sector_graph.h"
 
 
 /**
@@ -1181,9 +1183,40 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 *	@return	True if entity moved, false if arrived or stopped.
 **/
 const bool svg_monster_base_t::StepMoveToGoal( const Vector3 &goalOrigin ) {
+	/**
+	*	Hold station in place while waiting in the serialized room egress queue.
+	*	Members exit one-by-one rapidly in proximity order; unreleased members stand idle in formation.
+	**/
+	if ( this->crowd.crowdID >= 0 ) {
+		const svg_crowd_group_t *egressGroup = SVG_Crowd_GetGroup( this->crowd.crowdID );
+		if ( egressGroup != nullptr && egressGroup->hasSerializedEgress && !this->crowd.egressReleased ) {
+			velocity.x = velocity.y = 0.0f;
+			monsterMove.state.velocity.x = 0.0;
+			monsterMove.state.velocity.y = 0.0;
+			UpdateAnim( 1 ); // IDLE
+			return true;
+		}
+	}
+
+	/**
+	*	Query decentralized squad coordinator for formation target and pacing scale:
+	**/
+	float squadSpeedScale = 1.0f;
+	Vector3DP squadSlotTarget = {};
+	if ( this->QuerySquadFormationTarget( &squadSlotTarget, &squadSpeedScale ) ) {
+		// If yielding right-of-way to preceding rank at a bottleneck portal:
+		if ( squadSpeedScale <= 0.01f ) {
+			velocity.x = velocity.y = 0.0f;
+			monsterMove.state.velocity.x = 0.0;
+			monsterMove.state.velocity.y = 0.0;
+			UpdateAnim( 1 ); // IDLE
+			return true;
+		}
+	}
+
 	const Vector3DP goalOriginDP( goalOrigin );
 	Vector3DP moveDirDP = {};
-	double speedScale = 1.0;
+	double speedScale = static_cast<double>( squadSpeedScale );
 
 	if ( !ComputePathSteering( goalOriginDP, &moveDirDP, &speedScale ) ) {
 		velocity.x = velocity.y = 0.0f;
@@ -1248,7 +1281,7 @@ const bool svg_monster_base_t::StepMoveToGoal( const Vector3 &goalOrigin ) {
 
 		// 3. Squad formation speed regulation: rubber-band followers to maintain rank relative to the leader
 		const svg_crowd_group_t *group = SVG_Crowd_GetGroup( this->crowd.crowdID );
-		if ( group && group->isMoving && !group->hasSerializedIngress && !this->crowd.reachedGoal ) {
+		if ( group && group->isMoving && !group->hasSerializedIngress && !group->hasSerializedEgress && !this->crowd.reachedGoal ) {
 			const svg_base_edict_t *leader = group->GetLeaderEntity();
 			if ( !leader && this->crowd.slotIndex != 0 ) {
 				for ( const int32_t memberNum : group->memberEntityNumbers ) {
@@ -1383,6 +1416,21 @@ const bool svg_monster_base_t::StepMoveToGoal( const Vector3 &goalOrigin ) {
 const bool svg_monster_base_t::MoveAStarToOrigin( const Vector3 &goalOrigin, bool force ) {
 	if ( GuardForNullNavMesh() ) {
 		return false;
+	}
+
+	/**
+	*	Hold station in place while waiting in the serialized room egress queue.
+	*	Members exit one-by-one rapidly in proximity order; unreleased members stand idle in formation.
+	**/
+	if ( this->crowd.crowdID >= 0 ) {
+		const svg_crowd_group_t *egressGroup = SVG_Crowd_GetGroup( this->crowd.crowdID );
+		if ( egressGroup != nullptr && egressGroup->hasSerializedEgress && !this->crowd.egressReleased ) {
+			velocity.x = velocity.y = 0.0f;
+			monsterMove.state.velocity.x = 0.0;
+			monsterMove.state.velocity.y = 0.0;
+			UpdateAnim( 1 ); // IDLE
+			return true;
+		}
 	}
 
 	if ( !( monsterMove.state.mm_flags & MMF_ON_GROUND ) ) {
@@ -1532,10 +1580,138 @@ double svg_monster_base_t::OnNavEvaluateEdgeCost( const int32_t fromFaceIdx, con
 *	@param	isFinalGoal		True if the reached waypoint represents the final path destination.
 **/
 void svg_monster_base_t::OnWaypointReached( const size_t waypointIndex, const Vector3DP &waypointPos, const bool isFinalGoal ) {
-	// Base implementation is a no-op; derived monster classes override this to react to waypoint milestones.
 	( void )waypointIndex;
+
+	/**
+	*	Dispatch waypoint arrival to the tactical evaluation hook.
+	**/
+	this->EvaluateWaypointArrival( waypointPos, static_cast<float>( MONSTER_NAV_WAYPOINT_REACH_RADIUS ), isFinalGoal );
+}
+
+/**
+*	@brief	Query assigned squad formation target origin and recommended pacing speed scale.
+*	@param	outTargetOrigin	[out] World-space formation slot origin in Vector3DP.
+*	@param	outSpeedScale	[out] Recommended proportional speed multiplier [0.0..1.5].
+*	@return	True if enrolled in an active squad, false otherwise.
+**/
+const bool svg_monster_base_t::QuerySquadFormationTarget( Vector3DP *outTargetOrigin, float *outSpeedScale ) {
+	// Initialize default speed scale.
+	if ( outSpeedScale != nullptr ) {
+		*outSpeedScale = 1.0f;
+	}
+
+	// Early return if entity is not registered to a squad.
+	if ( this->crowd.crowdID < 0 ) {
+		return false;
+	}
+
+	/**
+	*	Retrieve active tactical squad record from coordinator.
+	**/
+	const svg_squad_t *squad = SVG_Squad_Get( this->crowd.crowdID );
+	if ( squad == nullptr || !squad->is_moving ) {
+		return false;
+	}
+
+	const int32_t myRank = squad->GetMemberRank( this->s.number );
+	if ( myRank < 0 || myRank >= static_cast<int32_t>( squad->slots.size() ) ) {
+		return false;
+	}
+
+	const svg_crowd_slot_t &mySlot = squad->slots[ myRank ];
+	if ( outTargetOrigin != nullptr ) {
+		*outTargetOrigin = mySlot.worldPosition;
+	}
+
+	/**
+	*	Compute proportional rubber-band pacing relative to squad leader and assigned slot.
+	**/
+	if ( outSpeedScale != nullptr ) {
+		float scale = 1.0f;
+		const Vector3DP myFeet = SVG_GetEntityFeetOriginDP( this );
+		const double distToSlot = QM_Vector3Distance2DDP( myFeet, mySlot.worldPosition );
+
+		//! Distance behind assigned slot to trigger catch-up sprint.
+		static constexpr double SQUAD_SLOT_CATCHUP_DIST = 64.0;
+		//! Distance ahead of slot to trigger deceleration.
+		static constexpr double SQUAD_SLOT_SLOWDOWN_DIST = 16.0;
+
+		const svg_base_edict_t *leader = squad->GetLeaderEntity();
+		if ( leader != nullptr && leader != this && !leader->crowd.reachedGoal ) {
+			const double leaderDist = QM_Vector3Distance2DDP( SVG_GetEntityFeetOriginDP( leader ), squad->destination_origin );
+			const double myDist = QM_Vector3Distance2DDP( myFeet, squad->destination_origin );
+
+			if ( myDist > leaderDist + SQUAD_SLOT_CATCHUP_DIST ) {
+				scale = 1.25f; // Catch-up sprint
+			} else if ( myDist < leaderDist - SQUAD_SLOT_SLOWDOWN_DIST ) {
+				scale = 0.8f; // Slowdown to preserve rank
+			}
+		} else if ( distToSlot > SQUAD_SLOT_CATCHUP_DIST ) {
+			scale = 1.25f;
+		}
+
+		/**
+		*	Decentralized right-of-way check if squad is traversing a bottleneck aperture.
+		**/
+		if ( squad->active_bottleneck_portal_id >= 0 ) {
+			bool hasRow = true;
+			if ( SVG_Squad_QueryBottleneckRightOfWay( this->crowd.crowdID, this->s.number, squad->active_bottleneck_portal_id, &hasRow ) ) {
+				if ( !hasRow ) {
+					scale = 0.0f; // Yield speed to preceding rank
+				}
+			}
+		}
+
+		*outSpeedScale = scale;
+	}
+
+	return true;
+}
+
+/**
+*	@brief	Query instantaneous topological sector awareness and upcoming portal geometry.
+*	@param	goalOrigin		Destination world position.
+*	@param	outSectorInfo	[out] Populated sector awareness snapshot.
+*	@return	True if current sector was resolved, false otherwise.
+**/
+const bool svg_monster_base_t::QuerySectorAwareness( const Vector3DP &goalOrigin, nav_sector_info_t *outSectorInfo ) {
+	const Vector3DP myFeet = SVG_GetEntityFeetOriginDP( this );
+	return Nav_SectorGraph_QueryAwareness( myFeet, goalOrigin, outSectorInfo );
+}
+
+/**
+*	@brief	Query right-of-way precedence when traversing a bottleneck aperture or portal.
+*	@param	portalId			Portal index to evaluate.
+*	@param	outHasRightOfWay	[out] True if entity is clear to traverse, false if yielding to preceding rank.
+*	@return	True if query succeeded.
+**/
+const bool svg_monster_base_t::QueryBottleneckRightOfWay( const int32_t portalId, bool *outHasRightOfWay ) {
+	if ( this->crowd.crowdID >= 0 ) {
+		return SVG_Squad_QueryBottleneckRightOfWay( this->crowd.crowdID, this->s.number, portalId, outHasRightOfWay );
+	}
+	if ( outHasRightOfWay != nullptr ) {
+		*outHasRightOfWay = true;
+	}
+	return true;
+}
+
+/**
+*	@brief	Evaluate tactical actions and custom pursuit weighting upon reaching a waypoint.
+*	@param	waypointPos		Position of reached waypoint in Vector3DP.
+*	@param	waypointRadius	Acceptance radius.
+*	@param	isFinalGoal		True if final destination slot reached.
+**/
+void svg_monster_base_t::EvaluateWaypointArrival( const Vector3DP &waypointPos, const float waypointRadius, const bool isFinalGoal ) {
 	( void )waypointPos;
-	( void )isFinalGoal;
+	( void )waypointRadius;
+
+	/**
+	*	Final destination arrived: mark crowd member arrival state.
+	**/
+	if ( isFinalGoal ) {
+		this->crowd.reachedGoal = true;
+		this->crowd.blockedStartTime = 0_ms;
+	}
 }
 
 /**

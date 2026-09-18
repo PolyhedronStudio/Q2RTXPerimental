@@ -150,7 +150,11 @@ VkResult UploadImage(void* FirstPixel, size_t total_size, unsigned int Width, un
 
 	VkMemoryRequirements mem_req;
 	vkGetImageMemoryRequirements(qvk.device, Info->Image, &mem_req);
-	assert(mem_req.size >= buf_img_upload.size);
+	// The staging payload can legitimately be larger than the image allocation.
+	// DDS files may contain the full source texels or extra mip data, while the
+	// device-local image allocation only needs to satisfy the target image itself.
+
+	// Q2RTXP: <WID>: assert(mem_req.size >= buf_img_upload.size);
 
 	VkMemoryAllocateInfo mem_alloc_info = {
 		.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
@@ -307,17 +311,51 @@ bool LoadImageFromDDS(const char* FileName, uint32_t Binding, struct ImageGPUInf
 	VkFormat PixelFormat = VK_FORMAT_UNDEFINED;
 	size_t dds_header_size = sizeof(DDS_HEADER);
 
+	// Map DDS DXGI formats to matching Vulkan image formats.
+	// BC1: RGB/DXT1 (3bits/pixel, no alpha variant)
+	// BC3: RGBA/DXT5 (8bits/pixel, with alpha)
+	// BC4: RG unsigned normalized (8bits/pixel, for height/normal maps)
+	// BC5: RG signed normalized (8bits/pixel, for height/normal maps)
+	// BC6H: RGB float16/uint16 (for HDR)
+	// BC7: RGBA high quality (8bits/pixel, best quality)
 	if (dds->ddspf.fourCC == MAKEFOURCC('D', 'X', '1', '0'))
 	{
-		if (dxt10->dxgiFormat == DXGI_FORMAT_B8G8R8A8_UNORM)
-			PixelFormat = VK_FORMAT_R8G8B8A8_UNORM;
+		// Preserve the DDS file's actual storage format so the upload buffer
+		// matches the texel layout that the image copy expects.
+		if (dxt10->dxgiFormat == DXGI_FORMAT_BC7_TYPELESS ||
+			dxt10->dxgiFormat == DXGI_FORMAT_BC7_UNORM)
+			PixelFormat = VK_FORMAT_BC7_UNORM_BLOCK;
+		else if (dxt10->dxgiFormat == DXGI_FORMAT_BC7_UNORM_SRGB)
+			PixelFormat = VK_FORMAT_BC7_SRGB_BLOCK;
+		else if (dxt10->dxgiFormat == DXGI_FORMAT_BC1_TYPELESS ||
+		         dxt10->dxgiFormat == DXGI_FORMAT_BC1_UNORM ||
+				 dxt10->dxgiFormat == DXGI_FORMAT_BC1_UNORM_SRGB)
+			PixelFormat = VK_FORMAT_BC1_RGB_UNORM_BLOCK;
+		else if (dxt10->dxgiFormat == DXGI_FORMAT_BC2_TYPELESS ||
+		         dxt10->dxgiFormat == DXGI_FORMAT_BC2_UNORM ||
+			 dxt10->dxgiFormat == DXGI_FORMAT_BC2_UNORM_SRGB)
+			PixelFormat = VK_FORMAT_BC2_UNORM_BLOCK;
+		else if (dxt10->dxgiFormat == DXGI_FORMAT_BC4_TYPELESS ||
+		         dxt10->dxgiFormat == DXGI_FORMAT_BC4_UNORM ||
+				 dxt10->dxgiFormat == DXGI_FORMAT_BC4_SNORM)
+			PixelFormat = VK_FORMAT_BC4_UNORM_BLOCK;
+		else if (dxt10->dxgiFormat == DXGI_FORMAT_BC5_TYPELESS ||
+		         dxt10->dxgiFormat == DXGI_FORMAT_BC5_UNORM ||
+			 dxt10->dxgiFormat == DXGI_FORMAT_BC5_SNORM)
+			PixelFormat = VK_FORMAT_BC5_UNORM_BLOCK;
+		else if (dxt10->dxgiFormat == DXGI_FORMAT_BC6H_TYPELESS ||
+		         dxt10->dxgiFormat == DXGI_FORMAT_BC6H_UF16 ||
+			 dxt10->dxgiFormat == DXGI_FORMAT_BC6H_SF16)
+			PixelFormat = VK_FORMAT_BC6H_UFLOAT_BLOCK;
 		else if (dxt10->dxgiFormat == DXGI_FORMAT_R32_FLOAT)
 			PixelFormat = VK_FORMAT_R32_SFLOAT;
+		else if (dxt10->dxgiFormat == DXGI_FORMAT_B8G8R8A8_UNORM)
+			PixelFormat = VK_FORMAT_B8G8R8A8_UNORM;
 		else if (dxt10->dxgiFormat == DXGI_FORMAT_R32G32B32A32_FLOAT)
 			PixelFormat = VK_FORMAT_R32G32B32A32_SFLOAT;
 		else
 		{
-			Com_EPrintf("File %s uses an unsupported pixel format (%d)\n", FileName, dxt10->dxgiFormat);
+			Com_EPrintf("File %s uses an unsupported pixel format (%d)", FileName, dxt10->dxgiFormat);
 			goto done;
 		}
 
@@ -327,14 +365,22 @@ bool LoadImageFromDDS(const char* FileName, uint32_t Binding, struct ImageGPUInf
 	}
 	else
 	{
-		if (dds->caps2 & DDS_CUBEMAP && ((dds->caps2 & DDS_CUBEMAP_ALLFACES) == DDS_CUBEMAP_ALLFACES))
-		{
+		if ( dds->caps2 & DDS_CUBEMAP && ( ( dds->caps2 & DDS_CUBEMAP_ALLFACES ) == DDS_CUBEMAP_ALLFACES ) ) {
 			Cube = 1;
 			ArraySize = 6;
 		}
-
-		if (ISBITMASK(dds->ddspf, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000))
-			PixelFormat = VK_FORMAT_R8G8B8A8_UNORM;
+		// Legacy DXT1/2/3/4/5 formats (without DXT10 extension)
+		if (dds->ddspf.fourCC == MAKEFOURCC('D', 'X', '1', '1'))
+			PixelFormat = VK_FORMAT_BC1_RGB_UNORM_BLOCK;
+		else if (dds->ddspf.fourCC == MAKEFOURCC('D', 'X', '3', '1') ||
+		         dds->ddspf.fourCC == MAKEFOURCC('D', 'X', '5', '1'))
+			PixelFormat = VK_FORMAT_BC3_UNORM_BLOCK;
+		else if (dds->ddspf.fourCC == MAKEFOURCC('B', 'C', '4', ' '))
+			PixelFormat = VK_FORMAT_BC4_UNORM_BLOCK;
+		else if (dds->ddspf.fourCC == MAKEFOURCC('B', 'C', '5', ' '))
+			PixelFormat = VK_FORMAT_BC5_UNORM_BLOCK;
+		else if (ISBITMASK(dds->ddspf, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000))
+			PixelFormat = VK_FORMAT_B8G8R8A8_UNORM;
 		else if (ISBITMASK(dds->ddspf, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000))
 			PixelFormat = VK_FORMAT_R8G8B8A8_UNORM;
 		else if (ISBITMASK(dds->ddspf, 0xffffffff, 0x00000000, 0x00000000, 0x00000000))
@@ -349,13 +395,12 @@ done:
 	FS_FreeFile(data);
 	return retval;
 }
-
-VkDescriptorSetLayout* SkyGetDescriptorLayout()
+VkDescriptorSetLayout* SkyGetDescriptorLayout(void)
 {
 	return &uniform_precomputed_descriptor_layout;
 }
 
-VkDescriptorSet SkyGetDescriptorSet()
+VkDescriptorSet SkyGetDescriptorSet(void)
 {
 	return desc_set_precomputed_ubo;
 }

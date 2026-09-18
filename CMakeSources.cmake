@@ -205,6 +205,7 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/memory/svg_raiiobject.cpp
 
 	baseq2rtxp/svgame/crowd/svg_crowd_formations.cpp
+	baseq2rtxp/svgame/crowd/svg_squad_coordinator.cpp
 	baseq2rtxp/svgame/crowd/svg_crowd_manager.cpp
 	baseq2rtxp/svgame/crowd/svg_crowd_commands.cpp
 
@@ -328,6 +329,7 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/nav/nav_kdtree_builder.cpp
 	baseq2rtxp/svgame/nav/nav_path.cpp
 	baseq2rtxp/svgame/nav/nav_persistence.cpp
+	baseq2rtxp/svgame/nav/nav_sector_graph.cpp
 	baseq2rtxp/svgame/nav/nav_thread.cpp
 )
 SET(HEADERS_BASEQ2RTXP_SVGAME

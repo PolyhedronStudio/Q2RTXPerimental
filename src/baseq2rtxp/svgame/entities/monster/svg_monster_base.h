@@ -23,6 +23,9 @@
 #include "svgame/nav/nav_path.h"
 #include "svgame/nav/nav_cover_query.h"
 
+// Forward declarations.
+struct nav_sector_info_t;
+
 //! Arrival radius for standard intermediate path waypoints.
 static constexpr double MONSTER_NAV_WAYPOINT_REACH_RADIUS = 16.0;
 //! Arrival radius squared for standard intermediate path waypoints.
@@ -352,6 +355,34 @@ struct svg_monster_base_t : public svg_base_edict_t {
 	*			stare-halt mechanics, ambushes, cover queries, animation transitions, or custom environmental reactions.
 	**/
 	virtual void OnWaypointReached( const size_t waypointIndex, const Vector3DP &waypointPos, const bool isFinalGoal );
+	/**
+	*	@brief	Query assigned squad formation target origin and recommended pacing speed scale.
+	*	@param	outTargetOrigin	[out] World-space formation slot origin in Vector3DP.
+	*	@param	outSpeedScale	[out] Recommended proportional speed multiplier [0.0..1.5].
+	*	@return	True if enrolled in an active squad, false otherwise.
+	**/
+	const bool QuerySquadFormationTarget( Vector3DP *outTargetOrigin, float *outSpeedScale );
+	/**
+	*	@brief	Query instantaneous topological sector awareness and upcoming portal geometry.
+	*	@param	goalOrigin		Destination world position.
+	*	@param	outSectorInfo	[out] Populated sector awareness snapshot.
+	*	@return	True if current sector was resolved, false otherwise.
+	**/
+	const bool QuerySectorAwareness( const Vector3DP &goalOrigin, nav_sector_info_t *outSectorInfo );
+	/**
+	*	@brief	Query right-of-way precedence when traversing a bottleneck aperture or portal.
+	*	@param	portalId			Portal index to evaluate.
+	*	@param	outHasRightOfWay	[out] True if entity is clear to traverse, false if yielding to preceding rank.
+	*	@return	True if query succeeded.
+	**/
+	const bool QueryBottleneckRightOfWay( const int32_t portalId, bool *outHasRightOfWay );
+	/**
+	*	@brief	Evaluate tactical actions and custom pursuit weighting upon reaching a waypoint.
+	*	@param	waypointPos		Position of reached waypoint in Vector3DP.
+	*	@param	waypointRadius	Acceptance radius.
+	*	@param	isFinalGoal		True if final destination slot reached.
+	**/
+	virtual void EvaluateWaypointArrival( const Vector3DP &waypointPos, const float waypointRadius, const bool isFinalGoal );
 	/**
 	*	@brief	Invoked when a designated tactical cover point is successfully reached.
 	*	@param	coverIndex	Index of the reached cover point in g_nav_cover_points.
