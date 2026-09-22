@@ -58,6 +58,7 @@ typedef enum {
     IM_TGA,
     IM_JPG,
     IM_PNG,
+    IM_DDS,
     IM_MAX
 } imageformat_t;
 
@@ -65,7 +66,17 @@ typedef enum {
 typedef enum
 {
     PF_R8G8B8A8_UNORM = 0,
-    PF_R16_UNORM
+    PF_R16_UNORM,
+    PF_BC1,
+    PF_BC2,
+    PF_BC3,
+    PF_BC4_UNORM,
+    PF_BC4_SNORM,
+    PF_BC5_UNORM,
+    PF_BC5_SNORM,
+    PF_BC6H_UFLOAT,
+    PF_BC6H_SFLOAT,
+    PF_BC7
 } pixelformat_t;
 
 typedef struct image_s {
@@ -86,8 +97,11 @@ typedef struct image_s {
 #endif
     float           aspect;
 #if REF_VKPT
-    byte            *pix_data; // todo: add miplevels
-    pixelformat_t   pixel_format; // pixel format (only supported by VKPT renderer)
+    byte            *pix_data; // texture payload owned by VKPT.
+    size_t          pix_data_size; // byte size of pix_data.
+    uint32_t        mip_levels; // mip levels available in pix_data, or 0 to derive from dimensions.
+    pixelformat_t   pixel_format; // pixel format or compressed block layout used by VKPT.
+    bool            skip_runtime_normalization; // prepacked DDS normal maps do not need in-place normalization.
     vec3_t          light_color; // use this color if this is a light source
 	vec2_t          min_light_texcoord;
 	vec2_t          max_light_texcoord;
@@ -137,16 +151,18 @@ extern void (*IMG_Load)(image_t *image, byte *pic);
 
 struct screenshot_s;
 
-typedef int (*save_cb_t)(struct screenshot_s *restrict);
+typedef struct screenshot_s screenshot_t;
 
-typedef struct screenshot_s {
+typedef int (*save_cb_t)(screenshot_t *);
+
+struct screenshot_s {
     save_cb_t save_cb;
     byte *pixels;
     FILE *fp;
     char *filename;
     int width, height, rowbytes, bpp, status, param;
     bool async;
-} screenshot_t;
+};
 
 extern void (*IMG_ReadPixels)(screenshot_t *s);
 extern void (*IMG_ReadPixelsHDR)(screenshot_t *s);

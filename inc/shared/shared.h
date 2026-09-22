@@ -29,6 +29,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 *	Include based on whether the unit including is .c or .cpp
 **/
 #include "shared/stdlibs.h"
+
 //! Include Endianness utilities if not already included by another system header.
 #if HAVE_ENDIAN_H
 	#ifndef __cplusplus    
@@ -69,7 +70,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
     #define QEXTERN_C_ENCLOSE(ENCLOSED_CODE) ENCLOSED_CODE
     #define QEXTERN_C_OPEN
     #define QEXTERN_C_CLOSE
-
 #endif //__cplusplus
 
 /**

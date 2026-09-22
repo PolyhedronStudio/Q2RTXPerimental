@@ -34,6 +34,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "format/wal.h"
 #include "stb_image.h"
 #include "stb_image_write.h"
+#include "vkpt/dds.h"
 
 #include <assert.h>
 
@@ -42,6 +43,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define IMG_LOAD(x) \
     static int IMG_Load##x(byte *rawdata, size_t rawlen, \
         image_t *image, byte **pic)
+
+static int IMG_LoadDDS(byte *rawdata, size_t rawlen, image_t *image, byte **pic);
 
 void stbi_write(void *context, void *data, int size)
 {
@@ -288,6 +291,9 @@ IMG_LOAD(PCX)
 
     image->upload_width = image->width = w;
     image->upload_height = image->height = h;
+    image->pixel_format = PF_R8G8B8A8_UNORM;
+    image->pix_data_size = (size_t)w * (size_t)h * 4u;
+    image->mip_levels = 0;
     image->flags |= IMG_Unpack8((uint32_t *)*pic, buffer, w, h);
 
     return Q_ERR_SUCCESS;
@@ -332,7 +338,934 @@ IMG_LOAD(WAL)
 
     image->upload_width = image->width = w;
     image->upload_height = image->height = h;
+    image->pixel_format = PF_R8G8B8A8_UNORM;
+    image->pix_data_size = (size_t)size * 4u;
+    image->mip_levels = 0;
     image->flags |= IMG_Unpack8((uint32_t *)*pic, (uint8_t *)mt + offset, w, h);
+
+    return Q_ERR_SUCCESS;
+}
+
+/*
+====================================================================
+
+DDS LOADING
+
+====================================================================
+*/
+
+typedef struct {
+    uint32_t    mask;
+    int         shift;
+    int         bits;
+} dds_channel_t;
+
+typedef enum {
+    DDS_LOAD_RGBA8,
+    DDS_LOAD_GRAY16,
+    DDS_LOAD_BC1,
+    DDS_LOAD_BC2,
+    DDS_LOAD_BC3,
+    DDS_LOAD_BC4,
+    DDS_LOAD_BC5
+} dds_load_mode_t;
+
+static inline uint16_t DDS_ReadLE16(const byte *src)
+{
+    return (uint16_t)src[0] | ((uint16_t)src[1] << 8);
+}
+
+static inline uint32_t DDS_ReadLE32(const byte *src)
+{
+    return (uint32_t)src[0] |
+           ((uint32_t)src[1] << 8) |
+           ((uint32_t)src[2] << 16) |
+           ((uint32_t)src[3] << 24);
+}
+
+static inline uint64_t DDS_ReadLE48(const byte *src)
+{
+    return (uint64_t)src[0] |
+           ((uint64_t)src[1] << 8) |
+           ((uint64_t)src[2] << 16) |
+           ((uint64_t)src[3] << 24) |
+           ((uint64_t)src[4] << 32) |
+           ((uint64_t)src[5] << 40);
+}
+
+static inline uint64_t DDS_ReadLE64(const byte *src)
+{
+    return (uint64_t)src[0] |
+           ((uint64_t)src[1] << 8) |
+           ((uint64_t)src[2] << 16) |
+           ((uint64_t)src[3] << 24) |
+           ((uint64_t)src[4] << 32) |
+           ((uint64_t)src[5] << 40) |
+           ((uint64_t)src[6] << 48) |
+           ((uint64_t)src[7] << 56);
+}
+
+static inline byte DDS_Expand5(uint32_t value)
+{
+    return (byte)((value << 3) | (value >> 2));
+}
+
+static inline byte DDS_Expand6(uint32_t value)
+{
+    return (byte)((value << 2) | (value >> 4));
+}
+
+static inline byte DDS_ScaleToByte(uint32_t value, int bits)
+{
+    if (bits <= 0) {
+        return 0;
+    }
+
+    if (bits >= 8) {
+        return (byte)(value >> (bits - 8));
+    }
+
+    const uint32_t max_value = (1u << bits) - 1u;
+    return (byte)((value * 255u + (max_value / 2u)) / max_value);
+}
+
+static inline uint16_t DDS_ScaleToU16(uint32_t value, int bits)
+{
+    if (bits <= 0) {
+        return 0;
+    }
+
+    if (bits >= 16) {
+        return (uint16_t)value;
+    }
+
+    const uint32_t max_value = (1u << bits) - 1u;
+    return (uint16_t)((value * 65535u + (max_value / 2u)) / max_value);
+}
+
+static dds_channel_t DDS_MakeChannel(uint32_t mask)
+{
+    dds_channel_t channel = { mask, 0, 0 };
+
+    if (!mask) {
+        return channel;
+    }
+
+    while ((mask & 1u) == 0u) {
+        mask >>= 1;
+        channel.shift++;
+    }
+
+    while ((mask & 1u) != 0u) {
+        mask >>= 1;
+        channel.bits++;
+    }
+
+    return channel;
+}
+
+static inline byte DDS_ExtractChannelByte(uint32_t raw, const dds_channel_t *channel)
+{
+    if (!channel->bits) {
+        return 0;
+    }
+
+    return DDS_ScaleToByte((raw & channel->mask) >> channel->shift, channel->bits);
+}
+
+static inline uint16_t DDS_ExtractChannelU16(uint32_t raw, const dds_channel_t *channel)
+{
+    if (!channel->bits) {
+        return 0;
+    }
+
+    return DDS_ScaleToU16((raw & channel->mask) >> channel->shift, channel->bits);
+}
+
+static inline uint32_t DDS_ReadPixel(const byte *src, int bytes_per_pixel)
+{
+    uint32_t raw = 0;
+
+    for (int i = 0; i < bytes_per_pixel; i++) {
+        raw |= (uint32_t)src[i] << (8 * i);
+    }
+
+    return raw;
+}
+
+static void DDS_DecodeColorPalette(byte palette[4][4], uint16_t color0, uint16_t color1, bool allow_transparent)
+{
+    palette[0][0] = DDS_Expand5((color0 >> 11) & 0x1f);
+    palette[0][1] = DDS_Expand6((color0 >> 5) & 0x3f);
+    palette[0][2] = DDS_Expand5(color0 & 0x1f);
+    palette[0][3] = 255;
+
+    palette[1][0] = DDS_Expand5((color1 >> 11) & 0x1f);
+    palette[1][1] = DDS_Expand6((color1 >> 5) & 0x3f);
+    palette[1][2] = DDS_Expand5(color1 & 0x1f);
+    palette[1][3] = 255;
+
+    if (allow_transparent && color0 <= color1) {
+        palette[2][0] = (byte)((palette[0][0] + palette[1][0]) / 2);
+        palette[2][1] = (byte)((palette[0][1] + palette[1][1]) / 2);
+        palette[2][2] = (byte)((palette[0][2] + palette[1][2]) / 2);
+        palette[2][3] = 255;
+
+        palette[3][0] = 0;
+        palette[3][1] = 0;
+        palette[3][2] = 0;
+        palette[3][3] = 0;
+        return;
+    }
+
+    palette[2][0] = (byte)((2 * palette[0][0] + palette[1][0]) / 3);
+    palette[2][1] = (byte)((2 * palette[0][1] + palette[1][1]) / 3);
+    palette[2][2] = (byte)((2 * palette[0][2] + palette[1][2]) / 3);
+    palette[2][3] = 255;
+
+    palette[3][0] = (byte)((palette[0][0] + 2 * palette[1][0]) / 3);
+    palette[3][1] = (byte)((palette[0][1] + 2 * palette[1][1]) / 3);
+    palette[3][2] = (byte)((palette[0][2] + 2 * palette[1][2]) / 3);
+    palette[3][3] = 255;
+}
+
+static void DDS_DecodeBC1Block(byte *dst, int width, int height, int base_x, int base_y, const byte *block, bool *has_alpha)
+{
+    byte palette[4][4];
+    uint16_t color0 = DDS_ReadLE16(block);
+    uint16_t color1 = DDS_ReadLE16(block + 2);
+    uint32_t indices = DDS_ReadLE32(block + 4);
+
+    DDS_DecodeColorPalette(palette, color0, color1, true);
+
+    for (int y = 0; y < 4; y++) {
+        int dst_y = base_y + y;
+        if (dst_y >= height) {
+            break;
+        }
+
+        for (int x = 0; x < 4; x++) {
+            int dst_x = base_x + x;
+            if (dst_x >= width) {
+                break;
+            }
+
+            unsigned index = (indices >> (2 * (4 * y + x))) & 3u;
+            if (palette[index][3] != 255) {
+                *has_alpha = true;
+            }
+            memcpy(dst + (dst_y * width + dst_x) * 4, palette[index], 4);
+        }
+    }
+}
+
+static void DDS_DecodeBC2Block(byte *dst, int width, int height, int base_x, int base_y, const byte *block, bool *has_alpha)
+{
+    byte palette[4][4];
+    uint64_t alpha_bits = DDS_ReadLE64(block);
+    uint16_t color0 = DDS_ReadLE16(block + 8);
+    uint16_t color1 = DDS_ReadLE16(block + 10);
+    uint32_t indices = DDS_ReadLE32(block + 12);
+
+    DDS_DecodeColorPalette(palette, color0, color1, false);
+
+    for (int y = 0; y < 4; y++) {
+        int dst_y = base_y + y;
+        if (dst_y >= height) {
+            break;
+        }
+
+        for (int x = 0; x < 4; x++) {
+            int dst_x = base_x + x;
+            if (dst_x >= width) {
+                break;
+            }
+
+            int dst_pixel = (dst_y * width + dst_x) * 4;
+            int alpha_index = 4 * (4 * y + x);
+            byte alpha = (byte)(((alpha_bits >> alpha_index) & 0xFu) * 17u);
+            unsigned index = (indices >> (2 * (4 * y + x))) & 3u;
+
+            if (alpha != 255) {
+                *has_alpha = true;
+            }
+            memcpy(dst + dst_pixel, palette[index], 4);
+            dst[dst_pixel + 3] = alpha;
+        }
+    }
+}
+
+static void DDS_DecodeAlphaValues(int alpha[8], const byte *block, bool signed_mode)
+{
+    int alpha0 = signed_mode ? (int)(int8_t)block[0] : block[0];
+    int alpha1 = signed_mode ? (int)(int8_t)block[1] : block[1];
+
+    alpha[0] = alpha0;
+    alpha[1] = alpha1;
+
+    if (alpha0 > alpha1) {
+        for (int i = 1; i < 7; i++) {
+            alpha[i + 1] = ((7 - i) * alpha0 + i * alpha1) / 7;
+        }
+        return;
+    }
+
+    for (int i = 1; i < 5; i++) {
+        alpha[i + 1] = ((5 - i) * alpha0 + i * alpha1) / 5;
+    }
+
+    alpha[6] = signed_mode ? -128 : 0;
+    alpha[7] = signed_mode ? 127 : 255;
+}
+
+static void DDS_DecodeAlphaPixels(byte alpha[16], const byte *block, bool signed_mode)
+{
+    int values[8];
+    DDS_DecodeAlphaValues(values, block, signed_mode);
+    uint64_t indices = DDS_ReadLE48(block + 2);
+
+    for (int i = 0; i < 16; i++) {
+        int value = values[(indices >> (3 * i)) & 7u];
+        if (signed_mode) {
+            value += 128;
+        }
+        if (value < 0) {
+            value = 0;
+        } else if (value > 255) {
+            value = 255;
+        }
+        alpha[i] = (byte)value;
+    }
+}
+
+static void DDS_DecodeBC3Block(byte *dst, int width, int height, int base_x, int base_y, const byte *block, bool *has_alpha)
+{
+    byte palette[4][4];
+    byte alpha[16];
+    uint16_t color0 = DDS_ReadLE16(block + 8);
+    uint16_t color1 = DDS_ReadLE16(block + 10);
+    uint32_t indices = DDS_ReadLE32(block + 12);
+
+    DDS_DecodeAlphaPixels(alpha, block, false);
+    DDS_DecodeColorPalette(palette, color0, color1, false);
+
+    for (int y = 0; y < 4; y++) {
+        int dst_y = base_y + y;
+        if (dst_y >= height) {
+            break;
+        }
+
+        for (int x = 0; x < 4; x++) {
+            int dst_x = base_x + x;
+            if (dst_x >= width) {
+                break;
+            }
+
+            int dst_pixel = (dst_y * width + dst_x) * 4;
+            unsigned index = (indices >> (2 * (4 * y + x))) & 3u;
+
+            if (alpha[4 * y + x] != 255) {
+                *has_alpha = true;
+            }
+            memcpy(dst + dst_pixel, palette[index], 4);
+            dst[dst_pixel + 3] = alpha[4 * y + x];
+        }
+    }
+}
+
+static void DDS_DecodeBC4Block(uint16_t *dst, int width, int height, int base_x, int base_y, const byte *block, bool signed_mode)
+{
+    byte alpha[16];
+
+    DDS_DecodeAlphaPixels(alpha, block, signed_mode);
+
+    for (int y = 0; y < 4; y++) {
+        int dst_y = base_y + y;
+        if (dst_y >= height) {
+            break;
+        }
+
+        for (int x = 0; x < 4; x++) {
+            int dst_x = base_x + x;
+            if (dst_x >= width) {
+                break;
+            }
+
+            dst[dst_y * width + dst_x] = (uint16_t)alpha[4 * y + x] * 257u;
+        }
+    }
+}
+
+static void DDS_DecodeBC5Block(byte *dst, int width, int height, int base_x, int base_y, const byte *block, bool signed_mode)
+{
+    byte red[16];
+    byte green[16];
+
+    DDS_DecodeAlphaPixels(red, block, signed_mode);
+    DDS_DecodeAlphaPixels(green, block + 8, signed_mode);
+
+    for (int y = 0; y < 4; y++) {
+        int dst_y = base_y + y;
+        if (dst_y >= height) {
+            break;
+        }
+
+        for (int x = 0; x < 4; x++) {
+            int dst_x = base_x + x;
+            if (dst_x >= width) {
+                break;
+            }
+
+            int pixel = (dst_y * width + dst_x) * 4;
+            dst[pixel + 0] = red[4 * y + x];
+            dst[pixel + 1] = green[4 * y + x];
+            dst[pixel + 2] = 255;
+            dst[pixel + 3] = 255;
+        }
+    }
+}
+
+static size_t DDS_CompressedBlockBytes(pixelformat_t format)
+{
+    switch (format) {
+    case PF_BC1:
+    case PF_BC4_UNORM:
+    case PF_BC4_SNORM:
+        return 8;
+    case PF_BC2:
+    case PF_BC3:
+    case PF_BC5_UNORM:
+    case PF_BC5_SNORM:
+    case PF_BC6H_UFLOAT:
+    case PF_BC6H_SFLOAT:
+    case PF_BC7:
+        return 16;
+    default:
+        return 0;
+    }
+}
+
+static size_t DDS_CompressedPayloadSize(int width, int height, uint32_t mip_levels, pixelformat_t format)
+{
+    size_t block_bytes = DDS_CompressedBlockBytes(format);
+    if (!block_bytes || width < 1 || height < 1 || mip_levels < 1) {
+        return 0;
+    }
+
+    size_t payload_size = 0;
+    int level_width = width;
+    int level_height = height;
+
+    for (uint32_t mip = 0; mip < mip_levels; mip++) {
+        size_t blocks_w = (size_t)(level_width + 3) / 4;
+        size_t blocks_h = (size_t)(level_height + 3) / 4;
+        payload_size += blocks_w * blocks_h * block_bytes;
+
+        if (level_width > 1) {
+            level_width >>= 1;
+        }
+        if (level_height > 1) {
+            level_height >>= 1;
+        }
+    }
+
+    return payload_size;
+}
+
+static int IMG_LoadDDS(byte *rawdata, size_t rawlen, image_t *image, byte **pic)
+{
+    const DDS_HEADER *dds;
+    const DDS_HEADER_DXT10 *dxt10 = NULL;
+    size_t header_size = sizeof(DDS_HEADER);
+    int width;
+    int height;
+    pixelformat_t pixel_format = PF_R8G8B8A8_UNORM;
+    uint32_t mip_levels = 1;
+    dds_load_mode_t mode;
+    bool signed_mode = false;
+    dds_channel_t r = { 0 }, g = { 0 }, b = { 0 }, a = { 0 };
+    bool use_luminance = false;
+    bool alpha_only = false;
+    bool has_alpha = false;
+    bool compressed = false;
+    byte *pixels;
+
+    if (rawlen < sizeof(DDS_HEADER)) {
+        return Q_ERR_FILE_TOO_SMALL;
+    }
+
+    dds = (DDS_HEADER *)rawdata;
+    width = LittleLong(dds->width);
+    height = LittleLong(dds->height);
+
+    if (dds->magic != DDS_MAGIC || dds->size != sizeof(DDS_HEADER) - 4) {
+        return Q_ERR_UNKNOWN_FORMAT;
+    }
+
+    if (width < 1 || height < 1 || width > MAX_TEXTURE_SIZE || height > MAX_TEXTURE_SIZE) {
+        Com_SetLastError("invalid image dimensions");
+        return Q_ERR_INVALID_FORMAT;
+    }
+
+    if ((dds->caps2 & DDS_CUBEMAP) != 0 || (dds->flags & DDS_FLAGS_VOLUME) != 0 || dds->depth > 1) {
+        Com_SetLastError("DDS cubemaps, arrays, and volume textures are not supported here");
+        return Q_ERR_INVALID_FORMAT;
+    }
+
+    mip_levels = LittleLong(dds->mipMapCount);
+    if (mip_levels == 0) {
+        mip_levels = 1;
+    }
+
+    if (dds->ddspf.flags & DDS_FOURCC) {
+        switch (dds->ddspf.fourCC) {
+        case MAKEFOURCC('D', 'X', '1', '0'):
+            if (rawlen < sizeof(DDS_HEADER) + sizeof(DDS_HEADER_DXT10)) {
+                return Q_ERR_FILE_TOO_SMALL;
+            }
+
+            dxt10 = (DDS_HEADER_DXT10 *)(rawdata + sizeof(DDS_HEADER));
+            header_size += sizeof(DDS_HEADER_DXT10);
+
+            if (dxt10->resourceDimension != DDS_DIMENSION_TEXTURE2D || dxt10->arraySize != 1 || (dxt10->miscFlag & D3D11_RESOURCE_MISC_TEXTURECUBE) != 0) {
+                Com_SetLastError("DDS DX10 arrays, cubes, and non-2D textures are not supported here");
+                return Q_ERR_INVALID_FORMAT;
+            }
+
+            switch (dxt10->dxgiFormat) {
+            case DXGI_FORMAT_BC1_TYPELESS:
+            case DXGI_FORMAT_BC1_UNORM:
+            case DXGI_FORMAT_BC1_UNORM_SRGB:
+                pixel_format = PF_BC1;
+                compressed = true;
+                break;
+            case DXGI_FORMAT_BC2_TYPELESS:
+            case DXGI_FORMAT_BC2_UNORM:
+            case DXGI_FORMAT_BC2_UNORM_SRGB:
+                pixel_format = PF_BC2;
+                compressed = true;
+                break;
+            case DXGI_FORMAT_BC3_TYPELESS:
+            case DXGI_FORMAT_BC3_UNORM:
+            case DXGI_FORMAT_BC3_UNORM_SRGB:
+                pixel_format = PF_BC3;
+                compressed = true;
+                break;
+            case DXGI_FORMAT_BC4_TYPELESS:
+            case DXGI_FORMAT_BC4_UNORM:
+                pixel_format = PF_BC4_UNORM;
+                compressed = true;
+                break;
+            case DXGI_FORMAT_BC4_SNORM:
+                pixel_format = PF_BC4_SNORM;
+                compressed = true;
+                break;
+            case DXGI_FORMAT_BC5_TYPELESS:
+            case DXGI_FORMAT_BC5_UNORM:
+                pixel_format = PF_BC5_UNORM;
+                compressed = true;
+                break;
+            case DXGI_FORMAT_BC5_SNORM:
+                pixel_format = PF_BC5_SNORM;
+                compressed = true;
+                break;
+            case DXGI_FORMAT_BC6H_TYPELESS:
+            case DXGI_FORMAT_BC6H_UF16:
+                pixel_format = PF_BC6H_UFLOAT;
+                compressed = true;
+                break;
+            case DXGI_FORMAT_BC6H_SF16:
+                pixel_format = PF_BC6H_SFLOAT;
+                compressed = true;
+                break;
+            case DXGI_FORMAT_BC7_TYPELESS:
+            case DXGI_FORMAT_BC7_UNORM:
+            case DXGI_FORMAT_BC7_UNORM_SRGB:
+                pixel_format = PF_BC7;
+                compressed = true;
+                break;
+            default:
+                break;
+            }
+            break;
+        case MAKEFOURCC('D', 'X', 'T', '1'):
+            pixel_format = PF_BC1;
+            compressed = true;
+            break;
+        case MAKEFOURCC('D', 'X', 'T', '2'):
+        case MAKEFOURCC('D', 'X', 'T', '3'):
+            pixel_format = PF_BC2;
+            compressed = true;
+            break;
+        case MAKEFOURCC('D', 'X', 'T', '4'):
+        case MAKEFOURCC('D', 'X', 'T', '5'):
+            pixel_format = PF_BC3;
+            compressed = true;
+            break;
+        case MAKEFOURCC('A', 'T', 'I', '1'):
+        case MAKEFOURCC('B', 'C', '4', 'U'):
+            pixel_format = PF_BC4_UNORM;
+            compressed = true;
+            break;
+        case MAKEFOURCC('B', 'C', '4', 'S'):
+            pixel_format = PF_BC4_SNORM;
+            compressed = true;
+            break;
+        case MAKEFOURCC('A', 'T', 'I', '2'):
+        case MAKEFOURCC('B', 'C', '5', 'U'):
+            pixel_format = PF_BC5_UNORM;
+            compressed = true;
+            break;
+        case MAKEFOURCC('B', 'C', '5', 'S'):
+            pixel_format = PF_BC5_SNORM;
+            compressed = true;
+            break;
+        default:
+            break;
+        }
+    }
+
+    if (compressed) {
+        size_t payload_size = DDS_CompressedPayloadSize(width, height, mip_levels, pixel_format);
+        if (!payload_size || rawlen < header_size + payload_size) {
+            return Q_ERR_BAD_EXTENT;
+        }
+
+        *pic = IMG_AllocPixels(payload_size);
+        memcpy(*pic, rawdata + header_size, payload_size);
+
+        image->upload_width = image->width = width;
+        image->upload_height = image->height = height;
+        image->pixel_format = pixel_format;
+        image->pix_data_size = payload_size;
+        image->mip_levels = mip_levels;
+#if USE_REF == REF_VKPT
+        image->skip_runtime_normalization = true;
+#endif
+
+        if (pixel_format == PF_BC4_UNORM || pixel_format == PF_BC4_SNORM ||
+            pixel_format == PF_BC5_UNORM || pixel_format == PF_BC5_SNORM ||
+            pixel_format == PF_BC6H_UFLOAT || pixel_format == PF_BC6H_SFLOAT) {
+            image->flags |= IF_OPAQUE;
+        }
+
+        return Q_ERR_SUCCESS;
+    }
+
+    if (dds->ddspf.flags & DDS_FOURCC) {
+        switch (dds->ddspf.fourCC) {
+        case MAKEFOURCC('D', 'X', '1', '0'):
+            if (rawlen < sizeof(DDS_HEADER) + sizeof(DDS_HEADER_DXT10)) {
+                return Q_ERR_FILE_TOO_SMALL;
+            }
+
+            dxt10 = (DDS_HEADER_DXT10 *)(rawdata + sizeof(DDS_HEADER));
+            header_size += sizeof(DDS_HEADER_DXT10);
+
+            if (dxt10->resourceDimension != DDS_DIMENSION_TEXTURE2D || dxt10->arraySize != 1 || (dxt10->miscFlag & D3D11_RESOURCE_MISC_TEXTURECUBE) != 0) {
+                Com_SetLastError("DDS DX10 arrays, cubes, and non-2D textures are not supported here");
+                return Q_ERR_INVALID_FORMAT;
+            }
+
+            switch (dxt10->dxgiFormat) {
+            case DXGI_FORMAT_BC1_TYPELESS:
+            case DXGI_FORMAT_BC1_UNORM:
+            case DXGI_FORMAT_BC1_UNORM_SRGB:
+                mode = DDS_LOAD_BC1;
+                break;
+            case DXGI_FORMAT_BC2_TYPELESS:
+            case DXGI_FORMAT_BC2_UNORM:
+            case DXGI_FORMAT_BC2_UNORM_SRGB:
+                mode = DDS_LOAD_BC2;
+                break;
+            case DXGI_FORMAT_BC3_TYPELESS:
+            case DXGI_FORMAT_BC3_UNORM:
+            case DXGI_FORMAT_BC3_UNORM_SRGB:
+                mode = DDS_LOAD_BC3;
+                break;
+            case DXGI_FORMAT_BC4_TYPELESS:
+            case DXGI_FORMAT_BC4_UNORM:
+                mode = DDS_LOAD_BC4;
+                break;
+            case DXGI_FORMAT_BC4_SNORM:
+                mode = DDS_LOAD_BC4;
+                signed_mode = true;
+                break;
+            case DXGI_FORMAT_BC5_TYPELESS:
+            case DXGI_FORMAT_BC5_UNORM:
+                mode = DDS_LOAD_BC5;
+                break;
+            case DXGI_FORMAT_BC5_SNORM:
+                mode = DDS_LOAD_BC5;
+                signed_mode = true;
+                break;
+            case DXGI_FORMAT_R8_UNORM:
+                mode = DDS_LOAD_GRAY16;
+                r = DDS_MakeChannel(0xffu);
+                use_luminance = true;
+                break;
+            case DXGI_FORMAT_R16_UNORM:
+                mode = DDS_LOAD_GRAY16;
+                r = DDS_MakeChannel(0xffffu);
+                use_luminance = true;
+                break;
+            case DXGI_FORMAT_R8G8_UNORM:
+                mode = DDS_LOAD_RGBA8;
+                r = DDS_MakeChannel(0x00ffu);
+                g = DDS_MakeChannel(0xff00u);
+                break;
+            case DXGI_FORMAT_R8G8B8A8_TYPELESS:
+            case DXGI_FORMAT_R8G8B8A8_UNORM:
+            case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+                mode = DDS_LOAD_RGBA8;
+                r = DDS_MakeChannel(0x000000ffu);
+                g = DDS_MakeChannel(0x0000ff00u);
+                b = DDS_MakeChannel(0x00ff0000u);
+                a = DDS_MakeChannel(0xff000000u);
+                break;
+            case DXGI_FORMAT_B8G8R8A8_TYPELESS:
+            case DXGI_FORMAT_B8G8R8A8_UNORM:
+            case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+                mode = DDS_LOAD_RGBA8;
+                r = DDS_MakeChannel(0x00ff0000u);
+                g = DDS_MakeChannel(0x0000ff00u);
+                b = DDS_MakeChannel(0x000000ffu);
+                a = DDS_MakeChannel(0xff000000u);
+                break;
+            case DXGI_FORMAT_A8_UNORM:
+                mode = DDS_LOAD_RGBA8;
+                a = DDS_MakeChannel(0xffu);
+                alpha_only = true;
+                break;
+            default:
+                Com_SetLastError("unsupported DDS DX10 pixel format");
+                return Q_ERR_INVALID_FORMAT;
+            }
+            break;
+        case MAKEFOURCC('D', 'X', 'T', '1'):
+            mode = DDS_LOAD_BC1;
+            break;
+        case MAKEFOURCC('D', 'X', 'T', '2'):
+        case MAKEFOURCC('D', 'X', 'T', '3'):
+            mode = DDS_LOAD_BC2;
+            break;
+        case MAKEFOURCC('D', 'X', 'T', '4'):
+        case MAKEFOURCC('D', 'X', 'T', '5'):
+            mode = DDS_LOAD_BC3;
+            break;
+        case MAKEFOURCC('A', 'T', 'I', '1'):
+        case MAKEFOURCC('B', 'C', '4', 'U'):
+            mode = DDS_LOAD_BC4;
+            break;
+        case MAKEFOURCC('B', 'C', '4', 'S'):
+            mode = DDS_LOAD_BC4;
+            signed_mode = true;
+            break;
+        case MAKEFOURCC('A', 'T', 'I', '2'):
+        case MAKEFOURCC('B', 'C', '5', 'U'):
+            mode = DDS_LOAD_BC5;
+            break;
+        case MAKEFOURCC('B', 'C', '5', 'S'):
+            mode = DDS_LOAD_BC5;
+            signed_mode = true;
+            break;
+        default:
+            Com_SetLastError("unsupported DDS fourCC format");
+            return Q_ERR_INVALID_FORMAT;
+        }
+    } else {
+        int channel_count;
+        int bytes_per_pixel;
+        size_t pitch;
+        size_t required;
+        bool is_luminance = (dds->ddspf.flags & DDS_LUMINANCE) != 0;
+
+        r = DDS_MakeChannel(dds->ddspf.RBitMask);
+        g = DDS_MakeChannel(dds->ddspf.GBitMask);
+        b = DDS_MakeChannel(dds->ddspf.BBitMask);
+        a = DDS_MakeChannel(dds->ddspf.ABitMask);
+
+        channel_count = !!r.bits + !!g.bits + !!b.bits;
+        bytes_per_pixel = dds->ddspf.RGBBitCount / 8;
+
+        if (dds->ddspf.flags & DDS_ALPHA) {
+            mode = DDS_LOAD_RGBA8;
+            alpha_only = true;
+            if (!a.bits && bytes_per_pixel == 1) {
+                a = DDS_MakeChannel(0xffu);
+            }
+        } else if ((is_luminance && !a.bits) || (channel_count == 1 && !a.bits)) {
+            mode = DDS_LOAD_GRAY16;
+            use_luminance = true;
+            if (!r.bits && !g.bits && !b.bits && bytes_per_pixel == 1) {
+                r = DDS_MakeChannel(0xffu);
+            }
+        } else {
+            mode = DDS_LOAD_RGBA8;
+            use_luminance = is_luminance;
+        }
+
+        if (bytes_per_pixel < 1 || bytes_per_pixel > 4 || (dds->ddspf.RGBBitCount % 8) != 0) {
+            Com_SetLastError("unsupported DDS bit depth");
+            return Q_ERR_INVALID_FORMAT;
+        }
+
+        pitch = (((size_t)width * dds->ddspf.RGBBitCount) + 31u) / 32u * 4u;
+        required = pitch * (size_t)height;
+        if (rawlen < header_size || rawlen - header_size < required) {
+            return Q_ERR_BAD_EXTENT;
+        }
+
+        if (mode == DDS_LOAD_GRAY16) {
+            pixels = IMG_AllocPixels((size_t)width * (size_t)height * sizeof(uint16_t));
+            *pic = pixels;
+
+            for (int y = 0; y < height; y++) {
+                const byte *src_row = rawdata + header_size + pitch * (size_t)y;
+                uint16_t *dst_row = ((uint16_t *)pixels) + (size_t)y * width;
+
+                for (int x = 0; x < width; x++) {
+                    uint32_t raw = DDS_ReadPixel(src_row + x * bytes_per_pixel, bytes_per_pixel);
+                    const dds_channel_t *gray_channel = r.bits ? &r : (g.bits ? &g : &b);
+                    uint16_t value = DDS_ExtractChannelU16(raw, gray_channel);
+                    dst_row[x] = value;
+                }
+            }
+
+            image->pixel_format = PF_R16_UNORM;
+            image->upload_width = image->width = width;
+            image->upload_height = image->height = height;
+            image->pix_data_size = (size_t)width * (size_t)height * sizeof(uint16_t);
+            image->mip_levels = 0;
+#if USE_REF == REF_VKPT
+            image->skip_runtime_normalization = true;
+#endif
+            image->flags |= IF_OPAQUE;
+            return Q_ERR_SUCCESS;
+        }
+
+        if (mode == DDS_LOAD_RGBA8) {
+            pixels = IMG_AllocPixels((size_t)width * (size_t)height * 4u);
+            *pic = pixels;
+
+            for (int y = 0; y < height; y++) {
+                const byte *src_row = rawdata + header_size + pitch * (size_t)y;
+                byte *dst_row = pixels + (size_t)y * width * 4u;
+
+                for (int x = 0; x < width; x++) {
+                    uint32_t raw = DDS_ReadPixel(src_row + x * bytes_per_pixel, bytes_per_pixel);
+                    byte rgba[4];
+
+                    if (alpha_only) {
+                        rgba[0] = 255;
+                        rgba[1] = 255;
+                        rgba[2] = 255;
+                        rgba[3] = a.bits ? DDS_ExtractChannelByte(raw, &a) : (byte)(raw & 0xffu);
+                    } else if (use_luminance) {
+                        const dds_channel_t *gray_channel = r.bits ? &r : (g.bits ? &g : &b);
+                        byte lum = DDS_ExtractChannelByte(raw, gray_channel);
+                        rgba[0] = lum;
+                        rgba[1] = lum;
+                        rgba[2] = lum;
+                        rgba[3] = a.bits ? DDS_ExtractChannelByte(raw, &a) : 255;
+                    } else {
+                        rgba[0] = DDS_ExtractChannelByte(raw, &r);
+                        rgba[1] = DDS_ExtractChannelByte(raw, &g);
+                        rgba[2] = DDS_ExtractChannelByte(raw, &b);
+                        rgba[3] = a.bits ? DDS_ExtractChannelByte(raw, &a) : 255;
+                    }
+
+                    if (rgba[3] != 255) {
+                        has_alpha = true;
+                    }
+
+                    memcpy(dst_row + x * 4u, rgba, 4);
+                }
+            }
+
+            image->pixel_format = PF_R8G8B8A8_UNORM;
+            image->upload_width = image->width = width;
+            image->upload_height = image->height = height;
+            image->pix_data_size = (size_t)width * (size_t)height * 4u;
+            image->mip_levels = 0;
+#if USE_REF == REF_VKPT
+            image->skip_runtime_normalization = true;
+#endif
+            if (!has_alpha) {
+                image->flags |= IF_OPAQUE;
+            }
+            return Q_ERR_SUCCESS;
+        }
+
+        Com_SetLastError("unsupported DDS uncompressed layout");
+        return Q_ERR_INVALID_FORMAT;
+    }
+
+    /*
+    *   Compressed DDS data uses 4x4 blocks, so validate the block count before decoding.
+    */
+    size_t blocks_w = ((size_t)width + 3u) / 4u;
+    size_t blocks_h = ((size_t)height + 3u) / 4u;
+    size_t block_size = 0;
+    size_t required = 0;
+
+    switch (mode) {
+    case DDS_LOAD_BC1:
+    case DDS_LOAD_BC4:
+        block_size = 8u;
+        break;
+    case DDS_LOAD_BC2:
+    case DDS_LOAD_BC3:
+    case DDS_LOAD_BC5:
+        block_size = 16u;
+        break;
+    default:
+        return Q_ERR_INVALID_FORMAT;
+    }
+
+    required = blocks_w * blocks_h * block_size;
+    if (rawlen < header_size || rawlen - header_size < required) {
+        return Q_ERR_BAD_EXTENT;
+    }
+
+    if (mode == DDS_LOAD_BC4) {
+        pixels = IMG_AllocPixels((size_t)width * (size_t)height * sizeof(uint16_t));
+        *pic = pixels;
+    } else {
+        pixels = IMG_AllocPixels((size_t)width * (size_t)height * 4u);
+        *pic = pixels;
+    }
+
+    for (size_t by = 0; by < blocks_h; by++) {
+        for (size_t bx = 0; bx < blocks_w; bx++) {
+            const byte *block = rawdata + header_size + (by * blocks_w + bx) * block_size;
+            int block_x = (int)(bx * 4u);
+            int block_y = (int)(by * 4u);
+
+            if (mode == DDS_LOAD_BC1) {
+                DDS_DecodeBC1Block(pixels, width, height, block_x, block_y, block, &has_alpha);
+            } else if (mode == DDS_LOAD_BC2) {
+                DDS_DecodeBC2Block(pixels, width, height, block_x, block_y, block, &has_alpha);
+            } else if (mode == DDS_LOAD_BC3) {
+                DDS_DecodeBC3Block(pixels, width, height, block_x, block_y, block, &has_alpha);
+            } else if (mode == DDS_LOAD_BC4) {
+                DDS_DecodeBC4Block((uint16_t *)pixels, width, height, block_x, block_y, block, signed_mode);
+            } else if (mode == DDS_LOAD_BC5) {
+                DDS_DecodeBC5Block(pixels, width, height, block_x, block_y, block, signed_mode);
+            }
+        }
+    }
+
+    image->upload_width = image->width = width;
+    image->upload_height = image->height = height;
+    image->pixel_format = (mode == DDS_LOAD_BC4) ? PF_R16_UNORM : PF_R8G8B8A8_UNORM;
+    image->pix_data_size = (mode == DDS_LOAD_BC4)
+        ? (size_t)width * (size_t)height * sizeof(uint16_t)
+        : (size_t)width * (size_t)height * 4u;
+    image->mip_levels = 0;
+    if (!has_alpha) {
+        image->flags |= IF_OPAQUE;
+    }
 
     return Q_ERR_SUCCESS;
 }
@@ -384,6 +1317,11 @@ IMG_LOAD(STB)
 
 	image->upload_width = image->width = w;
 	image->upload_height = image->height = h;
+    image->pix_data_size = (size_t)w * (size_t)h * (image->pixel_format == PF_R16_UNORM ? 2u : 4u);
+    image->mip_levels = 0;
+#if USE_REF == REF_VKPT
+    image->skip_runtime_normalization = false;
+#endif
 
 	if (channels == 3)
 		image->flags |= IF_OPAQUE;
@@ -400,7 +1338,7 @@ STB_IMAGE SAVING
 =================================================================
 */
 
-static int IMG_SaveTGA(screenshot_t *restrict s)
+static int IMG_SaveTGA(screenshot_t *s)
 {
 	stbi_flip_vertically_on_write(1);
 	int ret = stbi_write_tga_to_func(stbi_write, s, s->width, s->height, 3, s->pixels);
@@ -412,7 +1350,7 @@ static int IMG_SaveTGA(screenshot_t *restrict s)
 	return Q_ERR_LIBRARY_ERROR;
 }
 
-static int IMG_SaveJPG(screenshot_t *restrict s)
+static int IMG_SaveJPG(screenshot_t *s)
 {
 	stbi_flip_vertically_on_write(1);
 	int ret = stbi_write_jpg_to_func(stbi_write, s, s->width, s->height, 3, s->pixels, s->param);
@@ -425,7 +1363,7 @@ static int IMG_SaveJPG(screenshot_t *restrict s)
 }
 
 
-static int IMG_SavePNG(screenshot_t *restrict s)
+static int IMG_SavePNG(screenshot_t *s)
 {
 	stbi_flip_vertically_on_write(1);
 	int ret = stbi_write_png_to_func(stbi_write, s, s->width, s->height, 3, s->pixels, s->rowbytes);
@@ -437,7 +1375,7 @@ static int IMG_SavePNG(screenshot_t *restrict s)
 	return Q_ERR_LIBRARY_ERROR;
 }
 
-static int IMG_SaveHDR(screenshot_t *restrict s)
+static int IMG_SaveHDR(screenshot_t *s)
 {
 	stbi_flip_vertically_on_write(1);
 	// NOTE: The 'pixels' point is byte*, but HDR writing needs float*!
@@ -879,7 +1817,8 @@ static const struct {
     { "wal", IMG_LoadWAL },
     { "tga", IMG_LoadSTB },
     { "jpg", IMG_LoadSTB },
-    { "png", IMG_LoadSTB }
+    { "png", IMG_LoadSTB },
+    { "dds", IMG_LoadDDS }
 };
 
 static imageformat_t    img_search[IM_MAX];
@@ -1157,6 +2096,8 @@ int IMG_GetDimensions(const char* name, int* width, int* height)
         format = IM_WAL;
     else if (Q_stricmp(name + len - 4, ".pcx") == 0)
         format = IM_PCX;
+    else if (Q_stricmp(name + len - 4, ".dds") == 0)
+        format = IM_DDS;
     else
         return Q_ERR_INVALID_FORMAT;
 
@@ -1172,6 +2113,15 @@ int IMG_GetDimensions(const char* name, int* width, int* height)
         if (len == sizeof(mt)) {
             w = LittleLong(mt.width);
             h = LittleLong(mt.height);
+        }
+    }
+    else if (format == IM_DDS)
+    {
+        DDS_HEADER dds = { 0 };
+        len = FS_Read(&dds, sizeof(dds), f);
+        if (len == sizeof(dds) && dds.magic == DDS_MAGIC && dds.size == sizeof(DDS_HEADER) - 4) {
+            w = LittleLong(dds.width);
+            h = LittleLong(dds.height);
         }
     }
     else if (format == IM_PCX)
@@ -1216,6 +2166,7 @@ static void r_texture_formats_changed(cvar_t *self)
     // parse the string
     for (s = self->string; *s; s++) {
         switch (*s) {
+            case 'd': case 'D': i = IM_DDS; break;
             case 't': case 'T': i = IM_TGA; break;
             case 'j': case 'J': i = IM_JPG; break;
             case 'p': case 'P': i = IM_PNG; break;
@@ -1594,8 +2545,8 @@ image_t *IMG_Clone(image_t *image, const char* new_name)
     memcpy(new_image, image, sizeof(image_t));
 
 #if USE_REF == REF_VKPT
-    size_t image_size = image->upload_width * image->upload_height * 4;
-    if(image->pix_data != NULL)
+    size_t image_size = image->pix_data_size;
+    if(image->pix_data != NULL && image_size > 0)
     {
         new_image->pix_data = IMG_AllocPixels(image_size);
         memcpy(new_image->pix_data, image->pix_data, image_size);
@@ -1688,6 +2639,9 @@ qhandle_t R_RegisterRawImage(const char *name, int width, int height, byte* pic,
     if ((image = lookup_image(name, type, hash, len)) != NULL) {
         image->flags |= flags & IF_PERMANENT;
         image->registration_sequence = registration_sequence;
+#if USE_REF == REF_VKPT
+        image->skip_runtime_normalization = false;
+#endif
         return image - r_images;
     }
 
@@ -1707,6 +2661,12 @@ qhandle_t R_RegisterRawImage(const char *name, int width, int height, byte* pic,
     image->height = height;
     image->upload_width = width;
     image->upload_height = height;
+    image->pixel_format = PF_R8G8B8A8_UNORM;
+    image->pix_data_size = (size_t)width * (size_t)height * 4u;
+    image->mip_levels = 0;
+#if USE_REF == REF_VKPT
+    image->skip_runtime_normalization = false;
+#endif
 
     List_Append(&r_imageHash[hash], &image->entry);
 
@@ -1872,7 +2832,7 @@ void IMG_Init(void)
     Q_assert(!r_numImages);
 
     r_override_textures = Cvar_Get("r_override_textures", "1", CVAR_FILES);
-    r_texture_formats = Cvar_Get("r_texture_formats", "tpj", 0);
+    r_texture_formats = Cvar_Get("r_texture_formats", "dtpj", 0);
     r_texture_formats->changed = r_texture_formats_changed;
     r_texture_formats_changed(r_texture_formats);
     r_texture_overrides = Cvar_Get("r_texture_overrides", "-1", CVAR_FILES);

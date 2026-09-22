@@ -1591,6 +1591,107 @@ static VkMemoryAllocateFlagsInfo mem_alloc_flags_broadcast = {
 };
 #endif
 
+static bool is_compressed_image_format(pixelformat_t pixel_format)
+{
+	switch (pixel_format) {
+	case PF_BC1:
+	case PF_BC2:
+	case PF_BC3:
+	case PF_BC4_UNORM:
+	case PF_BC4_SNORM:
+	case PF_BC5_UNORM:
+	case PF_BC5_SNORM:
+	case PF_BC6H_UFLOAT:
+	case PF_BC6H_SFLOAT:
+	case PF_BC7:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static size_t get_compressed_block_bytes(pixelformat_t pixel_format)
+{
+	switch (pixel_format) {
+	case PF_BC1:
+	case PF_BC4_UNORM:
+	case PF_BC4_SNORM:
+		return 8;
+	case PF_BC2:
+	case PF_BC3:
+	case PF_BC5_UNORM:
+	case PF_BC5_SNORM:
+	case PF_BC6H_UFLOAT:
+	case PF_BC6H_SFLOAT:
+	case PF_BC7:
+		return 16;
+	default:
+		return 0;
+	}
+}
+
+static size_t get_compressed_mip_size(pixelformat_t pixel_format, int width, int height)
+{
+	const size_t block_bytes = get_compressed_block_bytes(pixel_format);
+	if (!block_bytes) {
+		return 0;
+	}
+
+	const size_t blocks_w = ((size_t)width + 3u) / 4u;
+	const size_t blocks_h = ((size_t)height + 3u) / 4u;
+	return blocks_w * blocks_h * block_bytes;
+}
+
+static size_t get_texture_mip_size(pixelformat_t pixel_format, int width, int height)
+{
+	if (is_compressed_image_format(pixel_format)) {
+		return get_compressed_mip_size(pixel_format, width, height);
+	}
+
+	switch (pixel_format) {
+	case PF_R8G8B8A8_UNORM:
+		return (size_t)width * height * 4;
+	case PF_R16_UNORM:
+		return (size_t)width * height * 2;
+	default:
+		assert(false);
+		return 0;
+	}
+}
+
+static size_t get_texture_upload_size(const image_t *q_img)
+{
+	// pix_data_size is the exact byte count of the payload loaded for this texture.
+	// Fall back to format-based sizing only if the loader did not populate it.
+	const bool compressed = is_compressed_image_format(q_img->pixel_format);
+	if (!compressed && q_img->pixel_format != PF_R8G8B8A8_UNORM && q_img->pixel_format != PF_R16_UNORM) {
+		assert(false);
+		return 0;
+	}
+
+	uint32_t mip_levels = q_img->mip_levels ? q_img->mip_levels : 1;
+	int width = q_img->upload_width;
+	int height = q_img->upload_height;
+	size_t upload_size = 0;
+
+	for (uint32_t mip = 0; mip < mip_levels; mip++) {
+		upload_size += get_texture_mip_size(q_img->pixel_format, width, height);
+		if (width > 1) {
+			width >>= 1;
+		}
+		if (height > 1) {
+			height >>= 1;
+		}
+	}
+
+	if (q_img->pix_data_size != 0) {
+		assert(upload_size == q_img->pix_data_size);
+		return q_img->pix_data_size;
+	}
+
+	return upload_size;
+}
+
 static VkFormat get_image_format(image_t *q_img)
 {
 	switch(q_img->pixel_format)
@@ -1599,9 +1700,63 @@ static VkFormat get_image_format(image_t *q_img)
 		return q_img->is_srgb ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM;
 	case PF_R16_UNORM:
 		return VK_FORMAT_R16_UNORM;
+	case PF_BC1:
+		return q_img->is_srgb ? VK_FORMAT_BC1_RGB_SRGB_BLOCK : VK_FORMAT_BC1_RGB_UNORM_BLOCK;
+	case PF_BC2:
+		return q_img->is_srgb ? VK_FORMAT_BC2_SRGB_BLOCK : VK_FORMAT_BC2_UNORM_BLOCK;
+	case PF_BC3:
+		return q_img->is_srgb ? VK_FORMAT_BC3_SRGB_BLOCK : VK_FORMAT_BC3_UNORM_BLOCK;
+	case PF_BC4_UNORM:
+		return VK_FORMAT_BC4_UNORM_BLOCK;
+	case PF_BC4_SNORM:
+		return VK_FORMAT_BC4_SNORM_BLOCK;
+	case PF_BC5_UNORM:
+		return VK_FORMAT_BC5_UNORM_BLOCK;
+	case PF_BC5_SNORM:
+		return VK_FORMAT_BC5_SNORM_BLOCK;
+	case PF_BC6H_UFLOAT:
+		return VK_FORMAT_BC6H_UFLOAT_BLOCK;
+	case PF_BC6H_SFLOAT:
+		return VK_FORMAT_BC6H_SFLOAT_BLOCK;
+	case PF_BC7:
+		return q_img->is_srgb ? VK_FORMAT_BC7_SRGB_BLOCK : VK_FORMAT_BC7_UNORM_BLOCK;
 	}
 	assert(false);
 	return VK_FORMAT_R8G8B8A8_UNORM;
+}
+
+static bool can_normalize_normal_map_in_place(const image_t *q_img)
+{
+	// The normalize compute shader declares rgba8 storage images, so in-place
+	// normalization is only valid for uncompressed RGBA8 normal maps that are
+	// not already prepacked by the asset pipeline.
+	if (q_img->skip_runtime_normalization)
+		return false;
+
+	if (!(q_img->flags & IF_NORMAL_MAP) || q_img->is_srgb)
+		return false;
+
+	if (q_img->pixel_format != PF_R8G8B8A8_UNORM)
+		return false;
+
+	VkPhysicalDeviceImageFormatInfo2 image_format_info = {
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_FORMAT_INFO_2,
+		.format = VK_FORMAT_R8G8B8A8_UNORM,
+		.type = VK_IMAGE_TYPE_2D,
+		.tiling = VK_IMAGE_TILING_OPTIMAL,
+		.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT
+			   | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+			   | VK_IMAGE_USAGE_SAMPLED_BIT
+			   | VK_IMAGE_USAGE_STORAGE_BIT,
+		.flags = 0,
+	};
+
+	VkImageFormatProperties2 image_format_properties = {
+		.sType = VK_STRUCTURE_TYPE_IMAGE_FORMAT_PROPERTIES_2,
+	};
+
+	return vkGetPhysicalDeviceImageFormatProperties2(qvk.physical_device,
+		&image_format_info, &image_format_properties) == VK_SUCCESS;
 }
 
 VkResult
@@ -1675,11 +1830,15 @@ vkpt_textures_end_registration()
 		if (tex_images[i] != VK_NULL_HANDLE || !q_img->registration_sequence || q_img->pix_data == NULL)
 			continue;
 
+		const size_t upload_size = get_texture_upload_size(q_img);
+		const uint32_t num_mip_levels = q_img->mip_levels ? q_img->mip_levels : get_num_miplevels(q_img->upload_width, q_img->upload_height);
+		const bool normalize_in_place = can_normalize_normal_map_in_place(q_img);
+
 		img_info.extent.width = q_img->upload_width;
 		img_info.extent.height = q_img->upload_height;
-		img_info.mipLevels = get_num_miplevels(q_img->upload_width, q_img->upload_height);
+		img_info.mipLevels = num_mip_levels;
 		img_info.format = get_image_format(q_img);
-		if (!q_img->is_srgb)
+		if (normalize_in_place)
 			img_info.usage |= VK_IMAGE_USAGE_STORAGE_BIT;
 		else
 			img_info.usage &= ~VK_IMAGE_USAGE_STORAGE_BIT;
@@ -1695,7 +1854,7 @@ vkpt_textures_end_registration()
 		assert(!(mem_req.alignment & (mem_req.alignment - 1)));
 		total_size += mem_req.alignment - 1;
 		total_size &= ~(mem_req.alignment - 1);
-		total_size += mem_req.size;
+		total_size += upload_size;
 
 		DeviceMemory* image_memory = tex_image_memory + i;
 		image_memory->size = mem_req.size;
@@ -1732,7 +1891,8 @@ vkpt_textures_end_registration()
 
 		image_t* q_img = r_images + i;
 		
-		int num_mip_levels = get_num_miplevels(q_img->upload_width, q_img->upload_height);
+		const uint32_t num_mip_levels = q_img->mip_levels ? q_img->mip_levels : get_num_miplevels(q_img->upload_width, q_img->upload_height);
+		const bool normalize_in_place = can_normalize_normal_map_in_place(q_img);
 
 		img_view_info.image = tex_images[i];
 		img_view_info.subresourceRange.levelCount = num_mip_levels;
@@ -1740,7 +1900,7 @@ vkpt_textures_end_registration()
 		_VK(vkCreateImageView(qvk.device, &img_view_info, NULL, tex_image_views + i));
 		ATTACH_LABEL_VARIABLE(tex_image_views[i], IMAGE_VIEW);
 
-		if (!q_img->is_srgb)
+		if (normalize_in_place)
 		{
 			img_view_info.subresourceRange.levelCount = 1;
 			_VK(vkCreateImageView(qvk.device, &img_view_info, NULL, tex_image_views_mip0 + i));
@@ -1768,7 +1928,8 @@ vkpt_textures_end_registration()
 		if (tex_upload_frames[i] != qvk.current_frame_index + 1)
 			continue;
 		
-		int num_mip_levels = get_num_miplevels(q_img->upload_width, q_img->upload_height);
+		const uint32_t num_mip_levels = q_img->mip_levels ? q_img->mip_levels : get_num_miplevels(q_img->upload_width, q_img->upload_height);
+		size_t upload_size = get_texture_upload_size(q_img);
 
 		VkMemoryRequirements mem_req;
 		vkGetImageMemoryRequirements(qvk.device, tex_images[i], &mem_req);
@@ -1779,6 +1940,7 @@ vkpt_textures_end_registration()
 
 		int wd = q_img->upload_width;
 		int ht = q_img->upload_height;
+		const bool stored_mip_chain = q_img->mip_levels != 0;
 
 		VkImageSubresourceRange subresource_range = {
 			.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
@@ -1797,39 +1959,84 @@ vkpt_textures_end_registration()
 			.newLayout        = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
 		);
 
-		int bytes_per_pixel = q_img->pixel_format == PF_R16_UNORM ? 2 : 4;
-		memcpy(staging_buffer + offset, q_img->pix_data, wd * ht * bytes_per_pixel);
+		memcpy(staging_buffer + offset, q_img->pix_data, upload_size);
 
-		VkBufferImageCopy cpy_info = {
-			.bufferOffset = offset,
-			.imageSubresource = { 
-				.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
-				.mipLevel       = 0,
-				.baseArrayLayer = 0,
-				.layerCount     = 1,
-			},
-			.imageOffset    = { 0, 0, 0 },
-			.imageExtent    = { wd, ht, 1 }
-		};
+		// Prepacked textures already contain the mip chain in pix_data.
+		if (stored_mip_chain)
+		{
+			size_t mip_offset = 0;
+			int mip_w = wd;
+			int mip_h = ht;
 
-		vkCmdCopyBufferToImage(cmd_buf, buf_img_upload.buffer, tex_images[i],
-			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &cpy_info);
+			for (uint32_t mip = 0; mip < num_mip_levels; mip++)
+			{
+				VkBufferImageCopy cpy_info = {
+					.bufferOffset = offset + mip_offset,
+					.imageSubresource = {
+						.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
+						.mipLevel       = mip,
+						.baseArrayLayer = 0,
+						.layerCount     = 1,
+					},
+					.imageOffset    = { 0, 0, 0 },
+					.imageExtent    = { mip_w, mip_h, 1 }
+				};
 
-		// Transition mip 0 to VK_IMAGE_LAYOUT_GENERAL for use in the next command list.
+				vkCmdCopyBufferToImage(cmd_buf, buf_img_upload.buffer, tex_images[i],
+					VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &cpy_info);
 
-		subresource_range.baseMipLevel = 0;
-		subresource_range.levelCount = 1;
+				mip_offset += get_texture_mip_size(q_img->pixel_format, mip_w, mip_h);
+				if (mip_w > 1)
+					mip_w >>= 1;
+				if (mip_h > 1)
+					mip_h >>= 1;
+			}
 
-		IMAGE_BARRIER(cmd_buf,
-			.image = tex_images[i],
-			.subresourceRange = subresource_range,
-			.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
-			.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
-			.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-			.newLayout = VK_IMAGE_LAYOUT_GENERAL
-		);
+			subresource_range.baseMipLevel = 0;
+			subresource_range.levelCount = num_mip_levels;
 
-		offset += mem_req.size;
+			IMAGE_BARRIER(cmd_buf,
+				.image = tex_images[i],
+				.subresourceRange = subresource_range,
+				.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+				.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT,
+				.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+				.newLayout = VK_IMAGE_LAYOUT_GENERAL
+			);
+		}
+		else
+		{
+			VkBufferImageCopy cpy_info = {
+				.bufferOffset = offset,
+				.imageSubresource = { 
+					.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
+					.mipLevel       = 0,
+					.baseArrayLayer = 0,
+					.layerCount     = 1,
+				},
+				.imageOffset    = { 0, 0, 0 },
+				.imageExtent    = { wd, ht, 1 }
+			};
+
+			vkCmdCopyBufferToImage(cmd_buf, buf_img_upload.buffer, tex_images[i],
+				VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &cpy_info);
+
+			// Transition mip 0 to VK_IMAGE_LAYOUT_GENERAL for use in the next command list.
+
+			subresource_range.baseMipLevel = 0;
+			subresource_range.levelCount = 1;
+
+			IMAGE_BARRIER(cmd_buf,
+				.image = tex_images[i],
+				.subresourceRange = subresource_range,
+				.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+				.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
+				.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+				.newLayout = VK_IMAGE_LAYOUT_GENERAL
+			);
+		}
+
+		offset += upload_size;
 	}
 
 	buffer_unmap(&buf_img_upload);
@@ -1837,7 +2044,7 @@ vkpt_textures_end_registration()
 
 	vkpt_submit_command_buffer_simple(cmd_buf, qvk.queue_graphics, true);
 
-	// Phase 4: Process the normal maps using a compute shader, generate mipmaps.
+	// Phase 4: Process the normal maps using a compute shader, and generate mipmaps when needed.
 	// This phase executes in a separate command buffer because Vulkan thinks that
 	// the normalization pass may access all descriptors in the set, even those which
 	// are not yet transitioned from LAYOUT_UNDEFINED to LAYOUT_GENERAL. So the
@@ -1848,6 +2055,8 @@ vkpt_textures_end_registration()
 	for (int i = 0; i < MAX_RIMAGES; i++)
 	{
 		image_t* q_img = r_images + i;
+		const bool stored_mip_chain = q_img->mip_levels != 0;
+		const bool normalize_in_place = can_normalize_normal_map_in_place(q_img);
 
 		if (tex_upload_frames[i] != qvk.current_frame_index + 1)
 			continue;
@@ -1860,7 +2069,7 @@ vkpt_textures_end_registration()
 			.layerCount = 1
 		};
 
-		bool normalize = (q_img->flags & IF_NORMAL_MAP) && !q_img->is_srgb;
+		bool normalize = normalize_in_place;
 
 		if (normalize)
 		{
@@ -1877,7 +2086,28 @@ vkpt_textures_end_registration()
 				(q_img->upload_height + 15) / 16, 1);
 		}
 
-		int num_mip_levels = get_num_miplevels(q_img->upload_width, q_img->upload_height);
+		const uint32_t num_mip_levels = q_img->mip_levels ? q_img->mip_levels : get_num_miplevels(q_img->upload_width, q_img->upload_height);
+
+		// Stored mip chains are uploaded as-is and do not need GPU blits.
+		if (stored_mip_chain)
+		{
+			if (normalize)
+			{
+				subresource_range.baseMipLevel = 0;
+				subresource_range.levelCount = 1;
+
+				IMAGE_BARRIER(cmd_buf,
+					.image = tex_images[i],
+					.subresourceRange = subresource_range,
+					.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
+					.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+					.oldLayout = VK_IMAGE_LAYOUT_GENERAL,
+					.newLayout = VK_IMAGE_LAYOUT_GENERAL,
+				);
+			}
+
+			continue;
+		}
 
 		int wd = q_img->upload_width;
 		int ht = q_img->upload_height;
