@@ -35,7 +35,7 @@ textures/prototype/+ashbtn_4,
 textures/prototype/+ashbtn_5,
 textures/prototype/+ashbtn_6,
 textures/prototype/+ashbtn_7:
-	texture_base textures/prototype/*.tga
+	texture_base textures/prototype/*.dds
 	base_factor 1.0
 	metalness_factor 0.000000
 	specular_factor 0.000000
@@ -63,7 +63,7 @@ textures/prototype/+5button_0:
 
 textures/prototype/fullbright_*,
 textures/prototype/honey_1:
-	texture_base textures/prototype/*.tga
+	texture_base textures/prototype/*.dds
 	base_factor 1.0
 	metalness_factor 0.000000
 	specular_factor 0.000000
@@ -78,7 +78,7 @@ textures/prototype/text_N,
 textures/prototype/text_S,
 textures/prototype/text_W,
 textures/prototype/text_smiley:
-	texture_base textures/prototype/*.tga
+	texture_base textures/prototype/*.dds
 	texture_emissive textures/prototype/*_light.tga
 	base_factor 1.0
 	metalness_factor 0.000000
@@ -92,42 +92,42 @@ textures/prototype/text_smiley:
 textures/prototype/#lava2_1,
 textures/prototype/#lava2_2,
 textures/prototype/#lava2_3:
-	texture_base textures/prototype/*.tga
+	texture_base textures/prototype/*.dds
 	base_factor 1.0
 	kind LAVA
 
 textures/prototype/#lava_64_1,
 textures/prototype/#lava_64_2,
 textures/prototype/#lava_64_3:
-	texture_base textures/prototype/*.tga
+	texture_base textures/prototype/*.dds
 	base_factor 1.0
 	kind LAVA
 
 textures/prototype/#slime2_1,
 textures/prototype/#slime2_2,
 textures/prototype/#slime2_3:
-	texture_base textures/prototype/*.tga
+	texture_base textures/prototype/*.dds
 	base_factor 1.0
 	kind SLIME
 
 textures/prototype/#64_water1_1,
 textures/prototype/#64_water1_2,
 textures/prototype/#64_water1_3:
-	texture_base textures/prototype/*.tga
+	texture_base textures/prototype/*.dds
 	base_factor 1.0
 	kind WATER
 
 textures/prototype/#64_water2_1,
 textures/prototype/#64_water2_2,
 textures/prototype/#64_water2_3:
-	texture_base textures/prototype/*.tga
+	texture_base textures/prototype/*.dds
 	base_factor 1.0
 	kind WATER
 	
 textures/prototype/#water3_1,
 textures/prototype/#water3_2,
 textures/prototype/#water3_3:
-	texture_base textures/prototype/*.tga
+	texture_base textures/prototype/*.dds
 	base_factor 1.0
 	kind WATER
 	

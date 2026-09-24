@@ -672,6 +672,7 @@ SET(SRC_REFRESH
 	refresh/models.c
 	refresh/model_sp2_json.cpp
 	refresh/model_iqm.c
+	refresh/fonts_mtsdf.cpp
 	refresh/stb/stb.c
 )
 SET(SRC_GL

@@ -758,6 +758,150 @@ const float PF_R_ClampScale( cvar_t *var ) {
 void PF_R_SetScale( const float scale ) {
 	R_SetScale( scale );
 }
+/**
+*	@brief	Exported wrapper to set uniform stroke color and thickness.
+**/
+void PF_R_SetStroke( const uint32_t color, const float thickness ) {
+	R_SetStroke( color, thickness );
+}
+/**
+*	@brief	Exported wrapper to set uniform stroke thickness.
+**/
+void PF_R_SetStrokeThickness( const float thickness ) {
+	R_SetStrokeThickness( thickness );
+}
+/**
+*	@brief	Exported wrapper to set per-side stroke thickness.
+**/
+void PF_R_SetStrokeThickness4( const float top, const float right, const float bottom, const float left ) {
+	R_SetStrokeThickness4( top, right, bottom, left );
+}
+/**
+*	@brief	Exported wrapper to set per-side stroke outline colors.
+**/
+void PF_R_SetStrokeColors4( const uint32_t top, const uint32_t right, const uint32_t bottom, const uint32_t left ) {
+	R_SetStrokeColors4( top, right, bottom, left );
+}
+/**
+*	@brief	Exported wrapper to set stroke outline with alignment flags.
+**/
+void PF_R_SetStrokeEx( const uint32_t color, const float thickness, const uint32_t flags ) {
+	R_SetStrokeEx( color, thickness, flags );
+}
+/**
+*	@brief	Exported wrapper to set per-side stroke colors, thicknesses, and alignment flags.
+**/
+void PF_R_SetStroke4Ex( const uint32_t colors[ 4 ], const float thickness[ 4 ], const uint32_t flags ) {
+	R_SetStroke4Ex( colors, thickness, flags );
+}
+/**
+*	@brief	Exported wrapper to set uniform outer glow color and radius.
+**/
+void PF_R_SetOuterGlow( const uint32_t color, const float radius ) {
+	R_SetOuterGlow( color, radius );
+}
+/**
+*	@brief	Exported wrapper to set per-side outer glow radius.
+**/
+void PF_R_SetOuterGlowRadius4( const float top, const float right, const float bottom, const float left ) {
+	R_SetOuterGlowRadius4( top, right, bottom, left );
+}
+/**
+*	@brief	Exported wrapper to set per-side outer glow colors.
+**/
+void PF_R_SetOuterGlowColors4( const uint32_t top, const uint32_t right, const uint32_t bottom, const uint32_t left ) {
+	R_SetOuterGlowColors4( top, right, bottom, left );
+}
+/**
+*	@brief	Exported wrapper to set active outer glow edges.
+**/
+void PF_R_SetOuterGlowEdges( const uint32_t edge_mask ) {
+	R_SetOuterGlowEdges( edge_mask );
+}
+/**
+*	@brief	Exported wrapper to set outer glow with custom falloff and blend flags.
+**/
+void PF_R_SetOuterGlowEx( const uint32_t color, const float radius, const uint32_t flags ) {
+	R_SetOuterGlowEx( color, radius, flags );
+}
+/**
+*	@brief	Exported wrapper to set per-side outer glow colors, radii, and flags.
+**/
+void PF_R_SetOuterGlow4Ex( const uint32_t colors[ 4 ], const float radii[ 4 ], const uint32_t flags ) {
+	R_SetOuterGlow4Ex( colors, radii, flags );
+}
+/**
+*	@brief	Exported wrapper to set uniform inner glow color and radius.
+**/
+void PF_R_SetInnerGlow( const uint32_t color, const float radius ) {
+	R_SetInnerGlow( color, radius );
+}
+/**
+*	@brief	Exported wrapper to set per-side inner glow colors.
+**/
+void PF_R_SetInnerGlowColors4( const uint32_t top, const uint32_t right, const uint32_t bottom, const uint32_t left ) {
+	R_SetInnerGlowColors4( top, right, bottom, left );
+}
+/**
+*	@brief	Exported wrapper to set per-side inner glow radius.
+**/
+void PF_R_SetInnerGlowRadius4( const float top, const float right, const float bottom, const float left ) {
+	R_SetInnerGlowRadius4( top, right, bottom, left );
+}
+/**
+*	@brief	Exported wrapper to set inner glow with custom falloff and blend flags.
+**/
+void PF_R_SetInnerGlowEx( const uint32_t color, const float radius, const uint32_t flags ) {
+	R_SetInnerGlowEx( color, radius, flags );
+}
+/**
+*	@brief	Exported wrapper to set uniform corner radius.
+**/
+void PF_R_SetCornerRadius( const float radius ) {
+	R_SetCornerRadius( radius );
+}
+/**
+*	@brief	Exported wrapper to set individual corner radii.
+**/
+void PF_R_SetCornerRadius4( const float top_left, const float top_right, const float bottom_right, const float bottom_left ) {
+	R_SetCornerRadius4( top_left, top_right, bottom_right, bottom_left );
+}
+/**
+*	@brief	Exported wrapper to reset all active 2D styling.
+**/
+void PF_R_ClearStyle( void ) {
+	R_ClearStyle();
+}
+/**
+*	@brief	Exported wrapper to draw a 2D line.
+**/
+void PF_R_DrawLine2D( const float x1, const float y1, const float x2, const float y2, const float thickness, const uint32_t color ) {
+	R_DrawLine2D( x1, y1, x2, y2, thickness, color );
+}
+/**
+*	@brief	Exported wrapper to load a TrueType font and generate MTSDF atlas.
+**/
+qhandle_t PF_R_RegisterFontTTF( const char *path, const float pixel_height ) {
+	return R_RegisterFontTTF( path, pixel_height );
+}
+/**
+*	@brief	Exported wrapper to draw 3D world text subject to geometry occlusion.
+**/
+void PF_R_DrawString3DOccluded( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color ) {
+	R_DrawString3DOccluded( origin, angles, scale, text, font, color );
+}
+/**
+*	@brief	Exported wrapper to draw 3D world text overlay without occlusion.
+**/
+void PF_R_DrawString3DNonOccluded( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color ) {
+	R_DrawString3DNonOccluded( origin, angles, scale, text, font, color );
+}
+/**
+*	@brief	Exported wrapper to draw 3D world text with default occlusion.
+**/
+void PF_R_DrawString3D( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color ) {
+	R_DrawString3D( origin, angles, scale, text, font, color );
+}
 void PF_R_DrawChar( const int32_t x, const int32_t y, const int32_t flags, const int32_t ch, const qhandle_t font ) {
 	R_DrawChar( x, y, flags, ch, font );
 }
@@ -1362,6 +1506,35 @@ void CL_GM_LoadProgs( void ) {
 	imports.R_SetClipRect = PF_R_SetClipRect;
 	imports.R_ClampScale = PF_R_ClampScale;
 	imports.R_SetScale = PF_R_SetScale;
+
+	// 2D Styling and outlines:
+	imports.R_SetStroke = PF_R_SetStroke;
+	imports.R_SetStrokeThickness = PF_R_SetStrokeThickness;
+	imports.R_SetStrokeThickness4 = PF_R_SetStrokeThickness4;
+	imports.R_SetStrokeColors4 = PF_R_SetStrokeColors4;
+	imports.R_SetStrokeEx = PF_R_SetStrokeEx;
+	imports.R_SetStroke4Ex = PF_R_SetStroke4Ex;
+	imports.R_SetOuterGlow = PF_R_SetOuterGlow;
+	imports.R_SetOuterGlowRadius4 = PF_R_SetOuterGlowRadius4;
+	imports.R_SetOuterGlowColors4 = PF_R_SetOuterGlowColors4;
+	imports.R_SetOuterGlowEdges = PF_R_SetOuterGlowEdges;
+	imports.R_SetOuterGlowEx = PF_R_SetOuterGlowEx;
+	imports.R_SetOuterGlow4Ex = PF_R_SetOuterGlow4Ex;
+	imports.R_SetInnerGlow = PF_R_SetInnerGlow;
+	imports.R_SetInnerGlowColors4 = PF_R_SetInnerGlowColors4;
+	imports.R_SetInnerGlowRadius4 = PF_R_SetInnerGlowRadius4;
+	imports.R_SetInnerGlowEx = PF_R_SetInnerGlowEx;
+	imports.R_SetCornerRadius = PF_R_SetCornerRadius;
+	imports.R_SetCornerRadius4 = PF_R_SetCornerRadius4;
+	imports.R_ClearStyle = PF_R_ClearStyle;
+	imports.R_DrawLine2D = PF_R_DrawLine2D;
+
+	// TrueType and 3D text rendering:
+	imports.R_RegisterFontTTF = PF_R_RegisterFontTTF;
+	imports.R_DrawString3DOccluded = PF_R_DrawString3DOccluded;
+	imports.R_DrawString3DNonOccluded = PF_R_DrawString3DNonOccluded;
+	imports.R_DrawString3D = PF_R_DrawString3D;
+
 	imports.R_DrawChar = PF_R_DrawChar;
 	imports.R_DrawString = PF_R_DrawString;
 	imports.R_GetPicSize = PF_R_GetPicSize;

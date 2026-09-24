@@ -488,6 +488,62 @@ void( *R_SetAlphaScale )( float alpha ) = NULL;
 void( *R_SetColor )( uint32_t color ) = NULL;
 void( *R_SetClipRect )( const clipRect_t *clip ) = NULL;
 void( *R_SetScale )( float scale ) = NULL;
+
+//! Sets uniform stroke color and thickness for 2D primitives.
+void( *R_SetStroke )( const uint32_t color, const float thickness ) = nullptr;
+//! Sets uniform stroke thickness for 2D primitives.
+void( *R_SetStrokeThickness )( const float thickness ) = nullptr;
+//! Sets per-side stroke thickness [top, right, bottom, left] for 2D primitives.
+void( *R_SetStrokeThickness4 )( const float top, const float right, const float bottom, const float left ) = nullptr;
+//! Sets per-side stroke outline colors [top, right, bottom, left] for 2D primitives.
+void( *R_SetStrokeColors4 )( const uint32_t top, const uint32_t right, const uint32_t bottom, const uint32_t left ) = nullptr;
+//! Sets uniform stroke color, thickness, and style flags for 2D primitives.
+void( *R_SetStrokeEx )( const uint32_t color, const float thickness, const uint32_t flags ) = nullptr;
+//! Sets per-side stroke colors, thicknesses, and style flags for 2D primitives.
+void( *R_SetStroke4Ex)( const uint32_t colors[ 4 ], const float thickness[ 4 ], const uint32_t flags ) = nullptr;
+
+//! Sets uniform outer glow color and radius for 2D primitives.
+void( *R_SetOuterGlow )( const uint32_t color, const float radius ) = nullptr;
+//! Sets per-side outer glow radius [top, right, bottom, left] for 2D primitives.
+void( *R_SetOuterGlowRadius4 )( const float top, const float right, const float bottom, const float left ) = nullptr;
+//! Sets per-side outer glow colors [top, right, bottom, left] for 2D primitives.
+void( *R_SetOuterGlowColors4 )( const uint32_t top, const uint32_t right, const uint32_t bottom, const uint32_t left ) = nullptr;
+//! Sets outer glow active edge bitmask (STYLE_FLAG_OUTER_GLOW_TOP, etc.).
+void( *R_SetOuterGlowEdges )( const uint32_t edge_mask ) = nullptr;
+//! Sets uniform outer glow color, radius, and style flags for 2D primitives.
+void( *R_SetOuterGlowEx )( const uint32_t color, const float radius, const uint32_t flags ) = nullptr;
+//! Sets per-side outer glow colors, radii, and style flags for 2D primitives.
+void( *R_SetOuterGlow4Ex )( const uint32_t colors[ 4 ], const float radii[ 4 ], const uint32_t flags ) = nullptr;
+
+//! Sets uniform inner glow color and radius for 2D primitives.
+void( *R_SetInnerGlow )( const uint32_t color, const float radius ) = nullptr;
+//! Sets per-side inner glow colors [top, right, bottom, left] for 2D primitives.
+void( *R_SetInnerGlowColors4 )( const uint32_t top, const uint32_t right, const uint32_t bottom, const uint32_t left ) = nullptr;
+//! Sets per-side inner glow radius [top, right, bottom, left] for 2D primitives.
+void( *R_SetInnerGlowRadius4 )( const float top, const float right, const float bottom, const float left ) = nullptr;
+//! Sets uniform inner glow color, radius, and style flags for 2D primitives.
+void( *R_SetInnerGlowEx )( const uint32_t color, const float radius, const uint32_t flags ) = nullptr;
+
+//! Sets uniform corner radius for rectangular 2D primitives.
+void( *R_SetCornerRadius )( const float radius ) = nullptr;
+//! Sets per-corner radius [top_left, top_right, bottom_right, bottom_left] for rectangular 2D primitives.
+void( *R_SetCornerRadius4 )( const float top_left, const float top_right, const float bottom_right, const float bottom_left ) = nullptr;
+
+//! Resets all active 2D style state parameters to default zero.
+void( *R_ClearStyle )( void ) = nullptr;
+
+//! Draws a 2D line with explicit start/end coordinates, thickness, and color.
+void( *R_DrawLine2D )( const float x1, const float y1, const float x2, const float y2, const float thickness, const uint32_t color ) = nullptr;
+
+//! Loads a TrueType font file, generates a multi-channel signed distance field atlas, and returns an image handle.
+qhandle_t( *R_RegisterFontTTF )( const char *path, const float pixel_height ) = nullptr;
+//! Draws a 3D world-space text string subject to linear depth buffer occlusion.
+void( *R_DrawString3DOccluded )( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color ) = nullptr;
+//! Draws a 3D world-space text string overlay without depth occlusion.
+void( *R_DrawString3DNonOccluded )( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color ) = nullptr;
+//! Draws a 3D world-space text string with default depth occlusion behavior.
+void( *R_DrawString3D )( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color ) = nullptr;
+
 void( *R_DrawChar )( int x, int y, int flags, int ch, qhandle_t font ) = NULL;
 int( *R_DrawString )( int x, int y, int flags, size_t maxChars,
     const char *string, qhandle_t font ) = NULL;

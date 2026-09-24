@@ -843,6 +843,16 @@ typedef struct {
     color_t     colors[2]; // 0 - actual color, 1 - transparency (for text drawing)
     float scale;
 	float alpha_scale;
+
+	// Universal Style State:
+	uint32_t    stroke_colors[4];     //!< Top, Right, Bottom, Left stroke outline colors
+	float       stroke_thickness[4];  //!< Top, Right, Bottom, Left stroke outline thicknesses
+	uint32_t    outer_glow_colors[4]; //!< Top, Right, Bottom, Left outer glow colors
+	float       outer_glow_radius[4]; //!< Top, Right, Bottom, Left outer glow radii
+	uint32_t    inner_glow_colors[4]; //!< Top, Right, Bottom, Left inner glow colors
+	float       inner_glow_radius[4]; //!< Top, Right, Bottom, Left inner glow radii
+	float       corner_radii[4];      //!< TL, TR, BR, BL corner radii
+	uint32_t    style_flags;          //!< STYLE_FLAG_* bitmask
 } drawStatic_t;
 
 static inline void begin_perf_marker(VkCommandBuffer command_buffer, int index, const char* name)
@@ -868,6 +878,37 @@ static inline void end_perf_marker(VkCommandBuffer command_buffer, int index)
 
 #define BEGIN_PERF_MARKER(command_buffer, name)  begin_perf_marker(command_buffer, name, #name)
 #define END_PERF_MARKER(command_buffer, name)    end_perf_marker(command_buffer, name)
+
+void R_SetStroke_RTX( const uint32_t color, const float thickness );
+void R_SetStrokeThickness_RTX( const float thickness );
+void R_SetStrokeThickness4_RTX( const float top, const float right, const float bottom, const float left );
+void R_SetStrokeColors4_RTX( const uint32_t top, const uint32_t right, const uint32_t bottom, const uint32_t left );
+void R_SetStrokeEx_RTX( const uint32_t color, const float thickness, const uint32_t flags );
+void R_SetStroke4Ex_RTX( const uint32_t colors[ 4 ], const float thickness[ 4 ], const uint32_t flags );
+
+void R_SetOuterGlow_RTX( const uint32_t color, const float radius );
+void R_SetOuterGlowRadius4_RTX( const float top, const float right, const float bottom, const float left );
+void R_SetOuterGlowColors4_RTX( const uint32_t top, const uint32_t right, const uint32_t bottom, const uint32_t left );
+void R_SetOuterGlowEdges_RTX( const uint32_t edge_mask );
+void R_SetOuterGlowEx_RTX( const uint32_t color, const float radius, const uint32_t flags );
+void R_SetOuterGlow4Ex_RTX( const uint32_t colors[ 4 ], const float radii[ 4 ], const uint32_t flags );
+
+void R_SetInnerGlow_RTX( const uint32_t color, const float radius );
+void R_SetInnerGlowColors4_RTX( const uint32_t top, const uint32_t right, const uint32_t bottom, const uint32_t left );
+void R_SetInnerGlowRadius4_RTX( const float top, const float right, const float bottom, const float left );
+void R_SetInnerGlowEx_RTX( const uint32_t color, const float radius, const uint32_t flags );
+
+void R_SetCornerRadius_RTX( const float radius );
+void R_SetCornerRadius4_RTX( const float top_left, const float top_right, const float bottom_right, const float bottom_left );
+
+void R_ClearStyle_RTX( void );
+
+void R_DrawLine2D_RTX( const float x1, const float y1, const float x2, const float y2, const float thickness, const uint32_t color );
+
+qhandle_t R_RegisterFontTTF_RTX( const char *path, const float pixel_height );
+void R_DrawString3DOccluded_RTX( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color );
+void R_DrawString3DNonOccluded_RTX( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color );
+void R_DrawString3D_RTX( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color );
 
 void R_SetClipRect_RTX(const clipRect_t *clip);
 void R_ClearColor_RTX(void);

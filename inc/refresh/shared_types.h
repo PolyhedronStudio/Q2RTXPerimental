@@ -880,6 +880,8 @@ typedef enum {
 	IF_NORMAL_MAP = ( 1 << 12 ),
 	// Always bilerp this image, regardless of the bilerp_pics cvar.
 	IF_BILERP = ( 1 << 13 ), // always lerp, independent of bilerp_pics cvar
+	// Tag image for companion Signed Distance Field (SDF / MTSDF) generation and silhouette contour styling.
+	IF_SDF_SILHOUETTE = ( 1 << 14 ),
 
 	// Image source indicator/requirement flags used to track where the asset came from.
 	IF_SRC_BASE = ( 0x1 << 16 ), // Asset resolved from the base/game-independent content set.

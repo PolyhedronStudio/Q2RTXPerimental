@@ -1,16 +1,16 @@
 textures/texts/targetsleft:
-	texture_base textures/texts/targetsleft.tga
-    texture_emissive textures/texts/targetsleft_light.tga
-    texture_mask textures/texts/targetsleft_m.tga
+	texture_base textures/texts/targetsleft.dds
+    texture_emissive textures/texts/targetsleft_light.dds
+    texture_mask textures/texts/targetsleft_m.dds
 	base_factor 2.5
 	emissive_factor 0.35
     is_light 1
 	light_styles 1
 
 textures/texts/targetsleft0:
-	texture_base textures/texts/targetsleft0.tga
-    texture_emissive textures/texts/targetsleft0_light.tga
-    texture_mask textures/texts/targetsleft0_m.tga
+	texture_base textures/texts/targetsleft0.dds
+    texture_emissive textures/texts/targetsleft0_light.dds
+    texture_mask textures/texts/targetsleft0_m.dds
 	base_factor 2.5
 	emissive_factor 0.35
     is_light 1
@@ -18,9 +18,9 @@ textures/texts/targetsleft0:
 	default_radiance 1.0
 	bsp_radiance 1.0
 textures/texts/targetsleft1:
-	texture_base textures/texts/targetsleft1.tga
-    texture_emissive textures/texts/targetsleft1_light.tga
-    texture_mask textures/texts/targetsleft1_m.tga
+	texture_base textures/texts/targetsleft1.dds
+    texture_emissive textures/texts/targetsleft1_light.dds
+    texture_mask textures/texts/targetsleft1_m.dds
 	base_factor 2.5
 	emissive_factor 0.35
     is_light 1
@@ -28,9 +28,9 @@ textures/texts/targetsleft1:
 	default_radiance 1.0
 	bsp_radiance 1.0
 textures/texts/targetsleft2:
-	texture_base textures/texts/targetsleft2.tga
-    texture_emissive textures/texts/targetsleft2_light.tga
-    texture_mask textures/texts/targetsleft2_m.tga
+	texture_base textures/texts/targetsleft2.dds
+    texture_emissive textures/texts/targetsleft2_light.dds
+    texture_mask textures/texts/targetsleft2_m.dds
 	base_factor 2.5
 	emissive_factor 0.35
     is_light 1
@@ -38,9 +38,9 @@ textures/texts/targetsleft2:
 	default_radiance 1.0
 	bsp_radiance 1.0
 textures/texts/targetsleft3:
-	texture_base textures/texts/targetsleft3.tga
-    texture_emissive textures/texts/targetsleft3_light.tga
-    texture_mask textures/texts/targetsleft3_m.tga
+	texture_base textures/texts/targetsleft3.dds
+    texture_emissive textures/texts/targetsleft3_light.dds
+    texture_mask textures/texts/targetsleft3_m.dds
 	base_factor 2.5
 	emissive_factor 0.35
     is_light 1
@@ -48,9 +48,9 @@ textures/texts/targetsleft3:
 	default_radiance 1.0
 	bsp_radiance 1.0
 textures/texts/targetsleft4:
-	texture_base textures/texts/targetsleft4.tga
-    texture_emissive textures/texts/targetsleft4_light.tga
-    texture_mask textures/texts/targetsleft4_m.tga
+	texture_base textures/texts/targetsleft4.dds
+    texture_emissive textures/texts/targetsleft4_light.dds
+    texture_mask textures/texts/targetsleft4_m.dds
 	base_factor 2.5
 	emissive_factor 0.35
     is_light 1
@@ -59,37 +59,37 @@ textures/texts/targetsleft4:
 	bsp_radiance 1.0
 
 textures/texts/trigger_push:
-	texture_base textures/texts/trigger_push.tga
-	texture_normals textures/texts/trigger_push_n.tga
+	texture_base textures/texts/trigger_push.dds
+	texture_normals textures/texts/trigger_push_n.dds
 	base_factor 2.5
 	kind GLASS
 textures/texts/trigger_gravity:
-	texture_base textures/texts/trigger_gravity.tga
-	texture_normals textures/texts/trigger_gravity_n.tga
+	texture_base textures/texts/trigger_gravity.dds
+	texture_normals textures/texts/trigger_gravity_n.dds
 	base_factor 2.5
 	kind GLASS
 textures/texts/trigger_once:
-	texture_base textures/texts/trigger_once.tga
-	texture_normals textures/texts/trigger_once_n.tga
+	texture_base textures/texts/trigger_once.dds
+	texture_normals textures/texts/trigger_once_n.dds
 	base_factor 2.5
 	kind GLAS
 textures/texts/trigger_multiple:
-	texture_base textures/texts/trigger_multiple.tga
-	texture_normals textures/texts/trigger_multiple_n.tga
+	texture_base textures/texts/trigger_multiple.dds
+	texture_normals textures/texts/trigger_multiple_n.dds
 	base_factor 2.5
 	kind GLASS
 textures/texts/trigger_once:
-	texture_base textures/texts/trigger_once.tga
-	texture_normals textures/texts/trigger_once_n.tga
+	texture_base textures/texts/trigger_once.dds
+	texture_normals textures/texts/trigger_once_n.dds
 	base_factor 2.5
 	kind GLASS
 textures/texts/trigger_hurt:
-	texture_base textures/texts/trigger_hurt.tga
-	texture_normals textures/texts/trigger_hurt_n.tga
+	texture_base textures/texts/trigger_hurt.dds
+	texture_normals textures/texts/trigger_hurt_n.dds
 	base_factor 2.5
 	kind GLASS
 textures/texts/trigger_counter:
-	texture_base textures/texts/trigger_counter.tga
-	texture_normals textures/texts/trigger_counter_n.tga
+	texture_base textures/texts/trigger_counter.dds
+	texture_normals textures/texts/trigger_counter_n.dds
 	base_factor 2.5
 	kind GLASS

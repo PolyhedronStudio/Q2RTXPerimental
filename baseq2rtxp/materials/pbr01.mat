@@ -1,34 +1,34 @@
 textures/pbr01/concrete00_mold:
-	texture_base textures/pbr01/concrete00_mold.png
+	texture_base textures/pbr01/concrete00_mold.dds
 	base_factor 1.0
-	texture_normals textures/pbr01/concrete00_mold_n.png
+	texture_normals textures/pbr01/concrete00_mold_n.dds
 	bump_scale 0.85
 	specular_factor 0.125
 	metalness_factor 0
 	roughness_override 0
 
 textures/pbr01/dirt00_rocky:
-	texture_base textures/pbr01/dirt00_rocky.png
+	texture_base textures/pbr01/dirt00_rocky.dds
 	base_factor 1.0
-	texture_normals textures/pbr01/dirt00_rocky_n.png
+	texture_normals textures/pbr01/dirt00_rocky_n.dds
 	bump_scale 1.0
 	specular_factor 0.125
 	metalness_factor 0
 	roughness_override 0
 
 textures/pbr01/grass00_patchy:
-	texture_base textures/pbr01/grass00_patchy.png
+	texture_base textures/pbr01/grass00_patchy.dds
 	base_factor 1.0
-	texture_normals textures/pbr01/grass00_patchy_n.png
+	texture_normals textures/pbr01/grass00_patchy_n.dds
 	bump_scale 1.0
 	specular_factor 0.125
 	metalness_factor 0
 	roughness_override 0
 
 textures/pbr01/rocks00_mossy:
-	texture_base textures/pbr01/rocks00_mossy.png
+	texture_base textures/pbr01/rocks00_mossy.dds
 	base_factor 1.0
-	texture_normals textures/pbr01/rocks00_mossy_n.png
+	texture_normals textures/pbr01/rocks00_mossy_n.dds
 	bump_scale 1.0
 	specular_factor 0.125
 	metalness_factor 0

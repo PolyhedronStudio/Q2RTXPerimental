@@ -74,6 +74,98 @@ extern void    (*R_SetColor)(uint32_t color);
 extern void    (*R_SetClipRect)(const clipRect_t *clip);
 float   R_ClampScale(cvar_t *var);
 extern void    (*R_SetScale)(float scale);
+
+enum {
+	STYLE_FLAG_NONE                   = 0,
+	STYLE_FLAG_OUTLINE                = BIT( 0 ),
+	STYLE_FLAG_OUTER_GLOW             = BIT( 1 ),
+	STYLE_FLAG_INNER_GLOW             = BIT( 2 ),
+	STYLE_FLAG_SILHOUETTE_SDF         = BIT( 3 ),
+	STYLE_FLAG_SDF_MTSDF              = BIT( 4 ),       //!< Multi-channel MTSDF texture active
+
+	// Stroke alignment flags
+	STYLE_FLAG_STROKE_ALIGN_CENTER    = 0,              //!< Centered [-W/2, +W/2] (Default)
+	STYLE_FLAG_STROKE_ALIGN_INSET     = BIT( 5 ),       //!< Inset [-W, 0]
+	STYLE_FLAG_STROKE_ALIGN_OUTSET    = BIT( 6 ),       //!< Outset [0, +W]
+	STYLE_FLAG_STROKE_ALIGN_MASK      = ( BIT( 5 ) | BIT( 6 ) ),
+
+	// Falloff & blending flags
+	STYLE_FLAG_GLOW_FALLOFF_HERMITE   = 0,              //!< Cubic Hermite smoothstep (Default)
+	STYLE_FLAG_GLOW_FALLOFF_EXP       = BIT( 7 ),       //!< Exponential / Neon curve
+	STYLE_FLAG_GLOW_BLEND_ADDITIVE    = BIT( 8 ),       //!< Additive blending for HDR bloom
+
+	// Per-edge enable masks
+	STYLE_FLAG_EDGE_TOP               = BIT( 9 ),
+	STYLE_FLAG_EDGE_RIGHT             = BIT( 10 ),
+	STYLE_FLAG_EDGE_BOTTOM            = BIT( 11 ),
+	STYLE_FLAG_EDGE_LEFT              = BIT( 12 ),
+	STYLE_FLAG_EDGE_ALL               = ( BIT( 9 ) | BIT( 10 ) | BIT( 11 ) | BIT( 12 ) ),
+
+	// Primitive & 3D flags
+	STYLE_FLAG_PRIMITIVE_LINE2D       = BIT( 13 ),      //!< Capsule line segment SDF
+	STYLE_FLAG_CORNER_RADIUS          = BIT( 14 ),      //!< Rounded corners active
+	STYLE_FLAG_DEPTH_TEST             = BIT( 15 ),      //!< 3D linear depth test against TEX_PT_VIEW_DEPTH_A
+};
+
+// Universal stroke configuration API
+extern void (*R_SetStroke)( const uint32_t color, const float thickness );
+extern void (*R_SetStrokeThickness)( const float thickness );
+extern void (*R_SetStrokeThickness4)( const float top, const float right, const float bottom, const float left );
+extern void (*R_SetStrokeColors4)( const uint32_t top, const uint32_t right, const uint32_t bottom, const uint32_t left );
+extern void (*R_SetStrokeEx)( const uint32_t color, const float thickness, const uint32_t flags );
+extern void (*R_SetStroke4Ex)( const uint32_t colors[ 4 ], const float thickness[ 4 ], const uint32_t flags );
+
+// Universal outer glow configuration API
+extern void (*R_SetOuterGlow)( const uint32_t color, const float radius );
+extern void (*R_SetOuterGlowRadius4)( const float top, const float right, const float bottom, const float left );
+extern void (*R_SetOuterGlowColors4)( const uint32_t top, const uint32_t right, const uint32_t bottom, const uint32_t left );
+extern void (*R_SetOuterGlowEdges)( const uint32_t edge_mask );
+extern void (*R_SetOuterGlowEx)( const uint32_t color, const float radius, const uint32_t flags );
+extern void (*R_SetOuterGlow4Ex)( const uint32_t colors[ 4 ], const float radii[ 4 ], const uint32_t flags );
+
+// Universal inner glow configuration API
+extern void (*R_SetInnerGlow)( const uint32_t color, const float radius );
+extern void (*R_SetInnerGlowColors4)( const uint32_t top, const uint32_t right, const uint32_t bottom, const uint32_t left );
+extern void (*R_SetInnerGlowRadius4)( const float top, const float right, const float bottom, const float left );
+extern void (*R_SetInnerGlowEx)( const uint32_t color, const float radius, const uint32_t flags );
+
+// Universal corner radius configuration API
+extern void (*R_SetCornerRadius)( const float radius );
+extern void (*R_SetCornerRadius4)( const float top_left, const float top_right, const float bottom_right, const float bottom_left );
+
+// Reset all renderer styles to default (no stroke, no glow, no corner radius)
+extern void (*R_ClearStyle)( void );
+
+// Dedicated 2D glowing line primitive
+extern void (*R_DrawLine2D)( const float x1, const float y1, const float x2, const float y2, const float thickness, const uint32_t color );
+
+// TrueType Font & 3D text API
+extern qhandle_t (*R_RegisterFontTTF)( const char *path, const float pixel_height );
+extern void (*R_DrawString3DOccluded)( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color );
+extern void (*R_DrawString3DNonOccluded)( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color );
+extern void (*R_DrawString3D)( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color );
+
+// Non-breaking 2D compatibility aliases
+#define R_SetStroke2D            R_SetStroke
+#define R_SetStrokeThickness2D   R_SetStrokeThickness
+#define R_SetStrokeThickness2D4  R_SetStrokeThickness4
+#define R_SetStrokeColors2D4     R_SetStrokeColors4
+#define R_SetStroke2DEx          R_SetStrokeEx
+#define R_SetStroke2D4Ex         R_SetStroke4Ex
+#define R_SetOuterGlow2D         R_SetOuterGlow
+#define R_SetOuterGlowRadius2D4  R_SetOuterGlowRadius4
+#define R_SetOuterGlowColors2D4  R_SetOuterGlowColors4
+#define R_SetOuterGlowEdges2D    R_SetOuterGlowEdges
+#define R_SetOuterGlow2DEx       R_SetOuterGlowEx
+#define R_SetOuterGlow2D4Ex      R_SetOuterGlow4Ex
+#define R_SetInnerGlow2D         R_SetInnerGlow
+#define R_SetInnerGlowColors2D4  R_SetInnerGlowColors4
+#define R_SetInnerGlowRadius2D4  R_SetInnerGlowRadius4
+#define R_SetInnerGlow2DEx       R_SetInnerGlowEx
+#define R_SetCornerRadius2D      R_SetCornerRadius
+#define R_SetCornerRadius2D4     R_SetCornerRadius4
+#define R_ClearStyle2D           R_ClearStyle
+
 extern void    (*R_DrawChar)(int x, int y, int flags, int ch, qhandle_t font);
 extern int     (*R_DrawString)(int x, int y, int flags, size_t maxChars,
                      const char *string, qhandle_t font);  // returns advanced x coord

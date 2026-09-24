@@ -5,9 +5,9 @@ textures/makkon/conc_c01_gry2,
 textures/makkon/conc_c01_gry3,
 textures/makkon/conc_c01_moss3,
 textures/makkon/conc_c01_moss4:
-	texture_base textures/makkon/*.png
+	texture_base textures/makkon/*.dds
 	base_factor 1.0
-	texture_normals textures/makkon/conc_c01_N.png
+	texture_normals textures/makkon/conc_c01_N.dds
 	bump_scale 1.5
 	specular_factor 0.125
 	metalness_factor 0
@@ -20,9 +20,9 @@ textures/makkon/stone_c1_moss1,
 textures/makkon/stone_c1_moss2,
 textures/makkon/stone_c1_moss3,
 textures/makkon/stone_c1_red1:
-	texture_base textures/makkon/*.png
+	texture_base textures/makkon/*.dds
 	base_factor 1.0
-	texture_normals textures/makkon/stone_c1_N.png
+	texture_normals textures/makkon/stone_c1_N.dds
 	bump_scale 1.5
 	specular_factor 0.125
 	metalness_factor 0
@@ -34,9 +34,9 @@ textures/makkon/stone_c2_moss1,
 textures/makkon/stone_c2_moss2,
 textures/makkon/stone_c2_moss3,
 textures/makkon/stone_c2_red1:
-	texture_base textures/makkon/*.png
+	texture_base textures/makkon/*.dds
 	base_factor 1.0
-	texture_normals textures/makkon/stone_c2_N.png
+	texture_normals textures/makkon/stone_c2_N.dds
 	bump_scale 1.5
 	specular_factor 0.125
 	metalness_factor 0
@@ -49,9 +49,9 @@ textures/makkon/stone_c3_moss1,
 textures/makkon/stone_c3_moss2,
 textures/makkon/stone_c3_moss3,
 textures/makkon/stone_c3_red1:
-	texture_base textures/makkon/*.png
+	texture_base textures/makkon/*.dds
 	base_factor 1.0
-	texture_normals textures/makkon/stone_c3_N.png
+	texture_normals textures/makkon/stone_c3_N.dds
 	bump_scale 1.5
 	specular_factor 0.125
 	metalness_factor 0
@@ -64,9 +64,9 @@ textures/makkon/conc_t01_gry2,
 textures/makkon/conc_t01_gry3,
 textures/makkon/conc_t01_moss3,
 textures/makkon/conc_t01_moss4:
-	texture_base textures/makkon/*.png
+	texture_base textures/makkon/*.dds
 	base_factor 1.0
-	texture_normals textures/makkon/conc_t01_N.png
+	texture_normals textures/makkon/conc_t01_N.dds
 	bump_scale 1.5
 	specular_factor 0.125
 	metalness_factor 0
@@ -79,9 +79,9 @@ textures/makkon/conc_w01_gry2,
 textures/makkon/conc_w01_gry3,
 textures/makkon/conc_w01_moss3,
 textures/makkon/conc_w01_moss4:
-	texture_base textures/makkon/*.png
+	texture_base textures/makkon/*.dds
 	base_factor 1.0
-	texture_normals textures/makkon/conc_w01_N.png
+	texture_normals textures/makkon/conc_w01_N.dds
 	bump_scale 1.5
 	specular_factor 0.125
 	metalness_factor 0
@@ -94,9 +94,9 @@ textures/makkon/conc_w03_gry2,
 textures/makkon/conc_w03_gry3,
 textures/makkon/conc_w03_moss3,
 textures/makkon/conc_w03_moss4:
-	texture_base textures/makkon/*.png
+	texture_base textures/makkon/*.dds
 	base_factor 1.0
-	texture_normals textures/makkon/conc_w03_N.png
+	texture_normals textures/makkon/conc_w03_N.dds
 	bump_scale 1.5
 	specular_factor 0.125
 	metalness_factor 0
@@ -105,9 +105,9 @@ textures/makkon/metal_01_brass2,
 textures/makkon/metal_01_iron1,
 textures/makkon/metal_01_iron3,
 textures/makkon/metal_01_rust:
-	texture_base textures/makkon/*.png
+	texture_base textures/makkon/*.dds
 	base_factor 1.0
-	texture_normals textures/makkon/metal_01_N.png
+	texture_normals textures/makkon/metal_01_N.dds
 	bump_scale 1.0
 	emissive_factor 0.0
 	specular_factor 0.0125
@@ -118,9 +118,9 @@ textures/makkon/metal_02_brass2,
 textures/makkon/metal_02_iron1,
 textures/makkon/metal_02_iron3,
 textures/makkon/metal_02_rust:
-	texture_base textures/makkon/*.png
+	texture_base textures/makkon/*.dds
 	base_factor 1.0
-	texture_normals textures/makkon/metal_02_N.png
+	texture_normals textures/makkon/metal_02_N.dds
 	bump_scale 1.5
 	specular_factor 0.125
 	metalness_factor 1.0
@@ -129,9 +129,9 @@ textures/makkon/metal_04_brass2,
 textures/makkon/metal_04_iron1,
 textures/makkon/metal_04_iron3,
 textures/makkon/metal_04_rust:
-	texture_base textures/makkon/*.png
+	texture_base textures/makkon/*.dds
 	base_factor 1.0
-	texture_normals textures/makkon/metal_04_N.png
+	texture_normals textures/makkon/metal_04_N.dds
 	bump_scale 1.5
 	specular_factor 0.125
 	metalness_factor 1.0
@@ -140,9 +140,9 @@ textures/makkon/metal_06_brass2,
 textures/makkon/metal_06_iron1,
 textures/makkon/metal_06_iron3,
 textures/makkon/metal_06_rust:
-	texture_base textures/makkon/*.png
+	texture_base textures/makkon/*.dds
 	base_factor 1.0
-	texture_normals textures/makkon/metal_06_N.png
+	texture_normals textures/makkon/metal_06_N.dds
 	bump_scale 1.5
 	specular_factor 0.125
 	metalness_factor 1.0
@@ -151,9 +151,9 @@ textures/makkon/metal_c2_brass2,
 textures/makkon/metal_c2_iron1,
 textures/makkon/metal_c2_iron3,
 textures/makkon/metal_c2_rust:
-	texture_base textures/makkon/*.png
+	texture_base textures/makkon/*.dds
 	base_factor 1.0
-	texture_normals textures/makkon/metal_c2_N.png
+	texture_normals textures/makkon/metal_c2_N.dds
 	bump_scale 1.5
 	specular_factor 0.125
 	metalness_factor 1.0
@@ -162,9 +162,9 @@ textures/makkon/metal_t6_brass2,
 textures/makkon/metal_t6_iron1,
 textures/makkon/metal_t6_iron3,
 textures/makkon/metal_t6_rust:
-	texture_base textures/makkon/*.png
+	texture_base textures/makkon/*.dds
 	base_factor 1.0
-	texture_normals textures/makkon/metal_t6_N.png
+	texture_normals textures/makkon/metal_t6_N.dds
 	bump_scale 1.5
 	specular_factor 0.125
 	metalness_factor 1.0
@@ -176,9 +176,9 @@ textures/makkon/stone_1_1_moss1,
 textures/makkon/stone_1_1_moss2,
 textures/makkon/stone_1_1_moss3,
 textures/makkon/stone_1_1_red1:
-	texture_base textures/makkon/*.png
+	texture_base textures/makkon/*.dds
 	base_factor 1.0
-	texture_normals textures/makkon/stone_1_1_N.png
+	texture_normals textures/makkon/stone_1_1_N.dds
 	bump_scale 1.5
 	specular_factor 0.125
 	metalness_factor 0
@@ -191,9 +191,9 @@ textures/makkon/stone_1_2_moss1,
 textures/makkon/stone_1_2_moss2,
 textures/makkon/stone_1_2_moss3,
 textures/makkon/stone_1_2_red1:
-	texture_base textures/makkon/*.png
+	texture_base textures/makkon/*.dds
 	base_factor 1.0
-	texture_normals textures/makkon/stone_1_2_N.png
+	texture_normals textures/makkon/stone_1_2_N.dds
 	bump_scale 1.5
 	specular_factor 0.125
 	metalness_factor 0
@@ -205,9 +205,9 @@ textures/makkon/stone_1_3_moss1,
 textures/makkon/stone_1_3_moss2,
 textures/makkon/stone_1_3_moss3,
 textures/makkon/stone_1_3_red1:
-	texture_base textures/makkon/*.png
+	texture_base textures/makkon/*.dds
 	base_factor 1.0
-	texture_normals textures/makkon/stone_1_3_N.png
+	texture_normals textures/makkon/stone_1_3_N.dds
 	bump_scale 1.5
 	specular_factor 0.125
 	metalness_factor 0
@@ -219,9 +219,9 @@ textures/makkon/stone_7_moss1,
 textures/makkon/stone_7_moss2,
 textures/makkon/stone_7_moss3,
 textures/makkon/stone_7_red1:
-	texture_base textures/makkon/*.png
+	texture_base textures/makkon/*.dds
 	base_factor 1.0
-	texture_normals textures/makkon/stone_7_N.png
+	texture_normals textures/makkon/stone_7_N.dds
 	bump_scale 1.5
 	specular_factor 0.125
 	metalness_factor 0

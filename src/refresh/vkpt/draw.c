@@ -21,6 +21,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "refresh/refresh.h"
 #include "client/client.h"
 #include "refresh/images.h"
+#include "refresh/fonts_mtsdf.h"
 
 #include <assert.h>
 
@@ -39,7 +40,8 @@ enum {
 
 static drawStatic_t draw = {
 	.scale = 1.0f,
-	.alpha_scale = 1.0f
+	.alpha_scale = 1.0f,
+	.style_flags = STYLE_FLAG_NONE
 };
 
 //! Total number of stretch pics.
@@ -52,20 +54,36 @@ typedef struct {
 	float	pivot_x, pivot_y;	// 2 float		= 8 bytes.
 	// 48 bytes up till here.
 	// These are pads to keep memory properly aligned with GLSL.
-	float	angle, pad01;	// 2 float = 8 bytes.
+	float	angle, view_depth;	// 2 float = 8 bytes. (view_depth used for 3D depth test)
 	// 56 bytes up till here.
 	float	pad02, pad03;	// 2 float = 8 bytes.
 	// 64 bytes up till here.
 	//
 	// Now adding the matrix:
 	float	matTransform[16]; // 16 float = 64 bytes.
-	// Total: 128 bytes.
+	// Total: 128 bytes base.
+
+	// Extended Style Payload (128 bytes, total 256 bytes):
+	uint32_t stroke_colors[4];      //!< 16 bytes: Top, Right, Bottom, Left stroke outline colors
+	float    stroke_thickness[4];   //!< 16 bytes: Top, Right, Bottom, Left stroke outline thicknesses
+	uint32_t outer_glow_colors[4];   //!< 16 bytes: Top, Right, Bottom, Left outer glow colors
+	float    outer_glow_radius[4];   //!< 16 bytes: Top, Right, Bottom, Left outer glow radii
+	uint32_t inner_glow_colors[4];   //!< 16 bytes: Top, Right, Bottom, Left inner glow colors
+	float    inner_glow_radius[4];   //!< 16 bytes: Top, Right, Bottom, Left inner glow radii
+	float    corner_radii[4];       //!< 16 bytes: TL, TR, BR, BL corner radii
+	uint32_t style_flags;           //!< 4 bytes: STYLE_FLAG_* bitmask
+	uint32_t sdf_tex_handle;        //!< 4 bytes: optional SDF silhouette/MTSDF texture
+	float    sdf_pixel_range;       //!< 4 bytes: distance range in pixels
+	float    pad_style[1];          //!< 4 bytes: align to 16 bytes
 } StretchPic_t;
+static_assert( sizeof( StretchPic_t ) == 256, "StretchPic_t must be exactly 256 bytes for std430 alignment" );
 
 //! Not using global UBO b/c it's only filled when a world is drawn, but here we need it all the time
 typedef struct {
 	float ui_hdr_nits;
 	float tm_hdr_saturation_scale;
+	float screen_width;
+	float screen_height;
 } StretchPic_UBO_t;
 
 /**
@@ -221,6 +239,59 @@ static inline void enqueue_stretch_pic(
 	&& !r_images[tex_handle].registration_sequence) {
 		sp->tex_handle = TEXNUM_WHITE;
 	}
+
+	sp->view_depth = 0.0f;
+	sp->pad02 = 0.0f;
+	sp->pad03 = 0.0f;
+
+	// Populate extended style payload
+	sp->style_flags = draw.style_flags;
+	if ( draw.style_flags != 0 ) {
+		sp->stroke_colors[ 0 ] = draw.stroke_colors[ 0 ];
+		sp->stroke_colors[ 1 ] = draw.stroke_colors[ 1 ];
+		sp->stroke_colors[ 2 ] = draw.stroke_colors[ 2 ];
+		sp->stroke_colors[ 3 ] = draw.stroke_colors[ 3 ];
+		sp->stroke_thickness[ 0 ] = draw.stroke_thickness[ 0 ];
+		sp->stroke_thickness[ 1 ] = draw.stroke_thickness[ 1 ];
+		sp->stroke_thickness[ 2 ] = draw.stroke_thickness[ 2 ];
+		sp->stroke_thickness[ 3 ] = draw.stroke_thickness[ 3 ];
+		sp->outer_glow_colors[ 0 ] = draw.outer_glow_colors[ 0 ];
+		sp->outer_glow_colors[ 1 ] = draw.outer_glow_colors[ 1 ];
+		sp->outer_glow_colors[ 2 ] = draw.outer_glow_colors[ 2 ];
+		sp->outer_glow_colors[ 3 ] = draw.outer_glow_colors[ 3 ];
+		sp->outer_glow_radius[ 0 ] = draw.outer_glow_radius[ 0 ];
+		sp->outer_glow_radius[ 1 ] = draw.outer_glow_radius[ 1 ];
+		sp->outer_glow_radius[ 2 ] = draw.outer_glow_radius[ 2 ];
+		sp->outer_glow_radius[ 3 ] = draw.outer_glow_radius[ 3 ];
+		sp->inner_glow_colors[ 0 ] = draw.inner_glow_colors[ 0 ];
+		sp->inner_glow_colors[ 1 ] = draw.inner_glow_colors[ 1 ];
+		sp->inner_glow_colors[ 2 ] = draw.inner_glow_colors[ 2 ];
+		sp->inner_glow_colors[ 3 ] = draw.inner_glow_colors[ 3 ];
+		sp->inner_glow_radius[ 0 ] = draw.inner_glow_radius[ 0 ];
+		sp->inner_glow_radius[ 1 ] = draw.inner_glow_radius[ 1 ];
+		sp->inner_glow_radius[ 2 ] = draw.inner_glow_radius[ 2 ];
+		sp->inner_glow_radius[ 3 ] = draw.inner_glow_radius[ 3 ];
+		sp->corner_radii[ 0 ] = draw.corner_radii[ 0 ];
+		sp->corner_radii[ 1 ] = draw.corner_radii[ 1 ];
+		sp->corner_radii[ 2 ] = draw.corner_radii[ 2 ];
+		sp->corner_radii[ 3 ] = draw.corner_radii[ 3 ];
+		sp->sdf_tex_handle = 0;
+		sp->sdf_pixel_range = 0.0f;
+		sp->pad_style[ 0 ] = 0.0f;
+
+		// Check if source image has an associated silhouette SDF texture
+		if ( ( draw.style_flags & ( STYLE_FLAG_OUTLINE | STYLE_FLAG_OUTER_GLOW | STYLE_FLAG_INNER_GLOW ) ) &&
+		     tex_handle >= 0 && tex_handle < MAX_RIMAGES &&
+		     r_images[ tex_handle ].sdf_image_handle > 0 ) {
+			sp->style_flags |= STYLE_FLAG_SILHOUETTE_SDF;
+			sp->sdf_tex_handle = r_images[ tex_handle ].sdf_image_handle;
+			sp->sdf_pixel_range = r_images[ tex_handle ].sdf_pixel_range > 0.0f ? r_images[ tex_handle ].sdf_pixel_range : 8.0f;
+		}
+	} else {
+		sp->sdf_tex_handle = 0;
+		sp->sdf_pixel_range = 0.0f;
+		sp->pad_style[ 0 ] = 0.0f;
+	}
 }
 
 /**
@@ -278,7 +349,7 @@ static inline void enqueue_stretch_rotate_pic(
 		float alpha = ( color >> 24 ) & 0xff;
 		alpha *= draw.alpha_scale;
 		alpha = max( 0.f, min( 255.f, alpha ) );
-		color = ( color & 0xffffff ) | ( (int)( alpha ) << 24 );
+		color = ( color & 0xffffff ) | ( ( int )( alpha ) << 24 );
 	}
 
 	// Store in the color and texture handle. If not available in our current
@@ -288,6 +359,59 @@ static inline void enqueue_stretch_rotate_pic(
 	if ( tex_handle >= 0 && tex_handle < MAX_RIMAGES
 		&& !r_images[ tex_handle ].registration_sequence ) {
 		sp->tex_handle = TEXNUM_WHITE;
+	}
+
+	sp->view_depth = 0.0f;
+	sp->pad02 = 0.0f;
+	sp->pad03 = 0.0f;
+
+	// Populate extended style payload
+	sp->style_flags = draw.style_flags;
+	if ( draw.style_flags != 0 ) {
+		sp->stroke_colors[ 0 ] = draw.stroke_colors[ 0 ];
+		sp->stroke_colors[ 1 ] = draw.stroke_colors[ 1 ];
+		sp->stroke_colors[ 2 ] = draw.stroke_colors[ 2 ];
+		sp->stroke_colors[ 3 ] = draw.stroke_colors[ 3 ];
+		sp->stroke_thickness[ 0 ] = draw.stroke_thickness[ 0 ];
+		sp->stroke_thickness[ 1 ] = draw.stroke_thickness[ 1 ];
+		sp->stroke_thickness[ 2 ] = draw.stroke_thickness[ 2 ];
+		sp->stroke_thickness[ 3 ] = draw.stroke_thickness[ 3 ];
+		sp->outer_glow_colors[ 0 ] = draw.outer_glow_colors[ 0 ];
+		sp->outer_glow_colors[ 1 ] = draw.outer_glow_colors[ 1 ];
+		sp->outer_glow_colors[ 2 ] = draw.outer_glow_colors[ 2 ];
+		sp->outer_glow_colors[ 3 ] = draw.outer_glow_colors[ 3 ];
+		sp->outer_glow_radius[ 0 ] = draw.outer_glow_radius[ 0 ];
+		sp->outer_glow_radius[ 1 ] = draw.outer_glow_radius[ 1 ];
+		sp->outer_glow_radius[ 2 ] = draw.outer_glow_radius[ 2 ];
+		sp->outer_glow_radius[ 3 ] = draw.outer_glow_radius[ 3 ];
+		sp->inner_glow_colors[ 0 ] = draw.inner_glow_colors[ 0 ];
+		sp->inner_glow_colors[ 1 ] = draw.inner_glow_colors[ 1 ];
+		sp->inner_glow_colors[ 2 ] = draw.inner_glow_colors[ 2 ];
+		sp->inner_glow_colors[ 3 ] = draw.inner_glow_colors[ 3 ];
+		sp->inner_glow_radius[ 0 ] = draw.inner_glow_radius[ 0 ];
+		sp->inner_glow_radius[ 1 ] = draw.inner_glow_radius[ 1 ];
+		sp->inner_glow_radius[ 2 ] = draw.inner_glow_radius[ 2 ];
+		sp->inner_glow_radius[ 3 ] = draw.inner_glow_radius[ 3 ];
+		sp->corner_radii[ 0 ] = draw.corner_radii[ 0 ];
+		sp->corner_radii[ 1 ] = draw.corner_radii[ 1 ];
+		sp->corner_radii[ 2 ] = draw.corner_radii[ 2 ];
+		sp->corner_radii[ 3 ] = draw.corner_radii[ 3 ];
+		sp->sdf_tex_handle = 0;
+		sp->sdf_pixel_range = 0.0f;
+		sp->pad_style[ 0 ] = 0.0f;
+
+		// Check if source image has an associated silhouette SDF texture
+		if ( ( draw.style_flags & ( STYLE_FLAG_OUTLINE | STYLE_FLAG_OUTER_GLOW | STYLE_FLAG_INNER_GLOW ) ) &&
+			 tex_handle >= 0 && tex_handle < MAX_RIMAGES &&
+			 r_images[ tex_handle ].sdf_image_handle > 0 ) {
+			sp->style_flags |= STYLE_FLAG_SILHOUETTE_SDF;
+			sp->sdf_tex_handle = r_images[ tex_handle ].sdf_image_handle;
+			sp->sdf_pixel_range = r_images[ tex_handle ].sdf_pixel_range > 0.0f ? r_images[ tex_handle ].sdf_pixel_range : 8.0f;
+		}
+	} else {
+		sp->sdf_tex_handle = 0;
+		sp->sdf_pixel_range = 0.0f;
+		sp->pad_style[ 0 ] = 0.0f;
 	}
 }
 
@@ -377,7 +501,7 @@ VkResult vkpt_draw_initialize() {
 			.descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
 			.descriptorCount = 1,
 			.binding         = 0,
-			.stageFlags      = VK_SHADER_STAGE_VERTEX_BIT,
+			.stageFlags      = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
 		},
 	};
 
@@ -788,6 +912,9 @@ VkResult vkpt_draw_submit_stretch_pics(VkCommandBuffer cmd_buf) {
 	StretchPic_UBO_t *ubo = (StretchPic_UBO_t *) buffer_map(ubo_res);
 	ubo->ui_hdr_nits = cvar_ui_hdr_nits->value;
 	ubo->tm_hdr_saturation_scale = cvar_tm_hdr_saturation_scale->value;
+	VkExtent2D extent = vkpt_draw_get_extent();
+	ubo->screen_width = (float)extent.width;
+	ubo->screen_height = (float)extent.height;
 	buffer_unmap(ubo_res);
 	ubo = NULL;
 
@@ -1072,6 +1199,328 @@ R_SetScale_RTX(float scale)
 	draw.scale = scale;
 }
 
+/**
+*	@brief	Set stroke color and uniform thickness across all four edges.
+*	@param	color		Packed RGBA border color.
+*	@param	thickness	Stroke thickness in pixels.
+**/
+void R_SetStroke_RTX( const uint32_t color, const float thickness ) {
+	if ( thickness <= 0.0f ) {
+		draw.style_flags &= ~STYLE_FLAG_OUTLINE;
+		draw.stroke_thickness[ 0 ] = draw.stroke_thickness[ 1 ] = draw.stroke_thickness[ 2 ] = draw.stroke_thickness[ 3 ] = 0.0f;
+		return;
+	}
+	draw.style_flags |= STYLE_FLAG_OUTLINE;
+	for ( int32_t i = 0; i < 4; i++ ) {
+		draw.stroke_colors[ i ] = color;
+		draw.stroke_thickness[ i ] = thickness;
+	}
+}
+
+/**
+*	@brief	Set stroke thickness uniformly across all four edges.
+*	@param	thickness	Stroke thickness in pixels.
+**/
+void R_SetStrokeThickness_RTX( const float thickness ) {
+	if ( thickness <= 0.0f ) {
+		draw.style_flags &= ~STYLE_FLAG_OUTLINE;
+	} else {
+		draw.style_flags |= STYLE_FLAG_OUTLINE;
+	}
+	for ( int32_t i = 0; i < 4; i++ ) {
+		draw.stroke_thickness[ i ] = max( 0.0f, thickness );
+	}
+}
+
+/**
+*	@brief	Set stroke thickness individually per edge (Top, Right, Bottom, Left).
+*	@param	top		Top stroke thickness in pixels.
+*	@param	right	Right stroke thickness in pixels.
+*	@param	bottom	Bottom stroke thickness in pixels.
+*	@param	left	Left stroke thickness in pixels.
+**/
+void R_SetStrokeThickness4_RTX( const float top, const float right, const float bottom, const float left ) {
+	draw.stroke_thickness[ 0 ] = max( 0.0f, top );
+	draw.stroke_thickness[ 1 ] = max( 0.0f, right );
+	draw.stroke_thickness[ 2 ] = max( 0.0f, bottom );
+	draw.stroke_thickness[ 3 ] = max( 0.0f, left );
+	if ( top > 0.0f || right > 0.0f || bottom > 0.0f || left > 0.0f ) {
+		draw.style_flags |= STYLE_FLAG_OUTLINE;
+	} else {
+		draw.style_flags &= ~STYLE_FLAG_OUTLINE;
+	}
+}
+
+/**
+*	@brief	Set stroke outline colors individually per edge (Top, Right, Bottom, Left).
+*	@param	top		Top stroke color.
+*	@param	right	Right stroke color.
+*	@param	bottom	Bottom stroke color.
+*	@param	left	Left stroke color.
+**/
+void R_SetStrokeColors4_RTX( const uint32_t top, const uint32_t right, const uint32_t bottom, const uint32_t left ) {
+	draw.stroke_colors[ 0 ] = top;
+	draw.stroke_colors[ 1 ] = right;
+	draw.stroke_colors[ 2 ] = bottom;
+	draw.stroke_colors[ 3 ] = left;
+}
+
+/**
+*	@brief	Set stroke outline with custom alignment and modifier flags.
+*	@param	color		Stroke outline color.
+*	@param	thickness	Stroke thickness in pixels.
+*	@param	flags		Alignment bitflags (STYLE_FLAG_STROKE_ALIGN_*).
+**/
+void R_SetStrokeEx_RTX( const uint32_t color, const float thickness, const uint32_t flags ) {
+	R_SetStroke_RTX( color, thickness );
+	draw.style_flags = ( draw.style_flags & ~STYLE_FLAG_STROKE_ALIGN_MASK ) | ( flags & STYLE_FLAG_STROKE_ALIGN_MASK );
+}
+
+/**
+*	@brief	Set stroke outline colors and thicknesses per edge with custom alignment flags.
+*	@param	colors		Array of 4 colors [Top, Right, Bottom, Left].
+*	@param	thickness	Array of 4 thicknesses [Top, Right, Bottom, Left].
+*	@param	flags		Alignment bitflags (STYLE_FLAG_STROKE_ALIGN_*).
+**/
+void R_SetStroke4Ex_RTX( const uint32_t colors[ 4 ], const float thickness[ 4 ], const uint32_t flags ) {
+	if ( colors != NULL && thickness != NULL ) {
+		R_SetStrokeColors4_RTX( colors[ 0 ], colors[ 1 ], colors[ 2 ], colors[ 3 ] );
+		R_SetStrokeThickness4_RTX( thickness[ 0 ], thickness[ 1 ], thickness[ 2 ], thickness[ 3 ] );
+	}
+	draw.style_flags = ( draw.style_flags & ~STYLE_FLAG_STROKE_ALIGN_MASK ) | ( flags & STYLE_FLAG_STROKE_ALIGN_MASK );
+}
+
+/**
+*	@brief	Set outer glow color and uniform radius across all four edges.
+*	@param	color	Outer glow color.
+*	@param	radius	Outer glow radius in pixels.
+**/
+void R_SetOuterGlow_RTX( const uint32_t color, const float radius ) {
+	if ( radius <= 0.0f ) {
+		draw.style_flags &= ~STYLE_FLAG_OUTER_GLOW;
+		draw.outer_glow_radius[ 0 ] = draw.outer_glow_radius[ 1 ] = draw.outer_glow_radius[ 2 ] = draw.outer_glow_radius[ 3 ] = 0.0f;
+		return;
+	}
+	draw.style_flags |= ( STYLE_FLAG_OUTER_GLOW | STYLE_FLAG_EDGE_ALL );
+	for ( int32_t i = 0; i < 4; i++ ) {
+		draw.outer_glow_colors[ i ] = color;
+		draw.outer_glow_radius[ i ] = radius;
+	}
+}
+
+/**
+*	@brief	Set outer glow radius individually per edge (Top, Right, Bottom, Left).
+*	@param	top		Top outer glow radius in pixels.
+*	@param	right	Right outer glow radius in pixels.
+*	@param	bottom	Bottom outer glow radius in pixels.
+*	@param	left	Left outer glow radius in pixels.
+**/
+void R_SetOuterGlowRadius4_RTX( const float top, const float right, const float bottom, const float left ) {
+	draw.outer_glow_radius[ 0 ] = max( 0.0f, top );
+	draw.outer_glow_radius[ 1 ] = max( 0.0f, right );
+	draw.outer_glow_radius[ 2 ] = max( 0.0f, bottom );
+	draw.outer_glow_radius[ 3 ] = max( 0.0f, left );
+	if ( top > 0.0f || right > 0.0f || bottom > 0.0f || left > 0.0f ) {
+		draw.style_flags |= STYLE_FLAG_OUTER_GLOW;
+	} else {
+		draw.style_flags &= ~STYLE_FLAG_OUTER_GLOW;
+	}
+}
+
+/**
+*	@brief	Set outer glow colors individually per edge (Top, Right, Bottom, Left).
+*	@param	top		Top outer glow color.
+*	@param	right	Right outer glow color.
+*	@param	bottom	Bottom outer glow color.
+*	@param	left	Left outer glow color.
+**/
+void R_SetOuterGlowColors4_RTX( const uint32_t top, const uint32_t right, const uint32_t bottom, const uint32_t left ) {
+	draw.outer_glow_colors[ 0 ] = top;
+	draw.outer_glow_colors[ 1 ] = right;
+	draw.outer_glow_colors[ 2 ] = bottom;
+	draw.outer_glow_colors[ 3 ] = left;
+}
+
+/**
+*	@brief	Set which edges emit outer glow.
+*	@param	edge_mask	Bitmask of enabled edges (STYLE_FLAG_EDGE_TOP, etc.).
+**/
+void R_SetOuterGlowEdges_RTX( const uint32_t edge_mask ) {
+	draw.style_flags = ( draw.style_flags & ~STYLE_FLAG_EDGE_ALL ) | ( edge_mask & STYLE_FLAG_EDGE_ALL );
+}
+
+/**
+*	@brief	Set outer glow with custom falloff and blending flags.
+*	@param	color	Outer glow color.
+*	@param	radius	Outer glow radius in pixels.
+*	@param	flags	Style modifier flags (STYLE_FLAG_GLOW_FALLOFF_*, STYLE_FLAG_GLOW_BLEND_*).
+**/
+void R_SetOuterGlowEx_RTX( const uint32_t color, const float radius, const uint32_t flags ) {
+	R_SetOuterGlow_RTX( color, radius );
+	const uint32_t glow_mask = ( STYLE_FLAG_GLOW_FALLOFF_EXP | STYLE_FLAG_GLOW_BLEND_ADDITIVE | STYLE_FLAG_EDGE_ALL );
+	draw.style_flags = ( draw.style_flags & ~glow_mask ) | ( flags & glow_mask );
+}
+
+/**
+*	@brief	Set outer glow colors and radii per edge with custom falloff/blend flags.
+*	@param	colors	Array of 4 colors [Top, Right, Bottom, Left].
+*	@param	radii	Array of 4 radii [Top, Right, Bottom, Left].
+*	@param	flags	Style modifier flags.
+**/
+void R_SetOuterGlow4Ex_RTX( const uint32_t colors[ 4 ], const float radii[ 4 ], const uint32_t flags ) {
+	if ( colors != NULL && radii != NULL ) {
+		R_SetOuterGlowColors4_RTX( colors[ 0 ], colors[ 1 ], colors[ 2 ], colors[ 3 ] );
+		R_SetOuterGlowRadius4_RTX( radii[ 0 ], radii[ 1 ], radii[ 2 ], radii[ 3 ] );
+	}
+	const uint32_t glow_mask = ( STYLE_FLAG_GLOW_FALLOFF_EXP | STYLE_FLAG_GLOW_BLEND_ADDITIVE | STYLE_FLAG_EDGE_ALL );
+	draw.style_flags = ( draw.style_flags & ~glow_mask ) | ( flags & glow_mask );
+}
+
+/**
+*	@brief	Set inner glow color and uniform radius across all four edges.
+*	@param	color	Inner glow color.
+*	@param	radius	Inner glow radius in pixels.
+**/
+void R_SetInnerGlow_RTX( const uint32_t color, const float radius ) {
+	if ( radius <= 0.0f ) {
+		draw.style_flags &= ~STYLE_FLAG_INNER_GLOW;
+		draw.inner_glow_radius[ 0 ] = draw.inner_glow_radius[ 1 ] = draw.inner_glow_radius[ 2 ] = draw.inner_glow_radius[ 3 ] = 0.0f;
+		return;
+	}
+	draw.style_flags |= STYLE_FLAG_INNER_GLOW;
+	for ( int32_t i = 0; i < 4; i++ ) {
+		draw.inner_glow_colors[ i ] = color;
+		draw.inner_glow_radius[ i ] = radius;
+	}
+}
+
+/**
+*	@brief	Set inner glow colors individually per edge (Top, Right, Bottom, Left).
+*	@param	top		Top inner glow color.
+*	@param	right	Right inner glow color.
+*	@param	bottom	Bottom inner glow color.
+*	@param	left	Left inner glow color.
+**/
+void R_SetInnerGlowColors4_RTX( const uint32_t top, const uint32_t right, const uint32_t bottom, const uint32_t left ) {
+	draw.inner_glow_colors[ 0 ] = top;
+	draw.inner_glow_colors[ 1 ] = right;
+	draw.inner_glow_colors[ 2 ] = bottom;
+	draw.inner_glow_colors[ 3 ] = left;
+}
+
+/**
+*	@brief	Set inner glow radius individually per edge (Top, Right, Bottom, Left).
+*	@param	top		Top inner glow radius in pixels.
+*	@param	right	Right inner glow radius in pixels.
+*	@param	bottom	Bottom inner glow radius in pixels.
+*	@param	left	Left inner glow radius in pixels.
+**/
+void R_SetInnerGlowRadius4_RTX( const float top, const float right, const float bottom, const float left ) {
+	draw.inner_glow_radius[ 0 ] = max( 0.0f, top );
+	draw.inner_glow_radius[ 1 ] = max( 0.0f, right );
+	draw.inner_glow_radius[ 2 ] = max( 0.0f, bottom );
+	draw.inner_glow_radius[ 3 ] = max( 0.0f, left );
+	if ( top > 0.0f || right > 0.0f || bottom > 0.0f || left > 0.0f ) {
+		draw.style_flags |= STYLE_FLAG_INNER_GLOW;
+	} else {
+		draw.style_flags &= ~STYLE_FLAG_INNER_GLOW;
+	}
+}
+
+/**
+*	@brief	Set inner glow with custom falloff and blending flags.
+*	@param	color	Inner glow color.
+*	@param	radius	Inner glow radius in pixels.
+*	@param	flags	Style modifier flags.
+**/
+void R_SetInnerGlowEx_RTX( const uint32_t color, const float radius, const uint32_t flags ) {
+	R_SetInnerGlow_RTX( color, radius );
+	const uint32_t glow_mask = ( STYLE_FLAG_GLOW_FALLOFF_EXP | STYLE_FLAG_GLOW_BLEND_ADDITIVE );
+	draw.style_flags = ( draw.style_flags & ~glow_mask ) | ( flags & glow_mask );
+}
+
+/**
+*	@brief	Set uniform corner radius across all four corners.
+*	@param	radius	Corner radius in pixels.
+**/
+void R_SetCornerRadius_RTX( const float radius ) {
+	if ( radius <= 0.0f ) {
+		draw.style_flags &= ~STYLE_FLAG_CORNER_RADIUS;
+		draw.corner_radii[ 0 ] = draw.corner_radii[ 1 ] = draw.corner_radii[ 2 ] = draw.corner_radii[ 3 ] = 0.0f;
+		return;
+	}
+	draw.style_flags |= STYLE_FLAG_CORNER_RADIUS;
+	for ( int32_t i = 0; i < 4; i++ ) {
+		draw.corner_radii[ i ] = radius;
+	}
+}
+
+/**
+*	@brief	Set corner radii individually (Top-Left, Top-Right, Bottom-Right, Bottom-Left).
+*	@param	top_left		Top-left corner radius in pixels.
+*	@param	top_right		Top-right corner radius in pixels.
+*	@param	bottom_right	Bottom-right corner radius in pixels.
+*	@param	bottom_left		Bottom-left corner radius in pixels.
+**/
+void R_SetCornerRadius4_RTX( const float top_left, const float top_right, const float bottom_right, const float bottom_left ) {
+	draw.corner_radii[ 0 ] = max( 0.0f, top_left );
+	draw.corner_radii[ 1 ] = max( 0.0f, top_right );
+	draw.corner_radii[ 2 ] = max( 0.0f, bottom_right );
+	draw.corner_radii[ 3 ] = max( 0.0f, bottom_left );
+	if ( top_left > 0.0f || top_right > 0.0f || bottom_right > 0.0f || bottom_left > 0.0f ) {
+		draw.style_flags |= STYLE_FLAG_CORNER_RADIUS;
+	} else {
+		draw.style_flags &= ~STYLE_FLAG_CORNER_RADIUS;
+	}
+}
+
+/**
+*	@brief	Reset all 2D styling to default (no stroke, no glow, no corner radius).
+**/
+void R_ClearStyle_RTX( void ) {
+	draw.style_flags = STYLE_FLAG_NONE;
+	for ( int32_t i = 0; i < 4; i++ ) {
+		draw.stroke_colors[ i ] = 0;
+		draw.stroke_thickness[ i ] = 0.0f;
+		draw.outer_glow_colors[ i ] = 0;
+		draw.outer_glow_radius[ i ] = 0.0f;
+		draw.inner_glow_colors[ i ] = 0;
+		draw.inner_glow_radius[ i ] = 0.0f;
+		draw.corner_radii[ i ] = 0.0f;
+	}
+}
+
+/**
+*	@brief	Draw a 2D line segment with specified thickness and color.
+*	@param	x1			Start X coordinate.
+*	@param	y1			Start Y coordinate.
+*	@param	x2			End X coordinate.
+*	@param	y2			End Y coordinate.
+*	@param	thickness	Line thickness in pixels.
+*	@param	color		Packed RGBA color.
+**/
+void R_DrawLine2D_RTX( const float x1, const float y1, const float x2, const float y2, const float thickness, const uint32_t color ) {
+	const float dx = x2 - x1;
+	const float dy = y2 - y1;
+	const float len = sqrt( ( dx * dx ) + ( dy * dy ) );
+	if ( len < 0.001f ) {
+		R_DrawStretchPic_RTX( (int)( x1 - thickness * 0.5f ), (int)( y1 - thickness * 0.5f ), (int)thickness, (int)thickness, TEXNUM_WHITE );
+		return;
+	}
+	const float angle = atan2( dy, dx ) * ( 180.0f / (float)M_PI );
+	const float cx = ( x1 + x2 ) * 0.5f;
+	const float cy = ( y1 + y2 ) * 0.5f;
+	const float line_w = len;
+	const float line_h = max( 1.0f, thickness );
+
+	enqueue_stretch_rotate_pic(
+		cx - line_w * 0.5f, cy - line_h * 0.5f,
+		line_w, line_h,
+		0.0f, 0.0f, 1.0f, 1.0f,
+		angle, line_w * 0.5f, line_h * 0.5f,
+		color, TEXNUM_WHITE, 0 );
+}
+
 void
 R_DrawStretchPic_RTX(int x, int y, int w, int h, qhandle_t pic ) {
 	float eps = +1e-5f; /* fixes some ugly artifacts */
@@ -1319,46 +1768,393 @@ void R_DrawDebugCylinder_RTX( const vec3_t start, const vec3_t end, float radius
 	vkpt_debug_draw_add_cylinder( start, end, radius, &style );
 }
 
-static inline void
-draw_char(int x, int y, int flags, int c, qhandle_t font)
-{
-	if ((c & 127) == 32) {
+/**
+*	@brief	Draw a single character from either a TrueType MTSDF font or a legacy bitmap font.
+*	@param	x		Top-left X coordinate in virtual screen pixels.
+*	@param	y		Top-left Y coordinate in virtual screen pixels.
+*	@param	flags	UI color modifier flags (UI_ALTCOLOR, UI_XORCOLOR).
+*	@param	c		Character code.
+*	@param	font	Font handle (legacy font or MTSDF font).
+**/
+static inline void draw_char( int x, int y, int flags, int c, qhandle_t font ) {
+	const font_mtsdf_t *desc = Font_GetDescriptorTTF( font );
+	if ( desc != NULL ) {
+		const uint8_t ch = (uint8_t)( c & 255 );
+		if ( ch == 32 || !desc->glyph_valid[ ch ] ) {
+			return;
+		}
+		const font_glyph_mtsdf_t *g = &desc->glyphs[ ch ];
+		const float gx = (float)x + g->bearing_x;
+		const float gy = (float)y + desc->ascent - g->bearing_y;
+
+		// Save current style flags and inject MTSDF flag
+		const uint32_t saved_flags = draw.style_flags;
+		draw.style_flags |= STYLE_FLAG_SDF_MTSDF;
+
+		enqueue_stretch_pic( gx, gy, g->width, g->height,
+			g->s0, g->t0, g->s1, g->t1,
+			draw.colors[ 0 ].u32, desc->atlas_image );
+
+		draw.style_flags = saved_flags;
 		return;
 	}
 
-	if (flags & UI_ALTCOLOR) {
+	// Legacy bitmap font path
+	if ( ( c & 127 ) == 32 ) {
+		return;
+	}
+
+	if ( flags & UI_ALTCOLOR ) {
 		c |= 0x80;
 	}
-	if (flags & UI_XORCOLOR) {
+	if ( flags & UI_XORCOLOR ) {
 		c ^= 0x80;
 	}
 
-	float s = (c & 15) * 0.0625f;
-	float t = (c >> 4) * 0.0625f;
+	const float s = ( c & 15 ) * 0.0625f;
+	const float t = ( c >> 4 ) * 0.0625f;
+	const float eps = 1e-5f;
 
-	float eps = 1e-5f; /* fixes some ugly artifacts */
-
-	enqueue_stretch_pic(x, y, CHAR_WIDTH, CHAR_HEIGHT,
+	enqueue_stretch_pic( (float)x, (float)y, CHAR_WIDTH, CHAR_HEIGHT,
 		s + eps, t + eps, s + 0.0625f - eps, t + 0.0625f - eps,
-		draw.colors[c >> 7].u32, font);
+		draw.colors[ c >> 7 ].u32, font );
 }
 
-void
-R_DrawChar_RTX(int x, int y, int flags, int c, qhandle_t font)
-{
-	draw_char(x, y, flags, c & 255, font);
+/**
+*	@brief	Draw a single character glyph at the specified 2D screen location.
+**/
+void R_DrawChar_RTX( int x, int y, int flags, int c, qhandle_t font ) {
+	draw_char( x, y, flags, c & 255, font );
 }
 
-int
-R_DrawString_RTX(int x, int y, int flags, size_t maxlen, const char *s, qhandle_t font)
-{
-	while(maxlen-- && *s) {
-		byte c = *s++;
-		draw_char(x, y, flags, c, font);
-		x += CHAR_WIDTH;
+/**
+*	@brief	Draw a 2D text string supporting proportional TrueType MTSDF fonts or fixed-width bitmap fonts.
+*	@param	x		X start coordinate in virtual screen pixels.
+*	@param	y		Y start coordinate in virtual screen pixels.
+*	@param	flags	UI color modifier flags.
+*	@param	maxlen	Maximum characters to render.
+*	@param	s		Null-terminated string.
+*	@param	font	Font handle.
+*	@return	Ending X pixel coordinate after rendering the string.
+**/
+int R_DrawString_RTX( int x, int y, int flags, size_t maxlen, const char *s, qhandle_t font ) {
+	const font_mtsdf_t *desc = Font_GetDescriptorTTF( font );
+	if ( desc != NULL ) {
+		float cur_x = (float)x;
+		while ( maxlen-- && *s ) {
+			const uint8_t c = (uint8_t)( *s++ );
+			if ( desc->glyph_valid[ c ] ) {
+				const font_glyph_mtsdf_t *g = &desc->glyphs[ c ];
+				if ( c != 32 && g->width > 0.0f && g->height > 0.0f ) {
+					const float gx = cur_x + g->bearing_x;
+					const float gy = (float)y + desc->ascent - g->bearing_y;
+
+					const uint32_t saved_flags = draw.style_flags;
+					draw.style_flags |= STYLE_FLAG_SDF_MTSDF;
+
+					enqueue_stretch_pic( gx, gy, g->width, g->height,
+						g->s0, g->t0, g->s1, g->t1,
+						draw.colors[ 0 ].u32, desc->atlas_image );
+
+					draw.style_flags = saved_flags;
+				}
+				cur_x += g->advance;
+			} else {
+				cur_x += desc->glyphs[ ' ' ].advance;
+			}
+		}
+		return (int)cur_x;
 	}
 
+	// Legacy bitmap font path
+	while ( maxlen-- && *s ) {
+		const byte c = *s++;
+		draw_char( x, y, flags, c, font );
+		x += CHAR_WIDTH;
+	}
 	return x;
+}
+
+/**
+*	@brief	Register a TrueType / OpenType font and generate its runtime MTSDF atlas.
+*	@param	path			Virtual file path to the .ttf or .otf file.
+*	@param	pixel_height	Reference pixel height for rasterization.
+*	@return	Image handle to the registered MTSDF font atlas, or 0 on failure.
+**/
+qhandle_t R_RegisterFontTTF_RTX( const char *path, const float pixel_height ) {
+	return R_RegisterFontTTF_Impl( path, pixel_height );
+}
+
+/**
+*	@brief	Internal helper to draw 3D world-space text with optional camera occlusion.
+*	@param	origin		World-space 3D origin (X, Y, Z).
+*	@param	angles		Pitch, Yaw, Roll orientation in degrees, or NULL for camera-facing billboard.
+*	@param	scale		Character height in Quake world units.
+*	@param	text		String to render.
+*	@param	font		Font handle (TrueType MTSDF font or legacy bitmap font).
+*	@param	color		Packed RGBA color tint.
+*	@param	occluded	If true, tests against scene depth (TEX_PT_VIEW_DEPTH_A); if false, renders always on top.
+**/
+static void DrawString3D_Internal( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color, const bool occluded ) {
+	/**
+	*	Sanity checks and early returns: validate inputs and camera view definition.
+	**/
+	if ( text == NULL || text[ 0 ] == '\0' || scale <= 0.0f ) {
+		return;
+	}
+	if ( vkpt_refdef.fd == NULL ) {
+		return;
+	}
+
+	/**
+	*	Calculate distance from camera eye to text origin for depth testing and culling.
+	**/
+	vec3_t to_origin;
+	VectorSubtract( origin, vkpt_refdef.fd->vieworg, to_origin );
+	const float view_dist = VectorLength( to_origin );
+	if ( view_dist < 0.1f ) {
+		return;
+	}
+
+	/**
+	*	Determine orientation basis vectors (forward, right, up).
+	**/
+	vec3_t fwd, right, up;
+	if ( angles != NULL ) {
+		AngleVectors( angles, fwd, right, up );
+	} else {
+		// Construct camera-facing billboard vectors
+		VectorNormalize2( to_origin, fwd );
+		const vec3_t world_up = { 0.0f, 0.0f, 1.0f };
+		CrossProduct( world_up, fwd, right );
+		if ( VectorLength( right ) < 0.001f ) {
+			const vec3_t alt_up = { 0.0f, 1.0f, 0.0f };
+			CrossProduct( alt_up, fwd, right );
+		}
+		VectorNormalize( right );
+		CrossProduct( fwd, right, up );
+		VectorNormalize( up );
+	}
+
+	/**
+	*	Compute camera View-Projection matrix.
+	**/
+	float proj[ 16 ];
+	create_projection_matrix( proj,
+		vkpt_refdef.z_near > 0.0f ? vkpt_refdef.z_near : 4.0f,
+		vkpt_refdef.z_far > 0.0f ? vkpt_refdef.z_far : 4096.0f,
+		vkpt_refdef.fd->fov_x,
+		vkpt_refdef.fd->fov_y );
+
+	float vp[ 16 ];
+	mult_matrix_matrix( vp, proj, vkpt_refdef.view_matrix );
+
+	const font_mtsdf_t *desc = Font_GetDescriptorTTF( font );
+	const float font_ref_h = ( desc != NULL && desc->pixel_height > 0.0f ) ? desc->pixel_height : 8.0f;
+	const float unit_scale = scale / font_ref_h;
+
+	float cursor_x = 0.0f;
+	const char *s = text;
+
+	/**
+	*	Tessellate string into 3D character quads.
+	**/
+	while ( *s != '\0' ) {
+		if ( num_stretch_pics == MAX_STRETCH_PICS ) {
+			Com_EPrintf( "%s: Stretch pic queue full in 3D text!\n", __func__ );
+			break;
+		}
+
+		const uint8_t ch = (uint8_t)( *s++ );
+		float glyph_w = 0.0f;
+		float glyph_h = 0.0f;
+		float advance = 0.0f;
+		float bx = 0.0f;
+		float by = 0.0f;
+		float s0 = 0.0f, t0 = 0.0f, s1 = 1.0f, t1 = 1.0f;
+		qhandle_t glyph_tex = font;
+		bool is_mtsdf = false;
+
+		if ( desc != NULL ) {
+			if ( !desc->glyph_valid[ ch ] ) {
+				cursor_x += desc->glyphs[ ' ' ].advance * unit_scale;
+				continue;
+			}
+			const font_glyph_mtsdf_t *g = &desc->glyphs[ ch ];
+			if ( ch == 32 || g->width <= 0.0f || g->height <= 0.0f ) {
+				cursor_x += g->advance * unit_scale;
+				continue;
+			}
+			glyph_w = g->width * unit_scale;
+			glyph_h = g->height * unit_scale;
+			advance = g->advance * unit_scale;
+			bx = g->bearing_x * unit_scale;
+			by = ( desc->ascent - g->bearing_y ) * unit_scale;
+			s0 = g->s0; t0 = g->t0; s1 = g->s1; t1 = g->t1;
+			glyph_tex = desc->atlas_image;
+			is_mtsdf = true;
+		} else {
+			if ( ( ch & 127 ) == 32 ) {
+				cursor_x += scale;
+				continue;
+			}
+			glyph_w = scale;
+			glyph_h = scale;
+			advance = scale;
+			bx = 0.0f;
+			by = 0.0f;
+			const float cs = ( ch & 15 ) * 0.0625f;
+			const float ct = ( ch >> 4 ) * 0.0625f;
+			const float eps = 1e-5f;
+			s0 = cs + eps; t0 = ct + eps;
+			s1 = cs + 0.0625f - eps; t1 = ct + 0.0625f - eps;
+			glyph_tex = font;
+			is_mtsdf = false;
+		}
+
+		/**
+		*	Construct 4x4 character transform matrix in world space.
+		**/
+		vec3_t char_top_left;
+		char_top_left[ 0 ] = origin[ 0 ] + ( cursor_x + bx ) * right[ 0 ] - by * up[ 0 ];
+		char_top_left[ 1 ] = origin[ 1 ] + ( cursor_x + bx ) * right[ 1 ] - by * up[ 1 ];
+		char_top_left[ 2 ] = origin[ 2 ] + ( cursor_x + bx ) * right[ 2 ] - by * up[ 2 ];
+
+		float char_mat[ 16 ];
+		char_mat[ 0 ] = glyph_w * right[ 0 ];
+		char_mat[ 1 ] = glyph_w * right[ 1 ];
+		char_mat[ 2 ] = glyph_w * right[ 2 ];
+		char_mat[ 3 ] = 0.0f;
+
+		char_mat[ 4 ] = -glyph_h * up[ 0 ];
+		char_mat[ 5 ] = -glyph_h * up[ 1 ];
+		char_mat[ 6 ] = -glyph_h * up[ 2 ];
+		char_mat[ 7 ] = 0.0f;
+
+		char_mat[ 8 ] = fwd[ 0 ];
+		char_mat[ 9 ] = fwd[ 1 ];
+		char_mat[ 10 ] = fwd[ 2 ];
+		char_mat[ 11 ] = 0.0f;
+
+		char_mat[ 12 ] = char_top_left[ 0 ];
+		char_mat[ 13 ] = char_top_left[ 1 ];
+		char_mat[ 14 ] = char_top_left[ 2 ];
+		char_mat[ 15 ] = 1.0f;
+
+		// Fetch stretch pic queue entry
+		StretchPic_t *sp = stretch_pic_queue + num_stretch_pics++;
+		StretchPic_Scissor_Group *scissor_group = &stretch_pic_scissor_groups[ num_stretch_pic_scissor_groups - 1 ];
+		scissor_group->num_stretch_pic_count = num_stretch_pics - scissor_group->num_stretch_pic_offset;
+
+		// Concatenate MVP matrix: sp->matTransform = VP * char_mat
+		mult_matrix_matrix( sp->matTransform, vp, char_mat );
+
+		// Set unit quad parameters for 3D world projection
+		sp->x = 0.0f;
+		sp->y = 0.0f;
+		sp->w = 1.0f;
+		sp->h = 1.0f;
+		sp->pivot_x = 0.0f;
+		sp->pivot_y = 0.0f;
+		sp->angle = 0.0f;
+		sp->view_depth = view_dist;
+		sp->pad02 = 0.0f;
+		sp->pad03 = 0.0f;
+
+		sp->s = s0;
+		sp->t = t0;
+		sp->w_s = s1 - s0;
+		sp->h_t = t1 - t0;
+		sp->color = color;
+		sp->tex_handle = glyph_tex;
+
+		// Set up 3D style and depth test flags
+		sp->style_flags = draw.style_flags;
+		if ( occluded ) {
+			sp->style_flags |= STYLE_FLAG_DEPTH_TEST;
+		} else {
+			sp->style_flags &= ~STYLE_FLAG_DEPTH_TEST;
+		}
+		if ( is_mtsdf ) {
+			sp->style_flags |= STYLE_FLAG_SDF_MTSDF;
+			sp->sdf_tex_handle = glyph_tex;
+			sp->sdf_pixel_range = desc->sdf_pixel_range;
+		} else {
+			sp->sdf_tex_handle = 0;
+			sp->sdf_pixel_range = 0.0f;
+		}
+
+		sp->stroke_colors[ 0 ] = draw.stroke_colors[ 0 ];
+		sp->stroke_colors[ 1 ] = draw.stroke_colors[ 1 ];
+		sp->stroke_colors[ 2 ] = draw.stroke_colors[ 2 ];
+		sp->stroke_colors[ 3 ] = draw.stroke_colors[ 3 ];
+		sp->stroke_thickness[ 0 ] = draw.stroke_thickness[ 0 ];
+		sp->stroke_thickness[ 1 ] = draw.stroke_thickness[ 1 ];
+		sp->stroke_thickness[ 2 ] = draw.stroke_thickness[ 2 ];
+		sp->stroke_thickness[ 3 ] = draw.stroke_thickness[ 3 ];
+		sp->outer_glow_colors[ 0 ] = draw.outer_glow_colors[ 0 ];
+		sp->outer_glow_colors[ 1 ] = draw.outer_glow_colors[ 1 ];
+		sp->outer_glow_colors[ 2 ] = draw.outer_glow_colors[ 2 ];
+		sp->outer_glow_colors[ 3 ] = draw.outer_glow_colors[ 3 ];
+		sp->outer_glow_radius[ 0 ] = draw.outer_glow_radius[ 0 ];
+		sp->outer_glow_radius[ 1 ] = draw.outer_glow_radius[ 1 ];
+		sp->outer_glow_radius[ 2 ] = draw.outer_glow_radius[ 2 ];
+		sp->outer_glow_radius[ 3 ] = draw.outer_glow_radius[ 3 ];
+		sp->inner_glow_colors[ 0 ] = draw.inner_glow_colors[ 0 ];
+		sp->inner_glow_colors[ 1 ] = draw.inner_glow_colors[ 1 ];
+		sp->inner_glow_colors[ 2 ] = draw.inner_glow_colors[ 2 ];
+		sp->inner_glow_colors[ 3 ] = draw.inner_glow_colors[ 3 ];
+		sp->inner_glow_radius[ 0 ] = draw.inner_glow_radius[ 0 ];
+		sp->inner_glow_radius[ 1 ] = draw.inner_glow_radius[ 1 ];
+		sp->inner_glow_radius[ 2 ] = draw.inner_glow_radius[ 2 ];
+		sp->inner_glow_radius[ 3 ] = draw.inner_glow_radius[ 3 ];
+		sp->corner_radii[ 0 ] = draw.corner_radii[ 0 ];
+		sp->corner_radii[ 1 ] = draw.corner_radii[ 1 ];
+		sp->corner_radii[ 2 ] = draw.corner_radii[ 2 ];
+		sp->corner_radii[ 3 ] = draw.corner_radii[ 3 ];
+		sp->pad_style[ 0 ] = 0.0f;
+
+		cursor_x += advance;
+	}
+}
+
+/**
+*	@brief	Draw 3D world-space text occluded by world geometry (walls, pillars, entities).
+*	@param	origin	World-space 3D origin (X, Y, Z).
+*	@param	angles	Pitch, Yaw, Roll orientation in degrees, or NULL for camera-facing billboard.
+*	@param	scale	Character height in Quake world units.
+*	@param	text	String to render.
+*	@param	font	Font handle (TrueType MTSDF font or legacy bitmap font).
+*	@param	color	Packed RGBA color tint.
+**/
+void R_DrawString3DOccluded_RTX( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color ) {
+	DrawString3D_Internal( origin, angles, scale, text, font, color, true );
+}
+
+/**
+*	@brief	Draw 3D world-space text as an always-on-top overlay.
+*	@param	origin	World-space 3D origin (X, Y, Z).
+*	@param	angles	Pitch, Yaw, Roll orientation in degrees, or NULL for camera-facing billboard.
+*	@param	scale	Character height in Quake world units.
+*	@param	text	String to render.
+*	@param	font	Font handle (TrueType MTSDF font or legacy bitmap font).
+*	@param	color	Packed RGBA color tint.
+**/
+void R_DrawString3DNonOccluded_RTX( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color ) {
+	DrawString3D_Internal( origin, angles, scale, text, font, color, false );
+}
+
+/**
+*	@brief	Draw 3D world-space text (defaults to occluded).
+*	@param	origin	World-space 3D origin (X, Y, Z).
+*	@param	angles	Pitch, Yaw, Roll orientation in degrees, or NULL for camera-facing billboard.
+*	@param	scale	Character height in Quake world units.
+*	@param	text	String to render.
+*	@param	font	Font handle (TrueType MTSDF font or legacy bitmap font).
+*	@param	color	Packed RGBA color tint.
+**/
+void R_DrawString3D_RTX( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color ) {
+	DrawString3D_Internal( origin, angles, scale, text, font, color, true );
 }
 
 // vim: shiftwidth=4 noexpandtab tabstop=4 cindent

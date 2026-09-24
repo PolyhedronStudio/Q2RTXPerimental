@@ -1,6 +1,6 @@
 textures/pbr02/bricks00:
-	texture_base textures/pbr02/bricks00.tga
-	texture_normals textures/pbr02/bricks00_n.tga
+	texture_base textures/pbr02/bricks00.dds
+	texture_normals textures/pbr02/bricks00_n.dds
 	base_factor 2.5
 	bump_scale 1.0
 	emissive_factor 0
@@ -8,26 +8,17 @@ textures/pbr02/bricks00:
     specular_factor 0.125
     
 textures/pbr02/chkr_tiles00:
-	texture_base textures/pbr02/chkr_tiles00.tga
-	texture_normals textures/pbr02/chkr_tiles00_n.tga
+	texture_base textures/pbr02/chkr_tiles00.dds
+	texture_normals textures/pbr02/chkr_tiles00_n.dds
 	base_factor 2.5
 	bump_scale 0.175
 	emissive_factor 0
 	metalness_factor 0
 	specular_factor 0.0125
 
-textures/pbr02/chkr_tiles00:
-	texture_base textures/pbr02/chkr_tiles00.tga
-	texture_normals textures/pbr02/chkr_tiles00_n.tga
-	base_factor 1.0
-	bump_scale 1.0
-	emissive_factor 0
-	metalness_factor 0.125
-	specular_factor 0.125
-
 textures/pbr02/concrete01:
-	texture_base textures/pbr02/concrete01.tga
-	texture_normals textures/pbr02/concrete01_n.tga
+	texture_base textures/pbr02/concrete01.dds
+	texture_normals textures/pbr02/concrete01_n.dds
 	base_factor 2.5
 	bump_scale 1.0
 	emissive_factor 0
@@ -37,8 +28,8 @@ textures/pbr02/concrete01:
 
 textures/pbr02/crate00:
     kind CHROME
-	texture_base textures/pbr02/crate00.tga
-	texture_normals textures/pbr02/crate00_n.tga
+	texture_base textures/pbr02/crate00.dds
+	texture_normals textures/pbr02/crate00_n.dds
 	base_factor 1.0
 	bump_scale 1.0
     metalness_factor 0.0
@@ -47,8 +38,8 @@ textures/pbr02/crate00:
     roughness_override -1.0
 
 textures/pbr02/ground00:
-	texture_base textures/pbr02/ground00.tga
-	texture_normals textures/pbr02/ground00_n.tga
+	texture_base textures/pbr02/ground00.dds
+	texture_normals textures/pbr02/ground00_n.dds
 	base_factor 2.5
 	bump_scale 1.0
 	metalness_factor 0.0
@@ -57,8 +48,8 @@ textures/pbr02/ground00:
 
 textures/pbr02/metal00_dented:
     kind CHROME
-	texture_base textures/pbr02/metal00_dented.tga
-	texture_normals textures/pbr02/metal00_dented_n.tga
+	texture_base textures/pbr02/metal00_dented.dds
+	texture_normals textures/pbr02/metal00_dented_n.dds
 	base_factor 2.5
 	bump_scale 1.0
     emissive_factor 0.0
@@ -67,8 +58,8 @@ textures/pbr02/metal00_dented:
     roughness_override 0.3
 
 textures/pbr02/rock00:
-	texture_base textures/pbr02/rock00.tga
-	texture_normals textures/pbr02/rock00_n.tga
+	texture_base textures/pbr02/rock00.dds
+	texture_normals textures/pbr02/rock00_n.dds
 	base_factor 2.5
 	bump_scale 1.0
     metalness_factor 0.0
@@ -76,8 +67,8 @@ textures/pbr02/rock00:
 	specular_factor 0.0125
 
 textures/pbr02/rock01:
-	texture_base textures/pbr02/rock01.tga
-	texture_normals textures/pbr02/rock00_n.tga
+	texture_base textures/pbr02/rock01.dds
+	texture_normals textures/pbr02/rock00_n.dds
 	base_factor 2.5
 	bump_scale 1.0
     metalness_factor 0.0
@@ -86,8 +77,8 @@ textures/pbr02/rock01:
 
 textures/pbr02/steel00:
     kind CHROME
-	texture_base textures/pbr02/steel00.tga
-	texture_normals textures/pbr02/steel00_n.tga
+	texture_base textures/pbr02/steel00.dds
+	texture_normals textures/pbr02/steel00_n.dds
 	base_factor 2.5
 	bump_scale 1.0
     metalness_factor 0.8
@@ -96,8 +87,8 @@ textures/pbr02/steel00:
     roughness_override 0.3
 
 textures/pbr02/tiles00:
-	texture_base textures/pbr02/tiles00.tga
-	texture_normals textures/pbr02/tiles00_n.tga
+	texture_base textures/pbr02/tiles00.dds
+	texture_normals textures/pbr02/tiles00_n.dds
 	base_factor 2.5
 	bump_scale 1.0
 	metalness_factor 0.175

@@ -4210,7 +4210,7 @@ R_Init_RTX(bool total)
 	#if _DEBUG 
 	// Debug 3D overlay rendering for vkpt. Keep this disabled by default so the
 	// renderer does not spend any CPU or GPU work on debug geometry unless asked.
-	cvar_pt_draw_debug_3d_geometry = Cvar_Get( "pt_draw_debug_3d_geometry", "0", CVAR_ARCHIVE );
+	cvar_pt_draw_debug_3d_geometry = Cvar_Get( "pt_draw_debug_3d_geometry", "1", CVAR_ARCHIVE );
 	#else
 	// Debug 3D overlay rendering for vkpt. Keep this disabled by default so the
 	// renderer does not spend any CPU or GPU work on debug geometry unless asked.
@@ -5031,6 +5031,35 @@ void R_RegisterFunctionsRTX()
 	R_SetColor = R_SetColor_RTX;
 	R_SetClipRect = R_SetClipRect_RTX;
 	R_SetScale = R_SetScale_RTX;
+
+	// 2D Styling and Outlines:
+	R_SetStroke = R_SetStroke_RTX;
+	R_SetStrokeThickness = R_SetStrokeThickness_RTX;
+	R_SetStrokeThickness4 = R_SetStrokeThickness4_RTX;
+	R_SetStrokeColors4 = R_SetStrokeColors4_RTX;
+	R_SetStrokeEx = R_SetStrokeEx_RTX;
+	R_SetStroke4Ex = R_SetStroke4Ex_RTX;
+	R_SetOuterGlow = R_SetOuterGlow_RTX;
+	R_SetOuterGlowRadius4 = R_SetOuterGlowRadius4_RTX;
+	R_SetOuterGlowColors4 = R_SetOuterGlowColors4_RTX;
+	R_SetOuterGlowEdges = R_SetOuterGlowEdges_RTX;
+	R_SetOuterGlowEx = R_SetOuterGlowEx_RTX;
+	R_SetOuterGlow4Ex = R_SetOuterGlow4Ex_RTX;
+	R_SetInnerGlow = R_SetInnerGlow_RTX;
+	R_SetInnerGlowColors4 = R_SetInnerGlowColors4_RTX;
+	R_SetInnerGlowRadius4 = R_SetInnerGlowRadius4_RTX;
+	R_SetInnerGlowEx = R_SetInnerGlowEx_RTX;
+	R_SetCornerRadius = R_SetCornerRadius_RTX;
+	R_SetCornerRadius4 = R_SetCornerRadius4_RTX;
+	R_ClearStyle = R_ClearStyle_RTX;
+	R_DrawLine2D = R_DrawLine2D_RTX;
+
+	// TrueType and 3D Text Rendering:
+	R_RegisterFontTTF = R_RegisterFontTTF_RTX;
+	R_DrawString3DOccluded = R_DrawString3DOccluded_RTX;
+	R_DrawString3DNonOccluded = R_DrawString3DNonOccluded_RTX;
+	R_DrawString3D = R_DrawString3D_RTX;
+
 	R_DrawChar = R_DrawChar_RTX;
 	R_DrawString = R_DrawString_RTX;
 	R_DrawPic = R_DrawPic_RTX;

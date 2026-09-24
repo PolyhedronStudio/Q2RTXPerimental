@@ -154,6 +154,8 @@ clear:
     draw.scissor = true;
 }
 
+#include "refresh/fonts_mtsdf.h"
+
 void R_SetScale_GL(float scale)
 {
     if (draw.scale == scale) {
@@ -166,6 +168,313 @@ void R_SetScale_GL(float scale)
              Q_rint(r_config.height * scale), 0, -1, 1);
 
     draw.scale = scale;
+}
+
+/**
+*	@brief	Set stroke color and uniform thickness across all four edges for GL.
+**/
+void R_SetStroke_GL( const uint32_t color, const float thickness ) {
+	if ( thickness <= 0.0f ) {
+		draw.style_flags &= ~STYLE_FLAG_OUTLINE;
+		draw.stroke_thickness[ 0 ] = draw.stroke_thickness[ 1 ] = draw.stroke_thickness[ 2 ] = draw.stroke_thickness[ 3 ] = 0.0f;
+		return;
+	}
+	draw.style_flags |= STYLE_FLAG_OUTLINE;
+	for ( int32_t i = 0; i < 4; i++ ) {
+		draw.stroke_colors[ i ] = color;
+		draw.stroke_thickness[ i ] = thickness;
+	}
+}
+
+/**
+*	@brief	Set stroke thickness uniformly across all four edges for GL.
+**/
+void R_SetStrokeThickness_GL( const float thickness ) {
+	if ( thickness <= 0.0f ) {
+		draw.style_flags &= ~STYLE_FLAG_OUTLINE;
+	} else {
+		draw.style_flags |= STYLE_FLAG_OUTLINE;
+	}
+	for ( int32_t i = 0; i < 4; i++ ) {
+		draw.stroke_thickness[ i ] = max( 0.0f, thickness );
+	}
+}
+
+/**
+*	@brief	Set stroke thickness individually per edge for GL.
+**/
+void R_SetStrokeThickness4_GL( const float top, const float right, const float bottom, const float left ) {
+	draw.stroke_thickness[ 0 ] = max( 0.0f, top );
+	draw.stroke_thickness[ 1 ] = max( 0.0f, right );
+	draw.stroke_thickness[ 2 ] = max( 0.0f, bottom );
+	draw.stroke_thickness[ 3 ] = max( 0.0f, left );
+	if ( top > 0.0f || right > 0.0f || bottom > 0.0f || left > 0.0f ) {
+		draw.style_flags |= STYLE_FLAG_OUTLINE;
+	} else {
+		draw.style_flags &= ~STYLE_FLAG_OUTLINE;
+	}
+}
+
+/**
+*	@brief	Set stroke outline colors individually per edge for GL.
+**/
+void R_SetStrokeColors4_GL( const uint32_t top, const uint32_t right, const uint32_t bottom, const uint32_t left ) {
+	draw.stroke_colors[ 0 ] = top;
+	draw.stroke_colors[ 1 ] = right;
+	draw.stroke_colors[ 2 ] = bottom;
+	draw.stroke_colors[ 3 ] = left;
+}
+
+/**
+*	@brief	Set stroke outline with custom alignment flags for GL.
+**/
+void R_SetStrokeEx_GL( const uint32_t color, const float thickness, const uint32_t flags ) {
+	R_SetStroke_GL( color, thickness );
+	draw.style_flags = ( draw.style_flags & ~STYLE_FLAG_STROKE_ALIGN_MASK ) | ( flags & STYLE_FLAG_STROKE_ALIGN_MASK );
+}
+
+/**
+*	@brief	Set stroke outline colors and thicknesses per edge for GL.
+**/
+void R_SetStroke4Ex_GL( const uint32_t colors[ 4 ], const float thickness[ 4 ], const uint32_t flags ) {
+	if ( colors != NULL && thickness != NULL ) {
+		R_SetStrokeColors4_GL( colors[ 0 ], colors[ 1 ], colors[ 2 ], colors[ 3 ] );
+		R_SetStrokeThickness4_GL( thickness[ 0 ], thickness[ 1 ], thickness[ 2 ], thickness[ 3 ] );
+	}
+	draw.style_flags = ( draw.style_flags & ~STYLE_FLAG_STROKE_ALIGN_MASK ) | ( flags & STYLE_FLAG_STROKE_ALIGN_MASK );
+}
+
+/**
+*	@brief	Set outer glow color and uniform radius across all edges for GL.
+**/
+void R_SetOuterGlow_GL( const uint32_t color, const float radius ) {
+	if ( radius <= 0.0f ) {
+		draw.style_flags &= ~STYLE_FLAG_OUTER_GLOW;
+		draw.outer_glow_radius[ 0 ] = draw.outer_glow_radius[ 1 ] = draw.outer_glow_radius[ 2 ] = draw.outer_glow_radius[ 3 ] = 0.0f;
+		return;
+	}
+	draw.style_flags |= ( STYLE_FLAG_OUTER_GLOW | STYLE_FLAG_EDGE_ALL );
+	for ( int32_t i = 0; i < 4; i++ ) {
+		draw.outer_glow_colors[ i ] = color;
+		draw.outer_glow_radius[ i ] = radius;
+	}
+}
+
+/**
+*	@brief	Set outer glow radius individually per edge for GL.
+**/
+void R_SetOuterGlowRadius4_GL( const float top, const float right, const float bottom, const float left ) {
+	draw.outer_glow_radius[ 0 ] = max( 0.0f, top );
+	draw.outer_glow_radius[ 1 ] = max( 0.0f, right );
+	draw.outer_glow_radius[ 2 ] = max( 0.0f, bottom );
+	draw.outer_glow_radius[ 3 ] = max( 0.0f, left );
+	if ( top > 0.0f || right > 0.0f || bottom > 0.0f || left > 0.0f ) {
+		draw.style_flags |= STYLE_FLAG_OUTER_GLOW;
+	} else {
+		draw.style_flags &= ~STYLE_FLAG_OUTER_GLOW;
+	}
+}
+
+/**
+*	@brief	Set outer glow colors individually per edge for GL.
+**/
+void R_SetOuterGlowColors4_GL( const uint32_t top, const uint32_t right, const uint32_t bottom, const uint32_t left ) {
+	draw.outer_glow_colors[ 0 ] = top;
+	draw.outer_glow_colors[ 1 ] = right;
+	draw.outer_glow_colors[ 2 ] = bottom;
+	draw.outer_glow_colors[ 3 ] = left;
+}
+
+/**
+*	@brief	Set which edges emit outer glow for GL.
+**/
+void R_SetOuterGlowEdges_GL( const uint32_t edge_mask ) {
+	draw.style_flags = ( draw.style_flags & ~STYLE_FLAG_EDGE_ALL ) | ( edge_mask & STYLE_FLAG_EDGE_ALL );
+}
+
+/**
+*	@brief	Set outer glow with custom falloff flags for GL.
+**/
+void R_SetOuterGlowEx_GL( const uint32_t color, const float radius, const uint32_t flags ) {
+	R_SetOuterGlow_GL( color, radius );
+	const uint32_t glow_mask = ( STYLE_FLAG_GLOW_FALLOFF_EXP | STYLE_FLAG_GLOW_BLEND_ADDITIVE | STYLE_FLAG_EDGE_ALL );
+	draw.style_flags = ( draw.style_flags & ~glow_mask ) | ( flags & glow_mask );
+}
+
+/**
+*	@brief	Set outer glow colors and radii per edge for GL.
+**/
+void R_SetOuterGlow4Ex_GL( const uint32_t colors[ 4 ], const float radii[ 4 ], const uint32_t flags ) {
+	if ( colors != NULL && radii != NULL ) {
+		R_SetOuterGlowColors4_GL( colors[ 0 ], colors[ 1 ], colors[ 2 ], colors[ 3 ] );
+		R_SetOuterGlowRadius4_GL( radii[ 0 ], radii[ 1 ], radii[ 2 ], radii[ 3 ] );
+	}
+	const uint32_t glow_mask = ( STYLE_FLAG_GLOW_FALLOFF_EXP | STYLE_FLAG_GLOW_BLEND_ADDITIVE | STYLE_FLAG_EDGE_ALL );
+	draw.style_flags = ( draw.style_flags & ~glow_mask ) | ( flags & glow_mask );
+}
+
+/**
+*	@brief	Set inner glow color and radius for GL.
+**/
+void R_SetInnerGlow_GL( const uint32_t color, const float radius ) {
+	if ( radius <= 0.0f ) {
+		draw.style_flags &= ~STYLE_FLAG_INNER_GLOW;
+		draw.inner_glow_radius[ 0 ] = draw.inner_glow_radius[ 1 ] = draw.inner_glow_radius[ 2 ] = draw.inner_glow_radius[ 3 ] = 0.0f;
+		return;
+	}
+	draw.style_flags |= STYLE_FLAG_INNER_GLOW;
+	for ( int32_t i = 0; i < 4; i++ ) {
+		draw.inner_glow_colors[ i ] = color;
+		draw.inner_glow_radius[ i ] = radius;
+	}
+}
+
+/**
+*	@brief	Set inner glow colors individually per edge for GL.
+**/
+void R_SetInnerGlowColors4_GL( const uint32_t top, const uint32_t right, const uint32_t bottom, const uint32_t left ) {
+	draw.inner_glow_colors[ 0 ] = top;
+	draw.inner_glow_colors[ 1 ] = right;
+	draw.inner_glow_colors[ 2 ] = bottom;
+	draw.inner_glow_colors[ 3 ] = left;
+}
+
+/**
+*	@brief	Set inner glow radius individually per edge for GL.
+**/
+void R_SetInnerGlowRadius4_GL( const float top, const float right, const float bottom, const float left ) {
+	draw.inner_glow_radius[ 0 ] = max( 0.0f, top );
+	draw.inner_glow_radius[ 1 ] = max( 0.0f, right );
+	draw.inner_glow_radius[ 2 ] = max( 0.0f, bottom );
+	draw.inner_glow_radius[ 3 ] = max( 0.0f, left );
+	if ( top > 0.0f || right > 0.0f || bottom > 0.0f || left > 0.0f ) {
+		draw.style_flags |= STYLE_FLAG_INNER_GLOW;
+	} else {
+		draw.style_flags &= ~STYLE_FLAG_INNER_GLOW;
+	}
+}
+
+/**
+*	@brief	Set inner glow with custom modifier flags for GL.
+**/
+void R_SetInnerGlowEx_GL( const uint32_t color, const float radius, const uint32_t flags ) {
+	R_SetInnerGlow_GL( color, radius );
+	const uint32_t glow_mask = ( STYLE_FLAG_GLOW_FALLOFF_EXP | STYLE_FLAG_GLOW_BLEND_ADDITIVE );
+	draw.style_flags = ( draw.style_flags & ~glow_mask ) | ( flags & glow_mask );
+}
+
+/**
+*	@brief	Set uniform corner radius for GL.
+**/
+void R_SetCornerRadius_GL( const float radius ) {
+	if ( radius <= 0.0f ) {
+		draw.style_flags &= ~STYLE_FLAG_CORNER_RADIUS;
+		draw.corner_radii[ 0 ] = draw.corner_radii[ 1 ] = draw.corner_radii[ 2 ] = draw.corner_radii[ 3 ] = 0.0f;
+		return;
+	}
+	draw.style_flags |= STYLE_FLAG_CORNER_RADIUS;
+	for ( int32_t i = 0; i < 4; i++ ) {
+		draw.corner_radii[ i ] = radius;
+	}
+}
+
+/**
+*	@brief	Set corner radii individually for GL.
+**/
+void R_SetCornerRadius4_GL( const float top_left, const float top_right, const float bottom_right, const float bottom_left ) {
+	draw.corner_radii[ 0 ] = max( 0.0f, top_left );
+	draw.corner_radii[ 1 ] = max( 0.0f, top_right );
+	draw.corner_radii[ 2 ] = max( 0.0f, bottom_right );
+	draw.corner_radii[ 3 ] = max( 0.0f, bottom_left );
+	if ( top_left > 0.0f || top_right > 0.0f || bottom_right > 0.0f || bottom_left > 0.0f ) {
+		draw.style_flags |= STYLE_FLAG_CORNER_RADIUS;
+	} else {
+		draw.style_flags &= ~STYLE_FLAG_CORNER_RADIUS;
+	}
+}
+
+/**
+*	@brief	Reset all 2D styling to default for GL.
+**/
+void R_ClearStyle_GL( void ) {
+	draw.style_flags = STYLE_FLAG_NONE;
+	for ( int32_t i = 0; i < 4; i++ ) {
+		draw.stroke_colors[ i ] = 0;
+		draw.stroke_thickness[ i ] = 0.0f;
+		draw.outer_glow_colors[ i ] = 0;
+		draw.outer_glow_radius[ i ] = 0.0f;
+		draw.inner_glow_colors[ i ] = 0;
+		draw.inner_glow_radius[ i ] = 0.0f;
+		draw.corner_radii[ i ] = 0.0f;
+	}
+}
+
+/**
+*	@brief	Draw a 2D line segment fallback for GL.
+*	@param	x1			Start X coordinate.
+*	@param	y1			Start Y coordinate.
+*	@param	x2			End X coordinate.
+*	@param	y2			End Y coordinate.
+*	@param	thickness	Line thickness in pixels.
+*	@param	color		Packed RGBA color.
+**/
+void R_DrawLine2D_GL( const float x1, const float y1, const float x2, const float y2, const float thickness, const uint32_t color ) {
+	const float dx = x2 - x1;
+	const float dy = y2 - y1;
+	const float min_x = min( x1, x2 );
+	const float min_y = min( y1, y2 );
+	const float w = max( thickness, fabsf( dx ) );
+	const float h = max( thickness, fabsf( dy ) );
+	R_DrawFill32( (int)min_x, (int)min_y, (int)w, (int)h, color );
+}
+
+/**
+*	@brief	Register a TrueType font and generate MTSDF atlas for GL.
+*	@param	path			Relative path to the font asset file.
+*	@param	pixel_height	Nominal raster height for the font in pixels.
+*	@return	Image handle to the registered font atlas, or 0 on failure.
+**/
+qhandle_t R_RegisterFontTTF_GL( const char *path, const float pixel_height ) {
+	return R_RegisterFontTTF_Impl( path, pixel_height );
+}
+
+/**
+*	@brief	Draw 3D occluded world text fallback for GL.
+*	@param	origin	World-space 3D origin (X, Y, Z).
+*	@param	angles	Pitch, Yaw, Roll orientation in degrees, or nullptr for camera-facing billboard.
+*	@param	scale	Character height in Quake world units.
+*	@param	text	String to render.
+*	@param	font	Font handle (TrueType MTSDF font or legacy bitmap font).
+*	@param	color	Packed RGBA color tint.
+**/
+void R_DrawString3DOccluded_GL( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color ) {
+	// Fallback in legacy GL
+}
+
+/**
+*	@brief	Draw 3D non-occluded world text fallback for GL.
+*	@param	origin	World-space 3D origin (X, Y, Z).
+*	@param	angles	Pitch, Yaw, Roll orientation in degrees, or nullptr for camera-facing billboard.
+*	@param	scale	Character height in Quake world units.
+*	@param	text	String to render.
+*	@param	font	Font handle (TrueType MTSDF font or legacy bitmap font).
+*	@param	color	Packed RGBA color tint.
+**/
+void R_DrawString3DNonOccluded_GL( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color ) {
+	// Fallback in legacy GL
+}
+
+/**
+*	@brief	Draw 3D world text fallback for GL.
+*	@param	origin	World-space 3D origin (X, Y, Z).
+*	@param	angles	Pitch, Yaw, Roll orientation in degrees, or nullptr for camera-facing billboard.
+*	@param	scale	Character height in Quake world units.
+*	@param	text	String to render.
+*	@param	font	Font handle (TrueType MTSDF font or legacy bitmap font).
+*	@param	color	Packed RGBA color tint.
+**/
+void R_DrawString3D_GL( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color ) {
+	// Fallback in legacy GL
 }
 
 void R_DrawStretchPic_GL(int x, int y, int w, int h, qhandle_t pic)

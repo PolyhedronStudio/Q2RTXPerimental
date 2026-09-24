@@ -1,6 +1,6 @@
 players/playerdummy/playerdummy:
-	texture_base textures/models/testdummy/skin_orange.tga
-	texture_normals textures/models/testdummy/skin_n.tga
+	texture_base textures/models/testdummy/skin_orange.dds
+	texture_normals textures/models/testdummy/skin_n.dds
 	base_factor 2.5
 	bump_scale 1.0
 	specular_factor 1.0

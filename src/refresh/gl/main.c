@@ -1050,6 +1050,35 @@ void R_RegisterFunctionsGL()
 	R_SetColor = R_SetColor_GL;
 	R_SetClipRect = R_SetClipRect_GL;
 	R_SetScale = R_SetScale_GL;
+
+	// 2D Styling and Outlines:
+	R_SetStroke = R_SetStroke_GL;
+	R_SetStrokeThickness = R_SetStrokeThickness_GL;
+	R_SetStrokeThickness4 = R_SetStrokeThickness4_GL;
+	R_SetStrokeColors4 = R_SetStrokeColors4_GL;
+	R_SetStrokeEx = R_SetStrokeEx_GL;
+	R_SetStroke4Ex = R_SetStroke4Ex_GL;
+	R_SetOuterGlow = R_SetOuterGlow_GL;
+	R_SetOuterGlowRadius4 = R_SetOuterGlowRadius4_GL;
+	R_SetOuterGlowColors4 = R_SetOuterGlowColors4_GL;
+	R_SetOuterGlowEdges = R_SetOuterGlowEdges_GL;
+	R_SetOuterGlowEx = R_SetOuterGlowEx_GL;
+	R_SetOuterGlow4Ex = R_SetOuterGlow4Ex_GL;
+	R_SetInnerGlow = R_SetInnerGlow_GL;
+	R_SetInnerGlowColors4 = R_SetInnerGlowColors4_GL;
+	R_SetInnerGlowRadius4 = R_SetInnerGlowRadius4_GL;
+	R_SetInnerGlowEx = R_SetInnerGlowEx_GL;
+	R_SetCornerRadius = R_SetCornerRadius_GL;
+	R_SetCornerRadius4 = R_SetCornerRadius4_GL;
+	R_ClearStyle = R_ClearStyle_GL;
+	R_DrawLine2D = R_DrawLine2D_GL;
+
+	// TrueType and 3D Text Rendering:
+	R_RegisterFontTTF = R_RegisterFontTTF_GL;
+	R_DrawString3DOccluded = R_DrawString3DOccluded_GL;
+	R_DrawString3DNonOccluded = R_DrawString3DNonOccluded_GL;
+	R_DrawString3D = R_DrawString3D_GL;
+
 	R_DrawChar = R_DrawChar_GL;
 	R_DrawString = R_DrawString_GL;
 	R_DrawPic = R_DrawPic_GL;

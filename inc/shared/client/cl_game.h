@@ -613,6 +613,54 @@ typedef struct {
 	//!
 	void ( *R_SetScale )( const float scale );
 	//!
+	void ( *R_SetStroke )( const uint32_t color, const float thickness );
+	//!
+	void ( *R_SetStrokeThickness )( const float thickness );
+	//!
+	void ( *R_SetStrokeThickness4 )( const float top, const float right, const float bottom, const float left );
+	//!
+	void ( *R_SetStrokeColors4 )( const uint32_t top, const uint32_t right, const uint32_t bottom, const uint32_t left );
+	//!
+	void ( *R_SetStrokeEx )( const uint32_t color, const float thickness, const uint32_t flags );
+	//!
+	void ( *R_SetStroke4Ex )( const uint32_t colors[ 4 ], const float thickness[ 4 ], const uint32_t flags );
+	//!
+	void ( *R_SetOuterGlow )( const uint32_t color, const float radius );
+	//!
+	void ( *R_SetOuterGlowRadius4 )( const float top, const float right, const float bottom, const float left );
+	//!
+	void ( *R_SetOuterGlowColors4 )( const uint32_t top, const uint32_t right, const uint32_t bottom, const uint32_t left );
+	//!
+	void ( *R_SetOuterGlowEdges )( const uint32_t edge_mask );
+	//!
+	void ( *R_SetOuterGlowEx )( const uint32_t color, const float radius, const uint32_t flags );
+	//!
+	void ( *R_SetOuterGlow4Ex )( const uint32_t colors[ 4 ], const float radii[ 4 ], const uint32_t flags );
+	//!
+	void ( *R_SetInnerGlow )( const uint32_t color, const float radius );
+	//!
+	void ( *R_SetInnerGlowColors4 )( const uint32_t top, const uint32_t right, const uint32_t bottom, const uint32_t left );
+	//!
+	void ( *R_SetInnerGlowRadius4 )( const float top, const float right, const float bottom, const float left );
+	//!
+	void ( *R_SetInnerGlowEx )( const uint32_t color, const float radius, const uint32_t flags );
+	//!
+	void ( *R_SetCornerRadius )( const float radius );
+	//!
+	void ( *R_SetCornerRadius4 )( const float top_left, const float top_right, const float bottom_right, const float bottom_left );
+	//!
+	void ( *R_ClearStyle )( void );
+	//!
+	void ( *R_DrawLine2D )( const float x1, const float y1, const float x2, const float y2, const float thickness, const uint32_t color );
+	//!
+	qhandle_t ( *R_RegisterFontTTF )( const char *path, const float pixel_height );
+	//!
+	void ( *R_DrawString3DOccluded )( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color );
+	//!
+	void ( *R_DrawString3DNonOccluded )( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color );
+	//!
+	void ( *R_DrawString3D )( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color );
+	//!
 	void ( *R_DrawChar )( const int32_t x, const int32_t y, const int32_t flags, const int32_t ch, const qhandle_t font );
 	//!
 	const int32_t ( *R_DrawString )( const int32_t x, const int32_t y, const int32_t flags, const size_t maxChars, const char *str, const qhandle_t font );

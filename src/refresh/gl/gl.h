@@ -460,6 +460,16 @@ typedef struct {
     color_t     colors[2]; // 0 - actual color, 1 - transparency (for text drawing)
     bool        scissor;
     float       scale;
+
+	// Universal Style State:
+	uint32_t    stroke_colors[4];     //!< Top, Right, Bottom, Left stroke outline colors
+	float       stroke_thickness[4];  //!< Top, Right, Bottom, Left stroke outline thicknesses
+	uint32_t    outer_glow_colors[4]; //!< Top, Right, Bottom, Left outer glow colors
+	float       outer_glow_radius[4]; //!< Top, Right, Bottom, Left outer glow radii
+	uint32_t    inner_glow_colors[4]; //!< Top, Right, Bottom, Left inner glow colors
+	float       inner_glow_radius[4]; //!< Top, Right, Bottom, Left inner glow radii
+	float       corner_radii[4];      //!< TL, TR, BR, BL corner radii
+	uint32_t    style_flags;          //!< STYLE_FLAG_* bitmask
 } drawStatic_t;
 
 extern drawStatic_t draw;
@@ -473,6 +483,37 @@ void Draw_Scrap(void);
 #endif
 
 void GL_Blend(void);
+
+void R_SetStroke_GL( const uint32_t color, const float thickness );
+void R_SetStrokeThickness_GL( const float thickness );
+void R_SetStrokeThickness4_GL( const float top, const float right, const float bottom, const float left );
+void R_SetStrokeColors4_GL( const uint32_t top, const uint32_t right, const uint32_t bottom, const uint32_t left );
+void R_SetStrokeEx_GL( const uint32_t color, const float thickness, const uint32_t flags );
+void R_SetStroke4Ex_GL( const uint32_t colors[ 4 ], const float thickness[ 4 ], const uint32_t flags );
+
+void R_SetOuterGlow_GL( const uint32_t color, const float radius );
+void R_SetOuterGlowRadius4_GL( const float top, const float right, const float bottom, const float left );
+void R_SetOuterGlowColors4_GL( const uint32_t top, const uint32_t right, const uint32_t bottom, const uint32_t left );
+void R_SetOuterGlowEdges_GL( const uint32_t edge_mask );
+void R_SetOuterGlowEx_GL( const uint32_t color, const float radius, const uint32_t flags );
+void R_SetOuterGlow4Ex_GL( const uint32_t colors[ 4 ], const float radii[ 4 ], const uint32_t flags );
+
+void R_SetInnerGlow_GL( const uint32_t color, const float radius );
+void R_SetInnerGlowColors4_GL( const uint32_t top, const uint32_t right, const uint32_t bottom, const uint32_t left );
+void R_SetInnerGlowRadius4_GL( const float top, const float right, const float bottom, const float left );
+void R_SetInnerGlowEx_GL( const uint32_t color, const float radius, const uint32_t flags );
+
+void R_SetCornerRadius_GL( const float radius );
+void R_SetCornerRadius4_GL( const float top_left, const float top_right, const float bottom_right, const float bottom_left );
+
+void R_ClearStyle_GL( void );
+
+void R_DrawLine2D_GL( const float x1, const float y1, const float x2, const float y2, const float thickness, const uint32_t color );
+
+qhandle_t R_RegisterFontTTF_GL( const char *path, const float pixel_height );
+void R_DrawString3DOccluded_GL( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color );
+void R_DrawString3DNonOccluded_GL( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color );
+void R_DrawString3D_GL( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color );
 
 void R_ClearColor_GL(void);
 void R_SetAlpha_GL(float alpha);

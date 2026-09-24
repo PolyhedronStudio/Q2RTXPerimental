@@ -96,6 +96,9 @@ typedef struct image_s {
     float           sl, sh, tl, th;
 #endif
     float           aspect;
+	int32_t         sdf_image_handle; //!< Index of companion SDF texture in r_images, or 0 if none.
+	float           sdf_pixel_range;  //!< Total pixel range encoded in the SDF texture.
+	float           sdf_padding_px;   //!< Transparent padding margin baked around the SDF texture.
 #if REF_VKPT
     byte            *pix_data; // texture payload owned by VKPT.
     size_t          pix_data_size; // byte size of pix_data.

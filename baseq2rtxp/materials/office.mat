@@ -1,6 +1,6 @@
 textures/office/ceil01:
-    texture_base textures/office/*.tga
-	texture_normals textures/office/*_n.tga
+    texture_base textures/office/*.dds
+	texture_normals textures/office/*_n.dds
 	base_factor 1.0
 	bump_scale 0.3125
 	emissive_factor 0
@@ -9,9 +9,9 @@ textures/office/ceil01:
     roughness_override -1
 
 textures/office/ceil04:
-    texture_base textures/office/*.tga
-	texture_normals textures/office/*_n.tga
-    texture_emissive textures/office/*_light.tga
+    texture_base textures/office/*.dds
+	texture_normals textures/office/*_n.dds
+    texture_emissive textures/office/*_light.dds
 	base_factor 2.5
 	bump_scale 0.35
 	emissive_factor 0.25
@@ -21,8 +21,8 @@ textures/office/ceil04:
 	is_light 1
 	
 textures/office/bricks01:
-	texture_base textures/office/bricks01.tga
-	texture_normals textures/office/bricks01_n.tga
+	texture_base textures/office/bricks01.dds
+	texture_normals textures/office/bricks01_n.dds
 	base_factor 1.0
 	bump_scale 1.0
 	emissive_factor 0
@@ -30,8 +30,8 @@ textures/office/bricks01:
     specular_factor 0.125
 
 textures/office/bricks02:
-	texture_base textures/office/bricks02.tga
-	texture_normals textures/office/bricks02_n.tga
+	texture_base textures/office/bricks02.dds
+	texture_normals textures/office/bricks02_n.dds
 	base_factor 1.0
 	bump_scale 1.0
 	emissive_factor 0
@@ -39,8 +39,8 @@ textures/office/bricks02:
     specular_factor 0.125
 
 textures/office/bricks03:
-	texture_base textures/office/bricks03.tga
-	texture_normals textures/office/bricks03_n.tga
+	texture_base textures/office/bricks03.dds
+	texture_normals textures/office/bricks03_n.dds
 	base_factor 1.0
 	bump_scale 1.0
 	emissive_factor 0
@@ -48,8 +48,8 @@ textures/office/bricks03:
     specular_factor 0.125
 
 textures/office/bricks04:
-	texture_base textures/office/bricks04.tga
-	texture_normals textures/office/bricks04_n.tga
+	texture_base textures/office/bricks04.dds
+	texture_normals textures/office/bricks04_n.dds
 	base_factor 1.0
 	bump_scale 1.0
 	emissive_factor 0
@@ -58,9 +58,9 @@ textures/office/bricks04:
 
 textures/office/chfence01:
 	kind CHROME
-	texture_base textures/office/chfence01.tga
-	texture_normals textures/office/chfence01_n.tga
-	texture_mask textures/office/chfence01_m.tga
+	texture_base textures/office/chfence01.dds
+	texture_normals textures/office/chfence01_n.dds
+	texture_mask textures/office/chfence01_m.dds
 	base_factor 1.0
 	bump_scale 1.0
 	emissive_factor 0
@@ -69,9 +69,9 @@ textures/office/chfence01:
 
 textures/office/chfence02:
 	kind CHROME
-	texture_base textures/office/chfence02.tga
-	texture_normals textures/office/chfence02_n.tga
-	texture_mask textures/office/chfence02_m.tga
+	texture_base textures/office/chfence02.dds
+	texture_normals textures/office/chfence02_n.dds
+	texture_mask textures/office/chfence02_m.dds
 	base_factor 2.5
 	bump_scale 0.25
 	emissive_factor 0
@@ -79,8 +79,8 @@ textures/office/chfence02:
     specular_factor 0.25
 
 textures/office/cncrfloor01:
-	texture_base textures/office/cncrfloor01.tga
-	texture_normals textures/office/cncrfloor01_n.tga
+	texture_base textures/office/cncrfloor01.dds
+	texture_normals textures/office/cncrfloor01_n.dds
 	base_factor 3.5
 	bump_scale 1.0
 	emissive_factor 0
@@ -88,8 +88,8 @@ textures/office/cncrfloor01:
     specular_factor 0.025
 
 textures/office/cncrwall01:
-	texture_base textures/office/cncrwall01.tga
-	texture_normals textures/office/cncrwall01_n.tga
+	texture_base textures/office/cncrwall01.dds
+	texture_normals textures/office/cncrwall01_n.dds
 	base_factor 1.0
 	bump_scale 1.0
 	emissive_factor 0
@@ -97,22 +97,22 @@ textures/office/cncrwall01:
     specular_factor 0.025
 
 textures/office/cncrwall02:
-	texture_base textures/office/*.tga
-	texture_normals textures/office/*_n.tga
+	texture_base textures/office/*.dds
+	texture_normals textures/office/*_n.dds
 	base_factor 1.5
 	bump_scale 1.0
     specular_factor 0.175
 
 textures/office/cncrwall03:
-	texture_base textures/office/*.tga
-	texture_normals textures/office/*_n.tga
+	texture_base textures/office/*.dds
+	texture_normals textures/office/*_n.dds
 	base_factor 1.0
 	bump_scale 1.0
     specular_factor 0.125
 
 textures/office/ceil001:
-    texture_base textures/office/*.tga
-	texture_normals textures/office/*_n.tga
+    texture_base textures/office/*.dds
+	texture_normals textures/office/*_n.dds
 	base_factor 1.0
 	bump_scale 0.3125
 	emissive_factor 0
@@ -121,9 +121,9 @@ textures/office/ceil001:
     roughness_override -1
 
 textures/office/ceillight01:
-    texture_base textures/office/*.tga
-	texture_emissive textures/office/*_light.tga
-	texture_normals textures/office/*_n.tga
+    texture_base textures/office/*.dds
+	texture_emissive textures/office/*_light.dds
+	texture_normals textures/office/*_n.dds
 	base_factor 1.0
 	is_light 1
 	bump_scale 1
@@ -133,30 +133,30 @@ textures/office/ceillight01:
     roughness_override -1
 
 textures/office/decal01:
-    texture_base textures/office/*.tga
-	texture_mask textures/office/*_m.tga
-	texture_normals textures/office/*_n.tga
+    texture_base textures/office/*.dds
+	texture_mask textures/office/*_m.dds
+	texture_normals textures/office/*_n.dds
 	base_factor 1.0
 	bump_scale 1
     specular_factor 0.125
 
 textures/office/rubberstep01:
-    texture_base textures/office/*.tga
-	texture_normals textures/office/*_n.tga
+    texture_base textures/office/*.dds
+	texture_normals textures/office/*_n.dds
 	base_factor 1.0
 	bump_scale 1
     specular_factor 0.25
 
 textures/office/path01:
-    texture_base textures/office/*.tga
-	texture_normals textures/office/*_n.tga
+    texture_base textures/office/*.dds
+	texture_normals textures/office/*_n.dds
 	base_factor 1.0
 	bump_scale 1
     specular_factor 0.15
 
 textures/office/stonetiles01:
-    texture_base textures/office/*.tga
-	texture_normals textures/office/*_n.tga
+    texture_base textures/office/*.dds
+	texture_normals textures/office/*_n.dds
 	base_factor 1.0
 	bump_scale 1
     specular_factor 0.10
@@ -164,24 +164,24 @@ textures/office/stonetiles01:
 	roughness_override 0.1
 
 textures/office/stonetiles02:
-    texture_base textures/office/*.tga
-	texture_normals textures/office/*_n.tga
+    texture_base textures/office/*.dds
+	texture_normals textures/office/*_n.dds
 	base_factor 1.0
 	bump_scale 1
     specular_factor 0.35
 	metalness_factor 0.75
 
 textures/office/stucco01:
-    texture_base textures/office/*.tga
-	texture_normals textures/office/*_n.tga
+    texture_base textures/office/*.dds
+	texture_normals textures/office/*_n.dds
 	base_factor 1.0
 	bump_scale 1
     specular_factor 0.05
 	metalness_factor 0
 
 textures/office/wornwdsiding01:
-    texture_base textures/office/*.tga
-	texture_normals textures/office/*_n.tga
+    texture_base textures/office/*.dds
+	texture_normals textures/office/*_n.dds
 	base_factor 1.0
 	bump_scale 1
     specular_factor 0.15
@@ -189,8 +189,8 @@ textures/office/wornwdsiding01:
 
 textures/office/window01:
     kind GLASS
-	texture_base textures/office/window01.tga
-	texture_normals textures/office/window01_n.tga
+	texture_base textures/office/window01.dds
+	texture_normals textures/office/window01_n.dds
 	base_factor 1
 	bump_scale 1.0
     metalness_factor 0.8
