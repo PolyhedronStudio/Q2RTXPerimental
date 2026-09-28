@@ -327,6 +327,16 @@ typedef struct {
 	mu_Rect rect;
 	//! Fill color.
 	mu_Color color;
+	//! Outer glow / drop-shadow color.
+	mu_Color glow_color;
+	//! Outer glow / drop-shadow radius in pixels.
+	int glow_radius;
+	//! Per-corner radii (top-left, top-right, bottom-right, bottom-left) in pixels.
+	int corner_radii[4];
+	//! Border stroke color.
+	mu_Color stroke_color;
+	//! Border stroke thickness in pixels.
+	int stroke_thickness;
 } mu_RectCommand;
 
 /**
@@ -428,6 +438,18 @@ typedef struct {
 	int zindex;
 	//! Whether the container is open.
 	int open;
+	//! Outer glow / shadow color for window frame.
+	mu_Color glow_color;
+	//! Outer glow / shadow radius in pixels for window frame.
+	int glow_radius;
+	//! Per-corner radii [top-left, top-right, bottom-right, bottom-left] in pixels.
+	int corner_radii[4];
+	//! Outline stroke color.
+	mu_Color stroke_color;
+	//! Outline stroke thickness in pixels.
+	int stroke_thickness;
+	//! Non-zero if custom styling is set on this container.
+	int has_style;
 } mu_Container;
 
 /**
@@ -452,6 +474,16 @@ typedef struct {
 	int thumb_size;
 	//! Theme color table.
 	mu_Color colors[MU_COLOR_MAX];
+	//! Default window outer glow color.
+	mu_Color window_glow_color;
+	//! Default window outer glow radius in pixels.
+	int window_glow_radius;
+	//! Default window corner radii [top-left, top-right, bottom-right, bottom-left] in pixels.
+	int window_corner_radii[4];
+	//! Default window outline stroke color.
+	mu_Color window_stroke_color;
+	//! Default window outline stroke thickness in pixels.
+	int window_stroke_thickness;
 } mu_Style;
 
 /**
@@ -779,6 +811,33 @@ void mu_set_clip(mu_Context *ctx, mu_Rect rect);
 void mu_draw_rect(mu_Context *ctx, mu_Rect rect, mu_Color color);
 
 /**
+*	@brief		Emit a filled rectangle draw command with extended styling (outer glow, corner radii, stroke).
+*	@param	ctx					Active context.
+*	@param	rect				Rectangle to draw.
+*	@param	color				Fill color.
+*	@param	glow_color			Outer glow / shadow color.
+*	@param	glow_radius			Outer glow / shadow radius in pixels.
+*	@param	corner_radii		Array of 4 corner radii [TL, TR, BR, BL] in pixels (or NULL for sharp corners).
+*	@param	stroke_color		Border stroke color.
+*	@param	stroke_thickness	Border stroke thickness in pixels.
+**/
+void mu_draw_rect_styled(mu_Context *ctx, mu_Rect rect, mu_Color color,
+	mu_Color glow_color, int glow_radius, const int *corner_radii,
+	mu_Color stroke_color, int stroke_thickness);
+
+/**
+*	@brief		Emit a filled rectangle draw command with uniform corner radius and outer glow.
+*	@param	ctx				Active context.
+*	@param	rect			Rectangle to draw.
+*	@param	color			Fill color.
+*	@param	glow_color		Outer glow / shadow color.
+*	@param	glow_radius		Outer glow / shadow radius in pixels.
+*	@param	corner_radius	Uniform corner radius in pixels.
+**/
+void mu_draw_rect_ex(mu_Context *ctx, mu_Rect rect, mu_Color color,
+	mu_Color glow_color, int glow_radius, int corner_radius);
+
+/**
 *	@brief	Emit a 1-pixel box outline using four rectangles.
 *	@param ctx Active context.
 *	@param rect Box rectangle.
@@ -1064,5 +1123,31 @@ void mu_begin_panel_ex(mu_Context *ctx, const char *name, int opt);
 *	@param ctx Active context.
 **/
 void mu_end_panel(mu_Context *ctx);
+
+/**
+*	@brief		Set extended styling attributes on a container.
+*	@param	cnt					Target container.
+*	@param	glow_color			Outer glow / shadow color.
+*	@param	glow_radius			Outer glow / shadow radius in pixels.
+*	@param	corner_radii		Array of 4 corner radii [TL, TR, BR, BL] in pixels (or NULL for sharp corners).
+*	@param	stroke_color		Border stroke color.
+*	@param	stroke_thickness	Border stroke thickness in pixels.
+**/
+void mu_set_container_style(mu_Container *cnt, mu_Color glow_color, int glow_radius,
+	const int *corner_radii, mu_Color stroke_color, int stroke_thickness);
+
+/**
+*	@brief		Set extended styling attributes for a named window.
+*	@param	ctx					Active context.
+*	@param	name				Window title key.
+*	@param	glow_color			Outer glow / shadow color.
+*	@param	glow_radius			Outer glow / shadow radius in pixels.
+*	@param	corner_radii		Array of 4 corner radii [TL, TR, BR, BL] in pixels (or NULL for sharp corners).
+*	@param	stroke_color		Border stroke color.
+*	@param	stroke_thickness	Border stroke thickness in pixels.
+*	@return	Pointer to the styled container.
+**/
+mu_Container* mu_set_window_style(mu_Context *ctx, const char *name, mu_Color glow_color, int glow_radius,
+	const int *corner_radii, mu_Color stroke_color, int stroke_thickness);
 
 #endif

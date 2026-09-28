@@ -564,10 +564,56 @@ void CLG_UI_DrawRenderCommands() {
 				break;
 			}
 			case MU_COMMAND_RECT: {
-				// Clear the color before drawing the rectangle, to avoid affecting subsequent draw calls that don't specify a color.
-				clgi.R_ClearColor( );
-				//r_draw_rect( cmd->rect.rect, cmd->rect.color );
-				clgi.R_DrawFill32( muCmd->rect.rect.x, muCmd->rect.rect.y, muCmd->rect.rect.w, muCmd->rect.rect.h,
+				/**
+				*	Apply extended 2D styling if requested: outer glow/shadow, rounded corners, outline stroke.
+				**/
+				bool hasStyle = false;
+
+				// Check if outer glow/shadow is active.
+				if ( muCmd->rect.glow_radius > 0 && muCmd->rect.glow_color.a > 0 ) {
+					const uint32_t glowColor = MakeColor(
+						muCmd->rect.glow_color.r,
+						muCmd->rect.glow_color.g,
+						muCmd->rect.glow_color.b,
+						muCmd->rect.glow_color.a
+					);
+					clgi.R_SetOuterGlow( glowColor, static_cast< float >( muCmd->rect.glow_radius ) );
+					hasStyle = true;
+				}
+
+				// Check if corner radii are active.
+				if ( muCmd->rect.corner_radii[ 0 ] > 0 || muCmd->rect.corner_radii[ 1 ] > 0 ||
+					 muCmd->rect.corner_radii[ 2 ] > 0 || muCmd->rect.corner_radii[ 3 ] > 0 ) {
+					clgi.R_SetCornerRadius4(
+						static_cast< float >( muCmd->rect.corner_radii[ 0 ] ),
+						static_cast< float >( muCmd->rect.corner_radii[ 1 ] ),
+						static_cast< float >( muCmd->rect.corner_radii[ 2 ] ),
+						static_cast< float >( muCmd->rect.corner_radii[ 3 ] )
+					);
+					hasStyle = true;
+				}
+
+				// Check if outline stroke is active.
+				if ( muCmd->rect.stroke_thickness > 0 && muCmd->rect.stroke_color.a > 0 ) {
+					const uint32_t strokeColor = MakeColor(
+						muCmd->rect.stroke_color.r,
+						muCmd->rect.stroke_color.g,
+						muCmd->rect.stroke_color.b,
+						muCmd->rect.stroke_color.a
+					);
+					clgi.R_SetStroke( strokeColor, static_cast< float >( muCmd->rect.stroke_thickness ) );
+					hasStyle = true;
+				}
+
+				// Clear the color before drawing the rectangle.
+				clgi.R_ClearColor();
+
+				// Draw the filled rectangle with active styling parameters.
+				clgi.R_DrawFill32(
+					muCmd->rect.rect.x,
+					muCmd->rect.rect.y,
+					muCmd->rect.rect.w,
+					muCmd->rect.rect.h,
 					MakeColor(
 						muCmd->rect.color.r,
 						muCmd->rect.color.g,
@@ -575,7 +621,13 @@ void CLG_UI_DrawRenderCommands() {
 						muCmd->rect.color.a
 					)
 				);
-				// Clear the color before drawing the rectangle, to avoid affecting subsequent draw calls that don't specify a color.
+
+				// Reset styling state if any was configured.
+				if ( hasStyle ) {
+					clgi.R_ClearStyle();
+				}
+
+				// Clear the color after drawing the rectangle.
 				clgi.R_ClearColor();
 				break;
 			}

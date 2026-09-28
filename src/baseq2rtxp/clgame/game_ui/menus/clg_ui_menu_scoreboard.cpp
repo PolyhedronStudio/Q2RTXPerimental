@@ -49,6 +49,19 @@ extern "C" {
 static constexpr int32_t CLG_SCOREBOARD_TEAM_COUNT = 2;
 #endif
 
+//! Scoreboard window outer glow / drop-shadow radius in pixels.
+static cvar_t *clg_scoreboard_glow_radius = nullptr;
+//! Scoreboard window outer glow RGB hex color string (e.g. "#000000" for drop shadow or "#FF7800" for warm glow).
+static cvar_t *clg_scoreboard_glow_color = nullptr;
+//! Scoreboard window outer glow alpha scale (0.0 to 1.0).
+static cvar_t *clg_scoreboard_glow_alpha = nullptr;
+//! Scoreboard window corner radius in pixels.
+static cvar_t *clg_scoreboard_corner_radius = nullptr;
+//! Scoreboard window outline stroke thickness in pixels.
+static cvar_t *clg_scoreboard_stroke_thickness = nullptr;
+//! Scoreboard window outline stroke RGB hex color string (e.g. "#FF905A").
+static cvar_t *clg_scoreboard_stroke_color = nullptr;
+
 
 /**
 *	@brief	Quote a raw command argument so spaces and punctuation survive tokenization.
@@ -352,6 +365,49 @@ const bool CLG_MUI_ProcessScoreBoard( mu_Context *ctx ) {
 	const int32_t scoreBoardHeight = std::min( maxScoreBoardHeight, std::max( 1, windowHeight ) );
 	const int32_t scoreBoardX = ( clgi.screen->screenWidth - scoreBoardWidth ) / 2;
 	const int32_t scoreBoardY = ( clgi.screen->screenHeight - scoreBoardHeight ) / 2;
+
+	/**
+	*	Initialize scoreboard styling cvars on first invocation.
+	**/
+	if ( clg_scoreboard_glow_radius == nullptr ) {
+		clg_scoreboard_glow_radius = clgi.CVar_Get( "clg_scoreboard_glow_radius", "16", CVAR_ARCHIVE );
+		clg_scoreboard_glow_color = clgi.CVar_Get( "clg_scoreboard_glow_color", "#000000", CVAR_ARCHIVE );
+		clg_scoreboard_glow_alpha = clgi.CVar_Get( "clg_scoreboard_glow_alpha", "0.75", CVAR_ARCHIVE );
+		clg_scoreboard_corner_radius = clgi.CVar_Get( "clg_scoreboard_corner_radius", "8", CVAR_ARCHIVE );
+		clg_scoreboard_stroke_thickness = clgi.CVar_Get( "clg_scoreboard_stroke_thickness", "1", CVAR_ARCHIVE );
+		clg_scoreboard_stroke_color = clgi.CVar_Get( "clg_scoreboard_stroke_color", "#FF905A", CVAR_ARCHIVE );
+	}
+
+	/**
+	*	Resolve outer glow/shadow and window frame styling from cvars.
+	**/
+	mu_Color glowColor = mu_color( 0, 0, 0, 191 );
+	if ( clg_scoreboard_glow_color != nullptr && clg_scoreboard_glow_color->string[ 0 ] != '\0' ) {
+		color_t parsedGlow = {};
+		if ( clgi.SCR_ParseColor( clg_scoreboard_glow_color->string, &parsedGlow ) ) {
+			const float alphaScale = ( clg_scoreboard_glow_alpha != nullptr ) ? std::clamp( clg_scoreboard_glow_alpha->value, 0.0f, 1.0f ) : 0.75f;
+			const uint8_t a = static_cast< uint8_t >( std::clamp( static_cast< float >( parsedGlow.u8[ 3 ] ) * alphaScale, 0.0f, 255.0f ) );
+			glowColor = mu_color( parsedGlow.u8[ 0 ], parsedGlow.u8[ 1 ], parsedGlow.u8[ 2 ], a );
+		}
+	}
+
+	mu_Color strokeColor = mu_color( 255, 144, 90, 235 );
+	if ( clg_scoreboard_stroke_color != nullptr && clg_scoreboard_stroke_color->string[ 0 ] != '\0' ) {
+		color_t parsedStroke = {};
+		if ( clgi.SCR_ParseColor( clg_scoreboard_stroke_color->string, &parsedStroke ) ) {
+			strokeColor = mu_color( parsedStroke.u8[ 0 ], parsedStroke.u8[ 1 ], parsedStroke.u8[ 2 ], parsedStroke.u8[ 3 ] );
+		}
+	}
+
+	const int32_t glowRadius = ( clg_scoreboard_glow_radius != nullptr ) ? std::max( 0, clg_scoreboard_glow_radius->integer ) : 16;
+	const int32_t cornerRadius = ( clg_scoreboard_corner_radius != nullptr ) ? std::max( 0, clg_scoreboard_corner_radius->integer ) : 8;
+	const int32_t strokeThickness = ( clg_scoreboard_stroke_thickness != nullptr ) ? std::max( 0, clg_scoreboard_stroke_thickness->integer ) : 1;
+	const int32_t cornerRadii[ 4 ] = { cornerRadius, cornerRadius, cornerRadius, cornerRadius };
+
+	/**
+	*	Apply extended styling to the scoreboard window container before beginning it.
+	**/
+	mu_set_window_style( ctx, "Scoreboard", glowColor, glowRadius, cornerRadii, strokeColor, strokeThickness );
 
 	const int32_t opt = MU_OPT_ALIGNCENTER | MU_OPT_NOCLOSE | MU_OPT_HOLDFOCUS | MU_OPT_KEEPFOCUS | MU_OPT_NODRAG | MU_OPT_NORESIZE | MU_OPT_NOSCROLL;
 	if ( mu_begin_window_ex( ctx, "Scoreboard", mu_rect( scoreBoardX, scoreBoardY, scoreBoardWidth, scoreBoardHeight ), opt ) ) {

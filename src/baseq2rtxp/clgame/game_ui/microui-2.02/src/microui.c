@@ -87,7 +87,17 @@ static mu_Style default_style = {
 	{ 165, 118, 76,  110 }, /* MU_COLOR_BASEFOCUS */
 	{ 170, 110, 58,  160 }, /* MU_COLOR_SCROLLBASE */
 	{ 255, 120,  0,  156 }  /* MU_COLOR_SCROLLTHUMB */
-  }
+  },
+  /* window_glow_color */
+  { 0, 0, 0, 0 },
+  /* window_glow_radius */
+  0,
+  /* window_corner_radii */
+  { 0, 0, 0, 0 },
+  /* window_stroke_color */
+  { 0, 0, 0, 0 },
+  /* window_stroke_thickness */
+  0
 };
 
 
@@ -192,12 +202,48 @@ static int rect_overlaps_vec2(mu_Rect r, mu_Vec2 p) {
 *	@param colorid The color id to use for the frame. This corresponds to an index in the style's color array.
 **/
 static void draw_frame(mu_Context *ctx, mu_Rect rect, int colorid) {
+  /* Handle window background styling (outer glow/shadow, rounded corners, outline stroke). */
+  if (colorid == MU_COLOR_WINDOWBG) {
+    mu_Container *cnt = (ctx->container_stack.idx > 0) ? mu_get_current_container(ctx) : NULL;
+    mu_Color glow_color = ctx->style->window_glow_color;
+    int glow_radius = ctx->style->window_glow_radius;
+    const int *corner_radii = ctx->style->window_corner_radii;
+    mu_Color stroke_color = ctx->style->window_stroke_color;
+    int stroke_thickness = ctx->style->window_stroke_thickness;
 
-	mu_draw_rect(ctx, rect, ctx->style->colors[colorid]);
+    if (cnt && cnt->has_style) {
+      glow_color = cnt->glow_color;
+      glow_radius = cnt->glow_radius;
+      corner_radii = cnt->corner_radii;
+      stroke_color = cnt->stroke_color;
+      stroke_thickness = cnt->stroke_thickness;
+    }
+
+    if (glow_radius > 0 || (corner_radii && (corner_radii[0] > 0 || corner_radii[1] > 0 || corner_radii[2] > 0 || corner_radii[3] > 0)) || stroke_thickness > 0) {
+      mu_draw_rect_styled(ctx, rect, ctx->style->colors[colorid], glow_color, glow_radius, corner_radii, stroke_color, stroke_thickness);
+      return;
+    }
+  }
+
+  /* Handle title bar corner rounding so it blends seamlessly with the window frame corners. */
+  if (colorid == MU_COLOR_TITLEBG_ACTIVE || colorid == MU_COLOR_TITLEBG_INACTIVE) {
+    mu_Container *cnt = (ctx->container_stack.idx > 0) ? mu_get_current_container(ctx) : NULL;
+    const int *win_corners = ctx->style->window_corner_radii;
+    if (cnt && cnt->has_style) {
+      win_corners = cnt->corner_radii;
+    }
+    if (win_corners && (win_corners[0] > 0 || win_corners[1] > 0)) {
+      int title_corners[4] = { win_corners[0], win_corners[1], 0, 0 };
+      mu_draw_rect_styled(ctx, rect, ctx->style->colors[colorid], mu_color(0, 0, 0, 0), 0, title_corners, mu_color(0, 0, 0, 0), 0);
+      return;
+    }
+  }
+
+  mu_draw_rect(ctx, rect, ctx->style->colors[colorid]);
   if (colorid == MU_COLOR_SCROLLBASE  ||
       colorid == MU_COLOR_SCROLLTHUMB ||
       colorid == MU_COLOR_TITLEBG_INACTIVE ||
-    colorid == MU_COLOR_TITLEBG_ACTIVE ) { return; }
+      colorid == MU_COLOR_TITLEBG_ACTIVE ) { return; }
   /* draw border */
   if (ctx->style->colors[MU_COLOR_BORDER].a) {
     mu_draw_box(ctx, expand_rect(rect, 1), ctx->style->colors[MU_COLOR_BORDER]);
@@ -767,7 +813,91 @@ void mu_draw_rect(mu_Context *ctx, mu_Rect rect, mu_Color color) {
     cmd = mu_push_command(ctx, MU_COMMAND_RECT, sizeof(mu_RectCommand));
     cmd->rect.rect = rect;
     cmd->rect.color = color;
+    cmd->rect.glow_color = mu_color(0, 0, 0, 0);
+    cmd->rect.glow_radius = 0;
+    cmd->rect.corner_radii[0] = 0;
+    cmd->rect.corner_radii[1] = 0;
+    cmd->rect.corner_radii[2] = 0;
+    cmd->rect.corner_radii[3] = 0;
+    cmd->rect.stroke_color = mu_color(0, 0, 0, 0);
+    cmd->rect.stroke_thickness = 0;
   }
+}
+
+
+/**
+*	@brief		Emit a filled rectangle draw command with extended styling (outer glow, corner radii, stroke).
+*	@param	ctx					Active context.
+*	@param	rect				Rectangle to draw.
+*	@param	color				Fill color.
+*	@param	glow_color			Outer glow / shadow color.
+*	@param	glow_radius			Outer glow / shadow radius in pixels.
+*	@param	corner_radii		Array of 4 corner radii [TL, TR, BR, BL] in pixels (or NULL for sharp corners).
+*	@param	stroke_color		Border stroke color.
+*	@param	stroke_thickness	Border stroke thickness in pixels.
+*/
+void mu_draw_rect_styled(mu_Context *ctx, mu_Rect rect, mu_Color color,
+  mu_Color glow_color, int glow_radius, const int *corner_radii,
+  mu_Color stroke_color, int stroke_thickness)
+{
+  mu_Command *cmd;
+  const int has_corners = corner_radii && (corner_radii[0] > 0 || corner_radii[1] > 0 || corner_radii[2] > 0 || corner_radii[3] > 0);
+  const int has_style = (glow_radius > 0) || has_corners || (stroke_thickness > 0);
+
+  /* Fallback to simple unstyled path when no extended styling is requested. */
+  if (!has_style) {
+    mu_draw_rect(ctx, rect, color);
+    return;
+  }
+
+  /* For styled rects with glow or round corners, do not shrink the rect geometry with intersect_rects
+  ** because that would distort corners or clip the outer glow margins. Instead use scissor clipping. */
+  mu_Rect test_rect = expand_rect(rect, glow_radius);
+  int clipped = mu_check_clip(ctx, test_rect);
+  if (clipped == MU_CLIP_ALL) { return; }
+  if (clipped == MU_CLIP_PART) { mu_set_clip(ctx, mu_get_clip_rect(ctx)); }
+
+  cmd = mu_push_command(ctx, MU_COMMAND_RECT, sizeof(mu_RectCommand));
+  cmd->rect.rect = rect;
+  cmd->rect.color = color;
+  cmd->rect.glow_color = glow_color;
+  cmd->rect.glow_radius = glow_radius;
+  if (corner_radii) {
+    cmd->rect.corner_radii[0] = corner_radii[0];
+    cmd->rect.corner_radii[1] = corner_radii[1];
+    cmd->rect.corner_radii[2] = corner_radii[2];
+    cmd->rect.corner_radii[3] = corner_radii[3];
+  } else {
+    cmd->rect.corner_radii[0] = 0;
+    cmd->rect.corner_radii[1] = 0;
+    cmd->rect.corner_radii[2] = 0;
+    cmd->rect.corner_radii[3] = 0;
+  }
+  cmd->rect.stroke_color = stroke_color;
+  cmd->rect.stroke_thickness = stroke_thickness;
+
+  if (clipped) { mu_set_clip(ctx, unclipped_rect); }
+}
+
+
+/**
+*	@brief		Emit a filled rectangle draw command with uniform corner radius and outer glow.
+*	@param	ctx				Active context.
+*	@param	rect			Rectangle to draw.
+*	@param	color			Fill color.
+*	@param	glow_color		Outer glow / shadow color.
+*	@param	glow_radius		Outer glow / shadow radius in pixels.
+*	@param	corner_radius	Uniform corner radius in pixels.
+*/
+void mu_draw_rect_ex(mu_Context *ctx, mu_Rect rect, mu_Color color,
+  mu_Color glow_color, int glow_radius, int corner_radius)
+{
+  int corners[4];
+  corners[0] = corner_radius;
+  corners[1] = corner_radius;
+  corners[2] = corner_radius;
+  corners[3] = corner_radius;
+  mu_draw_rect_styled(ctx, rect, color, glow_color, glow_radius, corners, mu_color(0, 0, 0, 0), 0);
 }
 
 
@@ -1826,3 +1956,58 @@ void mu_end_panel(mu_Context *ctx) {
   mu_pop_clip_rect(ctx);
   pop_container(ctx);
 }
+
+
+/**
+*	@brief		Set extended styling attributes on a container.
+*	@param	cnt					Target container.
+*	@param	glow_color			Outer glow / shadow color.
+*	@param	glow_radius			Outer glow / shadow radius in pixels.
+*	@param	corner_radii		Array of 4 corner radii [TL, TR, BR, BL] in pixels (or NULL for sharp corners).
+*	@param	stroke_color		Border stroke color.
+*	@param	stroke_thickness	Border stroke thickness in pixels.
+*/
+void mu_set_container_style(mu_Container *cnt, mu_Color glow_color, int glow_radius,
+  const int *corner_radii, mu_Color stroke_color, int stroke_thickness)
+{
+  if (!cnt) { return; }
+  cnt->has_style = 1;
+  cnt->glow_color = glow_color;
+  cnt->glow_radius = glow_radius;
+  if (corner_radii) {
+    cnt->corner_radii[0] = corner_radii[0];
+    cnt->corner_radii[1] = corner_radii[1];
+    cnt->corner_radii[2] = corner_radii[2];
+    cnt->corner_radii[3] = corner_radii[3];
+  } else {
+    cnt->corner_radii[0] = 0;
+    cnt->corner_radii[1] = 0;
+    cnt->corner_radii[2] = 0;
+    cnt->corner_radii[3] = 0;
+  }
+  cnt->stroke_color = stroke_color;
+  cnt->stroke_thickness = stroke_thickness;
+}
+
+
+/**
+*	@brief		Set extended styling attributes for a named window.
+*	@param	ctx					Active context.
+*	@param	name				Window title key.
+*	@param	glow_color			Outer glow / shadow color.
+*	@param	glow_radius			Outer glow / shadow radius in pixels.
+*	@param	corner_radii		Array of 4 corner radii [TL, TR, BR, BL] in pixels (or NULL for sharp corners).
+*	@param	stroke_color		Border stroke color.
+*	@param	stroke_thickness	Border stroke thickness in pixels.
+*	@return	Pointer to the styled container.
+*/
+mu_Container* mu_set_window_style(mu_Context *ctx, const char *name, mu_Color glow_color, int glow_radius,
+  const int *corner_radii, mu_Color stroke_color, int stroke_thickness)
+{
+  mu_Container *cnt = mu_get_container(ctx, name);
+  if (cnt) {
+    mu_set_container_style(cnt, glow_color, glow_radius, corner_radii, stroke_color, stroke_thickness);
+  }
+  return cnt;
+}
+
