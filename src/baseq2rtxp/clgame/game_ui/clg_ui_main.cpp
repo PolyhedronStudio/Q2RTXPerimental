@@ -141,80 +141,53 @@ static struct clg_gameui_ctx {
 		//! Stores the byte data for the GameUI atlas texture, this is used to upload the atlas texture to the renderer when the client game initializes. We keep a copy of the atlas data in memory so we can re-upload it if needed, such as when the renderer is re-initialized or when the client game reloads.
 		byte *textureCopy = nullptr;
 	} atlas = {};
+
+	//! Handle to the TrueType font used for MicroUI element text rendering and layout measurements.
+	qhandle_t fontHandle = 0;
 } s_gameui_ctx = {};
 
-#ifdef USE_R_DRAW_STRING_FONT
-	/**
-	*	@brief	Calculate the width of the given text using the specified font. This is used by the UI context to layout text elements correctly.
-	+	param font	The font to use for measuring the text. Monospaced font so.
-	+	@param text	The text to measure the width of.
-	+	@param len	The length of the text. If -1, the function will calculate the length using strlen.
-	+	@return
-	**/
-	static int UI_GetDrawPicTextWidth( mu_Font font, const char *text, int len ) {
-	if ( len == -1 ) { 
-		len = strlen( text );
+/**
+*	@brief	Calculate text width using our registered TrueType font handle.
+*	@param	font	MicroUI font handle (unused).
+*	@param	text	Target null-terminated text string to measure.
+*	@param	len	Maximum characters to measure (-1 for full string length).
+*	@return	Measured text width in screen pixels.
+**/
+static int UI_GetTTFTextWidth( mu_Font font, const char *text, int len ) {
+	if ( !text || !text[ 0 ] || s_gameui_ctx.fontHandle == 0 ) {
+		return 0;
 	}
-	int x = 0;
-	while ( len-- && *text ) {
-		byte c = *text++;
-		//draw_char( x, y, flags, c, font );
-		if ( c != '\0' ) {
-			x += CHAR_WIDTH;
-		//}
-		} else {
-			x += CHAR_WIDTH / 2;
-		}
+	if ( len == -1 ) {
+		return Q_rint( clgi.Font_StringWidthTTF( s_gameui_ctx.fontHandle, text ) );
 	}
-
-	return x;
-	//return len * CHAR_WIDTH;//r_get_text_width( text, len );
-	}
-	/**
-	*	@brief 
-	*	@param	font 
-	*	@return 
-	**/
-	static int UI_GetDrawPicTextHeight( mu_Font font ) {
-		return CHAR_HEIGHT;
-	}
-#else
-	/**
-	*	@brief	Calculate the width of the given text using the specified font. This is used by the UI context to layout text elements correctly.
-	+	param font	The font to use for measuring the text. Monospaced font so.
-	+	@param text	The text to measure the width of.
-	+	@param len	The length of the text. If -1, the function will calculate the length using strlen.
-	+	@return
-	**/
-	static int UI_GetAtlasTextWidth( mu_Font font, const char *text, int len ) {
-		int res = 0;
-		for ( const char *p = text; *p && len--; p++ ) {
-			res += clg_ui_atlas[ ATLAS_FONT + ( unsigned char )*p ].w;
-		}
-		return res;
-	}
-	/**
-	*	@brief
-	*	@param	font
-	*	@return
-	**/
-	static int UI_GetAtlasTextHeight( mu_Font font ) {
-		return 18;
-	}
-#endif
+	return Q_rint( clgi.Font_StringWidthTTF_N( s_gameui_ctx.fontHandle, text, static_cast< size_t >( len ) ) );
+}
 
 /**
-*	@brief	Bind text measurement callbacks for the active font backend.
+*	@brief	Calculate line height using our registered TrueType font handle.
+*	@param	font	MicroUI font handle (unused).
+*	@return	Text line height in screen pixels based on actual TTF metrics.
+**/
+static int UI_GetTTFTextHeight( mu_Font font ) {
+	/**
+	*	Retrieve line height from TrueType font handle if valid; otherwise fallback to default.
+	**/
+	if ( s_gameui_ctx.fontHandle != 0 ) {
+		const float fontHeight = clgi.Font_GetHeightTTF( s_gameui_ctx.fontHandle );
+		if ( fontHeight > 0.0f ) {
+			return Q_rint( fontHeight );
+		}
+	}
+	return 14;
+}
+
+/**
+*	@brief	Bind text measurement callbacks for TrueType font rendering.
 *	@param	ctx	Target MicroUI context.
 **/
 static void MicroUI_SetTextMeasureCallbacks( mu_Context *ctx ) {
-#ifdef USE_R_DRAW_STRING_FONT
-	ctx->text_width = UI_GetDrawPicTextWidth;
-	ctx->text_height = UI_GetDrawPicTextHeight;
-#else
-	ctx->text_width = UI_GetAtlasTextWidth;
-	ctx->text_height = UI_GetAtlasTextHeight;
-#endif
+	ctx->text_width = UI_GetTTFTextWidth;
+	ctx->text_height = UI_GetTTFTextHeight;
 }
 
 /**
@@ -285,6 +258,20 @@ void CLG_UI_AllocateContext() {
 		//s_gameui_ctx.atlas.textureCopy = nullptr;
 		//clgi.Z_Free( s_gameui_ctx.atlas.textureCopy );
 	}
+	// Constants for resolution-based TrueType font scaling.
+	constexpr float BASE_FONT_SIZE_PX = 18.0f;
+	constexpr float BASE_REFERENCE_SCREEN_HEIGHT_PX = 720.0f;
+	constexpr float FALLBACK_SCREEN_HEIGHT_PX = 1080.0f;
+	constexpr int32_t MINIMUM_FONT_SIZE_PX = 16;
+
+	// Calculate target TTF font height proportional to display resolution (e.g. 18px at 720p, 27px at 1080p, 54px at 4K).
+	const float screenH = ( clgi.screen && clgi.screen->screenHeight > 0 ) ? static_cast< float >( clgi.screen->screenHeight ) : FALLBACK_SCREEN_HEIGHT_PX;
+	const int32_t targetFontSize = std::max( MINIMUM_FONT_SIZE_PX, Q_rint( BASE_FONT_SIZE_PX * ( screenH / BASE_REFERENCE_SCREEN_HEIGHT_PX ) ) );
+
+	// Register or update our TrueType font handle for MicroUI element text rendering and layout measurements.
+	if ( s_gameui_ctx.fontHandle == 0 ) {
+		s_gameui_ctx.fontHandle = clgi.R_RegisterFontTTF( "fonts/segoeui.ttf", targetFontSize );
+	}
 	// Initialize the UI context defaults before binding callbacks because mu_init clears the function pointers.
 	mu_init( s_gameui_ctx.mu_ctx );
 	// Bind the text metric callbacks immediately so the first menu frame has valid sizing data.
@@ -326,6 +313,23 @@ void CLG_UI_FreeContext() {
 *			it runs at the same framerate as the client does so it remains responsive.
 **/
 void CLG_UI_ProcessFrame() {
+	// Constants for resolution-based TrueType font scaling.
+	constexpr float BASE_FONT_SIZE_PX = 18.0f;
+	constexpr float BASE_REFERENCE_SCREEN_HEIGHT_PX = 720.0f;
+	constexpr int32_t MINIMUM_FONT_SIZE_PX = 16;
+
+	// Dynamically update TTF font handle size if screen resolution height changes across display mode switches.
+	if ( clgi.screen && clgi.screen->screenHeight > 0 ) {
+		const float screenH = static_cast< float >( clgi.screen->screenHeight );
+		const int32_t targetFontSize = std::max( MINIMUM_FONT_SIZE_PX, Q_rint( BASE_FONT_SIZE_PX * ( screenH / BASE_REFERENCE_SCREEN_HEIGHT_PX ) ) );
+		if ( s_gameui_ctx.fontHandle != 0 ) {
+			const float currentHeight = clgi.Font_GetHeightTTF( s_gameui_ctx.fontHandle );
+			if ( Q_rint( currentHeight ) != targetFontSize ) {
+				s_gameui_ctx.fontHandle = clgi.R_RegisterFontTTF( "fonts/segoeui.ttf", targetFontSize );
+			}
+		}
+	}
+
 	// Mirror the server-authored menu id in STAT_LAYOUTS before any focus or rendering decisions are made.
 	CLG_UI_SyncScoreboardMenuFromStats();
 
@@ -538,40 +542,25 @@ void CLG_UI_DrawRenderCommands() {
 	while ( mu_next_command( s_gameui_ctx.mu_ctx, &muCmd ) ) {
 		// Process the command based on its type.
 		switch ( muCmd->type ) {
-			// Simple draw text command, render the text at the specified position with requested color.
+			// Simple draw text command, render the text using our registered TrueType font handle.
 			case MU_COMMAND_TEXT: {
-				// Set the color for drawing the text.
-				clgi.R_SetColor(
-					MakeColor(
-						muCmd->text.color.r,
-						muCmd->text.color.g,
-						muCmd->text.color.b,
-						muCmd->text.color.a
-					) 
-				);
-				
-				mu_Rect dst = { muCmd->text.pos.x, muCmd->text.pos.y, 0, 0 };
-				for ( const char *p = muCmd->text.str; *p; p++ ) {
-					if ( ( *p & 0xc0 ) == 0x80 ) { continue; }
-					int chr = mu_min( ( unsigned char )*p, 127 );
-					mu_Rect src = clg_ui_atlas[ ATLAS_FONT + chr ];
-					dst.w = src.w;
-					dst.h = src.h;
-					clgi.R_DrawPicEx( dst.x, dst.y, dst.w, dst.h, s_gameui_ctx.atlas.imageHandle, src.x, src.y, src.w, src.h );
-					dst.x += dst.w;
+				if ( s_gameui_ctx.fontHandle != 0 ) {
+					// Set the color for drawing the text.
+					clgi.R_SetColor(
+						MakeColor(
+							muCmd->text.color.r,
+							muCmd->text.color.g,
+							muCmd->text.color.b,
+							muCmd->text.color.a
+						) 
+					);
+
+					// Render text string using our loaded TTF font handle.
+					clgi.R_DrawString( muCmd->text.pos.x, muCmd->text.pos.y, 0, MAX_STRING_CHARS, muCmd->text.str, s_gameui_ctx.fontHandle );
+
+					// Clear the color after drawing text to avoid affecting subsequent calls.
+					clgi.R_ClearColor();
 				}
-				//// Draw the text using the client's rendering function.
-				//static constexpr int32_t yOffset = 2; // The extra pixel offset to apply to the y position when drawing text, to accommodate for the extra size added to the text's height in the font texture.
-				//SCR_DrawStringMultiEx(
-				//	muCmd->text.pos.x,
-				//	muCmd->text.pos.y + yOffset, // Offset it 1 pixel unit, to accommodate for its (CHAR_HEIGHT + 2) extra size offset.
-				//	0, // Flags, not used.
-				//	MAX_STRING_CHARS, // Max text length, should be enough for any reasonable text command.
-				//	( const char * )&muCmd->text.str,
-				//	precache.screen.font_pic
-				//);
-				// Clear the color after drawing the text, to avoid affecting subsequent draw calls that don't specify a color.
-				clgi.R_ClearColor( );
 				break;
 			}
 			case MU_COMMAND_RECT: {

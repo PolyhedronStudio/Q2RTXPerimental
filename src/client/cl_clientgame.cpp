@@ -883,7 +883,7 @@ void PF_R_DrawLine2D( const float x1, const float y1, const float x2, const floa
 *	@brief	Exported wrapper to load a TrueType font and generate MTSDF atlas.
 **/
 qhandle_t PF_R_RegisterFontTTF( const char *path, const float pixel_height ) {
-	return R_RegisterFontTTF( path, pixel_height );
+	return R_LoadOrRegisterFontTTF( path, pixel_height );
 }
 /**
 *	@brief	Exported wrapper to query string width in pixels.

@@ -102,6 +102,24 @@ float Font_StringWidthTTF_N( const qhandle_t font, const char *text, const size_
 **/
 float Font_GetHeightTTF( const qhandle_t font );
 
+/**
+*	@brief	Load a pregenerated MTSDF font from a binary cache file (.mtsdf).
+*	@param	cache_path		Virtual filesystem path to the cache file (e.g. "fonts/segoeui_18.mtsdf").
+*	@param	original_path	Original font path used for registration and lookup (e.g. "fonts/segoeui.ttf").
+*	@param	pixel_height	Nominal raster height.
+*	@return	Image handle to the registered MTSDF font atlas, or 0 on failure.
+**/
+qhandle_t Font_LoadMTSDF( const char *cache_path, const char *original_path, const float pixel_height );
+
+/**
+*	@brief	Serialize an MTSDF font descriptor and its atlas pixel buffer to a binary cache file (.mtsdf).
+*	@param	cache_path		Virtual filesystem destination path (e.g. "fonts/segoeui_18.mtsdf").
+*	@param	desc			Populated font descriptor containing metrics and glyph data.
+*	@param	atlas_pixels	Raw RGBA8 atlas pixel data.
+*	@return	True on successful serialization, false on write failure.
+**/
+bool Font_SaveMTSDF( const char *cache_path, const font_mtsdf_t *desc, const uint8_t *atlas_pixels );
+
 #ifdef __cplusplus
 }
 #endif

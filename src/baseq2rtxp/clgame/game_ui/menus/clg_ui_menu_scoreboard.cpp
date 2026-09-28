@@ -292,16 +292,22 @@ const bool CLG_MUI_ProcessScoreBoard( mu_Context *ctx ) {
 		focusedMuteClient = -1;
 	}
 
-	const int32_t checkboxWidth = 24;
+	// Layout constants for scoreboard column sizing and font metrics scaling.
+	constexpr int32_t MINIMUM_ROW_HEIGHT_PX = 24;
+	constexpr int32_t MINIMUM_NAME_COLUMN_WIDTH_PX = 120;
+	constexpr int32_t MINIMUM_SCORE_COLUMN_WIDTH_PX = 52;
+	constexpr int32_t MINIMUM_PING_COLUMN_WIDTH_PX = 52;
+
+	const int32_t fontLineHeight = ctx->text_height( ctx->style->font );
+	const int32_t rowHeight = std::max( MINIMUM_ROW_HEIGHT_PX, fontLineHeight + ( ctx->style->padding * 2 ) );
+	const int32_t checkboxWidth = rowHeight;
 	const int32_t mutedHeaderTextWidth = ctx->text_width( ctx->style->font, "Muted", -1 );
 	const int32_t muteButtonLabelWidth = std::max( ctx->text_width( ctx->style->font, "Mute", -1 ), ctx->text_width( ctx->style->font, "Unmute", -1 ) );
 	const int32_t mutedWidth = std::max( mutedHeaderTextWidth, muteButtonLabelWidth ) + ( ctx->style->padding * 2 );
-	const int32_t nameColumnBudget = 216;
-	const int32_t nameWidth = std::max( 96, nameColumnBudget - mutedWidth - ctx->style->spacing );
-	const int32_t scoreWidth = 52;
-	const int32_t pingWidth = 52;
+	const int32_t nameWidth = std::max( MINIMUM_NAME_COLUMN_WIDTH_PX, ctx->text_width( ctx->style->font, "Player Name Column Length Maximum", -1 ) / 2 );
+	const int32_t scoreWidth = std::max( MINIMUM_SCORE_COLUMN_WIDTH_PX, ctx->text_width( ctx->style->font, "Score 999", -1 ) );
+	const int32_t pingWidth = std::max( MINIMUM_PING_COLUMN_WIDTH_PX, ctx->text_width( ctx->style->font, "Ping 999ms", -1 ) );
 	const int32_t rowWidths[ 5 ] = { checkboxWidth, mutedWidth, nameWidth, scoreWidth, pingWidth };
-	const int32_t rowHeight = 24;
 	const int32_t preButtonSpacerHeight = std::max( 0, ctx->style->padding );
 	const int32_t postButtonSpacerHeight = preButtonSpacerHeight;
 	const int32_t rowWidthTotal = checkboxWidth + mutedWidth + nameWidth + scoreWidth + pingWidth;

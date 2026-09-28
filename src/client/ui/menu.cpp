@@ -57,29 +57,64 @@ static void Action_Init(menuAction_t *a)
 }
 
 
-/*
-=================
-Action_Draw
-=================
-*/
+/**
+*	@brief	Render a menu action item (e.g. clickable button or menu item).
+*	@param	a	Pointer to the menuAction_t structure to render.
+**/
 static void Action_Draw(menuAction_t *a)
 {
     int flags;
 
     flags = a->generic.uiFlags;
+
+    /**
+    *    Draw focus indicator cursor if this action item is currently selected.
+    **/
     if (a->generic.flags & QMF_HASFOCUS) {
         if ((a->generic.uiFlags & UI_CENTER) != UI_CENTER) {
+            // Blink cursor arrow every ~256ms
             if ((uis.realtime >> 8) & 1) {
+                // Save current font handle and switch to legacy conchars bitmap font
+                const qhandle_t savedFont = uis.fontHandle;
+                uis.fontHandle = uis.concharsFontHandle;
                 UI_DrawChar(a->generic.x - RCOLUMN_OFFSET / 2, a->generic.y, a->generic.uiFlags | UI_RIGHT, 13);
+                // Restore TrueType font handle
+                uis.fontHandle = savedFont;
             }
         } else {
             flags |= UI_ALTCOLOR;
+            // Blink cursor arrow every ~256ms
             if ((uis.realtime >> 8) & 1) {
-                UI_DrawChar(a->generic.x - strlen(a->generic.name) * CHAR_WIDTH / 2 - CHAR_WIDTH, a->generic.y, flags, 13);
+                // Calculate max width among all visible centered items in parent menu using TrueType font metrics
+                float max_w = Font_StringWidthTTF( uis.fontHandle, a->generic.name );
+                if ( a->generic.parent != nullptr ) {
+                    for ( int32_t i = 0; i < a->generic.parent->nitems; i++ ) {
+                        const menuCommon_t *item = static_cast<const menuCommon_t*>( a->generic.parent->items[ i ] );
+                        if ( item != nullptr && !( item->flags & QMF_HIDDEN ) && ( ( item->uiFlags & UI_CENTER ) == UI_CENTER ) && item->name != nullptr ) {
+                            const float item_w = Font_StringWidthTTF( uis.fontHandle, item->name );
+                            if ( item_w > max_w ) {
+                                max_w = item_w;
+                            }
+                        }
+                    }
+                }
+
+                // Place cursor arrow to the left of the widest item in the menu
+                const int cursor_x = Q_rint( a->generic.x - max_w * 0.5f ) - CHAR_WIDTH - 4;
+
+                // Save current font handle and switch to legacy conchars bitmap font
+                const qhandle_t savedFont = uis.fontHandle;
+                uis.fontHandle = uis.concharsFontHandle;
+                UI_DrawChar( cursor_x, a->generic.y, flags, 13 );
+                // Restore TrueType font handle
+                uis.fontHandle = savedFont;
             }
         }
     }
 
+    /**
+    *    Draw item label text using TrueType font.
+    **/
     if (a->generic.flags & QMF_GRAYED) {
         R_SetColor(uis.color.disabled.u32);
     }
@@ -230,22 +265,30 @@ static void Keybind_Init(menuKeybind_t *k)
     k->generic.rect.width += (RCOLUMN_OFFSET - LCOLUMN_OFFSET) + len * CHAR_WIDTH;
 }
 
-/*
-=================
-Keybind_Draw
-=================
-*/
+/**
+*	@brief	Render a keybinding menu item showing keybind name and bound keys.
+*	@param	k	Pointer to the menuKeybind_t structure to render.
+**/
 static void Keybind_Draw(menuKeybind_t *k)
 {
     char string[MAX_STRING_CHARS];
     int flags;
 
     flags = UI_ALTCOLOR;
+
+    /**
+    *    Draw focus indicator cursor if this keybinding item has focus.
+    **/
     if (k->generic.flags & QMF_HASFOCUS) {
         /*if(k->generic.parent->keywait) {
             UI_DrawChar(k->generic.x + RCOLUMN_OFFSET / 2, k->generic.y, k->generic.uiFlags | UI_RIGHT, '=');
         } else*/ if ((uis.realtime >> 8) & 1) {
+            // Save current font handle and switch to legacy conchars bitmap font
+            const qhandle_t savedFont = uis.fontHandle;
+            uis.fontHandle = uis.concharsFontHandle;
             UI_DrawChar(k->generic.x + RCOLUMN_OFFSET / 2, k->generic.y, k->generic.uiFlags | UI_RIGHT, 13);
+            // Restore TrueType font handle
+            uis.fontHandle = savedFont;
         }
     } else {
         if (k->generic.parent->keywait) {
@@ -254,6 +297,9 @@ static void Keybind_Draw(menuKeybind_t *k)
         }
     }
 
+    /**
+    *    Draw keybinding name using TrueType font.
+    **/
     UI_DrawString(k->generic.x + LCOLUMN_OFFSET, k->generic.y,
                   k->generic.uiFlags | UI_RIGHT | flags, k->generic.name);
 
@@ -631,29 +677,43 @@ static int SpinControl_DoSlide(menuSpinControl_t *s, int dir)
     return QMS_MOVE;
 }
 
-/*
-=================
-SpinControl_Draw
-=================
-*/
+/**
+*	@brief	Render a spin control item (e.g. cycle between multiple options).
+*	@param	s	Pointer to the menuSpinControl_t structure to render.
+**/
 static void SpinControl_Draw(menuSpinControl_t *s)
 {
     const char *name;
 
+    /**
+    *    Draw control label using TrueType font.
+    **/
     UI_DrawString(s->generic.x + LCOLUMN_OFFSET, s->generic.y,
                   s->generic.uiFlags | UI_RIGHT | UI_ALTCOLOR, s->generic.name);
 
+    /**
+    *    Draw focus indicator cursor if this spin control has focus.
+    **/
     if (s->generic.flags & QMF_HASFOCUS) {
         if ((uis.realtime >> 8) & 1) {
+            // Save current font handle and switch to legacy conchars bitmap font
+            const qhandle_t savedFont = uis.fontHandle;
+            uis.fontHandle = uis.concharsFontHandle;
             UI_DrawChar(s->generic.x + RCOLUMN_OFFSET / 2, s->generic.y,
                         s->generic.uiFlags | UI_RIGHT, 13);
+            // Restore TrueType font handle
+            uis.fontHandle = savedFont;
         }
     }
 
-    if (s->curvalue < 0 || s->curvalue >= s->numItems)
+    /**
+    *    Draw selected item value string using TrueType font.
+    **/
+    if (s->curvalue < 0 || s->curvalue >= s->numItems) {
         name = "???";
-    else
+    } else {
         name = s->itemnames[s->curvalue];
+    }
 
     UI_DrawString(s->generic.x + RCOLUMN_OFFSET, s->generic.y,
                   s->generic.uiFlags, name);
@@ -1656,11 +1716,10 @@ static menuSound_t Slider_DoSlide(menuSlider_t *s, int dir)
     return QMS_SILENT;
 }
 
-/*
-=================
-Slider_Draw
-=================
-*/
+/**
+*	@brief	Render a graphical slider control with track, caps, thumb knob, and numerical value.
+*	@param	s	Pointer to the menuSlider_t structure to render.
+**/
 static void Slider_Draw(menuSlider_t *s)
 {
     int     i, flags;
@@ -1668,36 +1727,68 @@ static void Slider_Draw(menuSlider_t *s)
 
     flags = s->generic.uiFlags & ~(UI_LEFT | UI_RIGHT);
 
+    /**
+    *    Draw focus indicator cursor if this slider currently has focus.
+    **/
     if (s->generic.flags & QMF_HASFOCUS) {
         if ((uis.realtime >> 8) & 1) {
+            // Save current font handle and switch to legacy conchars bitmap font
+            const qhandle_t savedFont = uis.fontHandle;
+            uis.fontHandle = uis.concharsFontHandle;
             UI_DrawChar(s->generic.x + RCOLUMN_OFFSET / 2, s->generic.y, s->generic.uiFlags | UI_RIGHT, 13);
+            // Restore TrueType font handle
+            uis.fontHandle = savedFont;
         }
     }
 
+    /**
+    *    Draw slider label string with TrueType font.
+    **/
     UI_DrawString(s->generic.x + LCOLUMN_OFFSET, s->generic.y,
                   flags | UI_RIGHT | UI_ALTCOLOR, s->generic.name);
 
+    /**
+    *    Draw slider track, caps, and thumb knob using legacy conchars bitmap font.
+    **/
+    // Save current font handle and switch to legacy conchars bitmap font
+    const qhandle_t savedFont = uis.fontHandle;
+    uis.fontHandle = uis.concharsFontHandle;
+
+    // Draw slider left cap (char 128)
     UI_DrawChar(s->generic.x + RCOLUMN_OFFSET, s->generic.y, flags | UI_LEFT, 128);
 
-    for (i = 0; i < SLIDER_RANGE; i++)
+    // Draw horizontal slider track (char 129)
+    for (i = 0; i < SLIDER_RANGE; i++) {
         UI_DrawChar(RCOLUMN_OFFSET + s->generic.x + i * CHAR_WIDTH + CHAR_WIDTH, s->generic.y, flags | UI_LEFT, 129);
+    }
 
+    // Draw slider right cap (char 130)
     UI_DrawChar(RCOLUMN_OFFSET + s->generic.x + i * CHAR_WIDTH + CHAR_WIDTH, s->generic.y, flags | UI_LEFT, 130);
 
+    // Calculate clamped normalized thumb knob position
     pos = (s->curvalue - s->minvalue) / (s->maxvalue - s->minvalue);
     pos = QM_Clamp01( pos );
 
+    // Draw slider thumb knob (char 131)
     UI_DrawChar(CHAR_WIDTH + RCOLUMN_OFFSET + s->generic.x + (SLIDER_RANGE - 1) * CHAR_WIDTH * pos, s->generic.y, flags | UI_LEFT, 131);
 
+    // Restore TrueType font handle for remaining UI text rendering
+    uis.fontHandle = savedFont;
+
+    /**
+    *    Format and draw slider numerical value string with TrueType font.
+    **/
 	float display_value = s->curvalue;
-	if (s->percentage)
+	if (s->percentage) {
 		display_value *= 100.f;
+	}
 
 	char sbuf[16];
-    if (s->format)
+    if (s->format) {
         snprintf(sbuf, sizeof(sbuf), s->format, display_value);
-    else
+    } else {
 	    snprintf(sbuf, sizeof(sbuf), "%.1f", display_value);
+    }
 
 	UI_DrawString(s->generic.x + RCOLUMN_OFFSET + CHAR_WIDTH * (SLIDER_RANGE + 3), s->generic.y, flags | UI_LEFT, sbuf);
 }
@@ -2231,7 +2322,9 @@ static void Menu_DrawStatus(menuFrameWork_t *menu)
     lens[count++] = x;
 
     for (l = 0; l < count; l++) {
-        x = (uis.width - lens[l] * CHAR_WIDTH) / 2;
+        // Measure string width using TrueType font metrics for accurate centering
+        const float str_w = Font_StringWidthTTF(uis.fontHandle, ptrs[l]);
+        x = Q_rint((uis.width - str_w) * 0.5f);
         y = menu->y2 - (count - l) * CHAR_HEIGHT;
         R_DrawString(x, y, 0, lens[l], ptrs[l], uis.fontHandle);
     }

@@ -68,6 +68,8 @@ typedef struct console_s {
 
 	qhandle_t   backImage;
 	qhandle_t   charsetImage;
+	//! Handle to legacy bitmap conchars font for console UI symbols (separator bar, download progress bar, etc.).
+	qhandle_t   concharsImage;
 
 	float   currentHeight;  // aproaches scr_conlines at scr_conspeed
 	float   destHeight;     // 0.0 to 1.0 lines of console to display
@@ -367,6 +369,22 @@ If the line width has changed, reformat the buffer.
 void Con_CheckResize( void ) {
 	int     width;
 
+	// Re-register console TTF font if resolution height changes across display mode switches.
+	if ( con.initialized && cls.ref_initialized ) {
+		constexpr float CONSOLE_BASE_FONT_SIZE_PX = 18.0f;
+		constexpr float CONSOLE_BASE_REFERENCE_SCREEN_HEIGHT_PX = 720.0f;
+		constexpr int32_t CONSOLE_MINIMUM_FONT_SIZE_PX = 14;
+
+		const float screenH = ( r_config.height > 0 ) ? static_cast< float >( r_config.height ) : 1080.0f;
+		const int32_t targetFontSize = std::max( CONSOLE_MINIMUM_FONT_SIZE_PX, Q_rint( CONSOLE_BASE_FONT_SIZE_PX * ( screenH / CONSOLE_BASE_REFERENCE_SCREEN_HEIGHT_PX ) ) );
+		if ( con.charsetImage != 0 ) {
+			const float currentHeight = Font_GetHeightTTF( con.charsetImage );
+			if ( Q_rint( currentHeight ) != targetFontSize ) {
+				Con_RegisterMedia();
+			}
+		}
+	}
+
 	con.scale = R_ClampScale( con_scale );
 
 	con.vidWidth = Q_rint( r_config.width * con.scale );
@@ -425,6 +443,46 @@ static void con_timestampscolor_changed( cvar_t *self ) {
 	}
 }
 
+/**
+*	@brief	Console command implementation to generate and serialize MTSDF font data to file.
+*	@note	Serializes font data to disk under `<fontstem>_<size>.mtsdf` so subsequent engine launches bypass calculation.
+**/
+static void Con_GenMtsdf_f( void ) {
+	const int32_t argc = Cmd_Argc();
+	if ( argc < 2 ) {
+		Com_Printf( "Usage: con_genmtsdf <font_path> [font_size_px]\n" );
+		Com_Printf( "Example: con_genmtsdf fonts/segoeui.ttf 18\n" );
+		return;
+	}
+
+	const char *fontPath = Cmd_Argv( 1 );
+	int32_t fontSizePx = 18;
+	if ( argc >= 3 ) {
+		fontSizePx = atoi( Cmd_Argv( 2 ) );
+		if ( fontSizePx <= 0 ) {
+			fontSizePx = 18;
+		}
+	}
+
+	// Construct target binary cache filename: e.g. "fonts/segoeui.ttf" + 18 -> "fonts/segoeui_18.mtsdf"
+	char baseStem[ MAX_QPATH ];
+	COM_StripExtension( baseStem, fontPath, sizeof( baseStem ) );
+
+	char cacheFileName[ MAX_QPATH ];
+	Q_snprintf( cacheFileName, sizeof( cacheFileName ), "%s_%" PRId32 ".mtsdf", baseStem, fontSizePx );
+
+	Com_Printf( "Generating and caching MTSDF font data for '%s' (%" PRId32 "px) -> '%s'...\n", fontPath, fontSizePx, cacheFileName );
+
+	// Register / generate font descriptor and texture atlas, which automatically writes the .mtsdf cache to disk
+	const qhandle_t handle = R_LoadOrRegisterFontTTF( fontPath, (float)fontSizePx );
+	if ( handle == 0 ) {
+		Com_EPrintf( "Failed to generate MTSDF font data for '%s'. Ensure file exists in game directory.\n", fontPath );
+		return;
+	}
+
+	Com_Printf( "Successfully registered and cached MTSDF font handle %" PRId32 " for '%s' -> '%s'.\n", handle, fontPath, cacheFileName );
+}
+
 static const cmdreg_t c_console[ ] = {
 	{ "toggleconsole", Con_ToggleConsole_f },
 	{ "togglechat", Con_ToggleChat_f },
@@ -435,6 +493,7 @@ static const cmdreg_t c_console[ ] = {
 	{ "clear", Con_Clear_f },
 	{ "clearnotify", Con_ClearNotificationTexts_f },
 	{ "condump", Con_Dump_f, Con_Dump_c },
+	{ "con_genmtsdf", Con_GenMtsdf_f },
 
 	{ NULL }
 };
@@ -641,16 +700,29 @@ Con_RegisterMedia
 ================
 */
 void Con_RegisterMedia( void ) {
-	con.charsetImage = R_RegisterFontTTF( con_font->string, DEFAULT_FONT_SIZE );
+	// Constants for resolution-based console TrueType font scaling.
+	constexpr float CONSOLE_BASE_FONT_SIZE_PX = 18.0f;
+	constexpr float CONSOLE_BASE_REFERENCE_SCREEN_HEIGHT_PX = 720.0f;
+	constexpr float CONSOLE_FALLBACK_SCREEN_HEIGHT_PX = 1080.0f;
+	constexpr int32_t CONSOLE_MINIMUM_FONT_SIZE_PX = 14;
+
+	// Calculate target TTF font height proportional to screen resolution.
+	const float screenH = ( r_config.height > 0 ) ? static_cast< float >( r_config.height ) : CONSOLE_FALLBACK_SCREEN_HEIGHT_PX;
+	const int32_t targetFontSize = std::max( CONSOLE_MINIMUM_FONT_SIZE_PX, Q_rint( CONSOLE_BASE_FONT_SIZE_PX * ( screenH / CONSOLE_BASE_REFERENCE_SCREEN_HEIGHT_PX ) ) );
+
+	con.charsetImage = R_LoadOrRegisterFontTTF( con_font->string, targetFontSize );
 	if ( !con.charsetImage ) {
 		if ( strcmp( con_font->string, con_font->default_string ) ) {
 			Cvar_Reset( con_font );
-			con.charsetImage = R_RegisterFontTTF( con_font->default_string, DEFAULT_FONT_SIZE );
+			con.charsetImage = R_LoadOrRegisterFontTTF( con_font->default_string, targetFontSize );
 		}
 		if ( !con.charsetImage ) {
 			Com_Error( ERR_FATAL, "%s", Com_GetLastError() );
 		}
 	}
+
+	// Register legacy bitmap conchars font for console UI symbols (separator line, download progress bar, etc.).
+	con.concharsImage = R_RegisterFont( "conchars" );
 
 	con.backImage = R_RegisterPic( con_background->string );
 	if ( !con.backImage ) {
@@ -853,48 +925,60 @@ static void Con_DrawSolidConsole( void ) {
 	// draw the download bar
 	if ( cls.download.current ) {
 		char pos[ 16 ], suf[ 32 ];
+		char bar[ MAX_STRING_CHARS ];
 		int n, j;
 
-		if ( ( text = strrchr( cls.download.current->path, '/' ) ) != NULL )
+		// Extract base filename from download path
+		if ( ( text = strrchr( cls.download.current->path, '/' ) ) != nullptr ) {
 			text++;
-		else
+		} else {
 			text = cls.download.current->path;
+		}
 
 		Com_FormatSizeLong( pos, sizeof( pos ), cls.download.position );
 		n = 4 + Q_scnprintf( suf, sizeof( suf ), " %d%% (%s)", cls.download.percent, pos );
 
-		// figure out width
+		// Figure out available character width for the bar
 		x = con.linewidth;
-		y = x - strlen( text ) - n;
+		y = x - (int)strlen( text ) - n;
 		i = x / 3;
-		if ( strlen( text ) > i ) {
+		if ( (int)strlen( text ) > i ) {
 			y = x - i - n - 3;
 			memcpy( buffer, text, i );
-			buffer[ i ] = 0;
+			buffer[ i ] = '\0';
 			strcat( buffer, "..." );
 		} else {
 			strcpy( buffer, text );
 		}
 		strcat( buffer, ": " );
-		i = strlen( buffer );
-		buffer[ i++ ] = '\x80';
-		// where's the dot go?
+
+		// Assemble graphical progress/separator bar characters (\x80 = left cap, \x81 = line, \x83 = dot/knob, \x82 = right cap)
+		i = 0;
+		bar[ i++ ] = '\x80';
+		// Determine indicator dot position along the bar
 		n = y * cls.download.percent / 100;
 		for ( j = 0; j < y; j++ ) {
 			if ( j == n ) {
-				buffer[ i++ ] = '\x83';
+				bar[ i++ ] = '\x83';
 			} else {
-				buffer[ i++ ] = '\x81';
+				bar[ i++ ] = '\x81';
 			}
 		}
-		buffer[ i++ ] = '\x82';
-		buffer[ i ] = 0;
+		bar[ i++ ] = '\x82';
+		bar[ i ] = '\0';
 
-		Q_strlcat( buffer, suf, sizeof( buffer ) );
+		// Compute vertical coordinate for the download progress line
+		const int bar_y = vislines - prestep + line_height * 2;
 
-		// draw it
-		y = vislines - prestep + line_height * 2;
-		R_DrawString( CHAR_WIDTH, y, 0, con.linewidth, buffer, con.charsetImage );
+		// 1. Draw filename prefix using TrueType font
+		int draw_x = R_DrawString( CHAR_WIDTH, bar_y, 0, con.linewidth, buffer, con.charsetImage );
+
+		// 2. Draw graphical download bar using legacy bitmap conchars font
+		const qhandle_t bar_font = con.concharsImage ? con.concharsImage : con.charsetImage;
+		draw_x = R_DrawString( draw_x, bar_y, 0, con.linewidth, bar, bar_font );
+
+		// 3. Draw percentage and size suffix using TrueType font
+		R_DrawString( draw_x, bar_y, 0, con.linewidth, suf, con.charsetImage );
 	} else if ( cls.state == ca_loading ) {
 		// draw loading state
 		switch ( con.loadstate ) {

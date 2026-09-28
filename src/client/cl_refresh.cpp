@@ -626,5 +626,36 @@ float R_ClampScale( cvar_t *var ) {
     return 1.0f / get_auto_scale();
 }
 
+/**
+*	@brief	Global helper to load pregenerated `.mtsdf` font binary cache files if present on disk;
+*			falls back to full TTF distance-field registration and auto-caching if no cached `.mtsdf` file exists.
+*	@param	fontPath	Relative path to TrueType font file (e.g. "fonts/segoeui.ttf").
+*	@param	fontSizePx	Target font pixel height.
+*	@return	Valid font handle on success, otherwise 0.
+**/
+qhandle_t R_LoadOrRegisterFontTTF( const char *fontPath, const float fontSizePx ) {
+	/**
+	*	Sanity checks: validate input parameters and renderer registration callback.
+	**/
+	// Check if caller passed a null or empty font path string.
+	if ( fontPath == nullptr || fontPath[ 0 ] == '\0' ) {
+		return 0;
+	}
+	// Check if target font pixel height is positive and non-zero.
+	if ( fontSizePx <= 0.0f ) {
+		return 0;
+	}
+	// Verify that renderer has initialized and exported the TrueType font registration function pointer.
+	if ( R_RegisterFontTTF == nullptr ) {
+		return 0;
+	}
+
+	/**
+	*	Forward to R_RegisterFontTTF, which inspects the filesystem for existing .mtsdf
+	*	cache files first, instantly loading precalculated distance fields and metrics.
+	**/
+	return R_RegisterFontTTF( fontPath, fontSizePx );
+}
+
 // Extern C
 QEXTERN_C_CLOSE

@@ -30,6 +30,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "client/client.h"
 #include "client/ui.h"
 #include "refresh/refresh.h"
+#include "refresh/fonts_mtsdf.h"
 
 #define UI_Malloc(s)        Z_TagMalloc(s, TAG_UI)
 #define UI_Mallocz(s)       Z_TagMallocz(s, TAG_UI)
@@ -320,6 +321,8 @@ typedef struct uiStatic_s {
 
     qhandle_t backgroundHandle;
     qhandle_t fontHandle;
+    //! Handle to legacy bitmap conchars font for UI symbols (sliders, focus cursor arrows, etc.).
+    qhandle_t concharsFontHandle;
     // <Q2RTXP>: WID: We don't wanna bother with a fullscreen custom cursor?
     #ifdef USE_UI_ENABLE_CUSTOM_CURSOR
     qhandle_t cursorHandle;

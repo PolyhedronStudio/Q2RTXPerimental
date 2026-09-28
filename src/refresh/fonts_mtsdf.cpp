@@ -16,6 +16,7 @@
 #include "shared/shared.h"
 #include "shared/ui_shared.h"
 #include "common/common.h"
+#include "common/files.h"
 #include "common/zone.h"
 #include "shared/util/util_strings.h"
 
@@ -31,6 +32,30 @@
 #define STBTT_free(x,u)		((void)(u), Z_Free(x))
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
+
+//! Magic four-character code for pregenerated MTSDF binary font cache files ('MTSD').
+constexpr uint32_t MTSDF_CACHE_MAGIC = 0x4D545344;
+//! Version number for pregenerated MTSDF binary font cache file layout.
+constexpr uint32_t MTSDF_CACHE_VERSION = 1;
+
+#pragma pack(push, 1)
+/**
+*	@brief	Binary file header serialized at the beginning of each `.mtsdf` font cache file.
+**/
+typedef struct font_mtsdf_disk_header_s {
+	uint32_t	magic;							//!< 'MTSD' magic identifier
+	uint32_t	version;						//!< MTSDF_CACHE_VERSION (1)
+	char		path[ MAX_QPATH ];				//!< Original font path
+	float		pixel_height;					//!< Nominal raster height
+	int32_t		atlas_width;					//!< Atlas texture width in pixels
+	int32_t		atlas_height;					//!< Atlas texture height in pixels
+	float		ascent;							//!< Font ascent in pixels
+	float		descent;						//!< Font descent in pixels
+	float		line_gap;						//!< Line gap in pixels
+	float		sdf_pixel_range;				//!< Pixel spread range
+	uint32_t	pixel_data_size;				//!< atlas_width * atlas_height * 4 bytes
+} font_mtsdf_disk_header_t;
+#pragma pack(pop)
 
 //! Array of actively loaded MTSDF fonts.
 static font_mtsdf_t s_mtsdf_fonts[ MTSDF_MAX_FONTS ];
@@ -615,6 +640,175 @@ static uint8_t *GenerateGlyphMTSDF( const stbtt_fontinfo *info, const int32_t gl
 }
 
 /**
+*	@brief	Serialize an MTSDF font descriptor and its atlas pixel buffer to a binary cache file (.mtsdf).
+*	@param	cache_path		Virtual filesystem destination path (e.g. "fonts/segoeui_18.mtsdf").
+*	@param	desc			Populated font descriptor containing metrics and glyph data.
+*	@param	atlas_pixels	Raw RGBA8 atlas pixel data.
+*	@return	True on successful serialization, false on write failure.
+**/
+bool Font_SaveMTSDF( const char *cache_path, const font_mtsdf_t *desc, const uint8_t *atlas_pixels ) {
+	/**
+	*	Sanity checks: validate input parameters.
+	**/
+	if ( cache_path == nullptr || cache_path[ 0 ] == '\0' || desc == nullptr || atlas_pixels == nullptr ) {
+		return false;
+	}
+
+	/**
+	*	Open target file for writing binary payload.
+	**/
+	qhandle_t f = 0;
+	const int64_t ret = FS_OpenFile( cache_path, &f, FS_MODE_WRITE );
+	if ( ret < 0 || f == 0 ) {
+		Com_WPrintf( "%s: Failed to open '%s' for writing: %s\n", __func__, cache_path, Q_ErrorString( (int32_t)ret ) );
+		return false;
+	}
+
+	/**
+	*	Populate file header fields from the in-memory font descriptor.
+	**/
+	font_mtsdf_disk_header_t header = {};
+	header.magic = MTSDF_CACHE_MAGIC;
+	header.version = MTSDF_CACHE_VERSION;
+	Q_strlcpy( header.path, desc->path, sizeof( header.path ) );
+	header.pixel_height = desc->pixel_height;
+	header.atlas_width = desc->atlas_width;
+	header.atlas_height = desc->atlas_height;
+	header.ascent = desc->ascent;
+	header.descent = desc->descent;
+	header.line_gap = desc->line_gap;
+	header.sdf_pixel_range = desc->sdf_pixel_range;
+	header.pixel_data_size = (uint32_t)( desc->atlas_width * desc->atlas_height * 4 );
+
+	/**
+	*	Write header, glyph metric table, valid flags, and RGBA8 atlas pixel bytes.
+	**/
+	FS_Write( &header, sizeof( header ), f );
+	FS_Write( desc->glyphs, sizeof( font_glyph_mtsdf_t ) * MTSDF_MAX_GLYPHS, f );
+	FS_Write( desc->glyph_valid, sizeof( bool ) * MTSDF_MAX_GLYPHS, f );
+	FS_Write( atlas_pixels, header.pixel_data_size, f );
+
+	// Close file stream.
+	FS_CloseFile( f );
+
+	Com_Printf( "%s: Serialized MTSDF font cache '%s' (%" PRId32 "x%" PRId32 ")\n", __func__, cache_path, header.atlas_width, header.atlas_height );
+	return true;
+}
+
+/**
+*	@brief	Load a pregenerated MTSDF font from a binary cache file (.mtsdf).
+*	@param	cache_path		Virtual filesystem path to the cache file (e.g. "fonts/segoeui_18.mtsdf").
+*	@param	original_path	Original font path used for registration and lookup (e.g. "fonts/segoeui.ttf").
+*	@param	pixel_height	Nominal raster height.
+*	@return	Image handle to the registered MTSDF font atlas, or 0 on failure.
+**/
+qhandle_t Font_LoadMTSDF( const char *cache_path, const char *original_path, const float pixel_height ) {
+	/**
+	*	Sanity checks: ensure paths and capacity are valid.
+	**/
+	if ( cache_path == nullptr || cache_path[ 0 ] == '\0' || original_path == nullptr || original_path[ 0 ] == '\0' ) {
+		return 0;
+	}
+
+	if ( s_num_mtsdf_fonts >= MTSDF_MAX_FONTS ) {
+		Com_WPrintf( "%s: Maximum MTSDF font capacity reached (%d)\n", __func__, MTSDF_MAX_FONTS );
+		return 0;
+	}
+
+	/**
+	*	Attempt to load binary cache file from the virtual filesystem.
+	**/
+	void *cache_buffer = nullptr;
+	const int32_t file_size = FS_LoadFileEx( cache_path, &cache_buffer, FS_PATH_ANY, TAG_FILESYSTEM );
+	if ( file_size <= 0 || cache_buffer == nullptr ) {
+		// File not found on disk; return 0 so caller can fallback to TrueType rasterization.
+		return 0;
+	}
+
+	/**
+	*	Validate binary payload size and header signatures.
+	**/
+	constexpr size_t min_header_size = sizeof( font_mtsdf_disk_header_t )
+		+ ( sizeof( font_glyph_mtsdf_t ) * MTSDF_MAX_GLYPHS )
+		+ ( sizeof( bool ) * MTSDF_MAX_GLYPHS );
+
+	if ( (size_t)file_size < min_header_size ) {
+		Com_WPrintf( "%s: Cache file '%s' is too small (%d bytes)\n", __func__, cache_path, file_size );
+		FS_FreeFile( cache_buffer );
+		return 0;
+	}
+
+	const font_mtsdf_disk_header_t *header = (const font_mtsdf_disk_header_t *)cache_buffer;
+	if ( header->magic != MTSDF_CACHE_MAGIC || header->version != MTSDF_CACHE_VERSION ) {
+		Com_WPrintf( "%s: Cache file '%s' has invalid magic (0x%08X) or version (%u)\n", __func__, cache_path, header->magic, header->version );
+		FS_FreeFile( cache_buffer );
+		return 0;
+	}
+
+	if ( header->atlas_width <= 0 || header->atlas_height <= 0 || header->pixel_data_size != (uint32_t)( header->atlas_width * header->atlas_height * 4 ) ) {
+		Com_WPrintf( "%s: Cache file '%s' contains corrupted atlas dimensions (%dx%d)\n", __func__, cache_path, header->atlas_width, header->atlas_height );
+		FS_FreeFile( cache_buffer );
+		return 0;
+	}
+
+	const size_t expected_total_size = min_header_size + (size_t)header->pixel_data_size;
+	if ( (size_t)file_size < expected_total_size ) {
+		Com_WPrintf( "%s: Cache file '%s' truncated (expected %zu, got %d)\n", __func__, cache_path, expected_total_size, file_size );
+		FS_FreeFile( cache_buffer );
+		return 0;
+	}
+
+	/**
+	*	Allocate texture pixel buffer and extract atlas pixels.
+	*	R_RegisterRawImage transfers ownership of the buffer to the renderer.
+	**/
+	uint8_t *atlas_pixels = (uint8_t *)Z_Malloc( header->pixel_data_size );
+	const uint8_t *src_ptr = (const uint8_t *)cache_buffer + sizeof( font_mtsdf_disk_header_t );
+
+	// Populate in-memory descriptor entry.
+	font_mtsdf_t &desc = s_mtsdf_fonts[ s_num_mtsdf_fonts ];
+	std::memset( &desc, 0, sizeof( desc ) );
+	Q_strlcpy( desc.path, original_path, sizeof( desc.path ) );
+	desc.pixel_height = ( pixel_height > 0.0f ) ? pixel_height : header->pixel_height;
+	desc.atlas_width = header->atlas_width;
+	desc.atlas_height = header->atlas_height;
+	desc.ascent = header->ascent;
+	desc.descent = header->descent;
+	desc.line_gap = header->line_gap;
+	desc.sdf_pixel_range = header->sdf_pixel_range;
+
+	// Copy glyph metrics.
+	std::memcpy( desc.glyphs, src_ptr, sizeof( font_glyph_mtsdf_t ) * MTSDF_MAX_GLYPHS );
+	src_ptr += sizeof( font_glyph_mtsdf_t ) * MTSDF_MAX_GLYPHS;
+
+	// Copy glyph validity flags.
+	std::memcpy( desc.glyph_valid, src_ptr, sizeof( bool ) * MTSDF_MAX_GLYPHS );
+	src_ptr += sizeof( bool ) * MTSDF_MAX_GLYPHS;
+
+	// Copy RGBA8 atlas pixel bytes.
+	std::memcpy( atlas_pixels, src_ptr, header->pixel_data_size );
+
+	// Release temporary file buffer.
+	FS_FreeFile( cache_buffer );
+
+	/**
+	*	Register consolidated atlas texture into engine image subsystem.
+	**/
+	char atlas_name[ MAX_QPATH ];
+	Q_snprintf( atlas_name, sizeof( atlas_name ), "**%s_%.0f**", ( (char *)original_path ), desc.pixel_height );
+	desc.atlas_image = R_RegisterRawImage( atlas_name, desc.atlas_width, desc.atlas_height, atlas_pixels, IT_FONT, (imageflags_t)( IF_PERMANENT | IF_SDF_SILHOUETTE ) );
+
+	if ( desc.atlas_image == 0 ) {
+		Z_Free( atlas_pixels );
+		return 0;
+	}
+
+	// Commit newly registered font to font registry.
+	s_num_mtsdf_fonts++;
+	return desc.atlas_image;
+}
+
+/**
 *	@brief	Register and generate a 4-channel MTSDF font from a TrueType / OpenType file.
 *	@param	path			Relative path to the TrueType / OpenType font asset.
 *	@param	pixel_height	Nominal raster height for the font in pixels.
@@ -655,7 +849,28 @@ qhandle_t R_RegisterFontTTF_Impl( const char *path, const float pixel_height ) {
 	}
 
 	/**
-	*	Load font file binary data from the engine filesystem.
+	*	Construct binary cache filename (<fontstem>_<size>.mtsdf) and attempt to load precalculated font data.
+	**/
+	char cache_path[ MAX_QPATH ];
+	const char *ext = COM_FileExtension( path );
+	// If the path already has a .mtsdf extension, use it directly; otherwise construct <stem>_<size>.mtsdf
+	if ( ext != nullptr && Q_stricmp( ext, ".mtsdf" ) == 0 ) {
+		Q_strlcpy( cache_path, path, sizeof( cache_path ) );
+	} else {
+		char stem[ MAX_QPATH ];
+		COM_StripExtension( stem, path, sizeof( stem ) );
+		Q_snprintf( cache_path, sizeof( cache_path ), "%s_%.0f.mtsdf", stem, nominal_height );
+	}
+
+	// Attempt to load precalculated MTSDF font cache from disk to bypass CPU distance-field calculation
+	const qhandle_t cached_handle = Font_LoadMTSDF( cache_path, path, nominal_height );
+	if ( cached_handle != 0 ) {
+		Com_DPrintf( "%s: Loaded precalculated MTSDF font cache '%s' (handle %" PRId32 ")\n", __func__, cache_path, cached_handle );
+		return cached_handle;
+	}
+
+	/**
+	*	No precalculated cache found: proceed to load TrueType font file binary data from the engine filesystem.
 	**/
 	void *font_buffer = nullptr;
 	const int32_t file_size = FS_LoadFileEx( path, &font_buffer, FS_PATH_ANY, TAG_FILESYSTEM );
@@ -848,10 +1063,15 @@ qhandle_t R_RegisterFontTTF_Impl( const char *path, const float pixel_height ) {
 	}
 
 	/**
+	*	Automatically serialize generated MTSDF font data to disk cache file for fast boot times on future runs.
+	**/
+	Font_SaveMTSDF( cache_path, &desc, atlas_pixels );
+
+	/**
 	*	Register consolidated atlas texture into engine image subsystem.
 	**/
 	char atlas_name[ MAX_QPATH ];
-	Q_snprintf( atlas_name, sizeof( atlas_name ), "**%s_%.0f**", ( (char *)path ), pixel_height );
+	Q_snprintf( atlas_name, sizeof( atlas_name ), "**%s_%.0f**", ( (char *)path ), nominal_height );
 	desc.atlas_image = R_RegisterRawImage( atlas_name, atlas_w, atlas_h, atlas_pixels, IT_FONT, (imageflags_t)( IF_PERMANENT | IF_SDF_SILHOUETTE ) );
 
 	// Clean up resources.

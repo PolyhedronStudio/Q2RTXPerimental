@@ -814,7 +814,7 @@ static bool Parse_File(const char *path, int depth)
                 } else if (!strcmp(cmd, "font")) {
 					const char *argc2 = Cmd_Argv( 2 );
 					const float fontSize = ( argc2 && argc2[ 0 ] != '\0' ) ? (float)atof( argc2 ) : (float)DEFAULT_FONT_SIZE;
-                    uis.fontHandle = R_RegisterFontTTF(Cmd_Argv(1), fontSize );
+                    uis.fontHandle = R_LoadOrRegisterFontTTF(Cmd_Argv(1), fontSize );
                 // <Q2RTXP>: WID: We don't wanna bother with a fullscreen custom cursor?
                 #ifdef USE_UI_ENABLE_CUSTOM_CURSOR
                 } else if (!strcmp(cmd, "cursor")) {

@@ -331,11 +331,39 @@ void UI_DrawString( int x, int y, int flags, const char *string ) {
 		x -= Q_rint( str_w );
 	}
 
+	//R_SetStroke2D( uis.fontHandle, STYLE_FLAG_STROKE_ALIGN_OUTSET );
+	//R_SetStroke( MakeColor( 51, 51, 51, 255 ), 1.f );
 	R_DrawString( x, y, flags, MAX_STRING_CHARS, string, uis.fontHandle );
+	//R_SetStroke( MakeColor( 255, 255, 255, 255 ), 0.f );
 }
 
+/**
+*	@brief	Draw a single character glyph at specified UI coordinates.
+*	@param	x		X pixel coordinate.
+*	@param	y		Y pixel coordinate.
+*	@param	flags	UI rendering and color flags.
+*	@param	ch		Character code to draw.
+*	@note	If character is a special symbol (focus arrow 13 or slider elements 0..3 / 128..131)
+*			and current font is TrueType, automatically falls back to concharsFontHandle.
+**/
 void UI_DrawChar( int x, int y, int flags, int ch ) {
-	R_DrawChar( x, y, flags, ch, uis.fontHandle );
+	// Select font handle: if drawing special symbol and active font is TrueType, fallback to legacy conchars font.
+	qhandle_t font = uis.fontHandle;
+	if ( ( ch == 13 || ( ch >= 128 && ch <= 131 ) || ( ch >= 0 && ch <= 3 ) ) && uis.concharsFontHandle ) {
+		font = uis.concharsFontHandle;
+	}
+
+	// For legacy conchars slider symbols 128..131, map to white tiles 0..3 and clear UI_ALTCOLOR so draw.colors[0] (white) is used.
+	if ( ch >= 128 && ch <= 131 ) {
+		ch &= 0x7F;
+		flags &= ~UI_ALTCOLOR;
+	} else if ( ch >= 0 && ch <= 3 ) {
+		flags &= ~UI_ALTCOLOR;
+	}
+
+	// Disable stroke for character rendering so UI symbols render clean without stroke outline.
+	R_SetStroke( MakeColor( 0, 0, 0, 0 ), 0.f );
+	R_DrawChar( x, y, flags, ch, font );
 }
 
 void UI_StringDimensions( vrect_t *rc, int flags, const char *string ) {
@@ -673,7 +701,9 @@ void UI_Init(void)
 
     UI_ModeChanged();
 
-    uis.fontHandle = R_RegisterFontTTF( "fonts/segoeui.ttf", 14 );
+    uis.fontHandle = R_LoadOrRegisterFontTTF( "fonts/segoeui.ttf", 14 );
+    // Register legacy bitmap conchars font handle for special UI symbols (sliders, focus cursor arrows, etc.).
+    uis.concharsFontHandle = R_RegisterFont( "conchars" );
     // <Q2RTXP>: WID: We don't wanna bother with a fullscreen custom cursor?
     #ifdef USE_UI_ENABLE_CUSTOM_CURSOR
     uis.cursorHandle = R_RegisterPic("crosshair01.png");

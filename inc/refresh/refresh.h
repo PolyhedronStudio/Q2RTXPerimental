@@ -141,6 +141,14 @@ extern void (*R_DrawLine2D)( const float x1, const float y1, const float x2, con
 
 // TrueType Font & 3D text API
 extern qhandle_t (*R_RegisterFontTTF)( const char *path, const float pixel_height );
+/**
+*	@brief	Global helper to load pregenerated `.mtsdf` font binary cache files if present on disk;
+*			falls back to full TTF distance-field registration and auto-caching if no cached `.mtsdf` file exists.
+*	@param	fontPath	Relative path to TrueType font file (e.g. "fonts/segoeui.ttf").
+*	@param	fontSizePx	Target font pixel height.
+*	@return	Valid font handle on success, otherwise 0.
+**/
+qhandle_t R_LoadOrRegisterFontTTF( const char *fontPath, const float fontSizePx );
 extern void (*R_DrawString3DOccluded)( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color );
 extern void (*R_DrawString3DNonOccluded)( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color );
 extern void (*R_DrawString3D)( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color );
