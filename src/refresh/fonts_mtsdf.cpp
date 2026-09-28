@@ -14,6 +14,7 @@
 #include "refresh/fonts_mtsdf.h"
 #include "refresh/images.h"
 #include "shared/shared.h"
+#include "shared/ui_shared.h"
 #include "common/common.h"
 #include "common/zone.h"
 #include "shared/util/util_strings.h"
@@ -36,6 +37,16 @@ static font_mtsdf_t s_mtsdf_fonts[ MTSDF_MAX_FONTS ];
 //! Current count of actively loaded MTSDF fonts.
 static int32_t s_num_mtsdf_fonts = 0;
 
+//! Color channel bitmasks for MSDF multi-channel signed distance edge coloring.
+constexpr int32_t MTSDF_COLOR_BLACK   = 0;
+constexpr int32_t MTSDF_COLOR_RED     = 1;
+constexpr int32_t MTSDF_COLOR_GREEN   = 2;
+constexpr int32_t MTSDF_COLOR_YELLOW  = MTSDF_COLOR_RED | MTSDF_COLOR_GREEN;  // 3
+constexpr int32_t MTSDF_COLOR_BLUE    = 4;
+constexpr int32_t MTSDF_COLOR_MAGENTA = MTSDF_COLOR_RED | MTSDF_COLOR_BLUE;   // 5
+constexpr int32_t MTSDF_COLOR_CYAN    = MTSDF_COLOR_GREEN | MTSDF_COLOR_BLUE; // 6
+constexpr int32_t MTSDF_COLOR_WHITE   = MTSDF_COLOR_RED | MTSDF_COLOR_GREEN | MTSDF_COLOR_BLUE; // 7
+
 /**
 *	@brief	Representation of an evaluated edge segment for MTSDF distance calculation.
 **/
@@ -43,16 +54,19 @@ struct mtsdf_edge_t {
 	enum edge_type {
 		EDGE_LINE,
 		EDGE_QUADRATIC
-	} type;
+	} type = EDGE_LINE;
 
 	//! Segment start point in font space.
-	float p0x, p0y;
+	float p0x = 0.0f;
+	float p0y = 0.0f;
 	//! Control point for quadratic curves in font space.
-	float cx, cy;
+	float cx = 0.0f;
+	float cy = 0.0f;
 	//! Segment end point in font space.
-	float p1x, p1y;
-	//! Assigned edge color channel (1 = Red, 2 = Green, 3 = Blue).
-	int32_t color_channel;
+	float p1x = 0.0f;
+	float p1y = 0.0f;
+	//! Assigned edge color bitmask combination (MTSDF_COLOR_YELLOW, CYAN, MAGENTA, WHITE).
+	int32_t color_flags = MTSDF_COLOR_WHITE;
 };
 
 /**
@@ -128,8 +142,8 @@ static float PointToQuadraticDistance( const float px, const float py, const flo
 	/**
 	*	Sample curve along piecewise linear subdivisions for robust numerical stability.
 	**/
-	// Sample curve along 8 piecewise linear intervals.
-	constexpr int32_t subdivisions = 8;
+	// Sample curve along 16 piecewise linear intervals.
+	constexpr int32_t subdivisions = 16;
 	float min_dist = 1e9f;
 	float prev_x = x0;
 	float prev_y = y0;
@@ -164,6 +178,165 @@ static float PointToQuadraticDistance( const float px, const float py, const flo
 }
 
 /**
+*	@brief	Compute start and end unit tangent vectors for an edge segment.
+*	@param	edge		Edge segment.
+*	@param	out_t_start	[out] Normalized start tangent vector (X, Y).
+*	@param	out_t_end	[out] Normalized end tangent vector (X, Y).
+**/
+static void ComputeEdgeTangents( const mtsdf_edge_t &edge, float out_t_start[ 2 ], float out_t_end[ 2 ] ) {
+	if ( edge.type == mtsdf_edge_t::EDGE_LINE ) {
+		float dx = edge.p1x - edge.p0x;
+		float dy = edge.p1y - edge.p0y;
+		const float len = std::sqrt( ( dx * dx ) + ( dy * dy ) );
+		if ( len > 1e-4f ) {
+			dx /= len;
+			dy /= len;
+		} else {
+			dx = 0.0f;
+			dy = 0.0f;
+		}
+		out_t_start[ 0 ] = out_t_end[ 0 ] = dx;
+		out_t_start[ 1 ] = out_t_end[ 1 ] = dy;
+	} else {
+		// Quadratic Bézier: start tangent is (cx - p0), end tangent is (p1 - cx).
+		float dx0 = edge.cx - edge.p0x;
+		float dy0 = edge.cy - edge.p0y;
+		float len0 = std::sqrt( ( dx0 * dx0 ) + ( dy0 * dy0 ) );
+		if ( len0 <= 1e-4f ) {
+			dx0 = edge.p1x - edge.p0x;
+			dy0 = edge.p1y - edge.p0y;
+			len0 = std::sqrt( ( dx0 * dx0 ) + ( dy0 * dy0 ) );
+		}
+		if ( len0 > 1e-4f ) {
+			dx0 /= len0;
+			dy0 /= len0;
+		} else {
+			dx0 = 0.0f;
+			dy0 = 0.0f;
+		}
+		out_t_start[ 0 ] = dx0;
+		out_t_start[ 1 ] = dy0;
+
+		float dx1 = edge.p1x - edge.cx;
+		float dy1 = edge.p1y - edge.cy;
+		float len1 = std::sqrt( ( dx1 * dx1 ) + ( dy1 * dy1 ) );
+		if ( len1 <= 1e-4f ) {
+			dx1 = edge.p1x - edge.p0x;
+			dy1 = edge.p1y - edge.p0y;
+			len1 = std::sqrt( ( dx1 * dx1 ) + ( dy1 * dy1 ) );
+		}
+		if ( len1 > 1e-4f ) {
+			dx1 /= len1;
+			dy1 /= len1;
+		} else {
+			dx1 = 0.0f;
+			dy1 = 0.0f;
+		}
+		out_t_end[ 0 ] = dx1;
+		out_t_end[ 1 ] = dy1;
+	}
+}
+
+/**
+*	@brief	Color edge segments of a single closed contour using 3-color MSDF assignment.
+*	@param	contour		Vector of edge segments forming a closed contour.
+**/
+static void ColorContourEdges( std::vector< mtsdf_edge_t > &contour ) {
+	const int32_t num_segments = (int32_t)contour.size();
+	if ( num_segments <= 0 ) {
+		return;
+	}
+
+	// Single segment or degenerate contour defaults to WHITE (all channels).
+	if ( num_segments == 1 ) {
+		contour[ 0 ].color_flags = MTSDF_COLOR_WHITE;
+		return;
+	}
+
+	// Compute start and end tangents for all segments in contour.
+	std::vector< float > t_start( num_segments * 2 );
+	std::vector< float > t_end( num_segments * 2 );
+	for ( int32_t i = 0; i < num_segments; i++ ) {
+		ComputeEdgeTangents( contour[ i ], &t_start[ i * 2 ], &t_end[ i * 2 ] );
+	}
+
+	// Identify sharp corner vertices where turn angle >= 35 degrees (cos <= 0.81915).
+	constexpr float corner_threshold_cos = 0.81915f;
+	std::vector< int32_t > corners;
+	corners.reserve( num_segments );
+
+	for ( int32_t i = 0; i < num_segments; i++ ) {
+		const int32_t prev_idx = ( i + num_segments - 1 ) % num_segments;
+		const float prev_end_x = t_end[ prev_idx * 2 + 0 ];
+		const float prev_end_y = t_end[ prev_idx * 2 + 1 ];
+		const float cur_start_x = t_start[ i * 2 + 0 ];
+		const float cur_start_y = t_start[ i * 2 + 1 ];
+
+		// Dot product of end tangent of previous segment with start tangent of current segment.
+		const float dot_val = ( prev_end_x * cur_start_x ) + ( prev_end_y * cur_start_y );
+		// Cross product (2D) to detect non-collinear direction change.
+		const float cross_val = ( prev_end_x * cur_start_y ) - ( prev_end_y * cur_start_x );
+
+		if ( dot_val <= corner_threshold_cos || ( std::fabs( cross_val ) > 0.5735f ) ) {
+			// Vertex i is a sharp corner.
+			corners.push_back( i );
+		}
+	}
+
+	const int32_t num_corners = (int32_t)corners.size();
+
+	// Case 0: Smooth contour with no sharp corners (e.g. circle / 'O').
+	if ( num_corners == 0 ) {
+		for ( int32_t i = 0; i < num_segments; i++ ) {
+			contour[ i ].color_flags = MTSDF_COLOR_WHITE;
+		}
+		return;
+	}
+
+	// Case 1: Exactly 1 sharp corner (e.g. teardrop shape).
+	if ( num_corners == 1 ) {
+		const int32_t c0 = corners[ 0 ];
+		const int32_t half = num_segments / 2;
+		for ( int32_t i = 0; i < num_segments; i++ ) {
+			const int32_t rel = ( i - c0 + num_segments ) % num_segments;
+			contour[ i ].color_flags = ( rel < half ) ? MTSDF_COLOR_YELLOW : MTSDF_COLOR_CYAN;
+		}
+		return;
+	}
+
+	// Case 2: M >= 2 sharp corners. Partition into M parts between corners.
+	constexpr int32_t palette[ 3 ] = { MTSDF_COLOR_YELLOW, MTSDF_COLOR_CYAN, MTSDF_COLOR_MAGENTA };
+	std::vector< int32_t > part_colors( num_corners );
+
+	for ( int32_t k = 0; k < num_corners; k++ ) {
+		part_colors[ k ] = palette[ k % 3 ];
+	}
+
+	// Ensure the last part's color does not match the first part's color.
+	if ( num_corners > 2 && part_colors[ num_corners - 1 ] == part_colors[ 0 ] ) {
+		// Pick the third color that differs from both part_colors[ num_corners - 2 ] and part_colors[ 0 ].
+		for ( int32_t p = 0; p < 3; p++ ) {
+			if ( palette[ p ] != part_colors[ num_corners - 2 ] && palette[ p ] != part_colors[ 0 ] ) {
+				part_colors[ num_corners - 1 ] = palette[ p ];
+				break;
+			}
+		}
+	}
+
+	// Assign part colors to segments.
+	for ( int32_t k = 0; k < num_corners; k++ ) {
+		const int32_t start_seg = corners[ k ];
+		const int32_t end_seg = corners[ ( k + 1 ) % num_corners ];
+		const int32_t count = ( end_seg >= start_seg ) ? ( end_seg - start_seg ) : ( num_segments - start_seg + end_seg );
+
+		for ( int32_t j = 0; j < count; j++ ) {
+			const int32_t seg_idx = ( start_seg + j ) % num_segments;
+			contour[ seg_idx ].color_flags = part_colors[ k ];
+		}
+	}
+}
+
+/**
 *	@brief	Decompose vector contours from stbtt_vertex into colored edge segments.
 *	@param	verts		Vertex array returned by stbtt_GetGlyphShape.
 *	@param	num_verts	Number of vertices in the array.
@@ -174,35 +347,50 @@ static void DecomposeAndColorEdges( const stbtt_vertex *verts, const int32_t num
 	*	Sanity checks: ensure vertices exist.
 	**/
 	edges.clear();
-	// Guard against null pointer or empty vertex array.
 	if ( verts == nullptr || num_verts <= 0 ) {
 		return;
 	}
 
 	/**
-	*	Initialize contour tracking coordinates and primary edge coloring channel.
+	*	Decompose glyph vertices into individual closed contours.
 	**/
+	std::vector< std::vector< mtsdf_edge_t > > contours;
+	std::vector< mtsdf_edge_t > current_contour;
+
 	float start_x = 0.0f;
 	float start_y = 0.0f;
 	float cur_x = 0.0f;
 	float cur_y = 0.0f;
-	int32_t active_color = 1; // 1 = Red, 2 = Green, 3 = Blue
+	bool in_contour = false;
 
-	/**
-	*	Iterate through outline vertices and construct colored segments.
-	**/
-	// Process each vertex command sequentially.
 	for ( int32_t i = 0; i < num_verts; i++ ) {
 		const stbtt_vertex &v = verts[ i ];
 
-		// Branch on vertex outline command type.
 		if ( v.type == STBTT_vmove ) {
-			// Begin a new contour: switch color channel to break corner continuity across contours.
+			// Close previous contour if open before starting a new one.
+			if ( in_contour && !current_contour.empty() ) {
+				const float dx = cur_x - start_x;
+				const float dy = cur_y - start_y;
+				if ( ( dx * dx + dy * dy ) > 1.0f ) {
+					mtsdf_edge_t close_edge;
+					close_edge.type = mtsdf_edge_t::EDGE_LINE;
+					close_edge.p0x = cur_x;
+					close_edge.p0y = cur_y;
+					close_edge.cx = 0.0f;
+					close_edge.cy = 0.0f;
+					close_edge.p1x = start_x;
+					close_edge.p1y = start_y;
+					close_edge.color_flags = MTSDF_COLOR_WHITE;
+					current_contour.push_back( close_edge );
+				}
+				contours.push_back( current_contour );
+				current_contour.clear();
+			}
+
 			start_x = cur_x = (float)v.x;
 			start_y = cur_y = (float)v.y;
-			active_color = ( ( active_color ) % 3 ) + 1;
+			in_contour = true;
 		} else if ( v.type == STBTT_vline ) {
-			// Construct linear edge segment.
 			mtsdf_edge_t edge;
 			edge.type = mtsdf_edge_t::EDGE_LINE;
 			edge.p0x = cur_x;
@@ -211,16 +399,12 @@ static void DecomposeAndColorEdges( const stbtt_vertex *verts, const int32_t num
 			edge.cy = 0.0f;
 			edge.p1x = (float)v.x;
 			edge.p1y = (float)v.y;
-			edge.color_channel = active_color;
-			edges.push_back( edge );
+			edge.color_flags = MTSDF_COLOR_WHITE;
+			current_contour.push_back( edge );
 
-			// Advance current point.
 			cur_x = (float)v.x;
 			cur_y = (float)v.y;
-			// Alternate color channel for the next segment to avoid adjacent colors at corners.
-			active_color = ( ( active_color ) % 3 ) + 1;
 		} else if ( v.type == STBTT_vcurve ) {
-			// Construct quadratic Bézier edge segment.
 			mtsdf_edge_t edge;
 			edge.type = mtsdf_edge_t::EDGE_QUADRATIC;
 			edge.p0x = cur_x;
@@ -229,14 +413,40 @@ static void DecomposeAndColorEdges( const stbtt_vertex *verts, const int32_t num
 			edge.cy = (float)v.cy;
 			edge.p1x = (float)v.x;
 			edge.p1y = (float)v.y;
-			edge.color_channel = active_color;
-			edges.push_back( edge );
+			edge.color_flags = MTSDF_COLOR_WHITE;
+			current_contour.push_back( edge );
 
-			// Advance current point.
 			cur_x = (float)v.x;
 			cur_y = (float)v.y;
-			// Alternate color channel for next segment.
-			active_color = ( ( active_color ) % 3 ) + 1;
+		}
+	}
+
+	// Final contour close.
+	if ( in_contour && !current_contour.empty() ) {
+		const float dx = cur_x - start_x;
+		const float dy = cur_y - start_y;
+		if ( ( dx * dx + dy * dy ) > 1.0f ) {
+			mtsdf_edge_t close_edge;
+			close_edge.type = mtsdf_edge_t::EDGE_LINE;
+			close_edge.p0x = cur_x;
+			close_edge.p0y = cur_y;
+			close_edge.cx = 0.0f;
+			close_edge.cy = 0.0f;
+			close_edge.p1x = start_x;
+			close_edge.p1y = start_y;
+			close_edge.color_flags = MTSDF_COLOR_WHITE;
+			current_contour.push_back( close_edge );
+		}
+		contours.push_back( current_contour );
+	}
+
+	/**
+	*	Color each contour using multi-channel edge assignment and collect edges.
+	**/
+	for ( size_t c = 0; c < contours.size(); c++ ) {
+		ColorContourEdges( contours[ c ] );
+		for ( size_t e = 0; e < contours[ c ].size(); e++ ) {
+			edges.push_back( contours[ c ][ e ] );
 		}
 	}
 }
@@ -359,12 +569,14 @@ static uint8_t *GenerateGlyphMTSDF( const stbtt_fontinfo *info, const int32_t gl
 					min_d_all = d;
 				}
 
-				// Update channel-specific distances.
-				if ( edge.color_channel == 1 && d < min_d_r ) {
+				// Update channel-specific distances according to active color flags.
+				if ( ( edge.color_flags & MTSDF_COLOR_RED ) != 0 && d < min_d_r ) {
 					min_d_r = d;
-				} else if ( edge.color_channel == 2 && d < min_d_g ) {
+				}
+				if ( ( edge.color_flags & MTSDF_COLOR_GREEN ) != 0 && d < min_d_g ) {
 					min_d_g = d;
-				} else if ( edge.color_channel == 3 && d < min_d_b ) {
+				}
+				if ( ( edge.color_flags & MTSDF_COLOR_BLUE ) != 0 && d < min_d_b ) {
 					min_d_b = d;
 				}
 			}
@@ -418,12 +630,17 @@ qhandle_t R_RegisterFontTTF_Impl( const char *path, const float pixel_height ) {
 	}
 
 	/**
+	*	Ensure valid reference height, falling back to DEFAULT_FONT_SIZE if zero or negative.
+	**/
+	const float nominal_height = ( pixel_height > 0.0f ) ? pixel_height : (float)DEFAULT_FONT_SIZE;
+
+	/**
 	*	Check font cache for an existing instance with identical path and pixel height.
 	**/
 	// Loop through currently loaded MTSDF font descriptors.
 	for ( int32_t i = 0; i < s_num_mtsdf_fonts; i++ ) {
 		if ( Q_stricmp( s_mtsdf_fonts[ i ].path, path ) == 0 &&
-		     std::fabs( s_mtsdf_fonts[ i ].pixel_height - pixel_height ) < 0.5f ) {
+		     std::fabs( s_mtsdf_fonts[ i ].pixel_height - nominal_height ) < 0.5f ) {
 			// Found cached matching font.
 			return s_mtsdf_fonts[ i ].atlas_image;
 		}
@@ -471,16 +688,25 @@ qhandle_t R_RegisterFontTTF_Impl( const char *path, const float pixel_height ) {
 	font_mtsdf_t &desc = s_mtsdf_fonts[ s_num_mtsdf_fonts ];
 	std::memset( &desc, 0, sizeof( desc ) );
 	Q_strlcpy( desc.path, path, sizeof( desc.path ) );
-	desc.pixel_height = pixel_height;
+	desc.pixel_height = nominal_height;
 	desc.sdf_pixel_range = MTSDF_PIXEL_RANGE;
 
-	// Compute scale factor for requested pixel height.
-	const float scale = stbtt_ScaleForPixelHeight( &font_info, pixel_height );
+	// Compute nominal scale factor for requested pixel height.
+	const float scale_nominal = stbtt_ScaleForPixelHeight( &font_info, nominal_height );
+
+	// Determine atlas oversampling factor to guarantee thin strokes and brackets have sufficient texel resolution.
+	// For small font sizes (< 32px), supersample atlas rasterization so features are well-resolved.
+	const float raster_mult = ( nominal_height < 32.0f ) ? std::ceil( 32.0f / nominal_height ) : 1.0f;
+	const float raster_height = nominal_height * raster_mult;
+	const float scale_raster = stbtt_ScaleForPixelHeight( &font_info, raster_height );
+
 	int32_t i_ascent = 0, i_descent = 0, i_line_gap = 0;
 	stbtt_GetFontVMetrics( &font_info, &i_ascent, &i_descent, &i_line_gap );
-	desc.ascent = (float)i_ascent * scale;
-	desc.descent = (float)i_descent * scale;
-	desc.line_gap = (float)i_line_gap * scale;
+	desc.ascent = std::round( (float)i_ascent * scale_nominal );
+	desc.descent = std::round( (float)i_descent * scale_nominal );
+	// Ensure consistent typographic line leading so descenders never collide with following ascenders.
+	const float raw_line_gap = (float)i_line_gap * scale_nominal;
+	desc.line_gap = ( raw_line_gap >= 3.0f ) ? std::round( raw_line_gap ) : std::max( 3.0f, std::round( nominal_height * 0.12f ) );
 
 	/**
 	*	Allocate temporary glyph bitmap cache and packing rectangle list.
@@ -504,7 +730,19 @@ qhandle_t R_RegisterFontTTF_Impl( const char *path, const float pixel_height ) {
 		const int32_t glyph_idx = stbtt_FindGlyphIndex( &font_info, c );
 		int32_t advance_w = 0, lsb = 0;
 		stbtt_GetCodepointHMetrics( &font_info, c, &advance_w, &lsb );
-		temp_glyphs[ c ].advance = (float)advance_w * scale;
+		temp_glyphs[ c ].advance = (float)advance_w * scale_nominal;
+
+		// Expand advance width only if glyph geometry strictly overhangs past horizontal advance (e.g. 'f', 'Q', '/', '\')
+		// to ensure neighboring glyphs never clash or visually merge when rendered without ligatures.
+		if ( glyph_idx != 0 ) {
+			int32_t x0 = 0, y0 = 0, x1 = 0, y1 = 0;
+			if ( stbtt_GetGlyphBox( &font_info, glyph_idx, &x0, &y0, &x1, &y1 ) ) {
+				const float glyph_right_px = (float)x1 * scale_nominal;
+				if ( glyph_right_px > temp_glyphs[ c ].advance ) {
+					temp_glyphs[ c ].advance = glyph_right_px + 1.25f;
+				}
+			}
+		}
 
 		// Handle whitespace and empty glyphs.
 		if ( c == ' ' || glyph_idx == 0 ) {
@@ -514,10 +752,10 @@ qhandle_t R_RegisterFontTTF_Impl( const char *path, const float pixel_height ) {
 			continue;
 		}
 
-		// Rasterize individual glyph MTSDF bitmap.
+		// Rasterize individual glyph MTSDF bitmap at oversampled raster scale.
 		int32_t gw = 0, gh = 0;
 		float bx = 0.0f, by = 0.0f;
-		uint8_t *bmp = GenerateGlyphMTSDF( &font_info, glyph_idx, scale, desc.sdf_pixel_range, &gw, &gh, &bx, &by );
+		uint8_t *bmp = GenerateGlyphMTSDF( &font_info, glyph_idx, scale_raster, desc.sdf_pixel_range, &gw, &gh, &bx, &by );
 		if ( bmp != nullptr ) {
 			temp_glyphs[ c ].bitmap = bmp;
 			temp_glyphs[ c ].w = gw;
@@ -596,10 +834,10 @@ qhandle_t R_RegisterFontTTF_Impl( const char *path, const float pixel_height ) {
 		font_glyph_mtsdf_t &g = desc.glyphs[ c ];
 		g.char_code = c;
 		g.advance = tg.advance;
-		g.bearing_x = tg.bearing_x;
-		g.bearing_y = tg.bearing_y;
-		g.width = (float)tg.w;
-		g.height = (float)tg.h;
+		g.bearing_x = tg.bearing_x / raster_mult;
+		g.bearing_y = tg.bearing_y / raster_mult;
+		g.width = (float)tg.w / raster_mult;
+		g.height = (float)tg.h / raster_mult;
 		g.s0 = (float)dst_x / (float)atlas_w;
 		g.t0 = (float)dst_y / (float)atlas_h;
 		g.s1 = (float)( dst_x + tg.w ) / (float)atlas_w;
@@ -617,7 +855,12 @@ qhandle_t R_RegisterFontTTF_Impl( const char *path, const float pixel_height ) {
 	desc.atlas_image = R_RegisterRawImage( atlas_name, atlas_w, atlas_h, atlas_pixels, IT_FONT, (imageflags_t)( IF_PERMANENT | IF_SDF_SILHOUETTE ) );
 
 	// Clean up resources.
-	Z_Free( atlas_pixels );
+	// R_RegisterRawImage() transfers ownership of atlas_pixels to the image system on success.
+	if ( desc.atlas_image == 0 ) {
+		Z_Free( atlas_pixels );
+		FS_FreeFile( font_buffer );
+		return 0;
+	}
 	FS_FreeFile( font_buffer );
 
 	// Commit newly registered font to font registry.
@@ -655,17 +898,18 @@ const font_mtsdf_t *Font_GetDescriptorTTF( const qhandle_t font ) {
 }
 
 /**
-*	@brief	Measure string width in pixels using TrueType metrics if available.
+*	@brief	Measure string width in pixels up to maxlen characters using TrueType metrics if available.
 *	@param	font	Font handle to query.
 *	@param	text	Null-terminated text string to measure.
+*	@param	maxlen	Maximum number of characters to measure.
 *	@return	Total measured pixel width.
 **/
-float Font_StringWidthTTF( const qhandle_t font, const char *text ) {
+float Font_StringWidthTTF_N( const qhandle_t font, const char *text, const size_t maxlen ) {
 	/**
-	*	Sanity checks: return zero width for null or empty strings.
+	*	Sanity checks: return zero width for null or empty strings or zero character count.
 	**/
-	// Check if text pointer is null or points to an empty string.
-	if ( text == nullptr || text[ 0 ] == '\0' ) {
+	// Check if text pointer is null, empty, or zero max length was requested.
+	if ( text == nullptr || text[ 0 ] == '\0' || maxlen == 0 ) {
 		return 0.0f;
 	}
 
@@ -675,17 +919,35 @@ float Font_StringWidthTTF( const qhandle_t font, const char *text ) {
 	const font_mtsdf_t *desc = Font_GetDescriptorTTF( font );
 	// If font is legacy bitmap, calculate width using fixed CHAR_WIDTH.
 	if ( desc == nullptr ) {
-		return (float)( strlen( text ) * CHAR_WIDTH );
+		size_t len = strlen( text );
+		if ( len > maxlen ) {
+			len = maxlen;
+		}
+		return (float)( len * CHAR_WIDTH );
 	}
 
 	/**
-	*	Accumulate glyph advance widths along the string.
+	*	Accumulate glyph advance widths along the string up to maxlen characters.
 	**/
 	float total_w = 0.0f;
+	size_t remaining = maxlen;
 	// Process each character in sequence.
-	while ( *text != '\0' ) {
-		const uint8_t c = (uint8_t)( *text++ );
-		// Check if character is within valid glyph table range.
+	while ( remaining-- && *text != '\0' ) {
+		uint8_t c = (uint8_t)( *text++ );
+
+		// Remap legacy high-bit charset and special console control characters.
+		if ( c >= 128 && !desc->glyph_valid[ c ] ) {
+			c &= 0x7F;
+		}
+		if ( c == 17 ) {
+			c = ']';
+		} else if ( c == 16 ) {
+			c = '[';
+		} else if ( c == 11 ) {
+			c = '_';
+		}
+
+		// Accumulate horizontal advance.
 		if ( c < MTSDF_MAX_GLYPHS && desc->glyph_valid[ c ] ) {
 			total_w += desc->glyphs[ c ].advance;
 		} else {
@@ -694,6 +956,16 @@ float Font_StringWidthTTF( const qhandle_t font, const char *text ) {
 	}
 
 	return total_w;
+}
+
+/**
+*	@brief	Measure string width in pixels using TrueType metrics if available.
+*	@param	font	Font handle to query.
+*	@param	text	Null-terminated text string to measure.
+*	@return	Total measured pixel width.
+**/
+float Font_StringWidthTTF( const qhandle_t font, const char *text ) {
+	return Font_StringWidthTTF_N( font, text, SIZE_MAX );
 }
 
 /**

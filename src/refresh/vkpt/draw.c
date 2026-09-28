@@ -134,6 +134,40 @@ extern cvar_t* cvar_tm_hdr_saturation_scale;
 
 
 
+/**
+*
+*
+*	Stretch Pic Examples:
+* 
+* 
+* 
+**/
+/*
+// 1. Draw a card panel with 12px rounded corners, 2px white stroke, and selective cyan outer glow
+R_SetCornerRadius( 12.0f );
+R_SetStroke( MakeColor( 255, 255, 255, 255 ), 2.0f );
+R_SetOuterGlowRadius4( 0.0f, 16.0f, 16.0f, 16.0f ); // Omit top glow
+R_SetOuterGlow( MakeColor( 0, 200, 255, 180 ), 16.0f );
+R_DrawPic( 100, 100, card_image_handle );
+R_ClearStyle(); // Reset styling back to default zero
+
+// 2. Load TrueType font at 32px raster height and render 3D occluded text in world space
+qhandle_t ttf_font = R_RegisterFontTTF( "fonts/inter.ttf", 32.0f );
+vec3_t text_origin = { 512.0f, -256.0f, 72.0f };
+
+// Add a 1.5px black outline around the font glyphs
+R_SetStroke( MakeColor( 0, 0, 0, 255 ), 1.5f );
+
+// Occluded behind world walls/geometry:
+R_DrawString3DOccluded( text_origin, nullptr /* billboard * /, 16.0f /* height in units * /,
+"Protected Area", ttf_font, MakeColor( 255, 220, 0, 255 ) );
+
+// Always-on-top overhead tag:
+R_DrawString3DNonOccluded( text_origin, nullptr, 12.0f,
+						   "^2Ally [100 HP]", ttf_font, MakeColor( 255, 255, 255, 255 ) );
+R_ClearStyle(); 
+*/
+
 
 /**
 *
@@ -279,6 +313,12 @@ static inline void enqueue_stretch_pic(
 		sp->sdf_pixel_range = 0.0f;
 		sp->pad_style[ 0 ] = 0.0f;
 
+		// MTSDF Font Atlas rendering
+		if ( ( draw.style_flags & STYLE_FLAG_SDF_MTSDF ) != 0 ) {
+			sp->sdf_pixel_range = 8.0f;
+			sp->sdf_tex_handle = (uint32_t)tex_handle;
+		}
+
 		// Check if source image has an associated silhouette SDF texture
 		if ( ( draw.style_flags & ( STYLE_FLAG_OUTLINE | STYLE_FLAG_OUTER_GLOW | STYLE_FLAG_INNER_GLOW ) ) &&
 		     tex_handle >= 0 && tex_handle < MAX_RIMAGES &&
@@ -399,6 +439,12 @@ static inline void enqueue_stretch_rotate_pic(
 		sp->sdf_tex_handle = 0;
 		sp->sdf_pixel_range = 0.0f;
 		sp->pad_style[ 0 ] = 0.0f;
+
+		// MTSDF Font Atlas rendering
+		if ( ( draw.style_flags & STYLE_FLAG_SDF_MTSDF ) != 0 ) {
+			sp->sdf_pixel_range = 8.0f;
+			sp->sdf_tex_handle = (uint32_t)tex_handle;
+		}
 
 		// Check if source image has an associated silhouette SDF texture
 		if ( ( draw.style_flags & ( STYLE_FLAG_OUTLINE | STYLE_FLAG_OUTER_GLOW | STYLE_FLAG_INNER_GLOW ) ) &&
@@ -1164,7 +1210,7 @@ void
 R_ClearColor_RTX(void)
 {
 	draw.colors[0].u32 = U32_WHITE;
-	draw.colors[1].u32 = U32_WHITE;
+	draw.colors[1].u32 = U32_ORANGE;
 }
 
 void
@@ -1779,13 +1825,25 @@ void R_DrawDebugCylinder_RTX( const vec3_t start, const vec3_t end, float radius
 static inline void draw_char( int x, int y, int flags, int c, qhandle_t font ) {
 	const font_mtsdf_t *desc = Font_GetDescriptorTTF( font );
 	if ( desc != NULL ) {
-		const uint8_t ch = (uint8_t)( c & 255 );
+		uint8_t ch = (uint8_t)( c & 255 );
+		uint32_t char_color = ( ( flags & UI_ALTCOLOR ) != 0 ) ? draw.colors[ 1 ].u32 : draw.colors[ 0 ].u32;
+		if ( ch >= 128 && !desc->glyph_valid[ ch ] ) {
+			ch &= 0x7F;
+			char_color = draw.colors[ 1 ].u32;
+		}
+		if ( ch == 17 ) {
+			ch = ']';
+		} else if ( ch == 16 ) {
+			ch = '[';
+		} else if ( ch == 11 ) {
+			ch = '_';
+		}
 		if ( ch == 32 || !desc->glyph_valid[ ch ] ) {
 			return;
 		}
 		const font_glyph_mtsdf_t *g = &desc->glyphs[ ch ];
-		const float gx = (float)x + g->bearing_x;
-		const float gy = (float)y + desc->ascent - g->bearing_y;
+		const float gx = (float)Q_rint( (float)x + g->bearing_x );
+		const float gy = (float)Q_rint( (float)y + desc->ascent - g->bearing_y );
 
 		// Save current style flags and inject MTSDF flag
 		const uint32_t saved_flags = draw.style_flags;
@@ -1793,7 +1851,7 @@ static inline void draw_char( int x, int y, int flags, int c, qhandle_t font ) {
 
 		enqueue_stretch_pic( gx, gy, g->width, g->height,
 			g->s0, g->t0, g->s1, g->t1,
-			draw.colors[ 0 ].u32, desc->atlas_image );
+			char_color, desc->atlas_image );
 
 		draw.style_flags = saved_flags;
 		return;
@@ -1840,21 +1898,34 @@ void R_DrawChar_RTX( int x, int y, int flags, int c, qhandle_t font ) {
 int R_DrawString_RTX( int x, int y, int flags, size_t maxlen, const char *s, qhandle_t font ) {
 	const font_mtsdf_t *desc = Font_GetDescriptorTTF( font );
 	if ( desc != NULL ) {
+		const uint32_t color_u32 = ( ( flags & UI_ALTCOLOR ) != 0 ) ? draw.colors[ 1 ].u32 : draw.colors[ 0 ].u32;
 		float cur_x = (float)x;
 		while ( maxlen-- && *s ) {
-			const uint8_t c = (uint8_t)( *s++ );
+			uint8_t c = (uint8_t)( *s++ );
+			uint32_t char_color = color_u32;
+			if ( c >= 128 && !desc->glyph_valid[ c ] ) {
+				c &= 0x7F;
+				char_color = draw.colors[ 1 ].u32;
+			}
+			if ( c == 17 ) {
+				c = ']';
+			} else if ( c == 16 ) {
+				c = '[';
+			} else if ( c == 11 ) {
+				c = '_';
+			}
 			if ( desc->glyph_valid[ c ] ) {
 				const font_glyph_mtsdf_t *g = &desc->glyphs[ c ];
 				if ( c != 32 && g->width > 0.0f && g->height > 0.0f ) {
-					const float gx = cur_x + g->bearing_x;
-					const float gy = (float)y + desc->ascent - g->bearing_y;
+					const float gx = (float)Q_rint( cur_x + g->bearing_x );
+					const float gy = (float)Q_rint( (float)y + desc->ascent - g->bearing_y );
 
 					const uint32_t saved_flags = draw.style_flags;
 					draw.style_flags |= STYLE_FLAG_SDF_MTSDF;
 
 					enqueue_stretch_pic( gx, gy, g->width, g->height,
 						g->s0, g->t0, g->s1, g->t1,
-						draw.colors[ 0 ].u32, desc->atlas_image );
+						char_color, desc->atlas_image );
 
 					draw.style_flags = saved_flags;
 				}
@@ -1863,7 +1934,7 @@ int R_DrawString_RTX( int x, int y, int flags, size_t maxlen, const char *s, qha
 				cur_x += desc->glyphs[ ' ' ].advance;
 			}
 		}
-		return (int)cur_x;
+		return Q_rint( cur_x );
 	}
 
 	// Legacy bitmap font path

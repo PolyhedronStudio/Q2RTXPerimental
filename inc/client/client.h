@@ -22,8 +22,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/net/net.h"
 #include "common/utils.h"
 
-//#define CHAR_WIDTH  8
-//#define CHAR_HEIGHT 8
 
 #if USE_CLIENT
 

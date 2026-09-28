@@ -53,3 +53,4 @@ static inline color_index_t &operator++( color_index_t &color ) {
 #define U32_CYAN    MakeColor(109, 194, 202, 255)
 #define U32_MAGENTA MakeColor(210, 170, 153, 255)
 #define U32_WHITE   MakeColor(255, 255, 255, 255)
+#define U32_ORANGE  MakeColor(210, 125,  44, 255)

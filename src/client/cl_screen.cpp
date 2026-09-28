@@ -20,6 +20,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "client/cl_client.h"
 #include "client/client_types.h"
 #include "refresh/images.h"
+#include "refresh/fonts_mtsdf.h"
 
 #define STAT_PICS       11
 #define STAT_MINUS      (STAT_PICS - 1)  // num frame for '-' stats digit
@@ -90,9 +91,11 @@ int SCR_DrawStringEx(int x, int y, int flags, size_t maxlen,
     }
 
     if ((flags & UI_CENTER) == UI_CENTER) {
-        x -= len * CHAR_WIDTH / 2;
+        const float w = Font_StringWidthTTF_N(font, s, len);
+        x -= Q_rint(w * 0.5f);
     } else if (flags & UI_RIGHT) {
-        x -= len * CHAR_WIDTH;
+        const float w = Font_StringWidthTTF_N(font, s, len);
+        x -= Q_rint(w);
     }
 
     return R_DrawString(x, y, flags, maxlen, s, font);
@@ -109,6 +112,7 @@ void SCR_DrawStringMulti(int x, int y, int flags, size_t maxlen,
 {
     const char    *p; // WID: C++20: Had no const.
     size_t  len;
+    const int lineHeight = Q_rint(Font_GetHeightTTF(font));
 
     while (*s) {
         p = strchr(s, '\n');
@@ -123,7 +127,7 @@ void SCR_DrawStringMulti(int x, int y, int flags, size_t maxlen,
         }
         SCR_DrawStringEx(x, y, flags, len, s, font);
 
-        y += CHAR_HEIGHT;
+        y += lineHeight;
         s = p + 1;
     }
 }

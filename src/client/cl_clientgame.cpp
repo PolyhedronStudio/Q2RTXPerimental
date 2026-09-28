@@ -1,6 +1,7 @@
 #include "cl_client.h"
 #include "refresh/models.h"
 #include "refresh/images.h"
+#include "refresh/fonts_mtsdf.h"
 
 #include "common/collisionmodel.h"
 #include "common/skeletalmodels/cm_skm.h"
@@ -885,6 +886,24 @@ qhandle_t PF_R_RegisterFontTTF( const char *path, const float pixel_height ) {
 	return R_RegisterFontTTF( path, pixel_height );
 }
 /**
+*	@brief	Exported wrapper to query string width in pixels.
+**/
+float PF_Font_StringWidthTTF( const qhandle_t font, const char *text ) {
+	return Font_StringWidthTTF( font, text );
+}
+/**
+*	@brief	Exported wrapper to query string width up to maxlen in pixels.
+**/
+float PF_Font_StringWidthTTF_N( const qhandle_t font, const char *text, const size_t maxlen ) {
+	return Font_StringWidthTTF_N( font, text, maxlen );
+}
+/**
+*	@brief	Exported wrapper to query font line height in pixels.
+**/
+float PF_Font_GetHeightTTF( const qhandle_t font ) {
+	return Font_GetHeightTTF( font );
+}
+/**
 *	@brief	Exported wrapper to draw 3D world text subject to geometry occlusion.
 **/
 void PF_R_DrawString3DOccluded( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color ) {
@@ -1531,6 +1550,9 @@ void CL_GM_LoadProgs( void ) {
 
 	// TrueType and 3D text rendering:
 	imports.R_RegisterFontTTF = PF_R_RegisterFontTTF;
+	imports.Font_StringWidthTTF = PF_Font_StringWidthTTF;
+	imports.Font_StringWidthTTF_N = PF_Font_StringWidthTTF_N;
+	imports.Font_GetHeightTTF = PF_Font_GetHeightTTF;
 	imports.R_DrawString3DOccluded = PF_R_DrawString3DOccluded;
 	imports.R_DrawString3DNonOccluded = PF_R_DrawString3DNonOccluded;
 	imports.R_DrawString3D = PF_R_DrawString3D;

@@ -2238,6 +2238,8 @@ void vkpt_textures_update_descriptor_set()
 			sampler = qvk.tex_sampler_nearest;
 		} else if (q_img->flags & IF_BILERP) {
 			sampler = qvk.tex_sampler_linear_clamp;
+		} else if (q_img->flags & IF_SDF_SILHOUETTE) {
+			sampler = qvk.tex_sampler_linear_clamp;
 		} else if (q_img->type == IT_SPRITE) {
 			sampler = qvk.tex_sampler_linear_clamp;
 		} else if (q_img->type == IT_FONT) {

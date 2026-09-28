@@ -156,12 +156,12 @@ void main()
 		}
 
 		float range = ( sp.sdf_pixel_range > 0.0 ) ? sp.sdf_pixel_range : 8.0;
-		float dist_px = ( sd - 0.5 ) * range;
-		float glow_dist_px = ( sd_glow - 0.5 ) * range;
+		float dist_px = ( sd - 0.5 ) * ( 2.0 * range );
+		float glow_dist_px = ( sd_glow - 0.5 ) * ( 2.0 * range );
 
-		// Sub-pixel antialiased contour edge coverage
-		float edge_width = fwidth( dist_px );
-		float alpha_edge = smoothstep( -edge_width * 0.5, +edge_width * 0.5, dist_px );
+		// Sub-pixel antialiased contour edge coverage in screen-pixel units
+		float dist_screen = dist_px / max( fwidth( dist_px ), 0.0001 );
+		float alpha_edge = clamp( dist_screen + 0.5, 0.0, 1.0 );
 
 		vec4 base_color = color;
 		if ( tex_id != ~0u && ( v_style_flags & STYLE_FLAG_SDF_MTSDF ) == 0u ) {
@@ -198,7 +198,8 @@ void main()
 			float stroke_w = sp.stroke_thickness.x;
 			if ( stroke_w > 0.0 ) {
 				float stroke_dist = abs( dist_px ) - ( stroke_w * 0.5 );
-				float stroke_alpha = 1.0 - smoothstep( -edge_width * 0.5, +edge_width * 0.5, stroke_dist );
+				float stroke_dist_screen = stroke_dist / max( fwidth( stroke_dist ), 0.0001 );
+				float stroke_alpha = 1.0 - clamp( stroke_dist_screen + 0.5, 0.0, 1.0 );
 				vec4 stroke_col = unpackUnorm4x8( sp.stroke_colors.x );
 				stroke_col = pow( stroke_col, vec4( 2.4 ) );
 				accum_color = mix( accum_color, stroke_col, stroke_alpha * stroke_col.a );

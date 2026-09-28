@@ -27,6 +27,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "client/keys.h"
 #include "client/video.h"
 #include "refresh/refresh.h"
+#include "refresh/fonts_mtsdf.h"
 
 /*
 ================
@@ -263,7 +264,8 @@ int IF_Draw(inputField_t *field, int x, int y, int flags, qhandle_t font)
         // draw blinking cursor
         if ((com_localTime >> 8) & 1) {
             int c = Key_GetOverstrikeMode() ? 11 : '_';
-            R_DrawChar(x + cursorPos * CHAR_WIDTH, y, flags, c, font);
+            const float cursorOffset = Font_StringWidthTTF_N(font, text + offset, cursorPos);
+            R_DrawChar(x + Q_rint(cursorOffset), y, flags, c, font);
         }
     }
 

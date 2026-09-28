@@ -20,6 +20,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "client/input.h"
 #include "../cl_client.h"
 #include "common/prompt.h"
+#include "refresh/fonts_mtsdf.h"
 
 // WID: C++20: Linkage.
 QEXTERN_C_ENCLOSE(	uiStatic_t uis; );
@@ -314,32 +315,46 @@ bool UI_CursorInRect(vrect_t *rect)
     return true;
 }
 
-void UI_DrawString(int x, int y, int flags, const char *string)
-{
-    if ((flags & UI_CENTER) == UI_CENTER) {
-        x -= strlen(string) * CHAR_WIDTH / 2;
-    } else if (flags & UI_RIGHT) {
-        x -= strlen(string) * CHAR_WIDTH;
-    }
+void UI_DrawString( int x, int y, int flags, const char *string ) {
+	// Sanity check: do not process null or empty strings.
+	if ( !string || !string[ 0 ] ) {
+		return;
+	}
 
-    R_DrawString(x, y, flags, MAX_STRING_CHARS, string, uis.fontHandle);
+	// Measure string width using TrueType font metrics if available.
+	const float str_w = Font_StringWidthTTF( uis.fontHandle, string );
+
+	// Adjust horizontal position according to alignment flags.
+	if ( ( flags & UI_CENTER ) == UI_CENTER ) {
+		x -= Q_rint( str_w * 0.5f );
+	} else if ( flags & UI_RIGHT ) {
+		x -= Q_rint( str_w );
+	}
+
+	R_DrawString( x, y, flags, MAX_STRING_CHARS, string, uis.fontHandle );
 }
 
-void UI_DrawChar(int x, int y, int flags, int ch)
-{
-    R_DrawChar(x, y, flags, ch, uis.fontHandle);
+void UI_DrawChar( int x, int y, int flags, int ch ) {
+	R_DrawChar( x, y, flags, ch, uis.fontHandle );
 }
 
-void UI_StringDimensions(vrect_t *rc, int flags, const char *string)
-{
-    rc->height = CHAR_HEIGHT;
-    rc->width = CHAR_WIDTH * strlen(string);
+void UI_StringDimensions( vrect_t *rc, int flags, const char *string ) {
+	// Query font descriptor to determine TrueType dimensions.
+	const font_mtsdf_t *desc = Font_GetDescriptorTTF( uis.fontHandle );
+	if ( desc != nullptr ) {
+		rc->height = Q_rint( Font_GetHeightTTF( uis.fontHandle ) );
+		rc->width = string ? Q_rint( Font_StringWidthTTF( uis.fontHandle, string ) ) : 0;
+	} else {
+		rc->height = CHAR_HEIGHT;
+		rc->width = string ? (int)( CHAR_WIDTH * strlen( string ) ) : 0;
+	}
 
-    if ((flags & UI_CENTER) == UI_CENTER) {
-        rc->x -= rc->width / 2;
-    } else if (flags & UI_RIGHT) {
-        rc->x -= rc->width;
-    }
+	// Center or right-align the bounding rectangle if requested.
+	if ( ( flags & UI_CENTER ) == UI_CENTER ) {
+		rc->x -= rc->width / 2;
+	} else if ( flags & UI_RIGHT ) {
+		rc->x -= rc->width;
+	}
 }
 
 void UI_DrawRect8(const vrect_t *rc, int border, int c)
@@ -658,7 +673,7 @@ void UI_Init(void)
 
     UI_ModeChanged();
 
-    uis.fontHandle = R_RegisterFont("conchars");
+    uis.fontHandle = R_RegisterFontTTF( "fonts/segoeui.ttf", 14 );
     // <Q2RTXP>: WID: We don't wanna bother with a fullscreen custom cursor?
     #ifdef USE_UI_ENABLE_CUSTOM_CURSOR
     uis.cursorHandle = R_RegisterPic("crosshair01.png");

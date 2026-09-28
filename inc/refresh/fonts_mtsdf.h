@@ -87,6 +87,15 @@ const font_mtsdf_t *Font_GetDescriptorTTF( const qhandle_t font );
 float Font_StringWidthTTF( const qhandle_t font, const char *text );
 
 /**
+*	@brief	Measure string width in pixels up to maxlen characters using TrueType metrics if available.
+*	@param	font	Font handle.
+*	@param	text	String to measure.
+*	@param	maxlen	Maximum number of characters to measure.
+*	@return	Width in pixels, falling back to standard CHAR_WIDTH * length if not TTF.
+**/
+float Font_StringWidthTTF_N( const qhandle_t font, const char *text, const size_t maxlen );
+
+/**
 *	@brief	Query the line height of an MTSDF font in pixels.
 *	@param	font	Font handle.
 *	@return	Line height in pixels, or standard CHAR_HEIGHT if not TTF.

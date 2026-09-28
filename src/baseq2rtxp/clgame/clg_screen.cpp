@@ -110,9 +110,11 @@ const int32_t SCR_DrawStringEx( const int32_t x, const int32_t y, const int32_t 
 
     int32_t finalX = x;
     if ( ( flags & UI_CENTER ) == UI_CENTER ) {
-        finalX -= len * CHAR_WIDTH / 2;
+        const float w = clgi.Font_StringWidthTTF_N ? clgi.Font_StringWidthTTF_N( font, s, len ) : (float)( len * CHAR_WIDTH );
+        finalX -= Q_rint( w * 0.5f );
     } else if ( flags & UI_RIGHT ) {
-        finalX -= len * CHAR_WIDTH;
+        const float w = clgi.Font_StringWidthTTF_N ? clgi.Font_StringWidthTTF_N( font, s, len ) : (float)( len * CHAR_WIDTH );
+        finalX -= Q_rint( w );
     }
 
     return clgi.R_DrawString( finalX, y, flags, maxlen, s, font );
@@ -129,12 +131,13 @@ const int32_t SCR_DrawString( const int32_t x, const int32_t y, const int32_t fl
 void SCR_DrawStringMultiEx( const int32_t x, const int32_t y, const int32_t flags, const size_t maxlen, const char *s, const qhandle_t font ) {
     const char *p; // WID: C++20: Had no const.
     size_t  len;
+    const int32_t lineHeight = clgi.Font_GetHeightTTF ? Q_rint( clgi.Font_GetHeightTTF( font ) ) : CHAR_HEIGHT;
 
-    float newY = y;
+    float newY = (float)y;
     while ( *s ) {
         p = strchr( s, '\n' );
         if ( !p ) {
-            SCR_DrawStringEx( x, newY, flags, maxlen, s, font );
+            SCR_DrawStringEx( x, (int32_t)newY, flags, maxlen, s, font );
             break;
         }
 
@@ -142,9 +145,9 @@ void SCR_DrawStringMultiEx( const int32_t x, const int32_t y, const int32_t flag
         if ( len > maxlen ) {
             len = maxlen;
         }
-        SCR_DrawStringEx( x, newY, flags, len, s, font );
+        SCR_DrawStringEx( x, (int32_t)newY, flags, len, s, font );
 
-        newY += CHAR_HEIGHT;
+        newY += (float)lineHeight;
         s = p + 1;
     }
 }
@@ -1056,7 +1059,8 @@ void PF_SCR_RegisterMedia( void ) {
     );
 
     precache.screen.net_error_pic = clgi.R_RegisterPic( "icons/neterror.png" );
-    clgi.screen->font_pic = precache.screen.font_pic = clgi.R_RegisterFont( scr_font->string );
+    //clgi.screen->font_pic = precache.screen.font_pic = clgi.R_RegisterFont( scr_font->string );
+	clgi.screen->font_pic = precache.screen.font_pic = clgi.R_RegisterFontTTF( scr_font->string, DEFAULT_FONT_SIZE );
 
     // Register the 2D display HUD media.
     CLG_HUD_RegisterScreenMedia();
@@ -1065,7 +1069,9 @@ void PF_SCR_RegisterMedia( void ) {
 *	@brief
 **/
 static void scr_font_changed( cvar_t *self ) {
-    clgi.screen->font_pic = precache.screen.font_pic = clgi.R_RegisterFont( self->string );
+	const std::string pathStr = "";
+	const std::string selfStr = self->string;
+    clgi.screen->font_pic = precache.screen.font_pic = clgi.R_RegisterFontTTF( (pathStr + selfStr).c_str(), DEFAULT_FONT_SIZE );
 }
 /**
 *	@brief
@@ -1107,7 +1113,8 @@ void PF_SCR_Init( void ) {
     scr_showpause = clgi.CVar_Get( "scr_showpause", "1", 0 );
     scr_centertime = clgi.CVar_Get( "scr_centertime", "2.5", 0 );
     scr_demobar = clgi.CVar_Get( "scr_demobar", "1", 0 );
-    scr_font = clgi.CVar_Get( "scr_font", "conchars", 0 );
+    //scr_font = clgi.CVar_Get( "scr_font", "conchars", 0 );
+	scr_font = clgi.CVar_Get( "scr_font", "fonts/segoeui.ttf", 0 );
     scr_font->changed = scr_font_changed;
     
     scr_alpha = clgi.CVar_Get( "scr_alpha", "0.8", CVAR_ARCHIVE );

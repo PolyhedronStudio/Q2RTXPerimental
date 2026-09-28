@@ -655,6 +655,12 @@ typedef struct {
 	//!
 	qhandle_t ( *R_RegisterFontTTF )( const char *path, const float pixel_height );
 	//!
+	float ( *Font_StringWidthTTF )( const qhandle_t font, const char *text );
+	//!
+	float ( *Font_StringWidthTTF_N )( const qhandle_t font, const char *text, const size_t maxlen );
+	//!
+	float ( *Font_GetHeightTTF )( const qhandle_t font );
+	//!
 	void ( *R_DrawString3DOccluded )( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color );
 	//!
 	void ( *R_DrawString3DNonOccluded )( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color );
