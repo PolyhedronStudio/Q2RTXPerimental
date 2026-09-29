@@ -142,9 +142,12 @@ void main()
 		return;
 	}
 
-	// 2D UI / Rectangles / Shapes / Lines
-	if ( sp.style_flags == 0u ) {
-		// ZERO OVERHEAD PATH: Exact legacy geometry with zero margin expansion.
+	// 2D UI / Rectangles / Shapes / Lines / MTSDF Distance Field Glyphs
+	if ( sp.style_flags == 0u || ( sp.style_flags & STYLE_FLAG_SDF_MTSDF ) != 0u ) {
+		// ZERO OVERHEAD PATH / DISTANCE FIELD FONT PATH:
+		// MTSDF font glyphs already contain baked distance padding within their atlas cells;
+		// quad vertices and atlas UV coordinates must not be expanded outward to prevent sampling
+		// neighboring glyphs in the packed atlas.
 		vec2 model_space_pivot = vec2(
 			( 1.0 / sp.w ) * sp.pivot_x,
 			( 1.0 / sp.h ) * sp.pivot_y

@@ -149,6 +149,7 @@ extern qhandle_t (*R_RegisterFontTTF)( const char *path, const float pixel_heigh
 *	@return	Valid font handle on success, otherwise 0.
 **/
 qhandle_t R_LoadOrRegisterFontTTF( const char *fontPath, const float fontSizePx );
+extern float (*R_GetFontEffectSpacing)( void );
 extern void (*R_DrawString3DOccluded)( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color );
 extern void (*R_DrawString3DNonOccluded)( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color );
 extern void (*R_DrawString3D)( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color );

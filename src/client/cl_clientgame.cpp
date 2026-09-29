@@ -898,6 +898,18 @@ float PF_Font_StringWidthTTF_N( const qhandle_t font, const char *text, const si
 	return Font_StringWidthTTF_N( font, text, maxlen );
 }
 /**
+*	@brief	Exported wrapper to query string width with explicit extra character spacing.
+**/
+float PF_Font_StringWidthTTF_Ex( const qhandle_t font, const char *text, const size_t maxlen, const float extra_spacing ) {
+	return Font_StringWidthTTF_Ex( font, text, maxlen, extra_spacing );
+}
+/**
+*	@brief	Exported wrapper to query active font effect spacing additive.
+**/
+float PF_R_GetFontEffectSpacing( void ) {
+	return R_GetFontEffectSpacing ? R_GetFontEffectSpacing() : 0.0f;
+}
+/**
 *	@brief	Exported wrapper to query font line height in pixels.
 **/
 float PF_Font_GetHeightTTF( const qhandle_t font ) {
@@ -1552,6 +1564,8 @@ void CL_GM_LoadProgs( void ) {
 	imports.R_RegisterFontTTF = PF_R_RegisterFontTTF;
 	imports.Font_StringWidthTTF = PF_Font_StringWidthTTF;
 	imports.Font_StringWidthTTF_N = PF_Font_StringWidthTTF_N;
+	imports.Font_StringWidthTTF_Ex = PF_Font_StringWidthTTF_Ex;
+	imports.R_GetFontEffectSpacing = PF_R_GetFontEffectSpacing;
 	imports.Font_GetHeightTTF = PF_Font_GetHeightTTF;
 	imports.R_DrawString3DOccluded = PF_R_DrawString3DOccluded;
 	imports.R_DrawString3DNonOccluded = PF_R_DrawString3DNonOccluded;

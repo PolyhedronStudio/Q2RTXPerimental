@@ -1075,6 +1075,7 @@ void R_RegisterFunctionsGL()
 
 	// TrueType and 3D Text Rendering:
 	R_RegisterFontTTF = R_RegisterFontTTF_GL;
+	R_GetFontEffectSpacing = R_GetFontEffectSpacing_GL;
 	R_DrawString3DOccluded = R_DrawString3DOccluded_GL;
 	R_DrawString3DNonOccluded = R_DrawString3DNonOccluded_GL;
 	R_DrawString3D = R_DrawString3D_GL;

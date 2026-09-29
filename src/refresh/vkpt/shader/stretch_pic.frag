@@ -197,7 +197,13 @@ void main()
 		if ( ( v_style_flags & STYLE_FLAG_OUTLINE ) != 0u ) {
 			float stroke_w = sp.stroke_thickness.x;
 			if ( stroke_w > 0.0 ) {
-				float stroke_dist = abs( dist_px ) - ( stroke_w * 0.5 );
+				float align_offset = 0.0;
+				if ( ( v_style_flags & STYLE_FLAG_STROKE_ALIGN_OUTSET ) != 0u ) {
+					align_offset = -stroke_w * 0.5;
+				} else if ( ( v_style_flags & STYLE_FLAG_STROKE_ALIGN_INSET ) != 0u ) {
+					align_offset = stroke_w * 0.5;
+				}
+				float stroke_dist = abs( dist_px - align_offset ) - ( stroke_w * 0.5 );
 				float stroke_dist_screen = stroke_dist / max( fwidth( stroke_dist ), 0.0001 );
 				float stroke_alpha = 1.0 - clamp( stroke_dist_screen + 0.5, 0.0, 1.0 );
 				vec4 stroke_col = unpackUnorm4x8( sp.stroke_colors.x );
@@ -209,6 +215,9 @@ void main()
 		if ( spec_tone_mapping_hdr != 0 ) {
 			accum_color.rgb *= ui_hdr_nits / 80.0;
 			accum_color.rgb = apply_saturation_scale( accum_color.rgb, tm_hdr_saturation_scale * 0.01 );
+		}
+		if ( accum_color.a <= 0.001 ) {
+			discard;
 		}
 		outColor = accum_color;
 		return;

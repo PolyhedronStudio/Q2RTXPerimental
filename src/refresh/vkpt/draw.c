@@ -1537,6 +1537,17 @@ void R_ClearStyle_RTX( void ) {
 }
 
 /**
+*	@brief	Query the current font character advance spacing additive based on active stroke and glow styles.
+*	@return	Pixel spacing additive to apply between characters.
+**/
+float R_GetFontEffectSpacing_RTX( void ) {
+	if ( ( draw.style_flags & ( STYLE_FLAG_OUTLINE | STYLE_FLAG_OUTER_GLOW ) ) == 0 ) {
+		return 0.0f;
+	}
+	return R_Font_CalculateEffectSpacing( draw.style_flags, draw.stroke_thickness, draw.outer_glow_radius );
+}
+
+/**
 *	@brief	Draw a 2D line segment with specified thickness and color.
 *	@param	x1			Start X coordinate.
 *	@param	y1			Start Y coordinate.
@@ -1899,6 +1910,7 @@ int R_DrawString_RTX( int x, int y, int flags, size_t maxlen, const char *s, qha
 	const font_mtsdf_t *desc = Font_GetDescriptorTTF( font );
 	if ( desc != NULL ) {
 		const uint32_t color_u32 = ( ( flags & UI_ALTCOLOR ) != 0 ) ? draw.colors[ 1 ].u32 : draw.colors[ 0 ].u32;
+		const float spacing_additive = R_GetFontEffectSpacing_RTX();
 		float cur_x = (float)x;
 		while ( maxlen-- && *s ) {
 			uint8_t c = (uint8_t)( *s++ );
@@ -1929,19 +1941,20 @@ int R_DrawString_RTX( int x, int y, int flags, size_t maxlen, const char *s, qha
 
 					draw.style_flags = saved_flags;
 				}
-				cur_x += g->advance;
+				cur_x += g->advance + spacing_additive;
 			} else {
-				cur_x += desc->glyphs[ ' ' ].advance;
+				cur_x += desc->glyphs[ ' ' ].advance + spacing_additive;
 			}
 		}
 		return Q_rint( cur_x );
 	}
 
 	// Legacy bitmap font path
+	const float spacing_additive = R_GetFontEffectSpacing_RTX();
 	while ( maxlen-- && *s ) {
 		const byte c = *s++;
 		draw_char( x, y, flags, c, font );
-		x += CHAR_WIDTH;
+		x += Q_rint( (float)CHAR_WIDTH + spacing_additive );
 	}
 	return x;
 }
@@ -2023,6 +2036,7 @@ static void DrawString3D_Internal( const vec3_t origin, const vec3_t angles, con
 	const font_mtsdf_t *desc = Font_GetDescriptorTTF( font );
 	const float font_ref_h = ( desc != NULL && desc->pixel_height > 0.0f ) ? desc->pixel_height : 8.0f;
 	const float unit_scale = scale / font_ref_h;
+	const float spacing_additive = R_GetFontEffectSpacing_RTX();
 
 	float cursor_x = 0.0f;
 	const char *s = text;
@@ -2048,17 +2062,17 @@ static void DrawString3D_Internal( const vec3_t origin, const vec3_t angles, con
 
 		if ( desc != NULL ) {
 			if ( !desc->glyph_valid[ ch ] ) {
-				cursor_x += desc->glyphs[ ' ' ].advance * unit_scale;
+				cursor_x += ( desc->glyphs[ ' ' ].advance + spacing_additive ) * unit_scale;
 				continue;
 			}
 			const font_glyph_mtsdf_t *g = &desc->glyphs[ ch ];
 			if ( ch == 32 || g->width <= 0.0f || g->height <= 0.0f ) {
-				cursor_x += g->advance * unit_scale;
+				cursor_x += ( g->advance + spacing_additive ) * unit_scale;
 				continue;
 			}
 			glyph_w = g->width * unit_scale;
 			glyph_h = g->height * unit_scale;
-			advance = g->advance * unit_scale;
+			advance = ( g->advance + spacing_additive ) * unit_scale;
 			bx = g->bearing_x * unit_scale;
 			by = ( desc->ascent - g->bearing_y ) * unit_scale;
 			s0 = g->s0; t0 = g->t0; s1 = g->s1; t1 = g->t1;
@@ -2066,12 +2080,12 @@ static void DrawString3D_Internal( const vec3_t origin, const vec3_t angles, con
 			is_mtsdf = true;
 		} else {
 			if ( ( ch & 127 ) == 32 ) {
-				cursor_x += scale;
+				cursor_x += ( scale + spacing_additive * ( scale / 8.0f ) );
 				continue;
 			}
 			glyph_w = scale;
 			glyph_h = scale;
-			advance = scale;
+			advance = ( scale + spacing_additive * ( scale / 8.0f ) );
 			bx = 0.0f;
 			by = 0.0f;
 			const float cs = ( ch & 15 ) * 0.0625f;

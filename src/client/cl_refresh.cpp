@@ -537,6 +537,8 @@ void( *R_DrawLine2D )( const float x1, const float y1, const float x2, const flo
 
 //! Loads a TrueType font file, generates a multi-channel signed distance field atlas, and returns an image handle.
 qhandle_t( *R_RegisterFontTTF )( const char *path, const float pixel_height ) = nullptr;
+//! Queries current dynamic font character spacing additive to account for stroke and glow expansion.
+float( *R_GetFontEffectSpacing )( void ) = nullptr;
 //! Draws a 3D world-space text string subject to linear depth buffer occlusion.
 void( *R_DrawString3DOccluded )( const vec3_t origin, const vec3_t angles, const float scale, const char *text, const qhandle_t font, const uint32_t color ) = nullptr;
 //! Draws a 3D world-space text string overlay without depth occlusion.

@@ -5056,6 +5056,7 @@ void R_RegisterFunctionsRTX()
 
 	// TrueType and 3D Text Rendering:
 	R_RegisterFontTTF = R_RegisterFontTTF_RTX;
+	R_GetFontEffectSpacing = R_GetFontEffectSpacing_RTX;
 	R_DrawString3DOccluded = R_DrawString3DOccluded_RTX;
 	R_DrawString3DNonOccluded = R_DrawString3DNonOccluded_RTX;
 	R_DrawString3D = R_DrawString3D_RTX;

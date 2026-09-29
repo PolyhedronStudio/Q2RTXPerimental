@@ -18,6 +18,8 @@
 #ifndef MICROUI_H
 #define MICROUI_H
 
+#include <stdint.h>
+
 //#define MU_VERSION "2.02"
 #define MU_VERSION "GameUI 1.0"
 
@@ -129,8 +131,50 @@ enum {
 	MU_COLOR_SCROLLBASE,
 	//! Scrollbar thumb color.
 	MU_COLOR_SCROLLTHUMB,
+	//! Button fill color while disabled.
+	MU_COLOR_BUTTONDISABLED,
+	//! Text color while disabled.
+	MU_COLOR_TEXTDISABLED,
 	//! Number of color slots.
 	MU_COLOR_MAX
+};
+
+/**
+*	@brief	Canonical interactive states for MicroUI controls.
+**/
+enum {
+	//! Resting idle state.
+	MU_STATE_NORMAL = 0,
+	//! Cursor is hovered over control.
+	MU_STATE_HOVER,
+	//! Control is active/pressed or focused.
+	MU_STATE_FOCUS,
+	//! Control is non-interactive / disabled.
+	MU_STATE_DISABLED,
+	//! Total number of states.
+	MU_STATE_MAX
+};
+
+/**
+*	@brief	Categorical control types for optional state styling.
+**/
+enum {
+	//! Default fallback control styling.
+	MU_CONTROL_DEFAULT = 0,
+	//! Push buttons and interactive header items.
+	MU_CONTROL_BUTTON,
+	//! Checkbox toggle controls.
+	MU_CONTROL_CHECKBOX,
+	//! Text inputs and editable text boxes.
+	MU_CONTROL_TEXTBOX,
+	//! Slider groove base track.
+	MU_CONTROL_SLIDER_BASE,
+	//! Slider movable thumb handle.
+	MU_CONTROL_SLIDER_THUMB,
+	//! Scrollbar thumb handle.
+	MU_CONTROL_SCROLLTHUMB,
+	//! Total number of control categories.
+	MU_CONTROL_MAX
 };
 
 /**
@@ -331,6 +375,10 @@ typedef struct {
 	mu_Color glow_color;
 	//! Outer glow / drop-shadow radius in pixels.
 	int glow_radius;
+	//! Inner contour glow color.
+	mu_Color inner_glow_color;
+	//! Inner contour glow radius in pixels.
+	int inner_glow_radius;
 	//! Per-corner radii (top-left, top-right, bottom-right, bottom-left) in pixels.
 	int corner_radii[4];
 	//! Border stroke color.
@@ -453,6 +501,44 @@ typedef struct {
 } mu_Container;
 
 /**
+*	@brief	Styling parameters for a specific interactive state.
+**/
+typedef struct {
+	//! Background fill color.
+	mu_Color bg_color;
+	//! Text/label color.
+	mu_Color text_color;
+	//! Border stroke color.
+	mu_Color stroke_color;
+	//! Border stroke thickness in pixels.
+	int32_t stroke_thickness;
+	//! Outer glow / drop-shadow color.
+	mu_Color glow_color;
+	//! Outer glow / drop-shadow radius in pixels.
+	int32_t glow_radius;
+	//! Inner contour glow color.
+	mu_Color inner_glow_color;
+	//! Inner contour glow radius in pixels.
+	int32_t inner_glow_radius;
+	//! Per-corner radii [TL, TR, BR, BL] in pixels.
+	int32_t corner_radii[4];
+	//! Non-zero if custom styling is configured for this state.
+	int32_t has_style;
+} mu_ControlStateStyle;
+
+/**
+*	@brief	Complete per-control multi-state styling configuration.
+**/
+typedef struct {
+	//! Pre-reserved static margin envelope in pixels for outer glow expansion.
+	int32_t glow_margin;
+	//! Array of state styling definitions indexed by MU_STATE_*.
+	mu_ControlStateStyle states[MU_STATE_MAX];
+	//! Non-zero if custom styling is configured for this control type.
+	int32_t has_style;
+} mu_ControlStyle;
+
+/**
 *	@brief	Theme/style configuration used by all widgets.
 **/
 typedef struct {
@@ -484,6 +570,10 @@ typedef struct {
 	mu_Color window_stroke_color;
 	//! Default window outline stroke thickness in pixels.
 	int window_stroke_thickness;
+	//! Global default static margin envelope in pixels for outer glow expansion.
+	int32_t control_glow_margin;
+	//! Per-control type multi-state styling configurations.
+	mu_ControlStyle control_styles[MU_CONTROL_MAX];
 } mu_Style;
 
 /**
@@ -926,6 +1016,17 @@ mu_Rect mu_layout_next(mu_Context *ctx);
 void mu_draw_control_frame(mu_Context *ctx, mu_Id id, mu_Rect rect, int colorid, int opt);
 
 /**
+*	@brief		Draw a control frame evaluating state and custom control style.
+*	@param	ctx				Active context.
+*	@param	id				Widget identifier.
+*	@param	rect			Control rectangle.
+*	@param	colorid			Base color index.
+*	@param	opt				Control option bitmask.
+*	@param	control_type	Control category (MU_CONTROL_*).
+**/
+void mu_draw_control_frame_ex(mu_Context *ctx, mu_Id id, mu_Rect rect, int colorid, int opt, int control_type);
+
+/**
 *	@brief	Draw control text clipped to a rectangle.
 *	@param ctx Active context.
 *	@param str Text string.
@@ -1002,6 +1103,16 @@ int mu_button_ex(mu_Context *ctx, const char *label, int icon, int opt);
 *	@return Widget result flags.
 **/
 int mu_checkbox(mu_Context *ctx, const char *label, int *state);
+
+/**
+*	@brief	Emit a checkbox widget with control options.
+*	@param ctx Active context.
+*	@param label Checkbox label.
+*	@param state Checkbox state pointer.
+*	@param opt Control option bitmask.
+*	@return Widget result flags.
+**/
+int mu_checkbox_ex(mu_Context *ctx, const char *label, int *state, int opt);
 
 /**
 *	@brief	Edit a raw text buffer in-place.
@@ -1149,5 +1260,77 @@ void mu_set_container_style(mu_Container *cnt, mu_Color glow_color, int glow_rad
 **/
 mu_Container* mu_set_window_style(mu_Context *ctx, const char *name, mu_Color glow_color, int glow_radius,
 	const int *corner_radii, mu_Color stroke_color, int stroke_thickness);
+
+/**
+*	@brief		Emit a filled rectangle draw command with extended styling including inner and outer glow.
+*	@param	ctx					Active context.
+*	@param	rect				Rectangle to draw.
+*	@param	color				Fill color.
+*	@param	glow_color			Outer glow / shadow color.
+*	@param	glow_radius			Outer glow / shadow radius in pixels.
+*	@param	inner_glow_color	Inner contour glow color.
+*	@param	inner_glow_radius	Inner contour glow radius in pixels.
+*	@param	corner_radii		Array of 4 corner radii [TL, TR, BR, BL] in pixels (or NULL for sharp corners).
+*	@param	stroke_color		Border stroke color.
+*	@param	stroke_thickness	Border stroke thickness in pixels.
+**/
+void mu_draw_rect_styled_ex(mu_Context *ctx, mu_Rect rect, mu_Color color,
+	mu_Color glow_color, int32_t glow_radius,
+	mu_Color inner_glow_color, int32_t inner_glow_radius,
+	const int32_t *corner_radii,
+	mu_Color stroke_color, int32_t stroke_thickness);
+
+/**
+*	@brief		Set comprehensive multi-state styling for a specific control type.
+*	@param	ctx				Active context.
+*	@param	control_type	Control category (MU_CONTROL_*).
+*	@param	style			Complete control style descriptor.
+**/
+void mu_set_control_style(mu_Context *ctx, int32_t control_type, const mu_ControlStyle *style);
+
+/**
+*	@brief		Set styling parameters for a single state of a control type.
+*	@param	ctx				Active context.
+*	@param	control_type	Control category (MU_CONTROL_*).
+*	@param	state			Interactive state (MU_STATE_*).
+*	@param	state_style		State style descriptor.
+**/
+void mu_set_control_state_style(mu_Context *ctx, int32_t control_type, int32_t state, const mu_ControlStateStyle *state_style);
+
+/**
+*	@brief		Set the static margin envelope for a specific control type.
+*	@param	ctx				Active context.
+*	@param	control_type	Control category (MU_CONTROL_*).
+*	@param	margin			Static glow margin in pixels.
+**/
+void mu_set_control_glow_margin(mu_Context *ctx, int32_t control_type, int32_t margin);
+
+/**
+*	@brief		Retrieve active state styling for a control type.
+*	@param	ctx				Active context.
+*	@param	control_type	Control category (MU_CONTROL_*).
+*	@param	state			Interactive state (MU_STATE_*).
+*	@param	out_margin		[out] Optional margin output pointer.
+*	@return	Pointer to active state style or NULL if unstyled.
+**/
+const mu_ControlStateStyle* mu_get_control_state_style(mu_Context *ctx, int32_t control_type, int32_t state, int32_t *out_margin);
+
+/**
+*	@brief		Retrieve the core invariant geometry for a control, insetting the static margin envelope.
+*	@param	ctx				Active context.
+*	@param	cell			Allocated layout cell from mu_layout_next.
+*	@param	control_type	Control category (MU_CONTROL_*).
+*	@return	Core rectangle with margin envelope subtracted.
+**/
+mu_Rect mu_get_control_core_rect(mu_Context *ctx, mu_Rect cell, int32_t control_type);
+
+/**
+*	@brief		Resolve active interactive state for a control.
+*	@param	ctx				Active context.
+*	@param	id				Widget identifier.
+*	@param	opt				Control option bitmask.
+*	@return	Active state (MU_STATE_NORMAL, MU_STATE_HOVER, MU_STATE_FOCUS, MU_STATE_DISABLED).
+**/
+int32_t mu_get_control_state(mu_Context *ctx, mu_Id id, int32_t opt);
 
 #endif

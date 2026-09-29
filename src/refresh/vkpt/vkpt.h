@@ -940,6 +940,7 @@ void R_DrawDebugCapsule_RTX( const vec3_t start, const vec3_t end, float radius,
 void R_DrawDebugCylinder_RTX( const vec3_t start, const vec3_t end, float radius, uint32_t color, const float thickness, const float outline_thickness, const uint16_t style_flags );
 void R_DrawChar_RTX(int x, int y, int flags, int c, qhandle_t font);
 int R_DrawString_RTX(int x, int y, int flags, size_t maxlen, const char *s, qhandle_t font);
+float R_GetFontEffectSpacing_RTX( void );
 bool R_InterceptKey_RTX(unsigned key, bool down);
 
 void IMG_Load_RTX(image_t *image, byte *pic);

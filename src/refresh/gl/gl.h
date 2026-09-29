@@ -30,6 +30,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "refresh/refresh.h"
 #include "refresh/images.h"
 #include "refresh/models.h"
+#include "refresh/fonts_mtsdf.h"
 #include "system/hunk.h"
 
 #include "qgl.h"
@@ -539,6 +540,7 @@ void R_DrawFill8f_GL( float x, float y, float w, float h, int c );
 void R_DrawFill32f_GL( float x, float y, float w, float h, uint32_t color );
 void R_DrawChar_GL(int x, int y, int flags, int c, qhandle_t font);
 int R_DrawString_GL(int x, int y, int flags, size_t maxlen, const char *s, qhandle_t font);
+float R_GetFontEffectSpacing_GL( void );
 
 /*
  * gl_images.c

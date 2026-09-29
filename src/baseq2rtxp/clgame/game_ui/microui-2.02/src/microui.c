@@ -86,7 +86,9 @@ static mu_Style default_style = {
 	{ 255, 126, 90,   44 }, /* MU_COLOR_BASEHOVER */
 	{ 165, 118, 76,  110 }, /* MU_COLOR_BASEFOCUS */
 	{ 170, 110, 58,  160 }, /* MU_COLOR_SCROLLBASE */
-	{ 255, 120,  0,  156 }  /* MU_COLOR_SCROLLTHUMB */
+	{ 255, 120,  0,  156 }, /* MU_COLOR_SCROLLTHUMB */
+	{ 120, 120, 120,  80 }, /* MU_COLOR_BUTTONDISABLED */
+	{ 128, 128, 128, 180 }  /* MU_COLOR_TEXTDISABLED */
   },
   /* window_glow_color */
   { 0, 0, 0, 0 },
@@ -97,7 +99,11 @@ static mu_Style default_style = {
   /* window_stroke_color */
   { 0, 0, 0, 0 },
   /* window_stroke_thickness */
-  0
+  0,
+  /* control_glow_margin */
+  0,
+  /* control_styles */
+  { { 0 } }
 };
 
 
@@ -821,28 +827,35 @@ void mu_draw_rect(mu_Context *ctx, mu_Rect rect, mu_Color color) {
     cmd->rect.corner_radii[3] = 0;
     cmd->rect.stroke_color = mu_color(0, 0, 0, 0);
     cmd->rect.stroke_thickness = 0;
+    cmd->rect.inner_glow_color = mu_color(0, 0, 0, 0);
+    cmd->rect.inner_glow_radius = 0;
   }
 }
 
 
 /**
-*	@brief		Emit a filled rectangle draw command with extended styling (outer glow, corner radii, stroke).
+*	@brief		Emit a filled rectangle draw command with extended styling (outer glow, inner glow, corner radii, stroke).
 *	@param	ctx					Active context.
 *	@param	rect				Rectangle to draw.
 *	@param	color				Fill color.
 *	@param	glow_color			Outer glow / shadow color.
 *	@param	glow_radius			Outer glow / shadow radius in pixels.
+*	@param	inner_glow_color	Inner contour glow color.
+*	@param	inner_glow_radius	Inner contour glow radius in pixels.
 *	@param	corner_radii		Array of 4 corner radii [TL, TR, BR, BL] in pixels (or NULL for sharp corners).
 *	@param	stroke_color		Border stroke color.
 *	@param	stroke_thickness	Border stroke thickness in pixels.
-*/
-void mu_draw_rect_styled(mu_Context *ctx, mu_Rect rect, mu_Color color,
-  mu_Color glow_color, int glow_radius, const int *corner_radii,
-  mu_Color stroke_color, int stroke_thickness)
+**/
+void mu_draw_rect_styled_ex(mu_Context *ctx, mu_Rect rect, mu_Color color,
+  mu_Color glow_color, int32_t glow_radius,
+  mu_Color inner_glow_color, int32_t inner_glow_radius,
+  const int32_t *corner_radii,
+  mu_Color stroke_color, int32_t stroke_thickness)
 {
   mu_Command *cmd;
   const int has_corners = corner_radii && (corner_radii[0] > 0 || corner_radii[1] > 0 || corner_radii[2] > 0 || corner_radii[3] > 0);
-  const int has_style = (glow_radius > 0) || has_corners || (stroke_thickness > 0);
+  const int has_inner_glow = (inner_glow_radius > 0) && (inner_glow_color.a > 0);
+  const int has_style = (glow_radius > 0) || has_corners || (stroke_thickness > 0) || has_inner_glow;
 
   /* Fallback to simple unstyled path when no extended styling is requested. */
   if (!has_style) {
@@ -862,6 +875,8 @@ void mu_draw_rect_styled(mu_Context *ctx, mu_Rect rect, mu_Color color,
   cmd->rect.color = color;
   cmd->rect.glow_color = glow_color;
   cmd->rect.glow_radius = glow_radius;
+  cmd->rect.inner_glow_color = inner_glow_color;
+  cmd->rect.inner_glow_radius = inner_glow_radius;
   if (corner_radii) {
     cmd->rect.corner_radii[0] = corner_radii[0];
     cmd->rect.corner_radii[1] = corner_radii[1];
@@ -877,6 +892,26 @@ void mu_draw_rect_styled(mu_Context *ctx, mu_Rect rect, mu_Color color,
   cmd->rect.stroke_thickness = stroke_thickness;
 
   if (clipped) { mu_set_clip(ctx, unclipped_rect); }
+}
+
+
+/**
+*	@brief		Emit a filled rectangle draw command with extended styling (outer glow, corner radii, stroke).
+*	@param	ctx					Active context.
+*	@param	rect				Rectangle to draw.
+*	@param	color				Fill color.
+*	@param	glow_color			Outer glow / shadow color.
+*	@param	glow_radius			Outer glow / shadow radius in pixels.
+*	@param	corner_radii		Array of 4 corner radii [TL, TR, BR, BL] in pixels (or NULL for sharp corners).
+*	@param	stroke_color		Border stroke color.
+*	@param	stroke_thickness	Border stroke thickness in pixels.
+**/
+void mu_draw_rect_styled(mu_Context *ctx, mu_Rect rect, mu_Color color,
+  mu_Color glow_color, int glow_radius, const int *corner_radii,
+  mu_Color stroke_color, int stroke_thickness)
+{
+  mu_draw_rect_styled_ex(ctx, rect, color, glow_color, glow_radius,
+    mu_color(0, 0, 0, 0), 0, corner_radii, stroke_color, stroke_thickness);
 }
 
 
@@ -1137,19 +1172,190 @@ static int in_hover_root(mu_Context *ctx) {
 
 
 /**
+*	@brief	Resolve active interactive state for a control.
+*	@param	ctx		Active context.
+*	@param	id		Widget identifier.
+*	@param	opt		Control option bitmask.
+*	@return	Active state (MU_STATE_NORMAL, MU_STATE_HOVER, MU_STATE_FOCUS, MU_STATE_DISABLED).
+**/
+int32_t mu_get_control_state(mu_Context *ctx, mu_Id id, int32_t opt) {
+	if (opt & MU_OPT_NOINTERACT) {
+		return MU_STATE_DISABLED;
+	}
+	if (ctx->focus == id) {
+		return MU_STATE_FOCUS;
+	}
+	if (ctx->hover == id) {
+		return MU_STATE_HOVER;
+	}
+	return MU_STATE_NORMAL;
+}
+
+/**
+*	@brief		Retrieve active state styling for a control type.
+*	@param	ctx				Active context.
+*	@param	control_type	Control category (MU_CONTROL_*).
+*	@param	state			Interactive state (MU_STATE_*).
+*	@param	out_margin		[out] Optional margin output pointer.
+*	@return	Pointer to active state style or NULL if unstyled.
+**/
+const mu_ControlStateStyle* mu_get_control_state_style(mu_Context *ctx, int32_t control_type, int32_t state, int32_t *out_margin) {
+	if (out_margin) {
+		*out_margin = 0;
+	}
+	if (!ctx || !ctx->style) {
+		return NULL;
+	}
+	if (control_type < 0 || control_type >= MU_CONTROL_MAX) {
+		return NULL;
+	}
+	if (state < 0 || state >= MU_STATE_MAX) {
+		return NULL;
+	}
+
+	const mu_ControlStyle *cs = &ctx->style->control_styles[control_type];
+	if (!cs->has_style) {
+		if (control_type != MU_CONTROL_DEFAULT && ctx->style->control_styles[MU_CONTROL_DEFAULT].has_style) {
+			cs = &ctx->style->control_styles[MU_CONTROL_DEFAULT];
+		} else {
+			return NULL;
+		}
+	}
+
+	if (out_margin) {
+		*out_margin = (cs->glow_margin > 0) ? cs->glow_margin : ctx->style->control_glow_margin;
+	}
+
+	if (cs->states[state].has_style) {
+		return &cs->states[state];
+	}
+
+	/* Fallback: if state is HOVER, FOCUS, or DISABLED but unstyled, fall back to NORMAL. */
+	if (state != MU_STATE_NORMAL && cs->states[MU_STATE_NORMAL].has_style) {
+		return &cs->states[MU_STATE_NORMAL];
+	}
+
+	return NULL;
+}
+
+/**
+*	@brief		Retrieve the core invariant geometry for a control, insetting the static margin envelope.
+*	@param	ctx				Active context.
+*	@param	cell			Allocated layout cell from mu_layout_next.
+*	@param	control_type	Control category (MU_CONTROL_*).
+*	@return	Core rectangle with margin envelope subtracted.
+**/
+mu_Rect mu_get_control_core_rect(mu_Context *ctx, mu_Rect cell, int32_t control_type) {
+	int32_t margin = 0;
+	if (ctx && ctx->style) {
+		if (control_type >= 0 && control_type < MU_CONTROL_MAX && ctx->style->control_styles[control_type].has_style) {
+			margin = ctx->style->control_styles[control_type].glow_margin;
+		} else if (ctx->style->control_glow_margin > 0) {
+			margin = ctx->style->control_glow_margin;
+		}
+	}
+	if (margin > 0) {
+		int32_t mx = (cell.w > margin * 2) ? margin : (cell.w / 2);
+		int32_t my = (cell.h > margin * 2) ? margin : (cell.h / 2);
+		return mu_rect(cell.x + mx, cell.y + my, cell.w - (mx * 2), cell.h - (my * 2));
+	}
+	return cell;
+}
+
+/**
+*	@brief		Set comprehensive multi-state styling for a specific control type.
+*	@param	ctx				Active context.
+*	@param	control_type	Control category (MU_CONTROL_*).
+*	@param	style			Complete control style descriptor.
+**/
+void mu_set_control_style(mu_Context *ctx, int32_t control_type, const mu_ControlStyle *style) {
+	if (!ctx || !ctx->style || !style) { return; }
+	if (control_type < 0 || control_type >= MU_CONTROL_MAX) { return; }
+	ctx->style->control_styles[control_type] = *style;
+	ctx->style->control_styles[control_type].has_style = 1;
+}
+
+/**
+*	@brief		Set styling parameters for a single state of a control type.
+*	@param	ctx				Active context.
+*	@param	control_type	Control category (MU_CONTROL_*).
+*	@param	state			Interactive state (MU_STATE_*).
+*	@param	state_style		State style descriptor.
+**/
+void mu_set_control_state_style(mu_Context *ctx, int32_t control_type, int32_t state, const mu_ControlStateStyle *state_style) {
+	if (!ctx || !ctx->style || !state_style) { return; }
+	if (control_type < 0 || control_type >= MU_CONTROL_MAX) { return; }
+	if (state < 0 || state >= MU_STATE_MAX) { return; }
+	ctx->style->control_styles[control_type].states[state] = *state_style;
+	ctx->style->control_styles[control_type].states[state].has_style = 1;
+	ctx->style->control_styles[control_type].has_style = 1;
+}
+
+/**
+*	@brief		Set the static margin envelope for a specific control type.
+*	@param	ctx				Active context.
+*	@param	control_type	Control category (MU_CONTROL_*).
+*	@param	margin			Static glow margin in pixels.
+**/
+void mu_set_control_glow_margin(mu_Context *ctx, int32_t control_type, int32_t margin) {
+	if (!ctx || !ctx->style) { return; }
+	if (control_type < 0 || control_type >= MU_CONTROL_MAX) { return; }
+	ctx->style->control_styles[control_type].glow_margin = margin;
+	ctx->style->control_styles[control_type].has_style = 1;
+}
+
+/**
+*	@brief		Draw a control frame evaluating state and custom control style.
+*	@param	ctx				Active context.
+*	@param	id				Widget identifier.
+*	@param	rect			Control rectangle.
+*	@param	colorid			Base color index.
+*	@param	opt				Control option bitmask.
+*	@param	control_type	Control category (MU_CONTROL_*).
+**/
+void mu_draw_control_frame_ex(mu_Context *ctx, mu_Id id, mu_Rect rect,
+	int32_t colorid, int32_t opt, int32_t control_type)
+{
+	if (opt & MU_OPT_NOFRAME) { return; }
+
+	int32_t state = mu_get_control_state(ctx, id, opt);
+	int32_t margin = 0;
+	const mu_ControlStateStyle *st = mu_get_control_state_style(ctx, control_type, state, &margin);
+
+	if (st && st->has_style) {
+		mu_draw_rect_styled_ex(ctx, rect,
+			st->bg_color,
+			st->glow_color, st->glow_radius,
+			st->inner_glow_color, st->inner_glow_radius,
+			st->corner_radii,
+			st->stroke_color, st->stroke_thickness);
+		return;
+	}
+
+	/* Legacy / unstyled fallback */
+	if (state == MU_STATE_DISABLED) {
+		if (colorid == MU_COLOR_BUTTON) {
+			colorid = MU_COLOR_BUTTONDISABLED;
+		}
+	} else {
+		colorid += (ctx->focus == id) ? 2 : (ctx->hover == id) ? 1 : 0;
+	}
+	ctx->draw_frame(ctx, rect, colorid);
+}
+
+/**
 *	@brief	Draw a control frame using the state-dependent theme color.
 *	@param ctx Active context.
 *	@param id Widget identifier.
 *	@param rect Control rectangle.
 *	@param colorid Base color index.
 *	@param opt Control option bitmask.
-*/
+**/
 void mu_draw_control_frame(mu_Context *ctx, mu_Id id, mu_Rect rect,
-  int colorid, int opt)
+	int colorid, int opt)
 {
-  if (opt & MU_OPT_NOFRAME) { return; }
-  colorid += (ctx->focus == id) ? 2 : (ctx->hover == id) ? 1 : 0;
-  ctx->draw_frame(ctx, rect, colorid);
+	int32_t control_type = (colorid == MU_COLOR_BUTTON) ? MU_CONTROL_BUTTON : MU_CONTROL_DEFAULT;
+	mu_draw_control_frame_ex(ctx, id, rect, colorid, opt, control_type);
 }
 /**
 *	@brief	Draw control text clipped to a rectangle.
@@ -1321,19 +1527,107 @@ int mu_button_ex(mu_Context *ctx, const char *label, int icon, int opt) {
   int res = 0;
   mu_Id id = label ? mu_get_id(ctx, label, strlen(label))
                    : mu_get_id(ctx, &icon, sizeof(icon));
-  mu_Rect r = mu_layout_next(ctx);
+  mu_Rect r_cell = mu_layout_next(ctx);
+  mu_Rect r = mu_get_control_core_rect(ctx, r_cell, MU_CONTROL_BUTTON);
   mu_update_control(ctx, id, r, opt);
   /* handle click */
   if (ctx->mouse_pressed == MU_MOUSE_LEFT && ctx->focus == id) {
     res |= MU_RES_SUBMIT;
   }
   /* draw */
-  mu_draw_control_frame(ctx, id, r, MU_COLOR_BUTTON, opt);
-  if (label) { mu_draw_control_text(ctx, label, r, MU_COLOR_TEXT, opt); }
-  if (icon) { mu_draw_icon(ctx, icon, r, ctx->style->colors[MU_COLOR_TEXT]); }
+  mu_draw_control_frame_ex(ctx, id, r, MU_COLOR_BUTTON, opt, MU_CONTROL_BUTTON);
+
+  int32_t state = mu_get_control_state(ctx, id, opt);
+  int32_t margin = 0;
+  const mu_ControlStateStyle *st = mu_get_control_state_style(ctx, MU_CONTROL_BUTTON, state, &margin);
+  mu_Color text_color = (st && st->has_style && st->text_color.a > 0)
+    ? st->text_color
+    : (state == MU_STATE_DISABLED ? ctx->style->colors[MU_COLOR_TEXTDISABLED] : ctx->style->colors[MU_COLOR_TEXT]);
+
+  if (label) { mu_draw_control_text_custom_color(ctx, label, r, text_color, opt); }
+  if (icon) { mu_draw_icon(ctx, icon, r, text_color); }
   return res;
 }
 
+
+/**
+*	@brief	Emit a checkbox widget with control options.
+*	@param ctx Active context.
+*	@param label Checkbox label.
+*	@param state Checkbox state pointer.
+*	@param opt Control option bitmask.
+*	@return Widget result flags.
+**/
+int mu_checkbox_ex(mu_Context *ctx, const char *label, int *state, int opt) {
+  int res = 0;
+  mu_Id id = mu_get_id(ctx, &state, sizeof(state));
+  mu_Rect r_cell = mu_layout_next(ctx);
+  mu_Rect r = mu_get_control_core_rect(ctx, r_cell, MU_CONTROL_CHECKBOX);
+
+  /* Determine checkbox square dimensions constrained by cell height and font metrics. */
+  int font_h = ctx->text_height(ctx->style->font);
+  int box_sz = mu_min(r.h, mu_max(14, font_h));
+  if (box_sz > 16 && r.h >= 18) {
+    box_sz = 16;
+  }
+  int box_y = r.y + (r.h - box_sz) / 2;
+
+  /* Align box and label: when label is empty, center the checkbox box in the cell. */
+  mu_Rect box;
+  mu_Rect label_rect;
+  if (label && label[0] != '\0') {
+    int spacing = ctx->style->spacing;
+    box = mu_rect(r.x, box_y, box_sz, box_sz);
+    label_rect = mu_rect(box.x + box.w + spacing, r.y, mu_max(0, r.w - (box.w + spacing)), r.h);
+  } else {
+    int box_x = r.x + (r.w - box_sz) / 2;
+    box = mu_rect(box_x, box_y, box_sz, box_sz);
+    label_rect = mu_rect(0, 0, 0, 0);
+  }
+
+  mu_update_control(ctx, id, r, opt);
+  /* handle click */
+  if (ctx->mouse_pressed == MU_MOUSE_LEFT && ctx->focus == id) {
+    res |= MU_RES_CHANGE;
+    *state = !*state;
+  }
+  /* draw */
+  int32_t ctrl_state = mu_get_control_state(ctx, id, opt);
+  int32_t margin = 0;
+  const mu_ControlStateStyle *st = mu_get_control_state_style(ctx, MU_CONTROL_CHECKBOX, ctrl_state, &margin);
+
+  if (st && st->has_style) {
+    mu_draw_rect_styled_ex(ctx, box,
+      st->bg_color,
+      st->glow_color, st->glow_radius,
+      st->inner_glow_color, st->inner_glow_radius,
+      st->corner_radii,
+      st->stroke_color, st->stroke_thickness);
+  } else {
+    int colorid = MU_COLOR_BASE;
+    if (ctrl_state == MU_STATE_DISABLED) {
+      colorid = MU_COLOR_BUTTONDISABLED;
+    } else {
+      colorid += (ctx->focus == id) ? 2 : (ctx->hover == id) ? 1 : 0;
+    }
+    mu_draw_rect(ctx, box, ctx->style->colors[colorid]);
+    if (ctx->style->colors[MU_COLOR_BORDER].a) {
+      mu_draw_box(ctx, box, ctx->style->colors[MU_COLOR_BORDER]);
+    }
+  }
+
+  mu_Color check_color = (st && st->has_style && st->text_color.a > 0)
+    ? st->text_color
+    : (ctrl_state == MU_STATE_DISABLED ? ctx->style->colors[MU_COLOR_TEXTDISABLED] : ctx->style->colors[MU_COLOR_TEXT]);
+
+  if (*state) {
+    mu_draw_icon(ctx, MU_ICON_CHECK, box, check_color);
+  }
+  if (label && label[0] != '\0') {
+    mu_draw_control_text_custom_color(ctx, label, label_rect, check_color, 0);
+  }
+  return res;
+}
 
 /**
 *	@brief	Emit a checkbox widget.
@@ -1341,31 +1635,9 @@ int mu_button_ex(mu_Context *ctx, const char *label, int icon, int opt) {
 *	@param label Checkbox label.
 *	@param state Checkbox state pointer.
 *	@return Widget result flags.
-*/
+**/
 int mu_checkbox(mu_Context *ctx, const char *label, int *state) {
-  int res = 0;
-  int colorid = MU_COLOR_BASE;
-  mu_Id id = mu_get_id(ctx, &state, sizeof(state));
-  mu_Rect r = mu_layout_next(ctx);
-  mu_Rect box = mu_rect(r.x, r.y, r.h, r.h);
-  mu_Rect label_rect = mu_rect(r.x + box.w, r.y, mu_max(0, r.w - box.w), r.h);
-  mu_update_control(ctx, id, r, 0);
-  /* handle click */
-  if (ctx->mouse_pressed == MU_MOUSE_LEFT && ctx->focus == id) {
-    res |= MU_RES_CHANGE;
-    *state = !*state;
-  }
-  /* draw */
-  colorid += (ctx->focus == id) ? 2 : (ctx->hover == id) ? 1 : 0;
-  mu_draw_rect(ctx, box, ctx->style->colors[colorid]);
-  if (ctx->style->colors[MU_COLOR_BORDER].a) {
-    mu_draw_box(ctx, box, ctx->style->colors[MU_COLOR_BORDER]);
-  }
-  if (*state) {
-    mu_draw_icon(ctx, MU_ICON_CHECK, box, ctx->style->colors[MU_COLOR_TEXT]);
-  }
-  mu_draw_control_text(ctx, label, label_rect, MU_COLOR_TEXT, 0);
-  return res;
+  return mu_checkbox_ex(ctx, label, state, 0);
 }
 
 
@@ -1410,7 +1682,7 @@ int mu_textbox_raw(mu_Context *ctx, char *buf, int bufsz, mu_Id id, mu_Rect r,
   }
 
   /* draw */
-  mu_draw_control_frame(ctx, id, r, MU_COLOR_BASE, opt);
+  mu_draw_control_frame_ex(ctx, id, r, MU_COLOR_BASE, opt, MU_CONTROL_TEXTBOX);
   if (ctx->focus == id) {
     mu_Color color = ctx->style->colors[MU_COLOR_TEXT];
     mu_Font font = ctx->style->font;
@@ -1470,7 +1742,8 @@ static int number_textbox(mu_Context *ctx, mu_Real *value, mu_Rect r, mu_Id id) 
 */
 int mu_textbox_ex(mu_Context *ctx, char *buf, int bufsz, int opt) {
   mu_Id id = mu_get_id(ctx, &buf, sizeof(buf));
-  mu_Rect r = mu_layout_next(ctx);
+  mu_Rect r_cell = mu_layout_next(ctx);
+  mu_Rect r = mu_get_control_core_rect(ctx, r_cell, MU_CONTROL_TEXTBOX);
   return mu_textbox_raw(ctx, buf, bufsz, id, r, opt);
 }
 
@@ -1494,7 +1767,8 @@ int mu_slider_ex(mu_Context *ctx, mu_Real *value, mu_Real low, mu_Real high,
   int x, w, res = 0;
   mu_Real last = *value, v = last;
   mu_Id id = mu_get_id(ctx, &value, sizeof(value));
-  mu_Rect base = mu_layout_next(ctx);
+  mu_Rect cell = mu_layout_next(ctx);
+  mu_Rect base = mu_get_control_core_rect(ctx, cell, MU_CONTROL_SLIDER_BASE);
 
   /* handle text input mode */
   if (number_textbox(ctx, &v, base, id)) { return res; }
@@ -1514,12 +1788,12 @@ int mu_slider_ex(mu_Context *ctx, mu_Real *value, mu_Real low, mu_Real high,
   if (last != v) { res |= MU_RES_CHANGE; }
 
   /* draw base */
-  mu_draw_control_frame(ctx, id, base, MU_COLOR_BASE, opt);
+  mu_draw_control_frame_ex(ctx, id, base, MU_COLOR_BASE, opt, MU_CONTROL_SLIDER_BASE);
   /* draw thumb */
   w = ctx->style->thumb_size;
   x = (v - low) * (base.w - w) / (high - low);
   thumb = mu_rect(base.x + x, base.y, w, base.h);
-  mu_draw_control_frame(ctx, id, thumb, MU_COLOR_BUTTON, opt);
+  mu_draw_control_frame_ex(ctx, id, thumb, MU_COLOR_BUTTON, opt, MU_CONTROL_SLIDER_THUMB);
   /* draw text  */
   sprintf(buf, fmt, v);
   mu_draw_control_text(ctx, buf, base, MU_COLOR_TEXT, opt);
@@ -1543,7 +1817,8 @@ int mu_number_ex(mu_Context *ctx, mu_Real *value, mu_Real step,
   char buf[MU_MAX_FMT + 1];
   int res = 0;
   mu_Id id = mu_get_id(ctx, &value, sizeof(value));
-  mu_Rect base = mu_layout_next(ctx);
+  mu_Rect cell = mu_layout_next(ctx);
+  mu_Rect base = mu_get_control_core_rect(ctx, cell, MU_CONTROL_TEXTBOX);
   mu_Real last = *value;
 
   /* handle text input mode */
@@ -1560,7 +1835,7 @@ int mu_number_ex(mu_Context *ctx, mu_Real *value, mu_Real step,
   if (*value != last) { res |= MU_RES_CHANGE; }
 
   /* draw base */
-  mu_draw_control_frame(ctx, id, base, MU_COLOR_BASE, opt);
+  mu_draw_control_frame_ex(ctx, id, base, MU_COLOR_BASE, opt, MU_CONTROL_TEXTBOX);
   /* draw text  */
   sprintf(buf, fmt, *value);
   mu_draw_control_text(ctx, buf, base, MU_COLOR_TEXT, opt);

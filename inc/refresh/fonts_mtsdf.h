@@ -87,6 +87,26 @@ const font_mtsdf_t *Font_GetDescriptorTTF( const qhandle_t font );
 float Font_StringWidthTTF( const qhandle_t font, const char *text );
 
 /**
+*	@brief	Measure string width in pixels up to maxlen characters with explicit extra character spacing.
+*	@param	font			Font handle.
+*	@param	text			String to measure.
+*	@param	maxlen			Maximum number of characters to measure.
+*	@param	extra_spacing	Additional pixel spacing to apply per character advance.
+*	@return	Width in pixels, falling back to standard (CHAR_WIDTH + extra_spacing) * length if not TTF.
+**/
+float Font_StringWidthTTF_Ex( const qhandle_t font, const char *text, const size_t maxlen, const float extra_spacing );
+
+/**
+*	@brief	Compute dynamic character advance and kerning spacing additive for font glyphs
+*			to account for outward stroke thickness and outer glow spatial expansion.
+*	@param	style_flags			Active STYLE_FLAG_* bitmask.
+*	@param	stroke_thickness	Array of 4 stroke thicknesses [Top, Right, Bottom, Left].
+*	@param	outer_glow_radius	Array of 4 outer glow radii [Top, Right, Bottom, Left].
+*	@return	Pixel spacing additive to apply per character.
+**/
+float R_Font_CalculateEffectSpacing( const uint32_t style_flags, const float stroke_thickness[ 4 ], const float outer_glow_radius[ 4 ] );
+
+/**
 *	@brief	Measure string width in pixels up to maxlen characters using TrueType metrics if available.
 *	@param	font	Font handle.
 *	@param	text	String to measure.

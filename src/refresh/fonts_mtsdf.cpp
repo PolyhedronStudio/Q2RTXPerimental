@@ -12,6 +12,7 @@
 *
 ********************************************************************/
 #include "refresh/fonts_mtsdf.h"
+#include "refresh/refresh.h"
 #include "refresh/images.h"
 #include "shared/shared.h"
 #include "shared/ui_shared.h"
@@ -1118,13 +1119,70 @@ const font_mtsdf_t *Font_GetDescriptorTTF( const qhandle_t font ) {
 }
 
 /**
-*	@brief	Measure string width in pixels up to maxlen characters using TrueType metrics if available.
-*	@param	font	Font handle to query.
-*	@param	text	Null-terminated text string to measure.
-*	@param	maxlen	Maximum number of characters to measure.
+*	@brief	Compute dynamic character advance and kerning spacing additive for font glyphs
+*			to account for outward stroke thickness and outer glow spatial expansion.
+*	@param	style_flags			Active STYLE_FLAG_* bitmask.
+*	@param	stroke_thickness	Array of 4 stroke thicknesses [Top, Right, Bottom, Left].
+*	@param	outer_glow_radius	Array of 4 outer glow radii [Top, Right, Bottom, Left].
+*	@return	Pixel spacing additive to apply per character.
+**/
+float R_Font_CalculateEffectSpacing( const uint32_t style_flags, const float stroke_thickness[ 4 ], const float outer_glow_radius[ 4 ] ) {
+	/**
+	*	Sanity checks: return zero additive if neither outline stroke nor outer glow are active.
+	**/
+	if ( ( style_flags & ( STYLE_FLAG_OUTLINE | STYLE_FLAG_OUTER_GLOW ) ) == 0 ) {
+		return 0.0f;
+	}
+
+	/**
+	*	Evaluate horizontal outward stroke outline intrusion between characters.
+	**/
+	float stroke_additive = 0.0f;
+	if ( ( style_flags & STYLE_FLAG_OUTLINE ) != 0 && stroke_thickness != nullptr ) {
+		const float stroke_r = stroke_thickness[ 1 ];
+		const float stroke_l = stroke_thickness[ 3 ];
+
+		// Branch by stroke alignment to determine outward expansion into inter-glyph gap
+		if ( ( style_flags & STYLE_FLAG_STROKE_ALIGN_OUTSET ) != 0 ) {
+			// Outset stroke expands fully outward on both sides.
+			stroke_additive = stroke_r + stroke_l;
+		} else if ( ( style_flags & STYLE_FLAG_STROKE_ALIGN_INSET ) != 0 ) {
+			// Inset stroke expands inward, zero gap intrusion.
+			stroke_additive = 0.0f;
+		} else {
+			// Centered stroke (default) expands outward by half its thickness on each side.
+			stroke_additive = ( stroke_r * 0.5f ) + ( stroke_l * 0.5f );
+		}
+	}
+
+	/**
+	*	Evaluate horizontal outer glow halo intrusion between characters.
+	**/
+	float glow_additive = 0.0f;
+	if ( ( style_flags & STYLE_FLAG_OUTER_GLOW ) != 0 && outer_glow_radius != nullptr ) {
+		const float glow_r = ( ( style_flags & STYLE_FLAG_EDGE_RIGHT ) != 0 ) ? outer_glow_radius[ 1 ] : 0.0f;
+		const float glow_l = ( ( style_flags & STYLE_FLAG_EDGE_LEFT ) != 0 ) ? outer_glow_radius[ 3 ] : 0.0f;
+
+		// Outer glow decays with distance; effective half-power halo contribution keeps text cohesive.
+		glow_additive = ( glow_r * 0.5f ) + ( glow_l * 0.5f );
+	}
+
+	/**
+	*	Outer envelope: since stroke and glow radiate from the same vector contour,
+	*	take the maximum horizontal expansion envelope.
+	**/
+	return std::max( stroke_additive, glow_additive );
+}
+
+/**
+*	@brief	Measure string width in pixels with explicit extra character spacing.
+*	@param	font			Font handle to query.
+*	@param	text			Null-terminated text string to measure.
+*	@param	maxlen			Maximum number of characters to measure.
+*	@param	extra_spacing	Additional pixel spacing to apply per character advance.
 *	@return	Total measured pixel width.
 **/
-float Font_StringWidthTTF_N( const qhandle_t font, const char *text, const size_t maxlen ) {
+float Font_StringWidthTTF_Ex( const qhandle_t font, const char *text, const size_t maxlen, const float extra_spacing ) {
 	/**
 	*	Sanity checks: return zero width for null or empty strings or zero character count.
 	**/
@@ -1137,17 +1195,17 @@ float Font_StringWidthTTF_N( const qhandle_t font, const char *text, const size_
 	*	Retrieve font descriptor or fall back to legacy fixed-width metrics.
 	**/
 	const font_mtsdf_t *desc = Font_GetDescriptorTTF( font );
-	// If font is legacy bitmap, calculate width using fixed CHAR_WIDTH.
+	// If font is legacy bitmap, calculate width using fixed CHAR_WIDTH + extra_spacing.
 	if ( desc == nullptr ) {
 		size_t len = strlen( text );
 		if ( len > maxlen ) {
 			len = maxlen;
 		}
-		return (float)( len * CHAR_WIDTH );
+		return (float)( len * ( (float)CHAR_WIDTH + extra_spacing ) );
 	}
 
 	/**
-	*	Accumulate glyph advance widths along the string up to maxlen characters.
+	*	Accumulate glyph advance widths plus extra spacing along the string up to maxlen characters.
 	**/
 	float total_w = 0.0f;
 	size_t remaining = maxlen;
@@ -1167,15 +1225,28 @@ float Font_StringWidthTTF_N( const qhandle_t font, const char *text, const size_
 			c = '_';
 		}
 
-		// Accumulate horizontal advance.
+		// Accumulate horizontal advance with extra effect spacing additive.
 		if ( c < MTSDF_MAX_GLYPHS && desc->glyph_valid[ c ] ) {
-			total_w += desc->glyphs[ c ].advance;
+			total_w += desc->glyphs[ c ].advance + extra_spacing;
 		} else {
-			total_w += desc->glyphs[ ' ' ].advance;
+			total_w += desc->glyphs[ ' ' ].advance + extra_spacing;
 		}
 	}
 
 	return total_w;
+}
+
+/**
+*	@brief	Measure string width in pixels up to maxlen characters using TrueType metrics if available.
+*	@param	font	Font handle to query.
+*	@param	text	Null-terminated text string to measure.
+*	@param	maxlen	Maximum number of characters to measure.
+*	@return	Total measured pixel width including active renderer stroke and glow spacing additive.
+**/
+float Font_StringWidthTTF_N( const qhandle_t font, const char *text, const size_t maxlen ) {
+	// Retrieve active renderer font effect spacing additive if function pointer is registered.
+	const float spacing_additive = ( R_GetFontEffectSpacing != nullptr ) ? R_GetFontEffectSpacing() : 0.0f;
+	return Font_StringWidthTTF_Ex( font, text, maxlen, spacing_additive );
 }
 
 /**

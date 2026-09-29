@@ -581,6 +581,18 @@ void CLG_UI_DrawRenderCommands() {
 					hasStyle = true;
 				}
 
+				// Check if inner contour glow is active.
+				if ( muCmd->rect.inner_glow_radius > 0 && muCmd->rect.inner_glow_color.a > 0 ) {
+					const uint32_t innerGlowColor = MakeColor(
+						muCmd->rect.inner_glow_color.r,
+						muCmd->rect.inner_glow_color.g,
+						muCmd->rect.inner_glow_color.b,
+						muCmd->rect.inner_glow_color.a
+					);
+					clgi.R_SetInnerGlow( innerGlowColor, static_cast< float >( muCmd->rect.inner_glow_radius ) );
+					hasStyle = true;
+				}
+
 				// Check if corner radii are active.
 				if ( muCmd->rect.corner_radii[ 0 ] > 0 || muCmd->rect.corner_radii[ 1 ] > 0 ||
 					 muCmd->rect.corner_radii[ 2 ] > 0 || muCmd->rect.corner_radii[ 3 ] > 0 ) {

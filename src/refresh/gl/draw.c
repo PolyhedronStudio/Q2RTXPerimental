@@ -410,6 +410,17 @@ void R_ClearStyle_GL( void ) {
 }
 
 /**
+*	@brief	Query the current font character advance spacing additive for GL.
+*	@return	Pixel spacing additive to apply between characters.
+**/
+float R_GetFontEffectSpacing_GL( void ) {
+	if ( ( draw.style_flags & ( STYLE_FLAG_OUTLINE | STYLE_FLAG_OUTER_GLOW ) ) == 0 ) {
+		return 0.0f;
+	}
+	return R_Font_CalculateEffectSpacing( draw.style_flags, draw.stroke_thickness, draw.outer_glow_radius );
+}
+
+/**
 *	@brief	Draw a 2D line segment fallback for GL.
 *	@param	x1			Start X coordinate.
 *	@param	y1			Start Y coordinate.
@@ -623,11 +634,12 @@ void R_DrawChar_GL(int x, int y, int flags, int c, qhandle_t font)
 int R_DrawString_GL(int x, int y, int flags, size_t maxlen, const char *s, qhandle_t font)
 {
     image_t *image = IMG_ForHandle(font);
+    const float spacing_additive = R_GetFontEffectSpacing_GL();
 
     while (maxlen-- && *s) {
         byte c = *s++;
         draw_char(x, y, flags, c, image);
-        x += CHAR_WIDTH;
+        x += (int)Q_rint( (float)CHAR_WIDTH + spacing_additive );
     }
 
     return x;

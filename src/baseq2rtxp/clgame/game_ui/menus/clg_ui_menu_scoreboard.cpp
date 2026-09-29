@@ -61,6 +61,26 @@ static cvar_t *clg_scoreboard_corner_radius = nullptr;
 static cvar_t *clg_scoreboard_stroke_thickness = nullptr;
 //! Scoreboard window outline stroke RGB hex color string (e.g. "#FF905A").
 static cvar_t *clg_scoreboard_stroke_color = nullptr;
+//! Scoreboard button outer glow static margin envelope in pixels.
+static cvar_t *clg_scoreboard_btn_glow_margin = nullptr;
+//! Scoreboard button corner radius in pixels.
+static cvar_t *clg_scoreboard_btn_corner_radius = nullptr;
+//! Scoreboard button outline stroke thickness in pixels.
+static cvar_t *clg_scoreboard_btn_stroke_thickness = nullptr;
+//! Scoreboard button outline stroke RGB hex color string (e.g. "#FF905A").
+static cvar_t *clg_scoreboard_btn_stroke_color = nullptr;
+//! Scoreboard button hover outer glow RGB hex color string (e.g. "#FF7800").
+static cvar_t *clg_scoreboard_btn_glow_hover = nullptr;
+//! Scoreboard button focus / pressed outer glow RGB hex color string (e.g. "#FFA040").
+static cvar_t *clg_scoreboard_btn_glow_focus = nullptr;
+//! Scoreboard button outer glow radius in pixels.
+static cvar_t *clg_scoreboard_btn_glow_radius = nullptr;
+//! Scoreboard default window width in pixels.
+static cvar_t *clg_scoreboard_width = nullptr;
+//! Scoreboard checkbox outer glow static margin envelope in pixels.
+static cvar_t *clg_scoreboard_chk_glow_margin = nullptr;
+//! Scoreboard checkbox outer glow radius in pixels.
+static cvar_t *clg_scoreboard_chk_glow_radius = nullptr;
 
 
 /**
@@ -173,8 +193,9 @@ static void CLG_Scoreboard_DrawHeaderRow( mu_Context *ctx, const int32_t *rowWid
 
 	/**
 	*	Draw header text with explicit per-column alignment so offsets stay visually consistent.
+	*	The 'Muted' header text is centered per design guidelines.
 	**/
-	mu_draw_control_text( ctx, "Muted", mutedRect, MU_COLOR_TEXT, 0 );
+	mu_draw_control_text( ctx, "Muted", mutedRect, MU_COLOR_TEXT, MU_OPT_ALIGNCENTER );
 	mu_draw_control_text( ctx, "Name", nameRect, MU_COLOR_TEXT, 0 );
 	mu_draw_control_text( ctx, "Score", scoreRect, MU_COLOR_TEXT, MU_OPT_ALIGNRIGHT );
 	mu_draw_control_text( ctx, "Ping", pingRect, MU_COLOR_TEXT, MU_OPT_ALIGNCENTER );
@@ -204,16 +225,13 @@ static int32_t CLG_Scoreboard_DrawClientRow( mu_Context *ctx, const int32_t *row
 	if ( isMuted ) {
 		/**
 		*	Draw the muted-state marker inside the dedicated column.
-		*	The close icon gives a compact visual indicator without adding text noise.
+		*	The close icon alone indicates muted players and is centered in its column.
 		**/
-		const int32_t iconInset = ctx->style->padding;
-		const int32_t iconSize = std::max( 1, mutedRect.h - ( iconInset * 2 ) );
-		mu_Rect iconRect = mu_rect( mutedRect.x + iconInset, mutedRect.y + iconInset, iconSize, iconSize );
-		mu_draw_icon( ctx, MU_ICON_CLOSE, iconRect, ctx->style->colors[ MU_COLOR_TEXT ] );
+		mu_draw_icon( ctx, MU_ICON_CLOSE, mutedRect, ctx->style->colors[ MU_COLOR_TEXT ] );
 	}
 	mu_label( ctx, entry.clientName );
 	mu_label_ex( ctx, scoreText, MU_COLOR_TEXT, MU_OPT_ALIGNRIGHT );
-	mu_label_ex( ctx, pingText, MU_COLOR_TEXT, MU_OPT_ALIGNRIGHT );
+	mu_label_ex( ctx, pingText, MU_COLOR_TEXT, MU_OPT_ALIGNCENTER );
 	return checkboxResult;
 }
 
@@ -305,21 +323,58 @@ const bool CLG_MUI_ProcessScoreBoard( mu_Context *ctx ) {
 		focusedMuteClient = -1;
 	}
 
+	/**
+	*	Initialize scoreboard styling cvars on first invocation.
+	**/
+	if ( clg_scoreboard_glow_radius == nullptr ) {
+		clg_scoreboard_width = clgi.CVar_Get( "clg_scoreboard_width", "540", CVAR_ARCHIVE );
+		clg_scoreboard_glow_radius = clgi.CVar_Get( "clg_scoreboard_glow_radius", "16", CVAR_ARCHIVE );
+		clg_scoreboard_glow_color = clgi.CVar_Get( "clg_scoreboard_glow_color", "#000000", CVAR_ARCHIVE );
+		clg_scoreboard_glow_alpha = clgi.CVar_Get( "clg_scoreboard_glow_alpha", "0.75", CVAR_ARCHIVE );
+		clg_scoreboard_corner_radius = clgi.CVar_Get( "clg_scoreboard_corner_radius", "8", CVAR_ARCHIVE );
+		clg_scoreboard_stroke_thickness = clgi.CVar_Get( "clg_scoreboard_stroke_thickness", "1", CVAR_ARCHIVE );
+		clg_scoreboard_stroke_color = clgi.CVar_Get( "clg_scoreboard_stroke_color", "#FF905A", CVAR_ARCHIVE );
+
+		clg_scoreboard_btn_glow_margin = clgi.CVar_Get( "clg_scoreboard_btn_glow_margin", "6", CVAR_ARCHIVE );
+		clg_scoreboard_btn_corner_radius = clgi.CVar_Get( "clg_scoreboard_btn_corner_radius", "4", CVAR_ARCHIVE );
+		clg_scoreboard_btn_stroke_thickness = clgi.CVar_Get( "clg_scoreboard_btn_stroke_thickness", "1", CVAR_ARCHIVE );
+		clg_scoreboard_btn_stroke_color = clgi.CVar_Get( "clg_scoreboard_btn_stroke_color", "#FF905A", CVAR_ARCHIVE );
+		clg_scoreboard_btn_glow_hover = clgi.CVar_Get( "clg_scoreboard_btn_glow_hover", "#FF7800", CVAR_ARCHIVE );
+		clg_scoreboard_btn_glow_focus = clgi.CVar_Get( "clg_scoreboard_btn_glow_focus", "#FFA040", CVAR_ARCHIVE );
+		clg_scoreboard_btn_glow_radius = clgi.CVar_Get( "clg_scoreboard_btn_glow_radius", "6", CVAR_ARCHIVE );
+
+		clg_scoreboard_chk_glow_margin = clgi.CVar_Get( "clg_scoreboard_chk_glow_margin", "4", CVAR_ARCHIVE );
+		clg_scoreboard_chk_glow_radius = clgi.CVar_Get( "clg_scoreboard_chk_glow_radius", "5", CVAR_ARCHIVE );
+	}
+
+	const int32_t btnGlowMargin = ( clg_scoreboard_btn_glow_margin != nullptr ) ? std::max( 0, clg_scoreboard_btn_glow_margin->integer ) : 6;
+	const int32_t extraGlowW = btnGlowMargin * 2;
+	const int32_t chkGlowMargin = ( clg_scoreboard_chk_glow_margin != nullptr ) ? std::max( 0, clg_scoreboard_chk_glow_margin->integer ) : 4;
+	const int32_t chkGlowRadius = ( clg_scoreboard_chk_glow_radius != nullptr ) ? std::max( 0, clg_scoreboard_chk_glow_radius->integer ) : 5;
+	const int32_t desiredScoreBoardWidth = ( clg_scoreboard_width != nullptr ) ? std::max( 360, clg_scoreboard_width->integer ) : 540;
+
 	// Layout constants for scoreboard column sizing and font metrics scaling.
 	constexpr int32_t MINIMUM_ROW_HEIGHT_PX = 24;
-	constexpr int32_t MINIMUM_NAME_COLUMN_WIDTH_PX = 120;
-	constexpr int32_t MINIMUM_SCORE_COLUMN_WIDTH_PX = 52;
-	constexpr int32_t MINIMUM_PING_COLUMN_WIDTH_PX = 52;
+	constexpr int32_t MINIMUM_NAME_COLUMN_WIDTH_PX = 140;
+	constexpr int32_t MINIMUM_SCORE_COLUMN_WIDTH_PX = 68;
+	constexpr int32_t MINIMUM_PING_COLUMN_WIDTH_PX = 68;
+	constexpr int32_t MINIMUM_MUTED_COLUMN_WIDTH_PX = 68;
+	constexpr int32_t CHECKBOX_COLUMN_WIDTH_PX = 36;
 
 	const int32_t fontLineHeight = ctx->text_height( ctx->style->font );
 	const int32_t rowHeight = std::max( MINIMUM_ROW_HEIGHT_PX, fontLineHeight + ( ctx->style->padding * 2 ) );
-	const int32_t checkboxWidth = rowHeight;
+	const int32_t actionRowHeight = rowHeight + ( btnGlowMargin * 2 );
+	const int32_t checkboxWidth = CHECKBOX_COLUMN_WIDTH_PX;
 	const int32_t mutedHeaderTextWidth = ctx->text_width( ctx->style->font, "Muted", -1 );
 	const int32_t muteButtonLabelWidth = std::max( ctx->text_width( ctx->style->font, "Mute", -1 ), ctx->text_width( ctx->style->font, "Unmute", -1 ) );
-	const int32_t mutedWidth = std::max( mutedHeaderTextWidth, muteButtonLabelWidth ) + ( ctx->style->padding * 2 );
-	const int32_t nameWidth = std::max( MINIMUM_NAME_COLUMN_WIDTH_PX, ctx->text_width( ctx->style->font, "Player Name Column Length Maximum", -1 ) / 2 );
-	const int32_t scoreWidth = std::max( MINIMUM_SCORE_COLUMN_WIDTH_PX, ctx->text_width( ctx->style->font, "Score 999", -1 ) );
-	const int32_t pingWidth = std::max( MINIMUM_PING_COLUMN_WIDTH_PX, ctx->text_width( ctx->style->font, "Ping 999ms", -1 ) );
+	const int32_t mutedWidth = std::max( { MINIMUM_MUTED_COLUMN_WIDTH_PX, mutedHeaderTextWidth + ( ctx->style->padding * 2 ) + extraGlowW, muteButtonLabelWidth + ( ctx->style->padding * 2 ) + extraGlowW } );
+	const int32_t scoreWidth = std::max( MINIMUM_SCORE_COLUMN_WIDTH_PX, ctx->text_width( ctx->style->font, "Score 999", -1 ) + ( ctx->style->padding * 2 ) );
+	const int32_t pingWidth = std::max( MINIMUM_PING_COLUMN_WIDTH_PX, ctx->text_width( ctx->style->font, "Ping 999ms", -1 ) + ( ctx->style->padding * 2 ) );
+
+	// Calculate name column width dynamically so total table width satisfies desiredScoreBoardWidth.
+	const int32_t fixedColumnsVisual = checkboxWidth + mutedWidth + scoreWidth + pingWidth + ( ctx->style->spacing * 4 );
+	const int32_t targetVisualWidth = desiredScoreBoardWidth - ( ctx->style->padding * 2 );
+	const int32_t nameWidth = std::max( MINIMUM_NAME_COLUMN_WIDTH_PX, targetVisualWidth - fixedColumnsVisual );
 	const int32_t rowWidths[ 5 ] = { checkboxWidth, mutedWidth, nameWidth, scoreWidth, pingWidth };
 	const int32_t preButtonSpacerHeight = std::max( 0, ctx->style->padding );
 	const int32_t postButtonSpacerHeight = preButtonSpacerHeight;
@@ -354,10 +409,11 @@ const bool CLG_MUI_ProcessScoreBoard( mu_Context *ctx ) {
 	const int32_t totalLayoutRows = tableRows + actionRows + spacerRows;
 
 	const int32_t contentHeight =
-		( ( tableRows + actionRows ) * rowHeight ) +
+		( tableRows * rowHeight ) +
+		actionRowHeight +
 		preButtonSpacerHeight +
 		postButtonSpacerHeight +
-		( ( totalLayoutRows - 1 ) * ctx->style->spacing ) - ctx->style->spacing;
+		( ( totalLayoutRows - 1 ) * ctx->style->spacing );
 	const int32_t scoreBoardWidth = rowWidthVisual + ( ctx->style->padding * 2 );
 	const int32_t maxScoreBoardHeight = ( clgi.screen->screenHeight * 3 ) / 4;
 	const int32_t bodyHeight = contentHeight + ( ctx->style->padding * 2 );
@@ -365,18 +421,6 @@ const bool CLG_MUI_ProcessScoreBoard( mu_Context *ctx ) {
 	const int32_t scoreBoardHeight = std::min( maxScoreBoardHeight, std::max( 1, windowHeight ) );
 	const int32_t scoreBoardX = ( clgi.screen->screenWidth - scoreBoardWidth ) / 2;
 	const int32_t scoreBoardY = ( clgi.screen->screenHeight - scoreBoardHeight ) / 2;
-
-	/**
-	*	Initialize scoreboard styling cvars on first invocation.
-	**/
-	if ( clg_scoreboard_glow_radius == nullptr ) {
-		clg_scoreboard_glow_radius = clgi.CVar_Get( "clg_scoreboard_glow_radius", "16", CVAR_ARCHIVE );
-		clg_scoreboard_glow_color = clgi.CVar_Get( "clg_scoreboard_glow_color", "#000000", CVAR_ARCHIVE );
-		clg_scoreboard_glow_alpha = clgi.CVar_Get( "clg_scoreboard_glow_alpha", "0.75", CVAR_ARCHIVE );
-		clg_scoreboard_corner_radius = clgi.CVar_Get( "clg_scoreboard_corner_radius", "8", CVAR_ARCHIVE );
-		clg_scoreboard_stroke_thickness = clgi.CVar_Get( "clg_scoreboard_stroke_thickness", "1", CVAR_ARCHIVE );
-		clg_scoreboard_stroke_color = clgi.CVar_Get( "clg_scoreboard_stroke_color", "#FF905A", CVAR_ARCHIVE );
-	}
 
 	/**
 	*	Resolve outer glow/shadow and window frame styling from cvars.
@@ -409,6 +453,146 @@ const bool CLG_MUI_ProcessScoreBoard( mu_Context *ctx ) {
 	**/
 	mu_set_window_style( ctx, "Scoreboard", glowColor, glowRadius, cornerRadii, strokeColor, strokeThickness );
 
+	/**
+	*	Resolve button and control styling from cvars.
+	**/
+	const int32_t btnCornerRadius = ( clg_scoreboard_btn_corner_radius != nullptr ) ? std::max( 0, clg_scoreboard_btn_corner_radius->integer ) : 4;
+	const int32_t btnStrokeThickness = ( clg_scoreboard_btn_stroke_thickness != nullptr ) ? std::max( 0, clg_scoreboard_btn_stroke_thickness->integer ) : 1;
+	const int32_t btnGlowRadius = ( clg_scoreboard_btn_glow_radius != nullptr ) ? std::max( 0, clg_scoreboard_btn_glow_radius->integer ) : 6;
+
+	mu_Color btnStrokeColor = mu_color( 255, 144, 90, 235 );
+	if ( clg_scoreboard_btn_stroke_color != nullptr && clg_scoreboard_btn_stroke_color->string[ 0 ] != '\0' ) {
+		color_t parsed = {};
+		if ( clgi.SCR_ParseColor( clg_scoreboard_btn_stroke_color->string, &parsed ) ) {
+			btnStrokeColor = mu_color( parsed.u8[ 0 ], parsed.u8[ 1 ], parsed.u8[ 2 ], parsed.u8[ 3 ] );
+		}
+	}
+
+	mu_Color btnGlowHover = mu_color( 255, 120, 0, 210 );
+	if ( clg_scoreboard_btn_glow_hover != nullptr && clg_scoreboard_btn_glow_hover->string[ 0 ] != '\0' ) {
+		color_t parsed = {};
+		if ( clgi.SCR_ParseColor( clg_scoreboard_btn_glow_hover->string, &parsed ) ) {
+			btnGlowHover = mu_color( parsed.u8[ 0 ], parsed.u8[ 1 ], parsed.u8[ 2 ], parsed.u8[ 3 ] );
+		}
+	}
+
+	mu_Color btnGlowFocus = mu_color( 255, 160, 64, 255 );
+	if ( clg_scoreboard_btn_glow_focus != nullptr && clg_scoreboard_btn_glow_focus->string[ 0 ] != '\0' ) {
+		color_t parsed = {};
+		if ( clgi.SCR_ParseColor( clg_scoreboard_btn_glow_focus->string, &parsed ) ) {
+			btnGlowFocus = mu_color( parsed.u8[ 0 ], parsed.u8[ 1 ], parsed.u8[ 2 ], parsed.u8[ 3 ] );
+		}
+	}
+
+	/**
+	*	Configure multi-state styling for scoreboard buttons.
+	**/
+	mu_ControlStyle btnStyle = {};
+	btnStyle.glow_margin = btnGlowMargin;
+	btnStyle.has_style = 1;
+
+	// Normal (resting) state
+	btnStyle.states[ MU_STATE_NORMAL ].bg_color = ctx->style->colors[ MU_COLOR_BUTTON ];
+	btnStyle.states[ MU_STATE_NORMAL ].text_color = ctx->style->colors[ MU_COLOR_TEXT ];
+	btnStyle.states[ MU_STATE_NORMAL ].stroke_color = btnStrokeColor;
+	btnStyle.states[ MU_STATE_NORMAL ].stroke_thickness = btnStrokeThickness;
+	btnStyle.states[ MU_STATE_NORMAL ].glow_color = mu_color( 0, 0, 0, 0 );
+	btnStyle.states[ MU_STATE_NORMAL ].glow_radius = 0;
+	btnStyle.states[ MU_STATE_NORMAL ].corner_radii[ 0 ] = btnCornerRadius;
+	btnStyle.states[ MU_STATE_NORMAL ].corner_radii[ 1 ] = btnCornerRadius;
+	btnStyle.states[ MU_STATE_NORMAL ].corner_radii[ 2 ] = btnCornerRadius;
+	btnStyle.states[ MU_STATE_NORMAL ].corner_radii[ 3 ] = btnCornerRadius;
+	btnStyle.states[ MU_STATE_NORMAL ].has_style = 1;
+
+	// Hover state
+	btnStyle.states[ MU_STATE_HOVER ].bg_color = ctx->style->colors[ MU_COLOR_BUTTONHOVER ];
+	btnStyle.states[ MU_STATE_HOVER ].text_color = mu_color( 255, 255, 255, 255 );
+	btnStyle.states[ MU_STATE_HOVER ].stroke_color = btnStrokeColor;
+	btnStyle.states[ MU_STATE_HOVER ].stroke_thickness = btnStrokeThickness;
+	btnStyle.states[ MU_STATE_HOVER ].glow_color = btnGlowHover;
+	btnStyle.states[ MU_STATE_HOVER ].glow_radius = btnGlowRadius;
+	btnStyle.states[ MU_STATE_HOVER ].corner_radii[ 0 ] = btnCornerRadius;
+	btnStyle.states[ MU_STATE_HOVER ].corner_radii[ 1 ] = btnCornerRadius;
+	btnStyle.states[ MU_STATE_HOVER ].corner_radii[ 2 ] = btnCornerRadius;
+	btnStyle.states[ MU_STATE_HOVER ].corner_radii[ 3 ] = btnCornerRadius;
+	btnStyle.states[ MU_STATE_HOVER ].has_style = 1;
+
+	// Focus (pressed / on-mouse-down) state
+	btnStyle.states[ MU_STATE_FOCUS ].bg_color = ctx->style->colors[ MU_COLOR_BUTTONFOCUS ];
+	btnStyle.states[ MU_STATE_FOCUS ].text_color = mu_color( 255, 255, 255, 255 );
+	btnStyle.states[ MU_STATE_FOCUS ].stroke_color = mu_color( 255, 200, 120, 255 );
+	btnStyle.states[ MU_STATE_FOCUS ].stroke_thickness = btnStrokeThickness;
+	btnStyle.states[ MU_STATE_FOCUS ].glow_color = btnGlowFocus;
+	btnStyle.states[ MU_STATE_FOCUS ].glow_radius = btnGlowRadius;
+	btnStyle.states[ MU_STATE_FOCUS ].corner_radii[ 0 ] = btnCornerRadius;
+	btnStyle.states[ MU_STATE_FOCUS ].corner_radii[ 1 ] = btnCornerRadius;
+	btnStyle.states[ MU_STATE_FOCUS ].corner_radii[ 2 ] = btnCornerRadius;
+	btnStyle.states[ MU_STATE_FOCUS ].corner_radii[ 3 ] = btnCornerRadius;
+	btnStyle.states[ MU_STATE_FOCUS ].has_style = 1;
+
+	// Disabled state
+	btnStyle.states[ MU_STATE_DISABLED ].bg_color = ctx->style->colors[ MU_COLOR_BUTTONDISABLED ];
+	btnStyle.states[ MU_STATE_DISABLED ].text_color = ctx->style->colors[ MU_COLOR_TEXTDISABLED ];
+	btnStyle.states[ MU_STATE_DISABLED ].stroke_color = mu_color( 100, 100, 100, 80 );
+	btnStyle.states[ MU_STATE_DISABLED ].stroke_thickness = btnStrokeThickness;
+	btnStyle.states[ MU_STATE_DISABLED ].glow_color = mu_color( 0, 0, 0, 0 );
+	btnStyle.states[ MU_STATE_DISABLED ].glow_radius = 0;
+	btnStyle.states[ MU_STATE_DISABLED ].corner_radii[ 0 ] = btnCornerRadius;
+	btnStyle.states[ MU_STATE_DISABLED ].corner_radii[ 1 ] = btnCornerRadius;
+	btnStyle.states[ MU_STATE_DISABLED ].corner_radii[ 2 ] = btnCornerRadius;
+	btnStyle.states[ MU_STATE_DISABLED ].corner_radii[ 3 ] = btnCornerRadius;
+	btnStyle.states[ MU_STATE_DISABLED ].has_style = 1;
+
+	mu_set_control_style( ctx, MU_CONTROL_BUTTON, &btnStyle );
+
+	/**
+	*	Configure checkbox styling: rounded corners, border stroke, and hover/focus glow.
+	**/
+	mu_ControlStyle chkStyle = {};
+	chkStyle.glow_margin = chkGlowMargin;
+	chkStyle.has_style = 1;
+
+	// Normal (resting) state
+	chkStyle.states[ MU_STATE_NORMAL ].bg_color = ctx->style->colors[ MU_COLOR_BASE ];
+	chkStyle.states[ MU_STATE_NORMAL ].text_color = ctx->style->colors[ MU_COLOR_TEXT ];
+	chkStyle.states[ MU_STATE_NORMAL ].stroke_color = ctx->style->colors[ MU_COLOR_BORDER ];
+	chkStyle.states[ MU_STATE_NORMAL ].stroke_thickness = 1;
+	chkStyle.states[ MU_STATE_NORMAL ].glow_color = mu_color( 0, 0, 0, 0 );
+	chkStyle.states[ MU_STATE_NORMAL ].glow_radius = 0;
+	chkStyle.states[ MU_STATE_NORMAL ].corner_radii[ 0 ] = 3;
+	chkStyle.states[ MU_STATE_NORMAL ].corner_radii[ 1 ] = 3;
+	chkStyle.states[ MU_STATE_NORMAL ].corner_radii[ 2 ] = 3;
+	chkStyle.states[ MU_STATE_NORMAL ].corner_radii[ 3 ] = 3;
+	chkStyle.states[ MU_STATE_NORMAL ].has_style = 1;
+
+	// Hover state
+	chkStyle.states[ MU_STATE_HOVER ].bg_color = ctx->style->colors[ MU_COLOR_BASEHOVER ];
+	chkStyle.states[ MU_STATE_HOVER ].text_color = mu_color( 255, 255, 255, 255 );
+	chkStyle.states[ MU_STATE_HOVER ].stroke_color = btnStrokeColor;
+	chkStyle.states[ MU_STATE_HOVER ].stroke_thickness = 1;
+	chkStyle.states[ MU_STATE_HOVER ].glow_color = btnGlowHover;
+	chkStyle.states[ MU_STATE_HOVER ].glow_radius = chkGlowRadius;
+	chkStyle.states[ MU_STATE_HOVER ].corner_radii[ 0 ] = 3;
+	chkStyle.states[ MU_STATE_HOVER ].corner_radii[ 1 ] = 3;
+	chkStyle.states[ MU_STATE_HOVER ].corner_radii[ 2 ] = 3;
+	chkStyle.states[ MU_STATE_HOVER ].corner_radii[ 3 ] = 3;
+	chkStyle.states[ MU_STATE_HOVER ].has_style = 1;
+
+	// Focus (pressed / on-mouse-down) state
+	chkStyle.states[ MU_STATE_FOCUS ].bg_color = ctx->style->colors[ MU_COLOR_BASEFOCUS ];
+	chkStyle.states[ MU_STATE_FOCUS ].text_color = mu_color( 255, 255, 255, 255 );
+	chkStyle.states[ MU_STATE_FOCUS ].stroke_color = mu_color( 255, 200, 120, 255 );
+	chkStyle.states[ MU_STATE_FOCUS ].stroke_thickness = 1;
+	chkStyle.states[ MU_STATE_FOCUS ].glow_color = btnGlowFocus;
+	chkStyle.states[ MU_STATE_FOCUS ].glow_radius = chkGlowRadius;
+	chkStyle.states[ MU_STATE_FOCUS ].corner_radii[ 0 ] = 3;
+	chkStyle.states[ MU_STATE_FOCUS ].corner_radii[ 1 ] = 3;
+	chkStyle.states[ MU_STATE_FOCUS ].corner_radii[ 2 ] = 3;
+	chkStyle.states[ MU_STATE_FOCUS ].corner_radii[ 3 ] = 3;
+	chkStyle.states[ MU_STATE_FOCUS ].has_style = 1;
+
+	mu_set_control_style( ctx, MU_CONTROL_CHECKBOX, &chkStyle );
+
 	const int32_t opt = MU_OPT_ALIGNCENTER | MU_OPT_NOCLOSE | MU_OPT_HOLDFOCUS | MU_OPT_KEEPFOCUS | MU_OPT_NODRAG | MU_OPT_NORESIZE | MU_OPT_NOSCROLL;
 	if ( mu_begin_window_ex( ctx, "Scoreboard", mu_rect( scoreBoardX, scoreBoardY, scoreBoardWidth, scoreBoardHeight ), opt ) ) {
 		/**
@@ -432,13 +616,19 @@ const bool CLG_MUI_ProcessScoreBoard( mu_Context *ctx ) {
 
 		/**
 		*	Account for MicroUI inter-column spacing when drawing separators.
-		*	This keeps visual boundaries aligned with actual text/layout rectangles.
+		*	Place vertical separators exactly at the midpoints of the inter-column gaps.
 		**/
 		const int32_t columnGap = ctx->style->spacing;
-		const int32_t checkboxMutedSepX = headerRect.x + checkboxWidth + columnGap;
-		const int32_t mutedNameSepX = headerRect.x + checkboxWidth + mutedWidth + ( columnGap * 2 );
-		const int32_t nameScoreSepX = mutedNameSepX + nameWidth + columnGap;
-		const int32_t scorePingSepX = nameScoreSepX + scoreWidth + columnGap;
+		const int32_t halfGap = columnGap / 2;
+		const int32_t col0End = headerRect.x + checkboxWidth;
+		const int32_t col1End = col0End + columnGap + mutedWidth;
+		const int32_t col2End = col1End + columnGap + nameWidth;
+		const int32_t col3End = col2End + columnGap + scoreWidth;
+
+		const int32_t checkboxMutedSepX = col0End + halfGap;
+		const int32_t mutedNameSepX = col1End + halfGap;
+		const int32_t nameScoreSepX = col2End + halfGap;
+		const int32_t scorePingSepX = col3End + halfGap;
 		mu_draw_rect( ctx, mu_rect( checkboxMutedSepX, headerRect.y, 1, headerRect.h ), separatorColor );
 		mu_draw_rect( ctx, mu_rect( mutedNameSepX, headerRect.y, 1, headerRect.h ), separatorColor );
 		mu_draw_rect( ctx, mu_rect( nameScoreSepX, headerRect.y, 1, headerRect.h ), separatorColor );
@@ -485,10 +675,16 @@ const bool CLG_MUI_ProcessScoreBoard( mu_Context *ctx ) {
 				*	Mirror the spacing-aware separator math from the header for every body row.
 				**/
 				const int32_t columnGap = ctx->style->spacing;
-				const int32_t checkboxMutedSepX = rowRect.x + checkboxWidth + columnGap;
-				const int32_t mutedNameSepX = rowRect.x + checkboxWidth + mutedWidth + ( columnGap * 2 );
-				const int32_t nameScoreSepX = mutedNameSepX + nameWidth + columnGap;
-				const int32_t scorePingSepX = nameScoreSepX + scoreWidth + columnGap;
+				const int32_t halfGap = columnGap / 2;
+				const int32_t col0End = rowRect.x + checkboxWidth;
+				const int32_t col1End = col0End + columnGap + mutedWidth;
+				const int32_t col2End = col1End + columnGap + nameWidth;
+				const int32_t col3End = col2End + columnGap + scoreWidth;
+
+				const int32_t checkboxMutedSepX = col0End + halfGap;
+				const int32_t mutedNameSepX = col1End + halfGap;
+				const int32_t nameScoreSepX = col2End + halfGap;
+				const int32_t scorePingSepX = col3End + halfGap;
 				mu_draw_rect( ctx, mu_rect( checkboxMutedSepX, rowRect.y, 1, rowRect.h ), separatorColor );
 				mu_draw_rect( ctx, mu_rect( mutedNameSepX, rowRect.y, 1, rowRect.h ), separatorColor );
 				mu_draw_rect( ctx, mu_rect( nameScoreSepX, rowRect.y, 1, rowRect.h ), separatorColor );
@@ -571,14 +767,14 @@ const bool CLG_MUI_ProcessScoreBoard( mu_Context *ctx ) {
 		**/
 		const char *voteKickLabel = "Vote Kick";
 		const char *voteBanLabel = "Vote Ban";
-		const int32_t muteButtonWidth = ctx->text_width( ctx->style->font, muteLabel, -1 ) + ( ctx->style->padding * 2 );
-		const int32_t voteKickButtonWidth = ctx->text_width( ctx->style->font, voteKickLabel, -1 ) + ( ctx->style->padding * 2 );
-		const int32_t voteBanButtonWidth = ctx->text_width( ctx->style->font, voteBanLabel, -1 ) + ( ctx->style->padding * 2 );
+		const int32_t muteButtonWidth = ctx->text_width( ctx->style->font, muteLabel, -1 ) + ( ctx->style->padding * 2 ) + extraGlowW;
+		const int32_t voteKickButtonWidth = ctx->text_width( ctx->style->font, voteKickLabel, -1 ) + ( ctx->style->padding * 2 ) + extraGlowW;
+		const int32_t voteBanButtonWidth = ctx->text_width( ctx->style->font, voteBanLabel, -1 ) + ( ctx->style->padding * 2 ) + extraGlowW;
 
 		/**
 		*	Draw the action row: mute under the name column, vote buttons right-aligned.
 		**/
-		mu_layout_row( ctx, 5, rowWidths, rowHeight );
+		mu_layout_row( ctx, 5, rowWidths, actionRowHeight );
 
 		/**
 		*	Skip the checkbox column, then anchor the mute button to the left edge that the
@@ -589,8 +785,10 @@ const bool CLG_MUI_ProcessScoreBoard( mu_Context *ctx ) {
 		mu_layout_next( ctx );
 		mu_Rect muteRect = mutedCol;
 		muteRect.w = muteButtonWidth;
+		muteRect.h = actionRowHeight;
 		mu_layout_set_next( ctx, muteRect, 0 );
-		if ( mu_button( ctx, muteLabel ) ) {
+		const int32_t muteOpt = ( selCount == 0 ) ? ( MU_OPT_ALIGNCENTER | MU_OPT_NOINTERACT ) : MU_OPT_ALIGNCENTER;
+		if ( mu_button_ex( ctx, muteLabel, 0, muteOpt ) ) {
 			if ( selCount > 0 ) {
 				/**
 				*	Toggle mute state for every selected player in one action.
@@ -620,12 +818,17 @@ const bool CLG_MUI_ProcessScoreBoard( mu_Context *ctx ) {
 		const int32_t spacing = ctx->style->spacing;
 		const int32_t totalButtonsW = voteKickButtonWidth + spacing + voteBanButtonWidth;
 		int32_t startX = combined.x + combined.w - totalButtonsW;
+		const int32_t minStartX = mutedCol.x + muteButtonWidth + spacing;
+		if ( startX < minStartX ) {
+			startX = minStartX;
+		}
 		int32_t y = combined.y;
-		int32_t h = combined.h;
+		int32_t h = actionRowHeight;
 
 		mu_Rect kickRect = mu_rect( startX, y, voteKickButtonWidth, h );
 		mu_layout_set_next( ctx, kickRect, 0 );
-		if ( mu_button( ctx, voteKickLabel ) ) {
+		const int32_t kickOpt = ( selCount == 0 ) ? ( MU_OPT_ALIGNCENTER | MU_OPT_NOINTERACT ) : MU_OPT_ALIGNCENTER;
+		if ( mu_button_ex( ctx, voteKickLabel, 0, kickOpt ) ) {
 			if ( selCount > 0 ) {
 				/**
 				*	Forward a votekick command containing the quoted selected-player CSV.
@@ -637,7 +840,8 @@ const bool CLG_MUI_ProcessScoreBoard( mu_Context *ctx ) {
 
 		mu_Rect banRect = mu_rect( startX + voteKickButtonWidth + spacing, y, voteBanButtonWidth, h );
 		mu_layout_set_next( ctx, banRect, 0 );
-		if ( mu_button( ctx, voteBanLabel ) ) {
+		const int32_t banOpt = ( selCount == 0 ) ? ( MU_OPT_ALIGNCENTER | MU_OPT_NOINTERACT ) : MU_OPT_ALIGNCENTER;
+		if ( mu_button_ex( ctx, voteBanLabel, 0, banOpt ) ) {
 			if ( selCount > 0 ) {
 				/**
 				*	Forward a voteban command containing the quoted selected-player CSV.
