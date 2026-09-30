@@ -13,7 +13,15 @@
 #include "clgame/clg_hud.h"
 #include "clgame/clg_main.h"
 #include "clgame/clg_screen.h"
+#include "clgame/clg_view.h"
 
+#include "sharedgame/sg_usetarget_hints.h"
+
+#include "clgame/clg_hud.h"
+#include "clgame/clg_precache.h"
+#include "clgame/clg_screen.h"
+
+#include "clgame/game_ui/clg_ui_main.h"
 
 
 
@@ -212,17 +220,21 @@ void HUD_DrawTargetHintInfo( hud_usetarget_hint_t *targetHintInfo ) {
     // Clear the original color.
     clgi.R_SetAlphaScale( scr_alpha->value );
 
+	// Acquire lineHeight of font.
+	const int32_t lineHeight = clgi.Font_GetHeightTTF ? Q_rint( clgi.Font_GetHeightTTF( precache.screen.font_pic ) ) : CHAR_HEIGHT;
+
     // Determine center of screen.
     const int32_t x = ( clgi.screen->hudScaledWidth/*- scr.pause_width */ ) / 2;
-    const int32_t y = ( clgi.screen->hudScaledHeight /*- scr.pause_height */ - CHAR_HEIGHT ) / 2;
+	const int32_t y = ( clgi.screen->hudScaledHeight - ( lineHeight * 2. ) /*- scr.pause_height */ ) / 2;// - HUD_GetStringDrawWidth(targetHintInfo->hintString.c_str()) / 2 );
 
     // Current draw offset X axis.
     int32_t xOffset = 0;
-    const int32_t yOffset = CHAR_HEIGHT * 4.5;
+	const int32_t yOffset = lineHeight * 2.5;// CHAR_HEIGHT * 4.5;
     // Iterate to acquire total width.. sigh lol.
-    const int32_t xWidth = HUD_GetTokenVectorDrawWidth( targetHintInfo->hintStringTokens );
+	const int32_t xWidth = HUD_GetStringDrawWidth( targetHintInfo->hintString.c_str() ) / 2;//HUD_GetTokenVectorDrawWidth( targetHintInfo->hintStringTokens );
+
     // X Start location.
-    int32_t xDrawLocation = x - ( xWidth / 2 );
+	int32_t xDrawLocation = x - ( xWidth / 2 );
     // Iterate.
     for ( auto &hintStringToken : targetHintInfo->hintStringTokens ) {
         // Draw piece, special color if it is the keyname.
@@ -273,8 +285,14 @@ void HUD_DrawTargetHintInfo( hud_usetarget_hint_t *targetHintInfo ) {
             // Draw it.
             HUD_DrawString( xDrawLocation + xOffset, y + yOffset, hintStringToken.value.c_str() );
         }
-        // Increment the piece its width to the offset, including a space.(one more character)
-        xOffset += ( HUD_GetStringDrawWidth( hintStringToken.value.c_str() ) + 1 ) + CHAR_WIDTH;
+        // Increment the piece its width to the offset, including a space.
+        // Use TTF-aware width for the space character to avoid excessive spacing.
+        const char *tokenStr = hintStringToken.value.c_str();
+        int32_t spaceWidth = CHAR_WIDTH;
+        if ( !( clgi.screen->font_pic <= 0 ) && clgi.Font_StringWidthTTF_N != nullptr ) {
+            spaceWidth = Q_rint( clgi.Font_StringWidthTTF_N( clgi.screen->font_pic, " ", 1 ) );
+        }
+        xOffset += HUD_GetStringDrawWidth( tokenStr ) + spaceWidth;
     }
 
     // Reset any active stroke or style overrides once target hint rendering finishes.
@@ -358,7 +376,7 @@ void CLG_HUD_DrawUseTargetHintInfos() {
         // Reset R color.
         clgi.R_ClearColor();
         // Use this if we do wanna scale(it'll downscale, eww.)
-        //clgi.R_SetScale( scr_scale->value );
+        clgi.R_SetScale( scr_scale->value );
         // Do not scale.
         //clgi.R_SetScale( 1.0 );
         clgi.R_SetAlphaScale( scr_alpha->value );

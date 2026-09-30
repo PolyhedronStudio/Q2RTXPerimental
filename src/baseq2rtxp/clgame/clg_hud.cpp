@@ -301,6 +301,15 @@ void CLG_HUD_Shutdown( void ) {
 * 
 **/
 /**
+*   @brief  Get width in pixels of string using TTF if available, fallback to CHAR_WIDTH.
+**/
+const int32_t HUD_GetStringDrawWidth( const char *str ) {
+    if ( !( clgi.screen->font_pic <= 0 ) && clgi.Font_StringWidthTTF_N != nullptr ) {
+        return Q_rint( clgi.Font_StringWidthTTF_N( clgi.screen->font_pic, str, Q_strnlen( str, MAX_STRING_CHARS ) ) );
+    }
+    return strlen( str ) * CHAR_WIDTH;
+}
+/**
 *   @brief  A very cheap way of.. getting the total pixel length of display string tokens, yes.
 **/
 const int32_t HUD_GetTokenVectorDrawWidth( const std::vector<hud_usetarget_hint_token_t> &tokens ) {
@@ -310,15 +319,15 @@ const int32_t HUD_GetTokenVectorDrawWidth( const std::vector<hud_usetarget_hint_
         if ( i >= tokens.size() - 1 ) {
             addition = 0;
         }
-        totalWidth += (tokens[ i ].value.size() + addition ) * CHAR_WIDTH;
+        // Use TTF-aware width for each token
+        const char *tokenStr = tokens[ i ].value.c_str();
+        if ( !( clgi.screen->font_pic <= 0 ) && clgi.Font_StringWidthTTF_N != nullptr ) {
+            totalWidth += Q_rint( clgi.Font_StringWidthTTF_N( clgi.screen->font_pic, tokenStr, Q_strnlen( tokenStr, MAX_STRING_CHARS ) ) ) + addition * CHAR_WIDTH;
+        } else {
+            totalWidth += (tokens[ i ].value.size() + addition ) * CHAR_WIDTH;
+        }
     }
     return totalWidth;
-}
-/**
-*   @brief  Get width in pixels of string.
-**/
-const int32_t HUD_GetStringDrawWidth( const char *str ) {
-    return strlen( str ) * CHAR_WIDTH;
 }
 /**
 *   @brief  
@@ -948,18 +957,18 @@ void CLG_HUD_DrawCrosshair( void ) {
 *
 **/
 /**
-*	Palette Definitions for Half-Life 1 Inspired Bottom HUD (#df7126):
+*	Palette Definitions for Half-Life 1 Inspired Bottom HUD (#d27d2c):
 **/
-//! Primary base amber/orange color (#df7126).
-static constexpr uint32_t COLOR_HUD_HL1_ORANGE_BASE	= MakeColor( 223, 113, 38, 220 );
+//! Primary base amber/orange color (#d27d2c).
+static constexpr uint32_t COLOR_HUD_ORANGE_BASE	= MakeColor( 210, 125, 44, 220 );
 //! Bright amber/orange color for pulse peaks and high visibility.
-static constexpr uint32_t COLOR_HUD_HL1_ORANGE_BRIGHT	= MakeColor( 255, 175, 75, 255 );
+static constexpr uint32_t COLOR_HUD_ORANGE_BRIGHT	= MakeColor( 255, 170, 80, 255 );
 //! Amber/orange glow color.
-static constexpr uint32_t COLOR_HUD_HL1_ORANGE_GLOW		= MakeColor( 223, 113, 38, 200 );
+static constexpr uint32_t COLOR_HUD_ORANGE_GLOW		= MakeColor( 210, 125, 44, 200 );
 //! Dim amber/orange color for subtle border strokes.
-static constexpr uint32_t COLOR_HUD_HL1_ORANGE_DIM		= MakeColor( 223, 113, 38, 140 );
+static constexpr uint32_t COLOR_HUD_ORANGE_DIM		= MakeColor( 210, 125, 44, 140 );
 //! Dark translucent amber background container fill.
-static constexpr uint32_t COLOR_HUD_HL1_BG				= MakeColor( 35, 18, 8, 180 );
+static constexpr uint32_t COLOR_HUD_BG				= MakeColor( 35, 18, 8, 180 );
 
 //! Warning red color for critical health or damage pulses (#d95763).
 static constexpr uint32_t COLOR_HUD_RED_WARNING			= MakeColor( 217, 87, 99, 230 );
@@ -1018,7 +1027,7 @@ static inline uint32_t ColorLerp( const uint32_t c1, const uint32_t c2, const fl
 *	@param	glowColor	Outer glow color.
 *	@param	glowRadius	Outer glow radius.
 **/
-static void CLG_HUD_DrawHL1Container( const double x, const double y, const double w, const double h,
+static void CLG_HUD_DrawContainer( const double x, const double y, const double w, const double h,
 	const uint32_t fillColor, const uint32_t strokeColor, const uint32_t glowColor, const float glowRadius ) {
 	/**
 	*	Set outer glow if active.
@@ -1116,7 +1125,7 @@ static void CLG_HUD_DrawHealthIndicators() {
 			s_hud_pulses.health.glowColor = COLOR_HUD_RED_GLOW;
 		} else {
 			// Health increased (healed) -> bright amber pulse.
-			s_hud_pulses.health.glowColor = COLOR_HUD_HL1_ORANGE_BRIGHT;
+			s_hud_pulses.health.glowColor = COLOR_HUD_ORANGE_BRIGHT;
 		}
 		// Initiate 400ms ease out decay.
 		s_hud_pulses.health.easeState = QMEaseState::new_ease_state( realTime, 400_ms );
@@ -1138,9 +1147,9 @@ static void CLG_HUD_DrawHealthIndicators() {
 	**/
 	// Critical health threshold (<= 25).
 	const bool isLowHealth = ( currentHealth <= 25 );
-	uint32_t healthColor = isLowHealth ? COLOR_HUD_RED_WARNING : COLOR_HUD_HL1_ORANGE_BASE;
-	const uint32_t healthBg = isLowHealth ? COLOR_HUD_RED_BG : COLOR_HUD_HL1_BG;
-	uint32_t healthStroke = isLowHealth ? COLOR_HUD_RED_WARNING : COLOR_HUD_HL1_ORANGE_DIM;
+	uint32_t healthColor = isLowHealth ? COLOR_HUD_RED_WARNING : COLOR_HUD_ORANGE_BASE;
+	const uint32_t healthBg = isLowHealth ? COLOR_HUD_RED_BG : COLOR_HUD_BG;
+	uint32_t healthStroke = isLowHealth ? COLOR_HUD_RED_WARNING : COLOR_HUD_ORANGE_DIM;
 
 	// Blend pulse glow color if actively pulsing.
 	if ( healthPulseFactor > 0.001 ) {
@@ -1152,7 +1161,7 @@ static void CLG_HUD_DrawHealthIndicators() {
 	/**
 	*	Render Health Container Box:
 	**/
-	CLG_HUD_DrawHL1Container(
+	CLG_HUD_DrawContainer(
 		backGroundStartX, backGroundStartY,
 		backGroundWidth, HUD_ELEMENT_HEIGHT,
 		healthBg, healthStroke, s_hud_pulses.health.glowColor, healthGlowRadius
@@ -1206,7 +1215,7 @@ static void CLG_HUD_DrawHealthIndicators() {
 	**/
 	// If armor value has changed, trigger a glow pulse.
 	if ( s_hud_pulses.armor.lastValue != -1 && s_hud_pulses.armor.lastValue != currentArmor ) {
-		s_hud_pulses.armor.glowColor = COLOR_HUD_HL1_ORANGE_BRIGHT;
+		s_hud_pulses.armor.glowColor = COLOR_HUD_ORANGE_BRIGHT;
 		// Initiate 400ms ease out decay.
 		s_hud_pulses.armor.easeState = QMEaseState::new_ease_state( realTime, 400_ms );
 	}
@@ -1225,9 +1234,9 @@ static void CLG_HUD_DrawHealthIndicators() {
 	/**
 	*	Determine Armor Colors Based on Status and Pulse:
 	**/
-	uint32_t armorColor = ( currentArmor > 0 ) ? COLOR_HUD_HL1_ORANGE_BASE : COLOR_HUD_HL1_ORANGE_DIM;
-	const uint32_t armorBg = COLOR_HUD_HL1_BG;
-	uint32_t armorStroke = COLOR_HUD_HL1_ORANGE_DIM;
+	uint32_t armorColor = ( currentArmor > 0 ) ? COLOR_HUD_ORANGE_BASE : COLOR_HUD_ORANGE_DIM;
+	const uint32_t armorBg = COLOR_HUD_BG;
+	uint32_t armorStroke = COLOR_HUD_ORANGE_DIM;
 
 	// Blend pulse glow color if actively pulsing.
 	if ( armorPulseFactor > 0.001 ) {
@@ -1239,7 +1248,7 @@ static void CLG_HUD_DrawHealthIndicators() {
 	/**
 	*	Render Armor Container Box:
 	**/
-	CLG_HUD_DrawHL1Container(
+	CLG_HUD_DrawContainer(
 		backGroundStartX, backGroundStartY,
 		armorBackGroundWidth, HUD_ELEMENT_HEIGHT,
 		armorBg, armorStroke, s_hud_pulses.armor.glowColor, armorGlowRadius
@@ -1334,7 +1343,7 @@ static void CLG_HUD_DrawAmmoIndicators() {
 		if ( currentClip == 0 ) {
 			s_hud_pulses.ammo.glowColor = COLOR_HUD_RED_GLOW;
 		} else {
-			s_hud_pulses.ammo.glowColor = COLOR_HUD_HL1_ORANGE_BRIGHT;
+			s_hud_pulses.ammo.glowColor = COLOR_HUD_ORANGE_BRIGHT;
 		}
 		// Initiate 350ms ease out decay.
 		s_hud_pulses.ammo.easeState = QMEaseState::new_ease_state( realTime, 350_ms );
@@ -1355,9 +1364,9 @@ static void CLG_HUD_DrawAmmoIndicators() {
 	*	Determine Ammo Colors Based on Status and Pulse:
 	**/
 	const bool isOutOfAmmo = ( currentClip == 0 );
-	uint32_t ammoColor = isOutOfAmmo ? COLOR_HUD_RED_WARNING : COLOR_HUD_HL1_ORANGE_BASE;
-	const uint32_t ammoBg = isOutOfAmmo ? COLOR_HUD_RED_BG : COLOR_HUD_HL1_BG;
-	uint32_t ammoStroke = isOutOfAmmo ? COLOR_HUD_RED_WARNING : COLOR_HUD_HL1_ORANGE_DIM;
+	uint32_t ammoColor = isOutOfAmmo ? COLOR_HUD_RED_WARNING : COLOR_HUD_ORANGE_BASE;
+	const uint32_t ammoBg = isOutOfAmmo ? COLOR_HUD_RED_BG : COLOR_HUD_BG;
+	uint32_t ammoStroke = isOutOfAmmo ? COLOR_HUD_RED_WARNING : COLOR_HUD_ORANGE_DIM;
 
 	// Blend pulse glow color if actively pulsing.
 	if ( ammoPulseFactor > 0.001 ) {
@@ -1369,7 +1378,7 @@ static void CLG_HUD_DrawAmmoIndicators() {
 	/**
 	*	Render Ammo Container Box:
 	**/
-	CLG_HUD_DrawHL1Container(
+	CLG_HUD_DrawContainer(
 		backGroundStartX, backGroundStartY,
 		backGroundWidth, HUD_ELEMENT_HEIGHT,
 		ammoBg, ammoStroke, s_hud_pulses.ammo.glowColor, ammoGlowRadius
