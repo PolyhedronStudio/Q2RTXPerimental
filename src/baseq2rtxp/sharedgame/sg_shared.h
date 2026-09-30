@@ -338,3 +338,12 @@ static constexpr int32_t STAT_CHASE			= GAME_STAT_INDEX<16>();
 static constexpr int32_t STAT_USETARGET_HINT_ID		= GAME_STAT_INDEX<17>();
 //! Optional server applied flags for determining how to act for the hovering usetarget.
 static constexpr int32_t STAT_USETARGET_HINT_FLAGS	= GAME_STAT_INDEX<18>();
+
+/**
+*	Weapon Inventory & Ammo Availability (Bitmasks for HUD Selector):
+**/
+//! Bitmask of weapons owned by the player (1ULL << weapon_index).
+static constexpr int32_t STAT_WEAPONS_OWNED			= GAME_STAT_INDEX<19>();
+//! Bitmask of weapons that have ammo available (1ULL << weapon_index).
+static constexpr int32_t STAT_WEAPONS_AMMO			= GAME_STAT_INDEX<20>();
+

@@ -24,6 +24,8 @@
 ********************************************************************/
 #include "clgame/clg_local.h"
 #include "clgame/clg_input.h"
+#include "clgame/clg_keys.h"
+#include "clgame/hud/clg_hud_weaponmenu.h"
 #include "clgame/game_ui/clg_ui_main.h"
 #include "sharedgame/sg_game_ui.h"
 #include "sharedgame/pmove/sg_pmove.h"
@@ -666,6 +668,10 @@ void PF_RegisterUserInput( void ) {
     clgi.Cmd_AddCommand( "-klook", IN_KLookUp );
     clgi.Cmd_AddCommand( "+mlook", IN_MLookDown );
     clgi.Cmd_AddCommand( "-mlook", IN_MLookUp );
+
+	// Initialize weapon selector commands and menu state.
+	CLG_Keys_Init();
+	CLG_WeaponMenu_Init();
 
     // Get access to cvars.
     // (Due to some being shared by freecam.c in /refresh/vkpt, we are creating them in the client).

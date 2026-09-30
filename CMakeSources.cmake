@@ -7,6 +7,7 @@
 SET(SRC_BASEQ2RTXP_SHAREDGAME
 	baseq2rtxp/sharedgame/sg_entities.cpp
 	baseq2rtxp/sharedgame/sg_gamemode.cpp
+	baseq2rtxp/sharedgame/sg_items.cpp
 	baseq2rtxp/sharedgame/sg_misc.cpp
 	baseq2rtxp/sharedgame/sg_skm.cpp
 	baseq2rtxp/sharedgame/sg_skm_rootmotion.cpp
@@ -22,6 +23,7 @@ SET(HEADERS_BASEQ2RTXP_SHAREDGAME
 	baseq2rtxp/sharedgame/sg_cmd_messages.h
 	baseq2rtxp/sharedgame/sg_entities.h
 	baseq2rtxp/sharedgame/sg_gamemode.h
+	baseq2rtxp/sharedgame/sg_items.h
 	baseq2rtxp/sharedgame/sg_local.h
 	baseq2rtxp/sharedgame/sg_misc.h
 	baseq2rtxp/sharedgame/sg_muzzleflashes.h
@@ -60,6 +62,7 @@ SET(SRC_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/clg_events_player.cpp
 	baseq2rtxp/clgame/clg_events.cpp
 	baseq2rtxp/clgame/clg_input.cpp
+	baseq2rtxp/clgame/clg_keys.cpp
 	baseq2rtxp/clgame/clg_local_entities.cpp
 	baseq2rtxp/clgame/clg_frame.cpp
 	baseq2rtxp/clgame/clg_gamemode.cpp
@@ -97,6 +100,7 @@ SET(SRC_BASEQ2RTXP_CLGAME
     baseq2rtxp/clgame/game_ui/menus/clg_ui_menu_test.cpp
 
 	baseq2rtxp/clgame/hud/clg_hud_usetargethint.cpp
+	baseq2rtxp/clgame/hud/clg_hud_weaponmenu.cpp
 
 	baseq2rtxp/clgame/local_entities/clg_local_env_sound.cpp	
 	baseq2rtxp/clgame/local_entities/clg_local_misc_entities.cpp
@@ -131,6 +135,7 @@ SET(HEADERS_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/clg_frame.h
 	baseq2rtxp/clgame/clg_hud.h
 	baseq2rtxp/clgame/clg_input.h
+	baseq2rtxp/clgame/clg_keys.h
 	baseq2rtxp/clgame/clg_local.h
 	baseq2rtxp/clgame/clg_local_entities.h
 	baseq2rtxp/clgame/clg_packet_entities.h
@@ -163,6 +168,7 @@ SET(HEADERS_BASEQ2RTXP_CLGAME
     #baseq2rtxp/clgame/game_ui/menus/clg_ui_menu_test.h
 	
     baseq2rtxp/clgame/hud/clg_hud_usetargethint.h
+	baseq2rtxp/clgame/hud/clg_hud_weaponmenu.h
 
 	baseq2rtxp/clgame/local_entities/clg_local_env_sound.h
 	baseq2rtxp/clgame/local_entities/clg_local_entity_classes.h

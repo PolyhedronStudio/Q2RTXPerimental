@@ -555,8 +555,18 @@ void CLG_UI_DrawRenderCommands() {
 						) 
 					);
 
+					// Apply in-game font outline stroke if configured.
+					if ( scr_font_stroke && scr_font_stroke->value > 0.0f ) {
+						clgi.R_SetStroke( scr_stroke_color.u32, scr_font_stroke->value );
+					}
+
 					// Render text string using our loaded TTF font handle.
 					clgi.R_DrawString( muCmd->text.pos.x, muCmd->text.pos.y, 0, MAX_STRING_CHARS, muCmd->text.str, s_gameui_ctx.fontHandle );
+
+					// Clear style after rendering text.
+					if ( scr_font_stroke && scr_font_stroke->value > 0.0f ) {
+						clgi.R_ClearStyle();
+					}
 
 					// Clear the color after drawing text to avoid affecting subsequent calls.
 					clgi.R_ClearColor();

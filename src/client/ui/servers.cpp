@@ -1124,7 +1124,7 @@ void M_Menu_Servers(void)
     m_servers.menu.size         = Size;
     m_servers.menu.keydown      = Keydown;
     m_servers.menu.free         = Free;
-    m_servers.menu.image        = uis.backgroundHandle;
+    m_servers.menu.image        = uis.handleWallPaper;
     m_servers.menu.color.u32    = uis.color.background.u32;
     m_servers.menu.transparent  = uis.transparent;
 

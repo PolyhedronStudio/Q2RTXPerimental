@@ -661,7 +661,7 @@ void M_Menu_Demos(void)
     m_demos.menu.size       = Size;
     m_demos.menu.keydown    = Keydown;
     m_demos.menu.free       = Free;
-    m_demos.menu.image      = uis.backgroundHandle;
+    m_demos.menu.image      = uis.handleWallPaper;
     m_demos.menu.color.u32  = uis.color.background.u32;
     m_demos.menu.transparent    = uis.transparent;
 

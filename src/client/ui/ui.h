@@ -319,10 +319,10 @@ typedef struct uiStatic_s {
     playerModelInfo_t pmi[MAX_PLAYERMODELS];
     char weaponModel[32];
 
-    qhandle_t backgroundHandle;
-    qhandle_t fontHandle;
+    qhandle_t handleWallPaper;
+    qhandle_t handleFontTTF;
     //! Handle to legacy bitmap conchars font for UI symbols (sliders, focus cursor arrows, etc.).
-    qhandle_t concharsFontHandle;
+    qhandle_t handleConcharsImgs;
     // <Q2RTXP>: WID: We don't wanna bother with a fullscreen custom cursor?
     #ifdef USE_UI_ENABLE_CUSTOM_CURSOR
     qhandle_t cursorHandle;

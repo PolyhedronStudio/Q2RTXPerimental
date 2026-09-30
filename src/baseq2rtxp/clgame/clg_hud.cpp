@@ -13,6 +13,9 @@
 #include "clgame/clg_hud.h"
 #include "clgame/clg_precache.h"
 #include "clgame/clg_screen.h"
+#include "clgame/hud/clg_hud_weaponmenu.h"
+#include "shared/math/qm_easing_methods.hpp"
+#include "shared/math/qm_easing_state.hpp"
 
 
 
@@ -149,9 +152,11 @@ void CLG_HUD_Initialize( void ) {
         self->value = clgi.CVar_ClampValue( self, 0.f, 1.f );
     };
     hud_alpha->changed( hud_alpha );
-    hud_scale = clgi.CVar_Get( "hud_scale", "1", CVAR_ARCHIVE );
-    hud_scale->changed = []( cvar_t *self ) {
-        self->value = /*clg_hud.hud_scale = */clgi.R_ClampScale( self );
+	#endif
+	#if 1
+    cvar_t *hud_scale = clgi.CVar_Get( "hud_scale", "1", CVAR_ARCHIVE );
+	hud_scale->changed = []( cvar_t *self ) {
+        self->value = clgi.screen->hud_scale = clgi.R_ClampScale( self );
     };
     hud_scale->changed( hud_scale );
     #endif
@@ -247,6 +252,10 @@ void CLG_HUD_DrawFrame( refcfg_t *refcfg ) {
     clgi.R_SetScale( clgi.screen->hud_scale );
     // Health AND Armor Indicators.
     CLG_HUD_DrawHealthIndicators();
+
+    // Weapon Selection HUD Menu (Half-Life 1 style).
+    CLG_WeaponMenu_Draw();
+
     clgi.R_ClearColor();
     clgi.R_SetAlphaScale( clgi.CVar_ClampValue( scr_alpha, 0, 1 ) );
     clgi.R_SetAlpha( scr_alpha->value );
@@ -315,25 +324,31 @@ const int32_t HUD_GetStringDrawWidth( const char *str ) {
 *   @brief  
 **/
 const int32_t HUD_DrawString( const int32_t x, const int32_t y, const char *str ) {
-    return clgi.R_DrawString( x, y, 0, MAX_STRING_CHARS, str, precache.screen.font_pic );
+    return SCR_DrawString( x, y, 0, str );
 }
 /**
 *   @brief
 **/
 const int32_t HUD_DrawString( const int32_t x, const int32_t y, const int32_t flags, const char *str ) {
-    return clgi.R_DrawString( x, y, flags, MAX_STRING_CHARS, str, precache.screen.font_pic );
+    return SCR_DrawStringEx( x, y, flags, MAX_STRING_CHARS, str, precache.screen.font_pic );
 }
 /**
 *   @brief
 **/
 const int32_t HUD_DrawAltString( const int32_t x, const int32_t y, const char *str ) {
-    return clgi.R_DrawString( x, y, UI_XORCOLOR, MAX_STRING_CHARS, str, precache.screen.font_pic );
+	clgi.R_SetColor( U32_ORANGE );
+	int32_t retval = SCR_DrawStringEx( x, y, UI_XORCOLOR, MAX_STRING_CHARS, str, precache.screen.font_pic );
+	clgi.R_ClearColor();
+	return retval;
 }
 /**
 *   @brief
 **/
 const int32_t HUD_DrawAltString( const int32_t x, const int32_t y, const int32_t flags, const char *str ) {
-    return clgi.R_DrawString( x, y, UI_XORCOLOR | flags, MAX_STRING_CHARS, str, precache.screen.font_pic );
+	clgi.R_SetColor( U32_ORANGE );
+    int32_t retval = SCR_DrawStringEx( x, y, UI_XORCOLOR | flags, MAX_STRING_CHARS, str, precache.screen.font_pic );
+	clgi.R_ClearColor();
+	return retval;
 }
 /**
 *   @brief
@@ -691,10 +706,10 @@ void CLG_HUD_DrawChat( void ) {
             }
 
             clgi.R_SetAlpha( alpha * scr_alpha->value );
-            SCR_DrawString( x, y, flags, line->text );
+			SCR_DrawStringEx( x, y, flags, Q_strnlen( line->text, MAX_STRING_CHARS ), line->text, clgi.screen->font_pic );
             clgi.R_SetAlpha( scr_alpha->value );
         } else {
-            SCR_DrawString( x, y, flags, line->text );
+            SCR_DrawStringEx( x, y, flags, Q_strnlen( line->text, MAX_STRING_CHARS ), line->text, clgi.screen->font_pic );
         }
 
         y += step;
@@ -933,224 +948,492 @@ void CLG_HUD_DrawCrosshair( void ) {
 *
 **/
 /**
-*	@brief  Renders the player's health and armor status to screen.
+*	Palette Definitions for Half-Life 1 Inspired Bottom HUD (#df7126):
 **/
-static void CLG_HUD_DrawHealthIndicators() {
-    /**
-    *   Health Indicating Element:
-    **/
-    // Size details for the element.
-	static constexpr double HUD_ELEMENT_OFFSET = 16.; // Offset from the bottom and left of the screen.
-	static constexpr double HUD_ELEMENT_HALF_OFFSET = ( HUD_ELEMENT_OFFSET / 2. ); // Half offset.
-    static constexpr double HUD_ELEMENT_PADDING = 12.; // Actual offset that takes the 'outer glow' space of the background in mind.
-	static constexpr double HUD_ELEMENT_HEIGHT = 72.; // Height of the element.
+//! Primary base amber/orange color (#df7126).
+static constexpr uint32_t COLOR_HUD_HL1_ORANGE_BASE	= MakeColor( 223, 113, 38, 220 );
+//! Bright amber/orange color for pulse peaks and high visibility.
+static constexpr uint32_t COLOR_HUD_HL1_ORANGE_BRIGHT	= MakeColor( 255, 175, 75, 255 );
+//! Amber/orange glow color.
+static constexpr uint32_t COLOR_HUD_HL1_ORANGE_GLOW		= MakeColor( 223, 113, 38, 200 );
+//! Dim amber/orange color for subtle border strokes.
+static constexpr uint32_t COLOR_HUD_HL1_ORANGE_DIM		= MakeColor( 223, 113, 38, 140 );
+//! Dark translucent amber background container fill.
+static constexpr uint32_t COLOR_HUD_HL1_BG				= MakeColor( 35, 18, 8, 180 );
 
-    static constexpr double HUD_ELEMENT_NUMBERS_DEST_HEIGHT = 64.; // Height of the element.
-    static constexpr double HUD_ELEMENT_NUMBERS_DEST_WIDTH  = 32.; // Height of the element.
+//! Warning red color for critical health or damage pulses (#d95763).
+static constexpr uint32_t COLOR_HUD_RED_WARNING			= MakeColor( 217, 87, 99, 230 );
+//! Warning red glow color for damage pulse glow.
+static constexpr uint32_t COLOR_HUD_RED_GLOW			= MakeColor( 217, 87, 99, 200 );
+//! Dark translucent reddish background container fill for warning state.
+static constexpr uint32_t COLOR_HUD_RED_BG				= MakeColor( 40, 14, 14, 180 );
 
-	// Start X position for the health element.
-    double backGroundStartX = HUD_ELEMENT_OFFSET;
-    double backGroundStartY = clgi.screen->hudScaledHeight - ( HUD_ELEMENT_OFFSET + HUD_ELEMENT_HEIGHT );
-    // Start X position for the health element.
-    double iconStartX = backGroundStartX + HUD_ELEMENT_PADDING;
-    double iconStartY = backGroundStartY + HUD_ELEMENT_PADDING;
-	// We precalculate the width of the health element, so we can use it for rendering the background first.
-    double numberStartX = iconStartX + 48. + 10;
-    double numberStartY = ( backGroundStartY + 4 ); // ( HUD_ELEMENT_HEIGHT / 2. ) ) - ( HUD_ELEMENT_NUMBERS_DEST_HEIGHT / 2. );
-	// Width of the health element.
-    //double backGroundWidth = numberStartX + CLG_HUD_GetElementNumberValueSizePosition( HUD_ELEMENT_NUMBERS_DEST_WIDTH, clgi.client->frame.ps.stats[ STAT_HEALTH ] ) + HUD_ELEMENT_HALF_OFFSET;
-    // Yes, 10 is a hard constant value, suck it.
-    double backGroundWidth = ( numberStartX - backGroundStartX ) + 10 + CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, clgi.client->frame.ps.stats[ STAT_HEALTH ] );
+//! State tracking for bottom HUD glow transitions and ease decay.
+struct hud_stat_pulse_t {
+	//! Previous value used to detect transitions (-1 indicates uninitialized).
+	int32_t		lastValue = -1;
+	//! Ease state for the transition glow decay.
+	QMEaseState	easeState = {};
+	//! Color of the active glow pulse.
+	uint32_t	glowColor = 0;
+};
 
-    // Draw its background.
-    CLG_HUD_DrawElementBackground( 
-        backGroundStartX, backGroundStartY,
-        backGroundWidth, HUD_ELEMENT_HEIGHT 
-    );
+//! Static pulse states for bottom HUD indicators.
+static struct {
+	//! Pulse tracking for health indicator.
+	hud_stat_pulse_t	health;
+	//! Pulse tracking for armor indicator.
+	hud_stat_pulse_t	armor;
+	//! Pulse tracking for weapon ammo indicator.
+	hud_stat_pulse_t	ammo;
+} s_hud_pulses = {};
 
-    // Icon is reddish.
-	clgi.R_SetColor( MakeColor( 217, 87, 99, 225 ) ); // == Mandy color in Krita Pixel
-    // Apply generic crosshair alpha.
-    clgi.R_SetAlpha( clgi.screen->hud_alpha );
-    // Scale.
-    clgi.R_SetScale( clgi.screen->hud_scale );
-    // Draw the health icon.
-    clgi.R_DrawStretchPic( 
-        iconStartX, iconStartY,
-        48, 48, // Icon size.
-        clg_hud_static.hud_icon_health 
-    );
-    // Draw the health count numbers.
-    clgi.R_SetColor( MakeColor( 255, 255, 255, 164 ) );
-    // Apply generic crosshair alpha.
-    clgi.R_SetAlpha( clgi.screen->hud_alpha );
-    // Scale.
-    clgi.R_SetScale( clgi.screen->hud_scale );
-	// Note: We draw these from the right to left, so the X coordinate has to be set to the right side of the element.
-    CLG_HUD_DrawElementNumberValue( 
-        numberStartX, // Center X for the health numbers.
-        numberStartY, // Center Y for the health numbers.
-        HUD_ELEMENT_NUMBERS_DEST_WIDTH, // Width of the health numbers.
-        HUD_ELEMENT_NUMBERS_DEST_HEIGHT, // Height of the health numbers.
-        clgi.client->frame.ps.stats[ STAT_HEALTH ] // Health value to display.
-	);
-    //clgi.R_ClearColor();
+/**
+*	@brief	Interpolates linearly between two RGBA 32-bit packed colors.
+*	@param	c1		Start color.
+*	@param	c2		End color.
+*	@param	frac	Interpolation fraction clamped to [0.0, 1.0].
+*	@return	Interpolated 32-bit packed RGBA color.
+**/
+static inline uint32_t ColorLerp( const uint32_t c1, const uint32_t c2, const float frac ) {
+	const float f = QM_Clamp( frac, 0.0f, 1.0f );
+	const float invF = 1.0f - f;
 
-    /**
-	*   Armor Indicating Element:
-    **/
-    // Start X position for the armor element.
-    backGroundStartX += backGroundWidth + 4;
-    backGroundStartY = clgi.screen->hudScaledHeight - ( HUD_ELEMENT_OFFSET + HUD_ELEMENT_HEIGHT );
-    // Start X position for the health element.
-    iconStartX = backGroundStartX + HUD_ELEMENT_PADDING;
-    iconStartY = backGroundStartY + HUD_ELEMENT_PADDING;
-    // We precalculate the width of the health element, so we can use it for rendering the background first.
-    numberStartX = iconStartX + 48. + 10;
-    numberStartY = ( backGroundStartY + 4 ); // ( HUD_ELEMENT_HEIGHT / 2. ) ) - ( HUD_ELEMENT_NUMBERS_DEST_HEIGHT / 2. );
-    // Width of the health element.
-    //double backGroundWidth = numberStartX + CLG_HUD_GetElementNumberValueSizePosition( HUD_ELEMENT_NUMBERS_DEST_WIDTH, clgi.client->frame.ps.stats[ STAT_HEALTH ] ) + HUD_ELEMENT_HALF_OFFSET;
-    // Yes, 10 is a hard constant value, suck it.
-    backGroundWidth = ( numberStartX - backGroundStartX ) + 10 + CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, clgi.client->frame.ps.stats[ STAT_ARMOR ] );
+	const uint32_t r = static_cast<uint32_t>( ( ( c1 >> 0 ) & 0xFF ) * invF + ( ( c2 >> 0 ) & 0xFF ) * f );
+	const uint32_t g = static_cast<uint32_t>( ( ( c1 >> 8 ) & 0xFF ) * invF + ( ( c2 >> 8 ) & 0xFF ) * f );
+	const uint32_t b = static_cast<uint32_t>( ( ( c1 >> 16 ) & 0xFF ) * invF + ( ( c2 >> 16 ) & 0xFF ) * f );
+	const uint32_t a = static_cast<uint32_t>( ( ( c1 >> 24 ) & 0xFF ) * invF + ( ( c2 >> 24 ) & 0xFF ) * f );
 
-    // Draw its background.
-    CLG_HUD_DrawElementBackground(
-        backGroundStartX, backGroundStartY,
-        backGroundWidth, HUD_ELEMENT_HEIGHT
-    );
-
-    // Icon is reddish.
-    clgi.R_SetColor( MakeColor( 99, 155, 255, 225 ) ); // == Cornflower color in Krita Pixel
-    // Apply generic crosshair alpha.
-    clgi.R_SetAlpha( clgi.screen->hud_alpha );
-    // Scale.
-    clgi.R_SetScale( clgi.screen->hud_scale );
-    // Draw the health icon.
-    clgi.R_DrawStretchPic(
-        iconStartX, iconStartY,
-        48, 48, // Icon size.
-        clg_hud_static.hud_icon_armor
-    );
-    // Draw the health count numbers.
-    clgi.R_SetColor( MakeColor( 255, 255, 255, 164 ) );
-    // Apply generic crosshair alpha.
-    clgi.R_SetAlpha( clgi.screen->hud_alpha );
-    // Scale.
-    clgi.R_SetScale( clgi.screen->hud_scale );
-    // Note: We draw these from the right to left, so the X coordinate has to be set to the right side of the element.
-    CLG_HUD_DrawElementNumberValue(
-        numberStartX, // Center X for the health numbers.
-        numberStartY, // Center Y for the health numbers.
-        HUD_ELEMENT_NUMBERS_DEST_WIDTH, // Width of the health numbers.
-        HUD_ELEMENT_NUMBERS_DEST_HEIGHT, // Height of the health numbers.
-        clgi.client->frame.ps.stats[ STAT_ARMOR ] // Health value to display.
-    );
-
-    clgi.R_ClearColor();
+	return MakeColor( r, g, b, a );
 }
 
 /**
-*	@brief  Renders the player's weapon name and (clip-)ammo status to screen.
+*	@brief	Draw a Half-Life 1 styled HUD container box with corner bracket accents and optional glow.
+*	@param	x			Left coordinate.
+*	@param	y			Top coordinate.
+*	@param	w			Width.
+*	@param	h			Height.
+*	@param	fillColor	Interior background color.
+*	@param	strokeColor	Border / bracket color.
+*	@param	glowColor	Outer glow color.
+*	@param	glowRadius	Outer glow radius.
+**/
+static void CLG_HUD_DrawHL1Container( const double x, const double y, const double w, const double h,
+	const uint32_t fillColor, const uint32_t strokeColor, const uint32_t glowColor, const float glowRadius ) {
+	/**
+	*	Set outer glow if active.
+	**/
+	// Only apply outer glow if radius is greater than threshold.
+	if ( glowRadius > 0.1f ) {
+		clgi.R_SetOuterGlow( glowColor, glowRadius );
+	}
+
+	/**
+	*	Draw filled background rectangle with subtle rounded corners.
+	**/
+	// Apply thin border stroke and corner radius.
+	clgi.R_SetStroke( strokeColor, 1.0f );
+	clgi.R_SetCornerRadius( 2.0f );
+	// Draw the background fill.
+	clgi.R_DrawFill32( x, y, w, h, fillColor );
+	// Clear the 2D rendering style to avoid leaking state.
+	clgi.R_ClearStyle();
+
+	/**
+	*	Draw HL1 corner brackets [ ] for authentic visual aesthetic.
+	**/
+	// Dimensions for the corner bracket accents.
+	constexpr double bracketLen = 6.0;
+	constexpr double bracketThick = 2.0;
+
+	// Top-left bracket corner.
+	clgi.R_DrawFill32( x, y, bracketLen, bracketThick, strokeColor );
+	clgi.R_DrawFill32( x, y, bracketThick, bracketLen, strokeColor );
+
+	// Top-right bracket corner.
+	clgi.R_DrawFill32( x + w - bracketLen, y, bracketLen, bracketThick, strokeColor );
+	clgi.R_DrawFill32( x + w - bracketThick, y, bracketThick, bracketLen, strokeColor );
+
+	// Bottom-left bracket corner.
+	clgi.R_DrawFill32( x, y + h - bracketThick, bracketLen, bracketThick, strokeColor );
+	clgi.R_DrawFill32( x, y + h - bracketLen, bracketThick, bracketLen, strokeColor );
+
+	// Bottom-right bracket corner.
+	clgi.R_DrawFill32( x + w - bracketLen, y + h - bracketThick, bracketLen, bracketThick, strokeColor );
+	clgi.R_DrawFill32( x + w - bracketThick, y + h - bracketLen, bracketThick, bracketLen, strokeColor );
+}
+
+/**
+*	@brief	Renders the player's health and armor status to screen in Half-Life 1 style with value-change glow pulses.
+**/
+static void CLG_HUD_DrawHealthIndicators() {
+	/**
+	*	Retrieve current real-time and player stat values.
+	**/
+	// Real-time timestamp used to calculate easing progress.
+	const QMTime realTime = QMTime::FromMilliseconds( clgi.GetRealTime() );
+
+	// Player health and armor stat values from current frame.
+	const int32_t currentHealth = clgi.client->frame.ps.stats[ STAT_HEALTH ];
+	const int32_t currentArmor = clgi.client->frame.ps.stats[ STAT_ARMOR ];
+
+	/**
+	*	Health Indicating Element Layout Dimensions:
+	**/
+	// Offset from the bottom and left edges of the screen.
+	static constexpr double HUD_ELEMENT_OFFSET = 16.0;
+	// Padding inside the element container box.
+	static constexpr double HUD_ELEMENT_PADDING = 12.0;
+	// Height of the HUD element container box.
+	static constexpr double HUD_ELEMENT_HEIGHT = 72.0;
+
+	// Dimensions of each digit sprite in the indicator.
+	static constexpr double HUD_ELEMENT_NUMBERS_DEST_HEIGHT = 64.0;
+	static constexpr double HUD_ELEMENT_NUMBERS_DEST_WIDTH  = 32.0;
+
+	// Start X and Y coordinates for health element container box.
+	double backGroundStartX = HUD_ELEMENT_OFFSET;
+	const double backGroundStartY = clgi.screen->hudScaledHeight - ( HUD_ELEMENT_OFFSET + HUD_ELEMENT_HEIGHT );
+
+	// Icon origin.
+	const double iconStartX = backGroundStartX + HUD_ELEMENT_PADDING;
+	const double iconStartY = backGroundStartY + HUD_ELEMENT_PADDING;
+
+	// Number digits origin (icon width 48 + 10 px padding).
+	const double numberStartX = iconStartX + 48.0 + 10.0;
+	const double numberStartY = backGroundStartY + 4.0;
+
+	// Width of the health container box based on digit count.
+	const double backGroundWidth = ( numberStartX - backGroundStartX ) + 10.0 + CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, currentHealth );
+
+	/**
+	*	Health Value Transition & Glow Pulse Detection:
+	**/
+	// If health value has changed, trigger a glow pulse.
+	if ( s_hud_pulses.health.lastValue != -1 && s_hud_pulses.health.lastValue != currentHealth ) {
+		// If health decreased, player suffered damage -> red warning pulse.
+		if ( currentHealth < s_hud_pulses.health.lastValue ) {
+			s_hud_pulses.health.glowColor = COLOR_HUD_RED_GLOW;
+		} else {
+			// Health increased (healed) -> bright amber pulse.
+			s_hud_pulses.health.glowColor = COLOR_HUD_HL1_ORANGE_BRIGHT;
+		}
+		// Initiate 400ms ease out decay.
+		s_hud_pulses.health.easeState = QMEaseState::new_ease_state( realTime, 400_ms );
+	}
+	// Record current health as last value for future frame comparisons.
+	s_hud_pulses.health.lastValue = currentHealth;
+
+	/**
+	*	Calculate Health Ease-Out Pulse Factor (1.0 -> 0.0):
+	**/
+	double healthPulseFactor = 0.0;
+	if ( s_hud_pulses.health.easeState.GetEaseMode() != QMEaseState::QM_EASE_STATE_MODE_DONE ) {
+		healthPulseFactor = 1.0 - s_hud_pulses.health.easeState.EaseOut( realTime, QM_QuadraticEaseOut<double> );
+		healthPulseFactor = QM_Clamp( healthPulseFactor, 0.0, 1.0 );
+	}
+
+	/**
+	*	Determine Health Colors Based on Status and Pulse:
+	**/
+	// Critical health threshold (<= 25).
+	const bool isLowHealth = ( currentHealth <= 25 );
+	uint32_t healthColor = isLowHealth ? COLOR_HUD_RED_WARNING : COLOR_HUD_HL1_ORANGE_BASE;
+	const uint32_t healthBg = isLowHealth ? COLOR_HUD_RED_BG : COLOR_HUD_HL1_BG;
+	uint32_t healthStroke = isLowHealth ? COLOR_HUD_RED_WARNING : COLOR_HUD_HL1_ORANGE_DIM;
+
+	// Blend pulse glow color if actively pulsing.
+	if ( healthPulseFactor > 0.001 ) {
+		healthColor = ColorLerp( healthColor, s_hud_pulses.health.glowColor, static_cast<float>( healthPulseFactor ) );
+		healthStroke = ColorLerp( healthStroke, s_hud_pulses.health.glowColor, static_cast<float>( healthPulseFactor ) );
+	}
+	const float healthGlowRadius = static_cast<float>( 8.0 * healthPulseFactor );
+
+	/**
+	*	Render Health Container Box:
+	**/
+	CLG_HUD_DrawHL1Container(
+		backGroundStartX, backGroundStartY,
+		backGroundWidth, HUD_ELEMENT_HEIGHT,
+		healthBg, healthStroke, s_hud_pulses.health.glowColor, healthGlowRadius
+	);
+
+	/**
+	*	Render Health '+' Icon (hud_icon_health):
+	**/
+	clgi.R_SetColor( healthColor );
+	clgi.R_SetAlpha( clgi.screen->hud_alpha );
+	clgi.R_SetScale( clgi.screen->hud_scale );
+	clgi.R_DrawStretchPic(
+		iconStartX, iconStartY,
+		48.0, 48.0,
+		clg_hud_static.hud_icon_health
+	);
+
+	/**
+	*	Render Health Number Digits:
+	**/
+	clgi.R_SetColor( healthColor );
+	clgi.R_SetAlpha( clgi.screen->hud_alpha );
+	clgi.R_SetScale( clgi.screen->hud_scale );
+	CLG_HUD_DrawElementNumberValue(
+		numberStartX,
+		numberStartY,
+		HUD_ELEMENT_NUMBERS_DEST_WIDTH,
+		HUD_ELEMENT_NUMBERS_DEST_HEIGHT,
+		currentHealth
+	);
+
+	/**
+	*	Armor Indicating Element (HEV Suit):
+	**/
+	// Position armor container box directly adjacent to health container box.
+	backGroundStartX += backGroundWidth + 8.0;
+
+	// Armor icon origin.
+	const double armorIconStartX = backGroundStartX + HUD_ELEMENT_PADDING;
+	const double armorIconStartY = backGroundStartY + HUD_ELEMENT_PADDING;
+
+	// Armor number digits origin.
+	const double armorNumberStartX = armorIconStartX + 48.0 + 10.0;
+	const double armorNumberStartY = backGroundStartY + 4.0;
+
+	// Width of armor container box based on digit count.
+	const double armorBackGroundWidth = ( armorNumberStartX - backGroundStartX ) + 10.0 + CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, currentArmor );
+
+	/**
+	*	Armor Value Transition & Glow Pulse Detection:
+	**/
+	// If armor value has changed, trigger a glow pulse.
+	if ( s_hud_pulses.armor.lastValue != -1 && s_hud_pulses.armor.lastValue != currentArmor ) {
+		s_hud_pulses.armor.glowColor = COLOR_HUD_HL1_ORANGE_BRIGHT;
+		// Initiate 400ms ease out decay.
+		s_hud_pulses.armor.easeState = QMEaseState::new_ease_state( realTime, 400_ms );
+	}
+	// Record current armor as last value for future frame comparisons.
+	s_hud_pulses.armor.lastValue = currentArmor;
+
+	/**
+	*	Calculate Armor Ease-Out Pulse Factor (1.0 -> 0.0):
+	**/
+	double armorPulseFactor = 0.0;
+	if ( s_hud_pulses.armor.easeState.GetEaseMode() != QMEaseState::QM_EASE_STATE_MODE_DONE ) {
+		armorPulseFactor = 1.0 - s_hud_pulses.armor.easeState.EaseOut( realTime, QM_QuadraticEaseOut<double> );
+		armorPulseFactor = QM_Clamp( armorPulseFactor, 0.0, 1.0 );
+	}
+
+	/**
+	*	Determine Armor Colors Based on Status and Pulse:
+	**/
+	uint32_t armorColor = ( currentArmor > 0 ) ? COLOR_HUD_HL1_ORANGE_BASE : COLOR_HUD_HL1_ORANGE_DIM;
+	const uint32_t armorBg = COLOR_HUD_HL1_BG;
+	uint32_t armorStroke = COLOR_HUD_HL1_ORANGE_DIM;
+
+	// Blend pulse glow color if actively pulsing.
+	if ( armorPulseFactor > 0.001 ) {
+		armorColor = ColorLerp( armorColor, s_hud_pulses.armor.glowColor, static_cast<float>( armorPulseFactor ) );
+		armorStroke = ColorLerp( armorStroke, s_hud_pulses.armor.glowColor, static_cast<float>( armorPulseFactor ) );
+	}
+	const float armorGlowRadius = static_cast<float>( 8.0 * armorPulseFactor );
+
+	/**
+	*	Render Armor Container Box:
+	**/
+	CLG_HUD_DrawHL1Container(
+		backGroundStartX, backGroundStartY,
+		armorBackGroundWidth, HUD_ELEMENT_HEIGHT,
+		armorBg, armorStroke, s_hud_pulses.armor.glowColor, armorGlowRadius
+	);
+
+	/**
+	*	Render Armor HEV Icon (hud_icon_armor):
+	**/
+	clgi.R_SetColor( armorColor );
+	clgi.R_SetAlpha( clgi.screen->hud_alpha );
+	clgi.R_SetScale( clgi.screen->hud_scale );
+	clgi.R_DrawStretchPic(
+		armorIconStartX, armorIconStartY,
+		48.0, 48.0,
+		clg_hud_static.hud_icon_armor
+	);
+
+	/**
+	*	Render Armor Number Digits:
+	**/
+	clgi.R_SetColor( armorColor );
+	clgi.R_SetAlpha( clgi.screen->hud_alpha );
+	clgi.R_SetScale( clgi.screen->hud_scale );
+	CLG_HUD_DrawElementNumberValue(
+		armorNumberStartX,
+		armorNumberStartY,
+		HUD_ELEMENT_NUMBERS_DEST_WIDTH,
+		HUD_ELEMENT_NUMBERS_DEST_HEIGHT,
+		currentArmor
+	);
+
+	// Reset renderer color.
+	clgi.R_ClearColor();
+}
+
+/**
+*	@brief	Renders the player's weapon (clip-)ammo status to screen in Half-Life 1 style with value-change glow pulses.
 **/
 static void CLG_HUD_DrawAmmoIndicators() {
-    if ( !clgi.client->frame.ps.gun.modelIndex ) {
-        return;
-    }
+	/**
+	*	Sanity check: ensure player is currently holding a valid weapon.
+	**/
+	if ( !clgi.client->frame.ps.gun.modelIndex ) {
+		return;
+	}
 
-    // <Q2RTXP>: WID: Determine this based on the weapon that is selected.
-    const qhandle_t ammoIcon = clg_hud_static.hud_icon_ammo_pistol;
+	// Real-time timestamp used to calculate easing progress.
+	const QMTime realTime = QMTime::FromMilliseconds( clgi.GetRealTime() );
 
-    /**
-    *   Clip Ammo Indicating Element:
-    **/
-    // Size details for the element.
-    static constexpr double HUD_ELEMENT_OFFSET = 16.; // Offset from the bottom and left of the screen.
-    static constexpr double HUD_ELEMENT_HALF_OFFSET = ( HUD_ELEMENT_OFFSET / 2. ); // Half offset.
-    static constexpr double HUD_ELEMENT_PADDING = 12.; // Actual offset that takes the 'outer glow' space of the background in mind.
-    static constexpr double HUD_ELEMENT_HEIGHT = 72.; // Height of the element.
+	// Fetch current weapon clip ammo and reserve ammo.
+	const int32_t currentClip = clgi.client->frame.ps.stats[ STAT_WEAPON_CLIP_AMMO ];
+	const int32_t currentReserve = clgi.client->frame.ps.stats[ STAT_AMMO ];
 
-    static constexpr double HUD_ELEMENT_NUMBERS_DEST_HEIGHT = 64.; // Height of the element.
-    static constexpr double HUD_ELEMENT_NUMBERS_DEST_WIDTH = 32.; // Height of the element.
+	// Active ammo icon (pistol ammo default).
+	const qhandle_t ammoIcon = clg_hud_static.hud_icon_ammo_pistol;
 
-    double backGroundStartX = 0;
-    double backGroundStartY = clgi.screen->hudScaledHeight - ( HUD_ELEMENT_OFFSET + HUD_ELEMENT_HEIGHT );
-    
-    double iconStartX = backGroundStartX + HUD_ELEMENT_PADDING;
-    double iconStartY = backGroundStartY + HUD_ELEMENT_PADDING;
-    
-    double numberStartX = iconStartX + 48.;
-    double numberStartY = ( backGroundStartY + 4 ); // ( HUD_ELEMENT_HEIGHT / 2. ) ) - ( HUD_ELEMENT_NUMBERS_DEST_HEIGHT / 2. );
-    
-    // Width of the element.
-    double backGroundWidth = 48. + HUD_ELEMENT_OFFSET + 8 + CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, clgi.client->frame.ps.stats[ STAT_WEAPON_CLIP_AMMO ] );
-    backGroundWidth += HUD_ELEMENT_NUMBERS_DEST_WIDTH; // Account for the "/" separator pic.
-    backGroundWidth += CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, clgi.client->frame.ps.stats[ STAT_AMMO ] );
+	/**
+	*	Clip Ammo Indicating Element Layout Dimensions:
+	**/
+	static constexpr double HUD_ELEMENT_OFFSET = 16.0;
+	static constexpr double HUD_ELEMENT_PADDING = 12.0;
+	static constexpr double HUD_ELEMENT_HEIGHT = 72.0;
 
-    // Calculate this here now we have the total estimated width.
-	backGroundStartX = clgi.screen->hudScaledWidth - ( backGroundWidth + HUD_ELEMENT_OFFSET );
+	static constexpr double HUD_ELEMENT_NUMBERS_DEST_HEIGHT = 64.0;
+	static constexpr double HUD_ELEMENT_NUMBERS_DEST_WIDTH = 32.0;
 
-    //// Draw its background.
-    CLG_HUD_DrawElementBackground(
-        backGroundStartX, backGroundStartY,
-        backGroundWidth, HUD_ELEMENT_HEIGHT
-    );
+	// Calculate total width of ammo box: icon (48) + padding + clip digits + slash (32) + reserve digits.
+	double backGroundWidth = 48.0 + ( HUD_ELEMENT_PADDING * 2.0 ) + 8.0;
+	backGroundWidth += CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, currentClip );
+	backGroundWidth += HUD_ELEMENT_NUMBERS_DEST_WIDTH; // Slash "/" icon width.
+	backGroundWidth += CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, currentReserve );
 
-    // Icon is orangie.
-    clgi.R_SetColor( MakeColor( 217, 160, 102, 225 ) ); // == Orangie color in Krita Pixel
-    // Apply generic HUD alpha.
-    clgi.R_SetAlpha( clgi.screen->hud_alpha );
-    // Scale.
-    clgi.R_SetScale( clgi.screen->hud_scale );
-    // Draw the health icon.
-    clgi.R_DrawStretchPic(
-        backGroundStartX + iconStartX, iconStartY,
-        48, 48, // Icon size.
-        ammoIcon
-    );
-    // Draw the health count numbers.
-    clgi.R_SetColor( MakeColor( 255, 255, 255, 164 ) );
-    // Apply generic HUD alpha.
-    clgi.R_SetAlpha( clgi.screen->hud_alpha );
-    // Scale.
-    clgi.R_SetScale( clgi.screen->hud_scale );
-    // Note: We draw these from the right to left, so the X coordinate has to be set to the right side of the element.
-    CLG_HUD_DrawElementNumberValue(
-        backGroundStartX + numberStartX, // Center X for the health numbers.
-        numberStartY, // Center Y for the health numbers.
-        HUD_ELEMENT_NUMBERS_DEST_WIDTH, // Width of the health numbers.
-        HUD_ELEMENT_NUMBERS_DEST_HEIGHT, // Height of the health numbers.
-        clgi.client->frame.ps.stats[ STAT_WEAPON_CLIP_AMMO ] // Health value to display.
-    );
-    /**
-	*   The slash "/" separator pic, which is drawn between the clip ammo and the total ammo.
-    **/
-    // Draw the health count numbers.
-    clgi.R_SetColor( MakeColor( 255, 255, 255, 164 ) );
-    // Apply generic HUD alpha.
-    clgi.R_SetAlpha( clgi.screen->hud_alpha );
-    // Scale.
-    clgi.R_SetScale( clgi.screen->hud_scale );
-	// Draw the / pic.
-    numberStartX += CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, clgi.client->frame.ps.stats[ STAT_WEAPON_CLIP_AMMO ] );
-    // Draw the health icon.
-    clgi.R_DrawStretchPic(
-        backGroundStartX + numberStartX,
-        numberStartY,
-        HUD_ELEMENT_NUMBERS_DEST_WIDTH, 
-        HUD_ELEMENT_NUMBERS_DEST_HEIGHT, // Icon size.
-        clg_hud_static.hud_icon_slash
-    );
+	// Anchor ammo box to the bottom-right corner of the HUD.
+	const double backGroundStartX = clgi.screen->hudScaledWidth - ( backGroundWidth + HUD_ELEMENT_OFFSET );
+	const double backGroundStartY = clgi.screen->hudScaledHeight - ( HUD_ELEMENT_OFFSET + HUD_ELEMENT_HEIGHT );
+
+	// Icon origin.
+	const double iconStartX = backGroundStartX + HUD_ELEMENT_PADDING;
+	const double iconStartY = backGroundStartY + HUD_ELEMENT_PADDING;
+
+	// Number digits origin.
+	double numberStartX = iconStartX + 48.0 + 8.0;
+	const double numberStartY = backGroundStartY + 4.0;
+
+	/**
+	*	Ammo Value Transition & Glow Pulse Detection:
+	**/
+	// Pack clip and reserve into a single 32-bit key to detect either changing.
+	const int32_t combinedAmmo = ( ( currentClip & 0xFFFF ) << 16 ) | ( currentReserve & 0xFFFF );
+	if ( s_hud_pulses.ammo.lastValue != -1 && s_hud_pulses.ammo.lastValue != combinedAmmo ) {
+		// If clip ammo is empty, trigger red warning pulse; otherwise bright amber pulse.
+		if ( currentClip == 0 ) {
+			s_hud_pulses.ammo.glowColor = COLOR_HUD_RED_GLOW;
+		} else {
+			s_hud_pulses.ammo.glowColor = COLOR_HUD_HL1_ORANGE_BRIGHT;
+		}
+		// Initiate 350ms ease out decay.
+		s_hud_pulses.ammo.easeState = QMEaseState::new_ease_state( realTime, 350_ms );
+	}
+	// Record current ammo as last value for future frame comparisons.
+	s_hud_pulses.ammo.lastValue = combinedAmmo;
+
+	/**
+	*	Calculate Ammo Ease-Out Pulse Factor (1.0 -> 0.0):
+	**/
+	double ammoPulseFactor = 0.0;
+	if ( s_hud_pulses.ammo.easeState.GetEaseMode() != QMEaseState::QM_EASE_STATE_MODE_DONE ) {
+		ammoPulseFactor = 1.0 - s_hud_pulses.ammo.easeState.EaseOut( realTime, QM_QuadraticEaseOut<double> );
+		ammoPulseFactor = QM_Clamp( ammoPulseFactor, 0.0, 1.0 );
+	}
+
+	/**
+	*	Determine Ammo Colors Based on Status and Pulse:
+	**/
+	const bool isOutOfAmmo = ( currentClip == 0 );
+	uint32_t ammoColor = isOutOfAmmo ? COLOR_HUD_RED_WARNING : COLOR_HUD_HL1_ORANGE_BASE;
+	const uint32_t ammoBg = isOutOfAmmo ? COLOR_HUD_RED_BG : COLOR_HUD_HL1_BG;
+	uint32_t ammoStroke = isOutOfAmmo ? COLOR_HUD_RED_WARNING : COLOR_HUD_HL1_ORANGE_DIM;
+
+	// Blend pulse glow color if actively pulsing.
+	if ( ammoPulseFactor > 0.001 ) {
+		ammoColor = ColorLerp( ammoColor, s_hud_pulses.ammo.glowColor, static_cast<float>( ammoPulseFactor ) );
+		ammoStroke = ColorLerp( ammoStroke, s_hud_pulses.ammo.glowColor, static_cast<float>( ammoPulseFactor ) );
+	}
+	const float ammoGlowRadius = static_cast<float>( 8.0 * ammoPulseFactor );
+
+	/**
+	*	Render Ammo Container Box:
+	**/
+	CLG_HUD_DrawHL1Container(
+		backGroundStartX, backGroundStartY,
+		backGroundWidth, HUD_ELEMENT_HEIGHT,
+		ammoBg, ammoStroke, s_hud_pulses.ammo.glowColor, ammoGlowRadius
+	);
+
+	/**
+	*	Render Ammo Bullet Icon (hud_icon_ammo_pistol):
+	**/
+	clgi.R_SetColor( ammoColor );
+	clgi.R_SetAlpha( clgi.screen->hud_alpha );
+	clgi.R_SetScale( clgi.screen->hud_scale );
+	clgi.R_DrawStretchPic(
+		iconStartX, iconStartY,
+		48.0, 48.0,
+		ammoIcon
+	);
+
+	/**
+	*	Render Clip Ammo Digits:
+	**/
+	clgi.R_SetColor( ammoColor );
+	clgi.R_SetAlpha( clgi.screen->hud_alpha );
+	clgi.R_SetScale( clgi.screen->hud_scale );
+	CLG_HUD_DrawElementNumberValue(
+		numberStartX,
+		numberStartY,
+		HUD_ELEMENT_NUMBERS_DEST_WIDTH,
+		HUD_ELEMENT_NUMBERS_DEST_HEIGHT,
+		currentClip
+	);
+
+	/**
+	*	Render Slash "/" Separator (hud_icon_slash):
+	**/
+	numberStartX += CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, currentClip );
+	clgi.R_SetColor( ammoColor );
+	clgi.R_SetAlpha( clgi.screen->hud_alpha );
+	clgi.R_SetScale( clgi.screen->hud_scale );
+	clgi.R_DrawStretchPic(
+		numberStartX,
+		numberStartY,
+		HUD_ELEMENT_NUMBERS_DEST_WIDTH,
+		HUD_ELEMENT_NUMBERS_DEST_HEIGHT,
+		clg_hud_static.hud_icon_slash
+	);
+
+	/**
+	*	Render Reserve Ammo Digits:
+	**/
 	numberStartX += HUD_ELEMENT_NUMBERS_DEST_WIDTH;
-    // Note: We draw these from the right to left, so the X coordinate has to be set to the right side of the element.
-    CLG_HUD_DrawElementNumberValue(
-        backGroundStartX + numberStartX, // Center X for the health numbers.
-        numberStartY, // Center Y for the health numbers.
-        HUD_ELEMENT_NUMBERS_DEST_WIDTH, // Width of the health numbers.
-        HUD_ELEMENT_NUMBERS_DEST_HEIGHT, // Height of the health numbers.
-        clgi.client->frame.ps.stats[ STAT_AMMO ] // Health value to display.
-    );
-    clgi.R_ClearColor();
-    clgi.R_SetAlpha( 1.f );
+	clgi.R_SetColor( ammoColor );
+	clgi.R_SetAlpha( clgi.screen->hud_alpha );
+	clgi.R_SetScale( clgi.screen->hud_scale );
+	CLG_HUD_DrawElementNumberValue(
+		numberStartX,
+		numberStartY,
+		HUD_ELEMENT_NUMBERS_DEST_WIDTH,
+		HUD_ELEMENT_NUMBERS_DEST_HEIGHT,
+		currentReserve
+	);
+
+	// Reset renderer color and alpha.
+	clgi.R_ClearColor();
+	clgi.R_SetAlpha( 1.0f );
 }
 
 

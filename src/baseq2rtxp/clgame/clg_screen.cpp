@@ -77,6 +77,13 @@ cvar_t *scr_alpha = nullptr;
 cvar_t *scr_scale = nullptr;
 cvar_t *scr_font = nullptr;
 
+//! Outline stroke width in pixels for in-game TrueType font rendering.
+cvar_t *scr_font_stroke = nullptr;
+//! Outline stroke color for in-game TrueType font rendering.
+cvar_t *scr_font_stroke_color = nullptr;
+//! Active parsed font outline stroke color for in-game TrueType font rendering.
+color_t scr_stroke_color = { .u32 = MakeColor( 51, 51, 51, 255 ) };
+
 vrect_t     scr_vrect = {};      // position of render window on screen
 
 
@@ -99,25 +106,56 @@ UTILS
 //    SCR_DrawStringEx(x, y, flags, MAX_STRING_CHARS, string, clgi.screen->font_pic)
 
 /**
-*   @brief  Draws a string using at x/y up till maxlen.
+*	@brief	Draws a string at (x, y) up to maxlen characters using the specified font.
+*	@param	x		Horizontal start position.
+*	@param	y		Vertical start position.
+*	@param	flags	UI flags (alignment, color formatting).
+*	@param	maxlen	Maximum number of characters to draw.
+*	@param	s		String text content to render.
+*	@param	font	Font handle to use for rendering.
+*	@return	Final X coordinate after drawing.
 **/
 const int32_t SCR_DrawStringEx( const int32_t x, const int32_t y, const int32_t flags, const size_t maxlen, const char *s, const qhandle_t font ) {
+	/**
+	*	Sanity checks / clamp string length.
+	**/
+	size_t len = strlen( s );
+	if ( len > maxlen ) {
+		len = maxlen;
+	}
 
-    size_t len = strlen( s );
-    if ( len > maxlen ) {
-        len = maxlen;
-    }
+	/**
+	*	Horizontal alignment calculation.
+	**/
+	int32_t finalX = x;
+	if ( ( flags & UI_CENTER ) == UI_CENTER ) {
+		const float w = clgi.Font_StringWidthTTF_N ? clgi.Font_StringWidthTTF_N( font, s, len ) : (float)( len * CHAR_WIDTH );
+		finalX -= Q_rint( w * 0.5f );
+	} else if ( flags & UI_RIGHT ) {
+		const float w = clgi.Font_StringWidthTTF_N ? clgi.Font_StringWidthTTF_N( font, s, len ) : (float)( len * CHAR_WIDTH );
+		finalX -= Q_rint( w );
+	}
 
-    int32_t finalX = x;
-    if ( ( flags & UI_CENTER ) == UI_CENTER ) {
-        const float w = clgi.Font_StringWidthTTF_N ? clgi.Font_StringWidthTTF_N( font, s, len ) : (float)( len * CHAR_WIDTH );
-        finalX -= Q_rint( w * 0.5f );
-    } else if ( flags & UI_RIGHT ) {
-        const float w = clgi.Font_StringWidthTTF_N ? clgi.Font_StringWidthTTF_N( font, s, len ) : (float)( len * CHAR_WIDTH );
-        finalX -= Q_rint( w );
-    }
+	/**
+	*	Apply font outline stroke if configured.
+	**/
+	if ( scr_font_stroke && scr_font_stroke->value > 0.0f ) {
+		clgi.R_SetStroke( scr_stroke_color.u32, scr_font_stroke->value );
+	}
 
-    return clgi.R_DrawString( finalX, y, flags, maxlen, s, font );
+	/**
+	*	Render the string geometry.
+	**/
+	const int32_t ret = clgi.R_DrawString( finalX, y, flags, maxlen, s, font );
+
+	/**
+	*	Clean up active style state after rendering string.
+	**/
+	if ( scr_font_stroke && scr_font_stroke->value > 0.0f ) {
+		clgi.R_ClearStyle();
+	}
+
+	return ret;
 }
 /**
 *   @brief  Draws a string using SCR_DrawStringEx but using the default screen font.
@@ -235,6 +273,18 @@ const double SCR_FadeAlpha( const uint64_t startTime, const uint64_t visTime, co
 //    return true;
 //}
 
+/**
+*	@brief	Callback invoked when scr_font_stroke_color cvar changes.
+*	@param	self	Pointer to cvar instance.
+**/
+static void scr_font_stroke_color_changed( cvar_t *self ) {
+	if ( !clgi.SCR_ParseColor( self->string, &scr_stroke_color ) ) {
+		Com_WPrintf( "Invalid value '%s' for '%s'\n", self->string, self->name );
+		clgi.CVar_Reset( self );
+		scr_stroke_color.u32 = MakeColor( 51, 51, 51, 255 );
+	}
+}
+
 /*
 ===============================================================================
 
@@ -264,14 +314,14 @@ static void draw_progress_bar( float progress, bool paused, int64_t framenum ) {
 
     len = Q_scnprintf( buffer, sizeof( buffer ), "%.f%%", progress * 100 );
     x = ( w - len * CHAR_WIDTH ) / 2;
-    clgi.R_DrawString( x, h, 0, MAX_STRING_CHARS, buffer, precache.screen.font_pic );
+    SCR_DrawString( x, h, 0, buffer );
 
     if ( scr_demobar->integer > 1 ) {
         int sec = framenum / frameMs;
         int min = sec / 60; sec %= 60;
 
         Q_scnprintf( buffer, sizeof( buffer ), "%d:%02d.%d", min, sec, framenum % frameMs );
-        clgi.R_DrawString( 0, h, 0, MAX_STRING_CHARS, buffer, precache.screen.font_pic );
+        SCR_DrawString( 0, h, 0, buffer );
     }
 
 	// Reset scale to default. (We don't want a shrinked down PAUSED text.)
@@ -837,7 +887,7 @@ static void SCR_DrawDebugStats( void ) {
         if ( clgi.client->oldframe.ps.stats[ i ] != clgi.client->frame.ps.stats[ i ] ) {
             clgi.R_SetColor( U32_RED );
         }
-        clgi.R_DrawString( x, y, 0, MAX_STRING_CHARS, buffer, precache.screen.font_pic );
+        SCR_DrawString( x, y, 0, buffer );
         clgi.R_ClearColor();
         y += CHAR_HEIGHT;
     }
@@ -871,13 +921,13 @@ static void SCR_DrawDebugPmove( void ) {
     if ( i > PM_FREEZE )
         i = PM_FREEZE;
 
-    clgi.R_DrawString( x, y, 0, MAX_STRING_CHARS, types[ i ], precache.screen.font_pic );
+    SCR_DrawString( x, y, 0, types[ i ] );
     y += CHAR_HEIGHT;
 
     j = clgi.client->frame.ps.pmove.pm_flags;
     for ( i = 0; i < 11; i++ ) {
         if ( j & ( 1 << i ) ) {
-            x = clgi.R_DrawString( x, y, 0, MAX_STRING_CHARS, flags[ i ], precache.screen.font_pic );
+            x = SCR_DrawString( x, y, 0, flags[ i ] );
             x += CHAR_WIDTH;
         }
     }
@@ -1079,8 +1129,8 @@ static void scr_font_changed( cvar_t *self ) {
 static void scr_scale_changed( cvar_t *self ) {
     // Clamp scale.
     self->value = clgi.R_ClampScale( self );
-    // Notify HUD about the scale change.
-    CLG_HUD_ModeChanged( self->value );
+    //// Notify HUD about the scale change.
+    //CLG_HUD_ModeChanged( self->value );
 }
 /**
 *	@brief
@@ -1089,7 +1139,7 @@ static void scr_alpha_changed( cvar_t *self ) {
     // Clamp scale.
     self->value = clgi.CVar_ClampValue( self, 0.f, 1.f );
     // Notify HUD about the scale change.
-    CLG_HUD_AlphaChanged( self->value );// scr_alpha->value *clgi.screen->hud_alpha );
+    //CLG_HUD_AlphaChanged( self->value );// scr_alpha->value *clgi.screen->hud_alpha );
 }
 
 static const cmdreg_t scr_cmds[] = {
@@ -1100,7 +1150,7 @@ static const cmdreg_t scr_cmds[] = {
     { "draw", SCR_Draw_f, SCR_Draw_c },
     { "undraw", SCR_UnDraw_f, SCR_UnDraw_c },
     { "clearchathud", CLG_HUD_ClearChat_f },
-    { NULL }
+    { nullptr }
 };
 
 /**
@@ -1116,11 +1166,16 @@ void PF_SCR_Init( void ) {
     //scr_font = clgi.CVar_Get( "scr_font", "conchars", 0 );
 	scr_font = clgi.CVar_Get( "scr_font", "fonts/segoeui.ttf", 0 );
     scr_font->changed = scr_font_changed;
+
+    scr_font_stroke = clgi.CVar_Get( "scr_font_stroke", "1", CVAR_ARCHIVE );
+    scr_font_stroke_color = clgi.CVar_Get( "scr_font_stroke_color", "#333333", CVAR_ARCHIVE );
+    scr_font_stroke_color->changed = scr_font_stroke_color_changed;
+    scr_font_stroke_color_changed( scr_font_stroke_color );
     
     scr_alpha = clgi.CVar_Get( "scr_alpha", "0.8", CVAR_ARCHIVE );
     scr_alpha->changed = scr_alpha_changed;
 	scr_alpha_changed( scr_alpha );
-    scr_scale = clgi.CVar_Get( "scr_scale", "0.75", CVAR_ARCHIVE );
+    scr_scale = clgi.CVar_Get( "scr_scale", "1.0", CVAR_ARCHIVE );
     scr_scale->changed = scr_scale_changed;
     scr_scale_changed( scr_scale );
     scr_draw2d = clgi.CVar_Get( "scr_draw2d", "2", 0 );

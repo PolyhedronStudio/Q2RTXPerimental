@@ -438,18 +438,55 @@ static void SetWeaponStats( svg_base_edict_t *ent ) {
     // Recoil.
     //
     float totalRecoil = SVG_Client_GetFinalRecoilFactor( ent );
-    //if ( totalRecoil > 0 ) {
-		ent->client->ps.stats[ STAT_WEAPON_RECOIL ] = float_to_half( (float)totalRecoil );
-        //gi.dprintf( "%s: STAT_WEAPON_RECOIL(%llu), moveRecoil(%f), firedRecoil(%f)\n", 
-        //    __func__, 
-        //    ent->client->ps.stats[ STAT_WEAPON_RECOIL ],
-        //    ent->client->weaponState.recoil.moveFactor,
-        //    ent->client->weaponState.recoil.weaponFactor
-        //);
-    //} else {
-    //    ent->client->weaponState.recoil.weaponFactor = 0;
-    //    ent->client->weaponState.recoil.moveFactor = 0;
-    //}
+    ent->client->ps.stats[ STAT_WEAPON_RECOIL ] = float_to_half( (float)totalRecoil );
+
+	/**
+	*	Compute owned weapons and ammo availability bitmasks for HUD selection menu.
+	**/
+	uint64_t weaponsOwned = 0;
+	uint64_t weaponsAmmo = 0;
+
+	// Iterate through all items in the shared master list to locate weapon entries.
+	for ( int32_t i = 0; i < num_sg_ItemList; i++ ) {
+		const sg_item_t *it = &sg_ItemList[ i ];
+
+		// Only inspect weapon items with valid weapon model indices.
+		if ( !( it->flags & ITEM_FLAG_WEAPON ) || it->weapon_index <= 0 ) {
+			continue;
+		}
+
+		// Determine if the weapon is owned.
+		// Fists (melee) are innate and always owned; others check client inventory.
+		const bool isFists = ( it->weapon_index == WEAP_FISTS );
+		const bool isOwned = isFists || ( ent->client->pers.inventory[ ITEM_INDEX( it ) ] > 0 );
+		if ( !isOwned ) {
+			continue;
+		}
+
+		// Mark weapon index bit as owned.
+		weaponsOwned |= ( 1ULL << it->weapon_index );
+
+		// Determine if ammo is available for this weapon.
+		bool hasAmmo = true;
+		if ( it->ammo && it->ammo[ 0 ] != '\0' ) {
+			// Check current clip ammo.
+			const int32_t clipAmmo = ent->client->pers.weapon_clip_ammo[ it->weapon_index ];
+			// Look up ammo item to check reserve ammo in inventory.
+			const sg_item_t *ammoItem = SG_Item_FindByPickupName( it->ammo );
+			const int32_t reserveAmmo = ammoItem ? ent->client->pers.inventory[ ITEM_INDEX( ammoItem ) ] : 0;
+
+			// Weapon has ammo if either clip or reserve is greater than zero.
+			hasAmmo = ( clipAmmo > 0 || reserveAmmo > 0 );
+		}
+
+		if ( hasAmmo ) {
+			weaponsAmmo |= ( 1ULL << it->weapon_index );
+		}
+	}
+
+	// Assign bitmasks to player state stats.
+	ent->client->ps.stats[ STAT_WEAPONS_OWNED ] = static_cast<int64_t>( weaponsOwned );
+	ent->client->ps.stats[ STAT_WEAPONS_AMMO ] = static_cast<int64_t>( weaponsAmmo );
 }
 
 /**

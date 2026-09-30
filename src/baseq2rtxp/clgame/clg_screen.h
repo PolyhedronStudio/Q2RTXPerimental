@@ -78,3 +78,10 @@ void SCR_DrawStringMulti( const int32_t x, const int32_t y, const int32_t flags,
 *   @return 'Alpha' value of the current moment in time. from(startTime) to( startTime + visTime ).
 **/
 const double SCR_FadeAlpha( const uint64_t startTime, const uint64_t visTime, const uint64_t fadeTime );
+
+//! Outline stroke width in pixels for in-game TrueType font rendering.
+extern cvar_t *scr_font_stroke;
+//! Outline stroke color for in-game TrueType font rendering.
+extern cvar_t *scr_font_stroke_color;
+//! Active parsed font outline stroke color for in-game TrueType font rendering.
+extern color_t scr_stroke_color;

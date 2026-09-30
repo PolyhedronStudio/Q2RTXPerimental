@@ -377,21 +377,36 @@ typedef struct client_state_s {
     //! Linear interpolation fraction between cl.oldframe and cl.frame.
     double		lerpfrac;
 
-
+	//! The shared client screen data, configured by the client game but also accessed
+	//! by the client itself. (For rendering reasons.)
+	cl_screen_shared_t *screen;
 
     /**
     *
-    *   Refresh Related:
+    *   Refresh:
     *
     **/
     //! Refresh frame settings.
     refdef_t    refdef;
+
+
+	/**
+	*
+	*   3D POV and vForward,vRight, vUp vectors for the current frame.
+	*
+	**/
     //! Interpolated
     float       fov_x;
     float       fov_y;      // derived from fov_x assuming 4/3 aspect ratio.
     //! Set when refdef.angles is set.
     Vector3     vForward, vRight, vUp;
-    //! Whether in thirdperson view or not.
+
+	/**
+	*
+	*   Predicted Player Entity State, used for smooth player entity movement in thirdperson view.
+	*
+	**/
+	//! Whether in thirdperson view or not.
     qboolean    thirdPersonView;
     //! Predicted values, used for smooth player entity movement in thirdperson view.
     Vector3     playerEntityOrigin;

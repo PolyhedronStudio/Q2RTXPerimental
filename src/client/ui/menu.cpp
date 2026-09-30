@@ -75,23 +75,23 @@ static void Action_Draw(menuAction_t *a)
             // Blink cursor arrow every ~256ms
             if ((uis.realtime >> 8) & 1) {
                 // Save current font handle and switch to legacy conchars bitmap font
-                const qhandle_t savedFont = uis.fontHandle;
-                uis.fontHandle = uis.concharsFontHandle;
+                const qhandle_t savedFont = uis.handleFontTTF;
+                uis.handleFontTTF = uis.handleConcharsImgs;
                 UI_DrawChar(a->generic.x - RCOLUMN_OFFSET / 2, a->generic.y, a->generic.uiFlags | UI_RIGHT, 13);
                 // Restore TrueType font handle
-                uis.fontHandle = savedFont;
+                uis.handleFontTTF = savedFont;
             }
         } else {
             flags |= UI_ALTCOLOR;
             // Blink cursor arrow every ~256ms
             if ((uis.realtime >> 8) & 1) {
                 // Calculate max width among all visible centered items in parent menu using TrueType font metrics
-                float max_w = Font_StringWidthTTF( uis.fontHandle, a->generic.name );
+                float max_w = Font_StringWidthTTF( uis.handleFontTTF, a->generic.name );
                 if ( a->generic.parent != nullptr ) {
                     for ( int32_t i = 0; i < a->generic.parent->nitems; i++ ) {
                         const menuCommon_t *item = static_cast<const menuCommon_t*>( a->generic.parent->items[ i ] );
                         if ( item != nullptr && !( item->flags & QMF_HIDDEN ) && ( ( item->uiFlags & UI_CENTER ) == UI_CENTER ) && item->name != nullptr ) {
-                            const float item_w = Font_StringWidthTTF( uis.fontHandle, item->name );
+                            const float item_w = Font_StringWidthTTF( uis.handleFontTTF, item->name );
                             if ( item_w > max_w ) {
                                 max_w = item_w;
                             }
@@ -103,11 +103,11 @@ static void Action_Draw(menuAction_t *a)
                 const int cursor_x = Q_rint( a->generic.x - max_w * 0.5f ) - CHAR_WIDTH - 4;
 
                 // Save current font handle and switch to legacy conchars bitmap font
-                const qhandle_t savedFont = uis.fontHandle;
-                uis.fontHandle = uis.concharsFontHandle;
+                const qhandle_t savedFont = uis.handleFontTTF;
+                uis.handleFontTTF = uis.handleConcharsImgs;
                 UI_DrawChar( cursor_x, a->generic.y, flags, 13 );
                 // Restore TrueType font handle
-                uis.fontHandle = savedFont;
+                uis.handleFontTTF = savedFont;
             }
         }
     }
@@ -284,11 +284,11 @@ static void Keybind_Draw(menuKeybind_t *k)
             UI_DrawChar(k->generic.x + RCOLUMN_OFFSET / 2, k->generic.y, k->generic.uiFlags | UI_RIGHT, '=');
         } else*/ if ((uis.realtime >> 8) & 1) {
             // Save current font handle and switch to legacy conchars bitmap font
-            const qhandle_t savedFont = uis.fontHandle;
-            uis.fontHandle = uis.concharsFontHandle;
+            const qhandle_t savedFont = uis.handleFontTTF;
+            uis.handleFontTTF = uis.handleConcharsImgs;
             UI_DrawChar(k->generic.x + RCOLUMN_OFFSET / 2, k->generic.y, k->generic.uiFlags | UI_RIGHT, 13);
             // Restore TrueType font handle
-            uis.fontHandle = savedFont;
+            uis.handleFontTTF = savedFont;
         }
     } else {
         if (k->generic.parent->keywait) {
@@ -498,13 +498,13 @@ static void Field_Draw(menuField_t *f)
                      f->field.visibleChars * CHAR_WIDTH, CHAR_HEIGHT + 2, color);
 
         IF_Draw(&f->field, f->generic.x + RCOLUMN_OFFSET, f->generic.y,
-                flags, uis.fontHandle);
+                flags, uis.handleFontTTF);
     } else {
         R_DrawFill32(f->generic.rect.x, f->generic.rect.y - 1,
                      f->generic.rect.width, CHAR_HEIGHT + 2, color);
 
         IF_Draw(&f->field, f->generic.rect.x, f->generic.rect.y,
-                flags, uis.fontHandle);
+                flags, uis.handleFontTTF);
     }
 }
 
@@ -697,12 +697,12 @@ static void SpinControl_Draw(menuSpinControl_t *s)
     if (s->generic.flags & QMF_HASFOCUS) {
         if ((uis.realtime >> 8) & 1) {
             // Save current font handle and switch to legacy conchars bitmap font
-            const qhandle_t savedFont = uis.fontHandle;
-            uis.fontHandle = uis.concharsFontHandle;
+            const qhandle_t savedFont = uis.handleFontTTF;
+            uis.handleFontTTF = uis.handleConcharsImgs;
             UI_DrawChar(s->generic.x + RCOLUMN_OFFSET / 2, s->generic.y,
                         s->generic.uiFlags | UI_RIGHT, 13);
             // Restore TrueType font handle
-            uis.fontHandle = savedFont;
+            uis.handleFontTTF = savedFont;
         }
     }
 
@@ -1733,11 +1733,11 @@ static void Slider_Draw(menuSlider_t *s)
     if (s->generic.flags & QMF_HASFOCUS) {
         if ((uis.realtime >> 8) & 1) {
             // Save current font handle and switch to legacy conchars bitmap font
-            const qhandle_t savedFont = uis.fontHandle;
-            uis.fontHandle = uis.concharsFontHandle;
+            const qhandle_t savedFont = uis.handleFontTTF;
+            uis.handleFontTTF = uis.handleConcharsImgs;
             UI_DrawChar(s->generic.x + RCOLUMN_OFFSET / 2, s->generic.y, s->generic.uiFlags | UI_RIGHT, 13);
             // Restore TrueType font handle
-            uis.fontHandle = savedFont;
+            uis.handleFontTTF = savedFont;
         }
     }
 
@@ -1751,8 +1751,8 @@ static void Slider_Draw(menuSlider_t *s)
     *    Draw slider track, caps, and thumb knob using legacy conchars bitmap font.
     **/
     // Save current font handle and switch to legacy conchars bitmap font
-    const qhandle_t savedFont = uis.fontHandle;
-    uis.fontHandle = uis.concharsFontHandle;
+    const qhandle_t savedFont = uis.handleFontTTF;
+    uis.handleFontTTF = uis.handleConcharsImgs;
 
     // Draw slider left cap (char 128)
     UI_DrawChar(s->generic.x + RCOLUMN_OFFSET, s->generic.y, flags | UI_LEFT, 128);
@@ -1773,7 +1773,7 @@ static void Slider_Draw(menuSlider_t *s)
     UI_DrawChar(CHAR_WIDTH + RCOLUMN_OFFSET + s->generic.x + (SLIDER_RANGE - 1) * CHAR_WIDTH * pos, s->generic.y, flags | UI_LEFT, 131);
 
     // Restore TrueType font handle for remaining UI text rendering
-    uis.fontHandle = savedFont;
+    uis.handleFontTTF = savedFont;
 
     /**
     *    Format and draw slider numerical value string with TrueType font.
@@ -2323,10 +2323,10 @@ static void Menu_DrawStatus(menuFrameWork_t *menu)
 
     for (l = 0; l < count; l++) {
         // Measure string width using TrueType font metrics for accurate centering
-        const float str_w = Font_StringWidthTTF(uis.fontHandle, ptrs[l]);
+        const float str_w = Font_StringWidthTTF(uis.handleFontTTF, ptrs[l]);
         x = Q_rint((uis.width - str_w) * 0.5f);
         y = menu->y2 - (count - l) * CHAR_HEIGHT;
-        R_DrawString(x, y, 0, lens[l], ptrs[l], uis.fontHandle);
+        R_DrawString(x, y, 0, lens[l], ptrs[l], uis.handleFontTTF);
     }
 }
 
@@ -2423,10 +2423,17 @@ void Menu_Draw(menuFrameWork_t *menu)
     if (menu->title) {
         // Set color instead of using ALT COLOR
         //const uint32_t titleColor = MakeColor( 202, 135, 27, 255 );
-        const uint32_t titleColor = MakeColor( 202, 144, 29, 255 );
+		const uint32_t titleColor = MakeColor( 223, 113, 38, 255 );
+
+        const uint32_t titleGlowColor = MakeColor( 202, 144, 29, 128 );
         R_SetColor( titleColor /*colorTable[ COLOR_BLUE ]*/ );
+        // Stroke the menu title with a 1px #FFFFFF outline
+        //R_SetStroke( MakeColor( 51, 51, 51, 255 ), 1.0f );
+		R_SetOuterGlow( titleGlowColor, 12 );
+		R_SetStroke2D( MakeColor( 217, 160, 102, 255 ), 1.f );
         UI_DrawString(uis.width / 2, menu->y1 + GENERIC_SPACING( 8 ),
                       UI_CENTER /*| UI_ALTCOLOR*/, menu->title);
+        R_ClearStyle();
         R_ClearColor();
     }
 

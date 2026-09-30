@@ -195,8 +195,20 @@ static const std::vector<hud_usetarget_hint_token_t> HUD_FormatUseTargetHintStri
 
 /**
 *   @brief  Takes care of the actual drawing of specified targetHintInfo.
+*   @param  targetHintInfo  Pointer to the target hint structure to render.
 **/
 void HUD_DrawTargetHintInfo( hud_usetarget_hint_t *targetHintInfo ) {
+    /**
+    *   Sanity checks / early returns.
+    **/
+    // Skip drawing completely if descriptor is invalid or hint has fully faded out.
+    if ( targetHintInfo == nullptr || targetHintInfo->alpha <= 0.001f ) {
+        return;
+	}
+
+	// Reset any active stroke or style overrides once target hint rendering finishes.
+	clgi.R_ClearStyle();
+
     // Clear the original color.
     clgi.R_SetAlphaScale( scr_alpha->value );
 
@@ -264,6 +276,9 @@ void HUD_DrawTargetHintInfo( hud_usetarget_hint_t *targetHintInfo ) {
         // Increment the piece its width to the offset, including a space.(one more character)
         xOffset += ( HUD_GetStringDrawWidth( hintStringToken.value.c_str() ) + 1 ) + CHAR_WIDTH;
     }
+
+    // Reset any active stroke or style overrides once target hint rendering finishes.
+    clgi.R_ClearStyle();
 }
 
 /**

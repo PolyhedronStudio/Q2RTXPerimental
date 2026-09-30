@@ -710,7 +710,11 @@ QEXTERN_C_ENCLOSE( void SCR_SetHudAlpha( const float alpha ); );
 *   @return 'Alpha' value of the current moment in time. from(startTime) to( startTime + visTime ).
 **/
 const float SCR_FadeAlpha( const uint64_t startTime, const uint64_t visTime, const uint64_t fadeTime );
-QEXTERN_C_ENCLOSE( int     SCR_DrawStringEx( int x, int y, int flags, size_t maxlen, const char *s, qhandle_t font ); );
+QEXTERN_C_ENCLOSE( const int32_t SCR_DrawStringEx( int x, int y, int flags, size_t maxlen, const char *s, qhandle_t font ); );
+/**
+*   @brief  Draws a string using SCR_DrawStringEx but using the default screen font.
+**/
+QEXTERN_C_ENCLOSE( const int32_t SCR_DrawString( const int32_t x, const int32_t y, const int32_t flags, const char *str ); );
 void    SCR_DrawStringMulti(int x, int y, int flags, size_t maxlen, const char *s, qhandle_t font);
 
 /**

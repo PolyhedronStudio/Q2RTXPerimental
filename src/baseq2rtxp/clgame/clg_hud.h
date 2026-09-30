@@ -99,16 +99,16 @@ typedef struct hud_usetarget_hint_token_s {
 *           This causes it to to mimick a fade-in to idle to fade-out effect.
 **/
 typedef struct hud_usetarget_hint_s {
-    //! UseTargetHintID
-    int32_t hintID;
-    //! Actual unformatted hint string.
-    std::string hintString;
-    // Formatted string tokens.
-    std::vector<hud_usetarget_hint_token_t> hintStringTokens;
-    //! Ease States.
-    QMEaseState easeState;
-    //! Alpha value calculated by easing.
-    float alpha;
+	//! UseTargetHintID
+	int32_t hintID;
+	//! Actual unformatted hint string.
+	std::string hintString;
+	// Formatted string tokens.
+	std::vector<hud_usetarget_hint_token_t> hintStringTokens;
+	//! Ease States.
+	QMEaseState easeState;
+	//! Alpha value calculated by easing.
+	float alpha;
 } hud_usetarget_hint_t;
 
 
@@ -116,10 +116,10 @@ typedef struct hud_usetarget_hint_s {
 *   For storing svc_damage message 'damage indicators'.
 **/
 typedef struct {
-    int32_t     damage;
-    Vector3     color;
-    Vector3     dir;
-    uint64_t     time;
+	int32_t		damage;
+	Vector3		color;
+	Vector3		dir;
+	uint64_t	time;
 } hud_damage_entry_t;
 
 /**
@@ -156,7 +156,9 @@ typedef struct hud_static_s {
 * 
 **/
 struct hud_state_t {
-    //! Generic display color values.
+	/**
+    *	@brief	Generic display color values.
+	**/
     struct hud_state_colors_s {
         // Colors.
         static constexpr uint32_t ORANGE2 = MakeColor( 255, 150, 100, 75 );
@@ -170,7 +172,9 @@ struct hud_state_t {
         static constexpr uint32_t BLACK = MakeColor( 51, 51, 51, 255 );
     } colors;
 
-    //! Crosshair information.
+    /**
+	*	@brief	Crosshair information.
+	**/
     struct hud_state_crosshair_s {
         color_t     color = (static_cast<color_t>(U32_WHITE));
         float       alpha = 1.f;
@@ -218,7 +222,7 @@ struct hud_state_t {
         uint32_t        chathead;
     } chatState = {};
 
-    // Damage entries(indicating damage count and direction of damage.)
+    //! Damage entries(indicating damage count and direction of damage.)
     struct hud_state_damage_entries_s {
         //! 32 is more than enough.
         static constexpr int32_t MAX_DAMAGE_INDICATOR_ENTRIES = 32;

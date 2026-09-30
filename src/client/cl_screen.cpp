@@ -50,6 +50,13 @@ static cvar_t   *scr_scale;
 //! Dominant Main Alpha used for 2D rendering.
 static cvar_t   *scr_alpha;
 
+//! Outline stroke width in pixels for in-game TrueType font rendering.
+static cvar_t   *scr_font_stroke;
+//! Outline stroke color for in-game TrueType font rendering.
+static cvar_t   *scr_font_stroke_color;
+//! Active parsed font outline stroke color for in-game TrueType font rendering.
+static color_t  scr_stroke_color = { .u32 = MakeColor( 51, 51, 51, 255 ) };
+
 //! Position of render window on screen.
 vrect_t     scr_vrect;
 
@@ -76,29 +83,57 @@ UTILS
 #define SCR_DrawString(x, y, flags, string) \
     SCR_DrawStringEx(x, y, flags, MAX_STRING_CHARS, string, cl_scr.font_pic)
 
-/*
-==============
-SCR_DrawStringEx
-==============
-*/
-int SCR_DrawStringEx(int x, int y, int flags, size_t maxlen,
-                     const char *s, qhandle_t font)
-{
-    size_t len = strlen(s);
+/**
+*	@brief	Draws a string at (x, y) up to maxlen characters using the specified font.
+*	@param	x		Horizontal start position.
+*	@param	y		Vertical start position.
+*	@param	flags	UI flags (alignment, color formatting).
+*	@param	maxlen	Maximum number of characters to draw.
+*	@param	s		String text content to render.
+*	@param	font	Font handle to use for rendering.
+*	@return	Final X coordinate after drawing.
+**/
+const int32_t SCR_DrawStringEx( const int32_t x, const int32_t y, const int32_t flags, const size_t maxlen, const char *s, const qhandle_t font ) {
+	/**
+	*	Sanity checks / clamp string length.
+	**/
+	size_t len = strlen( s );
+	if ( len > maxlen ) {
+		len = maxlen;
+	}
 
-    if (len > maxlen) {
-        len = maxlen;
-    }
+	/**
+	*	Horizontal alignment calculation.
+	**/
+	int32_t finalX = x;
+	if ( ( flags & UI_CENTER ) == UI_CENTER ) {
+		const float w = ( Font_StringWidthTTF_N != nullptr ) ? Font_StringWidthTTF_N( font, s, len ) : ( float )( len * CHAR_WIDTH );
+		finalX -= Q_rint( w * 0.5f );
+	} else if ( ( flags & UI_RIGHT ) != 0 ) {
+		const float w = ( Font_StringWidthTTF_N != nullptr ) ? Font_StringWidthTTF_N( font, s, len ) : ( float )( len * CHAR_WIDTH );
+		finalX -= Q_rint( w );
+	}
 
-    if ((flags & UI_CENTER) == UI_CENTER) {
-        const float w = Font_StringWidthTTF_N(font, s, len);
-        x -= Q_rint(w * 0.5f);
-    } else if (flags & UI_RIGHT) {
-        const float w = Font_StringWidthTTF_N(font, s, len);
-        x -= Q_rint(w);
-    }
+	/**
+	*	Apply font outline stroke if configured.
+	**/
+	if ( scr_font_stroke && scr_font_stroke->value > 0.0f ) {
+		R_SetStroke( scr_stroke_color.u32, scr_font_stroke->value );
+	}
 
-    return R_DrawString(x, y, flags, maxlen, s, font);
+	/**
+	*	Render the string geometry.
+	**/
+	const int32_t ret = R_DrawString( finalX, y, flags, maxlen, s, font );
+
+	/**
+	*	Clean up active style state after rendering string.
+	**/
+	if ( scr_font_stroke && scr_font_stroke->value > 0.0f ) {
+		R_ClearStyle();
+	}
+
+	return ret;
 }
 
 
@@ -110,26 +145,27 @@ SCR_DrawStringMulti
 void SCR_DrawStringMulti(int x, int y, int flags, size_t maxlen,
                          const char *s, qhandle_t font)
 {
-    const char    *p; // WID: C++20: Had no const.
-    size_t  len;
-    const int lineHeight = Q_rint(Font_GetHeightTTF(font));
+	const char *p; // WID: C++20: Had no const.
+	size_t  len;
+	const int32_t lineHeight = Font_GetHeightTTF != nullptr ? Q_rint( Font_GetHeightTTF( font ) ) : CHAR_HEIGHT;
 
-    while (*s) {
-        p = strchr(s, '\n');
-        if (!p) {
-            SCR_DrawStringEx(x, y, flags, maxlen, s, font);
-            break;
-        }
+	float newY = ( float )y;
+	while ( *s ) {
+		p = strchr( s, '\n' );
+		if ( !p ) {
+			SCR_DrawStringEx( x, ( int32_t )newY, flags, maxlen, s, font );
+			break;
+		}
 
-        len = p - s;
-        if (len > maxlen) {
-            len = maxlen;
-        }
-        SCR_DrawStringEx(x, y, flags, len, s, font);
+		len = p - s;
+		if ( len > maxlen ) {
+			len = maxlen;
+		}
+		SCR_DrawStringEx( x, ( int32_t )newY, flags, len, s, font );
 
-        y += lineHeight;
-        s = p + 1;
-    }
+		newY += ( float )lineHeight;
+		s = p + 1;
+	}
 }
 
 /**
@@ -209,6 +245,21 @@ const qboolean SCR_ParseColor(const char *s, color_t *color)
     color->u32 = colorTable[i];
     return true;
 }
+
+/**
+*	@brief	Callback invoked when scr_font_stroke_color cvar changes.
+*	@param	self	Pointer to cvar instance.
+**/
+static void scr_font_stroke_color_changed( cvar_t *self ) {
+	// Parse hex or named color string into the active stroke color representation.
+	if ( !SCR_ParseColor( self->string, &scr_stroke_color ) ) {
+		Com_WPrintf( "Invalid value '%s' for '%s'\n", self->string, self->name );
+		Cvar_Reset( self );
+		scr_stroke_color.u32 = MakeColor( 51, 51, 51, 255 );
+	}
+}
+
+
 
 /*
 ===============================================================================
@@ -470,12 +521,16 @@ void SCR_Init(void)
 //    scr_lag_max = Cvar_Get("scr_lag_max", "200", 0);
 
 
+	// Set the global pointer to the screen shared data structure.
+	cl.screen = &cl_scr;
+
 	// <Q2RTXP>: WID: This badly needs to be refactored.
-    // 
+	// 
 	// The client won't be notified about these cvar changes.
-    
+	// Ensure that the client game module has a pointer to the screen shared data structure.
     // Register screen related commands.
     Cmd_Register(scr_cmds);
+
     // Give the client game a shot at doing the same (Register commands, create/fetch cvars.).
     clge->ScreenInit();
 
@@ -492,6 +547,11 @@ void SCR_Init(void)
 
     scr_showpause = Cvar_Get( "scr_showpause", nullptr, 0 );
     scr_demobar = Cvar_Get( "scr_demobar", nullptr, 0 );
+
+    scr_font_stroke = Cvar_Get( "scr_font_stroke", "1", CVAR_ARCHIVE );
+    scr_font_stroke_color = Cvar_Get( "scr_font_stroke_color", "#333333", CVAR_ARCHIVE );
+    scr_font_stroke_color->changed = scr_font_stroke_color_changed;
+    scr_font_stroke_color_changed( scr_font_stroke_color );
 
     // We're in initialized screen state.
     cl_scr.initialized = true;

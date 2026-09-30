@@ -61,6 +61,8 @@ typedef struct console_s {
 	int     vidWidth, vidHeight;
 	float   scale;
 	color_t ts_color;
+	//! Active font stroke outline color for console TrueType font rendering.
+	color_t stroke_color;
 
 	unsigned    times[ CON_TIMES ];   // cls.realtime time the line was generated
 									// for transparent notify lines
@@ -101,6 +103,10 @@ static cvar_t *con_history;
 static cvar_t *con_timestamps;
 static cvar_t *con_timestampsformat;
 static cvar_t *con_timestampscolor;
+//! Outline stroke width in pixels for console TrueType font rendering.
+static cvar_t *con_font_stroke;
+//! Outline stroke color for console TrueType font rendering.
+static cvar_t *con_font_stroke_color;
 
 // ============================================================================
 
@@ -444,43 +450,55 @@ static void con_timestampscolor_changed( cvar_t *self ) {
 }
 
 /**
+*	@brief	Callback invoked when con_font_stroke_color cvar changes.
+*	@param	self	Pointer to cvar instance.
+**/
+static void con_font_stroke_color_changed( cvar_t *self ) {
+	if ( !SCR_ParseColor( self->string, &con.stroke_color ) ) {
+		Com_WPrintf( "Invalid value '%s' for '%s'\n", self->string, self->name );
+		Cvar_Reset( self );
+		con.stroke_color.u32 = MakeColor( 51, 51, 51, 255 );
+	}
+}
+
+/**
 *	@brief	Console command implementation to generate and serialize MTSDF font data to file.
-*	@note	Serializes font data to disk under `<fontstem>_<size>.mtsdf` so subsequent engine launches bypass calculation.
+*	@note	Serializes master font data to disk under `<fontstem>.mtsdf` so subsequent engine launches bypass calculation.
 **/
 static void Con_GenMtsdf_f( void ) {
 	const int32_t argc = Cmd_Argc();
 	if ( argc < 2 ) {
 		Com_Printf( "Usage: con_genmtsdf <font_path> [font_size_px]\n" );
-		Com_Printf( "Example: con_genmtsdf fonts/segoeui.ttf 18\n" );
+		Com_Printf( "Example: con_genmtsdf fonts/segoeui.ttf\n" );
 		return;
 	}
 
 	const char *fontPath = Cmd_Argv( 1 );
-	int32_t fontSizePx = 18;
+	int32_t fontSizePx = (int32_t)MTSDF_REFERENCE_HEIGHT;
 	if ( argc >= 3 ) {
 		fontSizePx = atoi( Cmd_Argv( 2 ) );
 		if ( fontSizePx <= 0 ) {
-			fontSizePx = 18;
+			fontSizePx = (int32_t)MTSDF_REFERENCE_HEIGHT;
 		}
 	}
 
-	// Construct target binary cache filename: e.g. "fonts/segoeui.ttf" + 18 -> "fonts/segoeui_18.mtsdf"
+	// Construct canonical master cache filename: e.g. "fonts/segoeui.ttf" -> "fonts/segoeui.mtsdf"
 	char baseStem[ MAX_QPATH ];
 	COM_StripExtension( baseStem, fontPath, sizeof( baseStem ) );
 
 	char cacheFileName[ MAX_QPATH ];
-	Q_snprintf( cacheFileName, sizeof( cacheFileName ), "%s_%" PRId32 ".mtsdf", baseStem, fontSizePx );
+	Q_snprintf( cacheFileName, sizeof( cacheFileName ), "%s.mtsdf", baseStem );
 
-	Com_Printf( "Generating and caching MTSDF font data for '%s' (%" PRId32 "px) -> '%s'...\n", fontPath, fontSizePx, cacheFileName );
+	Com_Printf( "Generating and caching master MTSDF font data for '%s' -> '%s' (initial instance size: %" PRId32 "px)...\n", fontPath, cacheFileName, fontSizePx );
 
-	// Register / generate font descriptor and texture atlas, which automatically writes the .mtsdf cache to disk
+	// Register / generate master font atlas, which automatically writes the canonical .mtsdf cache to disk
 	const qhandle_t handle = R_LoadOrRegisterFontTTF( fontPath, (float)fontSizePx );
 	if ( handle == 0 ) {
-		Com_EPrintf( "Failed to generate MTSDF font data for '%s'. Ensure file exists in game directory.\n", fontPath );
+		Com_EPrintf( "Failed to generate master MTSDF font data for '%s'. Ensure file exists in game directory.\n", fontPath );
 		return;
 	}
 
-	Com_Printf( "Successfully registered and cached MTSDF font handle %" PRId32 " for '%s' -> '%s'.\n", handle, fontPath, cacheFileName );
+	Com_Printf( "Successfully registered and cached master MTSDF font handle %" PRId32 " for '%s' -> '%s'.\n", handle, fontPath, cacheFileName );
 }
 
 static const cmdreg_t c_console[ ] = {
@@ -534,6 +552,13 @@ void Con_Init( void ) {
 	con_timestampscolor = Cvar_Get( "con_timestampscolor", "#aaa", 0 );
 	con_timestampscolor->changed = con_timestampscolor_changed;
 	con_timestampscolor_changed( con_timestampscolor );
+
+	con.stroke_color.u32 = MakeColor( 51, 51, 51, 255 );
+
+	con_font_stroke = Cvar_Get( "con_font_stroke", "1", CVAR_ARCHIVE );
+	con_font_stroke_color = Cvar_Get( "con_font_stroke_color", "#333333", CVAR_ARCHIVE );
+	con_font_stroke_color->changed = con_font_stroke_color_changed;
+	con_font_stroke_color_changed( con_font_stroke_color );
 
 	IF_Init( &con.prompt.inputLine, 0, MAX_FIELD_TEXT - 1 );
 	IF_Init( &con.chatPrompt.inputLine, 0, MAX_FIELD_TEXT - 1 );
@@ -748,6 +773,11 @@ static int Con_DrawLine( int v, int row, float alpha ) {
 	int x = CHAR_WIDTH;
 	int w = con.linewidth;
 
+	// Apply console font outline stroke if configured.
+	if ( con_font_stroke && con_font_stroke->value > 0.0f ) {
+		R_SetStroke( con.stroke_color.u32, con_font_stroke->value );
+	}
+
 	if ( line->ts_len ) {
 		R_SetColor( con.ts_color.u32 );
 		R_SetAlpha( alpha );
@@ -769,7 +799,14 @@ static int Con_DrawLine( int v, int row, float alpha ) {
 	}
 	R_SetAlpha( alpha );
 
-	return R_DrawString( x, v, flags, w, s, con.charsetImage );
+	const int ret = R_DrawString( x, v, flags, w, s, con.charsetImage );
+
+	// Clear style after rendering console line.
+	if ( con_font_stroke && con_font_stroke->value > 0.0f ) {
+		R_ClearStyle();
+	}
+
+	return ret;
 }
 
 #define CON_PRESTEP     (CHAR_HEIGHT * 3 + CHAR_HEIGHT / 4)
@@ -836,12 +873,21 @@ static void Con_DrawNotify( void ) {
 			text = "say:";
 		}
 
+		// Apply console font outline stroke if configured.
+		if ( con_font_stroke && con_font_stroke->value > 0.0f ) {
+			R_SetStroke( con.stroke_color.u32, con_font_stroke->value );
+		}
+
 		R_DrawString( CHAR_WIDTH, v, 0, MAX_STRING_CHARS, text,
 					 con.charsetImage );
 		const int text_w = Q_rint( Font_StringWidthTTF( con.charsetImage, text ) );
 		con.chatPrompt.inputLine.visibleChars = con.linewidth;
 		IF_Draw( &con.chatPrompt.inputLine, CHAR_WIDTH + text_w + 4, v,
 				UI_DRAWCURSOR, con.charsetImage );
+
+		if ( con_font_stroke && con_font_stroke->value > 0.0f ) {
+			R_ClearStyle();
+		}
 	}
 }
 
@@ -970,15 +1016,27 @@ static void Con_DrawSolidConsole( void ) {
 		// Compute vertical coordinate for the download progress line
 		const int bar_y = vislines - prestep + line_height * 2;
 
-		// 1. Draw filename prefix using TrueType font
+		// 1. Draw filename prefix using TrueType font with stroke
+		if ( con_font_stroke && con_font_stroke->value > 0.0f ) {
+			R_SetStroke( con.stroke_color.u32, con_font_stroke->value );
+		}
 		int draw_x = R_DrawString( CHAR_WIDTH, bar_y, 0, con.linewidth, buffer, con.charsetImage );
+		if ( con_font_stroke && con_font_stroke->value > 0.0f ) {
+			R_ClearStyle();
+		}
 
-		// 2. Draw graphical download bar using legacy bitmap conchars font
+		// 2. Draw graphical download bar using legacy bitmap conchars font (unstroked)
 		const qhandle_t bar_font = con.concharsImage ? con.concharsImage : con.charsetImage;
 		draw_x = R_DrawString( draw_x, bar_y, 0, con.linewidth, bar, bar_font );
 
-		// 3. Draw percentage and size suffix using TrueType font
+		// 3. Draw percentage and size suffix using TrueType font with stroke
+		if ( con_font_stroke && con_font_stroke->value > 0.0f ) {
+			R_SetStroke( con.stroke_color.u32, con_font_stroke->value );
+		}
 		R_DrawString( draw_x, bar_y, 0, con.linewidth, suf, con.charsetImage );
+		if ( con_font_stroke && con_font_stroke->value > 0.0f ) {
+			R_ClearStyle();
+		}
 	} else if ( cls.state == ca_loading ) {
 		// draw loading state
 		switch ( con.loadstate ) {
@@ -998,16 +1056,22 @@ static void Con_DrawSolidConsole( void ) {
 				text = "sounds";
 				break;
 			default:
-				text = NULL;
+				text = nullptr;
 				break;
 		}
 
 		if ( text ) {
 			Q_snprintf( buffer, sizeof( buffer ), "Loading %s...", text );
 
-			// draw it
+			// Draw loading text with font outline stroke
 			y = vislines - prestep + line_height * 2;
+			if ( con_font_stroke && con_font_stroke->value > 0.0f ) {
+				R_SetStroke( con.stroke_color.u32, con_font_stroke->value );
+			}
 			R_DrawString( CHAR_WIDTH, y, 0, con.linewidth, buffer, con.charsetImage );
+			if ( con_font_stroke && con_font_stroke->value > 0.0f ) {
+				R_ClearStyle();
+			}
 		}
 	}
 
@@ -1028,6 +1092,12 @@ static void Con_DrawSolidConsole( void ) {
 				i = ']';
 				break;
 		}
+
+		// Apply console font outline stroke if configured.
+		if ( con_font_stroke && con_font_stroke->value > 0.0f ) {
+			R_SetStroke( con.stroke_color.u32, con_font_stroke->value );
+		}
+
 		R_SetColor( U32_YELLOW );
 		R_DrawChar( CHAR_WIDTH, y, 0, i, con.charsetImage );
 		R_ClearColor();
@@ -1037,6 +1107,10 @@ static void Con_DrawSolidConsole( void ) {
 		const int prompt_w = Q_rint( Font_StringWidthTTF( con.charsetImage, prompt_str ) );
 		x = IF_Draw( &con.prompt.inputLine, CHAR_WIDTH + prompt_w + 1, y,
 					UI_DRAWCURSOR, con.charsetImage );
+
+		if ( con_font_stroke && con_font_stroke->value > 0.0f ) {
+			R_ClearStyle();
+		}
 	}
 
 	#define APP_VERSION APPLICATION " " LONG_VERSION_STRING

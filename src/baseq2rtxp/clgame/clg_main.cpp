@@ -23,6 +23,8 @@
 #include "clgame/clg_view.h"
 #include "clgame/decals/clg_decals.h"
 
+#include "clgame/clg_keys.h"
+#include "clgame/hud/clg_hud_weaponmenu.h"
 #include "clgame/game_ui/clg_ui_main.h"
 
 #include "sharedgame/sg_gamemode.h"
@@ -506,6 +508,16 @@ void PF_DrawActiveViewState( refcfg_t *refcfg ) {
 	CLG_DrawActiveViewState( refcfg );
 }
 
+/**
+*	@brief	'ProgFunc' Wrapper for CLG_Keys_KeyEvent during KEY_GAME.
+*	@param	key		Key code.
+*	@param	down	True if key was pressed, false if released.
+*	@return	True if consumed by ClientGame, false if passed through.
+**/
+static const qboolean PF_KeyEvent( const int32_t key, const qboolean down ) {
+	return CLG_Keys_KeyEvent( key, down != 0 ) ? true : false;
+}
+
 
 
 
@@ -544,6 +556,10 @@ void PF_ShutdownGame( void ) {
 
 	// Clear out the UI Context, if any.
 	CLG_UI_FreeContext();
+
+	// Shutdown weapon selector keys and HUD menu state.
+	CLG_Keys_Shutdown();
+	CLG_WeaponMenu_Shutdown();
 
 	// Uncomment after we actually allocate anything using this.
 	clgi.FreeTags( TAG_CLGAME_LEVEL );
@@ -825,6 +841,7 @@ extern "C" { // WID: C++20: extern "C".
 		globals.UpdateMoveCommand = PF_UpdateMoveCommand;
 		globals.FinalizeMoveCommand = PF_FinalizeMoveCommand;
 		globals.ClearMoveCommand = PF_ClearMoveCommand;
+		globals.KeyEvent = PF_KeyEvent;
 
 		globals.CalculateFieldOfView = PF_CalculateFieldOfView;
 		globals.CalculateViewValues = PF_CalculateViewValues;

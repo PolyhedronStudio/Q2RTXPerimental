@@ -321,8 +321,10 @@ void UI_DrawString( int x, int y, int flags, const char *string ) {
 		return;
 	}
 
+	R_SetStroke2D( MakeColor( 51, 51, 51, 255 ), 1.0f );
+
 	// Measure string width using TrueType font metrics if available.
-	const float str_w = Font_StringWidthTTF( uis.fontHandle, string );
+	const float str_w = Font_StringWidthTTF( uis.handleFontTTF, string );
 
 	// Adjust horizontal position according to alignment flags.
 	if ( ( flags & UI_CENTER ) == UI_CENTER ) {
@@ -331,10 +333,8 @@ void UI_DrawString( int x, int y, int flags, const char *string ) {
 		x -= Q_rint( str_w );
 	}
 
-	//R_SetStroke2D( uis.fontHandle, STYLE_FLAG_STROKE_ALIGN_OUTSET );
-	//R_SetStroke( MakeColor( 51, 51, 51, 255 ), 1.f );
-	R_DrawString( x, y, flags, MAX_STRING_CHARS, string, uis.fontHandle );
-	//R_SetStroke( MakeColor( 255, 255, 255, 255 ), 0.f );
+	// Render string directly through renderer; horizontal alignment is already applied above.
+	R_DrawString( x, y, flags, MAX_STRING_CHARS, string, uis.handleFontTTF );
 }
 
 /**
@@ -344,13 +344,13 @@ void UI_DrawString( int x, int y, int flags, const char *string ) {
 *	@param	flags	UI rendering and color flags.
 *	@param	ch		Character code to draw.
 *	@note	If character is a special symbol (focus arrow 13 or slider elements 0..3 / 128..131)
-*			and current font is TrueType, automatically falls back to concharsFontHandle.
+*			and current font is TrueType, automatically falls back to handleConcharsImgs.
 **/
 void UI_DrawChar( int x, int y, int flags, int ch ) {
 	// Select font handle: if drawing special symbol and active font is TrueType, fallback to legacy conchars font.
-	qhandle_t font = uis.fontHandle;
-	if ( ( ch == 13 || ( ch >= 128 && ch <= 131 ) || ( ch >= 0 && ch <= 3 ) ) && uis.concharsFontHandle ) {
-		font = uis.concharsFontHandle;
+	qhandle_t font = uis.handleFontTTF;
+	if ( ( ch == 13 || ( ch >= 128 && ch <= 131 ) || ( ch >= 0 && ch <= 3 ) ) && uis.handleConcharsImgs ) {
+		font = uis.handleConcharsImgs;
 	}
 
 	// For legacy conchars slider symbols 128..131, map to white tiles 0..3 and clear UI_ALTCOLOR so draw.colors[0] (white) is used.
@@ -362,16 +362,16 @@ void UI_DrawChar( int x, int y, int flags, int ch ) {
 	}
 
 	// Disable stroke for character rendering so UI symbols render clean without stroke outline.
-	R_SetStroke( MakeColor( 0, 0, 0, 0 ), 0.f );
+	R_ClearStyle();
 	R_DrawChar( x, y, flags, ch, font );
 }
 
 void UI_StringDimensions( vrect_t *rc, int flags, const char *string ) {
 	// Query font descriptor to determine TrueType dimensions.
-	const font_mtsdf_t *desc = Font_GetDescriptorTTF( uis.fontHandle );
+	const font_mtsdf_t *desc = Font_GetDescriptorTTF( uis.handleFontTTF );
 	if ( desc != nullptr ) {
-		rc->height = Q_rint( Font_GetHeightTTF( uis.fontHandle ) );
-		rc->width = string ? Q_rint( Font_StringWidthTTF( uis.fontHandle, string ) ) : 0;
+		rc->height = Q_rint( Font_GetHeightTTF( uis.handleFontTTF ) );
+		rc->width = string ? Q_rint( Font_StringWidthTTF( uis.handleFontTTF, string ) ) : 0;
 	} else {
 		rc->height = CHAR_HEIGHT;
 		rc->width = string ? (int)( CHAR_WIDTH * strlen( string ) ) : 0;
@@ -701,9 +701,9 @@ void UI_Init(void)
 
     UI_ModeChanged();
 
-    uis.fontHandle = R_LoadOrRegisterFontTTF( "fonts/segoeui.ttf", 14 );
+    uis.handleFontTTF = R_LoadOrRegisterFontTTF( "fonts/segoeui.ttf", 22 );
     // Register legacy bitmap conchars font handle for special UI symbols (sliders, focus cursor arrows, etc.).
-    uis.concharsFontHandle = R_RegisterFont( "conchars" );
+    uis.handleConcharsImgs = R_RegisterFont( "conchars" );
     // <Q2RTXP>: WID: We don't wanna bother with a fullscreen custom cursor?
     #ifdef USE_UI_ENABLE_CUSTOM_CURSOR
     uis.cursorHandle = R_RegisterPic("crosshair01.png");

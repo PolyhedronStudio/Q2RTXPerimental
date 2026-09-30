@@ -1884,9 +1884,15 @@ static inline void draw_char( int x, int y, int flags, int c, qhandle_t font ) {
 	const float t = ( c >> 4 ) * 0.0625f;
 	const float eps = 1e-5f;
 
+	// Mask out outline and glow styles for legacy bitmap characters to avoid rendering quad border boxes.
+	const uint32_t saved_flags = draw.style_flags;
+	draw.style_flags &= ~( STYLE_FLAG_OUTLINE | STYLE_FLAG_OUTER_GLOW | STYLE_FLAG_INNER_GLOW );
+
 	enqueue_stretch_pic( (float)x, (float)y, CHAR_WIDTH, CHAR_HEIGHT,
 		s + eps, t + eps, s + 0.0625f - eps, t + 0.0625f - eps,
 		draw.colors[ c >> 7 ].u32, font );
+
+	draw.style_flags = saved_flags;
 }
 
 /**
@@ -2165,6 +2171,7 @@ static void DrawString3D_Internal( const vec3_t origin, const vec3_t angles, con
 			sp->sdf_tex_handle = glyph_tex;
 			sp->sdf_pixel_range = desc->sdf_pixel_range;
 		} else {
+			sp->style_flags &= ~( STYLE_FLAG_OUTLINE | STYLE_FLAG_OUTER_GLOW | STYLE_FLAG_INNER_GLOW );
 			sp->sdf_tex_handle = 0;
 			sp->sdf_pixel_range = 0.0f;
 		}

@@ -349,7 +349,7 @@ void M_Menu_PlayerConfig(void)
     m_player.menu.size = Size;
     m_player.menu.draw = Draw;
     m_player.menu.free = Free;
-	m_player.menu.image = uis.backgroundHandle;
+	m_player.menu.image = uis.handleWallPaper;
 
 	if (cls.ref_type == REF_TYPE_VKPT)
 	{

@@ -1305,6 +1305,12 @@ typedef struct {
 	void ( *FinalizeMoveCommand )( struct client_movecmd_s *moveCommand );
 	//!
 	void ( *ClearMoveCommand )( struct client_movecmd_s *moveCommand );
+	/**
+	*	@brief	Allows the ClientGame to intercept key events during KEY_GAME state (e.g. HUD weapon menu).
+	*	@return	True if key was consumed by ClientGame, false to allow engine handling.
+	**/
+	const qboolean ( *KeyEvent )( const int32_t key, const qboolean down );
+
 
 
 

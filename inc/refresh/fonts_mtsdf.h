@@ -23,8 +23,17 @@ extern "C" {
 //! Maximum number of glyphs tracked per MTSDF font (standard ASCII + extended Latin).
 #define MTSDF_MAX_GLYPHS 256
 
-//! Maximum number of simultaneously loaded MTSDF TrueType fonts.
-#define MTSDF_MAX_FONTS 16
+//! Maximum number of unique TrueType typeface master atlases.
+#define MTSDF_MAX_MASTERS 8
+
+//! Maximum number of simultaneously active font instances (sizes).
+#define MTSDF_MAX_FONTS 32
+
+//! Base offset for synthetic font handles to distinguish them from image handles.
+#define MTSDF_FONT_HANDLE_BASE 0x7F000000
+
+//! Reference raster height for universal distance field master atlas generation.
+#define MTSDF_REFERENCE_HEIGHT 48.0f
 
 //! Number of padding pixels placed around each glyph in the atlas for distance spread.
 #define MTSDF_GLYPH_PADDING 8
@@ -47,9 +56,28 @@ typedef struct font_glyph_mtsdf_s {
 } font_glyph_mtsdf_t;
 
 /**
+*	@brief	Master MTSDF texture atlas and reference glyph metric cache.
+**/
+typedef struct font_mtsdf_master_s {
+	char				path[ MAX_QPATH ];				//!< Virtual filesystem path to font file
+	float				ref_pixel_height;				//!< Canonical raster reference height in pixels
+	qhandle_t			atlas_image;					//!< Shared GPU texture atlas handle
+	int32_t				atlas_width;					//!< Atlas texture width in pixels
+	int32_t				atlas_height;					//!< Atlas texture height in pixels
+	float				ref_ascent;						//!< Unscaled font ascent
+	float				ref_descent;					//!< Unscaled font descent
+	float				ref_line_gap;					//!< Unscaled font line gap
+	float				sdf_pixel_range;				//!< Pixel spread range
+	font_glyph_mtsdf_t	ref_glyphs[ MTSDF_MAX_GLYPHS ];	//!< Reference metrics with normalized UV coordinates
+	bool				glyph_valid[ MTSDF_MAX_GLYPHS ];//!< Glyph validity flags
+} font_mtsdf_master_t;
+
+/**
 *	@brief	MTSDF TrueType font descriptor containing atlas handle and font metrics.
 **/
 typedef struct font_mtsdf_s {
+	qhandle_t			font_handle;					//!< Synthetic font instance handle (MTSDF_FONT_HANDLE_BASE + slot)
+	int32_t				master_index;					//!< Index of parent master atlas in s_master_atlases
 	char				path[ MAX_QPATH ];				//!< Virtual filesystem path to font file
 	float				pixel_height;					//!< Target nominal rasterization height in pixels
 	qhandle_t			atlas_image;					//!< Registered engine image handle for the RGBA8 atlas

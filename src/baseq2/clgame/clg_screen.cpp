@@ -105,21 +105,35 @@ UTILS
 SCR_DrawStringEx
 ==============
 */
-const int32_t SCR_DrawStringEx( int32_t x, int32_t y, int32_t flags, size_t maxlen,
-    const char *s, qhandle_t font ) {
-    size_t len = strlen( s );
+const int32_t SCR_DrawStringEx( int32_t x, int32_t y, int32_t flags, size_t maxlen, const char *s, qhandle_t font ) {
 
-    if ( len > maxlen ) {
-        len = maxlen;
-    }
+	size_t len = strlen( s );
+	if ( len > maxlen ) {
+		len = maxlen;
+	}
 
-    if ( ( flags & UI_CENTER ) == UI_CENTER ) {
-        x -= len * CHAR_WIDTH / 2;
-    } else if ( flags & UI_RIGHT ) {
-        x -= len * CHAR_WIDTH;
-    }
+	int32_t finalX = x;
+	if ( ( flags & UI_CENTER ) == UI_CENTER ) {
+		const float w = clgi.Font_StringWidthTTF_N ? clgi.Font_StringWidthTTF_N( font, s, len ) : ( float )( len * CHAR_WIDTH );
+		finalX -= Q_rint( w * 0.5f );
+	} else if ( flags & UI_RIGHT ) {
+		const float w = clgi.Font_StringWidthTTF_N ? clgi.Font_StringWidthTTF_N( font, s, len ) : ( float )( len * CHAR_WIDTH );
+		finalX -= Q_rint( w );
+	}
 
-    return clgi.R_DrawString( x, y, flags, maxlen, s, font );
+	// Apply font outline stroke if configured.
+	if ( scr_font_stroke && scr_font_stroke->value > 0.0f ) {
+		clgi.R_SetStroke( scr_stroke_color.u32, scr_font_stroke->value );
+	}
+
+	const int32_t ret = clgi.R_DrawString( finalX, y, flags, maxlen, s, font );
+
+	// Clear style after rendering string.
+	if ( scr_font_stroke && scr_font_stroke->value > 0.0f ) {
+		clgi.R_ClearStyle();
+	}
+
+	return ret;
 }
 
 static inline const int32_t SCR_DrawString( const int32_t x, const int32_t y, const int32_t flags, const char *str ) {

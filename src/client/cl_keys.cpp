@@ -835,6 +835,15 @@ void Key_Event(unsigned key, bool down, unsigned time)
         return;
     }
 
+    /**
+    *	Allow ClientGame to intercept key events during gameplay (e.g. HUD weapon selection menu).
+    **/
+    if ( cls.key_dest == KEY_GAME && clge && clge->KeyEvent ) {
+        if ( clge->KeyEvent( key, down ) ) {
+            return;
+        }
+    }
+
     // menu key is hardcoded, so the user can never unbind it
     if (key == K_ESCAPE) {
         /**

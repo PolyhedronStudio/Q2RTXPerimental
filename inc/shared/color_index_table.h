@@ -45,6 +45,8 @@ static inline color_index_t &operator++( color_index_t &color ) {
 }
 #endif // #ifdef __cplusplus
 
+#define U32_GREYBLACK   MakeColor(  51,   51,   51, 255 )
+
 #define U32_BLACK   MakeColor(  0,   0,   0, 255)
 #define U32_RED     MakeColor(208,  70,  72, 255)
 #define U32_GREEN   MakeColor(109, 170,  44, 255)

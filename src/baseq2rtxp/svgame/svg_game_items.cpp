@@ -29,6 +29,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "svgame/entities/svg_item_edict.h"
 #include "svgame/player/svg_player_hud.h"
+#include "svgame/player/svg_player_weapon.h"
 
 // Needed for crowd configstring.
 #include "svgame/entities/monster/svg_monster_testdummy_debug.h"
@@ -158,42 +159,39 @@ void SVG_Inventory_ValidateSelectedItem( svg_base_edict_t *ent ) {
 *
 **/
 /**
-*   @brief  Will return a pointer to the matching index item, nullptr on failure.
+*	@brief	Will return a pointer to the matching index item, nullptr on failure.
+*	@param	index	Item index in master list.
+*	@return	Pointer to matched item or nullptr.
 **/
-const gitem_t *SVG_Item_GetByIndex(int index) {
-    if ( index == 0 || index >= game.num_items ) {
-        return nullptr;
-    }
-
-    return &itemlist[index];
+const gitem_t *SVG_Item_GetByIndex( int index ) {
+	/**
+	*	Delegate to sharedgame item lookup.
+	**/
+	return SG_Item_GetByIndex( index );
 }
-/**
-*   @brief  Will return a pointer to the matching classname item, nullptr on failure.
-**/
-const gitem_t *SVG_Item_FindByClassName(const char *classname) {
-    const gitem_t *it = itemlist;
-    for ( int32_t i = 0 ; i < game.num_items ; i++, it++) {
-        if (!it->classname)
-            continue;
-        if (!Q_stricmp(it->classname, classname))
-            return it;
-    }
 
-    return nullptr;
+/**
+*	@brief	Will return a pointer to the matching classname item, nullptr on failure.
+*	@param	classname	Classname string.
+*	@return	Pointer to matched item or nullptr.
+**/
+const gitem_t *SVG_Item_FindByClassName( const char *classname ) {
+	/**
+	*	Delegate to sharedgame item lookup.
+	**/
+	return SG_Item_FindByClassName( classname );
 }
-/**
-*   @brief  Will return a pointer to the matching pickup_name item, nullptr on failure.
-**/
-const gitem_t *SVG_Item_FindByPickupName(const char *pickup_name) {
-    gitem_t *it = itemlist;
-    for ( int32_t i = 0 ; i < game.num_items ; i++, it++ ) {
-        if (!it->pickup_name)
-            continue;
-        if (!Q_stricmp(it->pickup_name, pickup_name))
-            return it;
-    }
 
-    return nullptr;
+/**
+*	@brief	Will return a pointer to the matching pickup_name item, nullptr on failure.
+*	@param	pickup_name	User-visible pickup text.
+*	@return	Pointer to matched item or nullptr.
+**/
+const gitem_t *SVG_Item_FindByPickupName( const char *pickup_name ) {
+	/**
+	*	Delegate to sharedgame item lookup.
+	**/
+	return SG_Item_FindByPickupName( pickup_name );
 }
 
 
@@ -611,308 +609,11 @@ void SVG_Item_Spawn( svg_item_edict_t *ent, const gitem_t *item ) {
 * 
 * 
 *   Item List:
+*   Defined in sharedgame/sg_items.cpp as sg_ItemList[].
+*   ServerGame hooks up callbacks and info pointers in SVG_InitItems().
 * 
 * 
 **/
-gitem_t itemlist[] = {
-    // Leave index 0 alone
-    // WID: I have no clue why.
-    {
-        NULL
-    },
-
-    //
-    // ARMOR
-    //
-
-    // QUAKED item_armor_body (.3 .3 1) (-16 -16 -16) (16 16 16)
-    //{
-    //    .classname = "item_armor_body",
-    //    .pickup = Pickup_Armor,
-    //    .use = NULL,
-    //    .drop = NULL,
-    //    .weaponthink = NULL,
-    //    .pickup_sound = "misc/ar1_pkup.wav",
-    //    .world_model = "models/items/armor/body/tris.md2", 
-    //    .world_model_flags = EF_ROTATE,
-    //    .view_model = NULL,
-    //    /* icon */      .icon = "i_bodyarmor",
-    //    /* pickup */    .pickup_name = "Body Armor",
-    //    /* width */     .count_width = 3,
-    //    .quantity = 0,
-    //    .clip_capacity = 0,
-    //    .ammo = NULL,
-    //    .flags = ITEM_FLAG_ARMOR,
-    //    .weapon_index = 0,
-    //    .info = &bodyarmor_info,
-    //    .tag = ITEM_TAG_ARMOR_BODY,
-    //    /* precache */ .precaches = ""
-    //},
-
-
-    //********************************************************
-    //  Weapon Items:                                       **
-    //********************************************************
-    
-    //
-    //   classname(weapon_fists) bbox(-16 -16 -16) (16 16 16)
-    //   NOTE: It is always 'owned' and never dropped/placed in the world.
-    //
-    {
-        .classname = "weapon_fists",
-        
-        .precached = Weapon_Fists_Precached,
-
-        .pickup = SVG_Player_Weapon_Pickup,
-        .use = SVG_Player_Weapon_Use,
-        .drop = SVG_Player_Weapon_Drop,
-        .weaponthink = Weapon_Fists,
-
-        .pickup_sound = "items/weaponry_pickup.wav",
-        .world_model = nullptr, 
-        .world_model_flags = 0,
-        .view_model = "models/v_wep/fists/tris.iqm",
-        .icon = "w_blaster",
-        .pickup_name = "Fists",
-
-        .count_width = 0,
-        .quantity = 0,
-        .clip_capacity = 0,
-
-        .ammo = nullptr,
-        .flags = ITEM_FLAG_WEAPON | ITEM_FLAG_STAY_COOP,
-        .weapon_index = WEAP_FISTS,
-
-        .info = &fistsItemInfo,
-        .tag = ITEM_TAG_WEAPON_FISTS,
-        .precaches = "models/v_wep/fists/tris.iqm weapons/fists/fist1.wav weapons/fists/sway01.wav weapons/fists/sway02.wav weapons/fists/sway03.wav weapons/fists/sway04.wav weapons/fists/sway05.wav"
-    },
-
-    //
-    //   classname(weapon_pistol) bbox(-16 -16 -16) (16 16 16)
-    //
-    {
-        .classname = "weapon_pistol",
-
-        .precached = Weapon_Pistol_Precached,
-
-        .pickup = SVG_Player_Weapon_Pickup,
-        .use =  SVG_Player_Weapon_Use,
-        .drop = SVG_Player_Weapon_Drop,
-        .weaponthink = Weapon_Pistol,
-        
-        .pickup_sound = "items/weaponry_pickup.wav",
-        .world_model = "models/g_wep/pistol/tris.iqm", 
-        .world_model_flags = EF_ROTATE,
-        .view_model = "models/v_wep/pistol/tris.iqm",
-        
-        .icon = "w_blaster", // .icon = "w_pistol",
-        .pickup_name = "Pistol",
-        
-        .count_width = 0,
-        .quantity = 1,
-        .clip_capacity = 13,
-
-        .ammo = "Pistol Bullets",
-        .flags = ITEM_FLAG_WEAPON | ITEM_FLAG_STAY_COOP,
-        .weapon_index = WEAP_PISTOL,
-
-        .info = &pistolItemInfo,
-        .tag = ITEM_TAG_WEAPON_PISTOL,
-
-        .precaches = "models/g_wep/pistol/tris.iqm models/v_wep/pistol/tris.iqm items/weaponry_pickup.wav weapons/pistol/draw.wav weapons/pistol/holster.wav weapons/pistol/fire1.wav weapons/pistol/fire2.wav weapons/pistol/fire3.wav weapons/pistol/reload.wav weapons/pistol/noammo.wav"
-    },
-
-
-    //********************************************************
-    //  Ammo Items:                                         **
-    //********************************************************
-    //
-    //   classname(ammo_bullets_pistol) bbox(-16 -16 -16) (16 16 16)
-    //
-    {
-        .classname = "ammo_bullets_pistol",
-        .precached = nullptr,
-        .pickup = Pickup_Ammo,
-        .use = NULL,
-        .drop = Drop_Ammo,
-        .weaponthink = NULL,
-        .pickup_sound = "items/weaponry_pickup.wav",
-        .world_model = "models/items/ammo/bullets_pistol/tris.iqm",
-        .world_model_flags = 0,
-        .view_model = nullptr,
-        .icon = "a_bullets",
-        .pickup_name = "Pistol Bullets",
-        .count_width = 3,
-        .quantity = 50,
-        .clip_capacity = 0,
-        .ammo = nullptr,
-        .flags = ITEM_FLAG_AMMO,
-        .weapon_index = 0,
-        .info = nullptr,
-        .tag = ITEM_TAG_AMMO_BULLETS_PISTOL,
-        // Precache.
-        .precaches = "models/items/ammo/bullets_pistol/tris.iqm items/weaponry_pickup.wav"
-    },
-
-    //
-    //   classname(ammo_bullets_rifle) bbox(-16 -16 -16) (16 16 16)
-    //
-    {
-        .classname = "ammo_bullets_rifle",
-        .precached = nullptr,
-        .pickup = Pickup_Ammo,
-        .use = nullptr,
-        .drop = Drop_Ammo,
-        .weaponthink = nullptr,
-        .pickup_sound = "items/weaponry_pickup.wav",
-        .world_model = "models/items/ammo/bullets_rifle/tris.iqm", 
-        .world_model_flags = 0,
-        .view_model = nullptr,
-        .icon = "a_bullets",
-        .pickup_name = "Rifle Bullets",
-        .count_width = 3,
-        .quantity = 50,
-        .clip_capacity = 0,
-        .ammo = nullptr,
-        .flags = ITEM_FLAG_AMMO,
-        .weapon_index = 0,
-        .info = nullptr,
-        .tag = ITEM_TAG_AMMO_BULLETS_RIFLE,
-        // Precache
-        .precaches = "models/items/ammo/bullets_rifle/tris.iqm items/weaponry_pickup.wav"
-    },
-    
-    //
-    //   classname(ammo_bullets_smg) bbox(-16 -16 -16) (16 16 16)
-    //
-    {
-        .classname = "ammo_bullets_smg",
-        .precached = nullptr,
-        .pickup = Pickup_Ammo,
-        .use = nullptr,
-        .drop = Drop_Ammo,
-        .weaponthink = nullptr,
-        .pickup_sound = "items/weaponry_pickup.wav",
-        .world_model = "models/items/ammo/bullets_smg/tris.iqm", 
-        .world_model_flags = 0,
-        .view_model = nullptr,
-        .icon = "a_bullets",
-        .pickup_name = "SMG Bullets",
-        .count_width = 3,
-        .quantity = 50,
-        .clip_capacity = 0,
-        .ammo = nullptr,
-        .flags = ITEM_FLAG_AMMO,
-        .weapon_index = 0,
-        .info = nullptr,
-        .tag = ITEM_TAG_AMMO_BULLETS_SMG,
-        // Precache.
-        .precaches = "models/items/ammo/bullets_smg/tris.iqm items/weaponry_pickup.wav"
-    },
-
-    //
-    //   classname(ammo_bullets_sniper) bbox(-16 -16 -16) (16 16 16)
-    //
-    {
-        .classname = "ammo_bullets_sniper",
-        .precached = nullptr,
-        .pickup = Pickup_Ammo,
-        .use = nullptr,
-        .drop = Drop_Ammo,
-        .weaponthink = nullptr,
-        .pickup_sound = "items/weaponry_pickup.wav",
-        .world_model = "models/items/ammo/bullets_sniper/tris.iqm", 
-        .world_model_flags = 0,
-        .view_model = nullptr,
-        .icon = "a_bullets",
-        .pickup_name = "Sniper Bullets",
-        .count_width = 3,
-        .quantity = 50,
-        .clip_capacity = 0,
-        .ammo = nullptr,
-        .flags = ITEM_FLAG_AMMO,
-        .weapon_index = 0,
-        .info = nullptr,
-        .tag = ITEM_TAG_AMMO_BULLETS_SNIPER,
-        // Precache.
-        .precaches = "models/items/ammo/bullets_sniper/tris.iqm items/weaponry_pickup.wav"
-    },
-
-    //
-    //   classname(ammo_shells_shotgun) bbox(-16 -16 -16) (16 16 16)
-    //
-    {
-        .classname = "ammo_shells_shotgun",
-        .precached = nullptr,
-        .pickup = Pickup_Ammo,
-        .use = NULL,
-        .drop = Drop_Ammo,
-        .weaponthink = NULL,
-        .pickup_sound = "items/weaponry_pickup.wav",
-        .world_model = "models/items/ammo/shells_shotgun/tris.iqm", 
-        .world_model_flags = 0,
-        .view_model = nullptr,
-        .icon = "a_shells",
-        .pickup_name = "Shotgun Shells",
-        .count_width = 3,
-        .quantity = 10,
-        .clip_capacity = 0,
-        .ammo = nullptr,
-        .flags = ITEM_FLAG_AMMO,
-        .weapon_index = 0,
-        .info = nullptr,
-        .tag = ITEM_TAG_AMMO_SHELLS_SHOTGUN,
-        
-        // Precache
-        .precaches = "models/items/ammo/shells_shotgun/tris.iqm items/weaponry_pickup.wav"
-    },
-
-
-    //********************************************************
-    //  PowerUp Items:                                      **
-    //********************************************************
-    // None as of yet.
-
-
-    //********************************************************
-    //  Health: Are spawned by spawn functions, see below:  **
-    //********************************************************
-    //
-    //   classname(item_health_small)   bbox(-16 -16 -16) (16 16 16)
-    //   classname(item_health_large)   bbox(-16 -16 -16) (16 16 16)
-    //   classname(item_health_mega)    bbox(-16 -16 -16) (16 16 16)
-    //
-    {
-        .classname = NULL,
-        .precached = nullptr,
-        .pickup = Pickup_Health,
-        .use = nullptr,
-        .drop = nullptr,
-        .weaponthink = nullptr,
-        .pickup_sound = "items/weaponry_pickup.wav", // TODO: WID: Give custom sound perhaps?
-        .world_model = nullptr, 
-        .world_model_flags = 0,
-        .view_model = nullptr,
-        .icon = "i_health",
-        .pickup_name = "Health",
-        .count_width = 3,
-        .quantity = 0,
-        .clip_capacity = 0,
-        .ammo = nullptr,
-        .flags = 0,
-        .weapon_index = 0,
-        .info = nullptr,
-        .tag = ITEM_TAG_NONE,
-        .precaches = "items/weaponry_pickup.wav items/s_health.wav items/n_health.wav items/l_health.wav items/m_health.wav"
-    },
-
-
-    //********************************************************
-    //  End of list marker:                                 **
-    //********************************************************
-    {NULL}
-};
 
 
 // <Q2RTXP>: WID: TODO: Implement as separate entties.
@@ -985,10 +686,56 @@ void SP_item_health_mega(svg_base_edict_t *self)
 #endif // #if 0
 
 /**
-*   @brief  Calculate the number of items value.
+*	@brief	Initialize server items list and bind server callbacks.
 **/
-void SVG_InitItems(void) {
-    game.num_items = sizeof(itemlist) / sizeof(itemlist[0]) - 1;
+void SVG_InitItems( void ) {
+	/**
+	*	Initialize item count from shared master list.
+	**/
+	// Assign total item count from shared master list.
+	game.num_items = num_sg_ItemList;
+
+	/**
+	*	Bind ServerGame specific callbacks and info pointers onto sg_ItemList.
+	**/
+	// Iterate through all items in the shared master list.
+	for ( int32_t i = 0; i < num_sg_ItemList; i++ ) {
+		// Acquire pointer to the current item entry.
+		sg_item_t *it = &sg_ItemList[ i ];
+
+		// Skip empty or unassigned item entries.
+		if ( !it->classname ) {
+			continue;
+		}
+
+		// Weapon: Fists.
+		if ( !Q_stricmp( it->classname, "weapon_fists" ) ) {
+			it->precached = Weapon_Fists_Precached;
+			it->pickup = SVG_Player_Weapon_Pickup;
+			it->use = SVG_Player_Weapon_Use;
+			it->drop = SVG_Player_Weapon_Drop;
+			it->weaponthink = Weapon_Fists;
+			it->info = &fistsItemInfo;
+		}
+		// Weapon: Pistol.
+		else if ( !Q_stricmp( it->classname, "weapon_pistol" ) ) {
+			it->precached = Weapon_Pistol_Precached;
+			it->pickup = SVG_Player_Weapon_Pickup;
+			it->use = SVG_Player_Weapon_Use;
+			it->drop = SVG_Player_Weapon_Drop;
+			it->weaponthink = Weapon_Pistol;
+			it->info = &pistolItemInfo;
+		}
+		// Ammo items.
+		else if ( ( it->flags & ITEM_FLAG_AMMO ) != 0 ) {
+			it->pickup = Pickup_Ammo;
+			it->drop = Drop_Ammo;
+		}
+		// Health items.
+		else if ( it->pickup_name && !Q_stricmp( it->pickup_name, "Health" ) ) {
+			it->pickup = Pickup_Health;
+		}
+	}
 }
 
 

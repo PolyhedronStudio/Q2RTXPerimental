@@ -97,7 +97,10 @@ typedef std::vector<svg_signal_argument_t> svg_signal_argument_array_t;
 //
 //	Items/Weapons:
 //
-typedef struct gitem_s gitem_t;
+struct sg_item_s;
+typedef struct sg_item_s sg_item_t;
+using gitem_t = sg_item_t;
+using gitem_s = sg_item_s;
 typedef struct weapon_item_info_s weapon_item_info_t;
 typedef struct weapon_mode_animation_s weapon_mode_animation_t;
 

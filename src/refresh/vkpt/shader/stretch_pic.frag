@@ -182,7 +182,7 @@ void main()
 
 				vec4 glow_col = unpackUnorm4x8( sp.outer_glow_colors.x );
 				glow_col = pow( glow_col, vec4( 2.4 ) );
-				float glow_alpha = glow_col.a * falloff * ( 1.0 - alpha_edge );
+				float glow_alpha = glow_col.a * color.a * falloff * ( 1.0 - alpha_edge );
 
 				if ( ( v_style_flags & STYLE_FLAG_GLOW_BLEND_ADDITIVE ) != 0u ) {
 					accum_color.rgb += glow_col.rgb * glow_alpha;
@@ -208,7 +208,14 @@ void main()
 				float stroke_alpha = 1.0 - clamp( stroke_dist_screen + 0.5, 0.0, 1.0 );
 				vec4 stroke_col = unpackUnorm4x8( sp.stroke_colors.x );
 				stroke_col = pow( stroke_col, vec4( 2.4 ) );
-				accum_color = mix( accum_color, stroke_col, stroke_alpha * stroke_col.a );
+
+				// Composite glyph fill over the outline stroke so fill color remains crisp on top
+				float stroke_a = stroke_alpha * stroke_col.a * color.a;
+				float out_a = accum_color.a + stroke_a * ( 1.0 - accum_color.a );
+				if ( out_a > 0.0001 ) {
+					accum_color.rgb = ( accum_color.rgb * accum_color.a + stroke_col.rgb * stroke_a * ( 1.0 - accum_color.a ) ) / out_a;
+					accum_color.a = out_a;
+				}
 			}
 		}
 
@@ -309,7 +316,7 @@ void main()
 
 			vec4 in_glow_col = unpackUnorm4x8( in_glow_u32 );
 			in_glow_col = pow( in_glow_col, vec4( 2.4 ) );
-			float in_alpha = in_glow_col.a * in_falloff * inner_coverage;
+			float in_alpha = in_glow_col.a * color.a * in_falloff * inner_coverage;
 
 			if ( ( v_style_flags & STYLE_FLAG_GLOW_BLEND_ADDITIVE ) != 0u ) {
 				result_col.rgb += in_glow_col.rgb * in_alpha;
@@ -398,7 +405,7 @@ void main()
 				? exp( -3.0 * glow_t )
 				: ( 1.0 - smoothstep( 0.0, 1.0, glow_t ) );
 
-			float glow_alpha = glow_col.a * glow_falloff * ( 1.0 - inner_coverage );
+			float glow_alpha = glow_col.a * color.a * glow_falloff * ( 1.0 - inner_coverage );
 
 			if ( ( v_style_flags & STYLE_FLAG_GLOW_BLEND_ADDITIVE ) != 0u ) {
 				result_col.rgb += glow_col.rgb * glow_alpha;
@@ -421,7 +428,9 @@ void main()
 		float stroke_delta = abs( d - align_offset ) - ( stroke_w * 0.5 );
 		float stroke_coverage = 1.0 - smoothstep( -0.5, +0.5, stroke_delta );
 
-		result_col = mix( result_col, stroke_col, stroke_coverage * stroke_col.a );
+		float stroke_a = stroke_coverage * stroke_col.a * color.a;
+		result_col.rgb = mix( result_col.rgb, stroke_col.rgb, stroke_coverage * stroke_col.a );
+		result_col.a = max( result_col.a, stroke_a );
 	}
 
 	// If fragment ended up completely transparent outside the element, discard
