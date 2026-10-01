@@ -8544,3 +8544,10 @@
 ( 80 -1464 80 ) ( 80 -1448 80 ) ( 80 -1448 32 ) lights/pa16_deeed6 [ 2.83276944882399e-16 1 0 0 ] [ 0 0 -1 0 ] 90 0.125 0.125 0 1 128
 }
 }
+// entity 105
+{
+"classname" "client_misc_model"
+"origin" "0 512 56"
+"model" "/models/env/tlight07/tlight07.md3"
+"angle" "90"
+}

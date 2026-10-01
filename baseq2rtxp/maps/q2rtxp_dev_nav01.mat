@@ -1,5 +1,4 @@
 textures/dark/tex_03,
-textures/dark/tex_07,
 textures/dark/tex_13:
 	texture_base **.png
 	texture_normals **_n.tga

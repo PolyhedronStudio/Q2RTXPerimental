@@ -1,0 +1,65 @@
+sprites/explo03/00,
+sprites/explo03/01,
+sprites/explo03/02,
+sprites/explo03/03,
+sprites/explo03/04,
+sprites/explo03/05,
+sprites/explo03/06,
+sprites/explo03/07:
+	texture_base sprites/explo03/**.png
+	texture_mask sprites/explo03/**_m.png
+	base_factor 2.5
+	specular_factor 0.125
+
+sprites/explo04/00,
+sprites/explo04/01,
+sprites/explo04/02,
+sprites/explo04/03,
+sprites/explo04/04,
+sprites/explo04/05,
+sprites/explo04/06,
+sprites/explo04/07:
+	texture_base sprites/explo04/**.png
+	texture_mask sprites/explo04/**_m.png
+	base_factor 2.5
+	specular_factor 0.125
+
+sprites/explo05/00,
+sprites/explo05/01,
+sprites/explo05/02,
+sprites/explo05/03,
+sprites/explo05/04,
+sprites/explo05/05,
+sprites/explo05/06,
+sprites/explo05/07:
+	texture_base sprites/explo05/**.png
+	texture_mask sprites/explo05/**_m.png
+	base_factor 2.5
+	specular_factor 0.125
+
+sprites/explo06/00,
+sprites/explo06/01,
+sprites/explo06/02,
+sprites/explo06/03,
+sprites/explo06/04,
+sprites/explo06/05,
+sprites/explo06/06,
+sprites/explo06/07:
+	texture_base sprites/explo06/**.png
+	texture_mask sprites/explo06/**_m.png
+	base_factor 2.5
+	specular_factor 0.125
+
+sprites/explo07/00,
+sprites/explo07/01,
+sprites/explo07/02,
+sprites/explo07/03,
+sprites/explo07/04,
+sprites/explo07/05,
+sprites/explo07/06,
+sprites/explo07/07:
+	texture_base sprites/explo07/**.png
+	texture_mask sprites/explo07/**_m.png
+	base_factor 2.5
+	specular_factor 0.125
+

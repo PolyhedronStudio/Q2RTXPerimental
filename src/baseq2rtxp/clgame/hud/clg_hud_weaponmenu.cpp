@@ -51,12 +51,25 @@ static const char *s_categoryNames[ WEAPON_CATEGORY_COUNT + 1 ] = {
 *	Primary HL1 Orange: #df7126 (223, 113, 38)
 *	Warning Red:        #d95763 (217, 87, 99)
 **/
-static constexpr uint32_t COLOR_HL1_ORANGE_BRIGHT	= MakeColor( 255, 175, 75, 255 );
-static constexpr uint32_t COLOR_HL1_ORANGE_BASE		= MakeColor( 223, 113, 38, 220 );
-static constexpr uint32_t COLOR_HL1_ORANGE_GLOW		= MakeColor( 223, 113, 38, 180 );
-static constexpr uint32_t COLOR_HL1_ORANGE_DIM		= MakeColor( 223, 113, 38, 120 );
-static constexpr uint32_t COLOR_HL1_ORANGE_BG		= MakeColor( 55, 28, 12, 220 );
-static constexpr uint32_t COLOR_HL1_ORANGE_BG_DIM	= MakeColor( 25, 16, 10, 160 );
+static constexpr uint32_t COLOR_WEAPON_BAR_ORANGE_BRIGHT	= MakeColor( 255, 175, 75, 255 );
+static constexpr uint32_t COLOR_WEAPON_BAR_ORANGE_BASE		= MakeColor( 210, 125, 44, 220 );
+static constexpr uint32_t COLOR_WEAPON_BAR_ORANGE_GLOW		= MakeColor( 210, 125, 44, 180 );
+static constexpr uint32_t COLOR_WEAPON_BAR_ORANGE_DIM		= MakeColor( 210, 125, 44, 120 );
+static constexpr uint32_t COLOR_WEAPON_BAR_ORANGE_BG		= MakeColor( 35, 18, 8, 220 );
+static constexpr uint32_t COLOR_WEAPON_BAR_ORANGE_BG_DIM	= MakeColor( 25, 16, 10, 160 );
+/**
+*	Palette Definitions for Half-Life 1 Inspired Bottom HUD (#d27d2c):
+**/
+//! Primary base amber/orange color (#d27d2c).
+static constexpr uint32_t COLOR_HUD_ORANGE_BASE = MakeColor( 210, 125, 44, 220 );
+//! Bright amber/orange color for pulse peaks and high visibility.
+static constexpr uint32_t COLOR_HUD_ORANGE_BRIGHT = MakeColor( 223, 113, 38, 255 );
+//! Amber/orange glow color.
+static constexpr uint32_t COLOR_HUD_ORANGE_GLOW = MakeColor( 223, 113, 38, 200 );
+//! Dim amber/orange color for subtle border strokes.
+static constexpr uint32_t COLOR_HUD_ORANGE_DIM = MakeColor( 223, 113, 38, 140 );
+//! Dark translucent amber background container fill.
+static constexpr uint32_t COLOR_HUD_BG = MakeColor( 35, 18, 8, 220 );
 
 static constexpr uint32_t COLOR_RED_DISABLED		= MakeColor( 217, 87, 99, 230 );
 static constexpr uint32_t COLOR_RED_DISABLED_GLOW	= MakeColor( 217, 87, 99, 180 );
@@ -361,7 +374,7 @@ void CLG_WeaponMenu_Draw( void ) {
 
 	// Calculate horizontal start position so the row is centered on screen.
 	const double screenW = clgi.screen->hudRealWidth > 0. ? clgi.screen->hudRealWidth : clgi.screen->screenWidth;
-	const double startX = ( screenW - TOTAL_WIDTH ) * 0.5;
+	const double startX = 24.0;//( screenW - TOTAL_WIDTH ) * 0.5;
 	const double startY = 24.0;
 
 	/**
@@ -378,21 +391,21 @@ void CLG_WeaponMenu_Draw( void ) {
 		const bool isCatActive = ( cat == s_wpn_menu.activeCategory );
 
 		// Determine colors and style based on category state.
-		uint32_t boxFill = COLOR_HL1_ORANGE_BG_DIM;
-		uint32_t boxStroke = COLOR_HL1_ORANGE_DIM;
-		uint32_t textColor = COLOR_HL1_ORANGE_DIM;
+		uint32_t boxFill = COLOR_WEAPON_BAR_ORANGE_BG_DIM;
+		uint32_t boxStroke = COLOR_WEAPON_BAR_ORANGE_DIM;
+		uint32_t textColor = COLOR_WEAPON_BAR_ORANGE_DIM;
 
 		if ( isCatActive ) {
-			boxFill = COLOR_HL1_ORANGE_BG;
-			boxStroke = COLOR_HL1_ORANGE_BRIGHT;
-			textColor = COLOR_HL1_ORANGE_BRIGHT;
+			boxFill = COLOR_WEAPON_BAR_ORANGE_BG;
+			boxStroke = COLOR_WEAPON_BAR_ORANGE_BRIGHT;
+			textColor = COLOR_WEAPON_BAR_ORANGE_BRIGHT;
 
 			// Active category gets outer glow.
-			clgi.R_SetOuterGlow( COLOR_HL1_ORANGE_GLOW, 6.0f );
+			clgi.R_SetOuterGlow( COLOR_WEAPON_BAR_ORANGE_GLOW, 6.0f );
 		} else if ( hasOwned ) {
-			boxFill = COLOR_HL1_ORANGE_BG_DIM;
-			boxStroke = COLOR_HL1_ORANGE_BASE;
-			textColor = COLOR_HL1_ORANGE_BASE;
+			boxFill = COLOR_WEAPON_BAR_ORANGE_BG_DIM;
+			boxStroke = COLOR_WEAPON_BAR_ORANGE_BASE;
+			textColor = COLOR_WEAPON_BAR_ORANGE_BASE;
 		} else {
 			// Unowned category: dim/faded background and outline.
 			boxFill = MakeColor( 14, 10, 8, 120 );
@@ -447,14 +460,14 @@ void CLG_WeaponMenu_Draw( void ) {
 					}
 				} else {
 					if ( isSlotActive ) {
-						slotFill = COLOR_HL1_ORANGE_BG;
-						slotStroke = COLOR_HL1_ORANGE_BRIGHT;
-						slotTextColor = COLOR_HL1_ORANGE_BRIGHT;
-						clgi.R_SetOuterGlow( COLOR_HL1_ORANGE_GLOW, 8.0f );
+						slotFill = COLOR_WEAPON_BAR_ORANGE_BG;
+						slotStroke = COLOR_WEAPON_BAR_ORANGE_BRIGHT;
+						slotTextColor = COLOR_WEAPON_BAR_ORANGE_BRIGHT;
+						clgi.R_SetOuterGlow( COLOR_WEAPON_BAR_ORANGE_GLOW, 8.0f );
 					} else {
-						slotFill = COLOR_HL1_ORANGE_BG_DIM;
-						slotStroke = COLOR_HL1_ORANGE_BASE;
-						slotTextColor = COLOR_HL1_ORANGE_BASE;
+						slotFill = COLOR_WEAPON_BAR_ORANGE_BG_DIM;
+						slotStroke = COLOR_WEAPON_BAR_ORANGE_BASE;
+						slotTextColor = COLOR_WEAPON_BAR_ORANGE_BASE;
 					}
 				}
 

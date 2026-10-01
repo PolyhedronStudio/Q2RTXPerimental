@@ -379,10 +379,11 @@ void CLG_AddExplosions( void ) {
 *	@note	The cent is required for traceing if underwater bubble trail is needed. (For ignore entity ptr).
 **/
 clg_explosion_t *CLG_PlainExplosion( const Vector3 &origin, const bool withSmoke ) {
-
+	// Randomly select between the two sprite models for the explosion that have no smoke(underwater).
 	int32_t explo00_or_explo02 = brandom();
-
-    qhandle_t spriteHandle = ( withSmoke ? precache.models.sprite_explo01 : ( explo00_or_explo02 == 0 ? precache.models.sprite_explo00 : precache.models.sprite_explo02 ) );
+	// Both with smoke, or well somewhat with smoke, we can use the explo01 or explo06 sprite.
+	int32_t explo01_or_explo06 = brandom();
+    qhandle_t spriteHandle = ( withSmoke ? explo01_or_explo06 : ( explo00_or_explo02 == 0 ? precache.models.sprite_explo00 : precache.models.sprite_explo02 ) );
     clg_explosion_t *ex = CLG_AllocateExplosion();
 	VectorCopy( origin, ex->ent.origin );//VectorCopy( level.parsedMessage.events.tempEntity.pos1, ex->ent.origin );
     ex->type = clg_explosion_t::ex_polygon_curvature; // WID: C++20: Was without clg_explosion_t::

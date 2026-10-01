@@ -110,7 +110,7 @@ static const bool HUD_FormatToken_KeyForCommand( std::string_view &stringToken, 
         std::transform( keyName.begin(), keyName.end(), keyName.begin(), ::toupper );
 
         // Replace our stringToken by [keyName]
-        hudToken.value = std::string( "[" + keyName + "]" );
+        hudToken.value = std::string( " [" + keyName + "] " );
         hudToken.type = HUD_TOKEN_TYPE_TOKEN_KEYNAME;
 
         // True.
@@ -152,11 +152,11 @@ static const bool HUD_FormatToken_ForAction( std::string_view &stringToken, hud_
             hudToken.type = HUD_TOKEN_TYPE_NOTE; // Or _REGULAR??
             // If we found a plus, redo the string value.
         } else if ( firstOfPlus != std::string::npos ) {
-            hudToken.value = hudToken.value.substr( firstOfPlus, hudToken.value.size() ),
+            hudToken.value = " " + hudToken.value.substr(firstOfPlus, hudToken.value.size()) + " ",
                 hudToken.type = HUD_TOKEN_TYPE_ACTION_ACTIVATE;
             // If we found a minus, redo the string value.
         } else if ( firstOfMinus != std::string::npos ) {
-            hudToken.value = hudToken.value.substr( firstOfMinus, hudToken.value.size() ),
+            hudToken.value = " " + hudToken.value.substr(firstOfMinus, hudToken.value.size()) + " ",
                 hudToken.type = HUD_TOKEN_TYPE_ACTION_DEACTIVATE;
             // Otherwise it is of type 'NOTE', use for referring to 'things'.
         } else {

@@ -1,0 +1,62 @@
+{
+	"version":2,
+	"frameCount":8,
+  "frames": [
+    {
+      "name": "sprites/explo06/00.png",
+      "width": 512,
+      "height": 512,
+      "origin_x": 256,
+      "origin_y": 256
+    },
+    {
+      "name": "sprites/explo06/01.png",
+      "width": 512,
+      "height": 512,
+      "origin_x": 256,
+      "origin_y": 256
+    },
+    {
+      "name": "sprites/explo06/02.png",
+      "width": 512,
+      "height": 512,
+      "origin_x": 256,
+      "origin_y": 256
+    },
+    {
+      "name": "sprites/explo06/03.png",
+      "width": 512,
+      "height": 512,
+      "origin_x": 256,
+      "origin_y": 256
+    },
+    {
+      "name": "sprites/explo06/04.png",
+      "width": 512,
+      "height": 512,
+      "origin_x": 256,
+      "origin_y": 256
+    },
+    {
+      "name": "sprites/explo06/05.png",
+      "width": 512,
+      "height": 512,
+      "origin_x": 256,
+      "origin_y": 256
+    },
+    {
+      "name": "sprites/explo06/06.png",
+      "width": 512,
+      "height": 512,
+      "origin_x": 256,
+      "origin_y": 256
+    },
+    {
+      "name": "sprites/explo06/07.png",
+      "width": 512,
+      "height": 512,
+      "origin_x": 256,
+      "origin_y": 256
+    }
+  ]
+}
