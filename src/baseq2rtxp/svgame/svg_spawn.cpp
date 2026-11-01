@@ -21,6 +21,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/svg_clients.h"
 #include "svgame/svg_game_items.h"
 #include "svgame/svg_utils.h"
+#include "svgame/nav/nav_corner_capture.h"
+#include "svgame/nav/nav_generate.h"
 
 #include "svgame/entities/func/svg_func_door.h"
 #include "svgame/entities/func/svg_func_door_rotating.h"
@@ -418,6 +420,13 @@ static const gitem_t *_GetItemByClassname( const char *classname ) {
 *           of each entity.
 **/
 void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities ) {
+	/**
+	*	Retire the old map's nav generation, captures, and indexed geometry before
+	*	entity slots are destroyed or reused. The engine has already drained the
+	*	worker before replacing its collision model in SV_ParseMapCmd.
+	**/
+	Nav_Clear();
+
 	// If we have a game mode, we need to shut it down as it is now the previous one.
 	if ( game.mode != nullptr ) {
 		delete game.mode;
@@ -461,11 +470,15 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
 	// Clear this before clearing TAG_SVGAME_LEVEL memory, since it may have member variables that
 	// point to TAG_SVGAME_LEVEL memory.
 	g_edicts = SVG_EdictPool_Release( &g_edict_pool );
+	// Clients can retain old-level state; destroy them before the level arena retires.
+	SVG_Clients_Release();
 
 	// Zero out all level struct data, but keep the cm_entities pointer intact.
 	level = {
 		.cm_entities = entities
 	};
+	// All old entity, client and level owners have detached; their arena strings can now be reclaimed.
+	gi.FreeTags( TAG_SVGAME_LEVEL );
 
     // (Re-)Initialize the edict pool, and store a pointer to its edicts array in g_edicts.
 	g_edicts = SVG_EdictPool_Allocate( &g_edict_pool, game.maxentities );
@@ -507,7 +520,11 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
             // Get the type info for this entity.
 			typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "worldspawn" );
             // Worldspawn:
+			// Retire the preallocated world placeholder before publishing its map dictionary owner.
+			const int32_t worldSpawnCount = g_edict_pool.edicts[ 0 ]->spawn_count;
+			delete g_edict_pool.edicts[ 0 ];
 			g_edict_pool.edicts[ 0 ] = typeInfo->allocateEdictInstanceCallback( cm_entity );
+			g_edict_pool.edicts[ 0 ]->spawn_count = worldSpawnCount;
             // Set the worldspawn entityID.
 			g_edict_pool.edicts[ 0 ]->s.number = 0;
             // Don't forget to increment num_edicts. Do so before spawning, since the worldspawn

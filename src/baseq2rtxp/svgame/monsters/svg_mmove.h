@@ -7,6 +7,9 @@
 ********************************************************************/
 #pragma once
 
+#include "svgame/nav/nav_movement_geometry.h"
+#include <array>
+
 
 
 // Forward declarations.
@@ -197,6 +200,42 @@ typedef struct mm_touch_trace_list_s {
 //} mm_liquid_info_t;
 
 /**
+*	@brief	Direct clip/solid/recovery counts for one physical movement trial.
+*	@note	Ground and elevated trials are kept separate; only the accepted trial counts as realized motion.
+**/
+/**
+*	@brief	Owned collision witness for one actual velocity change during a physical trial.
+*	@note	The trial selector copies witnesses together with counters; no collision pointers survive.
+**/
+struct mm_clip_witness_t {
+	//! Native bbox-space contact point and exact velocity before/after clipping.
+	Vector3DP contact = {}, before = {}, after = {}, normal = {};
+	//! Contact owner and brush at the clip site; floor/riser/actor classification remains explicit.
+	int32_t entity = ENTITYNUM_NONE, brush = -1;
+	bool actor = false;
+};
+
+struct mm_motion_diagnostics_t {
+	//! Actual XY velocity clips against static vertical planes.
+	uint32_t static_wall_clips = 0;
+	//! Velocity clips against static non-wall planes (floor/riser category).
+	uint32_t floor_or_riser_clips = 0;
+	//! Actual velocity clips against live actor planes.
+	uint32_t actor_clips = 0;
+	//! Start-solid traces observed during this trial.
+	uint32_t startsolid = 0;
+	//! All-solid traces observed during this trial.
+	uint32_t allsolid = 0;
+	//! Repeated-plane velocity nudges, distinct from accepted clean traversal.
+	uint32_t recovery_nudges = 0;
+	//! Fixed trial-local witnesses, including an explicit overflow bit for diagnostic completeness.
+	std::array<mm_clip_witness_t, 24> clips = {};
+	uint32_t clip_count = 0;
+	bool clip_overflow = false;
+
+};
+
+/**
 *   @brief  Structure going in and out of the monster move process.
 **/
 typedef struct mm_move_s {
@@ -216,6 +255,12 @@ typedef struct mm_move_s {
 
     //! [Out]: Touch Traces.
     mm_touch_trace_list_t touchTraces;
+	//! Diagnostic counters for the ground candidate of the current movement update.
+	mm_motion_diagnostics_t groundDiagnostics;
+	//! Diagnostic counters for the elevated candidate of the current movement update.
+	mm_motion_diagnostics_t elevatedDiagnostics;
+	//! Counts copied only from the accepted candidate; discarded trials do not fail clean motion.
+	mm_motion_diagnostics_t acceptedDiagnostics;
     //! [Out]:
     bool jump_sound;
     //! [Out]:
@@ -269,6 +314,74 @@ const svg_trace_t SVG_MMove_Trace( const Vector3DP &start, const Vector3 &mins, 
 inline const svg_trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, svg_base_edict_t *passEntity, cm_contents_t contentMask = CONTENTS_NONE, mm_trace_shape_t shape = MM_SHAPE_AUTO ) {
 	return SVG_MMove_Trace( Vector3DP( start ), mins, maxs, Vector3DP( end ), passEntity, contentMask, shape );
 }
+
+/**
+*	@brief	Owned native sweep evidence in bbox-origin space for one traversal phase.
+**/
+struct svg_nav_probe_trace_t {
+	//! Exact sweep endpoints and returned endpoint; center conversion is internal to the native adapter.
+	Vector3DP start = {}, end = {}, realized = {};
+	//! Collision fraction, contact normal and solid-start classification.
+	double fraction = 1.0;
+	Vector3 normal = {};
+	bool startsolid = false, allsolid = false;
+	//! Exact mask, native shape and owned collision identifiers.
+	uint64_t mask = 0;
+	int32_t shape = 0, entity = ENTITYNUM_NONE, brush = -1;
+};
+
+/**
+*	@brief	Physical candidate result in explicitly named bbox-origin coordinates.
+**/
+struct svg_nav_movement_result_t {
+	//! Fail closed until full progress and walkable support are demonstrated.
+	svg_nav_movement_reason_t reason = svg_nav_movement_reason_t::invalid_input;
+	//! Actual supported destination returned by the native sweeps.
+	Vector3DP bbox_endpoint = {};
+	//! Number of native sweeps performed, including internal step/support traces.
+	uint32_t trace_count = 0;
+	//! Selected native analytical shape for this candidate.
+	mm_trace_shape_t shape = MM_SHAPE_AUTO;
+	//! Bounded evidence for direct/support/raised phases, matching production traversal's maximum five sweeps.
+	std::array<svg_nav_probe_trace_t, 5> probes = {};
+	//! First actor blocking a horizontal sweep; owned entity index for bounded candidate avoidance.
+	int32_t blocking_actor = ENTITYNUM_NONE;
+};
+
+/**
+*	@brief	Validate an explicit analytical profile through the production traversal core.
+*	@param	startFeet	Feet-space start.
+*	@param	endFeet	Feet-space target.
+*	@param	mins	Native bounds minimums.
+*	@param	maxs	Native bounds maximums.
+*	@param	shape	Explicit capsule/cylinder shape.
+*	@param	policy	Immutable rise/drop/support policy.
+*	@param	passEntity	Optional excluded live entity.
+*	@param	mask	Exact collision mask; static route proof excludes actor contents only.
+*	@param	requireEndHeight	Require literal endpoint Z.
+*	@param	reportTraces	Enable explicit console trace evidence.
+*	@param	movementTouches	Optional authoritative contact list; previews leave this null.
+*	@param	landingGround	Optional last landing trace state, committed by callers only on success.
+*	@return	Owned reason, supported bbox endpoint and bounded trace count.
+**/
+svg_nav_movement_result_t SVG_Nav_TestMovementHull( const Vector3DP &startFeet, const Vector3DP &endFeet,
+	const Vector3 &mins, const Vector3 &maxs, const mm_trace_shape_t shape, const nav_path_policy_t &policy,
+	svg_base_edict_t *passEntity, const cm_contents_t mask, const bool requireEndHeight = false, const bool reportTraces = false,
+	mm_touch_trace_list_t *movementTouches = nullptr, ground_info_t *landingGround = nullptr );
+
+/**
+*	@brief	Validate full native-hull progress and support without mutating entity state.
+*	@param	mover	Entity providing native shape and bounds.
+*	@param	startFeet	Exact start in navigation feet coordinates.
+*	@param	endFeet	Requested end in navigation feet coordinates.
+*	@param	policy	Step, drop and walkable-normal limits.
+*	@param	reportTraces	Print bounded native traces only for explicit diagnostic commands.
+*	@param	requireEndHeight	Require exact endpoint elevation for waypoint release.
+*	@return	Structured reason, bbox endpoint and internal trace count.
+*	@note	Main-thread only, at most five sweeps; converts feet to bbox origin exactly once.
+**/
+svg_nav_movement_result_t SVG_Nav_TestMovementCandidate( svg_base_edict_t *mover, const Vector3DP &startFeet,
+	const Vector3DP &endFeet, const nav_path_policy_t &policy, const bool requireEndHeight, const bool reportTraces = false );
 
 /**
 *	@brief		Perform a step-aware and slope-aware swept trace probe using the mover's native analytical shape in double precision.

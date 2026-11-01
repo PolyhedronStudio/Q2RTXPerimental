@@ -17,6 +17,13 @@
 #include "svgame/entities/monster/svg_monster_base.h"
 #include "svgame/nav/nav_debug.h"
 #include "svgame/nav/nav_generate.h"
+#include "svgame/nav/nav_query.h"
+#include "svgame/nav/nav_worker.h"
+#include "svgame/nav/nav_perf.h"
+#include "svgame/nav/nav_actor_fixture.h"
+#include "svgame/nav/nav_corner_capture.h"
+#include "svgame/nav/nav_movement_geometry.h"
+#include <chrono>
 
 // Monster move and slide move.
 #include "svgame/monsters/svg_mmove.h"
@@ -29,17 +36,39 @@
 
 
 /**
+*	@brief	Sample the monotonic clock shared by worker transport and owner latency accounting.
+*	@return	Nanoseconds since the standard steady clock epoch.
+**/
+static uint64_t SVG_Nav_SteadyTimeNs() {
+	// Use the same clock and unit as the pure service's enqueue/solve lifecycle timestamps.
+	return static_cast<uint64_t>( std::chrono::duration_cast<std::chrono::nanoseconds>(
+		std::chrono::steady_clock::now().time_since_epoch() ).count() );
+}
+
+/**
 *	@brief	Reconstructs the object, optionally retaining the entityDictionary.
 *	@param	retainDictionary	When true, preserves the entityDictionary pointer.
 **/
 void svg_monster_base_t::Reset( const bool retainDictionary ) {
+	// Record the old request before resetting its timing identity and cancelling transport ownership.
+	SVG_Nav_SetQueryTerminalState( NavigationQueryState::Cancelled );
+	// Rekey before pool reset/reuse so an old slot reply cannot match the replacement actor.
+	Nav_CancelQueryWorkerEntityMainThread( s.number );
+	navigationIncarnation = Nav_IssueIdentityRevisionMainThread();
+	navigationStateRevision = Nav_IssueIdentityRevisionMainThread();
 	IMPLEMENT_EDICT_RESET_BY_COPY_ASSIGNMENT( Super, SelfType, retainDictionary );
 
 	monsterMove = {};
 	pathNavigationState = {};
+	// Pool reuse cannot retain the old actor's outstanding state or latency origin.
+	navigationRequestSequence = 0;
+	navigationSubmittedNs = navigationGraphStartNs = navigationGraphFinishNs = 0;
+	navigationSubmittedTick = navigationEarliestDeliveryTick = 0;
+	navigationTimingSequence = navigationTimingEpoch = navigationTerminalCountedSequence = 0;
 	navPath.clear();
 	stringPulledPath.clear();
-	stringPulledWaypointForced.clear();
+	navigationWaypoints.clear();
+	navigationRouteRevision = Nav_IssueIdentityRevisionMainThread();
 	pathPos = 0;
 	stringPathPos = 0;
 	lastPathCalcTime = 0_ms;
@@ -74,23 +103,40 @@ void svg_monster_base_t::Restore( struct game_read_context_t *ctx ) {
 *	@return	True if caller should proceed with specific think logic, false if dead or should skip.
 **/
 const bool svg_monster_base_t::GenericThinkBegin() {
+	/**
+	*	Start fresh tick-local evidence even when AI chooses a reservation or arrival hold.
+	*	A held frame must not inherit a previously evaluated steering candidate.
+	**/
+	navigationSteering = {};
+	navigationSteering.old_index = static_cast<uint32_t>( stringPathPos );
+	navigationSteering.yaw_before = currentAngles[ YAW ];
+	lastWaypointRelease = {};
+	lastMovementValidation = {};
+	lastGeometricValidation = {};
+	navigationValidationTraceCount = 0;
+	// Remove transient render interpolation flags before refreshing native support.
 	s.renderfx &= ~( RF_STAIR_STEP | RF_OLD_FRAME_LERP );
 
 	RecategorizeGroundAndLiquidState();
 
+	/**
+	*	Synchronize native movement inputs after recategorizing ground and liquid support.
+	**/
 	// Sync physics state with entity state
 	monsterMove.state.origin = currentOrigin;
 	monsterMove.state.velocity = velocity;
 	monsterMove.ground = groundInfo;
 	monsterMove.liquid = liquidInfo;
 
+	// Grounded movement must agree with the newly resolved native support state.
 	if ( groundInfo.entityNumber != ENTITYNUM_NONE ) {
 		monsterMove.state.mm_flags |= MMF_ON_GROUND;
 	} else {
 		monsterMove.state.mm_flags &= ~MMF_ON_GROUND;
 	}
 
-	if ( health <= 0 || ( lifeStatus & LIFESTATUS_ALIVE ) != LIFESTATUS_ALIVE ) {
+	// Dead actors cannot proceed into live navigation or animation behavior.
+	if ( !Nav_ActorMayNavigate( inUse, health, static_cast<int32_t>( lifeStatus ), static_cast<int32_t>( LIFESTATUS_ALIVE ) ) ) {
 		return false;
 	}
 
@@ -104,7 +150,16 @@ const bool svg_monster_base_t::GenericThinkBegin() {
 *	@return	False if trapped or failed to move, true otherwise.
 **/
 const bool svg_monster_base_t::GenericThinkFinish( const bool processSlideMove, int32_t &blockedMask ) {
+	// Capture the original command independently of authoritative clipped velocity.
+	const Vector3DP captureStart( currentOrigin );
+	const Vector3DP captureCommand( velocity );
 	blockedMask = ( processSlideMove ? ProcessSlideMove() : MM_SLIDEMOVEFLAG_NONE );
+	if ( !processSlideMove ) {
+		// A reservation hold has no native trial; stale contacts must not be counted as accepted motion.
+		monsterMove.acceptedDiagnostics = {};
+		monsterMove.groundDiagnostics = {};
+		monsterMove.elevatedDiagnostics = {};
+	}
 
 	/**
 	*	Enforce the finite serialized doorway aperture after collision resolution.
@@ -112,13 +167,15 @@ const bool svg_monster_base_t::GenericThinkFinish( const bool processSlideMove, 
 	*	block only crossings whose lateral coordinate lies inside the reserved opening.
 	**/
 	const svg_crowd_group_t *ingressGroup = ( crowd.crowdID >= 0 ) ? SVG_Crowd_GetGroup( crowd.crowdID ) : nullptr;
-	if ( ingressGroup != nullptr && ingressGroup->hasSerializedIngress && !crowd.ingressReleased ) {
+	// Both reservation senses retain the exact existing float endpoint enforcement after authoritative collision.
+	const auto enforceAperture = [&]( const Vector3DP &portalOrigin, const Vector3DP &portalInward,
+		const double stopDepth, const double reservedHalfSpan ) {
 		const Vector3DP previousOrigin( currentOrigin );
-		const double previousDepth = QM_Vector3DotProductDP( previousOrigin - ingressGroup->ingressPortalOrigin, ingressGroup->ingressPortalInward );
-		const double stopDepth = -ingressGroup->ingressReleaseDepth;
-		const double resolvedDepth = QM_Vector3DotProductDP( monsterMove.state.origin - ingressGroup->ingressPortalOrigin, ingressGroup->ingressPortalInward );
-		const Vector3DP portalTangent{ ingressGroup->ingressPortalInward.y, -ingressGroup->ingressPortalInward.x, 0.0 };
-		const double reservedHalfSpan = ingressGroup->ingressPortalHalfWidth + ingressGroup->ingressReleaseDepth;
+		const double previousDepth = QM_Vector3DotProductDP( previousOrigin - portalOrigin, portalInward );
+		// The entity stores float coordinates; enforce reservation against that exact post-conversion endpoint.
+		const Vector3DP storedOrigin( QM_Vector3FromDP( monsterMove.state.origin ) );
+		const double resolvedDepth = QM_Vector3DotProductDP( storedOrigin - portalOrigin, portalInward );
+		const Vector3DP portalTangent{ portalInward.y, -portalInward.x, 0.0 };
 		bool crossesReservedAperture = false;
 
 		// Interpolate lateral position exactly where this frame crosses the exterior stop plane.
@@ -126,24 +183,37 @@ const bool svg_monster_base_t::GenericThinkFinish( const bool processSlideMove, 
 			const double crossingFraction = std::clamp(
 				( stopDepth - previousDepth ) / ( resolvedDepth - previousDepth ), 0.0, 1.0 );
 			const double previousLateral = QM_Vector3DotProductDP(
-				previousOrigin - ingressGroup->ingressPortalOrigin, portalTangent );
+				previousOrigin - portalOrigin, portalTangent );
 			const double resolvedLateral = QM_Vector3DotProductDP(
-				monsterMove.state.origin - ingressGroup->ingressPortalOrigin, portalTangent );
+				storedOrigin - portalOrigin, portalTangent );
 			const double crossingLateral = previousLateral +
 				( ( resolvedLateral - previousLateral ) * crossingFraction );
-			crossesReservedAperture = std::fabs( crossingLateral ) < reservedHalfSpan;
+			crossesReservedAperture = std::fabs( crossingLateral ) <= reservedHalfSpan;
 		}
 
 		// Project only a true aperture crossing; side-wall marshalling beyond the plane remains legal.
 		if ( crossesReservedAperture ) {
-			monsterMove.state.origin = monsterMove.state.origin -
-				( ingressGroup->ingressPortalInward * ( resolvedDepth - stopDepth ) );
-			const double resolvedInwardSpeed = QM_Vector3DotProductDP( monsterMove.state.velocity, ingressGroup->ingressPortalInward );
+			// Keep the stored float endpoint strictly outside; projecting to the literal double plane can round inward.
+			const Vector3DP projectedOrigin = storedOrigin - portalInward * ( resolvedDepth - stopDepth );
+			const double storageMargin = Nav_ReservationStorageMargin( projectedOrigin, portalInward );
+			monsterMove.state.origin = projectedOrigin - portalInward * storageMargin;
+			const double resolvedInwardSpeed = QM_Vector3DotProductDP( monsterMove.state.velocity, portalInward );
 			if ( resolvedInwardSpeed > 0.0 ) {
 				monsterMove.state.velocity = monsterMove.state.velocity -
-					( ingressGroup->ingressPortalInward * resolvedInwardSpeed );
+					( portalInward * resolvedInwardSpeed );
 			}
 		}
+	};
+	// Preserve admission reservation after physical sliding can rotate the validated command.
+	if ( ingressGroup != nullptr && ingressGroup->hasSerializedIngress && !crowd.ingressReleased ) {
+		enforceAperture( ingressGroup->ingressPortalOrigin, ingressGroup->ingressPortalInward,
+			-ingressGroup->ingressReleaseDepth, ingressGroup->ingressPortalHalfWidth + ingressGroup->ingressReleaseDepth );
+	}
+	// Retain the cleared origin lifetime's outward half-space while its remaining departure queue is active.
+	if ( ingressGroup != nullptr && SVG_Crowd_HasClearedEgress( this ) ) {
+		const double radius = std::max( { std::fabs( mins.x ), std::fabs( maxs.x ), std::fabs( mins.y ), std::fabs( maxs.y ) } );
+		enforceAperture( ingressGroup->egressPortalOrigin, ingressGroup->egressPortalOutward * -1.0,
+			-SVG_Crowd_GetEgressClearanceDepth( this ), ingressGroup->egressPortalHalfWidth + radius );
 	}
 
 	velocity = QM_Vector3FromDP( monsterMove.state.velocity );
@@ -151,6 +221,11 @@ const bool svg_monster_base_t::GenericThinkFinish( const bool processSlideMove, 
 	liquidInfo = monsterMove.liquid;
 	SVG_Util_SetEntityOrigin( this, monsterMove.state.origin, true );
 	gi.linkentity( this );
+	// Realized arrival commits its final event before the crowd manager can stop the thinker next frame.
+	SVG_Nav_CheckFinalArrival();
+	// Sampling is disabled unless an explicit bounded capture selects this slot/incarnation.
+	Nav_Corner_AuditMovement( *this, captureStart, captureCommand );
+	Nav_Corner_RecordMovement( *this, captureStart, captureCommand, blockedMask );
 
 	if ( blockedMask & MM_SLIDEMOVEFLAG_TRAPPED ) {
 		return false;
@@ -162,8 +237,16 @@ const bool svg_monster_base_t::GenericThinkFinish( const bool processSlideMove, 
 /**
 *	@brief	Performs SlideMove processing and updates the final origin if successful.
 *	@return	The blockedMask result from the slide move.
+*	@note	Measures actual supported/ordinary collision execution separately from steering previews.
 **/
 const int32_t svg_monster_base_t::ProcessSlideMove() {
+	/**
+	*	Measure authoritative execution separately from graph work and command selection.
+	**/
+	nav_perf_scope_t movementScope( NAV_PERF_PHASE_ACTOR_MOVEMENT );
+	/**
+	*	Synchronize the exact native inputs before either supported navigation or general physics.
+	**/
 	monsterMove.monster = this;
 	monsterMove.frameTime = FRAME_TIME_S.Seconds();
 	monsterMove.state.origin = currentOrigin;
@@ -174,17 +257,63 @@ const int32_t svg_monster_base_t::ProcessSlideMove() {
 	monsterMove.liquid = liquidInfo;
 
 	/**
-	*	Clone the cached nav policy so queueing can temporarily disable entity deflection
-	*	without mutating the persistent A* policy used by future path queries.
+	*	Keep temporary entity-deflection policy local to this update.
 	**/
 	nav_path_policy_t slidePolicy = pathNavigationState.policy;
 	slidePolicy.allow_entity_deflection = !suppressEntityDeflectionThisFrame;
 	monsterMove.navPolicy = &slidePolicy;
+	int32_t blockedMask = MM_SLIDEMOVEFLAG_NONE;
 
-	const int32_t blockedMask = SVG_MMove_StepSlideMove( &monsterMove, slidePolicy );
+	/**
+	*	A validated grounded navigation command must use the same complete native step contract
+	*	during execution. General slide selection could choose a clipped or nudged floor trial
+	*	with different XY progress despite a successful preview. Airborne/swimming/ladder and
+	*	unvalidated commands retain their existing general physical integration.
+	**/
+	const bool executeSupportedNavigation = groundInfo.entityNumber == 0 && velocity.z == 0.0f &&
+		!( monsterMove.state.mm_flags & MMF_ON_LADDER ) && liquidInfo.level < cm_liquid_level_t::LIQUID_WAIST &&
+		navigationSteering.candidate_count > 0 && lastMovementValidation.reason == svg_nav_movement_reason_t::clear &&
+		QM_Vector3Distance2DSqrDP( Vector3DP( velocity ), navigationSteering.final_velocity ) < 1e-8;
+	if ( executeSupportedNavigation ) {
+		// Reset actual-trial evidence before the authoritative sweeps; previews are never counted as clips.
+		monsterMove.groundDiagnostics = {};
+		monsterMove.elevatedDiagnostics = {};
+		monsterMove.acceptedDiagnostics = {};
+		monsterMove.state.previousOrigin = monsterMove.state.origin;
+		monsterMove.state.previousVelocity = monsterMove.state.velocity;
+		const Vector3DP feet = SVG_GetEntityFeetOriginDP( this );
+		const Vector3DP commandedFeet = feet + Vector3DP( velocity ) * monsterMove.frameTime;
+		ground_info_t landing = groundInfo;
+		// Execute fresh actor-inclusive native sweeps, preserving contact effects and actual landing metadata.
+		lastMovementValidation = SVG_Nav_TestMovementHull( feet, commandedFeet, mins, maxs,
+			SVG_MMove_GetNativeShape( this ), slidePolicy, this, SVG_GetClipMask( this ), false, false,
+			&monsterMove.touchTraces, &landing );
+		navigationValidationTraceCount += lastMovementValidation.trace_count;
+		if ( lastMovementValidation.reason == svg_nav_movement_reason_t::clear ) {
+			// Commit only the fully swept supported endpoint; no slide, recovery displacement or radius reduction.
+			monsterMove.state.origin = lastMovementValidation.bbox_endpoint;
+			monsterMove.state.velocity.z = 0.0;
+			monsterMove.ground = landing;
+			const double rise = monsterMove.state.origin.z - monsterMove.state.previousOrigin.z;
+			monsterMove.step.height = std::fabs( rise ) >= slidePolicy.min_step_height ? rise : 0.0;
+			blockedMask = MM_SLIDEMOVEFLAG_MOVED;
+		} else {
+			// An execution-time obstruction holds at the original position and requests normal debounced replanning.
+			monsterMove.state.velocity = Vector3DP{};
+			navigationCommandRejected = true;
+			blockedMask = MM_SLIDEMOVEFLAG_BLOCKED;
+		}
+	} else {
+		// Preserve ordinary airborne, liquid, ladder and non-navigation slide movement behavior.
+		blockedMask = SVG_MMove_StepSlideMove( &monsterMove, slidePolicy );
+	}
+
+	/**
+	*	Restore persistent ownership and update blocked-route recovery from the actual execution outcome.
+	**/
 	monsterMove.navPolicy = &pathNavigationState.policy;
 	suppressEntityDeflectionThisFrame = false;
-	UpdateBlockedNavigationRecovery( blockedMask);
+	UpdateBlockedNavigationRecovery( blockedMask );
 	return blockedMask;
 }
 
@@ -257,9 +386,24 @@ const bool svg_monster_base_t::GuardForNullNavMesh() {
 *	@brief	Reset cached navigation path state.
 **/
 void svg_monster_base_t::ResetNavigationPath() {
+	// Explicit cancellation invalidates outstanding behavior requests before clearing geometry.
+	Nav_CancelQueryWorkerEntityMainThread( s.number );
+	SVG_Nav_SetQueryTerminalState( NavigationQueryState::Cancelled );
+	navigationRequestSequence = 0;
+	navigationStateRevision = Nav_IssueIdentityRevisionMainThread();
 	navPath.clear();
 	stringPulledPath.clear();
-	stringPulledWaypointForced.clear();
+	navigationWaypoints.clear();
+	navigationRouteRevision = Nav_IssueIdentityRevisionMainThread();
+	waypointFacesMeshGeneration = 0;
+	waypointTopologyRevision = 0;
+	finalWaypointEventFired = false;
+	navigationCommandRejected = false;
+	lastMovementValidation = {};
+	lastGeometricValidation = {};
+	navigationValidationTraceCount = 0;
+	currentStandingFace = -1;
+	lastStandingFaceResolveTime = -1_ms;
 	pathPos = 0;
 	stringPathPos = 0;
 }
@@ -279,13 +423,342 @@ const bool svg_monster_base_t::ShouldRecalcPath( const Vector3 &pos ) {
 }
 
 /**
+*	@brief	Resolve current standing polygon face with local polygon and topological cache before KD-leaf lookup.
+*	@param	myFeetDP	Agent feet-origin position in Vector3DP.
+*	@return	Resolved face index or -1 if no face found.
+**/
+int32_t svg_monster_base_t::ResolveCurrentFace( const Vector3DP &myFeetDP ) {
+	/**
+	*	Sanity check: ensure nav faces exist in world.
+	**/
+	if ( g_nav_faces.empty() ) {
+		currentStandingFace = -1;
+		return -1;
+	}
+
+	/**
+	*	Fast frame deduplication: if already resolved this server frame, verify containment and return.
+	**/
+	if ( lastStandingFaceResolveTime == level.time && currentStandingFace >= 0 && static_cast<size_t>( currentStandingFace ) < g_nav_faces.size() ) {
+		const nav_face_t &face = g_nav_faces[ currentStandingFace ];
+		if ( Nav_PointInsideFace2D( myFeetDP, face ) ) {
+			const double zDelta = std::fabs( myFeetDP.z - face.center.z );
+			if ( zDelta <= static_cast<double>( NAV_MAX_STEP_HEIGHT ) * 2.0 ) {
+				return currentStandingFace;
+			}
+		}
+	}
+
+	/**
+	*	Check previously known standing face and its immediate topological neighbors.
+	**/
+	if ( currentStandingFace >= 0 && static_cast<size_t>( currentStandingFace ) < g_nav_faces.size() ) {
+		const nav_face_t &face = g_nav_faces[ currentStandingFace ];
+		if ( Nav_PointInsideFace2D( myFeetDP, face ) ) {
+			const double zDelta = std::fabs( myFeetDP.z - face.center.z );
+			if ( zDelta <= static_cast<double>( NAV_MAX_STEP_HEIGHT ) * 2.0 ) {
+				lastStandingFaceResolveTime = level.time;
+				return currentStandingFace;
+			}
+		}
+
+		for ( int32_t e = 0; e < face.num_edges; ++e ) {
+			const nav_halfedge_t &he = g_nav_halfedges[ face.first_edge_idx + e ];
+			if ( he.twin_idx != -1 ) {
+				const int32_t nbrIdx = g_nav_halfedges[ he.twin_idx ].face_idx;
+				if ( nbrIdx >= 0 && static_cast<size_t>( nbrIdx ) < g_nav_faces.size() ) {
+					const nav_face_t &nbrFace = g_nav_faces[ nbrIdx ];
+					if ( Nav_PointInsideFace2D( myFeetDP, nbrFace ) ) {
+						const double zDelta = std::fabs( myFeetDP.z - nbrFace.center.z );
+						if ( zDelta <= static_cast<double>( NAV_MAX_STEP_HEIGHT ) * 2.0 ) {
+							currentStandingFace = nbrIdx;
+							lastStandingFaceResolveTime = level.time;
+							return currentStandingFace;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	/**
+	*	Check active path face and immediate topological neighbors.
+	**/
+	if ( !navPath.empty() && pathPos < navPath.size() ) {
+		const int32_t pathFaceIdx = navPath[ pathPos ];
+		if ( pathFaceIdx >= 0 && static_cast<size_t>( pathFaceIdx ) < g_nav_faces.size() ) {
+			const nav_face_t &pathFace = g_nav_faces[ pathFaceIdx ];
+			if ( Nav_PointInsideFace2D( myFeetDP, pathFace ) ) {
+				const double zDelta = std::fabs( myFeetDP.z - pathFace.center.z );
+				if ( zDelta <= static_cast<double>( NAV_MAX_STEP_HEIGHT ) * 2.0 ) {
+					currentStandingFace = pathFaceIdx;
+					lastStandingFaceResolveTime = level.time;
+					return currentStandingFace;
+				}
+			}
+
+			for ( int32_t e = 0; e < pathFace.num_edges; ++e ) {
+				const nav_halfedge_t &he = g_nav_halfedges[ pathFace.first_edge_idx + e ];
+				if ( he.twin_idx != -1 ) {
+					const int32_t nbrIdx = g_nav_halfedges[ he.twin_idx ].face_idx;
+					if ( nbrIdx >= 0 && static_cast<size_t>( nbrIdx ) < g_nav_faces.size() ) {
+						const nav_face_t &nbrFace = g_nav_faces[ nbrIdx ];
+						if ( Nav_PointInsideFace2D( myFeetDP, nbrFace ) ) {
+							const double zDelta = std::fabs( myFeetDP.z - nbrFace.center.z );
+							if ( zDelta <= static_cast<double>( NAV_MAX_STEP_HEIGHT ) * 2.0 ) {
+								currentStandingFace = nbrIdx;
+								lastStandingFaceResolveTime = level.time;
+								return currentStandingFace;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	/**
+	*	Fallback to KD-leaf spatial lookup.
+	**/
+	currentStandingFace = Nav_FindClosestFaceInLeaf( myFeetDP );
+	lastStandingFaceResolveTime = level.time;
+	return currentStandingFace;
+}
+
+/**
 *	@brief	Find the current KD-Tree polygon the entity is standing on.
 *	@return	Face index or -1.
 **/
 const int32_t svg_monster_base_t::FindCurrentPoly() {
 	Vector3 myFeet = currentOrigin;
 	myFeet.z += this->mins.z;
-	return Nav_FindClosestFaceInLeaf( myFeet );
+	return ResolveCurrentFace( Vector3DP( myFeet ) );
+}
+
+/**
+*	@brief	Copy every owner revision needed to reject superseded actor route results.
+*	@return	Scalar identity with no pointer to the live actor or crowd assignment.
+**/
+nav_query_identity_t svg_monster_base_t::SVG_Nav_CaptureIdentity() {
+	// Issuing first permits controlled epoch rollover before the remaining scalar capture.
+	nav_query_identity_t identity;
+	identity.sequence = Nav_IssueIdentityRevisionMainThread();
+	navigationRequestSequence = identity.sequence;
+	identity.entity = s.number;
+	identity.incarnation = navigationIncarnation;
+	identity.goal = navigationGoalRevision;
+	identity.state = navigationStateRevision;
+	identity.crowd = crowd.navigationRevision;
+	identity.epoch = Nav_IdentityEpochMainThread();
+	identity.generation = g_nav_mesh_generation;
+	identity.topology = g_nav_topology_revision;
+	return identity;
+}
+
+/**
+*	@brief	Check copied reply ownership against the actor and current navigation publication.
+*	@return	True only for a live actor with every submission revision still current.
+**/
+bool svg_monster_base_t::SVG_Nav_IsIdentityCurrent( const nav_query_identity_t &identity ) const {
+	// Native commit never accepts a dead actor, reused slot or superseded order.
+	nav_query_identity_t current;
+	current.entity = s.number;
+	current.incarnation = navigationIncarnation;
+	current.goal = navigationGoalRevision;
+	current.state = navigationStateRevision;
+	current.crowd = crowd.navigationRevision;
+	current.epoch = Nav_IdentityEpochMainThread();
+	current.generation = g_nav_mesh_generation;
+	current.topology = g_nav_topology_revision;
+	return inUse && lifeStatus == entity_lifestatus_t::LIFESTATUS_ALIVE && Nav_ActorIdentityMatches( current, identity, false );
+}
+
+/**
+*	@brief	Retain safe installed geometry during a goal-only pending replacement.
+*	@return	True only for unchanged actor/order/publication and physical traversal limits.
+*	@note	Final arrival and gameplay callbacks still require the exact current goal revision.
+**/
+bool svg_monster_base_t::SVG_Nav_IsCommittedRouteUsable() const {
+	/**
+	*	Relax only the goal identity while pending; every other ownership field remains mandatory.
+	**/
+	auto identity = navigationAcceptedIdentity;
+	// A goal-only replan/backoff may retain safe geometry; order/state changes still fail closed.
+	if ( Nav_IsActorQueryWorkerEnabledMainThread() && !stringPulledPath.empty() ) {
+		identity.goal = navigationGoalRevision;
+	}
+	auto current = pathNavigationState.policy;
+	current.agent_radius = current.agent_radius > 0.0f ? current.agent_radius : maxs.x;
+	current.agent_mins = mins;
+	current.agent_maxs = maxs;
+	current.trace_shape = static_cast<int32_t>( SVG_MMove_GetNativeShape( this ) );
+	return SVG_Nav_IsIdentityCurrent( identity ) && Nav_ActorNativePolicyMatches( navigationCommittedPolicy, current );
+}
+
+/**
+*	@brief	Set a terminal actor request state and count the latest worker disposition once.
+*	@param	state	NoRoute, Stale, Cancelled or ResourceLimited terminal state.
+*	@param	cause	Owner-observed rejection site for accounting; retries and native validation remain unchanged.
+*	@note	Accepted commits also close their accounting identity before gameplay callbacks run.
+**/
+void svg_monster_base_t::SVG_Nav_SetQueryTerminalState( const NavigationQueryState state,
+	const nav_actor_terminal_cause_t cause ) {
+	/**
+	*	Reject nonterminal states before changing either lifecycle or performance accounting.
+	**/
+	const bool terminal = state == NavigationQueryState::NoRoute || state == NavigationQueryState::Stale ||
+		state == NavigationQueryState::Cancelled || state == NavigationQueryState::ResourceLimited;
+	Q_assert( terminal );
+	// An invalid internal caller must not label a live request with an unsupported terminal disposition.
+	if ( !terminal ) {
+		return;
+	}
+	navigationQueryState = state;
+	/**
+	*	Only an actual latest worker submission that has not completed contributes a terminal sample.
+	**/
+	if ( navigationTimingSequence == 0 || navigationTimingSequence != navigationRequestSequence ||
+		 navigationTerminalCountedSequence == navigationTimingSequence ) {
+		return;
+	}
+	nav_perf_worker_terminal_t disposition = nav_perf_worker_terminal_t::NoRoute;
+	// Map the actor-facing lifecycle explicitly rather than relying on unrelated enum ordinal values.
+	switch ( state ) {
+	case NavigationQueryState::NoRoute:
+		disposition = nav_perf_worker_terminal_t::NoRoute;
+		break;
+	case NavigationQueryState::Stale: {
+		/**
+		*	Separate legitimate goal supersession without permitting any ownership or policy mismatch.
+		**/
+		nav_query_identity_t current;
+		current.entity = s.number;
+		current.incarnation = navigationIncarnation;
+		current.sequence = navigationRequestSequence;
+		current.goal = navigationGoalRevision;
+		current.state = navigationStateRevision;
+		current.crowd = crowd.navigationRevision;
+		current.epoch = Nav_IdentityEpochMainThread();
+		current.generation = g_nav_mesh_generation;
+		current.topology = g_nav_topology_revision;
+		auto policy = pathNavigationState.policy;
+		policy.agent_radius = policy.agent_radius > 0.0f ? policy.agent_radius : maxs.x;
+		policy.agent_mins = mins;
+		policy.agent_maxs = maxs;
+		policy.trace_shape = static_cast<int32_t>( SVG_MMove_GetNativeShape( this ) );
+		nav_query_cost_policy_t cost;
+		const auto &request = navigationGraphWorkspace.request;
+		const bool liveContract = Nav_ActorMayNavigate( inUse, health, static_cast<int32_t>( lifeStatus ),
+			static_cast<int32_t>( entity_lifestatus_t::LIFESTATUS_ALIVE ) ) && navigationTimingEpoch == current.epoch &&
+			BuildNavigationCostSnapshot( cost );
+		const bool goalOnly = liveContract &&
+			Nav_ActorGoalOnlySuperseded( current, request.identity, policy, navigationPendingPolicy, cost, request.cost );
+		// Only the explicit failed attachment site with a completely current contract gets its own recovery counter.
+		const bool detached = liveContract && cause == nav_actor_terminal_cause_t::CorridorDetached &&
+			Nav_ActorPhysicalRequestMatches( current, request.identity, policy, navigationPendingPolicy, cost, request.cost );
+		disposition = goalOnly ? nav_perf_worker_terminal_t::GoalSuperseded :
+			detached ? nav_perf_worker_terminal_t::CorridorDetached : nav_perf_worker_terminal_t::Stale;
+		break;
+	}
+	case NavigationQueryState::Cancelled:
+		disposition = nav_perf_worker_terminal_t::Cancelled;
+		break;
+	case NavigationQueryState::ResourceLimited:
+		disposition = nav_perf_worker_terminal_t::ResourceLimited;
+		break;
+	default:
+		Q_assert( false );
+		return;
+	}
+	// Mark first so any later reset or obsolete reply cannot count this request a second time.
+	navigationTerminalCountedSequence = navigationTimingSequence;
+	Nav_Perf_CountWorkerTerminal( disposition );
+}
+
+/**
+*	@brief	Finish the latest copied graph reply after transport storage has been released.
+*	@note	All face attachment, collision, callbacks and installation remain on the game owner.
+**/
+void svg_monster_base_t::SVG_Nav_AcceptWorkerResult() {
+	nav_perf_scope_t commitScope( NAV_PERF_PHASE_NAV_COMMIT );
+	auto &graph = navigationGraphWorkspace.result;
+	const auto &request = navigationGraphWorkspace.request;
+	/**
+	*	Check identity and copied physical limits again before native traces; stale replies cannot move actors.
+	**/
+	if ( navigationQueryState != NavigationQueryState::Pending || !SVG_Nav_IsIdentityCurrent( graph.identity ) ||
+		 graph.identity.sequence != navigationRequestSequence || request.identity.sequence != graph.identity.sequence ) {
+		return;
+	}
+	auto policy = pathNavigationState.policy;
+	policy.agent_radius = policy.agent_radius > 0.0f ? policy.agent_radius : maxs.x;
+	policy.agent_mins = mins;
+	policy.agent_maxs = maxs;
+	policy.trace_shape = static_cast<int32_t>( SVG_MMove_GetNativeShape( this ) );
+	// Hull/policy mutation without a behavioral reset still invalidates its pending physical contract.
+	if ( !Nav_ActorNativePolicyMatches( navigationPendingPolicy, policy ) ) {
+		// Attribute this native rejection without relaxing its fail-closed disposition.
+		Nav_ActorBenchmarkRecordRejectionMainThread( 0u );
+		// Attribute this native rejection without relaxing its fail-closed disposition.
+		Nav_ActorBenchmarkRecordRejectionMainThread( 0u );
+		SVG_Nav_SetQueryTerminalState( NavigationQueryState::Stale );
+		return;
+	}
+	// Tactical state changes must also match the copied cost contract before native route construction.
+	nav_query_cost_policy_t currentCost;
+	if ( !BuildNavigationCostSnapshot( currentCost ) || !Nav_ActorCostPolicyMatches( request.cost, currentCost ) ) {
+		// Attribute this native rejection without relaxing its fail-closed disposition.
+		Nav_ActorBenchmarkRecordRejectionMainThread( 1u );
+		SVG_Nav_SetQueryTerminalState( NavigationQueryState::Stale );
+		return;
+	}
+	/**
+	*	Terminal statuses back off instead of being mistaken for arrival or invoking an unlimited owner solve.
+	**/
+	lastPathCalcTime = level.time;
+	if ( graph.status != nav_query_status_t::found ) {
+		SVG_Nav_SetQueryTerminalState( graph.status == nav_query_status_t::resource_limited ? NavigationQueryState::ResourceLimited :
+			graph.status == nav_query_status_t::cancelled ? NavigationQueryState::Cancelled :
+			graph.status == nav_query_status_t::no_route ? NavigationQueryState::NoRoute : NavigationQueryState::Stale );
+		pathNavigationState.lastGoal.isValid = false;
+		return;
+	}
+	/**
+	*	Delayed movement must remain in the solved corridor; native funnel attachment starts at current feet.
+	**/
+	const Vector3DP feet = SVG_GetEntityFeetOriginDP( this );
+	const int32_t face = ResolveCurrentFace( feet );
+	const auto attached = std::find( graph.corridor.begin(), graph.corridor.end(), face );
+	if ( attached == graph.corridor.end() ) {
+		// Attribute this native rejection without relaxing its fail-closed disposition.
+		Nav_ActorBenchmarkRecordRejectionMainThread( 2u );
+		SVG_Nav_SetQueryTerminalState( NavigationQueryState::Stale, nav_actor_terminal_cause_t::CorridorDetached );
+		return;
+	}
+	svg_nav_result_t candidate;
+	candidate.identity = graph.identity;
+	candidate.corridor.assign( attached, graph.corridor.end() );
+	const auto counter = []( const uint64_t value ) { return static_cast<int32_t>( std::min<uint64_t>( value, INT32_MAX ) ); };
+	const auto &counters = graph.diagnostics;
+	auto &diagnostics = candidate.diagnostics;
+	diagnostics.start_face = face;
+	diagnostics.goal_face = request.goal_face;
+	diagnostics.query_valid = true;
+	diagnostics.route_found = true;
+	diagnostics.graph_cost = graph.cost;
+	diagnostics.expanded_faces = counter( counters.expansions );
+	diagnostics.accepted_transitions = counter( counters.accepted );
+	diagnostics.rejected_disabled = counter( counters.disabled );
+	diagnostics.rejected_narrow_portal = counter( counters.narrow );
+	diagnostics.rejected_step_height = counter( counters.rises );
+	diagnostics.rejected_drop_height = counter( counters.drops );
+	const Vector3DP goal{ graph.goal.x, graph.goal.y, graph.goal.z };
+	// Shared completion validates the exact requested goal and current native continuation before commit.
+	const uint64_t submittedSequence = graph.identity.sequence, submittedIncarnation = graph.identity.incarnation;
+	if ( SVG_Nav_InstallCorridor( candidate, feet, goal, navigationPendingTarget, navigationPendingPolicy, navigationPendingReason ) != PathComputeResult::NewPathGenerated &&
+		 navigationQueryState == NavigationQueryState::Pending && navigationRequestSequence == submittedSequence && navigationIncarnation == submittedIncarnation ) {
+		SVG_Nav_SetQueryTerminalState( NavigationQueryState::NoRoute );
+	}
 }
 
 /**
@@ -295,6 +768,23 @@ const int32_t svg_monster_base_t::FindCurrentPoly() {
 *	@return	Path evaluation result state.
 **/
 svg_monster_base_t::PathComputeResult svg_monster_base_t::ComputePathTo( const Vector3 &target, const bool force ) {
+	nav_perf_scope_t orch_scope( NAV_PERF_PHASE_NAV_ORCHESTRATION );
+	/**
+	*	Direct diagnostic or gameplay calls cannot submit new work after death or pool release.
+	**/
+	if ( !Nav_ActorMayNavigate( inUse, health, static_cast<int32_t>( lifeStatus ), static_cast<int32_t>( LIFESTATUS_ALIVE ) ) ) {
+		Nav_CancelQueryWorkerEntityMainThread( s.number );
+		SVG_Nav_SetQueryTerminalState( NavigationQueryState::Cancelled );
+		return PathComputeResult::Failed;
+	}
+	/**
+	*	Reject unsupported XY hulls explicitly; path and physical trace must use the same radius.
+	**/
+	if ( !Nav_IsSupportedNativeHull( mins, maxs ) ) {
+		Nav_Perf_CountRequest( NAV_PERF_REQ_REASON_NEW_GOAL, NAV_PERF_OUTCOME_FAILED_NO_ROUTE );
+		navigationCommandRejected = true;
+		return PathComputeResult::Failed;
+	}
 	const Vector3DP myFeetDP = SVG_GetEntityFeetOriginDP( this );
 
 	Vector3DP targetFeetDP = Vector3DP( target );
@@ -320,33 +810,64 @@ svg_monster_base_t::PathComputeResult svg_monster_base_t::ComputePathTo( const V
 
 	const double effectiveViewHeight = ( this->viewheight > 0.0f ) ? static_cast<double>( this->viewheight ) : PHYS_DEFAULT_VIEWHEIGHT_STANDUP;
 
-	const bool targetMoved = ( QM_Vector3DistanceSqr( target, pathNavigationState.lastGoal.origin ) > ( 48.0f * 48.0f ) );
-	const bool pathEmpty = navPath.empty() || stringPulledPath.empty();
-
-	// 0) Fast O(1) topological face lookup: check if entity remains on its active path face or direct neighbors
-	int32_t startFace = -1;
-	if ( !navPath.empty() && pathPos < navPath.size() ) {
-		const int32_t candIdx = navPath[ pathPos ];
-		if ( candIdx >= 0 && static_cast<size_t>( candIdx ) < g_nav_faces.size() ) {
-			const nav_face_t &candFace = g_nav_faces[ candIdx ];
-			if ( Nav_PointInsideFace2D( myFeetDP, candFace ) ) {
-				startFace = candIdx;
-			} else {
-				for ( int32_t e = 0; e < candFace.num_edges; ++e ) {
-					const nav_halfedge_t &he = g_nav_halfedges[ candFace.first_edge_idx + e ];
-					if ( he.twin_idx != -1 ) {
-						const int32_t nbrIdx = g_nav_halfedges[ he.twin_idx ].face_idx;
-						if ( nbrIdx >= 0 && static_cast<size_t>( nbrIdx ) < g_nav_faces.size() ) {
-							if ( Nav_PointInsideFace2D( myFeetDP, g_nav_faces[ nbrIdx ] ) ) {
-								startFace = nbrIdx;
-								break;
-							}
-						}
-					}
-				}
-			}
-		}
+	// Any actual target change invalidates the old goal identity, even inside the historical debounce radius.
+	const bool targetMoved = !navigationRequestedGoalValid || QM_Vector3DistanceSqrDP( targetFeetDP, navigationRequestedGoal ) > 0.000001;
+	if ( targetMoved ) {
+		navigationRequestedGoal = targetFeetDP;
+		navigationRequestedGoalValid = true;
+		navigationGoalRevision = Nav_IssueIdentityRevisionMainThread();
 	}
+	const bool pathEmpty = navPath.empty() || stringPulledPath.empty();
+	/**
+	*	A matching outstanding request survives force callers without a per-tick resubmission burst.
+	*	Goal-only replacement preserves queued age; other ownership changes cancel immediately.
+	**/
+	if ( navigationQueryState == NavigationQueryState::Pending ) {
+		const bool workerEnabled = Nav_IsActorQueryWorkerEnabledMainThread();
+		const auto &pendingIdentity = navigationGraphWorkspace.request.identity;
+		const bool latestRequest = pendingIdentity.sequence == navigationRequestSequence;
+		// Keep an unchanged request outstanding until delivery rather than repeatedly submitting it.
+		if ( workerEnabled && latestRequest && SVG_Nav_IsIdentityCurrent( pendingIdentity ) ) {
+			return PathComputeResult::Pending;
+		}
+		// Relax only goal for this classification; state, order, actor and publication remain strict.
+		auto replacementIdentity = pendingIdentity;
+		replacementIdentity.goal = navigationGoalRevision;
+		const bool goalOnlyReplacement = workerEnabled && latestRequest && SVG_Nav_IsIdentityCurrent( replacementIdentity );
+		// Submit preserves age when coalescing queued goals and separately cancels running replacements.
+		// Immediate cancellation is reserved for ownership that can no longer authorize a replacement.
+		if ( !goalOnlyReplacement ) {
+			Nav_CancelQueryWorkerEntityMainThread( s.number );
+		}
+		SVG_Nav_SetQueryTerminalState( NavigationQueryState::Stale );
+	}
+
+
+	nav_perf_request_reason_t reqReason = NAV_PERF_REQ_REASON_NEW_GOAL;
+	if ( force ) {
+		reqReason = NAV_PERF_REQ_REASON_FORCE;
+	} else if ( targetMoved ) {
+		reqReason = pathNavigationState.lastGoal.isValid ? NAV_PERF_REQ_REASON_MOVED_GOAL : NAV_PERF_REQ_REASON_NEW_GOAL;
+	} else if ( pathEmpty ) {
+		reqReason = NAV_PERF_REQ_REASON_BLOCKED;
+	}
+
+	const QMTime requiredCooldown = pathEmpty ? MONSTER_NAV_PATH_FAIL_RECALC_INTERVAL : MONSTER_NAV_PATH_RECALC_MIN_INTERVAL;
+	const bool cooldownElapsed = ( ( level.time - lastPathCalcTime ) >= requiredCooldown );
+	const bool queryBackoff = Nav_ActorQueryShouldBackoff( navigationQueryState, cooldownElapsed, force,
+		Nav_IsActorQueryWorkerEnabledMainThread() && navigationRequestSequence != 0 );
+	/**
+	*	Missing/obsolete routes already fail the cooldown gate; avoid spatial work before that decision.
+	*	Current routes retain corridor reuse checks and all forced/worker retry semantics.
+	**/
+	if ( queryBackoff && ( pathEmpty || navigationAcceptedGoalRevision != navigationGoalRevision ||
+		!SVG_Nav_IsIdentityCurrent( navigationAcceptedIdentity ) ) ) {
+		Nav_Perf_CountRequest( reqReason, NAV_PERF_OUTCOME_COOLDOWN_THROTTLED );
+		return PathComputeResult::Failed;
+	}
+
+	// 0) Fast O(1) topological face lookup: resolve agent's current standing face once with local checks before KD-leaf.
+	int32_t startFace = ResolveCurrentFace( myFeetDP );
 	/**
 	*	Resolve the destination face conservatively before any path search.
 	*	Strict containment prevents a staging cell near a seam, doorway, or slope
@@ -354,7 +875,10 @@ svg_monster_base_t::PathComputeResult svg_monster_base_t::ComputePathTo( const V
 	*	idle at spawn.
 	**/
 	int32_t goalFace = -1;
-	if ( !targetMoved && !navPath.empty() ) {
+	// Retained geometry may belong to an earlier goal while replacement is debounced or retried.
+	// Reuse its endpoint face only when that accepted goal and publication still own this target.
+	if ( !targetMoved && !navPath.empty() && navigationAcceptedGoalRevision == navigationGoalRevision &&
+		 waypointFacesMeshGeneration == g_nav_mesh_generation && waypointTopologyRevision == g_nav_topology_revision ) {
 		goalFace = navPath.back();
 	} else {
 		goalFace = Nav_FindFaceInLeafStrict( targetFeetDP );
@@ -390,6 +914,7 @@ svg_monster_base_t::PathComputeResult svg_monster_base_t::ComputePathTo( const V
 	}
 
 	if ( startFace == -1 || goalFace == -1 ) {
+		Nav_Perf_CountRequest( reqReason, NAV_PERF_OUTCOME_FAILED_NO_ROUTE );
 		return PathComputeResult::Failed;
 	}
 
@@ -408,10 +933,19 @@ svg_monster_base_t::PathComputeResult svg_monster_base_t::ComputePathTo( const V
 
 		const double corridorLateralDist = agentRadius * 2.0 + MONSTER_NAV_CORRIDOR_MARGIN;
 		const double corridorLateralDistSqr = corridorLateralDist * corridorLateralDist;
-		const nav_zone_type_t currentZone = Nav_GetZoneTypeForPoint( myFeetDP );
-		const double maxVerticalTolerance = ( currentZone == ZONE_TYPE_CORRIDOR_STAIRS )
-			? ( static_cast<double>( NAV_MAX_STEP_HEIGHT ) * 1.5 + MONSTER_NAV_VERTICAL_STEP_TOLERANCE )
-			: ( static_cast<double>( NAV_MAX_STEP_HEIGHT ) + MONSTER_NAV_VERTICAL_STEP_TOLERANCE );
+		/**
+		*	Resolve stair classification only when its larger tolerance could affect proximity.
+		*	Incoming/waypoint checks share wpCurr; outgoing checks also use the next waypoint.
+		**/
+		double maxVerticalTolerance = static_cast<double>( NAV_MAX_STEP_HEIGHT ) + MONSTER_NAV_VERTICAL_STEP_TOLERANCE;
+		const bool waypointNeedsStairTolerance = std::fabs( myFeetDP.z - wpCurr.z ) > maxVerticalTolerance;
+		const bool nextNeedsStairTolerance = k + 1 < stringPulledPath.size() &&
+			std::fabs( myFeetDP.z - stringPulledPath[ k + 1 ].z ) > maxVerticalTolerance;
+		// Near-height routes pass the same vertical check in every zone without another face search.
+		if ( ( waypointNeedsStairTolerance || nextNeedsStairTolerance ) &&
+			Nav_GetZoneTypeForPoint( myFeetDP ) == ZONE_TYPE_CORRIDOR_STAIRS ) {
+			maxVerticalTolerance = static_cast<double>( NAV_MAX_STEP_HEIGHT ) * 1.5 + MONSTER_NAV_VERTICAL_STEP_TOLERANCE;
+		}
 
 		// Distance to active waypoint W_k:
 		const double dxWp = myFeetDP.x - wpCurr.x;
@@ -509,71 +1043,452 @@ svg_monster_base_t::PathComputeResult svg_monster_base_t::ComputePathTo( const V
 	*	If the destination has not moved, and the agent is still physically on its active path corridor,
 	*	reuse the cached path corridor indefinitely! Only recalculate if off-path, target moved, or path is empty.
 	**/
-	if ( !force && !targetMoved && stillOnPath && !pathEmpty ) {
+	// Reuse only a route whose geometry and final command remain valid at the current revisions.
+	if ( !force && !targetMoved && stillOnPath && !pathEmpty && !navigationCommandRejected && SVG_Nav_IsIdentityCurrent( navigationAcceptedIdentity ) &&
+		 waypointFacesMeshGeneration == g_nav_mesh_generation && waypointTopologyRevision == g_nav_topology_revision ) {
+		Nav_Perf_CountRequest( reqReason, NAV_PERF_OUTCOME_REUSED_CACHED );
 		return PathComputeResult::ReusedCached;
 	}
 
-	const QMTime requiredCooldown = pathEmpty ? MONSTER_NAV_PATH_FAIL_RECALC_INTERVAL : MONSTER_NAV_PATH_RECALC_MIN_INTERVAL;
-	const bool cooldownElapsed = ( ( level.time - lastPathCalcTime ) >= requiredCooldown );
 
 	// When a recalculation is actually required, enforce minimum cooldown interval to prevent high-frequency A* thrashing:
-	if ( !force && !targetMoved && !cooldownElapsed ) {
-		return pathEmpty ? PathComputeResult::Failed : PathComputeResult::ReusedCached;
+	if ( queryBackoff ) {
+		Nav_Perf_CountRequest( reqReason, NAV_PERF_OUTCOME_COOLDOWN_THROTTLED );
+		return pathEmpty || !SVG_Nav_IsIdentityCurrent( navigationAcceptedIdentity ) || navigationAcceptedGoalRevision != navigationGoalRevision ? PathComputeResult::Failed : PathComputeResult::ReusedCached;
 	}
 
-	navPath.clear();
-	stringPulledPath.clear();
-	stringPulledWaypointForced.clear();
-	pathPos = 0;
-	stringPathPos = 0;
+	/**
+	*	Snapshot corridor membership into indexed marks for O(1) hysteresis discount in OnNavEvaluateEdgeCost.
+	*	We keep the existing navPath intact so the discount can reference the committed corridor.
+	**/
+	if ( !navPath.empty() ) {
+		if ( corridorMembershipMarks.size() < g_nav_faces.size() ) {
+			corridorMembershipMarks.resize( g_nav_faces.size(), 0 );
+		}
+		corridorMembershipStamp++;
+		if ( corridorMembershipStamp == 0 ) {
+			std::fill( corridorMembershipMarks.begin(), corridorMembershipMarks.end(), 0 );
+			corridorMembershipStamp = 1;
+		}
+		for ( size_t i = pathPos; i < navPath.size(); ++i ) {
+			const int32_t faceIdx = navPath[ i ];
+			if ( faceIdx >= 0 && static_cast<size_t>( faceIdx ) < corridorMembershipMarks.size() ) {
+				corridorMembershipMarks[ faceIdx ] = corridorMembershipStamp;
+			}
+		}
+	} else {
+		corridorMembershipStamp++;
+		if ( corridorMembershipStamp == 0 ) {
+			std::fill( corridorMembershipMarks.begin(), corridorMembershipMarks.end(), 0 );
+			corridorMembershipStamp = 1;
+		}
+	}
 
 	nav_path_policy_t pathPolicy = pathNavigationState.policy;
 	if ( pathPolicy.agent_radius <= 0.0 ) {
 		pathPolicy.agent_radius = static_cast<float>( agentRadius );
 	}
+	// Graph and native continuation use the actor's actual hull and analytical primitive.
+	pathPolicy.agent_mins = mins;
+	pathPolicy.agent_maxs = maxs;
+	pathPolicy.trace_shape = static_cast<int32_t>( SVG_MMove_GetNativeShape( this ) );
 	pathPolicy.edge_cost_callback = &svg_monster_base_t::NavEdgeCostCallbackBridge;
 	pathPolicy.edge_cost_monster = this;
 
-	bool pathFound = Nav_FindPath( startFace, goalFace, navPath, pathPolicy );
+	// Explicit causal modes preserve identical accepted geometry instead of changing the route during observation.
+	if ( navigationFixtureMode >= 2 && navigationFixtureMode <= 4 && !stringPulledPath.empty() ) {
+		return navigationAcceptedGoalRevision == navigationGoalRevision &&
+			waypointFacesMeshGeneration == g_nav_mesh_generation && waypointTopologyRevision == g_nav_topology_revision ?
+			PathComputeResult::ReusedCached : PathComputeResult::Failed;
+	}
+	// Build replacement route into candidate buffers without clearing committed route.
+	svg_nav_result_t candidate;
+	// Capture every actor/order revision before graph preparation, with no live pointer in the reply.
+	candidate.identity = SVG_Nav_CaptureIdentity();
+	auto &graphWorkspace = navigationGraphWorkspace;
+	auto &candidateNavPath = candidate.corridor;
+	// Snapshot supported virtual policies; unknown subclasses retain the explicit synchronous callback path.
+	nav_query_cost_policy_t snapshotCost;
+	const bool hasSnapshotCost = BuildNavigationCostSnapshot( snapshotCost );
+	/**
+	*	Supported policies enqueue copied graph work; saturation never falls back to a synchronous solve.
+	**/
+	if ( hasSnapshotCost && Nav_IsActorQueryWorkerEnabledMainThread() ) {
+		navigationPendingPolicy = pathPolicy;
+		navigationPendingTarget = target;
+		navigationPendingReason = static_cast<int32_t>( reqReason );
+		lastPathCalcTime = level.time;
+		// Admission priority belongs to the actor's actual serialized order, not default release flags.
+		const auto *queryGroup = crowd.crowdID >= 0 ? SVG_Crowd_GetGroup( crowd.crowdID ) : nullptr;
+		const uint32_t priority = Nav_ActorQueryPriority( queryGroup != nullptr,
+			queryGroup != nullptr && queryGroup->hasSerializedIngress, crowd.ingressReleased,
+			queryGroup != nullptr && queryGroup->hasSerializedEgress, crowd.egressReleased );
+		// Sample the latest actual submission attempt; queued coalescing may preserve an older fairness age.
+		navigationTimingSequence = candidate.identity.sequence;
+		navigationTimingEpoch = candidate.identity.epoch;
+		// A new actual attempt owns fresh accounting even when epoch rollover repeats a prior sequence.
+		navigationTerminalCountedSequence = 0;
+		navigationGraphStartNs = navigationGraphFinishNs = 0;
+		navigationSubmittedNs = SVG_Nav_SteadyTimeNs();
+		navigationSubmittedTick = static_cast<uint64_t>( level.frameNumber );
+		if ( Nav_SubmitActorQueryMainThread( graphWorkspace.request, startFace, goalFace, pathPolicy, snapshotCost,
+			corridorMembershipMarks, corridorMembershipStamp, myFeetDP, targetFeetDP, candidate.identity, priority, crowd.crowdID, &navigationEarliestDeliveryTick ) ) {
+			navigationQueryState = NavigationQueryState::Pending;
+			return PathComputeResult::Pending;
+		}
+		SVG_Nav_SetQueryTerminalState( NavigationQueryState::ResourceLimited );
+		return PathComputeResult::Failed;
+	}
+
+	const auto findCorridor = [&]( const int32_t fromFace ) {
+		if ( hasSnapshotCost ) {
+			return Nav_FindPathSnapshotCostsMainThread( fromFace, goalFace, candidateNavPath, pathPolicy,
+				snapshotCost, corridorMembershipMarks, corridorMembershipStamp, &myFeetDP, &targetFeetDP, &graphWorkspace, &candidate );
+		}
+		// Explicit live-policy fallback copies its terminal graph diagnostics before any unrelated query.
+		const bool found = Nav_FindPath( fromFace, goalFace, candidateNavPath, pathPolicy );
+		candidate.diagnostics = Nav_CopyLastPathDiagnosticsMainThread();
+		return found;
+	};
+	bool pathFound = findCorridor( startFace );
 	if ( !pathFound ) {
 		const int32_t altStartFace = Nav_FindReachableFaceInLeaf( myFeetDP, goalFace, agentRadius );
 		if ( altStartFace != -1 && altStartFace != startFace ) {
 			startFace = altStartFace;
-			pathFound = Nav_FindPath( startFace, goalFace, navPath, pathPolicy );
+			pathFound = findCorridor( startFace );
 		}
 	}
 
-	if ( pathFound ) {
-		pathNavigationState.lastGoal.origin = target;
-		pathNavigationState.lastGoal.isValid = true;
-		lastPathCalcTime = level.time;
+	// Both execution modes finish through the identical native validation and installation phase.
+	return SVG_Nav_InstallCorridor( candidate, myFeetDP, targetFeetDP, target, pathPolicy, static_cast<int32_t>( reqReason ) );
+}
 
-		Nav_StringPull( navPath, myFeetDP, targetFeetDP, agentRadius, stringPulledPath, &stringPulledWaypointForced, this->mins, this->maxs, static_cast<int32_t>( SVG_MMove_GetNativeShape( this ) ) );
+/**
+*	@brief	Validate and install an owned graph corridor through the shared native owner phase.
+*	@param	candidate	Pointer-free graph reply; transport storage must already be released.
+*	@return	NewPathGenerated only after current identity and complete native route proof.
+*	@note	Current feet are used for attachment; the exact requested goal is preserved.
+**/
+svg_monster_base_t::PathComputeResult svg_monster_base_t::SVG_Nav_InstallCorridor( svg_nav_result_t &candidate,
+	const Vector3DP &myFeetDP, const Vector3DP &targetFeetDP, const Vector3 &target,
+	const nav_path_policy_t &pathPolicy, const int32_t reason ) {
+	const double agentRadius = pathPolicy.agent_radius;
+	const double agentRadiusSqr = agentRadius * agentRadius;
+	auto &candidateNavPath = candidate.corridor;
+	/**
+	*	Reject obsolete ownership before native collision work or callbacks.
+	**/
+	if ( !SVG_Nav_IsIdentityCurrent( candidate.identity ) || candidate.identity.sequence != navigationRequestSequence ) {
+		return PathComputeResult::Failed;
+	}
+	if ( !candidateNavPath.empty() ) {
+		auto &candidateWaypoints = candidate.waypoints;
+		auto &candidateWaypointForced = candidate.forced;
+		auto &candidateWaypointRecords = candidate.records;
+		const bool funnelOk = Nav_StringPull( candidateNavPath, myFeetDP, targetFeetDP, agentRadius, candidateWaypoints, &candidateWaypointForced, this->mins, this->maxs, static_cast<int32_t>( SVG_MMove_GetNativeShape( this ) ), &candidateWaypointRecords, &pathPolicy, &candidate.validation, this, &candidate.diagnostics, &navigationRouteContext );
 
-		if ( stringPulledPath.size() >= 3 ) {
-			const double dx01 = myFeetDP.x - stringPulledPath[ 1 ].x;
-			const double dy01 = myFeetDP.y - stringPulledPath[ 1 ].y;
-			const double dist01Sqr = ( dx01 * dx01 ) + ( dy01 * dy01 );
-			// If W_1 is already within the entity's physical capsule footprint (agentRadius),
-			// immediately advance to W_2 so the agent continues forward momentum without turning to chase its feet:
-			if ( dist01Sqr <= agentRadiusSqr ) {
-				stringPathPos = 2;
-			} else {
-				stringPathPos = 1;
+		// Issue before the final identity gate so namespace rollover cannot invalidate an already installed reply.
+		const uint64_t candidateRouteRevision = funnelOk ? Nav_IssueIdentityRevisionMainThread() : 0;
+		if ( funnelOk && !candidateWaypoints.empty() && SVG_Nav_IsIdentityCurrent( candidate.identity ) &&
+			 candidate.identity.sequence == navigationRequestSequence ) {
+			// Commit diagnostics and geometry together only after complete native validation.
+			lastRouteValidation = candidate.validation;
+			navigationDiagnostics = candidate.diagnostics;
+			navigationAcceptedIdentity = candidate.identity;
+			navigationCommittedPolicy = pathPolicy;
+			navigationQueryState = NavigationQueryState::Ready;
+			navPath = std::move( candidateNavPath );
+			stringPulledPath = std::move( candidateWaypoints );
+			navigationWaypoints = std::move( candidateWaypointRecords );
+			navigationRouteRevision = candidateRouteRevision;
+			navigationAcceptedGoalRevision = navigationGoalRevision;
+			waypointFacesMeshGeneration = g_nav_mesh_generation;
+			waypointTopologyRevision = g_nav_topology_revision;
+			finalWaypointEventFired = false;
+			navigationCommandRejected = false;
+			pathPos = 0;
+
+			pathNavigationState.lastGoal.origin = target;
+			pathNavigationState.lastGoal.isValid = true;
+			lastPathCalcTime = level.time;
+			// Count real native installations in either mode before reentrant waypoint callbacks.
+			Nav_ActorBenchmarkRecordCommitMainThread( this );
+
+			/**
+			*	Record successful owner geometry installation before any waypoint callback can reset timing state.
+			**/
+			if ( navigationTimingSequence == candidate.identity.sequence && navigationTimingEpoch == candidate.identity.epoch &&
+				 navigationTerminalCountedSequence != navigationTimingSequence ) {
+				const uint64_t completedNs = SVG_Nav_SteadyTimeNs();
+				// Close this request before callbacks or later route cancellation can add a terminal failure.
+				navigationTerminalCountedSequence = navigationTimingSequence;
+				Nav_Perf_RecordWorkerCommit( navigationSubmittedNs, navigationGraphStartNs, navigationGraphFinishNs, completedNs );
 			}
-		} else if ( stringPulledPath.size() >= 2 ) {
-			stringPathPos = 1;
-		} else {
-			stringPathPos = 0;
+
+			/**
+			*	Choose W1 first; proximity proposes the same full-hull release used at runtime.
+			**/
+			stringPathPos = stringPulledPath.size() >= 2 ? 1 : 0;
+			// A nearby W1 may be released only if its outgoing continuation is safe.
+			if ( stringPulledPath.size() >= 3 &&
+				 SVG_Nav_CanAdvanceWaypoint( 1, QM_Vector3Distance2DSqrDP( myFeetDP, stringPulledPath[ 1 ] ) <= agentRadiusSqr ) ) {
+				stringPathPos = 2;
+				const uint64_t committedRevision = navigationRouteRevision;
+				SVG_Nav_FireWaypoint( 1 );
+				// A callback may cancel or replace the just-installed route; do not authorize stale steering afterward.
+				if ( navigationRouteRevision != committedRevision || stringPulledPath.empty() ) {
+					return PathComputeResult::Failed;
+				}
+			}
+			Nav_Perf_CountRequest( static_cast<nav_perf_request_reason_t>( reason ), NAV_PERF_OUTCOME_NEW_PATH );
+			return PathComputeResult::NewPathGenerated;
 		}
-		return PathComputeResult::NewPathGenerated;
 	}
 
-	// Record failed search state and timestamp to prevent high-frequency A* thrashing:
+	// Preserve failed-candidate evidence without altering the committed route buffers.
+	lastRouteValidation = candidate.validation;
+	// Replan failed or funnel rejected: retain committed route if valid; record failure debounce.
 	pathNavigationState.lastGoal.origin = target;
 	pathNavigationState.lastGoal.isValid = false;
 	lastPathCalcTime = level.time;
+	Nav_Perf_CountRequest( static_cast<nav_perf_request_reason_t>( reason ), NAV_PERF_OUTCOME_FAILED_NO_ROUTE );
 	return PathComputeResult::Failed;
+}
+
+/**
+*	@brief	Read mandatory ownership from the accepted semantic route rather than parallel flags.
+*	@param	index	Waypoint index.
+*	@return	True only for a retained mandatory obligation.
+**/
+bool svg_monster_base_t::SVG_Nav_IsWaypointMandatory( const size_t index ) const {
+	// Missing metadata fails closed in release validation; drawing may still show a legacy position.
+	return index < navigationWaypoints.size() && Nav_WaypointIsMandatory( navigationWaypoints[ index ] );
+}
+
+/**
+*	@brief	Dispatch an accepted waypoint event exactly once per route revision.
+*	@param	index	Committed reached point, never a tentative release candidate.
+**/
+void svg_monster_base_t::SVG_Nav_FireWaypoint( const size_t index ) {
+	/**
+	*	Reject missing or already dispatched obligations before a gameplay callback can mutate state.
+	**/
+	// Old geometry may guide pending movement, but obsolete goals cannot dispatch gameplay events.
+	if ( navigationAcceptedGoalRevision != navigationGoalRevision || !SVG_Nav_IsIdentityCurrent( navigationAcceptedIdentity ) ||
+		 index >= navigationWaypoints.size() || navigationWaypoints[ index ].callback_fired ) {
+		return;
+	}
+	// Mark ownership first so callback re-entry cannot duplicate the event.
+	navigationWaypoints[ index ].callback_fired = true;
+	const Vector3DP position = navigationWaypoints[ index ].feet;
+	const bool final = ( navigationWaypoints[ index ].flags & NAV_WAYPOINT_FINAL_GOAL ) != 0;
+	// Realized current-goal arrival terminates a pending same-goal refresh before it can reinstall a completed route.
+	if ( final ) {
+		// A pending same-goal refresh ends without a second commit when realized arrival wins first.
+		if ( navigationQueryState == NavigationQueryState::Pending ) {
+			SVG_Nav_SetQueryTerminalState( NavigationQueryState::Cancelled );
+		}
+		Nav_CancelQueryWorkerEntityMainThread( s.number );
+		navigationQueryState = NavigationQueryState::Ready;
+	}
+
+	// Record ownership before callbacks can reset or replace the route.
+	if ( navigationEventFrame != static_cast<uint64_t>( level.frameNumber ) ) {
+		navigationEventFrame = static_cast<uint64_t>( level.frameNumber );
+		navigationEventCount = 0;
+	}
+	Q_assert( navigationEventCount < navigationEventRoutes.size() );
+	if ( navigationEventCount < navigationEventRoutes.size() ) {
+		navigationEventRoutes[ navigationEventCount ] = navigationRouteRevision;
+		navigationEventIndices[ navigationEventCount ] = static_cast<uint32_t>( index );
+		navigationEventFinal[ navigationEventCount++ ] = final;
+	}
+	OnWaypointReached( index, position, final );
+}
+
+/**
+*	@brief	Use the same safe continuation contract for initial and runtime waypoint release.
+*	@param	index	Intermediate waypoint being proposed for release.
+*	@param	progressEligible	Radius/plane progress proposal.
+*	@return	Owned rejection reason and witnesses, or clear when full native continuation permits release.
+*	@note	Semantic obligations remain owned by the current route until a successful release is committed.
+**/
+svg_nav_release_t svg_monster_base_t::SVG_Nav_QueryWaypointRelease( const size_t index, const bool progressEligible ) {
+	/**
+	*	Reject stale geometry, unsupported profiles and exhausted budget before collision work.
+	**/
+	svg_nav_release_t decision;
+	decision.index = static_cast<uint32_t>( index );
+	decision.route = navigationRouteRevision;
+	decision.goal = navigationGoalRevision;
+	if ( !progressEligible ) {
+		return decision;
+	}
+	if ( index == 0 || index + 1 >= stringPulledPath.size() || navigationWaypoints.size() != stringPulledPath.size() ) {
+		decision.reason = svg_nav_release_reason_t::invalid_index;
+		return decision;
+	}
+	if ( !SVG_Nav_IsCommittedRouteUsable() || waypointFacesMeshGeneration != g_nav_mesh_generation ||
+		 waypointTopologyRevision != g_nav_topology_revision ) {
+		decision.reason = svg_nav_release_reason_t::stale_route;
+		return decision;
+	}
+	if ( !Nav_IsSupportedNativeHull( mins, maxs ) ) {
+		decision.reason = svg_nav_release_reason_t::unsupported_hull;
+		return decision;
+	}
+	if ( navigationReleaseFrame == static_cast<uint64_t>( level.frameNumber ) && navigationReleasesThisFrame >= 2 ) {
+		decision.reason = svg_nav_release_reason_t::budget_exhausted;
+		return decision;
+	}
+	const Vector3DP feet = SVG_GetEntityFeetOriginDP( this );
+	const auto &record = navigationWaypoints[ index ];
+	const Vector3DP &waypoint = record.feet;
+	const Vector3DP &next = navigationWaypoints[ index + 1 ].feet;
+	decision.turn_dot = QM_Vector3DotProductDP( record.incoming, record.outgoing );
+	decision.plane_distance = QM_Vector3DotProductDP( feet - waypoint, record.incoming );
+	/**
+	*	A flat release needs closed full-radius clearance; elevations use actual local native continuation.
+	**/
+	const int32_t face = ResolveCurrentFace( feet );
+	const bool flat = std::fabs( next.z - feet.z ) <= NAV_MOVEMENT_ENDPOINT_TOLERANCE &&
+		face >= 0 && static_cast<size_t>( face ) < g_nav_faces.size() && g_nav_faces[ face ].normal.z >= 0.999 &&
+		( g_nav_faces[ face ].room_id < 0 || static_cast<size_t>( g_nav_faces[ face ].room_id ) >= g_nav_rooms.size() ||
+		  g_nav_rooms[ g_nav_faces[ face ].room_id ].zone_type != ZONE_TYPE_CORRIDOR_STAIRS );
+	/**
+	*	A ramp corner cannot use a short outgoing probe to certify a distant wall-free chord.
+	*	Reach its incoming plane before changing direction; the installed full route already proves
+	*	continuation from this constraint. Door and riser obligations keep their own release rules.
+	**/
+	if ( !flat && ( record.flags & NAV_WAYPOINT_CORNER_APEX ) != 0 &&
+		 ( record.flags & ( NAV_WAYPOINT_STEP_RISER | NAV_WAYPOINT_DOOR_PORTAL ) ) == 0 &&
+		 decision.plane_distance < -NAV_MOVEMENT_ENDPOINT_TOLERANCE ) {
+		decision.reason = svg_nav_release_reason_t::elevation_pending;
+		return decision;
+	}
+	if ( flat ) {
+		decision.geometric = Nav_TestSegmentClearance( feet, next, static_cast<double>( maxs.x ) );
+		lastGeometricValidation = decision.geometric;
+		if ( decision.geometric.reason != nav_clearance_reason_t::clear ) {
+			decision.reason = svg_nav_release_reason_t::geometric_rejection;
+			// An exactly reached but impossible link must request replacement instead of shuffling forever.
+			if ( decision.geometric.reason == nav_clearance_reason_t::boundary_contact &&
+				 QM_Vector3Distance2DSqrDP( feet, waypoint ) <= MONSTER_NAV_WAYPOINT_DEADBAND * MONSTER_NAV_WAYPOINT_DEADBAND ) {
+				navigationCommandRejected = true;
+			}
+			return decision;
+		}
+	}
+	/**
+	*	A one-tick preview cannot release a corner whose later outgoing chord enters a native brush envelope.
+	*	Static flat continuation excludes actors; live actor precedence is tested by the local preview below.
+	**/
+	if ( flat ) {
+		decision.native = SVG_Nav_TestMovementHull( feet, next, mins, maxs, SVG_MMove_GetNativeShape( this ),
+			pathNavigationState.policy, this, static_cast<cm_contents_t>( CONTENTS_SOLID | CONTENTS_MONSTERCLIP ), false );
+		navigationValidationTraceCount += decision.native.trace_count;
+		// Retain the current obligation until its complete native outgoing chord is physically legal.
+		if ( decision.native.reason != svg_nav_movement_reason_t::clear ) {
+			lastMovementValidation = decision.native;
+			decision.reason = svg_nav_release_reason_t::native_rejection;
+			return decision;
+		}
+	}
+	if ( Nav_WaypointIsMandatory( record ) && waypoint.z - feet.z > MONSTER_NAV_VERTICAL_STEP_TOLERANCE && !flat ) {
+		decision.reason = svg_nav_release_reason_t::elevation_pending;
+		return decision;
+	}
+	/**
+	*	Use a bounded horizontal command like live movement; native landing owns ramp/step support height.
+	**/
+	Vector3DP continuation = next - feet;
+	continuation.z = 0.0;
+	const double length = QM_Vector3LengthDP( continuation );
+	const double previewLength = std::min( length, 220.0 * FRAME_TIME_S.Seconds() );
+	const Vector3DP preview = length > 0.001 ? feet + continuation * ( previewLength / length ) : feet;
+	decision.native = SVG_Nav_TestMovementCandidate( this, feet, preview, pathNavigationState.policy, false );
+	lastMovementValidation = decision.native;
+	navigationValidationTraceCount += decision.native.trace_count;
+	decision.reason = decision.native.reason == svg_nav_movement_reason_t::clear ?
+		svg_nav_release_reason_t::clear : svg_nav_release_reason_t::native_rejection;
+	return decision;
+}
+
+/**
+*	@brief	Consume one successful shared release inside the total initial/runtime frame budget.
+*	@param	index	Intermediate constraint proposed for commit.
+*	@param	progressEligible	Radius/plane progress proposal.
+*	@return	True only for a complete authoritative release decision.
+**/
+bool svg_monster_base_t::SVG_Nav_CanAdvanceWaypoint( const size_t index, const bool progressEligible ) {
+	/**
+	*	Reset the two-release budget once per server frame, including route-installation advancement.
+	**/
+	const uint64_t frame = static_cast<uint64_t>( level.frameNumber );
+	if ( navigationReleaseFrame != frame ) {
+		navigationReleaseFrame = frame;
+		navigationReleasesThisFrame = 0;
+	}
+	lastWaypointRelease = SVG_Nav_QueryWaypointRelease( index, progressEligible );
+	// Rejected proposals neither consume progress nor invoke callbacks.
+	if ( lastWaypointRelease.reason != svg_nav_release_reason_t::clear ) {
+		return false;
+	}
+	++navigationReleasesThisFrame;
+	return true;
+}
+
+/**
+*	@brief	Fire the route's final callback from realized supported arrival before crowd completion removes its thinker.
+*	@note	The event is owned once per accepted route; pending intermediate points and obsolete goals cannot satisfy it.
+**/
+void svg_monster_base_t::SVG_Nav_CheckFinalArrival() {
+	/**
+	*	Arrival never substitutes for missing geometry, stale identities or an unresolved intermediate constraint.
+	**/
+	if ( finalWaypointEventFired || stringPulledPath.empty() || stringPathPos + 1 < stringPulledPath.size() ||
+		 !SVG_Nav_IsIdentityCurrent( navigationAcceptedIdentity ) || navigationAcceptedGoalRevision != navigationGoalRevision || waypointFacesMeshGeneration != g_nav_mesh_generation ||
+		 waypointTopologyRevision != g_nav_topology_revision || groundInfo.entityNumber != 0 ) {
+		return;
+	}
+	const Vector3DP feet = SVG_GetEntityFeetOriginDP( this );
+	const Vector3DP goal = stringPulledPath.back();
+	const double radius = GetNavigationArrivalRadius();
+	// Only realized feet on the goal floor and inside the shared radius authorize the callback.
+	if ( QM_Vector3Distance2DSqrDP( feet, goal ) <= radius * radius && std::fabs( feet.z - goal.z ) <= MONSTER_NAV_FINAL_GOAL_MAX_Z_DELTA ) {
+		finalWaypointEventFired = true;
+		SVG_Nav_FireWaypoint( stringPulledPath.size() - 1 );
+	}
+}
+
+/**
+*	@brief	Compute one shared physical arrival threshold for path following and crowd station keeping.
+*	@return	The current order's unchanged queue/slot tolerance, capped by solo arrival distance.
+*	@note	A small actor cannot stop at a larger path radius and remain permanently unarrived in its crowd.
+**/
+double svg_monster_base_t::GetNavigationArrivalRadius() const {
+	/**
+	*	Ordinary solo navigation and serialized staging each have an explicit stable arrival contract.
+	**/
+	const auto *group = crowd.crowdID >= 0 ? SVG_Crowd_GetGroup( crowd.crowdID ) : nullptr;
+	if ( group == nullptr ) {
+		return MONSTER_NAV_WAYPOINT_REACH_RADIUS;
+	}
+	if ( group->hasSerializedIngress ) {
+		return CROWD_INGRESS_ARRIVAL_RADIUS;
+	}
+	/**
+	*	Match slot spacing and native hull radius without allowing path following to stop outside station keeping.
+	**/
+	const auto &params = group->params;
+	const double configured = params.arrivalRadius > 0.0 ? params.arrivalRadius : CROWD_DEFAULT_ARRIVAL_RADIUS;
+	const double lateral = params.lateralSpacing > 0.0 ? params.lateralSpacing : CROWD_DEFAULT_LATERAL_SPACING;
+	const double longitudinal = params.longitudinalSpacing > 0.0 ? params.longitudinalSpacing : CROWD_DEFAULT_LONGITUDINAL_SPACING;
+	const double minimumSpacing = params.minCorridorSpacing > 0.0 ? params.minCorridorSpacing : CROWD_DEFAULT_MIN_CORRIDOR_SPACING;
+	const double spacing = std::max( minimumSpacing, std::min( lateral, longitudinal ) );
+	const double radius = ( maxs.x - mins.x ) * 0.5;
+	const double floor = std::min( configured, radius * 0.75 );
+	return std::min( MONSTER_NAV_WAYPOINT_REACH_RADIUS, std::max( floor, std::min( configured, std::min( spacing * 0.35, radius * 1.25 ) ) ) );
 }
 
 /**
@@ -588,6 +1503,15 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 	*	Sanity checks: ensure valid output pointers.
 	**/
 	if ( outMoveDir == nullptr || outSpeedScale == nullptr ) {
+		return false;
+	}
+
+	/**
+	*	Do not steer a stale route or unsupported hull while a debounced replacement is pending.
+	**/
+	if ( !Nav_IsSupportedNativeHull( mins, maxs ) || !SVG_Nav_IsCommittedRouteUsable() || ( !stringPulledPath.empty() &&
+		 ( waypointFacesMeshGeneration != g_nav_mesh_generation || waypointTopologyRevision != g_nav_topology_revision ) ) ) {
+		navigationCommandRejected = true;
 		return false;
 	}
 
@@ -627,7 +1551,7 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 	/**
 	*	Synchronize navPath polygon index with current physical standing surface.
 	**/
-	const int32_t currentFace = Nav_FindClosestFaceInLeaf( myFeetDP );
+	const int32_t currentFace = ResolveCurrentFace( myFeetDP );
 	if ( !navPath.empty() && currentFace != -1 ) {
 		const int32_t localStart = std::max<int32_t>( 0, static_cast<int32_t>( pathPos ) - 2 );
 		const int32_t localEnd = std::min<int32_t>( static_cast<int32_t>( navPath.size() ) - 1, static_cast<int32_t>( pathPos ) + 8 );
@@ -652,7 +1576,16 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 		}
 	}
 	if ( !onRamp && stringPathPos < stringPulledPath.size() ) {
-		const int32_t wpFace = Nav_FindClosestFaceInLeaf( stringPulledPath[ stringPathPos ] );
+		int32_t wpFace = -1;
+		if ( waypointFacesMeshGeneration == g_nav_mesh_generation && stringPathPos < navigationWaypoints.size() ) {
+			wpFace = navigationWaypoints[ stringPathPos ].face;
+		}
+		if ( wpFace < 0 ) {
+			wpFace = Nav_FindClosestFaceInLeaf( stringPulledPath[ stringPathPos ] );
+			if ( waypointFacesMeshGeneration == g_nav_mesh_generation && stringPathPos < navigationWaypoints.size() ) {
+				navigationWaypoints[ stringPathPos ].face = wpFace;
+			}
+		}
 		if ( wpFace >= 0 && static_cast<size_t>( wpFace ) < g_nav_faces.size() ) {
 			if ( g_nav_faces[ wpFace ].normal.z < NAV_RAMP_MAX_NORMAL_Z ) {
 				onRamp = true;
@@ -677,7 +1610,7 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 	/**
 	*	Waypoint arrival & segment advancement:
 	*	Advances stringPathPos as each intermediate waypoint is reached or passed along its incoming segment.
-	*	Bounded to at most 2 waypoint advancements per frame (O(1)) to prevent 1-frame position lag on closely-spaced arc points.
+	*	Bounded to at most 2 waypoint advancements per frame; each strict boundary scan remains O(E).
 	**/
 	int32_t advancedWaypointsCount = 0;
 	while ( stringPathPos < stringPulledPath.size() - 1 && advancedWaypointsCount < 2 ) {
@@ -688,7 +1621,7 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 		const double dist2DSqr = QM_Vector3DotProductDP( toWp, toWp );
 
 		// Check if current waypoint is a forced constraint (corner standoff, stair crossing)
-		const bool isForcedWp = ( stringPathPos < stringPulledWaypointForced.size() && stringPulledWaypointForced[ stringPathPos ] );
+		const bool isForcedWp = ( SVG_Nav_IsWaypointMandatory( stringPathPos ) );
 
 		// Vertical step transition arrival verification:
 		// Only forced stair step-ups require waiting for physical vertical elevation changes,
@@ -750,28 +1683,6 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 		const double reachRadiusSqr = reachRadius * reachRadius;
 		bool withinRadius = ( dist2DSqr <= reachRadiusSqr );
 
-		// Corner switching plane gating:
-		// At a sharp turn around an obstacle corner standoff (isSharpTurn), an agent must NOT advance prematurely
-		// while still on the approach side of the corner (forwardPast < 0.0) unless it already has guaranteed
-		// physical clearance (agentRadius) to the subsequent waypoint W_{k+1}.
-		// Advancing prematurely on the approach side forces the agent to turn into the solid corner brush!
-		// Note: Forced stair step and doorway waypoints must NOT be gated here, as stair flight boundary edges
-		// naturally lie within agentRadius of the step center and would falsely block stair progression.
-		if ( withinRadius && isSharpTurn && !isForcedWp && stringPathPos + 1 < stringPulledPath.size() ) {
-			const Vector3DP &nextWp = stringPulledPath[ stringPathPos + 1 ];
-			Vector3DP toNextWp = nextWp - myFeetDP;
-			toNextWp.z = 0.0;
-			const double segDistToNext = QM_Vector3LengthDP( toNextWp );
-			const double baseClearance = ( agentRadius > 0.0 ) ? agentRadius : NAV_DEFAULT_AGENT_RADIUS;
-			const double proportionalThreshold = baseClearance * MONSTER_NAV_ARC_CLEARANCE_DIST_MULT;
-			const double losClearance = ( segDistToNext < proportionalThreshold )
-				? std::min( baseClearance, segDistToNext * MONSTER_NAV_ARC_CLEARANCE_RATIO )
-				: baseClearance;
-			if ( forwardPast < 0.0 && !Nav_HasGeometricLineOfSight2D( myFeetDP, nextWp, losClearance ) ) {
-				withinRadius = false;
-			}
-		}
-
 		// 2) Passed waypoint plane along the incoming segment:
 		// Allows smooth progression along straight corridors and across doorway portals without stalling.
 		bool passedPlane = false;
@@ -809,87 +1720,22 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 			}
 		}
 
-		// 3) Corner clearance advancement:
-		// If the entity has reached or passed the corner switching plane (forwardPast >= 0.0 or within margin),
-		// is within proximate clearance of W_k, not blocked against a wall, and the subsequent
-		// waypoint W_{k+1} has guaranteed physical capsule clearance (agentRadius) around the corner,
-		// allow advancing past W_k to round the corner cleanly without wedging on the physical corner brush.
-		// Note: On sharp turns (isSharpTurn), an entity must NOT advance while still on the approach side
-		// (forwardPast < -MONSTER_NAV_CORNER_HULL_CLEARANCE_MARGIN), as premature advancement forces the agent
-		// to turn into the solid corner brush before reaching the standoff waypoint.
-		if ( !withinRadius && !passedPlane && !hasRecentWallBlockNormal && stringPathPos + 1 < stringPulledPath.size() ) {
-			const bool isNearCornerWp = ( dist2DSqr <= MONSTER_NAV_CORNER_BRUSH_CLEARANCE_DIST_SQR );
-			const bool hasReachedPlane = ( !isSharpTurn || forwardPast >= -MONSTER_NAV_CORNER_HULL_CLEARANCE_MARGIN );
-			const Vector3DP &nextWp = stringPulledPath[ stringPathPos + 1 ];
-			Vector3DP toNextWp = nextWp - myFeetDP;
-			toNextWp.z = 0.0;
-			const double segDistToNext = QM_Vector3LengthDP( toNextWp );
-			const double baseClearance = ( agentRadius > 0.0 ) ? agentRadius : NAV_DEFAULT_AGENT_RADIUS;
-			const double proportionalThreshold = baseClearance * MONSTER_NAV_ARC_CLEARANCE_DIST_MULT;
-			const double losClearance = ( segDistToNext < proportionalThreshold )
-				? std::min( baseClearance, segDistToNext * MONSTER_NAV_ARC_CLEARANCE_RATIO )
-				: baseClearance;
-			if ( isNearCornerWp && hasReachedPlane && Nav_HasGeometricLineOfSight2D( myFeetDP, nextWp, losClearance ) ) {
-				passedPlane = true;
-			}
+		/**
+		*	Radius and approach-plane tests are proposals; one contract commits all releases.
+		**/
+		if ( !SVG_Nav_CanAdvanceWaypoint( stringPathPos, withinRadius || passedPlane ) ) {
+			// Keep the active constraint when either progress or safe continuation is missing.
+			break;
 		}
-
-		if ( withinRadius ) {
-			const size_t reachedIdx = stringPathPos;
-			const Vector3DP reachedPos = stringPulledPath[ reachedIdx ];
-			++stringPathPos;
-			++advancedWaypointsCount;
-			this->OnWaypointReached( reachedIdx, reachedPos, false );
-			continue; // Re-evaluate next waypoint in bounded loop to prevent 1-frame position lag
+		const size_t reachedIdx = stringPathPos;
+		++stringPathPos;
+		++advancedWaypointsCount;
+		const uint64_t releasedRoute = navigationRouteRevision;
+		SVG_Nav_FireWaypoint( reachedIdx );
+		// Gameplay callbacks may reset or replace navigation; stop this computation before dereferencing old geometry.
+		if ( navigationRouteRevision != releasedRoute || stringPulledPath.empty() ) {
+			return false;
 		}
-
-		if ( passedPlane ) {
-			// When passing by W_k along a straight flat section or rounding a corner, verify both:
-			// 1. Exact 2D geometric line-of-sight through all obstacle edges with full agentRadius collision hull clearance
-			// 2. Physical kinematic step probe over curbs, stairs, and slopes using SVG_MMove_Probe
-			if ( stringPathPos + 1 < stringPulledPath.size() ) {
-				const Vector3DP &nextWp = stringPulledPath[ stringPathPos + 1 ];
-				Vector3DP toNextWp = nextWp - myFeetDP;
-				toNextWp.z = 0.0;
-				const double segDistToNext = QM_Vector3LengthDP( toNextWp );
-				const double baseClearance = ( agentRadius > 0.0 ) ? agentRadius : NAV_DEFAULT_AGENT_RADIUS;
-				const double proportionalThreshold = baseClearance * MONSTER_NAV_ARC_CLEARANCE_DIST_MULT;
-				const double losClearance = ( segDistToNext < proportionalThreshold )
-					? std::min( baseClearance, segDistToNext * MONSTER_NAV_ARC_CLEARANCE_RATIO )
-					: baseClearance;
-				if ( !Nav_HasGeometricLineOfSight2D( myFeetDP, nextWp, losClearance ) ) {
-					// Direct line to W_{k+1} is occluded by an obstacle edge; continue steering towards W_k until withinRadius
-					break;
-				}
-
-				Vector3DP probeGround = {};
-				Vector3DP nextOrigin = nextWp;
-				nextOrigin.z -= static_cast<double>( this->mins.z );
-				const double maxStep = ( this->pathNavigationState.policy.max_step_height > 0.0 ) ? this->pathNavigationState.policy.max_step_height : NAV_PROBE_DEFAULT_MAX_STEP_HEIGHT;
-				const double maxDrop = ( this->pathNavigationState.policy.max_drop_height > 0.0 ) ? this->pathNavigationState.policy.max_drop_height : NAV_PROBE_DEFAULT_MAX_DROP_HEIGHT;
-				if ( !SVG_MMove_Probe( Vector3DP( currentOrigin ), mins, maxs, nextOrigin, this, &probeGround, maxStep, maxDrop ) ) {
-					// Physical step/slope probe blocked; continue steering towards W_k until withinRadius
-					break;
-				}
-
-				// Ensure probe actually completed traversable progress to nextWp (not blocked after only 15% into a ramp/wall)
-				Vector3DP toProbeDest = nextOrigin - probeGround;
-				toProbeDest.z = 0.0;
-				if ( ( toProbeDest.x * toProbeDest.x + toProbeDest.y * toProbeDest.y ) > ( reachRadiusSqr * NAV_PROBE_ARRIVAL_TOLERANCE_RATIO_SQR ) ) {
-					// Incomplete probe progress to next waypoint; continue steering to current waypoint
-					break;
-				}
-			}
-
-			const size_t reachedIdx = stringPathPos;
-			const Vector3DP reachedPos = stringPulledPath[ reachedIdx ];
-			++stringPathPos;
-			++advancedWaypointsCount;
-			this->OnWaypointReached( reachedIdx, reachedPos, false );
-			continue; // Re-evaluate next waypoint in bounded loop to prevent 1-frame position lag
-		}
-
-		break;
 	}
 
 	// Final goal arrival check
@@ -900,11 +1746,13 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 		toFinal.z = 0.0;
 		// The low-level path follower must not stop outside the crowd's tighter
 		// staging tolerance, or station keeping and doorway admission can never agree.
-		const svg_crowd_group_t *arrivalGroup = crowd.crowdID >= 0 ? SVG_Crowd_GetGroup( crowd.crowdID ) : nullptr;
-		const double finalArrivalRadius = arrivalGroup != nullptr && arrivalGroup->hasSerializedIngress ?
-			CROWD_INGRESS_ARRIVAL_RADIUS : MONSTER_NAV_WAYPOINT_REACH_RADIUS;
+		const double finalArrivalRadius = GetNavigationArrivalRadius();
 		if ( QM_Vector3DotProductDP( toFinal, toFinal ) <= finalArrivalRadius * finalArrivalRadius && std::fabs( finalZDiff ) <= MONSTER_NAV_FINAL_GOAL_MAX_Z_DELTA ) {
-			this->OnWaypointReached( stringPulledPath.size() - 1, finalGoalWp, true );
+			// A route that remains installed after arrival must not refire its final event every tick.
+			if ( !finalWaypointEventFired && navigationAcceptedGoalRevision == navigationGoalRevision ) {
+				finalWaypointEventFired = true;
+				SVG_Nav_FireWaypoint( stringPulledPath.size() - 1 );
+			}
 			return false; // Arrived at destination
 		}
 	}
@@ -923,10 +1771,11 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 	toTarget.z = 0.0;
 	const double distToTarget = QM_Vector3LengthDP( toTarget );
 
+	navigationSteering.raw = distToTarget > 0.001 ? toTarget * ( 1.0 / distToTarget ) : Vector3DP{};
 	Vector3DP steerTarget = targetWp;
 
-	const bool isTargetForced = ( k < stringPulledWaypointForced.size() && stringPulledWaypointForced[ k ] );
-	if ( !isTargetForced && distToTarget < MONSTER_NAV_LOOKAHEAD_DISTANCE && k + 1 < stringPulledPath.size() ) {
+	const bool isTargetForced = ( SVG_Nav_IsWaypointMandatory( k ) );
+	if ( navigationFixtureMode != 2 && !isTargetForced && distToTarget < MONSTER_NAV_LOOKAHEAD_DISTANCE && k + 1 < stringPulledPath.size() ) {
 		const size_t prevIdx = ( k > 0 ) ? ( k - 1 ) : 0;
 		const Vector3DP prevWp = stringPulledPath[ prevIdx ];
 		Vector3DP currSeg = targetWp - prevWp;
@@ -948,7 +1797,7 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 				const double advance = std::min( MONSTER_NAV_LOOKAHEAD_DISTANCE - distToTarget, nextSegLen * NAV_STANDOFF_SCALE_HALF );
 				const Vector3DP blendedTarget = targetWp + nextSegNorm * advance;
 				// Maintain clear line-of-sight to blended target before cutting forward early:
-				if ( Nav_HasGeometricLineOfSight2D( myFeetDP, blendedTarget, agentRadius ) ) {
+				if ( Nav_TestSegmentClearance( myFeetDP, blendedTarget, agentRadius ).reason == nav_clearance_reason_t::clear ) {
 					steerTarget = blendedTarget;
 				}
 			}
@@ -961,6 +1810,7 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 	Vector3DP toSteer = steerTarget - myFeetDP;
 	toSteer.z = 0.0;
 	const double steerDist = QM_Vector3LengthDP( toSteer );
+	navigationSteering.lookahead = steerDist > 0.001 ? toSteer * ( 1.0 / steerDist ) : Vector3DP{};
 
 	// Precompute normalized direction vector corresponding to current ideal_yaw as fallback:
 	const double yawRad = static_cast<double>( ideal_yaw ) * ( QM_PI / 180.0 );
@@ -969,75 +1819,17 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 	// Identify whether the entity is at a forced step-up riser actively waiting for feet elevation:
 	const bool awaitingStepUp = ( isTargetForced && !onRamp && ( targetWp.z - myFeetDP.z ) > MONSTER_NAV_STEP_MIN_DELTA );
 
-	// Check whether entity has progressed into the departure zone of W_k toward W_{k+1}:
-	bool inDepartureZone = false;
-	if ( !awaitingStepUp && !isTargetForced && k + 1 < stringPulledPath.size() ) {
-		const Vector3DP nextWp = stringPulledPath[ k + 1 ];
-		Vector3DP toNext = nextWp - targetWp;
-		toNext.z = 0.0;
-		const double toNextLen = QM_Vector3LengthDP( toNext );
-
-		if ( k > 0 && toNextLen > 0.001 ) {
-			const Vector3DP prevWp = stringPulledPath[ k - 1 ];
-			Vector3DP inSegDir = targetWp - prevWp;
-			inSegDir.z = 0.0;
-			const double inSegLen = QM_Vector3LengthDP( inSegDir );
-
-			if ( inSegLen > 0.001 ) {
-				const Vector3DP uIn = inSegDir * ( 1.0 / inSegLen );
-				const Vector3DP uOut = toNext * ( 1.0 / toNextLen );
-
-				// Radial corner switching plane between incoming and outgoing segments:
-				Vector3DP switchNorm = uIn + uOut;
-				switchNorm.z = 0.0;
-				const double switchLen = QM_Vector3LengthDP( switchNorm );
-				if ( switchLen > 0.001 ) {
-					switchNorm = switchNorm * ( 1.0 / switchLen );
-					Vector3DP fromTarget = myFeetDP - targetWp;
-					fromTarget.z = 0.0;
-					// Entity has physically crossed past the switching plane into the departure zone:
-					if ( QM_Vector3DotProductDP( fromTarget, switchNorm ) >= 0.0 ) {
-						inDepartureZone = true;
-					}
-				}
-			}
-		}
-
-		// Proximity fallback: if entity is closer to W_{k+1} than W_k and within arrival reach:
-		if ( !inDepartureZone && toNextLen > 0.001 ) {
-			Vector3DP toNextFromFeet = nextWp - myFeetDP;
-			toNextFromFeet.z = 0.0;
-			const double distToNext = QM_Vector3LengthDP( toNextFromFeet );
-			if ( distToNext < distToTarget && distToTarget <= ( MONSTER_NAV_WAYPOINT_REACH_RADIUS * 2.0 ) ) {
-				inDepartureZone = true;
-			}
-		}
-
-		// Geometric line-of-sight validation: when candidate departure zone is active near an obstacle corner,
-		// ensure entity has unobstructed 2D line-of-sight clearance to nextWp with full agent collision radius.
-		// If line-of-sight is obstructed by a corner brush, do not cut early into the corner; continue steering
-		// to current waypoint W_k (which is the standoff arc point) until the corner is physically cleared:
-		if ( inDepartureZone ) {
-			if ( !Nav_HasGeometricLineOfSight2D( myFeetDP, nextWp, agentRadius * MONSTER_NAV_DEPARTURE_CLEARANCE_SCALE ) ) {
-				inDepartureZone = false;
-			}
-		}
-	}
-
-	// Case 1: If entity has progressed into the departure zone of W_k and there is a subsequent
-	// waypoint (k + 1 < size), steer forward toward W_{k+1} rather than steering backward toward W_k
-	// (which would trigger a 180-degree yaw flip).
-	if ( inDepartureZone ) {
-		Vector3DP toNext = stringPulledPath[ k + 1 ] - myFeetDP;
-		toNext.z = 0.0;
-		const double nextDist = QM_Vector3LengthDP( toNext );
-		*outMoveDir = ( nextDist > 0.001 ) ? ( toNext * ( 1.0 / nextDist ) ) : forwardYawDir;
-	}
+	/**
+	*	Steering remains attached to the active obligation until the shared release loop commits it.
+	*	An unbounded departure-plane shortcut could steer hundreds of units toward W(k+1)
+	*	without advancing k, then oscillate around the old point on a slope. Optional lookahead
+	*	remains local; its eventual release uses the same bounded progress/native contract.
+	**/
 	// Case 2: At a step-up riser, actively awaiting vertical elevation.
 	// Condition check: Entity is at or past the riser boundary along the stair flight ascending direction.
 	// Rather than steering backward or falling into yaw-lock singularities, drive strictly forward
 	// across the riser along the flight ascent direction so StepSlideMove can step up.
-	else if ( awaitingStepUp ) {
+	if ( awaitingStepUp ) {
 		// Determine the forward flight ascending direction:
 		Vector3DP stepDir = { 0.0, 0.0, 0.0 };
 		if ( k + 1 < stringPulledPath.size() ) {
@@ -1070,10 +1862,10 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 	}
 	// Mandatory ingress corners require their exact approach direction. The old
 	// bisector/monotonicity shortcuts could skip a distant corner and drive into a jamb.
-	else if ( isTargetForced ) {
+	else if ( isTargetForced || navigationFixtureMode == 2 ) {
 		*outMoveDir = steerDist > 0.001 ? toSteer * ( 1.0 / steerDist ) : forwardYawDir;
 	}
-	// Case 3: Outside proximity deadband — steer towards lookahead target with corner transit bisector protection.
+	// Case 3: Outside proximity deadband â€” steer towards lookahead target with corner transit bisector protection.
 	// Condition check: Entity is >= MONSTER_NAV_WAYPOINT_DEADBAND (4.0 units) from steerTarget,
 	// safely away from the (0, 0) division singularity where micro-fluctuations flip yaw angles.
 	else if ( steerDist >= MONSTER_NAV_WAYPOINT_DEADBAND ) {
@@ -1115,6 +1907,7 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 			}
 		}
 
+		navigationSteering.transit = candDir;
 		// Forward monotonicity guard: if the direct vector to targetWp pulls backward against incoming travel flow
 		// (because the entity has already crossed past W_k into the departure quadrant), clamp steering to outgoing flow:
 		if ( k + 1 < stringPulledPath.size() ) {
@@ -1141,6 +1934,7 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 			}
 		}
 
+		navigationSteering.monotonic = candDir;
 		*outMoveDir = candDir;
 	}
 	// Case 4: Inside deadband of an intermediate waypoint (flat ground, gentle turns, ramps, or step-downs).
@@ -1172,17 +1966,32 @@ const bool svg_monster_base_t::ComputePathSteering( const Vector3DP &finalGoal, 
 	if ( yawDeltaAbs > MONSTER_NAV_CORNER_DECEL_THRESHOLD_DEG ) {
 		speedScale = std::max( MONSTER_NAV_CORNER_DECEL_MIN_SPEED_SCALE, ( 180.0 - yawDeltaAbs ) / ( 180.0 - MONSTER_NAV_CORNER_DECEL_THRESHOLD_DEG ) );
 	}
+	navigationSteering.deadband = *outMoveDir;
 	*outSpeedScale = speedScale;
 
 	return true;
 }
 
 /**
-*	@brief	Steer and move entity towards goal origin using navigation path steering.
-*	@param	goalOrigin	Target world-space position.
-*	@return	True if entity moved, false if arrived or stopped.
+*	@brief	Choose collision-validated navigation velocity and animation for the requested goal.
+*	@param	goalOrigin	Target world-space feet position.
+*	@return	True for a handled movement/hold command; false when arrival or unavailable steering stops the behavior.
+*	@note	Authoritative physics executes later; this phase records selection and native preview costs.
 **/
 const bool svg_monster_base_t::StepMoveToGoal( const Vector3 &goalOrigin ) {
+	/**
+	*	Measure the complete steering/animation decision, including final command validation.
+	**/
+	nav_perf_scope_t movementScope( NAV_PERF_PHASE_ACTOR_STEERING );
+	// Copy causal identity before any release or yaw change; zeroed stages distinguish unevaluated early returns.
+	navigationSteering = {};
+	navigationSteering.old_index = static_cast<uint32_t>( stringPathPos );
+	navigationSteering.yaw_before = currentAngles[ YAW ];
+	navigationSteering.fixture_scale = navigationFixtureSpeedScale;
+	// Clear request-local diagnostic state before steering/release/final-candidate evaluation.
+	navigationValidationTraceCount = 0;
+	lastMovementValidation = {};
+	lastGeometricValidation = {};
 	/**
 	*	Hold station in place while waiting in the serialized room egress queue.
 	*	Members exit one-by-one rapidly in proximity order; unreleased members stand idle in formation.
@@ -1196,6 +2005,17 @@ const bool svg_monster_base_t::StepMoveToGoal( const Vector3 &goalOrigin ) {
 			UpdateAnim( 1 ); // IDLE
 			return true;
 		}
+	}
+
+	/**
+	*	Keep the approach owner stationary until its current follower physically vacates the reserved transit.
+	**/
+	if ( SVG_Crowd_IsWaitingForApproachYield( this ) ) {
+		// Preserve route progress and admission ownership; ordinary physics still maintains native support.
+		velocity.x = velocity.y = 0.0f;
+		monsterMove.state.velocity.x = monsterMove.state.velocity.y = 0.0;
+		UpdateAnim( 1 );
+		return true;
 	}
 
 	/**
@@ -1216,8 +2036,15 @@ const bool svg_monster_base_t::StepMoveToGoal( const Vector3 &goalOrigin ) {
 
 	const Vector3DP goalOriginDP( goalOrigin );
 	Vector3DP moveDirDP = {};
-	double speedScale = static_cast<double>( squadSpeedScale );
+	double speedScale = 1.0;
 
+	// Explicit geometry-only observation holds the actor without mutating its accepted route.
+	if ( navigationFixtureMode == 1 ) {
+		velocity.x = velocity.y = 0.0f;
+		monsterMove.state.velocity.x = monsterMove.state.velocity.y = 0.0;
+		return true;
+	}
+	// Unavailable safe steering holds the actor and reports a stopped command without integrating physics.
 	if ( !ComputePathSteering( goalOriginDP, &moveDirDP, &speedScale ) ) {
 		velocity.x = velocity.y = 0.0f;
 		monsterMove.state.velocity.x = velocity.x;
@@ -1226,10 +2053,15 @@ const bool svg_monster_base_t::StepMoveToGoal( const Vector3 &goalOrigin ) {
 		return false;
 	}
 
+	navigationSteering.turn_scale = speedScale;
+	navigationSteering.squad_scale = squadSpeedScale;
+	// Combine squad pacing with the steering turn factor; steering never overwrites squad pacing.
+	speedScale *= static_cast<double>( squadSpeedScale ) * navigationFixtureSpeedScale;
+
 	/**
 	*	Blend mutual crowd separation force and compute teammate following speed throttling:
 	**/
-	if ( this->crowd.crowdID >= 0 ) {
+	if ( this->crowd.crowdID >= 0 && navigationFixtureMode != 2 && navigationFixtureMode != 3 ) {
 		const double rawRadius = static_cast<double>( ( maxs.x - mins.x ) * 0.5f );
 		const double defaultRadius = ( pathNavigationState.policy.agent_radius > 0.0f ) ? static_cast<double>( pathNavigationState.policy.agent_radius ) : CROWD_DEFAULT_AGENT_RADIUS;
 		const double agentRadius = ( rawRadius > 0.0 ) ? rawRadius : defaultRadius;
@@ -1241,6 +2073,7 @@ const bool svg_monster_base_t::StepMoveToGoal( const Vector3 &goalOrigin ) {
 		bool strictQueueing = false;
 		const bool foundLeaderAhead = SVG_Crowd_ComputeTeammateFollowSpeedScale( this->s.number, moveDirDP, &followScale, &strictQueueing );
 		if ( foundLeaderAhead ) {
+			navigationSteering.follow_scale = followScale;
 			speedScale *= followScale;
 			// Disable entity deflection only for strict doorway/chokepoint queues; allow room-entry flow otherwise.
 			suppressEntityDeflectionThisFrame = strictQueueing;
@@ -1266,14 +2099,8 @@ const bool svg_monster_base_t::StepMoveToGoal( const Vector3 &goalOrigin ) {
 					const Vector3DP candDir = blendedDir * ( 1.0 / blendedLen );
 					// Ensure candidate direction preserves forward progress (within 45 degrees of moveDirDP):
 					if ( QM_Vector3DotProductDP( candDir, moveDirDP) >= 0.707 ) {
-						const Vector3DP probeEnd = myFeetDP + candDir * ( agentRadius + CROWD_WALL_STANDOFF_MARGIN );
-						// Use physical kinematic probe with the agent's hull to ensure separation doesn't push us into a solid wall.
-						Vector3DP dummyEndpos = {};
-						const double maxStep = ( this->pathNavigationState.policy.max_step_height > 0.0 ) ? this->pathNavigationState.policy.max_step_height : NAV_PROBE_DEFAULT_MAX_STEP_HEIGHT;
-						const double maxDrop = ( this->pathNavigationState.policy.max_drop_height > 0.0 ) ? this->pathNavigationState.policy.max_drop_height : NAV_PROBE_DEFAULT_MAX_DROP_HEIGHT;
-						if ( SVG_MMove_Probe( myFeetDP, this->mins, this->maxs, probeEnd, this, &dummyEndpos, maxStep, maxDrop ) ) {
-							moveDirDP = candDir;
-						}
+						// Keep the separation contribution as a candidate; validate after all speed/reservation changes.
+						moveDirDP = candDir;
 					}
 				}
 			}
@@ -1303,9 +2130,11 @@ const bool svg_monster_base_t::StepMoveToGoal( const Vector3 &goalOrigin ) {
 
 					if ( myDistToDest > ( leaderDistToDest + CROWD_SLOT_CATCHUP_DISTANCE ) ) {
 						// Trailing behind the leader: catch-up sprint
+						navigationSteering.catchup_scale = CROWD_CATCHUP_SPEED_SCALE;
 						speedScale *= CROWD_CATCHUP_SPEED_SCALE;
 					} else if ( myDistToDest < ( leaderDistToDest - CROWD_SLOT_FOLLOW_TOLERANCE ) ) {
 						// Surging ahead of the moving leader: throttle back to stay in rank
+						navigationSteering.catchup_scale = CROWD_SLOWDOWN_SPEED_SCALE;
 						speedScale *= CROWD_SLOWDOWN_SPEED_SCALE;
 					}
 				}
@@ -1313,6 +2142,7 @@ const bool svg_monster_base_t::StepMoveToGoal( const Vector3 &goalOrigin ) {
 		}
 	}
 
+	navigationSteering.separation = moveDirDP;
 	// If yielding to a leading teammate directly ahead, come to a complete standstill:
 	if ( speedScale <= 0.01 ) {
 		velocity.x = 0.0f;
@@ -1334,46 +2164,216 @@ const bool svg_monster_base_t::StepMoveToGoal( const Vector3 &goalOrigin ) {
 	*	only a predicted crossing through the doorway's lateral hull span is constrained.
 	**/
 	const svg_crowd_group_t *ingressGroup = ( this->crowd.crowdID >= 0 ) ? SVG_Crowd_GetGroup( this->crowd.crowdID ) : nullptr;
-	if ( ingressGroup != nullptr && ingressGroup->hasSerializedIngress && !this->crowd.ingressReleased ) {
+	// The current queue head owns the march through vacated staging cells before admission.
+	const bool isStagingHead = SVG_Crowd_IsCurrentIngressHead( this );
+	// A claimed holding mover must vacate the approach even if a later actor enters its previously clear displacement.
+	const bool isHoldingMover = SVG_Crowd_IsCurrentApproachYieldMember( this );
+	/**
+	*	Project each finite aperture with the same strict storage margin and native speed ceiling.
+	*	Negating the outward exit normal expresses cleared departure as the same exterior half-space contract.
+	**/
+	bool reservationAdjusted = false;
+	const auto projectAperture = [&]( Vector3DP candidateVelocity, const Vector3DP &portalOrigin,
+		const Vector3DP &portalInward, const double stopDepth, const double reservedHalfSpan ) {
 		const Vector3DP currentFeet = SVG_GetEntityFeetOriginDP( this );
-		const double currentDepth = QM_Vector3DotProductDP( currentFeet - ingressGroup->ingressPortalOrigin, ingressGroup->ingressPortalInward );
-		const double stopDepth = -ingressGroup->ingressReleaseDepth;
+		const double currentDepth = QM_Vector3DotProductDP( currentFeet - portalOrigin, portalInward );
 		const double frameSeconds = FRAME_TIME_S.Seconds();
-		const double inwardSpeed = QM_Vector3DotProductDP( velocityDP, ingressGroup->ingressPortalInward );
+		const double inwardSpeed = QM_Vector3DotProductDP( candidateVelocity, portalInward );
 		const double predictedDepth = currentDepth + ( inwardSpeed * frameSeconds );
-		const Vector3DP portalTangent{ ingressGroup->ingressPortalInward.y, -ingressGroup->ingressPortalInward.x, 0.0 };
+		// Reserve rounding before validation even when the ideal double endpoint only reaches the literal stop plane.
+		const Vector3DP predictedFeet = currentFeet + candidateVelocity * frameSeconds;
+		const double storageMargin = Nav_ReservationStorageMargin( predictedFeet, portalInward );
+		const Vector3DP portalTangent{ portalInward.y, -portalInward.x, 0.0 };
 		const double currentLateral = QM_Vector3DotProductDP(
-			currentFeet - ingressGroup->ingressPortalOrigin, portalTangent );
-		const double lateralSpeed = QM_Vector3DotProductDP( velocityDP, portalTangent );
-		const double reservedHalfSpan = ingressGroup->ingressPortalHalfWidth + ingressGroup->ingressReleaseDepth;
+			currentFeet - portalOrigin, portalTangent );
+		const double lateralSpeed = QM_Vector3DotProductDP( candidateVelocity, portalTangent );
 		bool crossesReservedAperture = false;
 
 		// Evaluate the continuous velocity segment at its stop-plane intersection to prevent diagonal tunnelling.
-		if ( frameSeconds > 0.0 && currentDepth <= stopDepth && predictedDepth > stopDepth ) {
+		if ( frameSeconds > 0.0 && inwardSpeed > 0.0 && currentDepth <= stopDepth && predictedDepth > stopDepth - storageMargin ) {
 			const double crossingFraction = std::clamp(
 				( stopDepth - currentDepth ) / ( predictedDepth - currentDepth ), 0.0, 1.0 );
 			const double crossingLateral = currentLateral +
 				( lateralSpeed * frameSeconds * crossingFraction );
-			crossesReservedAperture = std::fabs( crossingLateral ) < reservedHalfSpan;
+			crossesReservedAperture = std::fabs( crossingLateral ) <= reservedHalfSpan;
 		}
 
 		// Limit only the inward speed that would cross the reserved finite aperture this frame.
 		if ( crossesReservedAperture ) {
+			// Reserve the actual entity storage error before native validation, keeping the final float endpoint outside.
+
 			const double maximumInwardSpeed = std::clamp(
-				( stopDepth - currentDepth ) / frameSeconds, -frameVelocity, frameVelocity );
+				( stopDepth - storageMargin - currentDepth ) / frameSeconds, -frameVelocity, frameVelocity );
 			if ( inwardSpeed > maximumInwardSpeed ) {
-				velocityDP = velocityDP -
-					( ingressGroup->ingressPortalInward * ( inwardSpeed - maximumInwardSpeed ) );
+				// Record actual half-space clipping independently of harmless speed-ceiling rounding.
+				reservationAdjusted = true;
+				candidateVelocity = candidateVelocity -
+					( portalInward * ( inwardSpeed - maximumInwardSpeed ) );
 			}
 		}
 
 		// Preserve the configured speed ceiling after the half-space projection rotates the velocity vector.
-		const double constrainedSpeed = std::sqrt( ( velocityDP.x * velocityDP.x ) + ( velocityDP.y * velocityDP.y ) );
+		const double constrainedSpeed = std::sqrt( ( candidateVelocity.x * candidateVelocity.x ) + ( candidateVelocity.y * candidateVelocity.y ) );
 		if ( constrainedSpeed > frameVelocity && constrainedSpeed > 0.001 ) {
-			velocityDP = velocityDP * ( frameVelocity / constrainedSpeed );
+			candidateVelocity = candidateVelocity * ( frameVelocity / constrainedSpeed );
+		}
+		return candidateVelocity;
+	};
+	const auto projectReservation = [&]( Vector3DP candidateVelocity ) {
+		// Unadmitted actors retain the destination doorway's original finite reservation.
+		if ( ingressGroup != nullptr && ingressGroup->hasSerializedIngress && !crowd.ingressReleased ) {
+			candidateVelocity = projectAperture( candidateVelocity, ingressGroup->ingressPortalOrigin,
+				ingressGroup->ingressPortalInward, -ingressGroup->ingressReleaseDepth,
+				ingressGroup->ingressPortalHalfWidth + ingressGroup->ingressReleaseDepth );
+		}
+		// A cleared pool/navigation lifetime cannot undo departure while other origin owners still need its opening.
+		if ( ingressGroup != nullptr && SVG_Crowd_HasClearedEgress( this ) ) {
+			const double radius = std::max( { std::fabs( mins.x ), std::fabs( maxs.x ), std::fabs( mins.y ), std::fabs( maxs.y ) } );
+			candidateVelocity = projectAperture( candidateVelocity, ingressGroup->egressPortalOrigin,
+				ingressGroup->egressPortalOutward * -1.0, -SVG_Crowd_GetEgressClearanceDepth( this ),
+				ingressGroup->egressPortalHalfWidth + radius );
+		}
+		return candidateVelocity;
+	};
+
+	/**
+	*	Validate actual tick displacement after every steering, speed and reservation contribution.
+	*	Try at most four physical candidates: preferred, direct, short/preferred tangent, then opposite tangent.
+	**/
+	const Vector3DP validationFeet = SVG_GetEntityFeetOriginDP( this );
+	const double tickSeconds = FRAME_TIME_S.Seconds();
+	Vector3DP directDirection = moveDirDP;
+	double constraintDistance = frameVelocity * tickSeconds;
+	// Cap travel at the next unresolved waypoint so a fast tick cannot overshoot its obligation.
+	if ( !stringPulledPath.empty() && stringPathPos < stringPulledPath.size() ) {
+		directDirection = stringPulledPath[ stringPathPos ] - validationFeet;
+		directDirection.z = 0.0;
+		constraintDistance = QM_Vector3LengthDP( directDirection );
+		// At a vertical riser, keep the existing horizontal approach direction.
+		if ( constraintDistance > 0.001 ) {
+			directDirection = directDirection * ( 1.0 / constraintDistance );
+		} else {
+			directDirection = moveDirDP;
+			constraintDistance = frameVelocity * tickSeconds;
 		}
 	}
+	navigationSteering.constraint_distance = constraintDistance;
+	const double limitedSpeed = tickSeconds > 0.0 ? std::min( frameVelocity, constraintDistance / tickSeconds ) : 0.0;
+	const Vector3DP candidates[ 3 ] = { moveDirDP * limitedSpeed, directDirection * limitedSpeed, directDirection * ( limitedSpeed * 0.5 ) };
+	bool candidateAccepted = false;
+	// Retain the opposite of the same first blocker tangent for this owner-thread trial only.
+	Vector3DP oppositeTangentCandidate{};
+	bool hasOppositeTangent = false;
+	int32_t blockingActor = ENTITYNUM_NONE;
+	// Current floor classification separates flat-corner clearance from native step/ramp traversal.
+	const int32_t validationFace = ResolveCurrentFace( validationFeet );
+	const bool flatSurface = validationFace >= 0 && static_cast<size_t>( validationFace ) < g_nav_faces.size() &&
+		g_nav_faces[ validationFace ].normal.z >= 0.999 && ( g_nav_faces[ validationFace ].room_id < 0 || static_cast<size_t>( g_nav_faces[ validationFace ].room_id ) >= g_nav_rooms.size() ||
+		  g_nav_rooms[ g_nav_faces[ validationFace ].room_id ].zone_type != ZONE_TYPE_CORRIDOR_STAIRS );
+	// A rejected command remains held through the normal replan cooldown instead of endless short retries.
+	if ( !navigationCommandRejected && Nav_IsSupportedNativeHull( mins, maxs ) ) {
+		// Every fallback must pass the same unchanged hull, support, wall and reservation checks.
+		for ( uint32_t candidateIndex = 0; candidateIndex < navigationSteering.candidates.size(); ++candidateIndex ) {
+			// The fourth trial exists only when the original blocker defined an authorized tangent.
+			if ( candidateIndex == 3 && !hasOppositeTangent ) {
+				break;
+			}
+			auto &evidence = navigationSteering.candidates[ candidateIndex ];
+			navigationSteering.candidate_count = candidateIndex + 1;
+			Vector3DP candidate = candidateIndex == 3 ? oppositeTangentCandidate : candidates[ candidateIndex ];
+			/**
+			*	Preserve the existing native-validated single-actor tangent on flat floors, steps and ramps.
+			**/
+			if ( candidateIndex == 2 && blockingActor > 0 ) {
+				const auto *obstacle = g_edict_pool.EdictForNumber( blockingActor );
+				const bool outsideCrowd = obstacle != nullptr && ( crowd.crowdID < 0 || obstacle->crowd.crowdID != crowd.crowdID );
+				// A head holding its cell yields approach space without surrendering queue or doorway ownership.
+				const bool holdingStagingHead = obstacle != nullptr && SVG_Crowd_IsCurrentIngressHead( obstacle ) &&
+					!obstacle->crowd.ingressReleased && obstacle->crowd.reachedGoal;
+				// An arrived exact holding owner must not trap later staging traffic while its admission head waits for that traffic.
+				const bool settledHoldingObstacle = obstacle != nullptr && obstacle->crowd.reachedGoal &&
+					SVG_Crowd_IsCurrentApproachYieldMember( obstacle );
+				const bool admittedContention = obstacle != nullptr && !outsideCrowd &&
+					( crowd.ingressReleased || obstacle->crowd.ingressReleased || isStagingHead || holdingStagingHead ||
+					  isHoldingMover || settledHoldingObstacle );
+				// Approach around the stationary head remains subject to the same hull, wall and reservation gates.
+				if ( obstacle != nullptr && SVG_Entity_IsActive( obstacle ) && ( outsideCrowd || admittedContention ) &&
+					 obstacle->GetTypeInfo()->IsSubClassType<svg_monster_base_t>() ) {
+					Vector3DP radial = validationFeet - SVG_GetEntityFeetOriginDP( obstacle );
+					radial.z = 0.0;
+					const double length = QM_Vector3LengthDP( radial );
+					// Coincident hulls cannot define a safe tangent and remain subject to native rejection.
+					if ( length > 0.001 ) {
+						radial = radial * ( 1.0 / length );
+						Vector3DP tangent{ -radial.y, radial.x, 0.0 };
+						const double alignment = QM_Vector3DotProductDP( tangent, directDirection );
+						// Prefer goal progress; entity parity resolves an exactly head-on symmetric encounter.
+						if ( alignment < -0.000001 || ( std::fabs( alignment ) <= 0.000001 && ( s.number & 1 ) != 0 ) ) {
+							tangent = tangent * -1.0;
+						}
+						const Vector3DP avoidance = tangent + radial * 0.25;
+						candidate = avoidance * ( limitedSpeed / QM_Vector3LengthDP( avoidance ) );
+						// A second peer may block the preferred side; independently validate the other side of this same obstacle.
+						const Vector3DP oppositeAvoidance = tangent * -1.0 + radial * 0.25;
+						oppositeTangentCandidate = oppositeAvoidance * ( limitedSpeed / QM_Vector3LengthDP( oppositeAvoidance ) );
+						hasOppositeTangent = true;
+					}
+				}
+			}
+			evidence.proposed = candidate;
+			reservationAdjusted = false;
+			const Vector3DP projected = projectReservation( candidate );
+			evidence.projected = projected;
+			const Vector3DP predictedFeet = validationFeet + projected * tickSeconds;
+			evidence.endpoint = predictedFeet;
+			/**
+			*	A reservation-annulled command is waiting for a usable route, not successful cached forward movement.
+			**/
+			const Vector3 storedPredictedFeet = QM_Vector3FromDP( predictedFeet );
+			const Vector3 storedRequestedFeet = QM_Vector3FromDP( validationFeet + candidate * tickSeconds );
+			// Compare actual entity storage: meaningful requested XY motion must not become an unchanged stationary endpoint.
+			if ( reservationAdjusted &&
+				storedPredictedFeet.x == currentOrigin.x && storedPredictedFeet.y == currentOrigin.y &&
+				( storedRequestedFeet.x != currentOrigin.x || storedRequestedFeet.y != currentOrigin.y ) ) {
+				continue;
+			}
+			// Projection can reverse an otherwise forward fallback; reject it so the debounced replan can repair the route.
+			if ( reservationAdjusted && QM_Vector3DotProductDP( candidate, directDirection ) > 0.0 &&
+				QM_Vector3DotProductDP( projected, directDirection ) <= 0.0 ) {
+				continue;
+			}
+			// Flat traversal uses the complete native radius even for a very short displacement.
+			// Keep each geometric witness; physical validation remains a distinct, possibly unexecuted phase.
+			if ( flatSurface ) {
+				lastGeometricValidation = Nav_TestSegmentClearance( validationFeet, predictedFeet, static_cast<double>( maxs.x ) );
+				evidence.geometric = lastGeometricValidation;
+			}
+			if ( flatSurface && lastGeometricValidation.reason != nav_clearance_reason_t::clear ) {
+				continue;
+			}
+			lastMovementValidation = SVG_Nav_TestMovementCandidate( this, validationFeet, predictedFeet, pathNavigationState.policy, false );
+			evidence.native = lastMovementValidation;
+			navigationValidationTraceCount += lastMovementValidation.trace_count;
+			// Retain the physical actor witness for the remaining bounded fallback candidate.
+			if ( lastMovementValidation.reason != svg_nav_movement_reason_t::clear && lastMovementValidation.blocking_actor > 0 ) {
+				blockingActor = lastMovementValidation.blocking_actor;
+			}
+			// Commit only the exact projected candidate that passed both static and physical validation.
+			if ( lastMovementValidation.reason == svg_nav_movement_reason_t::clear ) {
+				velocityDP = projected;
+				evidence.accepted = true;
+				candidateAccepted = true;
+				break;
+			}
+		}
+	}
+	// Failed candidates hold and request a debounced replan; no unchecked fallback is issued.
+	if ( !candidateAccepted ) {
+		navigationCommandRejected = true;
+		velocityDP = Vector3DP{};
+	}
 
+	navigationSteering.final_velocity = velocityDP;
 	const double actualFrameVelocity = std::sqrt( ( velocityDP.x * velocityDP.x ) + ( velocityDP.y * velocityDP.y ) );
 	if ( this->crowd.crowdID >= 0 && this->crowd.slotIndex >= 0 ) {
 		const svg_crowd_group_t *grp = SVG_Crowd_GetGroup( this->crowd.crowdID );
@@ -1441,8 +2441,25 @@ const bool svg_monster_base_t::MoveAStarToOrigin( const Vector3 &goalOrigin, boo
 		return true;
 	}
 
-	ComputePathTo( goalOrigin, force );
-	return StepMoveToGoal( goalOrigin );
+	const PathComputeResult result = ComputePathTo( goalOrigin, force );
+	/**
+	*	Pending without safe installed geometry holds position and remains an active behavior.
+	**/
+	if ( result == PathComputeResult::Pending && ( stringPulledPath.empty() || !SVG_Nav_IsCommittedRouteUsable() ) ) {
+		velocity.x = velocity.y = 0.0f;
+		monsterMove.state.velocity.x = monsterMove.state.velocity.y = 0.0;
+		UpdateAnim( 1 );
+		return true;
+	}
+	const bool moving = StepMoveToGoal( goalOrigin );
+	// Reaching an old endpoint while waiting is a safe hold, never arrival at the new requested goal.
+	if ( !moving && result == PathComputeResult::Pending ) {
+		velocity.x = velocity.y = 0.0f;
+		monsterMove.state.velocity.x = monsterMove.state.velocity.y = 0.0;
+		UpdateAnim( 1 );
+		return true;
+	}
+	return moving;
 }
 
 /**
@@ -1532,6 +2549,19 @@ void svg_monster_base_t::UpdateBlockedNavigationRecovery( const int32_t blockedM
 }
 
 /**
+*	@brief	Keep unknown derived cost overrides in the owner-only synchronous phase by default.
+*	@param	cost	Receives the base corridor preference for an explicitly supporting subclass.
+*	@return	False; dynamic classes opt in only after all their behavior is represented.
+*	@note	An inherited opt-in could silently erase an unrepresented virtual override, so the base refuses it.
+**/
+bool svg_monster_base_t::BuildNavigationCostSnapshot( nav_query_cost_policy_t &cost ) const {
+	// Define the base scalar preference without authorizing unknown derived implementations.
+	cost = {};
+	cost.corridor_multiplier = 0.85;
+	return false;
+}
+
+/**
 *	@brief	Static bridge dispatching nav_path_policy_t edge cost callbacks to monster instances.
 **/
 double svg_monster_base_t::NavEdgeCostCallbackBridge( int32_t fromFaceIdx, int32_t toFaceIdx, const nav_halfedge_t &he, double baseCost, svg_monster_base_t *monster ) {
@@ -1552,6 +2582,8 @@ double svg_monster_base_t::NavEdgeCostCallbackBridge( int32_t fromFaceIdx, int32
 *	@return	Adjusted edge traversal cost.
 **/
 double svg_monster_base_t::OnNavEvaluateEdgeCost( const int32_t fromFaceIdx, const int32_t toFaceIdx, const nav_halfedge_t &he, const double baseCost ) {
+	( void )fromFaceIdx;
+	( void )he;
 	double cost = baseCost;
 
 	/**
@@ -1561,12 +2593,9 @@ double svg_monster_base_t::OnNavEvaluateEdgeCost( const int32_t fromFaceIdx, con
 	*	bifurcation manifolds (e.g. around obstacles or split stairways) and permanently prevents
 	*	high-frequency route flip-flopping.
 	**/
-	if ( !navPath.empty() ) {
-		for ( size_t i = pathPos; i < navPath.size(); ++i ) {
-			if ( navPath[ i ] == toFaceIdx ) {
-				cost *= 0.85;
-				break;
-			}
+	if ( toFaceIdx >= 0 && static_cast<size_t>( toFaceIdx ) < corridorMembershipMarks.size() ) {
+		if ( corridorMembershipMarks[ toFaceIdx ] == corridorMembershipStamp ) {
+			cost *= 0.85;
 		}
 	}
 
@@ -1608,6 +2637,11 @@ const bool svg_monster_base_t::QuerySquadFormationTarget( Vector3DP *outTargetOr
 	/**
 	*	Retrieve active tactical squad record from coordinator.
 	**/
+	const svg_crowd_group_t *crowdGroup = SVG_Crowd_GetGroup( this->crowd.crowdID );
+	// The active crowd order already supplies following/admission pacing; a second squad token can deadlock it.
+	if ( crowdGroup != nullptr && crowdGroup->isMoving ) {
+		return false;
+	}
 	const svg_squad_t *squad = SVG_Squad_Get( this->crowd.crowdID );
 	if ( squad == nullptr || !squad->is_moving ) {
 		return false;

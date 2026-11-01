@@ -131,6 +131,11 @@ void UI_ForceMenuOff(void)
         }
     }
 
+    // Also close any active ClientGame MicroUI menu when forcing menus off.
+    if ( clge != nullptr && clge->GameUI_CloseMenu != nullptr ) {
+        clge->GameUI_CloseMenu();
+    }
+
     Key_SetDest(static_cast<keydest_t>( Key_GetDest() & ~KEY_MENU ) );
     uis.menuDepth = 0;
     uis.activeMenu = NULL;
@@ -218,6 +223,35 @@ void UI_OpenMenu(uiMenu_t type)
 
     // close any existing menus
     UI_ForceMenuOff();
+
+    /**
+    *	Route root menu opening (`main` at boot, `game` in-game) to ClientGame MicroUI when available.
+    **/
+    if ( clge != nullptr && clge->GameUI_OpenRootMenu != nullptr ) {
+        switch ( type ) {
+        case UIMENU_DEFAULT:
+            // Open the MicroUI main menu on startup when ui_open is enabled.
+            if ( ui_open->integer ) {
+                clge->GameUI_OpenRootMenu( "main" );
+            }
+            break;
+        case UIMENU_MAIN:
+            clge->GameUI_OpenRootMenu( "main" );
+            break;
+        case UIMENU_GAME:
+            clge->GameUI_OpenRootMenu( "game" );
+            break;
+        case UIMENU_NONE:
+            if ( clge->GameUI_CloseMenu != nullptr ) {
+                clge->GameUI_CloseMenu();
+            }
+            break;
+        default:
+            Q_assert( !"bad menu" );
+            break;
+        }
+        return;
+    }
 
     switch (type) {
     case UIMENU_DEFAULT:
@@ -635,6 +669,13 @@ static void UI_PushMenu_f(void)
         return;
     }
     s = Cmd_Argv(1);
+
+    // Forward pushmenu commands (e.g. F-key shortcuts) to ClientGame MicroUI when available.
+    if ( clge != nullptr && clge->GameUI_PushMenu != nullptr ) {
+        clge->GameUI_PushMenu( s );
+        return;
+    }
+
     menu = UI_FindMenu(s);
     if (menu) {
         UI_PushMenu(menu);
@@ -645,6 +686,12 @@ static void UI_PushMenu_f(void)
 
 static void UI_PopMenu_f(void)
 {
+    // Forward popmenu commands to ClientGame MicroUI when available.
+    if ( clge != nullptr && clge->GameUI_PopMenu != nullptr ) {
+        clge->GameUI_PopMenu();
+        return;
+    }
+
     if (uis.activeMenu) {
         UI_PopMenu();
     }

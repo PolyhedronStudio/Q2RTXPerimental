@@ -277,11 +277,32 @@ void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEnti
         refreshEntity->rootMotionFlags = SKM_POSE_TRANSLATE_Z | SKM_POSE_TRANSLATE_Y;
 
         if ( !( refreshEntity->model & 0x80000000 ) && packetEntity->last_frame != packetEntity->current_frame ) {
-            // Calculate back lerpfraction using clgi.client->time. (40hz.)
-            constexpr int32_t animationHz = BASE_FRAMERATE;
-            constexpr float animationMs = 1.f / ( animationHz ) * 1000.f;
-            refreshEntity->backlerp = 1.f - ( ( clgi.client->time - ( (float)packetEntity->frame_servertime - clgi.client->sv_frametime ) ) / animationMs );
-            refreshEntity->backlerp = QM_Clamp( refreshEntity->backlerp, 0.0f, 1.f );
+            // Check if animation LOD throttling should be applied based on distance or camera-relative position.
+            bool throttle_anim = false;
+            if ( clg_anim_lod_enable != nullptr && clg_anim_lod_enable->integer != 0 ) {
+                const float lodDist = ( clg_anim_lod_distance != nullptr ) ? clg_anim_lod_distance->value : 1024.0f;
+                const Vector3 toEnt = refreshEntity->origin - Vector3( clgi.client->refdef.vieworg );
+                const float distSq = QM_Vector3DotProduct( toEnt, toEnt );
+
+                // If beyond cvar distance threshold, throttle animation to server snapshot rate (backlerp = 0.0f).
+                if ( distSq > ( lodDist * lodDist ) ) {
+                    throttle_anim = true;
+                } else {
+                    // Check if entity is behind camera (dot product with view forward < -64).
+                    const float dotForward = QM_Vector3DotProduct( toEnt, clgi.client->vForward );
+                    if ( dotForward < -64.0f ) {
+                        throttle_anim = true;
+                    }
+                }
+            }
+
+            if ( !throttle_anim ) {
+                // Calculate back lerpfraction using clgi.client->time. (40hz.)
+                constexpr int32_t animationHz = BASE_FRAMERATE;
+                constexpr float animationMs = 1.f / ( animationHz ) * 1000.f;
+                refreshEntity->backlerp = 1.f - ( ( clgi.client->time - ( (float)packetEntity->frame_servertime - clgi.client->sv_frametime ) ) / animationMs );
+                refreshEntity->backlerp = QM_Clamp( refreshEntity->backlerp, 0.0f, 1.f );
+            }
         }
 
         // Add refresh entity to scene.

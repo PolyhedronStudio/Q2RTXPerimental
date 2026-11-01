@@ -66,6 +66,8 @@ typedef struct pbr_material_s {
 	int emissive_threshold;
 } pbr_material_t;
 
+QEXTERN_C_OPEN
+
 extern pbr_material_t r_materials[MAX_PBR_MATERIALS];
 
 // clears the material table, adds the mat command
@@ -119,5 +121,7 @@ bool MAT_IsTransparent(uint32_t material);
 
 // test if the material has an alpha mask
 bool MAT_IsMasked(uint32_t material);
+
+QEXTERN_C_CLOSE
 
 #endif // __MATERIAL_H_

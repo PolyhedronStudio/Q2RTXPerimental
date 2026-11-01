@@ -11,6 +11,9 @@
 #include "svgame/svg_trigger.h"
 #include "svgame/svg_utils.h"
 #include <algorithm>
+#include <charconv>
+#include "svgame/nav/nav_actor_fixture.h"
+#include "svgame/nav/nav_perf.h"
 #include <vector>
 
 // TODO: Move elsewhere.. ?
@@ -22,6 +25,8 @@
 // KD-Tree pathfinding
 #include "svgame/nav/nav_generate.h"
 #include "svgame/nav/nav_path.h"
+#include "sharedgame/sg_means_of_death.h"
+#include "svgame/nav/nav_worker.h"
 
 // SharedGame UseTargetHints.
 #include "sharedgame/sg_usetarget_hints.h"
@@ -152,10 +157,33 @@ const int32_t svg_monster_testdummy_debug_t::GetCrowdSkinImageIndex( const int32
 *
 **/
 /**
-*   Reconstructs the object, optionally retaining the entityDictionary.
+*	@brief	Reset navigation and debug behavior before the real pool reuses this entity.
+*	@param	retainDictionary	Keep the map dictionary when requested by the owning pool.
+*	@note	The base reset retains selected base fields, so derived behavior and cover ownership are reset explicitly.
 **/
 void svg_monster_testdummy_debug_t::Reset( const bool retainDictionary ) {
-    IMPLEMENT_EDICT_RESET_BY_COPY_ASSIGNMENT( Super, SelfType, retainDictionary );
+	/**
+	*	Cancel transport ownership before copy assignment replaces the transient incarnation and retained buffers.
+	**/
+	Nav_CancelQueryWorkerEntityMainThread( s.number );
+	// Release the derived resource before base reconstruction changes its transient identity.
+	if ( stateCover.activeCoverIdx >= 0 ) {
+		Nav_ReleaseCoverPoint( stateCover.activeCoverIdx, s.number );
+	}
+	IMPLEMENT_EDICT_RESET_BY_COPY_ASSIGNMENT( Super, SelfType, retainDictionary );
+	/**
+	*	The shared reset macro resets only the base portion; discard stale derived stimulus and claim fields explicitly.
+	**/
+	isActivated = false;
+	thinkAIState = AIThinkState::IdleLookout;
+	stateNavigationTrail = {};
+	stateSoundCan = {};
+	stateCover = {};
+	stateIdleScan = {};
+	stateStareHalt = {};
+	navigationFixtureNoCover = false;
+	navigationFixtureControl = false;
+	mood = svg_monster_mood_type_t::MOOD_TYPE_SCARED;
 }
 
 /**
@@ -289,7 +317,7 @@ static inline void Dummy_DebugLogStateGateInputs( svg_monster_testdummy_debug_t 
 	const double activatorDist2D = hasActivator
 		? std::sqrt( QM_Vector2DistanceSqr( self->activator->currentOrigin, self->currentOrigin ) )
 		: -1.0;
-	const bool requestPending = false;
+	const bool requestPending = self->navigationQueryState == svg_monster_base_t::NavigationQueryState::Pending;
 
 	/**
 	*   Emit a compact, single-line state snapshot for this think tick.
@@ -325,7 +353,10 @@ static inline void Dummy_DebugLogStateGateInputs( svg_monster_testdummy_debug_t 
 
 
 /**
-*   @brief	Set explicit debug state.
+*	@brief	Publish a debug behavior transition after closing the previous request and cover ownership.
+*	@param	self	Live owner-thread debug monster.
+*	@param	newState	Next real dispatcher state.
+*	@note	Unchanged states preserve their pending intent and query age.
 **/
 static inline void Dummy_SetState( svg_monster_testdummy_debug_t *self, const svg_monster_testdummy_debug_t::AIThinkState newState ) {
 	// Sanity: require valid entity.
@@ -344,6 +375,22 @@ static inline void Dummy_SetState( svg_monster_testdummy_debug_t *self, const sv
 			Dummy_DebugAIStateName( newState ) );
 	}
 
+	// Invalidate copied behavior replies before exposing the new state.
+	if ( oldState != newState ) {
+		// An idle or other behavior may never query again, so close pending ownership at the transition itself.
+		Nav_CancelQueryWorkerEntityMainThread( self->s.number );
+		if ( self->navigationQueryState == svg_monster_base_t::NavigationQueryState::Pending ) {
+			self->SVG_Nav_SetQueryTerminalState( svg_monster_base_t::NavigationQueryState::Cancelled );
+		}
+		// Leaving cover must release its claim even if the next idle handler never navigates again.
+		if ( oldState == svg_monster_testdummy_debug_t::AIThinkState::HideInCover &&
+			 newState != svg_monster_testdummy_debug_t::AIThinkState::HideInCover && self->stateCover.activeCoverIdx >= 0 ) {
+			Nav_ReleaseCoverPoint( self->stateCover.activeCoverIdx, self->s.number );
+			self->stateCover.activeCoverIdx = -1;
+			self->stateCover.isHidingInCover = false;
+		}
+		self->navigationStateRevision = Nav_IssueIdentityRevisionMainThread();
+	}
 	// Assign the next deterministic debug state.
 	self->thinkAIState = newState;
 }
@@ -402,10 +449,12 @@ const bool svg_monster_testdummy_debug_t::KeyValue( const cm_entity_t *keyValueP
 	const std::string keyStr = keyValuePair->key;
 
 	if ( keyStr == "crowd_id" && ( keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) ) {
-		this->crowd.crowdID = keyValuePair->integer;
+		// Invalidate submitted routes before publishing this assignment field.
+		this->crowd.SetNavigationAssignment( this->crowd.crowdID, keyValuePair->integer );
 		return true;
 	} else if ( keyStr == "crowd_role" && ( keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) ) {
-		this->crowd.role = static_cast<crowd_member_role_t>( keyValuePair->integer );
+		// Invalidate submitted routes before publishing this assignment field.
+		this->crowd.SetNavigationAssignment( this->crowd.role, static_cast<crowd_member_role_t>( keyValuePair->integer ) );
 		return true;
 	} else if ( keyStr == "crowd_style" && ( keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) ) {
 		this->initialCrowdStyle = static_cast<crowd_chase_target_type_t>( keyValuePair->integer );
@@ -456,7 +505,8 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_monster_testdummy_debug_t, onSpawn )( svg_mons
 		SVG_Crowd_RegisterMember( self, cid );
 		// Preserve role parsed from entity key values if explicitly assigned.
 		if ( role != crowd_member_role_t::ROLE_UNASSIGNED ) {
-			self->crowd.role = role;
+			// Invalidate submitted routes before publishing this assignment field.
+			self->crowd.SetNavigationAssignment( self->crowd.role, role );
 			if ( role == crowd_member_role_t::ROLE_LEADER ) {
 				SVG_Crowd_SetLeader( cid, self->s.number );
 			}
@@ -654,9 +704,18 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_monster_testdummy_debug_t, onTouch )( svg_mons
 }
 
 /**
-*   @brief  Death routine.
+*	@brief	Cancel navigation and cover ownership before entering the corpse animation.
+*	@param	self	Owner-thread dying debug monster.
+*	@param	inflictor	Damage source supplied by the callback.
+*	@param	attacker	Entity retained as the death activator.
+*	@param	damage	Damage amount used when throwing gibs.
+*	@param	point	Damage position supplied by the real damage callback.
+*	@note	BBox replacement preserves actual feet; late worker replies cannot restore this route.
 **/
 DEFINE_MEMBER_CALLBACK_DIE( svg_monster_testdummy_debug_t, onDie )( svg_monster_testdummy_debug_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int32_t damage, Vector3 *point ) -> void {
+	/**
+	*	Ignore repeated damage callbacks after the corpse has completed its death transition.
+	**/
 	if ( ( self->lifeStatus & LIFESTATUS_DEAD ) == LIFESTATUS_DEAD ) {
 		return;
 	}
@@ -679,6 +738,8 @@ DEFINE_MEMBER_CALLBACK_DIE( svg_monster_testdummy_debug_t, onDie )( svg_monster_
 			// Set lifeStatus.
 			self->lifeStatus = LIFESTATUS_DEAD;
 		}
+		// Repeated corpse damage may gib, but must never restart death or replace a gib callback.
+		return;
 	}
 	// Set activator.
 	self->activator = attacker;
@@ -686,7 +747,22 @@ DEFINE_MEMBER_CALLBACK_DIE( svg_monster_testdummy_debug_t, onDie )( svg_monster_
 	//---------------------------
 	// <TEMPORARY FOR TESTING>
 	//---------------------------
-	if ( ( self->lifeStatus & LIFESTATUS_ALIVE ) == LIFESTATUS_ALIVE ) {
+	// Alive is the zero-valued enum state, so a bit test would also accept dying corpses.
+	if ( self->lifeStatus == LIFESTATUS_ALIVE ) {
+		// Death must cancel a delayed reply before changing life status and collision bounds.
+		self->ResetNavigationPath();
+		/**
+		*	Remove live crowd/squad ownership before becoming a corpse; immutable queues can safely skip this dead entry.
+		*	Keeping the dead actor in the ordered roster leaves physical completion inconsistent with the live formation.
+		**/
+		SVG_Crowd_UnregisterMember( self );
+		self->velocity = {};
+		self->monsterMove.state.velocity = Vector3DP{};
+		// Release a real cover claim so another live actor may acquire it.
+		if ( self->stateCover.activeCoverIdx >= 0 ) {
+			Nav_ReleaseCoverPoint( self->stateCover.activeCoverIdx, self->s.number );
+			self->stateCover.activeCoverIdx = -1;
+		}
 		// Pick a random death animation.
 		int32_t deathanim = irandom( 3 );
 		if ( deathanim == 0 ) {
@@ -715,9 +791,13 @@ DEFINE_MEMBER_CALLBACK_DIE( svg_monster_testdummy_debug_t, onDie )( svg_monster_
 	//---------------------------
 	// Stop playing any sounds.
 	self->s.sound = 0;
-	// Setup the death bounding box.
+	// Preserve the actual supported feet when death changes bbox-origin offsets, including opt-in fixture profiles.
+	const Vector3DP deathFeet = SVG_GetEntityFeetOriginDP( self );
 	self->mins = DUMMY_BBOX_DEAD_MINS;
 	self->maxs = DUMMY_BBOX_DEAD_MAXS;
+	const Vector3DP deathOrigin = deathFeet - Vector3DP{ 0.0, 0.0, static_cast<double>( self->mins.z ) };
+	self->monsterMove.state.origin = deathOrigin;
+	SVG_Util_SetEntityOrigin( self, deathOrigin, true );
 
 	// Make sure to relink.
 	gi.linkentity( self );
@@ -841,8 +921,9 @@ DEFINE_MEMBER_CALLBACK_USE( svg_monster_testdummy_debug_t, onUse )( svg_monster_
 		self->goalentity = activator;
 		// Activated dummy always returns to mood == 0 (MOOD_TYPE_NORMAL) following behavior!
 		self->mood = svg_monster_mood_type_t::MOOD_TYPE_NORMAL;
-		self->mins = DUMMY_BBOX_STANDUP_MINS;
-		self->maxs = DUMMY_BBOX_STANDUP_MAXS;
+		// Preserve a validated console fixture profile when selecting the standing animation.
+		self->mins = self->navigationFixtureProfile ? self->navigationFixtureMins : DUMMY_BBOX_STANDUP_MINS;
+		self->maxs = self->navigationFixtureProfile ? self->navigationFixtureMaxs : DUMMY_BBOX_STANDUP_MAXS;
 		self->viewheight = DUMMY_VIEWHEIGHT_STANDUP;
 		Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::PursuePlayer );
 	} else {
@@ -1211,8 +1292,9 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarPursui
     }
 
     if ( spot ) {
-        double dist2D = std::sqrt( QM_Vector2DistanceSqr( spot->currentOrigin, self->currentOrigin ) );
-        if ( dist2D <= DUMMY_SOUND_INVESTIGATE_REACHED_DIST * DUMMY_SOUND_INVESTIGATE_REACHED_DIST ) { // Reached breadcrumb
+        // Compare squared distance with squared arrival radius; linear distance would prematurely consume a breadcrumb.
+        const double dist2DSquared = QM_Vector2DistanceSqr( spot->currentOrigin, self->currentOrigin );
+        if ( dist2DSquared <= DUMMY_SOUND_INVESTIGATE_REACHED_DIST * DUMMY_SOUND_INVESTIGATE_REACHED_DIST ) { // Reached breadcrumb
             spot = PlayerTrail_PickNext( (self) );
             self->stateNavigationTrail.targetEntity = spot;
             if ( spot ) {
@@ -1354,6 +1436,13 @@ static std::vector<int32_t> s_testdummy_candidate_indices;
 *	@return	Index of the chosen cover point in g_nav_cover_points, or -1 if none found.
 **/
 const int32_t svg_monster_testdummy_debug_t::FindBestScaredCover( const Vector3DP &threat_origin ) {
+	/**
+	*	Explicit fixture availability controls exercise this compiled handler's normal no-cover branch.
+	**/
+	if ( ( navigationFixtureProfile || navigationFixtureControl ) && navigationFixtureNoCover ) {
+		return -1;
+	}
+
 	/**
 	*	Sanity checks: Ensure cover points exist in active navmesh.
 	**/
@@ -1529,6 +1618,25 @@ const int32_t svg_monster_testdummy_debug_t::FindBestScaredCover( const Vector3D
 }
 
 /**
+*	@brief	Snapshot corridor and mood-dependent stair costs without exporting a monster pointer.
+*	@param	cost	Owned scalar cost representation for the pure query request.
+*	@return	True when this concrete dummy's complete edge policy is represented.
+*	@note	No future override is presumed safe merely because this class supports a snapshot.
+**/
+bool svg_monster_testdummy_debug_t::BuildNavigationCostSnapshot( nav_query_cost_policy_t &cost ) const {
+	/**
+	*	Copy the existing base 15-percent preference and current scared-dummy 20-percent stair bonus.
+	**/
+	cost = {};
+	cost.corridor_multiplier = 0.85;
+	cost.stair_multiplier = mood == svg_monster_mood_type_t::MOOD_TYPE_SCARED ? 0.80 : 1.0;
+	cost.stair_min = 4.0;
+	cost.stair_max = NAV_MAX_STEP_HEIGHT;
+	// A derived class with another edge override must explicitly provide its own snapshot representation.
+	return GetTypeInfo() == &svg_monster_testdummy_debug_t::ClassInfo;
+}
+
+/**
 *	@brief	Monster-specific edge cost evaluator for A* navigation pathfinding.
 *	@details Overrides svg_monster_base_t to prioritize stair transitions when scared and fleeing.
 *	@param	fromFaceIdx	Source polygon index.
@@ -1555,6 +1663,8 @@ double svg_monster_testdummy_debug_t::OnNavEvaluateEdgeCost( const int32_t fromF
 
 /**
 *	@brief	Cover hiding thinker: seeks and holds crouch cover when scared.
+*	@param	self	Live debug monster with owner-only cover and pending retreat intent.
+*	@note	A pending no-cover retreat survives delayed graph delivery without a new probe each frame.
 **/
 DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_HideInCover )( svg_monster_testdummy_debug_t *self ) -> void {
 	/**
@@ -1566,8 +1676,9 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_HideInCover
 
 	// Deactivate if not activated.
 	if ( !self->isActivated ) {
-		self->mins = DUMMY_BBOX_STANDUP_MINS;
-		self->maxs = DUMMY_BBOX_STANDUP_MAXS;
+		// Preserve a validated console fixture profile when selecting the standing animation.
+		self->mins = self->navigationFixtureProfile ? self->navigationFixtureMins : DUMMY_BBOX_STANDUP_MINS;
+		self->maxs = self->navigationFixtureProfile ? self->navigationFixtureMaxs : DUMMY_BBOX_STANDUP_MAXS;
 		self->viewheight = DUMMY_VIEWHEIGHT_STANDUP;
 		Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
 		self->nextthink = level.time + FRAME_TIME_MS;
@@ -1582,8 +1693,9 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_HideInCover
 		self->stateNavigationTrail.targetEntity = nullptr;
 		self->goalentity = nullptr;
 		self->ResetNavigationPath();
-		self->mins = DUMMY_BBOX_STANDUP_MINS;
-		self->maxs = DUMMY_BBOX_STANDUP_MAXS;
+		// Preserve a validated console fixture profile when selecting the standing animation.
+		self->mins = self->navigationFixtureProfile ? self->navigationFixtureMins : DUMMY_BBOX_STANDUP_MINS;
+		self->maxs = self->navigationFixtureProfile ? self->navigationFixtureMaxs : DUMMY_BBOX_STANDUP_MAXS;
 		self->viewheight = DUMMY_VIEWHEIGHT_STANDUP;
 		Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
 		self->nextthink = level.time + FRAME_TIME_MS;
@@ -1640,8 +1752,9 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_HideInCover
 
 		// Stand up to run away to the new cover!
 		self->stateCover.isHidingInCover = false;
-		self->mins = DUMMY_BBOX_STANDUP_MINS;
-		self->maxs = DUMMY_BBOX_STANDUP_MAXS;
+		// Preserve a validated console fixture profile when selecting the standing animation.
+		self->mins = self->navigationFixtureProfile ? self->navigationFixtureMins : DUMMY_BBOX_STANDUP_MINS;
+		self->maxs = self->navigationFixtureProfile ? self->navigationFixtureMaxs : DUMMY_BBOX_STANDUP_MAXS;
 		self->viewheight = DUMMY_VIEWHEIGHT_STANDUP;
 		self->ResetNavigationPath();
 
@@ -1728,8 +1841,9 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_HideInCover
 
 			// Stand up for running to new cover.
 			self->stateCover.isHidingInCover = false;
-			self->mins = DUMMY_BBOX_STANDUP_MINS;
-			self->maxs = DUMMY_BBOX_STANDUP_MAXS;
+			// Preserve a validated console fixture profile when selecting the standing animation.
+			self->mins = self->navigationFixtureProfile ? self->navigationFixtureMins : DUMMY_BBOX_STANDUP_MINS;
+			self->maxs = self->navigationFixtureProfile ? self->navigationFixtureMaxs : DUMMY_BBOX_STANDUP_MAXS;
 			self->viewheight = DUMMY_VIEWHEIGHT_STANDUP;
 
 			// Find best crouch cover spot away from threat.
@@ -1764,8 +1878,9 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_HideInCover
 	**/
 	if ( self->stateCover.activeCoverIdx < 0 ) {
 		self->stateCover.isHidingInCover = false;
-		self->mins = DUMMY_BBOX_STANDUP_MINS;
-		self->maxs = DUMMY_BBOX_STANDUP_MAXS;
+		// Preserve a validated console fixture profile when selecting the standing animation.
+		self->mins = self->navigationFixtureProfile ? self->navigationFixtureMins : DUMMY_BBOX_STANDUP_MINS;
+		self->maxs = self->navigationFixtureProfile ? self->navigationFixtureMaxs : DUMMY_BBOX_STANDUP_MAXS;
 		self->viewheight = DUMMY_VIEWHEIGHT_STANDUP;
 
 		const Vector3DP monster_origin( self->currentOrigin );
@@ -1776,8 +1891,12 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_HideInCover
 			flee_dir = QM_Vector3NormalizeDP( flee_dir );
 
 			// Goal commitment: if already actively navigating toward an unreached retreat goal, continue along it
-			bool has_active_retreat_goal = false;
-			if ( self->pathNavigationState.lastGoal.isValid && !self->stringPulledPath.empty() ) {
+			// A valid pending retreat is already a committed intent, even before native route geometry exists.
+			const bool has_pending_retreat_goal = self->navigationQueryState == svg_monster_base_t::NavigationQueryState::Pending &&
+				self->navigationGraphWorkspace.request.identity.sequence == self->navigationRequestSequence &&
+				self->SVG_Nav_IsIdentityCurrent( self->navigationGraphWorkspace.request.identity );
+			bool has_active_retreat_goal = has_pending_retreat_goal;
+			if ( !has_pending_retreat_goal && self->pathNavigationState.lastGoal.isValid && !self->stringPulledPath.empty() ) {
 				const Vector3 curGoal = self->pathNavigationState.lastGoal.origin;
 				const float distToGoalSq = QM_Vector3DistanceSqr( self->currentOrigin, curGoal );
 				if ( distToGoalSq > ( 32.0f * 32.0f ) ) {
@@ -1853,7 +1972,8 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_HideInCover
 				}
 			} else {
 				// Continue navigating along the current committed retreat path
-				self->MoveAStarToOrigin( self->pathNavigationState.lastGoal.origin );
+				// Continue pending intent every tick; reprobes cannot continually supersede a delayed no-cover retreat.
+				self->MoveAStarToOrigin( has_pending_retreat_goal ? self->navigationPendingTarget : self->pathNavigationState.lastGoal.origin );
 			}
 		}
 		int32_t blockedMask = 0;
@@ -1880,8 +2000,9 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_HideInCover
 
 	if ( !self->stateCover.isHidingInCover ) {
 		// Still en route to cover: stand up, run towards cover position using A*.
-		self->mins = DUMMY_BBOX_STANDUP_MINS;
-		self->maxs = DUMMY_BBOX_STANDUP_MAXS;
+		// Preserve a validated console fixture profile when selecting the standing animation.
+		self->mins = self->navigationFixtureProfile ? self->navigationFixtureMins : DUMMY_BBOX_STANDUP_MINS;
+		self->maxs = self->navigationFixtureProfile ? self->navigationFixtureMaxs : DUMMY_BBOX_STANDUP_MAXS;
 		self->viewheight = DUMMY_VIEWHEIGHT_STANDUP;
 		self->goalentity = nullptr;
 		self->MoveAStarToOrigin( self->stateCover.coverWorldPos );
@@ -2172,10 +2293,8 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_CrowdFormat
 	*	Uses strict entrance and exit thresholds (hysteresis deadband) to eliminate boundary
 	*	chatter between arrived station-keeping and en-route navigation.
 	**/
-	const double arrivalFloor = std::min( configuredArrivalRadius, selfRadius * 0.75 );
-	// Staging and admission share one tolerance so station keeping cannot strand a queue owner off its cell.
-	const double enterArrivalRadius = group->hasSerializedIngress ? CROWD_INGRESS_ARRIVAL_RADIUS :
-		std::max( arrivalFloor, std::min( configuredArrivalRadius, std::min( slotSpacing * 0.35, selfRadius * 1.25 ) ) );
+	// Path following and station keeping share the same native-radius and queue tolerance.
+	const double enterArrivalRadius = self->GetNavigationArrivalRadius();
 	const double exitArrivalRadius = enterArrivalRadius * 1.35;
 
 	// Check if entity is currently situated inside a narrow doorway, staircase, or single-file bottleneck (< 96 units width):
@@ -2213,13 +2332,13 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_CrowdFormat
 
 	if ( self->crowd.reachedGoal ) {
 		// Station-keeping: remain arrived unless pushed far beyond the exit hysteresis circle
-		if ( dist2D > exitArrivalRadius || zDiff > CROWD_ARRIVAL_MAX_Z_DIFF ) {
+		if ( dist2D > exitArrivalRadius || zDiff > CROWD_ARRIVAL_FLOOR_Z_TOLERANCE ) {
 			self->crowd.reachedGoal = false;
 			self->crowd.blockedStartTime = 0_ms;
 		}
 	} else {
-		// En route: enter arrived state when inside entrance arrival radius
-		if ( dist2D <= enterArrivalRadius && zDiff <= CROWD_ARRIVAL_MAX_Z_DIFF ) {
+		// En route: require the entrance radius and the goal floor; XY proximity on another tread is insufficient.
+		if ( dist2D <= enterArrivalRadius && zDiff <= CROWD_ARRIVAL_FLOOR_Z_TOLERANCE ) {
 			self->crowd.reachedGoal = true;
 			self->crowd.blockedStartTime = 0_ms;
 		} else {
@@ -2231,6 +2350,12 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_CrowdFormat
 	*	Behavior execution: arrived station-keeping vs en-route navigation.
 	**/
 	if ( self->crowd.reachedGoal ) {
+		// Physical crowd arrival shares the final waypoint event; proximity cannot skip an unresolved intermediate obligation.
+		if ( !self->stringPulledPath.empty() && self->stringPathPos + 1 >= self->stringPulledPath.size() &&
+			 self->navigationAcceptedGoalRevision == self->navigationGoalRevision && !self->finalWaypointEventFired ) {
+			self->finalWaypointEventFired = true;
+			self->SVG_Nav_FireWaypoint( self->stringPulledPath.size() - 1 );
+		}
 		// Stop horizontal movement
 		self->velocity.x = 0.0f;
 		self->velocity.y = 0.0f;
@@ -2255,8 +2380,9 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_CrowdFormat
 			self->viewheight = static_cast<float>( DUMMY_VIEWHEIGHT_DUCKED );
 		} else {
 			self->UpdateAnim( 1 ); // IDLE
-			self->mins = DUMMY_BBOX_STANDUP_MINS;
-			self->maxs = DUMMY_BBOX_STANDUP_MAXS;
+			// A validated diagnostic hull is independent of the selected standing animation.
+			self->mins = self->navigationFixtureProfile ? self->navigationFixtureMins : DUMMY_BBOX_STANDUP_MINS;
+			self->maxs = self->navigationFixtureProfile ? self->navigationFixtureMaxs : DUMMY_BBOX_STANDUP_MAXS;
 			self->viewheight = static_cast<float>( DUMMY_VIEWHEIGHT_STANDUP );
 		}
 	} else {
@@ -2264,8 +2390,9 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_CrowdFormat
 		*	En route: drive movement to assigned slot using navigation mesh.
 		*	Pass force = false to allow ComputePathTo to reuse the cached path corridor!
 		**/
-		self->mins = DUMMY_BBOX_STANDUP_MINS;
-		self->maxs = DUMMY_BBOX_STANDUP_MAXS;
+		// A validated diagnostic hull is independent of the selected standing animation.
+		self->mins = self->navigationFixtureProfile ? self->navigationFixtureMins : DUMMY_BBOX_STANDUP_MINS;
+		self->maxs = self->navigationFixtureProfile ? self->navigationFixtureMaxs : DUMMY_BBOX_STANDUP_MAXS;
 		self->viewheight = static_cast<float>( DUMMY_VIEWHEIGHT_STANDUP );
 
 		self->MoveAStarToOrigin( goalOrigin, false );
@@ -2296,7 +2423,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_CrowdFormat
 		const bool allowBlockedArrivalInNarrowSpace = ( isInsideChokepoint && isLastUnresolvedMember );
 
 		// If near destination slot and unable to make geometric progress, settle after short stall timeout.
-		if ( allowBlockedArrivalInNarrowSpace && endDist2D <= exitArrivalRadius && endZDiff <= CROWD_ARRIVAL_MAX_Z_DIFF && !hasGoalProgress ) {
+		if ( allowBlockedArrivalInNarrowSpace && endDist2D <= exitArrivalRadius && endZDiff <= CROWD_ARRIVAL_FLOOR_Z_TOLERANCE && !hasGoalProgress ) {
 			if ( self->crowd.blockedStartTime == 0_ms ) {
 				self->crowd.blockedStartTime = level.time;
 			} else if ( ( level.time - self->crowd.blockedStartTime ) >= 300_ms ) {
@@ -2406,3 +2533,552 @@ void svg_monster_testdummy_debug_t::UpdateAnim( const int32_t animId ) {
 	}
 }
 
+
+
+//! Console stimuli are disabled by default and never evaluated by the graph worker.
+static cvar_t *s_actor_fixture_enabled = nullptr;
+//! Last explicitly spawned stimulus is keyed by entity and incarnation, never by a guessed entity number.
+static int32_t s_actor_fixture_spawned_entity = -1;
+//! Incarnation prevents a fixture alias from naming a reused live slot after map/reset changes.
+static uint64_t s_actor_fixture_spawned_incarnation = 0;
+
+/**
+*	@brief	Fixed owner-only roster and clock for an explicitly started native workload.
+*	@note	One fresh stimulus per gameplay tick gives 40 stimuli/s; normal behavior may also refresh routes.
+**/
+struct nav_actor_benchmark_t {
+	//! Actual allocated keys; the benchmark never guesses entity numbers or accepts replaced incarnations.
+	std::array<int32_t, 64> entities = {};
+	//! Corresponding incarnation keys protect every benchmark mutation.
+	std::array<uint64_t, 64> incarnations = {};
+	//! Pool reuse is rejected even when the retained entity number still matches.
+	std::array<int32_t, 64> spawn_counts = {};
+	//! Per-lifetime native installations prove each actor progresses in both measured phases.
+	std::array<uint64_t, 64> burst_commits = {}, steady_commits = {};
+	//! Native rejection sites distinguish ownership from physical corridor attachment failures.
+	std::array<uint64_t, 4> rejection_sites = {};
+	//! At most 64 explicit fixture spawns are retained; beginning a run requires the complete fixed roster.
+	uint32_t count = 0;
+	//! Active phase clocks are scalar owner ticks; burst recovery remains separate from warm steady timing.
+	uint64_t start_tick = 0, warm_ticks = 0, measured_ticks = 0, epoch = 0;
+	//! Benchmark activity and separately authorized private-process exit.
+	bool active = false, quit_on_finish = false;
+};
+//! Disabled fixture storage never allocates, launches a worker, or mutates ordinary actor behavior.
+static nav_actor_benchmark_t s_actor_benchmark;
+
+/**
+*	@brief	Resolve one recorded live benchmark incarnation before a stimulus is changed.
+*	@param	index	Bounded roster index.
+*	@return	Current recorded actor, or nullptr for any obsolete key.
+**/
+static svg_monster_testdummy_debug_t *Nav_ActorBenchmarkActor( const uint32_t index ) {
+	// A replaced or dead roster member invalidates the workload rather than silently reducing its actor count.
+	auto *actor = dynamic_cast<svg_monster_testdummy_debug_t *>( g_edict_pool.EdictForNumber( s_actor_benchmark.entities[ index ] ) );
+	return actor != nullptr && actor->inUse && actor->lifeStatus == LIFESTATUS_ALIVE && actor->health > 0 &&
+		actor->navigationIncarnation == s_actor_benchmark.incarnations[ index ] &&
+		actor->spawn_count == s_actor_benchmark.spawn_counts[ index ] ? actor : nullptr;
+}
+
+/**
+*	@brief	Count real installations only for an exact live roster entry in a measured phase.
+*	@note	Warmup is excluded; fixed storage and the inactive fast path add no frame allocation.
+**/
+void Nav_ActorBenchmarkRecordCommitMainThread( const svg_monster_base_t *actor ) {
+	// Normal gameplay and retired publications cannot contribute benchmark coverage.
+	if ( !s_actor_benchmark.active || actor == nullptr || Nav_IdentityEpochMainThread() != s_actor_benchmark.epoch ) {
+		return;
+	}
+	const uint64_t elapsed = static_cast<uint64_t>( level.frameNumber ) - s_actor_benchmark.start_tick;
+	// Resolve the actual pool pointer as well as both retained lifetime keys before counting a commit.
+	for ( uint32_t index = 0; index < s_actor_benchmark.count; ++index ) {
+		if ( actor->s.number != s_actor_benchmark.entities[ index ] || Nav_ActorBenchmarkActor( index ) != actor ) {
+			continue;
+		}
+		// Burst ends at tick 160; steady begins on the first tick after warmup is sealed.
+		if ( elapsed <= 160u ) {
+			++s_actor_benchmark.burst_commits[ index ];
+		} else if ( elapsed > 160u + s_actor_benchmark.warm_ticks &&
+			elapsed <= 160u + s_actor_benchmark.warm_ticks + s_actor_benchmark.measured_ticks ) {
+			++s_actor_benchmark.steady_commits[ index ];
+		}
+		return;
+	}
+}
+
+/**
+*	@brief	Attribute native rejection counts only during the exact measured steady phase.
+*	@note	No request, movement, publication or terminal classification is changed.
+**/
+void Nav_ActorBenchmarkRecordRejectionMainThread( const uint32_t site ) {
+	// Disabled fixtures and invalid sites cannot touch fixed diagnostic storage.
+	if ( !s_actor_benchmark.active || site >= s_actor_benchmark.rejection_sites.size() ) {
+		return;
+	}
+	const uint64_t elapsed = static_cast<uint64_t>( level.frameNumber ) - s_actor_benchmark.start_tick;
+	// Warmup and burst failures remain separate from the measured steady population.
+	if ( elapsed > 160u + s_actor_benchmark.warm_ticks &&
+		elapsed <= 160u + s_actor_benchmark.warm_ticks + s_actor_benchmark.measured_ticks ) {
+		++s_actor_benchmark.rejection_sites[ site ];
+	}
+}
+
+/**
+*	@brief	Report every retained lifetime and its phase progress outside the sealed gameplay tick.
+*	@param	steady	Select measured steady counts instead of initial burst counts.
+**/
+static void Nav_ActorBenchmarkReportCoverage( const bool steady ) {
+	const auto &counts = steady ? s_actor_benchmark.steady_commits : s_actor_benchmark.burst_commits;
+	// Emit all 64 entries, including zeros and stale lifetimes, so no missing actor can be hidden by aggregate totals.
+	for ( uint32_t index = 0; index < s_actor_benchmark.count; ++index ) {
+		gi.dprintf( "[nav actor benchmark coverage] phase=%s ent=%" PRId32 " spawn=%" PRId32
+			" incarnation=%" PRIu64 " commits=%" PRIu64 " live=%u\n", steady ? "steady" : "burst",
+			s_actor_benchmark.entities[ index ], s_actor_benchmark.spawn_counts[ index ],
+			s_actor_benchmark.incarnations[ index ], counts[ index ], Nav_ActorBenchmarkActor( index ) != nullptr ? 1u : 0u );
+	}
+}
+
+/**
+*	@brief	Apply a normal sound-handler target, preserving same-state pending coalescing and native movement.
+*	@param	actor	Owner-thread live fixture actor.
+*	@param	y	Authored straight-lane target, always within the fixture's clear bottom strip.
+**/
+static void Nav_ActorBenchmarkSound( svg_monster_testdummy_debug_t *actor, const float y ) {
+	// Individual parallel lanes retain real physics and animation while avoiding deliberately overlapping final slots.
+	actor->stateSoundCan.origin = Vector3{ actor->currentOrigin.x, y, 0.03125f };
+	actor->stateSoundCan.lastTime = level.time;
+	actor->stateSoundCan.hasOrigin = true;
+	actor->isActivated = true;
+	actor->mood = svg_monster_mood_type_t::MOOD_TYPE_NORMAL;
+	actor->activator = nullptr;
+	Dummy_SetState( actor, svg_monster_testdummy_debug_t::AIThinkState::InvestigateSound );
+	actor->nextthink = level.time + FRAME_TIME_MS;
+}
+
+/**
+*	@brief	Update one real actor per actual game tick in the opt-in bounded benchmark.
+*	@note	The fixed roster, native profiles and generation are checked before each update; no route is emulated.
+**/
+void Nav_ActorBenchmarkTickMainThread( void ) {
+	// Ordinary games perform only this inactive check and retain their existing dispatcher behavior.
+	if ( !s_actor_benchmark.active ) {
+		return;
+	}
+	const uint64_t elapsed = static_cast<uint64_t>( level.frameNumber ) - s_actor_benchmark.start_tick;
+	const uint32_t index = static_cast<uint32_t>( elapsed % 64u );
+	auto *actor = Nav_ActorBenchmarkActor( index );
+	if ( actor == nullptr || Nav_IdentityEpochMainThread() != s_actor_benchmark.epoch ) {
+		s_actor_benchmark.active = false;
+		gi.dprintf( "[nav actor benchmark] FAIL: roster incarnation or service epoch changed.\n" );
+		return;
+	}
+	/**
+	*	Keep the initial burst's goals stable, then alternate one lane goal each tick at a bounded 40Hz arrival rate.
+	**/
+	const uint64_t steadyElapsed = elapsed > 160u ? elapsed - 161u : 0;
+	const float y = elapsed <= 160u || ( steadyElapsed / 64u ) % 2u != 0 ? -1520.0f : -1900.0f;
+	Nav_ActorBenchmarkSound( actor, y );
+}
+
+/**
+*	@brief	Report cold/burst and warm steady phases after the owner tick's performance sample is sealed.
+*	@note	JSON formatting and resets remain outside measured gameplay; successful latency populations are explicit.
+**/
+void Nav_ActorBenchmarkEndFrameMainThread( void ) {
+	// Inactive fixtures cannot reset or report ordinary gameplay instrumentation.
+	if ( !s_actor_benchmark.active ) {
+		return;
+	}
+	const uint64_t elapsed = static_cast<uint64_t>( level.frameNumber ) - s_actor_benchmark.start_tick;
+	if ( elapsed == 160u ) {
+		gi.dprintf( "[nav actor benchmark] REPORT phase=burst ticks=160 live=64\n" );
+		Nav_ActorBenchmarkReportCoverage( false );
+		Nav_Perf_Report( true );
+		// Record bounded service occupancy, drops and serviced queue age outside the measured tick.
+		Nav_QueryWorkerStatusCommand();
+	}
+	if ( elapsed == 160u + s_actor_benchmark.warm_ticks ) {
+		// Beginning the next measured frame avoids losing an already-open owner tick pair.
+		Nav_Perf_Reset();
+		gi.dprintf( "[nav actor benchmark] BEGIN phase=steady live=64 stimulus_per_tick=1\n" );
+		// Snapshot cumulative service counters at the exact beginning of the measured interval.
+		Nav_QueryWorkerStatusCommand();
+	}
+	if ( elapsed >= 160u + s_actor_benchmark.warm_ticks + s_actor_benchmark.measured_ticks ) {
+		gi.dprintf( "[nav actor benchmark] REPORT phase=steady ticks=%" PRIu64 " live=64\n", s_actor_benchmark.measured_ticks );
+		Nav_ActorBenchmarkReportCoverage( true );
+		gi.dprintf( "[nav actor benchmark rejection] policy=%" PRIu64 " cost=%" PRIu64
+			" corridor_attachment=%" PRIu64 " reply_identity=%" PRIu64 "\n",
+			s_actor_benchmark.rejection_sites[ 0 ], s_actor_benchmark.rejection_sites[ 1 ],
+			s_actor_benchmark.rejection_sites[ 2 ], s_actor_benchmark.rejection_sites[ 3 ] );
+		Nav_Perf_Report( true );
+		// Record bounded service occupancy, drops and serviced queue age outside the measured tick.
+		Nav_QueryWorkerStatusCommand();
+		s_actor_benchmark.active = false;
+		// Only an explicitly authorized dedicated fixture process may terminate itself after its report.
+		if ( s_actor_benchmark.quit_on_finish ) {
+			gi.AddCommandString( "quit\n" );
+		}
+	}
+}
+
+
+/**
+*	@brief	Drive real compiled behavior/lifecycle callbacks with explicit bounded native-test stimuli.
+*	@note	Does not solve paths or emulate handlers; normal onThink dispatch performs all navigation and physics.
+**/
+void Nav_Actor_FixtureCommand( void ) {
+	/**
+	*	Require explicit opt-in, a complete entity token and a validated fixture actor before mutation.
+	**/
+	if ( s_actor_fixture_enabled == nullptr ) {
+		s_actor_fixture_enabled = gi.cvar( "nav_actor_fixture_enable", "0", 0 );
+	}
+	int32_t entity = -1;
+	const char *token = gi.argv( 2 );
+	const char *tokenEnd = token + std::strlen( token );
+	const auto parsed = std::from_chars( token, tokenEnd, entity );
+	if ( s_actor_fixture_enabled->integer == 0 || gi.argc() < 4 || parsed.ec != std::errc{} || parsed.ptr != tokenEnd ) {
+		gi.dprintf( "[nav actor fixture] FAIL: enable explicit fixture and supply <entity> <action> [arguments].\n" );
+		return;
+	}
+	auto *self = dynamic_cast<svg_monster_testdummy_debug_t *>( g_edict_pool.EdictForNumber( entity ) );
+	if ( self == nullptr || !SVG_Entity_IsActive( self ) ) {
+		gi.dprintf( "[nav actor fixture] FAIL: requires a live debug monster.\n" );
+		return;
+	}
+	const char *action = gi.argv( 3 );
+	/**
+	*	Authorize native lifecycle stimuli with a stationary hull/support proof, without changing movement or ownership.
+	**/
+	if ( Q_stricmp( action, "validate_native" ) == 0 ) {
+		// A complete alive actor and exact action token are required before granting this incarnation control.
+		if ( gi.argc() != 4 || self->lifeStatus != LIFESTATUS_ALIVE || self->health <= 0 ) {
+			gi.dprintf( "[nav actor fixture] FAIL: native validation requires an alive actor and no arguments.\n" );
+			return;
+		}
+		auto policy = self->pathNavigationState.policy;
+		policy.agent_mins = self->mins;
+		policy.agent_maxs = self->maxs;
+		const Vector3DP feet = SVG_GetEntityFeetOriginDP( self );
+		const auto support = SVG_Nav_TestMovementHull( feet, feet, self->mins, self->maxs,
+			SVG_MMove_GetNativeShape( self ), policy, self, SVG_GetClipMask( self ), true );
+		// Unsupported or obstructed native actors cannot receive diagnostic lifecycle controls.
+		if ( support.reason != svg_nav_movement_reason_t::clear ) {
+			gi.dprintf( "[nav actor fixture] FAIL: native support validation reason=%u.\n", static_cast<uint32_t>( support.reason ) );
+			return;
+		}
+		self->navigationFixtureControl = true;
+		gi.dprintf( "[nav fixture native] PASS ent=%" PRId32 " incarnation=%" PRIu64 "\n", entity, self->navigationIncarnation );
+		return;
+	}
+	// Profile fixtures and verified native fixtures share stimulus controls; native authorization does not enable profile overrides.
+	if ( !self->navigationFixtureProfile && !self->navigationFixtureControl ) {
+		gi.dprintf( "[nav actor fixture] FAIL: requires a validated profile or native support authorization.\n" );
+		return;
+	}
+	/**
+	*	Parse finite sound coordinates or a live stimulus entity before any behavioral state changes.
+	**/
+	Vector3 sound = {};
+	svg_base_edict_t *target = nullptr;
+	const bool soundAction = Q_stricmp( action, "sound" ) == 0;
+	const bool spawnAction = Q_stricmp( action, "spawn" ) == 0;
+	const bool targetPlaceAction = Q_stricmp( action, "target_place" ) == 0;
+	const bool benchmarkAction = Q_stricmp( action, "benchmark" ) == 0;
+	int32_t benchmarkValues[ 3 ] = {};
+	const bool targetAction = Q_stricmp( action, "pursuit" ) == 0 || Q_stricmp( action, "trail" ) == 0 ||
+		Q_stricmp( action, "cover" ) == 0 || Q_stricmp( action, "no_cover" ) == 0 || Q_stricmp( action, "pain" ) == 0;
+	if ( soundAction || spawnAction || targetPlaceAction ) {
+		if ( gi.argc() != 7 ) {
+			gi.dprintf( "[nav actor fixture] FAIL: sound requires three finite coordinates.\n" );
+			return;
+		}
+		for ( int32_t coordinate = 0; coordinate < 3; ++coordinate ) {
+			const char *value = gi.argv( coordinate + 4 );
+			const char *end = value + std::strlen( value );
+			const auto converted = std::from_chars( value, end, sound[ coordinate ] );
+			if ( converted.ec != std::errc{} || converted.ptr != end || !std::isfinite( sound[ coordinate ] ) ) {
+				gi.dprintf( "[nav actor fixture] FAIL: invalid finite sound coordinate.\n" );
+				return;
+			}
+		}
+	} else if ( targetAction ) {
+		int32_t targetNumber = -1;
+		const char *value = gi.argv( 4 );
+		const char *end = value + std::strlen( value );
+		const bool spawnedAlias = Q_stricmp( value, "spawned" ) == 0;
+		const auto converted = std::from_chars( value, end, targetNumber );
+		if ( spawnedAlias ) {
+			targetNumber = s_actor_fixture_spawned_entity;
+		}
+		target = g_edict_pool.EdictForNumber( targetNumber );
+		const auto *stimulus = dynamic_cast<svg_monster_testdummy_debug_t *>( target );
+		if ( gi.argc() != 5 || ( !spawnedAlias && ( converted.ec != std::errc{} || converted.ptr != end ) ) ||
+			 target == nullptr || target == self || !SVG_Entity_IsActive( target ) || stimulus == nullptr ||
+			 ( !stimulus->navigationFixtureProfile && !stimulus->navigationFixtureControl ) || ( spawnedAlias && stimulus->navigationIncarnation != s_actor_fixture_spawned_incarnation ) ) {
+			gi.dprintf( "[nav actor fixture] FAIL: target requires another live fixture entity.\n" );
+			return;
+		}
+	} else if ( benchmarkAction ) {
+		// Complete bounded phase durations and a separately explicit quit flag are required.
+		if ( gi.argc() != 7 ) {
+			gi.dprintf( "[nav actor fixture] FAIL: benchmark requires warm ticks, measured ticks, quit flag.\n" );
+			return;
+		}
+		for ( int32_t index = 0; index < 3; ++index ) {
+			const char *value = gi.argv( index + 4 );
+			const char *end = value + std::strlen( value );
+			const auto converted = std::from_chars( value, end, benchmarkValues[ index ] );
+			if ( converted.ec != std::errc{} || converted.ptr != end ) {
+				gi.dprintf( "[nav actor fixture] FAIL: malformed benchmark bound.\n" );
+				return;
+			}
+		}
+	} else if ( gi.argc() != 4 ) {
+		gi.dprintf( "[nav actor fixture] FAIL: unexpected action arguments.\n" );
+		return;
+	}
+
+	/**
+	*	Apply stimuli through production callbacks or state transitions, leaving path calculation to onThink.
+	**/
+	if ( benchmarkAction ) {
+		/**
+		*	Start only the authored dedicated 64-lane workload with finite bounds and a complete actual spawn roster.
+		**/
+		if ( s_actor_benchmark.active || s_actor_benchmark.count != 64u || Q_stricmp( level.mapname, "m4_corners" ) != 0 ||
+			 gi.cvar( "dedicated", "0", 0 )->integer == 0 || benchmarkValues[ 0 ] < 64 || benchmarkValues[ 0 ] > 8000 ||
+			 benchmarkValues[ 1 ] < 400 || benchmarkValues[ 1 ] > 8000 || benchmarkValues[ 2 ] < 0 || benchmarkValues[ 2 ] > 1 ) {
+			gi.dprintf( "[nav actor fixture] FAIL: benchmark requires dedicated m4_corners, 64 spawns and bounded ticks.\n" );
+			return;
+		}
+		// Validate the entire cohort before mutating any actor or resetting a timing population.
+		for ( uint32_t index = 0; index < 64u; ++index ) {
+			if ( Nav_ActorBenchmarkActor( index ) == nullptr ) {
+				gi.dprintf( "[nav actor fixture] FAIL: benchmark roster is obsolete.\n" );
+				return;
+			}
+		}
+		s_actor_benchmark.start_tick = static_cast<uint64_t>( level.frameNumber );
+		s_actor_benchmark.warm_ticks = static_cast<uint64_t>( benchmarkValues[ 0 ] );
+		s_actor_benchmark.measured_ticks = static_cast<uint64_t>( benchmarkValues[ 1 ] );
+		s_actor_benchmark.epoch = Nav_IdentityEpochMainThread();
+		s_actor_benchmark.quit_on_finish = benchmarkValues[ 2 ] != 0;
+		// Reset lifetime coverage before activating the new measured workload.
+		s_actor_benchmark.burst_commits.fill( 0 );
+		s_actor_benchmark.steady_commits.fill( 0 );
+		s_actor_benchmark.rejection_sites.fill( 0 );
+		Nav_Perf_Reset();
+		// Normal compiled sound handlers submit the initial burst; there is no synthetic worker queue here.
+		for ( uint32_t index = 0; index < 64u; ++index ) {
+			Nav_ActorBenchmarkSound( Nav_ActorBenchmarkActor( index ), -1520.0f );
+		}
+		s_actor_benchmark.active = true;
+		gi.dprintf( "[nav actor benchmark] START live=64 warm=%" PRId32 " measured=%" PRId32 " quit=%" PRId32 "\n",
+			benchmarkValues[ 0 ], benchmarkValues[ 1 ], benchmarkValues[ 2 ] );
+	} else if ( targetPlaceAction ) {
+		auto *stimulus = dynamic_cast<svg_monster_testdummy_debug_t *>( g_edict_pool.EdictForNumber( s_actor_fixture_spawned_entity ) );
+		// A complete alias identity and native stationary proof are required before moving the real stimulus actor.
+		if ( stimulus == nullptr || !SVG_Entity_IsActive( stimulus ) || stimulus->navigationIncarnation != s_actor_fixture_spawned_incarnation ) {
+			gi.dprintf( "[nav actor fixture] FAIL: spawned stimulus alias is stale.\n" );
+			return;
+		}
+		const auto placement = SVG_Nav_TestMovementCandidate( stimulus, Vector3DP( sound ), Vector3DP( sound ), stimulus->pathNavigationState.policy, true );
+		if ( placement.reason != svg_nav_movement_reason_t::clear ) {
+			gi.dprintf( "[nav actor fixture] FAIL: spawned stimulus placement rejected.\n" );
+			return;
+		}
+		stimulus->ResetNavigationPath();
+		stimulus->velocity = {};
+		stimulus->monsterMove.state.velocity = Vector3DP{};
+		stimulus->monsterMove.state.origin = placement.bbox_endpoint;
+		SVG_Util_SetEntityOrigin( stimulus, placement.bbox_endpoint, true );
+		gi.linkentity( stimulus );
+		stimulus->RecategorizeGroundAndLiquidState();
+	} else if ( spawnAction ) {
+		// Prove the requested feet and capacity before adding one normally spawned stimulus actor.
+		const auto placement = SVG_Nav_TestMovementCandidate( self, Vector3DP( sound ), Vector3DP( sound ), self->pathNavigationState.policy, true );
+		if ( placement.reason != svg_nav_movement_reason_t::clear || g_edict_pool.num_edicts >= game.maxentities ) {
+			gi.dprintf( "[nav actor fixture] FAIL: spawn placement or capacity rejected.\n" );
+			return;
+		}
+		auto *spawned = g_edict_pool.AllocateNextFreeEdict<svg_monster_testdummy_debug_t>();
+		svg_monster_testdummy_debug_t::onSpawn( spawned );
+		SVG_Crowd_UnregisterMember( spawned );
+		spawned->navigationFixtureProfile = true;
+		spawned->navigationFixtureMins = spawned->mins = self->mins;
+		spawned->navigationFixtureMaxs = spawned->maxs = self->maxs;
+		spawned->pathNavigationState.policy = self->pathNavigationState.policy;
+		spawned->isActivated = false;
+		spawned->monsterMove.state.origin = placement.bbox_endpoint;
+		SVG_Util_SetEntityOrigin( spawned, placement.bbox_endpoint, true );
+		gi.linkentity( spawned );
+		spawned->RecategorizeGroundAndLiquidState();
+		// Retain bounded scalar keys for an optional later benchmark; ordinary fixture spawns remain independent.
+		if ( s_actor_benchmark.count < 64u ) {
+			const uint32_t index = s_actor_benchmark.count++;
+			s_actor_benchmark.entities[ index ] = spawned->s.number;
+			s_actor_benchmark.incarnations[ index ] = spawned->navigationIncarnation;
+			s_actor_benchmark.spawn_counts[ index ] = spawned->spawn_count;
+		}
+		s_actor_fixture_spawned_entity = spawned->s.number;
+		s_actor_fixture_spawned_incarnation = spawned->navigationIncarnation;
+		gi.dprintf( "[nav actor fixture spawn] PASS ent=%" PRId32 "\n", spawned->s.number );
+	} else if ( soundAction ) {
+		self->navigationFixtureNoCover = false;
+		self->isActivated = true;
+		self->mood = svg_monster_mood_type_t::MOOD_TYPE_NORMAL;
+		self->activator = nullptr;
+		self->stateSoundCan.origin = sound;
+		self->stateSoundCan.hasOrigin = true;
+		self->stateSoundCan.lastTime = level.time;
+		Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::InvestigateSound );
+	} else if ( Q_stricmp( action, "pursuit" ) == 0 || Q_stricmp( action, "trail" ) == 0 ) {
+		self->navigationFixtureNoCover = false;
+		self->isActivated = true;
+		self->mood = svg_monster_mood_type_t::MOOD_TYPE_NORMAL;
+		self->stateSoundCan.hasOrigin = false;
+		self->stateSoundCan.lastTime = level.time;
+		const bool trail = Q_stricmp( action, "trail" ) == 0;
+		self->activator = trail ? nullptr : target;
+		self->stateNavigationTrail.targetEntity = trail ? target : nullptr;
+		self->stateNavigationTrail.trailTimeStamp = level.time;
+		// The explicit breadcrumb has a normal lifetime; real trail acquisition is tested separately.
+		if ( trail ) {
+			target->timestamp = level.time;
+		}
+		Dummy_SetState( self, trail ? svg_monster_testdummy_debug_t::AIThinkState::PursueBreadcrumb :
+			svg_monster_testdummy_debug_t::AIThinkState::PursuePlayer );
+	} else if ( Q_stricmp( action, "cover" ) == 0 || Q_stricmp( action, "no_cover" ) == 0 || Q_stricmp( action, "pain" ) == 0 ) {
+		self->isActivated = true;
+		self->activator = target;
+		self->navigationFixtureNoCover = Q_stricmp( action, "no_cover" ) == 0;
+		// An explicit no-cover stimulus first retires any claim left by the previous test behavior.
+		if ( self->navigationFixtureNoCover && self->stateCover.activeCoverIdx >= 0 ) {
+			Nav_ReleaseCoverPoint( self->stateCover.activeCoverIdx, self->s.number );
+			self->stateCover.activeCoverIdx = -1;
+		}
+		if ( Q_stricmp( action, "pain" ) == 0 ) {
+			svg_monster_testdummy_debug_t::onPain( self, target, 0.0f, 1, static_cast<entity_damageflags_t>( 0 ) );
+		} else {
+			self->mood = svg_monster_mood_type_t::MOOD_TYPE_SCARED;
+			self->ResetNavigationPath();
+			self->stateCover.nextExposureCheckTime = 0_ms;
+			self->stateCover.nextRetreatProbeTime = 0_ms;
+			Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::HideInCover );
+		}
+	} else if ( Q_stricmp( action, "idle" ) == 0 ) {
+		self->isActivated = false;
+		self->activator = nullptr;
+		Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
+	} else if ( Q_stricmp( action, "useoff" ) == 0 ) {
+		svg_monster_testdummy_debug_t::onUse( self, nullptr, nullptr, entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE, 0 );
+	} else if ( Q_stricmp( action, "lethal" ) == 0 ) {
+		/**
+		*	Exercise real health reduction and the game-mode killed callback, without knockback or gib damage.
+		**/
+		if ( self->lifeStatus != LIFESTATUS_ALIVE || self->health <= 0 ) {
+			gi.dprintf( "[nav actor fixture] FAIL: lethal stimulus requires an alive actor.\n" );
+			return;
+		}
+		Vector3 hit = self->currentOrigin;
+		SVG_DamageEntity( self, self, self, Vector3{}, hit, Vector3{}, self->health, 0,
+			DAMAGE_NO_ARMOR | DAMAGE_NO_KNOCKBACK | DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_UNKNOWN );
+	} else if ( Q_stricmp( action, "die" ) == 0 ) {
+		Vector3 hit = self->currentOrigin;
+		svg_monster_testdummy_debug_t::onDie( self, nullptr, nullptr, 1, &hit );
+	} else if ( Q_stricmp( action, "reuse" ) == 0 ) {
+		/**
+		*	Exercise the real free-list lifecycle; refuse an ambiguous slot or protected map entity.
+		**/
+		if ( self->neverFreeOnlyUnlink || entity <= game.maxclients + BODY_QUEUE_SIZE ||
+			 std::any_of( g_edict_pool.freeEdicts.begin(), g_edict_pool.freeEdicts.end(), []( const auto *free ) {
+				 return free->GetTypeInfo() == &svg_monster_testdummy_debug_t::ClassInfo;
+			 } ) ) {
+			gi.dprintf( "[nav actor fixture] FAIL: slot reuse prerequisite is ambiguous or protected.\n" );
+			return;
+		}
+		const Vector3 origin = self->currentOrigin, mins = self->mins, maxs = self->maxs;
+		const auto policy = self->pathNavigationState.policy;
+		const uint64_t incarnation = self->navigationIncarnation;
+		SVG_Crowd_UnregisterMember( self );
+		g_edict_pool.FreeEdict( self );
+		self = g_edict_pool.AllocateNextFreeEdict<svg_monster_testdummy_debug_t>();
+		Q_assert( self->s.number == entity && self->navigationIncarnation != incarnation );
+		svg_monster_testdummy_debug_t::onSpawn( self );
+		SVG_Crowd_UnregisterMember( self );
+		self->navigationFixtureProfile = true;
+		self->navigationFixtureMins = self->mins = mins;
+		self->navigationFixtureMaxs = self->maxs = maxs;
+		self->pathNavigationState.policy = policy;
+		self->isActivated = false;
+		self->velocity = {};
+		self->monsterMove.state.velocity = Vector3DP{};
+		self->monsterMove.state.origin = Vector3DP( origin );
+		SVG_Util_SetEntityOrigin( self, origin, true );
+		gi.linkentity( self );
+		self->RecategorizeGroundAndLiquidState();
+	} else if ( Q_stricmp( action, "crowd_snapshot" ) == 0 ) {
+		/**
+		*	Read the actual reservation geometry and physical peer positions without changing order or timing.
+		**/
+		const auto *group = SVG_Crowd_GetGroup( self->crowd.crowdID );
+		// A diagnostic actor outside a group has no queue geometry to inspect.
+		if ( group == nullptr ) {
+			gi.dprintf( "[nav actor fixture] FAIL: crowd snapshot requires an existing group.\n" );
+			return;
+		}
+		// Expose retained keys and current resolution separately so slot reuse cannot masquerade as ownership.
+		const auto *leader = group->GetLeaderEntity();
+		const auto *target = group->GetTargetEntity();
+		gi.dprintf( "[nav crowd snapshot] group=%" PRId32 " head=%" PRId32 " cell=%" PRId32 " leader=%" PRId32 " leader_spawn_count=%" PRId32
+			" target=%" PRId32 " target_spawn_count=%" PRId32 " resolved_leader=%" PRId32 " resolved_target=%" PRId32 " moving=%d\n",
+			group->crowdID, group->ingressQueueHead, group->ingressHeadStagingCell, group->leaderEntityNumber, group->leaderSpawnCount,
+			group->targetEntityNumber, group->targetSpawnCount, leader != nullptr ? leader->s.number : -1, target != nullptr ? target->s.number : -1,
+			group->isMoving ? 1 : 0 );
+		// Correlate every immutable reservation with its current native feet and pending lifecycle.
+		for ( size_t rank = 0; rank < group->ingressQueueEntityNumbers.size(); ++rank ) {
+			const int32_t number = group->ingressQueueEntityNumbers[ rank ];
+			const auto *member = dynamic_cast<const svg_monster_base_t *>( g_edict_pool.EdictForNumber( number ) );
+			// Dead/removed members retain their queue key but have no valid physical witness.
+			if ( member == nullptr || !member->inUse || member->health <= 0 || rank >= group->ingressStagingPositions.size() ) {
+				continue;
+			}
+			const Vector3DP feet = SVG_GetEntityFeetOriginDP( member );
+			const auto &stage = group->ingressStagingPositions[ rank ];
+			gi.dprintf( "[nav crowd peer] rank=%zu ent=%" PRId32 " q=%u released=%d feet=(%.6f %.6f %.6f) stage=(%.6f %.6f %.6f)\n",
+				rank, number, static_cast<uint32_t>( member->navigationQueryState ), member->crowd.ingressReleased,
+				feet.x, feet.y, feet.z, stage.x, stage.y, stage.z );
+		}
+		// Expose the whole-leg reservation that the controller checks before advancing a vacancy.
+		if ( group->ingressHeadStagingCell > 0 && static_cast<size_t>( group->ingressHeadStagingCell ) < group->ingressStagingTransitRoutes.size() ) {
+			const auto &transit = group->ingressStagingTransitRoutes[ group->ingressHeadStagingCell ];
+			for ( size_t index = 0; index < transit.size(); ++index ) {
+				const auto &point = transit[ index ];
+				gi.dprintf( "[nav crowd transit] index=%zu feet=(%.6f %.6f %.6f)\n", index, point.x, point.y, point.z );
+			}
+		}
+	} else if ( Q_stricmp( action, "snapshot" ) != 0 ) {
+		gi.dprintf( "[nav actor fixture] FAIL: unknown action.\n" );
+		return;
+	}
+	// Preserve normal callback scheduling; snapshot alone must not perturb the timeline.
+	if ( Q_stricmp( action, "snapshot" ) != 0 && Q_stricmp( action, "crowd_snapshot" ) != 0 ) {
+		self->nextthink = level.time + FRAME_TIME_MS;
+	}
+	const auto endpoint = self->stringPulledPath.empty() ? Vector3DP{} : self->stringPulledPath.back();
+	gi.dprintf( "[nav actor fixture] PASS action=%s ent=%" PRId32 " frame=%" PRId32 " q=%u seq=%" PRIu64
+		" incarnation=%" PRIu64 " spawn_count=%" PRId32 " state=%u state_revision=%" PRIu64 " goal=%" PRIu64 " accepted_goal=%" PRIu64
+		" accepted_seq=%" PRIu64 " route=%" PRIu64 " route_points=%zu cover=%" PRId32 " life=%u animation=%" PRId32 " health=%" PRId32
+		" submitted_tick=%" PRIu64 " earliest_tick=%" PRIu64 " crowd_role=%" PRId32 " slot=%" PRId32 " graph=%u graph_start=%" PRId32 " graph_goal=%" PRId32 " route_reason=%u route_physical=%u route_segment=%" PRId32 " end=(%.6f %.6f %.6f)\n",
+		action, entity, level.frameNumber, static_cast<uint32_t>( self->navigationQueryState ), self->navigationRequestSequence,
+		self->navigationIncarnation, self->spawn_count, static_cast<uint32_t>( self->thinkAIState ), self->navigationStateRevision,
+		self->navigationGoalRevision, self->navigationAcceptedGoalRevision, self->navigationAcceptedIdentity.sequence,
+		self->navigationRouteRevision, self->stringPulledPath.size(), self->stateCover.activeCoverIdx,
+		static_cast<uint32_t>( self->lifeStatus ), self->s.frame, self->health,
+		self->navigationSubmittedTick, self->navigationEarliestDeliveryTick, static_cast<int32_t>( self->crowd.role ), self->crowd.slotIndex,
+		static_cast<uint32_t>( self->navigationGraphWorkspace.result.status ), self->navigationGraphWorkspace.request.start_face,
+		self->navigationGraphWorkspace.request.goal_face, static_cast<uint32_t>( self->lastRouteValidation.reason ),
+		static_cast<uint32_t>( self->lastRouteValidation.physical ), self->lastRouteValidation.segment, endpoint.x, endpoint.y, endpoint.z );
+}

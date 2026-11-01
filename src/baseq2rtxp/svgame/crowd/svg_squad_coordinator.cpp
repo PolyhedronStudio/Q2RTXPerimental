@@ -176,8 +176,10 @@ void SVG_Squad_RegisterMember( const int32_t squadId, const int32_t entityNumber
 	// Tag edict crowd properties.
 	svg_base_edict_t *ent = g_edict_pool.EdictForNumber( entityNumber );
 	if ( ent != nullptr ) {
-		ent->crowd.crowdID = squadId;
-		ent->crowd.slotIndex = static_cast<int32_t>( squad->member_entity_numbers.size() - 1 );
+		// Invalidate submitted routes before publishing this assignment field.
+		ent->crowd.SetNavigationAssignment( ent->crowd.crowdID, squadId );
+		// Invalidate submitted routes before publishing this assignment field.
+		ent->crowd.SetNavigationAssignment( ent->crowd.slotIndex, static_cast<int32_t>( squad->member_entity_numbers.size() - 1 ) );
 	}
 
 	// Rebuild slots if squad is currently moving.
@@ -209,8 +211,10 @@ void SVG_Squad_UnregisterMember( const int32_t squadId, const int32_t entityNumb
 	// Reset edict crowd linkage.
 	svg_base_edict_t *ent = g_edict_pool.EdictForNumber( entityNumber );
 	if ( ent != nullptr ) {
-		ent->crowd.crowdID = -1;
-		ent->crowd.slotIndex = -1;
+		// Invalidate submitted routes before publishing this assignment field.
+		ent->crowd.SetNavigationAssignment( ent->crowd.crowdID, -1 );
+		// Invalidate submitted routes before publishing this assignment field.
+		ent->crowd.SetNavigationAssignment( ent->crowd.slotIndex, -1 );
 	}
 
 	// Compact roster to fill vacant rank.
@@ -240,7 +244,8 @@ void SVG_Squad_SetLeader( const int32_t squadId, const int32_t leaderEntityNumbe
 		for ( size_t i = 0; i < squad->member_entity_numbers.size(); i++ ) {
 			svg_base_edict_t *ent = g_edict_pool.EdictForNumber( squad->member_entity_numbers[ i ] );
 			if ( ent != nullptr ) {
-				ent->crowd.slotIndex = static_cast<int32_t>( i );
+				// Invalidate submitted routes before publishing this assignment field.
+				ent->crowd.SetNavigationAssignment( ent->crowd.slotIndex, static_cast<int32_t>( i ) );
 			}
 		}
 	}
@@ -304,9 +309,14 @@ void SVG_Squad_Stop( const int32_t squadId ) {
 /**
 *	@brief	Recompute world-space formation slot positions for a squad.
 *	@param	squad	Squad whose slots will be rebuilt.
+*	@note	Active crowd orders retain ownership of final slots and transient staging goals.
 **/
 void SVG_Squad_RebuildSlots( svg_squad_t &squad ) {
+	/**
+	*	An empty squad has no template or member assignments to rebuild.
+	**/
 	const size_t memberCount = squad.member_entity_numbers.size();
+	// Clear obsolete geometry when the roster becomes empty.
 	if ( memberCount == 0 ) {
 		squad.slots.clear();
 		return;
@@ -324,19 +334,36 @@ void SVG_Squad_RebuildSlots( svg_squad_t &squad ) {
 	static constexpr double SQUAD_AGENT_RADIUS = 24.0;
 	SVG_Crowd_SnapSlotsToNavMesh( squad.slots, squad.destination_origin, SQUAD_AGENT_RADIUS );
 
-	// 4. For circular or defensive perimeter formations, fit rings to room walls:
+	// Circular/perimeter templates need room fitting so tactical seats remain inside available space:
 	if ( squad.effective_style == crowd_chase_target_type_t::CROWD_STYLE_CIRCLE_FILLED ||
 	     squad.effective_style == crowd_chase_target_type_t::CROWD_STYLE_SURROUND_PERIMETER ) {
 		SVG_Crowd_FitCircularFormationToRoom( squad.slots, squad.destination_origin, SQUAD_AGENT_RADIUS );
 	}
 
-	// 5. Update assigned goal origins on each member edict:
+	/**
+	*	The crowd controller owns immutable slots and transient ingress staging goals.
+	*	Squad bottleneck adaptation may update its own template, but cannot overwrite
+	*	those assignments while the crowd's order is active.
+	**/
+	const svg_crowd_group_t *crowdGroup = SVG_Crowd_GetGroup( squad.squad_id );
+	// Preserve one goal/slot authority; otherwise adaptation sends staged members directly to final seats.
+	if ( crowdGroup != nullptr && crowdGroup->isMoving ) {
+		return;
+	}
+
+	/**
+	*	Assign only standalone tactical orders; active crowd assignments were protected above.
+	**/
+	// Limit assignments to both the live roster and generated seats so their indices remain valid.
 	for ( size_t i = 0; i < memberCount && i < squad.slots.size(); i++ ) {
 		const int32_t entNum = squad.member_entity_numbers[ i ];
 		svg_base_edict_t *ent = g_edict_pool.EdictForNumber( entNum );
+		// A removed member cannot receive a slot/goal mutation.
 		if ( ent != nullptr && ent->inUse ) {
-			ent->crowd.slotIndex = static_cast<int32_t>( i );
-			ent->crowd.assignedGoalOrigin = QM_Vector3FromDP( squad.slots[ i ].worldPosition );
+			// Invalidate submitted routes before publishing this assignment field.
+			ent->crowd.SetNavigationAssignment( ent->crowd.slotIndex, static_cast<int32_t>( i ) );
+			// Invalidate submitted routes before publishing this assignment field.
+			ent->crowd.SetNavigationAssignment( ent->crowd.assignedGoalOrigin, QM_Vector3FromDP( squad.slots[ i ].worldPosition ) );
 			ent->crowd.reachedGoal = false;
 		}
 	}
@@ -361,12 +388,23 @@ void SVG_Squad_CompactOnMemberDeath( svg_squad_t &squad ) {
 		}
 	}
 
-	// If members departed, re-index surviving members and rebuild slots:
+	/**
+	*	Roster ranks belong to the squad, but an active crowd order owns formation seats and navigation goals.
+	*	Re-indexing those seats here invalidates the crowd's immutable admission mapping after a death.
+	**/
+	const svg_crowd_group_t *crowdGroup = SVG_Crowd_GetGroup( squad.squad_id );
+	// Preserve the active owner's assignments; it performs any required physical formation compaction.
+	if ( rosterChanged && crowdGroup != nullptr && crowdGroup->isMoving ) {
+		return;
+	}
+
+	// If members departed without an active crowd owner, re-index surviving members and rebuild slots:
 	if ( rosterChanged ) {
 		for ( size_t i = 0; i < squad.member_entity_numbers.size(); i++ ) {
 			svg_base_edict_t *ent = g_edict_pool.EdictForNumber( squad.member_entity_numbers[ i ] );
 			if ( ent != nullptr ) {
-				ent->crowd.slotIndex = static_cast<int32_t>( i );
+				// Invalidate submitted routes before publishing this assignment field.
+				ent->crowd.SetNavigationAssignment( ent->crowd.slotIndex, static_cast<int32_t>( i ) );
 			}
 		}
 

@@ -52,7 +52,7 @@ struct nav_sector_info_t {
 };
 
 /**
-*	@brief	Initialize and precompute the topological NavSector graph from active rooms and portals.
+*	@brief	Prepare sparse sector adjacency and invalidate on-demand destination routing trees.
 *	@note	Invoked automatically upon completion of Nav_BuildSpatialRegionsAndPortals().
 **/
 void Nav_SectorGraph_Build( void );
@@ -78,7 +78,7 @@ int32_t Nav_SectorGraph_GetSectorForPoint( const Vector3DP &pos );
 const nav_portal_t *Nav_SectorGraph_GetNextPortal( const int32_t fromSector, const int32_t toSector );
 
 /**
-*	@brief	Query the precomputed topological path distance connecting two sectors.
+*	@brief	Query the exact topological distance, computing its destination tree on first use.
 *	@param	fromSector	Source sector index.
 *	@param	toSector	Destination sector index.
 *	@return	Distance in world units, or infinity if disconnected.

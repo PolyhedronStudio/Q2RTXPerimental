@@ -755,11 +755,12 @@ static bool init_mouse(void)
 
 static void grab_mouse(bool grab)
 {
+    const bool uiHasMouseFocus = ( Key_GetDest() & ( KEY_MENU | KEY_GAME_UI ) ) != 0;
     SDL_SetWindowGrab(sdl_window, static_cast<SDL_bool>( grab ) ); // WID: C++20: Added cast.
-    SDL_SetRelativeMouseMode((SDL_bool)( (grab) && !(Key_GetDest() & KEY_MENU) )); // WID: C++20: Added cast.
+    SDL_SetRelativeMouseMode((SDL_bool)( (grab) && !uiHasMouseFocus )); // WID: C++20: Added cast.
 
     SDL_GetRelativeMouseState(NULL, NULL);
-    SDL_ShowCursor(!(sdl.flags & QVF_FULLSCREEN));
+    SDL_ShowCursor( !(sdl.flags & QVF_FULLSCREEN) || uiHasMouseFocus );
 }
 
 static bool probe(void)

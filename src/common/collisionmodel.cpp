@@ -106,35 +106,55 @@ const int32_t CM_LoadMap( cm_t *cm, const char *name ) {
 }
 
 /**
-*   @brief  Frees up all of the collision model's data.
+*	@brief	Release the allocations owned by one collision map and retire its BSP reference.
+*	@param	cm	Map owner whose generation/traces have already been quiesced by the caller.
+*	@note	Entity dictionaries are linked lists. Free every node before their pointer array;
+*			never free the entire collision tag because another map can share that tag.
 **/
 void CM_FreeMap( cm_t *cm ) {
-    if ( !cm ) {
-        return;
-    }
+	/**
+	*	A missing owner has no allocations to release.
+	**/
+	if ( cm == nullptr ) {
+		return;
+	}
 
-    // Clear portal/area -state related stack memory.
-    Z_Free( cm->portalopen );
-    Z_Free( cm->floodnums );
+	/**
+	*	Release map-specific portal and area state after readers have drained.
+	**/
+	Z_Free( cm->portalopen );
+	Z_Free( cm->floodnums );
 
-    // Clear entity data, not part of the bsp memory hunk.
-    if ( cm->entities ) {
-        Z_Freep( (void **)( cm->entities ) );
-    }
+	/**
+	*	Destroy all owned dictionary nodes, retaining each next link before its storage is freed.
+	**/
+	if ( cm->entities != nullptr ) {
+		// Each array entry owns a separate list; strings and parsed values reside inside its nodes.
+		for ( int32_t entityIndex = 0; entityIndex < cm->numentities; ++entityIndex ) {
+			const cm_entity_t *pair = cm->entities[ entityIndex ];
+			// Walk the complete dictionary rather than freeing only its first key/value pair.
+			while ( pair != nullptr ) {
+				const cm_entity_t *next = pair->next;
+				Z_Free( const_cast<cm_entity_t *>( pair ) );
+				pair = next;
+			}
+		}
+		// The array itself is an allocation distinct from the dictionary nodes.
+		Z_Free( cm->entities );
+	}
 
-    // Clear material data.
-    Z_Free( cm->materials );
-    
-    // Free hull type BSPs.
-    Z_Free( cm->hull_boundingbox );
-    Z_Free( cm->hull_octagonbox );
+	/**
+	*	Release private materials and entity hulls; BSP_Free retains shared cache ownership semantics.
+	**/
+	Z_Free( cm->materials );
+	Z_Free( cm->hull_boundingbox );
+	Z_Free( cm->hull_octagonbox );
+	BSP_Free( cm->cache );
 
-    // Free BSP World and its Models.
-    BSP_Free( cm->cache );
-
-    // Zero out all collision model memory for an optional new re-use.
-    //memset( cm, 0, sizeof( *cm ) );
-    *cm = {};
+	/**
+	*	Clear borrowed pointers and counts so repeated retirement is harmless.
+	**/
+	*cm = {};
 }
 
 

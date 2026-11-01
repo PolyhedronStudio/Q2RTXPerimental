@@ -2567,9 +2567,12 @@ static void CL_InitLocal(void)
     cl_showmiss = Cvar_Get("cl_showmiss", "1", 0);
     cl_showclamp = Cvar_Get("showclamp", "1", 0);
 #else
-    cl_shownet = Cvar_Get( "cl_shownet", "0", 0 );
-    cl_showmiss = Cvar_Get( "cl_showmiss", "0", 0 );
-    cl_showclamp = Cvar_Get( "showclamp", "0", 0 );
+    /**
+    *	Register compatibility cvars without assigning pointers that exist only in Debug builds.
+    **/
+    Cvar_Get( "cl_shownet", "0", 0 );
+    Cvar_Get( "cl_showmiss", "0", 0 );
+    Cvar_Get( "showclamp", "0", 0 );
 #endif
 
     cl_timeout = Cvar_Get("cl_timeout", "120", 0);
@@ -2844,7 +2847,7 @@ void CL_CheckForPause(void) {
         return;
     }
 
-    if ( cls.key_dest & ( KEY_CONSOLE | KEY_MENU ) ) {
+    if ( cls.key_dest & ( KEY_CONSOLE | KEY_MENU | KEY_GAME_UI ) ) {
         // only pause in single player
         if ( cl_paused->integer == 0 && cl_autopause->integer ) {
             Cvar_Set( "cl_paused", "1" );

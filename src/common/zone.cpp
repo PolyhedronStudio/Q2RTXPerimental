@@ -190,351 +190,414 @@ static bool Z_Validate( const zhead_t *z ) {
 }
 
 /**
-*   @brief  Tests for memory leaks by iterating through the linked list of memory blocks.
-*   @param  tag The memory tag used to identify the blocks to check for leaks.
-*   @note   This function counts the number of leaked memory blocks and their total size.
-*           It prints a message if any leaks are found, including the tag name, size, and count.
-*           The function also validates each memory block by checking its magic number and tag.
-*           If the tag is TAG_FREE, it checks for blocks that have been freed but not properly.
-*           The function is intended for debugging and monitoring memory usage.
+*	@brief	Tests for memory leaks by iterating through the linked list of memory blocks.
+*	@param	tag	The memory tag used to identify the blocks to check for leaks.
+*	@note	This function counts the number of leaked memory blocks and their total size.
+*			It prints a message if any leaks are found, including the tag name, size, and count.
+*			The function also validates each memory block by checking its magic number and tag.
+*			If the tag is TAG_FREE, it checks for blocks that have been freed but not properly.
+*			The function is intended for debugging and monitoring memory usage.
 **/
-void Z_LeakTest(memtag_t tag)
-{
-    list_t *cursor, *next;
-    zhead_t *z;
-    size_t numLeaks = 0, numBytes = 0;
+void Z_LeakTest( memtag_t tag ) {
+	list_t *cursor = nullptr, *next = nullptr;
+	zhead_t *z = nullptr;
+	size_t numLeaks = 0, numBytes = 0;
 
-    for (cursor = z_chain.next; cursor != &z_chain; cursor = next) {
-        if (!Z_IsReadableMemory(cursor, sizeof(list_t))) {
-            Com_WPrintf("%s: corrupted zone list link at %p while checking tag %u\n", __func__, cursor, tag);
-            return;
-        }
+	/**
+	*	Walk the zone allocation chain and accumulate leaked block counts for the target tag.
+	**/
+	// Iterate over all linked zone allocations.
+	for ( cursor = z_chain.next; cursor != &z_chain; cursor = next ) {
+		// Verify that the list link itself resides in readable memory.
+		if ( !Z_IsReadableMemory( cursor, sizeof( list_t ) ) ) {
+			Com_WPrintf( "%s: corrupted zone list link at %p while checking tag %u\n", __func__, cursor, tag );
+			return;
+		}
 
-        next = cursor->next;
+		next = cursor->next;
 
-        z = LIST_ENTRY(zhead_t, cursor, entry);
+		z = LIST_ENTRY( zhead_t, cursor, entry );
 
-        if (!Z_IsReadableMemory(z, sizeof(*z))) {
-            Com_WPrintf("%s: corrupted zone header at %p while checking tag %u\n", __func__, z, tag);
-            return;
-        }
+		// Verify that the zone block header resides in readable memory.
+		if ( !Z_IsReadableMemory( z, sizeof( *z ) ) ) {
+			Com_WPrintf( "%s: corrupted zone header at %p while checking tag %u\n", __func__, z, tag );
+			return;
+		}
 
-        if (z->magic != Z_MAGIC || z->tag == TAG_FREE) {
-            Com_WPrintf("%s: invalid zone block at %p (magic=0x%x tag=%u) while checking tag %u\n",
-                __func__, z, z->magic, z->tag, tag);
-            return;
-        }
+		// Validate the block magic signature and non-free tag state.
+		if ( z->magic != Z_MAGIC || z->tag == TAG_FREE ) {
+			Com_WPrintf( "%s: invalid zone block at %p (magic=0x%x tag=%u) while checking tag %u\n",
+				__func__, z, z->magic, z->tag, tag );
+			return;
+		}
 
-        if (z->tag == tag || (tag == TAG_FREE && z->tag >= TAG_MAX)) {
-            numLeaks++;
-            numBytes += z->size;
-        }
-    }
+		// Count blocks matching the requested tag or out-of-range tags when checking TAG_FREE.
+		if ( z->tag == tag || ( tag == TAG_FREE && z->tag >= TAG_MAX ) ) {
+			numLeaks++;
+			numBytes += z->size;
+		}
+	}
 
-    if (numLeaks) {
-        Com_WPrintf("************* Z_LeakTest *************\n"
-                    "%s leaked %zu bytes of memory (%zu object%s)\n"
-                    "**************************************\n",
-                    z_tagnames[TAG_INDEX(tag)],
-                    numBytes, numLeaks, numLeaks == 1 ? "" : "s");
-    }
+	/**
+	*	Report any discovered leaks for the requested memory tag.
+	**/
+	if ( numLeaks ) {
+		Com_WPrintf( "************* Z_LeakTest *************\n"
+					 "%s leaked %zu bytes of memory (%zu object%s)\n"
+					 "**************************************\n",
+					 z_tagnames[ TAG_INDEX( tag ) ],
+					 numBytes, numLeaks, numLeaks == 1 ? "" : "s" );
+	}
 }
 
 /**
-*   @brief  Frees the memory block pointed at by ptr.
-*   @param  ptr The pointer to the memory block to free.
-*   @note   This function checks if the pointer is NULL before attempting to free it.
-*           It also validates the memory block by checking its magic number and tag.
-*           If the block is not static, it removes the block from the linked list and
-*           sets its magic number to 0 and tag to TAG_FREE before freeing the memory.
+*	@brief	Frees the memory block pointed at by ptr.
+*	@param	ptr	The pointer to the memory block to free.
+*	@note	This function checks if the pointer is nullptr before attempting to free it.
+*			It also validates the memory block by checking its magic number and tag.
+*			If the block is not static, it removes the block from the linked list and
+*			sets its magic number to 0xdead and tag to TAG_FREE before freeing the memory.
 **/
-void Z_Free(void *ptr)
-{
-    zhead_t *z;
+void Z_Free( void *ptr ) {
+	zhead_t *z = nullptr;
 
-    if (!ptr) {
-        return;
-    }
+	/**
+	*	Sanity check: ignore null pointers.
+	**/
+	if ( !ptr ) {
+		return;
+	}
 
-    z = (zhead_t *)ptr - 1;
+	/**
+	*	Validate header, update per-tag accounting, and release non-static storage.
+	**/
+	z = static_cast<zhead_t *>( ptr ) - 1;
 
-    Z_Validate(z);
+	Z_Validate( z );
 
-    Z_CountFree(z);
+	Z_CountFree( z );
 
-    if (z->tag != TAG_STATIC) {
-        List_Remove(&z->entry);
-        z->magic = 0xdead;
-        z->tag = TAG_FREE;
-        free(z);
-    }
+	// Unlink and free heap-backed blocks while leaving static string entries intact.
+	if ( z->tag != TAG_STATIC ) {
+		List_Remove( &z->entry );
+		z->magic = 0xdead;
+		z->tag = TAG_FREE;
+		free( z );
+	}
 }
 
 /**
-*   @brief  Frees the memory block pointed at by (*ptr), if that's nonzero, and sets (*ptr) to zero.
+*	@brief	Frees the memory block pointed at by (*ptr), if that's nonzero, and sets (*ptr) to nullptr.
+*	@param	ptr	Address of the pointer to release and clear.
 **/
-void Z_Freep(void **ptr)
-{
-    Q_assert(ptr);
-    if (*ptr) {
-        Z_Free(*ptr);
-        *ptr = NULL;
-    }
+void Z_Freep( void **ptr ) {
+	/**
+	*	Validate pointer-to-pointer and release referenced allocation if present.
+	**/
+	Q_assert( ptr );
+	if ( *ptr ) {
+		Z_Free( *ptr );
+		*ptr = nullptr;
+	}
 }
 
 /**
-*   @brief  Reallocates a block of memory to a new size.
-*   @param  ptr The pointer to the memory block to reallocate.
-*   @param  size The new size of the memory block, in bytes.
-*   @return A pointer to the reallocated memory block, or NULL if the allocation fails.
-*   @note   The contents of the memory block are preserved during the reallocation.
-*           If the pointer is NULL, a new block of memory is allocated.
-*           If the size is zero, the memory block is freed and NULL is returned.
-*           If the size is less than the current size, the memory block is shrunk.
-*           If the size is greater than the current size, the memory block is expanded.
+*	@brief	Reallocates a block of memory to a new size.
+*	@param	ptr		The pointer to the memory block to reallocate.
+*	@param	size	The new size of the memory block, in bytes.
+*	@return	A pointer to the reallocated memory block, or nullptr if freed or allocation fails.
+*	@note	The contents of the memory block are preserved during the reallocation.
+*			If the pointer is nullptr, a new block of memory is allocated.
+*			If the size is zero, the memory block is freed and nullptr is returned.
 **/
-void *Z_Realloc(void *ptr, size_t size)
-{
-    zhead_t *z;
+void *Z_Realloc( void *ptr, size_t size ) {
+	zhead_t *z = nullptr;
 
-    if (!ptr) {
-        return Z_Malloc(size);
-    }
+	/**
+	*	Handle degenerate allocate-new and free-existing cases first.
+	**/
+	// Delegate to Z_Malloc when no existing block was supplied.
+	if ( !ptr ) {
+		return Z_Malloc( size );
+	}
 
-    if (!size) {
-        Z_Free(ptr);
-        return NULL;
-    }
+	// Free the existing block and return nullptr when zero bytes are requested.
+	if ( !size ) {
+		Z_Free( ptr );
+		return nullptr;
+	}
 
-    z = (zhead_t *)ptr - 1;
+	/**
+	*	Validate existing header, resize underlying block, and relink into the zone chain.
+	**/
+	z = static_cast<zhead_t *>( ptr ) - 1;
 
-    Z_Validate(z);
+	Z_Validate( z );
 
-    Q_assert(size <= INT_MAX);
+	Q_assert( size <= INT_MAX );
 
-    size += sizeof(*z);
-    if (z->size == size) {
-        return z + 1;
-    }
+	size += sizeof( *z );
+	// Return early if the block already matches the requested total size.
+	if ( z->size == size ) {
+		return z + 1;
+	}
 
-    Q_assert(z->tag != TAG_STATIC);
+	Q_assert( z->tag != TAG_STATIC );
 
-    Z_CountFree(z);
+	Z_CountFree( z );
 
-    z = static_cast<zhead_t*>( realloc( z, size ) ); // WID: C++20: Added cast.
-    if (!z) {
-        Com_Error( ERR_FATAL, "%s: couldn't realloc %zu bytes", __func__, size );
-        return nullptr;
-    }
+	z = static_cast<zhead_t *>( realloc( z, size ) );
+	// Fatal error if the C runtime failed to resize the allocation.
+	if ( !z ) {
+		Com_Error( ERR_FATAL, "%s: couldn't realloc %zu bytes", __func__, size );
+		return nullptr;
+	}
 
-    z->size = size;
-    List_Relink(&z->entry);
+	z->size = size;
+	List_Relink( &z->entry );
 
-    Z_CountAlloc(z);
+	Z_CountAlloc( z );
 
-    return z + 1;
+	return z + 1;
 }
 
 /**
-*   @brief  Prints the memory allocation statistics for each tag type.
-*   @note   This function is intended for debugging and monitoring memory usage.
-*           It iterates through the z_stats array and prints the number of bytes
-*           and blocks allocated for each tag type. It also prints the total number
-*           of bytes and blocks allocated across all tag types.
+*	@brief	Prints the memory allocation statistics for each tag type.
+*	@note	This function is intended for debugging and monitoring memory usage.
+*			It iterates through the z_stats array and prints the number of bytes
+*			and blocks allocated for each tag type. It also prints the total number
+*			of bytes and blocks allocated across all tag types.
 **/
-void Z_Stats_f(void)
-{
-    size_t bytes = 0, count = 0;
-    zstats_t *s;
-    int i;
+void Z_Stats_f( void ) {
+	size_t bytes = 0, count = 0;
+	zstats_t *s = nullptr;
+	int32_t i = 0;
 
-	Com_Printf( "Tag Zone Memory Allocations:\n----------- ------ ----------\n");
-    Com_Printf("    bytes   blocks tag name\n"
-               "----------- ------ ---------\n");
+	/**
+	*	Exact diagnostics avoid rounded human-readable sizes hiding retained realloc growth.
+	**/
+	if ( Cmd_Argc() == 2 && Q_stricmp( Cmd_Argv( 1 ), "exact" ) == 0 ) {
+		// Include zero populations so disappearance of a tag cannot masquerade as a missing sample.
+		for ( int32_t tagIndex = 0; tagIndex < TAG_MAX; ++tagIndex ) {
+			Com_Printf( "[zone tag] tag=%s bytes=%" PRIu64 " blocks=%" PRIu64 "\n",
+				z_tagnames[ tagIndex ], static_cast<uint64_t>( z_stats[ tagIndex ].bytes ),
+				static_cast<uint64_t>( z_stats[ tagIndex ].count ) );
+		}
+		return;
+	}
+	Com_Printf( "Tag Zone Memory Allocations:\n----------- ------ ----------\n" );
+	Com_Printf( "    bytes   blocks tag name\n"
+				"----------- ------ ---------\n" );
 
 	// Stores size type string.
-    std::string sizeTypeString = "";
+	std::string sizeTypeString = "";
 
-	// Iterate through the stats array and print the statistics for each tag type.
-    for (i = 0, s = z_stats; i < TAG_MAX; i++, s++) {
-        if (!s->count) {
-            //Com_Printf( "%9zu %6zu %s\n", s->bytes, s->count, z_tagnames[ i ] );
-            continue;
-        }
-        // Format print string.
-        std::string sizeValueString = Q_Str_FormatSizeString( s->bytes, sizeTypeString );
-        sizeValueString += " " + sizeTypeString;
-        // Print.
-        Com_Printf( "%9s %6zu %s\n", sizeValueString.c_str(), s->count, z_tagnames[i] );
+	/**
+	*	Iterate through the stats array and print the statistics for each active tag type.
+	**/
+	for ( i = 0, s = z_stats; i < TAG_MAX; i++, s++ ) {
+		// Skip tags with zero active allocations.
+		if ( !s->count ) {
+			continue;
+		}
+		// Format print string.
+		std::string sizeValueString = Q_Str_FormatSizeString( s->bytes, sizeTypeString );
+		sizeValueString += " " + sizeTypeString;
+		// Print.
+		Com_Printf( "%9s %6zu %s\n", sizeValueString.c_str(), s->count, z_tagnames[ i ] );
 
-        // Sum up the totals.
-        bytes += s->bytes;
-        count += s->count;
-    }
+		// Sum up the totals.
+		bytes += s->bytes;
+		count += s->count;
+	}
 
-	// Format and print the total summed up memory usage stats:
-    std::string sizeValueString = Q_Str_FormatSizeString( bytes, sizeTypeString );
-    sizeValueString += " " + sizeTypeString;
-    Com_Printf("----------- ------ ---------\n"
-                "%9s %6zu total\n", sizeValueString.c_str(), count );
+	// Format and print the total summed up memory usage stats.
+	std::string sizeValueString = Q_Str_FormatSizeString( bytes, sizeTypeString );
+	sizeValueString += " " + sizeTypeString;
+	Com_Printf( "----------- ------ ---------\n"
+				"%9s %6zu total\n", sizeValueString.c_str(), count );
 }
 
 /**
-*   @brief   Frees all memory blocks with the specified tag.
-*   @param   tag The memory tag used to identify the blocks to free.
+*	@brief	Frees all memory blocks with the specified tag.
+*	@param	tag	The memory tag used to identify the blocks to free.
 **/
-void Z_FreeTags(memtag_t tag)
-{
-    for (list_t *cursor = z_chain.next, *next = nullptr; cursor != &z_chain; cursor = next) {
-        if (!Z_IsReadableMemory(cursor, sizeof(list_t))) {
-            Com_WPrintf("%s: corrupted zone list link at %p while freeing tag %u\n", __func__, cursor, tag);
-            return;
-        }
+void Z_FreeTags( memtag_t tag ) {
+	/**
+	*	Walk the zone chain and release every block matching the specified tag.
+	**/
+	for ( list_t *cursor = z_chain.next, *next = nullptr; cursor != &z_chain; cursor = next ) {
+		// Verify that the list link resides in readable memory.
+		if ( !Z_IsReadableMemory( cursor, sizeof( list_t ) ) ) {
+			Com_WPrintf( "%s: corrupted zone list link at %p while freeing tag %u\n", __func__, cursor, tag );
+			return;
+		}
 
-        next = cursor->next;
+		next = cursor->next;
 
-        zhead_t *z = LIST_ENTRY(zhead_t, cursor, entry);
+		zhead_t *z = LIST_ENTRY( zhead_t, cursor, entry );
 
-        if (!Z_IsReadableMemory(z, sizeof(*z))) {
-            Com_WPrintf("%s: corrupted zone header at %p while freeing tag %u\n", __func__, z, tag);
-            return;
-        }
+		// Verify that the zone header resides in readable memory.
+		if ( !Z_IsReadableMemory( z, sizeof( *z ) ) ) {
+			Com_WPrintf( "%s: corrupted zone header at %p while freeing tag %u\n", __func__, z, tag );
+			return;
+		}
 
-        Z_Validate(z);
-        if (z->tag == tag) {
-            Z_Free(z + 1);
-        }
-    }
+		Z_Validate( z );
+		// Free blocks belonging to the requested tag.
+		if ( z->tag == tag ) {
+			Z_Free( z + 1 );
+		}
+	}
 }
 
 /**
-*   @brief   Allocates a block of memory with a specified tag.
-*   @param   size The size of the memory block to allocate, in bytes.
-*   @param   tag The memory tag used to categorize the allocation.
-*   @param   init If true, the allocated memory is initialized to zero.
-*   @return  A pointer to the allocated memory block, or NULL if the allocation fails.
+*	@brief	Allocates a block of memory with a specified tag.
+*	@param	size	The size of the memory block to allocate, in bytes.
+*	@param	tag		The memory tag used to categorize the allocation.
+*	@param	init	If true, the allocated memory is initialized to zero.
+*	@return	A pointer to the allocated memory block, or nullptr if the allocation fails.
 **/
-static void *Z_TagMallocInternal(size_t size, memtag_t tag, bool init)
-{
-    zhead_t *z;
+static void *Z_TagMallocInternal( size_t size, memtag_t tag, bool init ) {
+	zhead_t *z = nullptr;
 
-    if (!size) {
-        return NULL;
-    }
+	/**
+	*	Sanity check: return nullptr for zero-byte requests and validate size/tag limits.
+	**/
+	if ( !size ) {
+		return nullptr;
+	}
 
-    Q_assert(size <= INT_MAX);
-    Q_assert(tag > TAG_FREE && tag <= UINT16_MAX);
+	Q_assert( size <= INT_MAX );
+	Q_assert( tag > TAG_FREE && tag <= UINT16_MAX );
 
-    size += sizeof(*z);
-    z = static_cast<zhead_t *>( init ? calloc(1, size) : malloc(size) );
-    if (!z) {
-        Com_Error(ERR_FATAL, "%s: couldn't allocate %zu bytes", __func__, size);
-        return nullptr;
-    }
-    z->magic = Z_MAGIC;
-    z->tag = tag;
-    z->size = size;
+	/**
+	*	Allocate backing memory, initialize header, and insert into the active zone chain.
+	**/
+	size += sizeof( *z );
+	z = static_cast<zhead_t *>( init ? calloc( 1, size ) : malloc( size ) );
+	// Fatal error if the C runtime failed to allocate the requested block.
+	if ( !z ) {
+		Com_Error( ERR_FATAL, "%s: couldn't allocate %zu bytes", __func__, size );
+		return nullptr;
+	}
+	z->magic = Z_MAGIC;
+	z->tag = tag;
+	z->size = size;
 
-    List_Insert(&z_chain, &z->entry);
+	List_Insert( &z_chain, &z->entry );
 
 #if USE_TESTS
-    if (!init && z_perturb && z_perturb->integer) {
-        memset(z + 1, z_perturb->integer, size - sizeof(*z));
-    }
+	// Perturb uninitialized memory in test builds when z_perturb is enabled.
+	if ( !init && z_perturb && z_perturb->integer ) {
+		memset( z + 1, z_perturb->integer, size - sizeof( *z ) );
+	}
 #endif
 
-    Z_CountAlloc(z);
+	Z_CountAlloc( z );
 
-    return z + 1;
+	return z + 1;
 }
 
 /**
-*   @brief   Allocates a block of memory with a specified tag.
-*   @param   size The size of the memory block to allocate, in bytes.
-*   @param   tag The memory tag used to categorize the allocation.
-*   @return  A pointer to the allocated memory block, or NULL if the allocation fails.
+*	@brief	Allocates a block of memory with a specified tag.
+*	@param	size	The size of the memory block to allocate, in bytes.
+*	@param	tag		The memory tag used to categorize the allocation.
+*	@return	A pointer to the allocated memory block, or nullptr if the allocation fails.
 **/
-void *Z_TagMalloc(size_t size, memtag_t tag)
-{
-    return Z_TagMallocInternal(size, tag, false);
+void *Z_TagMalloc( size_t size, memtag_t tag ) {
+	return Z_TagMallocInternal( size, tag, false );
 }
 /**
-*   @brief  Allocates a block of memory with a specified tag and initializes it to zero.
-*   @param  size The size of the memory block to allocate, in bytes.
-*   @param  tag The memory tag used to categorize the allocation.
-*   @return A pointer to the allocated and zero-initialized memory block.
+*	@brief	Allocates a block of memory with a specified tag and initializes it to zero.
+*	@param	size	The size of the memory block to allocate, in bytes.
+*	@param	tag		The memory tag used to categorize the allocation.
+*	@return	A pointer to the allocated and zero-initialized memory block.
 **/
-void *Z_TagMallocz(size_t size, memtag_t tag)
-{
-    return Z_TagMallocInternal(size, tag, true);
+void *Z_TagMallocz( size_t size, memtag_t tag ) {
+	return Z_TagMallocInternal( size, tag, true );
 }
 /**
-*   @brief  Allocates a block of memory within the TAG_GENERAL space.
+*	@brief	Allocates a block of memory within the TAG_GENERAL space.
+*	@param	size	The size of the memory block to allocate, in bytes.
+*	@return	A pointer to the allocated memory block.
 **/
-void *Z_Malloc(size_t size)
-{
-    return Z_TagMalloc(size, TAG_GENERAL);
+void *Z_Malloc( size_t size ) {
+	return Z_TagMalloc( size, TAG_GENERAL );
 }
 /**
-*   @brief  Allocates a block of memory within the TAG_GENERAL space and initializes it to zero.
+*	@brief	Allocates a block of memory within the TAG_GENERAL space and initializes it to zero.
+*	@param	size	The size of the memory block to allocate, in bytes.
+*	@return	A pointer to the allocated and zero-initialized memory block.
 **/
-void *Z_Mallocz(size_t size)
-{
-    return Z_TagMallocz(size, TAG_GENERAL);
-}
-
-/**
-*   @brief  Initializes the zone memory allocator.
-**/
-void Z_Init(void)
-{
-    List_Init(&z_chain);
+void *Z_Mallocz( size_t size ) {
+	return Z_TagMallocz( size, TAG_GENERAL );
 }
 
 /**
-*   @brief  Copies a string to a new memory block and returns a pointer to it.
+*	@brief	Initializes the zone memory allocator.
 **/
-char *Z_TagCopyString(const char *in, memtag_t tag)
-{
-    size_t len;
-
-    if (!in) {
-        return NULL;
-    }
-
-    len = strlen(in) + 1;
-    return static_cast<char*>( memcpy(Z_TagMalloc(len, tag), in, len) ); // WID: C++20: Added cast.
+void Z_Init( void ) {
+	/**
+	*	Initialize the doubly-linked zone allocation chain.
+	**/
+	List_Init( &z_chain );
 }
 
 /**
-*   @brief  Copies a string to a static buffer and returns a pointer to it.
-*   @param  in The input string to copy.
-*   @return A pointer to the copied string in static storage, or NULL if the input string is NULL.
-*   @note   The function uses a static buffer to store the copied string, which means that
-*           the returned pointer will always point to the same location in memory.
+*	@brief	Copies a string to a new memory block and returns a pointer to it.
+*	@param	in	Null-terminated string to duplicate.
+*	@param	tag	Memory tag for the new string allocation.
+*	@return	Pointer to the newly allocated string copy, or nullptr if `in` is nullptr.
 **/
-char *Z_CvarCopyString(const char *in)
-{
-    const zstatic_t *z;
-    int i;
+char *Z_TagCopyString( const char *in, memtag_t tag ) {
+	size_t len = 0;
 
-    if (!in) {
-        return NULL;
-    }
+	/**
+	*	Return nullptr when no input string is provided.
+	**/
+	if ( !in ) {
+		return nullptr;
+	}
 
+	// Allocate tagged storage and copy the string including its null terminator.
+	len = strlen( in ) + 1;
+	return static_cast<char *>( memcpy( Z_TagMalloc( len, tag ), in, len ) );
+}
+
+/**
+*	@brief	Copies a string to a static buffer or TAG_CVAR allocation and returns a pointer to it.
+*	@param	in	The input string to copy.
+*	@return	A pointer to the copied string, or nullptr if the input string is nullptr.
+*	@note	Single-digit and empty strings use static storage; all other strings use TAG_CVAR.
+**/
+char *Z_CvarCopyString( const char *in ) {
+	const zstatic_t *z = nullptr;
+	int32_t i = 0;
+
+	/**
+	*	Sanity check: return nullptr when no input string is provided.
+	**/
+	if ( !in ) {
+		return nullptr;
+	}
+
+	/**
+	*	Reuse static storage for empty and single-digit strings; otherwise allocate in TAG_CVAR.
+	**/
 	// Check for static storage of "".
-    if (!in[0]) {
-        i = 10;
-    // Pick a digit that is stored statically.
-    } else if (!in[1] && Q_isdigit(in[0])) {
-        i = in[0] - '0';
-    // Otherwise, copy the string into TAG_CVAR.
-    } else {
-        return Z_TagCopyString( in, TAG_CVAR );
-    }
+	if ( !in[ 0 ] ) {
+		i = 10;
+	// Pick a digit that is stored statically.
+	} else if ( !in[ 1 ] && Q_isdigit( in[ 0 ] ) ) {
+		i = in[ 0 ] - '0';
+	// Otherwise, copy the string into TAG_CVAR.
+	} else {
+		return Z_TagCopyString( in, TAG_CVAR );
+	}
 
-    // Return static storage string instead.
-    z = &z_static[i];
-    Z_CountAlloc(&z->z);
-    return (char *)z->data;
+	// Return static storage string and record reference count.
+	z = &z_static[ i ];
+	Z_CountAlloc( &z->z );
+	return const_cast<char *>( z->data );
 }

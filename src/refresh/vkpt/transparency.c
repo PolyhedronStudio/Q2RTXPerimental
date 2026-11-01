@@ -112,42 +112,76 @@ void cast_u32_to_f32_color(int color_index, const color_t* pcolor, float* color_
 		color_f32[i] = hdr_factor * decode_srgb(color.u8[i]);
 }
 
-bool initialize_transparency()
-{
-	cvar_pt_particle_size = Cvar_Get("pt_particle_size", "0.5", 0);
-	cvar_pt_beam_width = Cvar_Get("pt_beam_width", "1.0", 0);
-	cvar_pt_beam_lights = Cvar_Get("pt_beam_lights", "1.0", 0);
+/**
+*	@brief	Initialize Vulkan buffers, views, and index tables for transparent effects
+*			(particles, beams, and sprites).
+*	@return	True if all transparency resources were created and bound successfully.
+**/
+bool initialize_transparency() {
+	/**
+	*	Register transparency tuning cvars and clear tracking state.
+	**/
+	// Default particle quad radius cvar.
+	cvar_pt_particle_size = Cvar_Get( "pt_particle_size", "0.5", 0 );
+	// Default beam width multiplier cvar.
+	cvar_pt_beam_width = Cvar_Get( "pt_beam_width", "1.0", 0 );
+	// Default beam light intensity multiplier cvar.
+	cvar_pt_beam_lights = Cvar_Get( "pt_beam_lights", "1.0", 0 );
 
-	memset(&transparency, 0, sizeof(transparency));
+	// Zero-initialize the transparency manager state.
+	memset( &transparency, 0, sizeof( transparency ) );
 
-	const size_t particle_vertex_position_max_size = TR_VERTEX_MAX_NUM * TR_POSITION_SIZE;
+	/**
+	*	Compute per-frame host staging buffer capacities for particles, beams, and sprites.
+	*	Each particle and sprite quad consists of 4 vertices.
+	**/
+	// Maximum byte size for particle quad vertices (4 vertices per particle).
+	const size_t particle_vertex_position_max_size = TR_PARTICLE_MAX_NUM * 4 * TR_POSITION_SIZE;
+	// Maximum byte size for particle RGBA colors.
 	const size_t particle_color_size = TR_PARTICLE_MAX_NUM * TR_COLOR_SIZE;
+	// Total per-frame staging size for particles.
 	const size_t particle_data_size = particle_vertex_position_max_size + particle_color_size;
 
+	// Maximum byte size for beam AABB geometry.
 	const size_t beam_aabb_max_size = TR_BEAM_MAX_NUM * TR_BEAM_AABB_SIZE;
+	// Maximum byte size for beam RGBA colors.
 	const size_t beam_color_size = TR_BEAM_MAX_NUM * TR_COLOR_SIZE;
+	// Maximum byte size for beam intersection cylinder parameters.
 	const size_t beam_intersect_size = TR_BEAM_MAX_NUM * TR_BEAM_INTERSECT_SIZE;
+	// Total per-frame staging size for beams.
 	const size_t beam_data_size = beam_aabb_max_size + beam_color_size + beam_intersect_size;
 
-	const size_t sprite_vertex_position_max_size = TR_SPRITE_MAX_NUM * TR_POSITION_SIZE;
+	// Maximum byte size for sprite quad vertices (4 vertices per sprite).
+	const size_t sprite_vertex_position_max_size = TR_SPRITE_MAX_NUM * 4 * TR_POSITION_SIZE;
+	// Maximum byte size for sprite texture/alpha info entries.
 	const size_t sprite_info_size = TR_SPRITE_MAX_NUM * TR_SPRITE_INFO_SIZE;
+	// Total per-frame staging size for sprites.
 	const size_t sprite_data_size = sprite_vertex_position_max_size + sprite_info_size;
-	
+
+	// Configure multi-frame host buffer dimensions.
 	transparency.host_buffered_frame_num = MAX_FRAMES_IN_FLIGHT;
 	transparency.host_frame_size = particle_data_size + beam_data_size + sprite_data_size;
 	transparency.host_buffer_size = transparency.host_buffered_frame_num * transparency.host_frame_size;
 
+	/**
+	*	Create device/host buffers, bind memory, create texel buffer views, and pre-fill
+	*	the shared quad index buffer.
+	**/
+	// Create Vulkan buffer objects.
 	create_buffers();
 
-	if (allocate_and_bind_memory_to_buffers() != VK_TRUE)
-	{
+	// Allocate and bind backing memory; clean up and bail out on failure.
+	if ( allocate_and_bind_memory_to_buffers() != VK_TRUE ) {
 		destroy_transparency();
 		return false;
 	}
 
+	// Create uniform texel buffer views for shader access.
 	create_buffer_views();
+	// Populate the static quad index buffer on the GPU.
 	fill_index_buffer();
 
+	// Initialization succeeded.
 	return true;
 }
 
@@ -941,57 +975,79 @@ static void upload_geometry(VkCommandBuffer command_buffer)
 }
 
 
-static void create_buffers(void)
-{
+/**
+*	@brief	Create the host staging buffer and all device-local geometry/attribute buffers
+*			for particles, beams, and sprites.
+**/
+static void create_buffers( void ) {
+	/**
+	*	Create the multi-frame host-visible transfer source buffer.
+	**/
+	// Specify total transfer buffer size across all buffered frames in flight.
 	const VkBufferCreateInfo host_buffer_info = {
 		.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
 		.size = transparency.host_buffered_frame_num * transparency.host_frame_size,
 		.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT
 	};
 
-	_VK(vkCreateBuffer(qvk.device, &host_buffer_info, NULL, &transparency.host_buffer));
+	// Create the host staging buffer.
+	_VK( vkCreateBuffer( qvk.device, &host_buffer_info, NULL, &transparency.host_buffer ) );
 
+	/**
+	*	Create device-local acceleration structure build input buffers (vertices, beam AABBs,
+	*	and 32-bit quad indices).
+	**/
+	// Shared quad vertex buffer for particles and sprites.
 	buffer_create(
-		&transparency.vertex_buffer, 
-		TR_VERTEX_MAX_NUM * sizeof(vec3_t),
+		&transparency.vertex_buffer,
+		TR_VERTEX_MAX_NUM * sizeof( vec3_t ),
 		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT );
 
+	// Procedural AABB buffer for beam segments.
 	buffer_create(
 		&transparency.beam_aabb_buffer,
-		TR_BEAM_MAX_NUM * sizeof(VkAabbPositionsKHR),
-		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, 
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+		TR_BEAM_MAX_NUM * sizeof( VkAabbPositionsKHR ),
+		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT );
 
+	// Shared 32-bit quad index buffer (avoids uint16_t overflow at 16,384 quads / 65,536 vertices).
 	buffer_create(
 		&transparency.index_buffer,
-		TR_INDEX_MAX_NUM * sizeof(uint16_t),
+		TR_INDEX_MAX_NUM * sizeof( uint32_t ),
 		VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT );
 
+	/**
+	*	Create device-local uniform texel buffers for per-primitive shading attributes.
+	**/
+	// Particle RGBA color texel buffer.
 	buffer_create(
 		&transparency.particle_color_buffer,
 		TR_PARTICLE_MAX_NUM * TR_COLOR_SIZE,
 		VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT );
 
+	// Beam RGBA color texel buffer.
 	buffer_create(
 		&transparency.beam_color_buffer,
 		TR_BEAM_MAX_NUM * TR_COLOR_SIZE,
 		VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT );
 
+	// Sprite texture and alpha info texel buffer.
 	buffer_create(
 		&transparency.sprite_info_buffer,
 		TR_SPRITE_MAX_NUM * TR_SPRITE_INFO_SIZE,
 		VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT );
 
+	// Beam cylinder intersection data texel buffer.
 	buffer_create(
 		&transparency.beam_intersect_buffer,
 		TR_BEAM_MAX_NUM * TR_BEAM_INTERSECT_SIZE,
 		VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT );
 }
 
 static bool allocate_and_bind_memory_to_buffers(void)
@@ -1077,27 +1133,52 @@ static void create_buffer_views(void)
 		&transparency.beam_intersect_buffer_view));
 }
 
-static void fill_index_buffer(void)
-{
-	uint16_t* indices = (uint16_t*)transparency.host_buffer_shadow;
+/**
+*	@brief	Pre-fill and upload the static 32-bit quad index buffer for particles and sprites.
+*	@note	Uses uint32_t indices so quad indices >= 16,384 (base_vertex >= 65,536) do not overflow.
+**/
+static void fill_index_buffer( void ) {
+	/**
+	*	Ensure the temporary shadow buffer is large enough to stage the full 32-bit index array.
+	**/
+	// Total byte size of the 32-bit index buffer.
+	const size_t index_buffer_bytes = sizeof( uint32_t ) * TR_INDEX_MAX_NUM;
+	// Verify that the shadow buffer allocation can hold the staged indices.
+	Q_assert( index_buffer_bytes <= transparency.host_frame_size );
 
-	for (size_t i = 0; i < TR_INDEX_MAX_NUM / 6; i++)
-	{
-		uint16_t* quad = indices + i * 6;
+	/**
+	*	Generate two triangles (0, 1, 2) and (2, 3, 0) per quad in host shadow memory.
+	**/
+	// Cast shadow buffer to 32-bit unsigned index pointer.
+	uint32_t *indices = ( uint32_t * )transparency.host_buffer_shadow;
 
-		const uint16_t base_vertex = i * 4;
-		quad[0] = base_vertex + 0;
-		quad[1] = base_vertex + 1;
-		quad[2] = base_vertex + 2;
-		quad[3] = base_vertex + 2;
-		quad[4] = base_vertex + 3;
-		quad[5] = base_vertex + 0;
+	// Populate 6 indices (2 triangles) for each quad slot.
+	for ( size_t i = 0; i < TR_INDEX_MAX_NUM / 6; i++ ) {
+		// Pointer to the current quad's 6 indices.
+		uint32_t *quad = indices + i * 6;
+
+		// Compute 32-bit base vertex index for quad i.
+		const uint32_t base_vertex = ( uint32_t )( i * 4 );
+		// Triangle 0: vertices 0, 1, 2.
+		quad[ 0 ] = base_vertex + 0;
+		quad[ 1 ] = base_vertex + 1;
+		quad[ 2 ] = base_vertex + 2;
+		// Triangle 1: vertices 2, 3, 0.
+		quad[ 3 ] = base_vertex + 2;
+		quad[ 4 ] = base_vertex + 3;
+		quad[ 5 ] = base_vertex + 0;
 	}
 
-	memcpy(transparency.mapped_host_buffer, transparency.host_buffer_shadow, sizeof(uint16_t) * TR_INDEX_MAX_NUM);
+	/**
+	*	Copy staged indices to the mapped host buffer and transfer to device-local memory.
+	**/
+	// Copy generated indices into mapped host transfer memory.
+	memcpy( transparency.mapped_host_buffer, transparency.host_buffer_shadow, index_buffer_bytes );
 
-	VkCommandBuffer cmd_buf = vkpt_begin_command_buffer(&qvk.cmd_buffers_transfer);
+	// Begin a one-time transfer command buffer.
+	VkCommandBuffer cmd_buf = vkpt_begin_command_buffer( &qvk.cmd_buffers_transfer );
 
+	// Barrier preparing the device index buffer for transfer write.
 	const VkBufferMemoryBarrier pre_barrier = {
 		.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
 		.srcAccessMask = 0,
@@ -1108,15 +1189,19 @@ static void fill_index_buffer(void)
 		.size = VK_WHOLE_SIZE
 	};
 
-	vkCmdPipelineBarrier(cmd_buf, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-		0, 0, NULL, 1, &pre_barrier, 0, NULL);
+	// Record pre-copy barrier.
+	vkCmdPipelineBarrier( cmd_buf, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+		0, 0, NULL, 1, &pre_barrier, 0, NULL );
 
+	// Specify the full 32-bit index buffer copy region.
 	const VkBufferCopy region = {
-		.size = TR_INDEX_MAX_NUM * sizeof(uint16_t)
+		.size = index_buffer_bytes
 	};
 
-	vkCmdCopyBuffer(cmd_buf, transparency.host_buffer, transparency.index_buffer.buffer, 1, &region);
+	// Copy from host staging buffer to device-local index buffer.
+	vkCmdCopyBuffer( cmd_buf, transparency.host_buffer, transparency.index_buffer.buffer, 1, &region );
 
+	// Barrier transitioning the device index buffer for subsequent acceleration structure reads.
 	const VkBufferMemoryBarrier post_barrier = {
 		.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
 		.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
@@ -1127,9 +1212,11 @@ static void fill_index_buffer(void)
 		.size = VK_WHOLE_SIZE
 	};
 
-	vkCmdPipelineBarrier(cmd_buf, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-		0, 0, NULL, 1, &post_barrier, 0, NULL);
+	// Record post-copy barrier.
+	vkCmdPipelineBarrier( cmd_buf, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+		0, 0, NULL, 1, &post_barrier, 0, NULL );
 
-	vkpt_submit_command_buffer_simple(cmd_buf, qvk.queue_transfer, true);
-	vkpt_wait_idle(qvk.queue_transfer, &qvk.cmd_buffers_transfer);
+	// Submit transfer work and wait for completion.
+	vkpt_submit_command_buffer_simple( cmd_buf, qvk.queue_transfer, true );
+	vkpt_wait_idle( qvk.queue_transfer, &qvk.cmd_buffers_transfer );
 }

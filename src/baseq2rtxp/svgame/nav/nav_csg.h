@@ -12,8 +12,12 @@
 #include "nav_core.h"
 #include "nav_types.h"
 #include "nav_containers.h"
+#include "svgame/memory/svg_containers.h"
 #include "shared/cm/cm_model.h"
 #include <vector>
+
+// <Q2RTXP>: WID: Undefine max to avoid conflicts with std::max in <algorithm> when compiling with MSVC.
+#undef max
 
 /**
 *	@brief	Maximum number of vertices permitted in a single CSG winding.
@@ -31,7 +35,7 @@ static constexpr double NAV_SLIVER_MIN_FEATURE_WIDTH = 2.0;
 
 /**
 *	@brief		Winding representation of a convex polygon used during CSG plane splitting and coplanar merging.
-*	@details	Encapsulates a dynamic 3D double-precision vertex perimeter backed by `nav_vector_t<Vector3DP>`
+*	@details	Encapsulates a dynamic 3D double-precision vertex perimeter backed by `svg_vector_t<Vector3DP, TAG_SVGAME_NAVMESH>`
 *				under engine memory tag `TAG_SVGAME_NAVMESH`.
 *	@note		Replaces static 24.5 KB stack allocation with dynamic engine-heap vector storage, reducing struct
 *				footprint down to ~40 bytes per instance. Drastically eliminates stack overflow risks during deep
@@ -40,7 +44,7 @@ static constexpr double NAV_SLIVER_MIN_FEATURE_WIDTH = 2.0;
 struct winding_t {
 private:
 	//! Heap-allocated backing vector for vertex coordinates.
-	nav_vector_t<Vector3DP> _vertices;
+	svg_vector_t<Vector3DP, TAG_SVGAME_NAVMESH> _vertices;
 
 public:
 	//! Number of active vertices in the winding perimeter.
@@ -52,7 +56,7 @@ public:
 	//! Door entity that caused this winding to become a transition boundary, or ENTITYNUM_NONE for ordinary world geometry.
 	int32_t transition_entity_id = ENTITYNUM_NONE;
 
-	//! Active vertex storage pointer (points to _vertices.begin()).
+	//! Active vertex storage pointer (points to _vertices.data()).
 	Vector3DP *points = nullptr;
 
 	/**
@@ -105,7 +109,7 @@ public:
 		if ( new_cap <= 0 ) return;
 		_vertices.reserve( static_cast< size_t >( new_cap ) );
 		capacity = static_cast< int32_t >( _vertices.capacity() );
-		points = _vertices.begin();
+		points = _vertices.data();
 	}
 
 	/**
@@ -128,7 +132,7 @@ public:
 		_vertices.push_back( p );
 		num_points = static_cast< int32_t >( _vertices.size() );
 		capacity = static_cast< int32_t >( _vertices.capacity() );
-		points = _vertices.begin();
+		points = _vertices.data();
 	}
 
 	/**
@@ -137,7 +141,7 @@ public:
 	void clear() {
 		_vertices.clear();
 		num_points = 0;
-		points = _vertices.begin();
+		points = _vertices.data();
 	}
 
 private:
@@ -147,7 +151,7 @@ private:
 		capacity = static_cast< int32_t >( _vertices.capacity() );
 		entity_id = other.entity_id;
 		transition_entity_id = other.transition_entity_id;
-		points = _vertices.begin();
+		points = _vertices.data();
 	}
 
 	void MoveFrom( winding_t &&other ) {
@@ -156,7 +160,7 @@ private:
 		capacity = static_cast< int32_t >( _vertices.capacity() );
 		entity_id = other.entity_id;
 		transition_entity_id = other.transition_entity_id;
-		points = _vertices.begin();
+		points = _vertices.data();
 
 		other.num_points = 0;
 		other.capacity = 0;

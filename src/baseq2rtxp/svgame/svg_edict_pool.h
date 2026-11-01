@@ -67,40 +67,61 @@ struct svg_edict_pool_t : sv_edict_pool_i {
     **/
     svg_base_edict_t *AllocateNextFreeEdict( EdictTypeInfo *typeInfo, const cm_entity_t *cm_entity = nullptr, const char *classnameOverRuler = nullptr );
     /**
-    *   @brief  Either finds a free edict, or allocates a new one.
-    *   @remark This function tries to avoid reusing an entity that was recently freed, 
-    *           because it can cause the client to think the entity morphed into something 
-    *           else instead of being removed and recreated, which can cause interpolated
-    *           angles and bad trails.
-   
+    *	@brief	Reuse a matching freed entity or replace the next unused typed-slot placeholder.
+    *	@param	classnameOverRuler	Optional authored class name used for initialization.
+    *	@return	Current typed entity, or nullptr after a fatal capacity/factory error.
+    *	@note	Preserves the slot spawn count; matching-type reuse retains FreeEdict's lifetime increment.
     **/
     template<typename EdictType>
     EdictType *AllocateNextFreeEdict( const char *classnameOverRuler = nullptr ) {
+        /**
+        *	Prefer a matching freed owner, removing its unique free-list membership before activation.
+        **/
         svg_base_edict_t *reusable = nullptr;
-        // Search free list for matching type
+        // Type matching preserves the established entity reuse and interpolation policy.
         for ( auto it = freeEdicts.begin(); it != freeEdicts.end(); ++it ) {
             if ( (*it)->GetTypeInfo() == &EdictType::ClassInfo ) {
                 reusable = *it;
-                freeEdicts.erase(it);
+                freeEdicts.erase( it );
                 break;
             }
         }
-        
-        if ( !reusable ) {
-            // Allocate new
-            reusable = EdictType::ClassInfo.allocateEdictInstanceCallback(nullptr);
-            if ( num_edicts >= game.maxentities ) {
-                gi.error("SVG_AllocateEdict: no free edicts");
+
+        /**
+        *	Validate fresh capacity before constructing an entity or discarding a reserved placeholder.
+        **/
+        if ( reusable == nullptr ) {
+            if ( edicts == nullptr || num_edicts < 0 || num_edicts >= max_edicts || num_edicts >= game.maxentities ) {
+                gi.error( "SVG_AllocateEdict: no free edicts" );
                 return nullptr;
             }
-            reusable->s.number = num_edicts++;
-            edicts[reusable->s.number] = reusable;
+            const int32_t slot = num_edicts;
+            svg_base_edict_t *placeholder = edicts[ slot ];
+            Q_assert( placeholder == nullptr || !placeholder->inUse );
+            const int32_t spawnCount = placeholder != nullptr ? placeholder->spawn_count : 0;
+            // This inactive preallocated object owns storage; overwriting its pointer would leak it.
+            delete placeholder;
+            edicts[ slot ] = nullptr;
+            reusable = EdictType::ClassInfo.allocateEdictInstanceCallback( nullptr );
+            // A failed factory cannot publish an incomplete slot or advance the pool's live range.
+            if ( reusable == nullptr ) {
+                gi.error( "SVG_AllocateEdict: factory returned nullptr" );
+                return nullptr;
+            }
+            reusable->s.number = slot;
+            reusable->spawn_count = spawnCount;
+            edicts[ slot ] = reusable;
+            ++num_edicts;
         }
 
-        EdictType *ent = static_cast<EdictType*>(reusable);
+        /**
+        *	Activate only the resolved owner; do not reset or reinterpret its spawn-count lifetime.
+        **/
+        EdictType *ent = static_cast<EdictType *>( reusable );
         _InitEdict<EdictType>( ent, ent->s.number, classnameOverRuler );
         return ent;
     }
+
 	/**
 	*   @brief  Marks the edict as free.
     **/

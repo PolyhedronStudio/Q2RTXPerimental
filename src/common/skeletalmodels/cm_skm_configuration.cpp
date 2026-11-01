@@ -24,6 +24,8 @@
 // Include nlohman::json library for easy parsing.
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
+
 
 //!
 //! Shamelessly taken from refresh/models.h
@@ -430,6 +432,105 @@ const int32_t SKM_ParseConfigurationBuffer( model_t *model, const char *configur
                     // Debug print.
                     Com_LPrintf( PRINT_DEVELOPER, " \"%s\" - hipsBone Set To (#%i, \"%s\")\n", configurationFilePath, hipsBoneNode->number, hipsBoneName.c_str() );
                 }
+            }
+        }
+
+        /**
+        *   Faux Animations(Composite Recipes):
+        **/
+        // Ensure it is nullptr.
+        model->skmConfig->fauxAnimations = nullptr;
+        model->skmConfig->numberOfFauxAnimations = 0;
+        if ( json.contains( "faux_animations" ) && json[ "faux_animations" ].is_array() ) {
+            // The faux animations JSON array.
+            const nlohmann::json &fauxAnimationsJson = json[ "faux_animations" ];
+            // Allocate the faux animations array in the model's hunk.
+            const size_t numberOfFauxAnimations = fauxAnimationsJson.size();
+            if ( numberOfFauxAnimations > 0 ) {
+                CHECK( model->skmConfig->fauxAnimations = static_cast<skm_faux_animation_t *>( MOD_Malloc( sizeof( skm_faux_animation_t ) * numberOfFauxAnimations ) ) );
+                // Zero out the allocated memory.
+                memset( model->skmConfig->fauxAnimations, 0, sizeof( skm_faux_animation_t ) * numberOfFauxAnimations );
+
+                // Parse each faux animation recipe.
+                for ( size_t fauxAnim_idx = 0; fauxAnim_idx < numberOfFauxAnimations; fauxAnim_idx++ ) {
+                    // The faux animation JSON object.
+                    const nlohmann::json &fauxAnimJson = fauxAnimationsJson[ fauxAnim_idx ];
+                    // The faux animation we're filling in.
+                    skm_faux_animation_t *fauxAnimation = &model->skmConfig->fauxAnimations[ fauxAnim_idx ];
+
+                    // Recipe name.
+                    if ( fauxAnimJson.contains( "name" ) ) {
+                        const std::string fauxAnimName = fauxAnimJson[ "name" ].get< const std::string >();
+                        Q_strlcpy( fauxAnimation->name, fauxAnimName.c_str(), MAX_QPATH );
+                    }
+
+                    // Layers.
+                    if ( fauxAnimJson.contains( "layers" ) && fauxAnimJson[ "layers" ].is_array() ) {
+                        const nlohmann::json &layersJson = fauxAnimJson[ "layers" ];
+                        const size_t numberOfLayers = std::min( layersJson.size(), (size_t)SKM_MAX_LAYERS );
+                        fauxAnimation->numberOfLayers = (int32_t)numberOfLayers;
+
+                        for ( size_t layer_idx = 0; layer_idx < numberOfLayers; layer_idx++ ) {
+                            // The layer JSON object.
+                            const nlohmann::json &layerJson = layersJson[ layer_idx ];
+                            // The layer we're filling in.
+                            skm_faux_layer_t *layer = &fauxAnimation->layers[ layer_idx ];
+
+                            // Start bone. (-1 == inactive layer.)
+                            layer->startBone = -1;
+                            if ( layerJson.contains( "start_bone" ) ) {
+                                const std::string startBoneName = layerJson[ "start_bone" ].get< const std::string >();
+                                if ( !startBoneName.empty() ) {
+                                    if ( skm_bone_node_t *startBoneNode = SKM_GetBoneByName( model, startBoneName.c_str() ) ) {
+                                        layer->startBone = startBoneNode->number;
+                                    }
+                                }
+                            }
+
+                            // Blend mode. (0 == OVERRIDE, 1 == ADDITIVE.)
+                            layer->mode = 0;
+                            if ( layerJson.contains( "mode" ) ) {
+                                layer->mode = layerJson[ "mode" ].get< int32_t >();
+                            }
+
+                            // Default weight for bones without an explicit mask entry.
+                            layer->defaultWeight = 1.0f;
+                            if ( layerJson.contains( "default_weight" ) ) {
+                                layer->defaultWeight = layerJson[ "default_weight" ].get< float >();
+                            }
+
+                            // Fade-in and fade-out durations in milliseconds.
+                            layer->fadeInTime = 0;
+                            if ( layerJson.contains( "fade_in" ) ) {
+                                layer->fadeInTime = layerJson[ "fade_in" ].get< int64_t >();
+                            }
+                            layer->fadeOutTime = 0;
+                            if ( layerJson.contains( "fade_out" ) ) {
+                                layer->fadeOutTime = layerJson[ "fade_out" ].get< int64_t >();
+                            }
+
+                            // Per-bone weights map: { "boneName": weight, ... }.
+                            if ( layerJson.contains( "weights" ) && layerJson[ "weights" ].is_object() ) {
+                                for ( auto weightsIt = layerJson[ "weights" ].begin(); weightsIt != layerJson[ "weights" ].end(); ++weightsIt ) {
+                                    // Resolve the bone by name.
+                                    if ( skm_bone_node_t *weightBoneNode = SKM_GetBoneByName( model, weightsIt.key().c_str() ) ) {
+                                        layer->boneWeights[ weightBoneNode->number ] = weightsIt.value().get< float >();
+                                    }
+                                }
+                            }
+
+                            // Debug print.
+                            Com_LPrintf( PRINT_DEVELOPER, " \"%s\" - FauxAnimation(\"%s\") Layer(%i): startBone(#%i), mode(%i), defaultWeight(%f), fadeIn(%i), fadeOut(%i)\n",
+                                configurationFilePath, fauxAnimation->name, (int32_t)layer_idx, layer->startBone, layer->mode, layer->defaultWeight, (int32_t)layer->fadeInTime, (int32_t)layer->fadeOutTime );
+                        }
+                    }
+
+                    // Debug print.
+                    Com_LPrintf( PRINT_DEVELOPER, " \"%s\" - FauxAnimation Registered: \"%s\" (%i layers)\n", configurationFilePath, fauxAnimation->name, fauxAnimation->numberOfLayers );
+                }
+
+                // Store the actual number of faux animations.
+                model->skmConfig->numberOfFauxAnimations = (int32_t)numberOfFauxAnimations;
             }
         }
     }

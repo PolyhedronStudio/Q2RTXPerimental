@@ -27,6 +27,7 @@
 #include "clgame/clg_keys.h"
 #include "clgame/hud/clg_hud_weaponmenu.h"
 #include "clgame/game_ui/clg_ui_main.h"
+#include "shared/keys/key_numbers.h"
 #include "sharedgame/sg_game_ui.h"
 #include "sharedgame/pmove/sg_pmove.h"
 
@@ -107,10 +108,53 @@ static void IN_LeftDown( void ) { clgi.KeyDown( &in_left ); }
 static void IN_LeftUp( void ) { clgi.KeyUp( &in_left ); }
 static void IN_RightDown( void ) { clgi.KeyDown( &in_right ); }
 static void IN_RightUp( void ) { clgi.KeyUp( &in_right ); }
-static void IN_ForwardDown( void ) { clgi.KeyDown( &in_forward ); }
-static void IN_ForwardUp( void ) { clgi.KeyUp( &in_forward ); }
-static void IN_BackDown( void ) { clgi.KeyDown( &in_back ); }
-static void IN_BackUp( void ) { clgi.KeyUp( &in_back ); }
+/**
+*	@brief	When +forward button is pressed down.
+*	@note	If the HUD weapon selector menu is open, only the UPARROW key navigates to the previous slot.
+*			Any other key (such as 'W') is ignored by the menu and forwarded to normal movement as usual.
+**/
+static void IN_ForwardDown( void ) {
+	if ( IN_WeaponBar_ForwardDown() ) {
+		return;
+	}
+
+	clgi.KeyDown( &in_forward );
+}
+
+/**
+*	@brief	When +forward button is released (up).
+**/
+static void IN_ForwardUp( void ) {
+	if ( IN_WeaponBar_ForwardUp() ) {
+		return;
+	}
+
+	clgi.KeyUp( &in_forward );
+}
+
+/**
+*	@brief	When +back button is pressed down.
+*	@note	If the HUD weapon selector menu is open, only the DOWNARROW key navigates to the next slot.
+*			Any other key (such as 'S') is ignored by the menu and forwarded to normal movement as usual.
+**/
+static void IN_BackDown( void ) {
+	if ( IN_WeaponBar_BackDown() ) {
+		return;
+	}
+
+	clgi.KeyDown( &in_back );
+}
+
+/**
+*	@brief	When +back button is released (up).
+**/
+static void IN_BackUp( void ) {
+	if ( IN_WeaponBar_BackUp() ) {
+		return;
+	}
+
+	clgi.KeyUp( &in_back );
+}
 static void IN_LookupDown( void ) { clgi.KeyDown( &in_lookup ); }
 static void IN_LookupUp( void ) { clgi.KeyUp( &in_lookup ); }
 static void IN_LookdownDown( void ) { clgi.KeyDown( &in_lookdown ); }
@@ -148,6 +192,15 @@ static void IN_MLookUp( void ) {
 *   @brief  Primary Fire Down.
 **/
 static void IN_PrimaryFireDown( void ) {
+	/**
+	*	When the HUD weapon selection menu is open, primary fire acts to confirm
+	*	the current weapon selection, matching the Enter / 'E' behavior.
+	**/
+	if ( CLG_WeaponMenu_IsOpen() ) {
+		CLG_WeaponMenu_Confirm();
+		return;
+	}
+
     clgi.KeyDown( &in_primary_fire );
 
     if ( cl_instantpacket->integer && clgi.GetConnectionState() == ca_active && !clgi.IsDemoPlayback() ) {
@@ -165,6 +218,15 @@ static void IN_PrimaryFireUp( void ) {
 *   @brief  Secondary Fire Down.
 **/
 static void IN_SecondaryFireDown( void ) {
+	/**
+	*	When the HUD weapon selection menu is open, secondary fire acts to cancel
+	*	the menu and return focus to gameplay, matching Escape / Backspace.
+	**/
+	if ( CLG_WeaponMenu_IsOpen() ) {
+		CLG_WeaponMenu_Close();
+		return;
+	}
+
     clgi.KeyDown( &in_secondary_fire );
     
     if ( cl_instantpacket->integer && clgi.GetConnectionState() == ca_active && !clgi.IsDemoPlayback() ) {
@@ -182,6 +244,14 @@ static void IN_SecondaryFireUp( void ) {
 *   @brief  When the 'Use Inventory Item" button goes down.
 **/
 static void IN_UseItemDown( void ) {
+	/**
+	*	When the HUD weapon selection menu is open, use item confirms the active selection.
+	**/
+	if ( CLG_WeaponMenu_IsOpen() ) {
+		CLG_WeaponMenu_Confirm();
+		return;
+	}
+
     clgi.KeyDown( &in_use_item );
 
     if ( cl_instantpacket->integer && clgi.GetConnectionState() == ca_active && !clgi.IsDemoPlayback() ) {
@@ -199,6 +269,14 @@ static void IN_UseItemUp( void ) {
 *   @brief  When the 'Use target entity we point at" button goes down.
 **/
 static void IN_UseTargetDown( void ) {
+	/**
+	*	When the HUD weapon selection menu is open, use target ('E') confirms the active selection.
+	**/
+	if ( CLG_WeaponMenu_IsOpen() ) {
+		CLG_WeaponMenu_Confirm();
+		return;
+	}
+
     clgi.KeyDown( &in_use_target );
 
     if ( cl_instantpacket->integer && clgi.GetConnectionState() == ca_active && !clgi.IsDemoPlayback() ) {

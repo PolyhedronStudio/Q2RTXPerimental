@@ -14,6 +14,7 @@
 #include "svgame/crowd/svg_crowd_formations.h"
 #include "svgame/crowd/svg_squad_coordinator.h"
 #include "svgame/nav/nav_sector_graph.h"
+#include "svgame/nav/nav_perf.h"
 #include "svgame/entities/svg_base_edict.h"
 #include "svgame/entities/monster/svg_monster_base.h"
 #include "svgame/entities/monster/svg_monster_testdummy_debug.h"
@@ -22,6 +23,7 @@
 #include "svgame/nav/nav_cover_query.h"
 #include "svgame/nav/nav_path.h"
 #include "svgame/nav/nav_types.h"
+#include "svgame/nav/nav_identity.h"
 #include "svgame/svg_utils.h"
 
 #include "shared/math/qm_math_cpp.h"
@@ -30,6 +32,8 @@
 #include "svgame/nav/nav_generate.h"
 #include "svgame/nav/nav_cover_types.h"
 #include "svgame/monsters/svg_mmove.h"
+#include <span>
+#include <limits>
 
 
 //! Minimum mutual separation distance between two agents abreast before the lower-priority agent yields.
@@ -88,7 +92,7 @@ static constexpr double CROWD_BOTTLENECK_FUNNEL_DIST = 140.0;
 
 
 
-extern std::vector<nav_cover_point_t> g_nav_cover_points;
+extern svg_vector_t<nav_cover_point_t, TAG_SVGAME_NAVMESH> g_nav_cover_points;
 
 #include <algorithm>
 #include <cmath>
@@ -102,6 +106,8 @@ extern std::vector<nav_cover_point_t> g_nav_cover_points;
 **/
 //! CVAR toggling crowd formation and assignment debug visuals.
 cvar_t *s_crowd_debug_draw = nullptr;
+//! Opt-in bounded recovery-candidate diagnostics; ordinary gameplay performs no candidate logging.
+static cvar_t *s_crowd_recovery_debug = nullptr;
 //! Default lateral spacing between formation members in world units.
 cvar_t *s_crowd_lateral_spacing = nullptr;
 //! Default longitudinal spacing between formation ranks in world units.
@@ -120,11 +126,14 @@ static std::unordered_map<int32_t, svg_crowd_group_t> g_crowd_groups;
 *	@return	Pointer to target edict if active and alive, nullptr otherwise.
 **/
 svg_base_edict_t *svg_crowd_group_t::GetTargetEntity( void ) const {
+	// Reject missing or out-of-range pool slots before resolving the captured lifetime.
 	if ( targetEntityNumber == ENTITYNUM_NONE || targetEntityNumber < 0 || targetEntityNumber >= globals.edictPool->num_edicts ) {
 		return nullptr;
 	}
 	svg_base_edict_t *ent = g_edict_pool.EdictForNumber( targetEntityNumber );
-	return ( ent && SVG_Entity_IsActive( ent ) && ent->health > 0 ) ? ent : nullptr;
+	// Match the captured lifetime before exposing a pooled target to order rebuilding.
+	return ( ent != nullptr && SVG_Entity_IsActive( ent ) && ent->health > 0 &&
+		ent->spawn_count == targetSpawnCount ) ? ent : nullptr;
 }
 
 /**
@@ -132,11 +141,14 @@ svg_base_edict_t *svg_crowd_group_t::GetTargetEntity( void ) const {
 *	@return	Pointer to leader edict if active and alive, nullptr otherwise.
 **/
 svg_base_edict_t *svg_crowd_group_t::GetLeaderEntity( void ) const {
+	// Reject missing or out-of-range pool slots before resolving the captured lifetime.
 	if ( leaderEntityNumber == ENTITYNUM_NONE || leaderEntityNumber < 0 || leaderEntityNumber >= globals.edictPool->num_edicts ) {
 		return nullptr;
 	}
 	svg_base_edict_t *ent = g_edict_pool.EdictForNumber( leaderEntityNumber );
-	return ( ent && SVG_Entity_IsActive( ent ) && ent->health > 0 ) ? ent : nullptr;
+	// A leader must retain both its pool lifetime and membership in this crowd.
+	return ( ent != nullptr && SVG_Entity_IsActive( ent ) && ent->health > 0 &&
+		ent->spawn_count == leaderSpawnCount && ent->crowd.crowdID == crowdID ) ? ent : nullptr;
 }
 
 /**
@@ -208,9 +220,16 @@ static void SVG_Crowd_ResetSerializedIngress( svg_crowd_group_t &group, const st
 	group.ingressPortalInward = Vector3DP{ 0.0, 0.0, 0.0 };
 	group.ingressPortalHalfWidth = 0.0;
 	group.ingressQueueEntityNumbers.clear();
+	group.ingressQueueIncarnations.clear();
+	group.ingressQueueSpawnCounts.clear();
+	group.ingressQueueIdentityEpoch = 0;
 	group.ingressStagingPositions.clear();
+	group.ingressStagingTransitRoutes.clear();
 	group.ingressStagingLine.clear();
 	group.ingressQueueHead = 0;
+	group.ingressHeadStagingCell = 0;
+	group.ingressYieldClaims.clear();
+	group.ingressYieldNextProbeTime = 0_ms;
 	group.ingressMarshalCursor = 0;
 	group.ingressQueueHeadStartTime = 0_ms;
 	group.ingressReleaseDepth = 0.0;
@@ -225,8 +244,10 @@ static void SVG_Crowd_ResetSerializedIngress( svg_crowd_group_t &group, const st
 		if ( member == nullptr ) {
 			continue;
 		}
-		member->crowd.ingressQueueRank = -1;
-		member->crowd.ingressReleased = true;
+		// Invalidate submitted routes before publishing this assignment field.
+		member->crowd.SetNavigationAssignment( member->crowd.ingressQueueRank, -1 );
+		// Invalidate submitted routes before publishing this assignment field.
+		member->crowd.SetNavigationAssignment( member->crowd.ingressReleased, true );
 	}
 }
 
@@ -243,6 +264,11 @@ static void SVG_Crowd_ResetSerializedEgress( svg_crowd_group_t &group, const std
 	group.egressPortalOutward = Vector3DP{ 0.0, 0.0, 0.0 };
 	group.egressPortalHalfWidth = 0.0;
 	group.egressQueueEntityNumbers.clear();
+	group.egressQueueIncarnations.clear();
+	group.egressQueueSpawnCounts.clear();
+	group.egressQueueIdentityEpoch = 0;
+	group.egressMeshGeneration = 0;
+	group.egressTopologyRevision = 0;
 	group.egressQueueHead = 0;
 	group.egressQueueHeadStartTime = 0_ms;
 	group.egressNextReleaseTime = 0_ms;
@@ -256,8 +282,10 @@ static void SVG_Crowd_ResetSerializedEgress( svg_crowd_group_t &group, const std
 		if ( member == nullptr ) {
 			continue;
 		}
-		member->crowd.egressQueueRank = -1;
-		member->crowd.egressReleased = true;
+		// Invalidate submitted routes before publishing this assignment field.
+		member->crowd.SetNavigationAssignment( member->crowd.egressQueueRank, -1 );
+		// Invalidate submitted routes before publishing this assignment field.
+		member->crowd.SetNavigationAssignment( member->crowd.egressReleased, true );
 	}
 }
 
@@ -276,6 +304,10 @@ static void SVG_Crowd_ResetMemberNavigation( svg_base_edict_t *member ) {
 	/**
 	*	Clear crowd and monster path timing so the new goal is consumed immediately.
 	**/
+	// Opt-in writer evidence separates actual crowd invalidation from normal idle cancellation.
+	if ( s_crowd_recovery_debug != nullptr && s_crowd_recovery_debug->integer != 0 ) {
+		gi.dprintf( "[crowd navigation reset] ent=%" PRId32 " spawn_count=%" PRId32 "\n", member->s.number, member->spawn_count );
+	}
 	member->crowd.lastPathCalcTime = 0_ms;
 	member->crowd.blockedStartTime = 0_ms;
 	member->nextthink = level.time + FRAME_TIME_MS;
@@ -289,6 +321,190 @@ static void SVG_Crowd_ResetMemberNavigation( svg_base_edict_t *member ) {
 }
 
 /**
+*	@brief	Resolve only the current lifetime and membership of a frozen physical queue owner.
+*	@param	group	Group that owns the aperture reservation.
+*	@param	egress	Select the origin exit queue rather than the destination entrance queue.
+*	@param	rank	Immutable reservation index to resolve.
+*	@return	Matching living member or nullptr for removed, recycled or invalid owners.
+*	@note	Constant-time lookup; no route, entity or reservation mutation occurs here.
+**/
+static svg_base_edict_t *SVG_Crowd_ResolveQueueOwner( const svg_crowd_group_t &group, const bool egress, const int32_t rank ) {
+	/**
+	*	Validate the paired frozen keys before accessing an entity slot that may have been recycled.
+	**/
+	const auto &numbers = egress ? group.egressQueueEntityNumbers : group.ingressQueueEntityNumbers;
+	const auto &incarnations = egress ? group.egressQueueIncarnations : group.ingressQueueIncarnations;
+	const auto &spawnCounts = egress ? group.egressQueueSpawnCounts : group.ingressQueueSpawnCounts;
+	// Invalid or incomplete reservation records cannot authorize another entity.
+	if ( rank < 0 || static_cast<uint64_t>( rank ) >= numbers.size() || numbers.size() != incarnations.size() || numbers.size() != spawnCounts.size() ) {
+		return nullptr;
+	}
+	const int32_t number = numbers[ rank ];
+	// Entity zero and unallocated slots never own a crowd doorway token.
+	if ( number < 1 || number >= globals.edictPool->num_edicts ) {
+		return nullptr;
+	}
+	auto *member = g_edict_pool.EdictForNumber( number );
+	// Leaving a crowd immediately revokes its immutable queue entry, even when that actor remains alive.
+	if ( member == nullptr || !SVG_Entity_IsActive( member ) || member->health <= 0 || member->crowd.crowdID != group.crowdID || member->spawn_count != spawnCounts[ rank ] ) {
+		return nullptr;
+	}
+	/**
+	*	Match monster incarnation as well as slot/membership. Preserve existing nonmonster records' zero key.
+	**/
+	const auto *monster = dynamic_cast<const svg_monster_base_t *>( member );
+	const uint64_t incarnation = monster != nullptr ? monster->navigationIncarnation : 0;
+	return incarnation == incarnations[ rank ] ? member : nullptr;
+}
+
+/**
+*	@brief	Resolve the same pool/navigation lifetime in the physically cleared origin queue prefix.
+*	@param	member	Actor whose clearance ownership is queried.
+*	@return	True only for the current living queued incarnation while serialized egress remains active.
+*	@note	Read-only owner-thread lookup; no mutation, allocation or entity-number-only authority.
+**/
+bool SVG_Crowd_HasClearedEgress( const svg_base_edict_t *member ) {
+	/**
+	*	Missing or unregistered actors cannot inherit an aperture clearance token.
+	**/
+	if ( member == nullptr || member->crowd.crowdID < 0 ) {
+		return false;
+	}
+	const auto *group = SVG_Crowd_GetGroup( member->crowd.crowdID );
+	const int32_t rank = member->crowd.egressQueueRank;
+	// A cleared prefix is authoritative only in its current active identity namespace and pool lifetime.
+	return group != nullptr && group->hasSerializedEgress && group->egressQueueIdentityEpoch == Nav_IdentityEpochMainThread() &&
+		rank >= 0 && rank < group->egressQueueHead && SVG_Crowd_ResolveQueueOwner( *group, true, rank ) == member;
+}
+
+/**
+*	@brief	Resolve the live immutable ingress head without granting a reused entity slot ownership.
+*	@param	member	Potential staging head.
+*	@return	True only for the current pool/navigation lifetime in the active identity namespace.
+*	@note	Read-only owner-thread lookup using the canonical queue resolver.
+**/
+bool SVG_Crowd_IsCurrentIngressHead( const svg_base_edict_t *member ) {
+	/**
+	*	An unregistered or missing actor cannot own a staging token.
+	**/
+	if ( member == nullptr || member->crowd.crowdID < 0 ) {
+		return false;
+	}
+	const auto *group = SVG_Crowd_GetGroup( member->crowd.crowdID );
+	// Require namespace, membership, spawn count and incarnation before authorizing head behavior.
+	return group != nullptr && group->hasSerializedIngress && group->ingressQueueIdentityEpoch == Nav_IdentityEpochMainThread() &&
+		SVG_Crowd_ResolveQueueOwner( *group, false, group->ingressQueueHead ) == member;
+}
+
+/**
+*	@brief	Resolve an exact current follower holding obligation before allowing native actor avoidance.
+*	@param	member	Potential holding mover.
+*	@return	True only for this queued pool/navigation lifetime and its unchanged holding goal.
+*	@note	Read-only bounded scan; this grants neither staging-head ownership nor doorway admission.
+**/
+bool SVG_Crowd_IsCurrentApproachYieldMember( const svg_base_edict_t *member ) {
+	/**
+	*	Reject missing, dead, admitted or unregistered actors before reading their retained claim.
+	**/
+	if ( member == nullptr || !SVG_Entity_IsActive( member ) || member->health <= 0 ||
+		member->crowd.crowdID < 0 || member->crowd.ingressReleased ) {
+		return false;
+	}
+	const auto *group = SVG_Crowd_GetGroup( member->crowd.crowdID );
+	const auto *monster = dynamic_cast<const svg_monster_base_t *>( member );
+	// Require the active namespace and exact queued lifetime; replacements cannot inherit a holding assignment.
+	if ( group == nullptr || monster == nullptr || !group->hasSerializedIngress ||
+		group->ingressQueueIdentityEpoch != Nav_IdentityEpochMainThread() ||
+		SVG_Crowd_ResolveQueueOwner( *group, false, member->crowd.ingressQueueRank ) != member ||
+		SVG_Crowd_ResolveQueueOwner( *group, false, group->ingressQueueHead ) == nullptr ) {
+		return false;
+	}
+	/**
+	*	Match ownership and intent together; a later behavior or order revokes this recovery permission.
+	**/
+	for ( const auto &claim : group->ingressYieldClaims ) {
+		// Only this active head's exact current holding assignment authorizes the bounded avoidance fallback.
+		if ( claim.head == group->ingressQueueHead && claim.entityNumber == member->s.number &&
+			claim.spawnCount == member->spawn_count && claim.incarnation == monster->navigationIncarnation &&
+			claim.holdingGoal.x == member->crowd.assignedGoalOrigin.x &&
+			claim.holdingGoal.y == member->crowd.assignedGoalOrigin.y &&
+			claim.holdingGoal.z == member->crowd.assignedGoalOrigin.z ) {
+			return true;
+		}
+	}
+	// Unclaimed ordinary staging movement keeps its existing admission/head arbitration.
+	return false;
+}
+
+/**
+*	@brief	Hold the active approach owner while its lifetime-validated follower vacates the transit.
+*	@param	member	Potential current ingress head.
+*	@return	True while an exact current holding assignment has not physically arrived.
+*	@note	Read-only bounded claim scan; rank, route, admission and original order deadline are unchanged.
+**/
+bool SVG_Crowd_IsWaitingForApproachYield( const svg_base_edict_t *member ) {
+	/**
+	*	Require the current queue lifetime before a holding claim can pause an actor.
+	**/
+	if ( member == nullptr || member->crowd.crowdID < 0 ) {
+		return false;
+	}
+	const auto *group = SVG_Crowd_GetGroup( member->crowd.crowdID );
+	// Only the active immutable queue owner can wait for this head's approach recovery.
+	if ( group == nullptr || !group->hasSerializedIngress || group->ingressQueueIdentityEpoch != Nav_IdentityEpochMainThread() ||
+		SVG_Crowd_ResolveQueueOwner( *group, false, group->ingressQueueHead ) != member ) {
+		return false;
+	}
+	/**
+	*	Resolve every retained claim using its pool lifetime, navigation incarnation and exact holding goal.
+	**/
+	for ( const auto &claim : group->ingressYieldClaims ) {
+		// Claims from a different head cannot stall this reservation owner.
+		if ( claim.head != group->ingressQueueHead || claim.entityNumber < 1 || claim.entityNumber >= globals.edictPool->num_edicts ) {
+			continue;
+		}
+		const auto *peer = g_edict_pool.EdictForNumber( claim.entityNumber );
+		const auto *monster = dynamic_cast<const svg_monster_base_t *>( peer );
+		// A recycled slot or intervening order cannot retain the old physical handoff obligation.
+		if ( monster == nullptr || !SVG_Entity_IsActive( peer ) || peer->health <= 0 ||
+			peer->spawn_count != claim.spawnCount || monster->navigationIncarnation != claim.incarnation ||
+			peer->crowd.crowdID != group->crowdID || peer->crowd.ingressReleased ||
+			peer->crowd.assignedGoalOrigin.x != claim.holdingGoal.x || peer->crowd.assignedGoalOrigin.y != claim.holdingGoal.y ||
+			peer->crowd.assignedGoalOrigin.z != claim.holdingGoal.z ) {
+			continue;
+		}
+		const Vector3DP feet = SVG_GetEntityFeetOriginDP( peer );
+		// Completion is actual supported-position arrival, not a flag or a successful graph reply.
+		const bool supported = ( monster->monsterMove.state.mm_flags & MMF_ON_GROUND ) != 0 || peer->groundInfo.entityNumber != ENTITYNUM_NONE;
+		if ( !supported || QM_Vector3Distance2DSqrDP( feet, Vector3DP( claim.holdingGoal ) ) > CROWD_INGRESS_ARRIVAL_RADIUS * CROWD_INGRESS_ARRIVAL_RADIUS ||
+			std::fabs( feet.z - claim.holdingGoal.z ) > CROWD_ARRIVAL_FLOOR_Z_TOLERANCE ) {
+			return true;
+		}
+	}
+	// The head can resume only after every remaining current follower has vacated its approach.
+	return false;
+}
+
+/**
+*	@brief	Calculate the existing full-footprint origin-aperture clearance depth.
+*	@param	member	Actor carrying the exact native XY bounds.
+*	@return	Unchanged required outward depth, or infinity for an invalid actor.
+*	@note	The same formula is shared by release, diagnostics and subsequent reservation enforcement.
+**/
+double SVG_Crowd_GetEgressClearanceDepth( const svg_base_edict_t *member ) {
+	/**
+	*	A missing actor cannot establish a finite physical clearance witness.
+	**/
+	if ( member == nullptr ) {
+		return std::numeric_limits<double>::infinity();
+	}
+	// Retain the largest actual footprint extent; default radii cannot replace a native hull.
+	const double radius = std::max( { std::fabs( member->mins.x ), std::fabs( member->maxs.x ),
+		std::fabs( member->mins.y ), std::fabs( member->maxs.y ) } );
+	return std::max( 16.0, radius * CROWD_EGRESS_CLEARANCE_RADIUS_SCALE );
+}
+
+/**
 *	@brief	Configure an immutable-final-slot doorway queue for a static defensive formation.
 *	@param	group				Active crowd group receiving portal reservation state.
 *	@param	members			Active members with final slot indices already assigned.
@@ -298,10 +514,11 @@ static void SVG_Crowd_ResetMemberNavigation( svg_base_edict_t *member ) {
 *	@param	destinationRoom		Destination room whose finite exterior wall envelope defines staging.
 *	@param	portalWidth			Finite width of the selected doorway aperture.
 *	@param	maxAgentRadius		Largest horizontal member radius in the group.
+*	@param	preferredStagingLine	Previous positions proposed for full current-native revalidation, or nullptr.
 *	@return	True when two or more members require serialized ingress.
 *	@note	Final slots remain in group.slots; only crowd.assignedGoalOrigin is temporarily staged.
 **/
-static bool SVG_Crowd_ConfigureSerializedIngress( svg_crowd_group_t &group, const std::vector<svg_base_edict_t*> &members, const std::vector<Vector3DP> &guidePath, const Vector3DP &portalOrigin, const Vector3DP &destinationInterior, const nav_room_t *destinationRoom, const double portalWidth, const double maxAgentRadius ) {
+static bool SVG_Crowd_ConfigureSerializedIngress( svg_crowd_group_t &group, const std::vector<svg_base_edict_t*> &members, const std::vector<Vector3DP> &guidePath, const Vector3DP &portalOrigin, const Vector3DP &destinationInterior, const nav_room_t *destinationRoom, const double portalWidth, const double maxAgentRadius, const std::vector<Vector3DP> *preferredStagingLine ) {
 	/**
 	*	Derive the signed doorway plane and reject degenerate geometry.
 	**/
@@ -525,6 +742,8 @@ static bool SVG_Crowd_ConfigureSerializedIngress( svg_crowd_group_t &group, cons
 		}
 		return a < b;
 	} );
+	// Unused extra formation cells have no assigned entrant and no admission-route owner.
+	finalSlotOrder.resize( std::min( finalSlotOrder.size(), rankedMembers.size() ) );
 
 	/**
 	*	Commit queue geometry and direct-index reservation state.
@@ -535,10 +754,18 @@ static bool SVG_Crowd_ConfigureSerializedIngress( svg_crowd_group_t &group, cons
 		CROWD_PORTAL_BOTTLENECK_MAX_WIDTH - 1.0 );
 	group.ingressPortalHalfWidth = boundedPortalWidth * 0.5;
 	group.ingressQueueEntityNumbers.clear();
+	group.ingressQueueIncarnations.clear();
+	group.ingressQueueSpawnCounts.clear();
+	group.ingressQueueIdentityEpoch = 0;
 	group.ingressQueueEntityNumbers.reserve( finalSlotOrder.size() );
+	group.ingressQueueIncarnations.reserve( finalSlotOrder.size() );
+	group.ingressQueueSpawnCounts.reserve( finalSlotOrder.size() );
+	group.ingressQueueIdentityEpoch = Nav_IdentityEpochMainThread();
 	group.ingressStagingPositions.clear();
+	group.ingressStagingTransitRoutes.clear();
 	group.ingressStagingPositions.reserve( finalSlotOrder.size() );
 	group.ingressQueueHead = 0;
+	group.ingressHeadStagingCell = 0;
 	group.ingressMarshalCursor = 0;
 	group.ingressQueueHeadStartTime = level.time;
 	group.ingressReleaseDepth = releaseDepth;
@@ -627,6 +854,12 @@ static bool SVG_Crowd_ConfigureSerializedIngress( svg_crowd_group_t &group, cons
 
 	std::vector<Vector3DP> stagingLine;
 	stagingLine.reserve( rankedMembers.size() );
+	// Retain each accepted cell-to-seat route only during bounded order-time placement.
+	std::vector<std::vector<Vector3DP>> admissionRoutes;
+	admissionRoutes.reserve( rankedMembers.size() );
+	// Order-time route ownership avoids new path queries in the per-frame reservation check.
+	std::vector<std::vector<Vector3DP>> stagingTransitRoutes;
+	stagingTransitRoutes.reserve( rankedMembers.size() );
 	const double stageMinSeparation = queueSpacing;
 	const double stageMinSeparationSq = stageMinSeparation * stageMinSeparation;
 
@@ -756,20 +989,59 @@ static bool SVG_Crowd_ConfigureSerializedIngress( svg_crowd_group_t &group, cons
 		*	of the footprint is above the plane at its center; sweep down from above
 		*	that support height instead of rejecting a safe slope as start-solid.
 		**/
-		const double slopeLift = maxAgentRadius * std::sqrt( face.normal.x * face.normal.x +
-			face.normal.y * face.normal.y ) / face.normal.z;
-		const Vector3 probeMins{ static_cast<float>( -maxAgentRadius ), static_cast<float>( -maxAgentRadius ), 0.0f };
-		const Vector3 probeMaxs{ static_cast<float>( maxAgentRadius ), static_cast<float>( maxAgentRadius ), 72.0f };
-		const Vector3DP probeStart = projected + Vector3DP{ 0.0, 0.0, slopeLift + 2.0 };
-		const Vector3DP probeEnd = projected - Vector3DP{ 0.0, 0.0, static_cast<double>( NAV_MAX_STEP_HEIGHT ) };
-		const svg_trace_t support = SVG_MMove_Trace( probeStart, probeMins, probeMaxs, probeEnd,
-			nullptr, CM_CONTENTMASK_SOLID, MM_SHAPE_CYLINDER );
-		// Require a walkable support contact, not merely a nearby navigation polygon.
+		// Stage rank owns a specific native profile; a generic cylinder would assign capsule goals at the wrong slope height.
+		svg_base_edict_t *stageMover = rankedMembers[ stagingLine.size() ].member;
+		const mm_trace_shape_t stageShape = SVG_MMove_GetNativeShape( stageMover );
+		const double stageRadius = stageMover->maxs.x;
+		const double normalZ = face.normal.z;
+		const double slopeLift = stageShape == MM_SHAPE_CAPSULE ? stageRadius * ( 1.0 / normalZ - 1.0 ) :
+			stageRadius * std::sqrt( std::max( 0.0, 1.0 - normalZ * normalZ ) ) / normalZ;
+		// Trace actual bounds in bbox space, applying feet conversion exactly once in each direction.
+		Vector3DP probeStart = projected + Vector3DP{ 0.0, 0.0, slopeLift + NAV_MAX_STEP_HEIGHT + 2.0 - stageMover->mins.z };
+		Vector3DP probeEnd = projected - Vector3DP{ 0.0, 0.0, static_cast<double>( NAV_MAX_STEP_HEIGHT ) + stageMover->mins.z };
+		const svg_trace_t support = SVG_MMove_Trace( probeStart, stageMover->mins, stageMover->maxs, probeEnd,
+			stageMover, CM_CONTENTMASK_SOLID | CONTENTS_MONSTERCLIP, stageShape );
+		// Require static walkable support before authoring the native feet goal for this member.
 		if ( support.startsolid || support.allsolid || support.fraction >= 1.0 ||
-			 support.plane.normal[ 2 ] < NAV_MIN_WALKABLE_Z ) {
+			 support.entityNumber > 0 || support.plane.normal[ 2 ] < NAV_MIN_WALKABLE_Z ) {
 			return false;
 		}
-		projected = probeStart + ( probeEnd - probeStart ) * support.fraction;
+		projected = Vector3DP( support.endpos );
+		projected.z += stageMover->mins.z;
+
+		/**
+		*	A supported stationary hull can still lie inside a navigation boundary's radius.
+		*	Use the same closed-point clearance contract as route installation before issuing this cell.
+		**/
+		// Reject an unreachable waiting cell so the existing bounded row repairs can choose another candidate.
+		if ( Nav_TestSegmentClearance( projected, projected, stageRadius ).reason != nav_clearance_reason_t::clear ) {
+			return false;
+		}
+
+		/**
+		*	Later waiting hulls must leave earlier cell-to-seat routes unobstructed.
+		*	The order's initial approach is not an admission route: it can pass through
+		*	valid staging cells before any of those cells have been occupied.
+		**/
+		const double admissionClearance = stageRadius + maxAgentRadius + CROWD_INGRESS_ARRIVAL_RADIUS;
+		// Earlier entrants own these finite paths before this waiting member receives its token.
+		for ( const auto &route : admissionRoutes ) {
+			for ( size_t segmentIndex = 0; segmentIndex + 1 < route.size(); ++segmentIndex ) {
+				const auto &start = route[ segmentIndex ];
+				const auto &end = route[ segmentIndex + 1 ];
+				Vector3DP horizontal = end - start;
+				horizontal.z = 0.0;
+				const double lengthSq = QM_Vector3LengthSqrDP( horizontal );
+				const double fraction = lengthSq > 0.0001 ? std::clamp(
+					QM_Vector3DotProductDP( projected - start, horizontal ) / lengthSq, 0.0, 1.0 ) : 0.0;
+				const Vector3DP routePoint = start + ( end - start ) * fraction;
+				// Vertically separate floors do not obstruct one another's passage.
+				if ( std::fabs( projected.z - routePoint.z ) <= CROWD_ARRIVAL_FLOOR_Z_TOLERANCE &&
+					 QM_Vector3Distance2DSqrDP( projected, routePoint ) < admissionClearance * admissionClearance ) {
+					return false;
+				}
+			}
+		}
 
 		// Bends can bring nonadjacent arclength cells together; test all accepted cells once at order time.
 		for ( const Vector3DP &acceptedStage : stagingLine ) {
@@ -778,6 +1050,55 @@ static bool SVG_Crowd_ConfigureSerializedIngress( svg_crowd_group_t &group, cons
 			}
 		}
 
+		/**
+		*	Prove the new cell has a static native route to its immutable final seat.
+		*	Retain that path to protect it from subsequently placed waiting members.
+		**/
+		std::vector<Vector3DP> admissionRoute;
+		const size_t rank = stagingLine.size();
+		// Exterior overflow cells have no interior admission obligation.
+		if ( rank < finalSlotOrder.size() ) {
+			const Vector3DP finalSeat = group.slots[ finalSlotOrder[ rank ] ].worldPosition;
+			const int32_t seatFace = Nav_FindClosestFaceInLeaf( finalSeat );
+			std::vector<int32_t> corridor;
+			nav_path_policy_t admissionPolicy;
+			admissionPolicy.agent_radius = static_cast<float>( stageRadius );
+			admissionPolicy.agent_mins = stageMover->mins;
+			admissionPolicy.agent_maxs = stageMover->maxs;
+			admissionPolicy.trace_shape = static_cast<int32_t>( stageShape );
+			// Static route proof uses the unchanged member hull; live teammates are checked during actual movement.
+			if ( !Nav_FindPath( stageFace, seatFace, corridor, admissionPolicy ) ||
+				 !Nav_StringPull( corridor, projected, finalSeat, stageRadius, admissionRoute, nullptr,
+					stageMover->mins, stageMover->maxs, static_cast<int32_t>( stageShape ), nullptr,
+					&admissionPolicy, nullptr, stageMover ) ) {
+				return false;
+			}
+		}
+		/**
+		*	Prove each adjacent vacancy has a native route before committing the cell.
+		*	These owned points also identify approaching actors that must clear before a head reverses flow.
+		**/
+		std::vector<Vector3DP> transitRoute;
+		// Cell zero has no predecessor; every later cell requires a supported connected leg.
+		if ( !stagingLine.empty() ) {
+			const auto &predecessorCell = stagingLine.back();
+			const int32_t predecessorFace = Nav_FindClosestFaceInLeaf( predecessorCell );
+			std::vector<int32_t> corridor;
+			nav_path_policy_t transitPolicy;
+			transitPolicy.agent_radius = static_cast<float>( maxAgentRadius );
+			transitPolicy.agent_mins = stageMover->mins;
+			transitPolicy.agent_maxs = stageMover->maxs;
+			transitPolicy.trace_shape = static_cast<int32_t>( stageShape );
+			// Physical movement still validates the actual owner's unchanged hull on every tick.
+			if ( !Nav_FindPath( stageFace, predecessorFace, corridor, transitPolicy ) ||
+				 !Nav_StringPull( corridor, projected, predecessorCell, maxAgentRadius, transitRoute, nullptr,
+					stageMover->mins, stageMover->maxs, static_cast<int32_t>( stageShape ), nullptr,
+					&transitPolicy, nullptr, stageMover ) ) {
+				return false;
+			}
+		}
+		stagingTransitRoutes.push_back( std::move( transitRoute ) );
+		admissionRoutes.push_back( std::move( admissionRoute ) );
 		stagingLine.push_back( projected );
 		return true;
 	};
@@ -805,6 +1126,29 @@ static bool SVG_Crowd_ConfigureSerializedIngress( svg_crowd_group_t &group, cons
 	size_t coverSnappedStages = 0;
 	size_t proceduralStages = 0;
 	size_t rejectedStages = 0;
+
+	/**
+	*	An identical in-flight order can retain its geometric row despite a changed member centroid.
+	*	Positions are candidates only: regenerate all cell, adjacent-transit and final-seat native proofs.
+	**/
+	if ( preferredStagingLine != nullptr && preferredStagingLine->size() == queueCount ) {
+		bool retainedRowValid = true;
+		// Revalidate the complete row in rank order; a partially valid prefix cannot be published.
+		for ( const auto &candidate : *preferredStagingLine ) {
+			if ( !appendProjectedStagePoint( candidate ) ) {
+				retainedRowValid = false;
+				break;
+			}
+		}
+		// Discard every dependent proof before falling back to ordinary contour construction.
+		if ( !retainedRowValid ) {
+			stagingLine.clear();
+			admissionRoutes.clear();
+			stagingTransitRoutes.clear();
+		} else {
+			gi.dprintf( "[crowd ingress retained row] crowd=%" PRId32 " validated=%zu\n", group.crowdID, stagingLine.size() );
+		}
+	}
 
 	// Walk a bounded number of contour samples, accepting only separated, supported cells.
 	for ( size_t sampleIndex = 0; stagingLine.size() < queueCount && sampleIndex < queueCount * 16; sampleIndex++ ) {
@@ -965,7 +1309,10 @@ static bool SVG_Crowd_ConfigureSerializedIngress( svg_crowd_group_t &group, cons
 		SVG_Crowd_StopCrowd( group.crowdID );
 		return false;
 	}
+	// Allocate one reversible approach claim per queued actor before frame-time recovery begins.
+	group.ingressYieldClaims.reserve( rankedMembers.size() );
 	group.ingressStagingLine = stagingLine;
+	group.ingressStagingTransitRoutes = std::move( stagingTransitRoutes );
 
 	/**
 	*	Assign queue rank directly to staging rank.
@@ -978,34 +1325,235 @@ static bool SVG_Crowd_ConfigureSerializedIngress( svg_crowd_group_t &group, cons
 		const bool hasInteriorFinalSlot = ( rank < finalSlotOrder.size() );
 		// Pair admission rank with a back-to-front immutable circle slot.
 		if ( hasInteriorFinalSlot ) {
-			member->crowd.slotIndex = finalSlotOrder[ rank ];
-			member->crowd.role = group.slots[ member->crowd.slotIndex ].role;
+			// Invalidate submitted routes before publishing this assignment field.
+			member->crowd.SetNavigationAssignment( member->crowd.slotIndex, finalSlotOrder[ rank ] );
+			// Invalidate submitted routes before publishing this assignment field.
+			// Only the designated leader may own the leader role, regardless of admission-depth seat ordering.
+			const auto slotRole = group.slots[ member->crowd.slotIndex ].role;
+			const auto assignedRole = member->s.number == group.leaderEntityNumber ? crowd_member_role_t::ROLE_LEADER :
+				( slotRole == crowd_member_role_t::ROLE_LEADER ? crowd_member_role_t::ROLE_CENTER : slotRole );
+			member->crowd.SetNavigationAssignment( member->crowd.role, assignedRole );
 		} else {
-			member->crowd.slotIndex = -1;
-			member->crowd.role = crowd_member_role_t::ROLE_CENTER;
+			// Invalidate submitted routes before publishing this assignment field.
+			member->crowd.SetNavigationAssignment( member->crowd.slotIndex, -1 );
+			// Invalidate submitted routes before publishing this assignment field.
+			member->crowd.SetNavigationAssignment( member->crowd.role, crowd_member_role_t::ROLE_CENTER );
 		}
 		const size_t assignedStageIndex = std::min( rank, stagingLine.size() - 1 );
 		const Vector3DP assignedStage = stagingLine[ assignedStageIndex ];
 		if ( hasInteriorFinalSlot ) {
 			const size_t queueRank = group.ingressQueueEntityNumbers.size();
 			group.ingressQueueEntityNumbers.push_back( member->s.number );
+			// Pair each physical reservation with its actor lifetime before publishing rank.
+			const auto *monster = dynamic_cast<const svg_monster_base_t *>( member );
+			group.ingressQueueIncarnations.push_back( monster != nullptr ? monster->navigationIncarnation : 0 );
+			// Bind the pool lifetime as well as the navigation namespace.
+			group.ingressQueueSpawnCounts.push_back( member->spawn_count );
 			group.ingressStagingPositions.push_back( assignedStage );
-			member->crowd.ingressQueueRank = static_cast<int32_t>( queueRank );
+			// Invalidate submitted routes before publishing this assignment field.
+			member->crowd.SetNavigationAssignment( member->crowd.ingressQueueRank, static_cast<int32_t>( queueRank ) );
 			// Every entrant must first claim its own exterior staging cell; the queue head is
 			// released to its immutable room slot only after it physically reaches that cell.
-			member->crowd.ingressReleased = false;
-			member->crowd.assignedGoalOrigin = QM_Vector3FromDP( assignedStage );
+			// Invalidate submitted routes before publishing this assignment field.
+			member->crowd.SetNavigationAssignment( member->crowd.ingressReleased, false );
+			// Invalidate submitted routes before publishing this assignment field.
+			member->crowd.SetNavigationAssignment( member->crowd.assignedGoalOrigin, QM_Vector3FromDP( assignedStage ) );
 		} else {
 			// Members without a valid interior seat hold outside the doorway and never participate in the admission queue.
-			member->crowd.ingressQueueRank = -1;
-			member->crowd.ingressReleased = false;
-			member->crowd.assignedGoalOrigin = QM_Vector3FromDP( assignedStage );
+			// Invalidate submitted routes before publishing this assignment field.
+			member->crowd.SetNavigationAssignment( member->crowd.ingressQueueRank, -1 );
+			// Invalidate submitted routes before publishing this assignment field.
+			member->crowd.SetNavigationAssignment( member->crowd.ingressReleased, false );
+			// Invalidate submitted routes before publishing this assignment field.
+			member->crowd.SetNavigationAssignment( member->crowd.assignedGoalOrigin, QM_Vector3FromDP( assignedStage ) );
 		}
 		member->crowd.reachedGoal = false;
 		SVG_Crowd_ResetMemberNavigation( member );
 	}
 
 	return !group.ingressQueueEntityNumbers.empty();
+}
+
+/**
+*	@brief	Move one opposing follower into a supported holding point outside the head's reserved transit.
+*	@param	group	Current ingress owner; one owned claim per follower.
+*	@param	head	Actor retaining the active admission token.
+*	@param	peer	Unreleased follower obstructing the immutable transit leg.
+*	@param	transit	Remaining head approach or adjacent transit whose full hull clearance must be preserved.
+*	@return	True when a new reversible holding claim was assigned.
+*	@note	Changes only a transient approach goal; rank, role, seat and release permissions remain unchanged.
+**/
+static bool SVG_Crowd_YieldIngressApproach( svg_crowd_group_t &group, svg_base_edict_t *head,
+	svg_base_edict_t *peer, const std::span<const Vector3DP> transit ) {
+	/**
+	*	Reject overlapping yielding ownership and entities that cannot retain an actor query identity.
+	**/
+	auto *monster = dynamic_cast<svg_monster_base_t *>( peer );
+	// Throttle bounded recovery probes while retaining each existing follower claim.
+	if ( monster == nullptr || transit.size() < 2 ||
+		level.time < group.ingressYieldNextProbeTime ) {
+		return false;
+	}
+	// Origin departure owns its actor until physical clearance; ingress recovery must not replace that goal.
+	if ( group.hasSerializedEgress && !SVG_Crowd_HasClearedEgress( peer ) ) {
+		return false;
+	}
+	// Existing holding owners cannot be assigned a second temporary goal for the same head.
+	for ( const auto &claim : group.ingressYieldClaims ) {
+		if ( claim.entityNumber == peer->s.number && claim.incarnation == monster->navigationIncarnation && claim.spawnCount == peer->spawn_count ) {
+			return false;
+		}
+	}
+	// Fail closed if preparation did not reserve sufficient storage; recovery never allocates in-frame.
+	if ( group.ingressYieldClaims.size() >= group.ingressYieldClaims.capacity() ) {
+		return false;
+	}
+	// Bound failed native candidate searches to four attempts per simulation second.
+	group.ingressYieldNextProbeTime = level.time + 250_ms;
+	const Vector3DP feet = SVG_GetEntityFeetOriginDP( peer );
+	const double radiusSum = static_cast<double>( head->maxs.x ) + peer->maxs.x;
+	const double holdingClearance = radiusSum + 2.0 * CROWD_INGRESS_ARRIVAL_RADIUS;
+	auto policy = monster->pathNavigationState.policy;
+	policy.agent_radius = peer->maxs.x;
+	policy.agent_mins = peer->mins;
+	policy.agent_maxs = peer->maxs;
+	policy.trace_shape = static_cast<int32_t>( SVG_MMove_GetNativeShape( peer ) );
+
+	/**
+	*	Inspect a fixed set of nearby holding points; native tracing proves the entire displacement and landing.
+	*	Candidates remain outside every transit segment even after the follower's arrival tolerance is applied.
+	**/
+	for ( int32_t ring = 0; ring < 2; ++ring ) {
+		const double distance = holdingClearance + 16.0 + static_cast<double>( ring ) * 32.0;
+		// Eight fixed directions bound native candidate probes; finer sampling did not resolve the physical stall.
+		for ( int32_t directionIndex = 0; directionIndex < 8; ++directionIndex ) {
+			const double angle = static_cast<double>( directionIndex ) * ( M_PI / 4.0 );
+			const Vector3DP candidate{ feet.x + std::cos( angle ) * distance,
+				feet.y + std::sin( angle ) * distance, feet.z };
+			bool outsideTransit = true;
+			/**
+			*	An unreleased follower's holding goal and displacement must respect destination admission as well.
+			**/
+			if ( group.hasSerializedIngress && !peer->crowd.ingressReleased ) {
+				const Vector3DP tangent{ group.ingressPortalInward.y, -group.ingressPortalInward.x, 0.0 };
+				const double stopDepth = -group.ingressReleaseDepth;
+				const double startDepth = QM_Vector3DotProductDP( feet - group.ingressPortalOrigin, group.ingressPortalInward );
+				const double endDepth = QM_Vector3DotProductDP( candidate - group.ingressPortalOrigin, group.ingressPortalInward );
+				const double halfSpan = group.ingressPortalHalfWidth + group.ingressReleaseDepth;
+				// Reserve the arrival tolerance so an apparently reachable holding goal cannot lie beyond admission.
+				if ( endDepth > stopDepth - CROWD_INGRESS_ARRIVAL_RADIUS &&
+					std::abs( QM_Vector3DotProductDP( candidate - group.ingressPortalOrigin, tangent ) ) <= halfSpan + CROWD_INGRESS_ARRIVAL_RADIUS ) {
+					outsideTransit = false;
+				}
+				// Endpoints beside the opening still require a displacement that avoids its finite reserved plane.
+				if ( startDepth <= stopDepth && endDepth > stopDepth ) {
+					const double fraction = ( stopDepth - startDepth ) / ( endDepth - startDepth );
+					const Vector3DP crossing = feet + ( candidate - feet ) * fraction;
+					if ( std::abs( QM_Vector3DotProductDP( crossing - group.ingressPortalOrigin, tangent ) ) <= halfSpan ) {
+						outsideTransit = false;
+					}
+				}
+			}
+			/**
+			*	Keep a cleared origin owner outside its finite exit aperture throughout the holding displacement.
+			**/
+			// The exit reservation includes the native hull radius and the holding arrival tolerance.
+			if ( group.hasSerializedEgress ) {
+				const Vector3DP tangent{ -group.egressPortalOutward.y, group.egressPortalOutward.x, 0.0 };
+				const double stopDepth = SVG_Crowd_GetEgressClearanceDepth( peer );
+				const double startDepth = QM_Vector3DotProductDP( feet - group.egressPortalOrigin, group.egressPortalOutward );
+				const double endDepth = QM_Vector3DotProductDP( candidate - group.egressPortalOrigin, group.egressPortalOutward );
+				const double halfSpan = group.egressPortalHalfWidth + policy.agent_radius + CROWD_INGRESS_ARRIVAL_RADIUS;
+				// An endpoint inside the expanded opening would retain or restore the original obstruction.
+				if ( endDepth < stopDepth + CROWD_INGRESS_ARRIVAL_RADIUS &&
+					std::abs( QM_Vector3DotProductDP( candidate - group.egressPortalOrigin, tangent ) ) <= halfSpan ) {
+					outsideTransit = false;
+				}
+				// A clear endpoint beside the opening cannot justify crossing inward through the reserved plane.
+				if ( startDepth >= stopDepth && endDepth < stopDepth ) {
+					const double fraction = ( startDepth - stopDepth ) / ( startDepth - endDepth );
+					const Vector3DP crossing = feet + ( candidate - feet ) * fraction;
+					if ( std::abs( QM_Vector3DotProductDP( crossing - group.egressPortalOrigin, tangent ) ) <= halfSpan ) {
+						outsideTransit = false;
+					}
+				}
+			}
+			// Reserve holding endpoints before arrival so simultaneous yielding paths cannot target the same cell.
+			for ( const auto &claim : group.ingressYieldClaims ) {
+				const double separation = static_cast<double>( peer->maxs.x ) + claim.radius + 2.0 * CROWD_INGRESS_ARRIVAL_RADIUS;
+				if ( QM_Vector3Distance2DSqrDP( candidate, Vector3DP( claim.holdingGoal ) ) < separation * separation ) {
+					outsideTransit = false;
+					break;
+				}
+			}
+
+			// Clear the supplied approach as well as future staging legs; a holding point cannot block a later route corner.
+			for ( uint64_t segment = 1; segment < transit.size() && outsideTransit; ++segment ) {
+				Vector3DP delta = transit[ segment ] - transit[ segment - 1 ];
+				delta.z = 0.0;
+				const double lengthSquared = QM_Vector3LengthSqrDP( delta );
+				const double fraction = lengthSquared > 0.0001 ? std::clamp(
+					QM_Vector3DotProductDP( candidate - transit[ segment - 1 ], delta ) / lengthSquared, 0.0, 1.0 ) : 0.0;
+				const Vector3DP nearest = transit[ segment - 1 ] + delta * fraction;
+				// The full hull and follower arrival margin must clear the entire remaining static approach.
+				if ( QM_Vector3Distance2DSqrDP( candidate, nearest ) < holdingClearance * holdingClearance ) {
+					outsideTransit = false;
+				}
+			}
+
+			// Clear every remaining adjacent leg so the head cannot encounter this holding point after its next bend.
+			for ( int32_t cell = group.ingressHeadStagingCell; cell > 0 && outsideTransit; --cell ) {
+				const auto &reservedTransit = group.ingressStagingTransitRoutes[ static_cast<uint64_t>( cell ) ];
+				for ( uint64_t segment = 1; segment < reservedTransit.size(); ++segment ) {
+					Vector3DP delta = reservedTransit[ segment ] - reservedTransit[ segment - 1 ];
+					delta.z = 0.0;
+					const double lengthSquared = QM_Vector3LengthSqrDP( delta );
+					const double fraction = lengthSquared > 0.0001 ? std::clamp(
+						QM_Vector3DotProductDP( candidate - reservedTransit[ segment - 1 ], delta ) / lengthSquared, 0.0, 1.0 ) : 0.0;
+					const Vector3DP nearest = reservedTransit[ segment - 1 ] + ( reservedTransit[ segment ] - reservedTransit[ segment - 1 ] ) * fraction;
+					// Keep an arrival margin around the head's full hull; no radius reduction is permitted.
+					if ( QM_Vector3Distance2DSqrDP( candidate, nearest ) < holdingClearance * holdingClearance ) {
+						outsideTransit = false;
+						break;
+					}
+				}
+			}
+			// Avoid native probes for points already known to occupy the reserved transit.
+			if ( !outsideTransit ) {
+				// Explicit diagnostic controls expose geometry rejection without changing recovery decisions.
+				if ( s_crowd_recovery_debug != nullptr && s_crowd_recovery_debug->integer != 0 ) {
+					gi.dprintf( "[crowd yield candidate] head=%" PRId32 " peer=%" PRId32 " ring=%" PRId32 " direction=%" PRId32 " point=(%.6f %.6f %.6f) geometry=blocked\n", head->s.number, peer->s.number, ring, directionIndex, candidate.x, candidate.y, candidate.z );
+				}
+				continue;
+			}
+			const auto movement = SVG_Nav_TestMovementHull( feet, candidate, peer->mins, peer->maxs,
+				SVG_MMove_GetNativeShape( peer ), policy, peer, SVG_GetClipMask( peer ) );
+			// Unsupported, obstructed or actor-clipped displacements cannot become temporary goals.
+			if ( movement.reason != svg_nav_movement_reason_t::clear ) {
+				// Preserve the exact native obstruction/support witness for an explicitly enabled private diagnostic.
+				if ( s_crowd_recovery_debug != nullptr && s_crowd_recovery_debug->integer != 0 ) {
+					gi.dprintf( "[crowd yield candidate] head=%" PRId32 " peer=%" PRId32 " ring=%" PRId32 " direction=%" PRId32 " point=(%.6f %.6f %.6f) native=%u actor=%" PRId32 "\n", head->s.number, peer->s.number, ring, directionIndex, candidate.x, candidate.y, candidate.z, static_cast<uint32_t>( movement.reason ), movement.blocking_actor );
+				}
+				continue;
+			}
+			Vector3DP supported = movement.bbox_endpoint;
+			supported.z += peer->mins.z;
+
+			/**
+			*	Publish the reversible approach obligation before invalidating its pending route.
+			**/
+			group.ingressYieldClaims.push_back( { peer->s.number, monster->navigationIncarnation, peer->spawn_count,
+				group.ingressQueueHead, peer->crowd.assignedGoalOrigin, QM_Vector3FromDP( supported ), peer->maxs.x } );
+			peer->crowd.SetNavigationAssignment( peer->crowd.assignedGoalOrigin, QM_Vector3FromDP( supported ) );
+			peer->crowd.reachedGoal = false;
+			SVG_Crowd_ResetMemberNavigation( peer );
+			gi.dprintf( "[crowd ingress yield] crowd=%" PRId32 " head=%" PRId32 " peer=%" PRId32 " hold=(%.6f %.6f %.6f)\n",
+				group.crowdID, head->s.number, peer->s.number, supported.x, supported.y, supported.z );
+			return true;
+		}
+	}
+	// A failed bounded search retains all existing goals, claims and permissions.
+	return false;
 }
 
 /**
@@ -1016,6 +1564,14 @@ static bool SVG_Crowd_ConfigureSerializedIngress( svg_crowd_group_t &group, cons
 **/
 static bool SVG_Crowd_UpdateSerializedIngress( svg_crowd_group_t &group ) {
 	/**
+	*	Identity rollover invalidates the entire physical order; do not admit all stale owners by skipping them.
+	**/
+	if ( group.hasSerializedIngress && group.ingressQueueIdentityEpoch != Nav_IdentityEpochMainThread() ) {
+		SVG_Crowd_StopCrowd( group.crowdID );
+		return false;
+	}
+
+	/**
 	*	Sanity check: validate queue state before direct indexed access.
 	**/
 	if ( !group.hasSerializedIngress || group.ingressQueueHead < 0 ||
@@ -1023,6 +1579,36 @@ static bool SVG_Crowd_UpdateSerializedIngress( svg_crowd_group_t &group ) {
 		group.ingressPhase = crowd_ingress_phase_t::INACTIVE;
 		group.hasSerializedIngress = false;
 		return false;
+	}
+
+	/**
+	*	Restore a yielding follower only after its owning head completes admission, preserving exact staging intent.
+	**/
+	for ( uint64_t index = 0; index < group.ingressYieldClaims.size(); ) {
+		const auto claim = group.ingressYieldClaims[ index ];
+		const int32_t entity = claim.entityNumber;
+		auto *peer = entity >= 1 && entity < globals.edictPool->num_edicts ? g_edict_pool.EdictForNumber( entity ) : nullptr;
+		auto *monster = dynamic_cast<svg_monster_base_t *>( peer );
+		const bool currentOwner = monster != nullptr && SVG_Entity_IsActive( peer ) && peer->health > 0 &&
+			monster->navigationIncarnation == claim.incarnation && peer->spawn_count == claim.spawnCount && peer->crowd.crowdID == group.crowdID &&
+			!peer->crowd.ingressReleased;
+		// Retain a live holding obligation until its owning admission head has physically finished.
+		if ( currentOwner && group.ingressQueueHead == claim.head ) {
+			++index;
+			continue;
+		}
+		// Restore only our exact holding assignment; intervening behavior/order changes retain their newer goal.
+		if ( currentOwner && peer->crowd.assignedGoalOrigin.x == claim.holdingGoal.x &&
+			peer->crowd.assignedGoalOrigin.y == claim.holdingGoal.y && peer->crowd.assignedGoalOrigin.z == claim.holdingGoal.z ) {
+			peer->crowd.SetNavigationAssignment( peer->crowd.assignedGoalOrigin, claim.resumeGoal );
+			peer->crowd.reachedGoal = false;
+			SVG_Crowd_ResetMemberNavigation( peer );
+			gi.dprintf( "[crowd ingress resume] crowd=%" PRId32 " peer=%" PRId32 " rank=%" PRId32 " slot=%" PRId32 "\n",
+				group.crowdID, entity, peer->crowd.ingressQueueRank, peer->crowd.slotIndex );
+		}
+		// Remove completed/stale claims without allocation or changing another actor's ownership.
+		group.ingressYieldClaims[ index ] = group.ingressYieldClaims.back();
+		group.ingressYieldClaims.pop_back();
 	}
 
 	/**
@@ -1038,9 +1624,17 @@ static bool SVG_Crowd_UpdateSerializedIngress( svg_crowd_group_t &group ) {
 	}
 
 	const int32_t activeEntityNumber = group.ingressQueueEntityNumbers[ group.ingressQueueHead ];
-	svg_base_edict_t *activeMember = ( activeEntityNumber >= 1 && activeEntityNumber < globals.edictPool->num_edicts )
-		? g_edict_pool.EdictForNumber( activeEntityNumber )
-		: nullptr;
+	svg_base_edict_t *activeMember = SVG_Crowd_ResolveQueueOwner( group, false, group.ingressQueueHead );
+
+	/**
+	*	Retain the current reservation until the displaced follower physically finishes its holding move.
+	**/
+	if ( SVG_Crowd_IsWaitingForApproachYield( activeMember ) ) {
+		// Planned recovery waiting cannot trigger a competing vacancy promotion or physical-stall watchdog.
+		group.ingressQueueHeadStartTime = level.time;
+		activeMember->crowd.blockedStartTime = 0_ms;
+		return true;
+	}
 
 	/**
 	*	Close one adjacent vacancy per frame. A ready tail member must not receive
@@ -1059,17 +1653,24 @@ static bool SVG_Crowd_UpdateSerializedIngress( svg_crowd_group_t &group ) {
 		}
 		const int32_t candidateIndex = group.ingressMarshalCursor++;
 		const int32_t predecessorIndex = candidateIndex - 1;
-		const int32_t predecessorNumber = group.ingressQueueEntityNumbers[ predecessorIndex ];
-		svg_base_edict_t *predecessor = predecessorNumber >= 1 && predecessorNumber < globals.edictPool->num_edicts ?
-			g_edict_pool.EdictForNumber( predecessorNumber ) : nullptr;
-		const int32_t candidateNumber = group.ingressQueueEntityNumbers[ candidateIndex ];
-		svg_base_edict_t *candidate = candidateNumber >= 1 && candidateNumber < globals.edictPool->num_edicts ?
-			g_edict_pool.EdictForNumber( candidateNumber ) : nullptr;
+		svg_base_edict_t *predecessor = SVG_Crowd_ResolveQueueOwner( group, false, predecessorIndex );
+		svg_base_edict_t *candidate = SVG_Crowd_ResolveQueueOwner( group, false, candidateIndex );
 		// Dead or already admitted members cannot own a new reservation.
 		if ( candidate == nullptr || !SVG_Entity_IsActive( candidate ) || candidate->health <= 0 ||
 			 candidate->crowd.ingressReleased || predecessor == nullptr ||
 			 !SVG_Entity_IsActive( predecessor ) || predecessor->health <= 0 || predecessor->crowd.ingressReleased ) {
 			return false;
+		}
+		// A vacancy transfer may exchange ordinary seats, but must never reassign the protected leader's slot or role.
+		if ( predecessor->s.number == group.leaderEntityNumber || candidate->s.number == group.leaderEntityNumber ||
+			 predecessor->crowd.role == crowd_member_role_t::ROLE_LEADER || candidate->crowd.role == crowd_member_role_t::ROLE_LEADER ) {
+			return false;
+		}
+		// A temporary yielding obligation must finish before either actor can exchange queue ownership.
+		for ( const auto &claim : group.ingressYieldClaims ) {
+			if ( claim.entityNumber == predecessor->s.number || claim.entityNumber == candidate->s.number ) {
+				return false;
+			}
 		}
 		const Vector3DP candidateFeet = SVG_GetEntityFeetOriginDP( candidate );
 		const Vector3DP &candidateStage = group.ingressStagingPositions[ candidateIndex ];
@@ -1080,7 +1681,8 @@ static bool SVG_Crowd_UpdateSerializedIngress( svg_crowd_group_t &group ) {
 			return false;
 		}
 		const Vector3DP predecessorFeet = SVG_GetEntityFeetOriginDP( predecessor );
-		const Vector3DP &predecessorStage = group.ingressStagingPositions[ predecessorIndex ];
+		const Vector3DP &predecessorStage = group.ingressStagingPositions[
+			predecessorIndex == group.ingressQueueHead ? group.ingressHeadStagingCell : predecessorIndex ];
 		// Never displace a correctly queued predecessor. Apply the no-overtaking
 		// projection only locally: a distant spawn can be on either side of a corner's plane.
 		const double localRowSpan = QM_Vector3Distance2DDP( predecessorStage, candidateStage ) * 2.0;
@@ -1094,17 +1696,25 @@ static bool SVG_Crowd_UpdateSerializedIngress( svg_crowd_group_t &group ) {
 		*	and the late predecessor approaches the vacated follower cell. Neither is
 		*	released until physically occupying the current front cell.
 		**/
-		predecessor->crowd.assignedGoalOrigin = QM_Vector3FromDP( candidateStage );
-		candidate->crowd.assignedGoalOrigin = QM_Vector3FromDP( predecessorStage );
+		// Invalidate submitted routes before publishing this assignment field.
+		predecessor->crowd.SetNavigationAssignment( predecessor->crowd.assignedGoalOrigin, QM_Vector3FromDP( candidateStage ) );
+		// Invalidate submitted routes before publishing this assignment field.
+		candidate->crowd.SetNavigationAssignment( candidate->crowd.assignedGoalOrigin, QM_Vector3FromDP( predecessorStage ) );
 		predecessor->crowd.reachedGoal = false;
 		candidate->crowd.reachedGoal = false;
 		SVG_Crowd_ResetMemberNavigation( predecessor );
 		SVG_Crowd_ResetMemberNavigation( candidate );
-		std::swap( predecessor->crowd.slotIndex, candidate->crowd.slotIndex );
-		std::swap( predecessor->crowd.role, candidate->crowd.role );
+		predecessor->crowd.SwapNavigationAssignment( predecessor->crowd.slotIndex, candidate->crowd, candidate->crowd.slotIndex );
+		predecessor->crowd.SwapNavigationAssignment( predecessor->crowd.role, candidate->crowd, candidate->crowd.role );
 		std::swap( group.ingressQueueEntityNumbers[ predecessorIndex ], group.ingressQueueEntityNumbers[ candidateIndex ] );
-		predecessor->crowd.ingressQueueRank = candidateIndex;
-		candidate->crowd.ingressQueueRank = predecessorIndex;
+		// Ownership lifetime moves with the actor while its adjacent reservation changes rank.
+		std::swap( group.ingressQueueIncarnations[ predecessorIndex ], group.ingressQueueIncarnations[ candidateIndex ] );
+		// Pool lifetime travels with the reservation when adjacent owners exchange cells.
+		std::swap( group.ingressQueueSpawnCounts[ predecessorIndex ], group.ingressQueueSpawnCounts[ candidateIndex ] );
+		// Invalidate submitted routes before publishing this assignment field.
+		predecessor->crowd.SetNavigationAssignment( predecessor->crowd.ingressQueueRank, candidateIndex );
+		// Invalidate submitted routes before publishing this assignment field.
+		candidate->crowd.SetNavigationAssignment( candidate->crowd.ingressQueueRank, predecessorIndex );
 		// Give the new front owner time to walk to the vacant cell before another promotion.
 		if ( predecessorIndex == group.ingressQueueHead ) {
 			group.ingressQueueHeadStartTime = level.time;
@@ -1125,11 +1735,13 @@ static bool SVG_Crowd_UpdateSerializedIngress( svg_crowd_group_t &group ) {
 		}
 
 		const Vector3DP activeFeet = SVG_GetEntityFeetOriginDP( activeMember );
-		const Vector3DP &stagingGoal = group.ingressStagingPositions[ group.ingressQueueHead ];
+		// Each served predecessor vacated its cell; the head consumes those vacancies in order.
+		Q_assert( group.ingressHeadStagingCell >= 0 && group.ingressHeadStagingCell <= group.ingressQueueHead );
+		const Vector3DP &stagingGoal = group.ingressStagingPositions[ group.ingressHeadStagingCell ];
 		const double stagingArrivalRadius = CROWD_INGRESS_ARRIVAL_RADIUS * 1.35;
 		const bool stagingPositionMatches =
 			QM_Vector3Distance2DSqrDP( activeFeet, stagingGoal ) <= ( stagingArrivalRadius * stagingArrivalRadius ) &&
-			std::fabs( activeFeet.z - stagingGoal.z ) <= CROWD_ARRIVAL_MAX_Z_DIFF;
+			std::fabs( activeFeet.z - stagingGoal.z ) <= CROWD_ARRIVAL_FLOOR_Z_TOLERANCE;
 		// Preserve the reservation until the head is physically occupying its plotted exterior cell.
 		if ( !stagingPositionMatches ) {
 			// Compute proximity of the queue head to the destination staging zone.
@@ -1140,7 +1752,68 @@ static bool SVG_Crowd_UpdateSerializedIngress( svg_crowd_group_t &group ) {
 			// While the queue head is traversing across the map towards the staging area,
 			// it is making normal travel progress and must not time out on the 2.5s wait timer.
 			// Keep refreshing ingressQueueHeadStartTime so the wait timeout only elapses once proximate.
-			if ( !headNearStaging ) {
+			const auto *headMonster = dynamic_cast<const svg_monster_base_t *>( activeMember );
+			/**
+			*	A current Pending reply is active work, not a failed staging approach or a stationary obstruction.
+			*	Retain the exact vacancy/admission obligation while its bounded service request is outstanding.
+			**/
+			const bool approachPending = headMonster != nullptr &&
+				headMonster->navigationQueryState == svg_monster_base_t::NavigationQueryState::Pending &&
+				headMonster->navigationGraphWorkspace.request.identity.sequence == headMonster->navigationRequestSequence &&
+				headMonster->SVG_Nav_IsIdentityCurrent( headMonster->navigationGraphWorkspace.request.identity );
+			// Waiting for a valid reply must not consume the physical stall/promotion timer.
+			if ( approachPending ) {
+				// Preserve the accumulated failure deadline across retries; only physical travel resets it.
+				activeMember->crowd.blockedStartTime = 0_ms;
+				return true;
+			}
+			/**
+			*	A collision-safe tangent can orbit a follower while making no waypoint progress. Resolve the actual
+			*	forward obstruction before requiring the head to occupy its still-unreachable exterior cell.
+			**/
+			if ( headMonster != nullptr && headMonster->SVG_Nav_IsCommittedRouteUsable() &&
+				headMonster->navigationSteering.candidate_count >= 2 &&
+				headMonster->stringPathPos < headMonster->stringPulledPath.size() ) {
+				const auto &first = headMonster->navigationSteering.candidates[ 0 ];
+				const auto &second = headMonster->navigationSteering.candidates[ 1 ];
+				const int32_t blocker = first.native.blocking_actor;
+				// Both forward trials must name the same actual physical blocker; wall-only failures do not authorize yielding.
+				if ( !first.accepted && !second.accepted && blocker > 0 && blocker == second.native.blocking_actor &&
+					blocker < globals.edictPool->num_edicts ) {
+					auto *peer = g_edict_pool.EdictForNumber( blocker );
+					const int32_t rank = peer != nullptr ? peer->crowd.ingressQueueRank : -1;
+					// Only a current unserved follower with origin-exit permission can take a reversible approach hold.
+					if ( rank > group.ingressQueueHead && SVG_Crowd_ResolveQueueOwner( group, false, rank ) == peer &&
+						!peer->crowd.ingressReleased && ( !group.hasSerializedEgress || peer->crowd.egressReleased ) ) {
+						const Vector3DP peerFeet = SVG_GetEntityFeetOriginDP( peer );
+						const Vector3DP &next = headMonster->stringPulledPath[ headMonster->stringPathPos ];
+						Vector3DP delta = next - activeFeet;
+						delta.z = 0.0;
+						const double lengthSquared = QM_Vector3LengthSqrDP( delta );
+						const double fraction = lengthSquared > 0.0001 ? std::clamp(
+							QM_Vector3DotProductDP( peerFeet - activeFeet, delta ) / lengthSquared, 0.0, 1.0 ) : 0.0;
+						const Vector3DP nearest = activeFeet + ( next - activeFeet ) * fraction;
+						const double clearance = static_cast<double>( activeMember->maxs.x ) + peer->maxs.x + CROWD_INGRESS_ARRIVAL_RADIUS;
+						// Recheck current proximity/floor; an earlier native collision alone cannot reserve a distant or different-storey actor.
+						if ( std::fabs( peerFeet.z - nearest.z ) <= CROWD_ARRIVAL_FLOOR_Z_TOLERANCE &&
+							QM_Vector3Distance2DSqrDP( peerFeet, nearest ) < clearance * clearance ) {
+							const uint64_t begin = headMonster->stringPathPos > 0 ? headMonster->stringPathPos - 1 : 0;
+							const std::span<const Vector3DP> approach( headMonster->stringPulledPath.data() + begin,
+								headMonster->stringPulledPath.size() - begin );
+							// A successful new holding obligation starts a fresh physical recovery interval without transferring admission.
+							if ( SVG_Crowd_YieldIngressApproach( group, activeMember, peer, approach ) ) {
+								group.ingressQueueHeadStartTime = level.time;
+								activeMember->crowd.blockedStartTime = 0_ms;
+								return true;
+							}
+						}
+					}
+				}
+			}
+			const bool approachUnavailable = headMonster != nullptr && headMonster->navigationRequestedGoalValid &&
+				headMonster->stringPulledPath.empty();
+			// A distant member with an installed route is travelling; a failed empty route must retain its recovery timer.
+			if ( !headNearStaging && !approachUnavailable ) {
 				group.ingressQueueHeadStartTime = level.time;
 			}
 
@@ -1150,39 +1823,119 @@ static bool SVG_Crowd_UpdateSerializedIngress( svg_crowd_group_t &group ) {
 			static constexpr QMTime CROWD_INGRESS_STAGING_WAIT_TIMEOUT = 2500_ms;
 			const bool stagingOwnerStalled = activeMember->crowd.blockedStartTime.Milliseconds() > 0 &&
 				( level.time - activeMember->crowd.blockedStartTime ) >= CROWD_INGRESS_STAGING_STALL_TIMEOUT;
-			const bool stagingOwnerTimedOut = headNearStaging && group.ingressQueueHeadStartTime.Milliseconds() > 0 &&
+			const bool stagingOwnerTimedOut = ( headNearStaging || approachUnavailable ) && group.ingressQueueHeadStartTime.Milliseconds() > 0 &&
 				( level.time - group.ingressQueueHeadStartTime ) >= CROWD_INGRESS_STAGING_WAIT_TIMEOUT;
 			if ( !stagingOwnerStalled && !stagingOwnerTimedOut ) {
 				return true;
 			}
 
+			/**
+			*	An unavailable rear-cell route may recover toward the vacant front, never directly to a final seat.
+			*	Served predecessors have already cleared these cells; native movement and aperture gates remain unchanged.
+			**/
+			if ( approachUnavailable && group.ingressHeadStagingCell > 0 ) {
+				group.ingressHeadStagingCell = 0;
+				activeMember->crowd.SetNavigationAssignment( activeMember->crowd.assignedGoalOrigin,
+					QM_Vector3FromDP( group.ingressStagingPositions[ 0 ] ) );
+				activeMember->crowd.reachedGoal = false;
+				SVG_Crowd_ResetMemberNavigation( activeMember );
+				group.ingressQueueHeadStartTime = level.time;
+				return true;
+			}
 			if ( group.ingressQueueHead + 1 < static_cast<int32_t>( group.ingressQueueEntityNumbers.size() ) ) {
 				promoteReadyMember();
 				return true;
 			}
 
-			// A last remaining owner cannot block anyone else; let its normal A* goal recovery handle the final slot.
-			const int32_t stalledSlotIndex = activeMember->crowd.slotIndex;
-			if ( stalledSlotIndex >= 0 && stalledSlotIndex < static_cast<int32_t>( group.slots.size() ) ) {
-				activeMember->crowd.ingressReleased = true;
-				activeMember->crowd.assignedGoalOrigin = QM_Vector3FromDP( group.slots[ stalledSlotIndex ].worldPosition );
-				activeMember->crowd.reachedGoal = false;
-				activeMember->crowd.blockedStartTime = 0_ms;
-				SVG_Crowd_ResetMemberNavigation( activeMember );
-			}
+			// The final owner also retains its front-cell obligation; path recovery must complete it.
 			return true;
 		}
 
+		/**
+		*	Advance only the active head into its immediately vacated predecessor cell.
+		*	Real occupancy at every bend prevents rear members shortcutting into occupied final seats.
+		**/
+		if ( group.ingressHeadStagingCell > 0 ) {
+			/**
+			*	Do not reverse into a bend while a later member is still approaching through it.
+			*	The head holds its supported cell; subsequent ranks finish their exterior approach without admission.
+			**/
+			Q_assert( static_cast<size_t>( group.ingressHeadStagingCell ) < group.ingressStagingTransitRoutes.size() );
+			const auto &transit = group.ingressStagingTransitRoutes[ group.ingressHeadStagingCell ];
+			// Inspect only the unserved queue suffix and the current immutable leg, without physics or allocation.
+			for ( size_t rank = static_cast<size_t>( group.ingressQueueHead + 1 ); rank < group.ingressQueueEntityNumbers.size(); ++rank ) {
+				auto *peer = SVG_Crowd_ResolveQueueOwner( group, false, static_cast<int32_t>( rank ) );
+				// Served, absent or dead actors cannot reserve an exterior approach.
+				if ( peer == nullptr || !SVG_Entity_IsActive( peer ) || peer->health <= 0 || peer->crowd.ingressReleased ) {
+					continue;
+				}
+				const Vector3DP peerFeet = SVG_GetEntityFeetOriginDP( peer );
+				/**
+				*	Approaching peers retain a braking margin; a physically settled cell owner reserves only its full hull.
+				*	An arrival-radius inflation around stationary followers can permanently close an otherwise clear bend.
+				**/
+				const Vector3DP peerGoal( peer->crowd.assignedGoalOrigin );
+				const double peerSpeedSquared = static_cast<double>( peer->velocity.x ) * peer->velocity.x +
+					static_cast<double>( peer->velocity.y ) * peer->velocity.y;
+				const bool peerSettled = peer->crowd.reachedGoal && peerSpeedSquared <= 0.0001 &&
+					QM_Vector3Distance2DSqrDP( peerFeet, peerGoal ) <= stagingArrivalRadius * stagingArrivalRadius &&
+					std::fabs( peerFeet.z - peerGoal.z ) <= CROWD_ARRIVAL_FLOOR_Z_TOLERANCE;
+				// Keep positive hull clearance; final movement still requires full native actor/static validation.
+				constexpr double stationaryHullMargin = 0.125;
+				const double clearance = activeMember->maxs.x + peer->maxs.x +
+					( peerSettled ? stationaryHullMargin : CROWD_INGRESS_ARRIVAL_RADIUS );
+				// A whole-leg witness prevents an apparently clear first tick from admitting opposing traffic at its next bend.
+				for ( size_t segment = 1; segment < transit.size(); ++segment ) {
+					Vector3DP direction = transit[ segment ] - transit[ segment - 1 ];
+					direction.z = 0.0;
+					const double lengthSquared = QM_Vector3LengthSqrDP( direction );
+					const double fraction = lengthSquared > 0.0001 ? std::clamp(
+						QM_Vector3DotProductDP( peerFeet - transit[ segment - 1 ], direction ) / lengthSquared, 0.0, 1.0 ) : 0.0;
+					const Vector3DP nearest = transit[ segment - 1 ] + ( transit[ segment ] - transit[ segment - 1 ] ) * fraction;
+					/**
+					*	A follower moving away from this entire segment cannot consume its braking margin.
+					*	Distance to a segment is convex along constant velocity; a nonnegative initial
+					*	derivative preserves full-hull clearance for that prediction. Authoritative native
+					*	validation still checks every actual head command when either actor changes motion.
+					**/
+					const Vector3DP separation = peerFeet - nearest;
+					const double separationSquared = QM_Vector3Distance2DSqrDP( peerFeet, nearest );
+					const double hullClearance = activeMember->maxs.x + peer->maxs.x + stationaryHullMargin;
+					const double separatingMotion = separation.x * peer->velocity.x + separation.y * peer->velocity.y;
+					// A stopped or inward-moving follower retains the existing conservative approach margin.
+					const bool divergingApproach = !peerSettled && peerSpeedSquared > 0.0001 &&
+						separatingMotion > 0.0001 && separationSquared >= hullClearance * hullClearance;
+					const double reservedClearance = divergingApproach ? hullClearance : clearance;
+					// A different storey is independent; a nearby current or predicted hull retains the wider cell.
+					if ( std::fabs( peerFeet.z - nearest.z ) <= CROWD_ARRIVAL_FLOOR_Z_TOLERANCE &&
+						 separationSquared < reservedClearance * reservedClearance ) {
+						// Resolve opposing approach ownership without admitting or swapping either actor.
+						SVG_Crowd_YieldIngressApproach( group, activeMember, peer, transit );
+						return true;
+					}
+				}
+			}
+			--group.ingressHeadStagingCell;
+			activeMember->crowd.SetNavigationAssignment( activeMember->crowd.assignedGoalOrigin,
+				QM_Vector3FromDP( group.ingressStagingPositions[ group.ingressHeadStagingCell ] ) );
+			activeMember->crowd.reachedGoal = false;
+			SVG_Crowd_ResetMemberNavigation( activeMember );
+			group.ingressQueueHeadStartTime = level.time;
+			return true;
+		}
 		const int32_t slotIndex = activeMember->crowd.slotIndex;
 		if ( slotIndex < 0 || slotIndex >= static_cast<int32_t>( group.slots.size() ) ) {
 			return true;
 		}
-		activeMember->crowd.ingressReleased = true;
-		activeMember->crowd.assignedGoalOrigin = QM_Vector3FromDP( group.slots[ slotIndex ].worldPosition );
+		// Invalidate submitted routes before publishing this assignment field.
+		activeMember->crowd.SetNavigationAssignment( activeMember->crowd.ingressReleased, true );
+		// Invalidate submitted routes before publishing this assignment field.
+		activeMember->crowd.SetNavigationAssignment( activeMember->crowd.assignedGoalOrigin, QM_Vector3FromDP( group.slots[ slotIndex ].worldPosition ) );
 		activeMember->crowd.reachedGoal = false;
 		SVG_Crowd_ResetMemberNavigation( activeMember );
 		return true;
 	}
+
 
 	bool releaseNext = ( activeMember == nullptr || !SVG_Entity_IsActive( activeMember ) || activeMember->health <= 0 );
 	if ( !releaseNext ) {
@@ -1214,6 +1967,8 @@ static bool SVG_Crowd_UpdateSerializedIngress( svg_crowd_group_t &group ) {
 	*	Advance exactly one queue position and activate its immutable final formation slot.
 	**/
 	group.ingressQueueHead++;
+	// The next head starts at its own cell and walks adjacent vacancies to the front.
+	group.ingressHeadStagingCell = group.ingressQueueHead;
 	group.ingressQueueHeadStartTime = level.time;
 	if ( group.ingressQueueHead >= static_cast<int32_t>( group.ingressQueueEntityNumbers.size() ) ) {
 		group.ingressPhase = crowd_ingress_phase_t::INACTIVE;
@@ -1221,10 +1976,7 @@ static bool SVG_Crowd_UpdateSerializedIngress( svg_crowd_group_t &group ) {
 		return false;
 	}
 
-	const int32_t nextEntityNumber = group.ingressQueueEntityNumbers[ group.ingressQueueHead ];
-	svg_base_edict_t *nextMember = ( nextEntityNumber >= 1 && nextEntityNumber < globals.edictPool->num_edicts )
-		? g_edict_pool.EdictForNumber( nextEntityNumber )
-		: nullptr;
+	svg_base_edict_t *nextMember = SVG_Crowd_ResolveQueueOwner( group, false, group.ingressQueueHead );
 
 	// Invalid members are skipped on the next frame without scanning the queue.
 	if ( nextMember == nullptr || !SVG_Entity_IsActive( nextMember ) || nextMember->health <= 0 ) {
@@ -1243,8 +1995,10 @@ static bool SVG_Crowd_UpdateSerializedIngress( svg_crowd_group_t &group ) {
 	}
 
 	// Keep the next doorway owner staged until its own exterior pre-formation cell is occupied.
-	nextMember->crowd.ingressReleased = false;
-	nextMember->crowd.assignedGoalOrigin = QM_Vector3FromDP( group.ingressStagingPositions[ group.ingressQueueHead ] );
+	// Invalidate submitted routes before publishing this assignment field.
+	nextMember->crowd.SetNavigationAssignment( nextMember->crowd.ingressReleased, false );
+	// Invalidate submitted routes before publishing this assignment field.
+	nextMember->crowd.SetNavigationAssignment( nextMember->crowd.assignedGoalOrigin, QM_Vector3FromDP( group.ingressStagingPositions[ group.ingressQueueHead ] ) );
 	nextMember->crowd.reachedGoal = false;
 	SVG_Crowd_ResetMemberNavigation( nextMember );
 	return true;
@@ -1501,6 +2255,14 @@ static bool SVG_Crowd_ConfigureSerializedEgress( svg_crowd_group_t &group, const
 	group.egressNextReleaseTime = 0_ms;
 	group.egressQueueEntityNumbers.clear();
 	group.egressQueueEntityNumbers.reserve( rankedCandidates.size() );
+	group.egressQueueIncarnations.clear();
+	group.egressQueueSpawnCounts.clear();
+	group.egressQueueIdentityEpoch = 0;
+	group.egressQueueIncarnations.reserve( rankedCandidates.size() );
+	group.egressQueueSpawnCounts.reserve( rankedCandidates.size() );
+	group.egressQueueIdentityEpoch = Nav_IdentityEpochMainThread();
+	group.egressMeshGeneration = g_nav_mesh_generation;
+	group.egressTopologyRevision = g_nav_topology_revision;
 
 	/**
 	*	Assign egress queue rank: release the lead member immediately; followers hold in place.
@@ -1508,12 +2270,20 @@ static bool SVG_Crowd_ConfigureSerializedEgress( svg_crowd_group_t &group, const
 	for ( size_t rank = 0; rank < rankedCandidates.size(); rank++ ) {
 		svg_base_edict_t *member = rankedCandidates[ rank ].member;
 		group.egressQueueEntityNumbers.push_back( member->s.number );
-		member->crowd.egressQueueRank = static_cast<int32_t>( rank );
+		// Freeze owner lifetime independently of per-order route identities.
+		const auto *monster = dynamic_cast<const svg_monster_base_t *>( member );
+		group.egressQueueIncarnations.push_back( monster != nullptr ? monster->navigationIncarnation : 0 );
+		// Bind the pool lifetime as well as the navigation namespace.
+		group.egressQueueSpawnCounts.push_back( member->spawn_count );
+		// Invalidate submitted routes before publishing this assignment field.
+		member->crowd.SetNavigationAssignment( member->crowd.egressQueueRank, static_cast<int32_t>( rank ) );
 		if ( rank == 0 ) {
-			member->crowd.egressReleased = true;
+			// Invalidate submitted routes before publishing this assignment field.
+			member->crowd.SetNavigationAssignment( member->crowd.egressReleased, true );
 			SVG_Crowd_ResetMemberNavigation( member );
 		} else {
-			member->crowd.egressReleased = false;
+			// Invalidate submitted routes before publishing this assignment field.
+			member->crowd.SetNavigationAssignment( member->crowd.egressReleased, false );
 		}
 	}
 
@@ -1521,12 +2291,20 @@ static bool SVG_Crowd_ConfigureSerializedEgress( svg_crowd_group_t &group, const
 }
 
 /**
-*	@brief	Advance serialized room egress queue when the current head clears the exit doorway, dies, or stalls.
+*	@brief	Advance serialized room egress only after physical clearance or removal of the current head.
 *	@param	group	Active crowd coordination group.
 *	@return	True while unreleased egress queue members remain or head is traversing the exit doorway.
 *	@note	Strictly O(1) amortized runtime per frame: inspects only the single active queue head entity.
 **/
 static bool SVG_Crowd_UpdateSerializedEgress( svg_crowd_group_t &group ) {
+	/**
+	*	Identity rollover invalidates the entire physical order; do not admit all stale owners by skipping them.
+	**/
+	if ( group.hasSerializedEgress && group.egressQueueIdentityEpoch != Nav_IdentityEpochMainThread() ) {
+		SVG_Crowd_StopCrowd( group.crowdID );
+		return false;
+	}
+
 	/**
 	*	Sanity check: validate active egress state before indexed access.
 	**/
@@ -1545,10 +2323,7 @@ static bool SVG_Crowd_UpdateSerializedEgress( svg_crowd_group_t &group ) {
 	*	immediately advance past it on this exact tick without any delay or timeout.
 	**/
 	while ( group.egressQueueHead < queueCount ) {
-		const int32_t candidateEntityNumber = group.egressQueueEntityNumbers[ group.egressQueueHead ];
-		svg_base_edict_t *candidateMember = ( candidateEntityNumber >= 1 && candidateEntityNumber < globals.edictPool->num_edicts )
-			? g_edict_pool.EdictForNumber( candidateEntityNumber )
-			: nullptr;
+		svg_base_edict_t *candidateMember = SVG_Crowd_ResolveQueueOwner( group, true, group.egressQueueHead );
 
 		// If this member is alive and active, it is the valid active queue head.
 		if ( candidateMember != nullptr && SVG_Entity_IsActive( candidateMember ) && candidateMember->health > 0 ) {
@@ -1561,12 +2336,10 @@ static bool SVG_Crowd_UpdateSerializedEgress( svg_crowd_group_t &group ) {
 
 		// Release the next member in line immediately if one exists.
 		if ( group.egressQueueHead < queueCount ) {
-			const int32_t nextEntityNumber = group.egressQueueEntityNumbers[ group.egressQueueHead ];
-			svg_base_edict_t *nextMember = ( nextEntityNumber >= 1 && nextEntityNumber < globals.edictPool->num_edicts )
-				? g_edict_pool.EdictForNumber( nextEntityNumber )
-				: nullptr;
+			svg_base_edict_t *nextMember = SVG_Crowd_ResolveQueueOwner( group, true, group.egressQueueHead );
 			if ( nextMember != nullptr && SVG_Entity_IsActive( nextMember ) && nextMember->health > 0 ) {
-				nextMember->crowd.egressReleased = true;
+				// Invalidate submitted routes before publishing this assignment field.
+				nextMember->crowd.SetNavigationAssignment( nextMember->crowd.egressReleased, true );
 				SVG_Crowd_ResetMemberNavigation( nextMember );
 			}
 		}
@@ -1579,7 +2352,7 @@ static bool SVG_Crowd_UpdateSerializedEgress( svg_crowd_group_t &group ) {
 	}
 
 	const int32_t activeEntityNumber = group.egressQueueEntityNumbers[ group.egressQueueHead ];
-	svg_base_edict_t *activeMember = g_edict_pool.EdictForNumber( activeEntityNumber );
+	svg_base_edict_t *activeMember = SVG_Crowd_ResolveQueueOwner( group, true, group.egressQueueHead );
 	if ( activeMember == nullptr ) {
 		group.hasSerializedEgress = false;
 		return false;
@@ -1590,40 +2363,74 @@ static bool SVG_Crowd_UpdateSerializedEgress( svg_crowd_group_t &group ) {
 	**/
 	const Vector3DP activeFeet = SVG_GetEntityFeetOriginDP( activeMember );
 	const double outwardDepth = QM_Vector3DotProductDP( activeFeet - group.egressPortalOrigin, group.egressPortalOutward );
-	constexpr double minClearanceDepth = 16.0;
-	const double requiredClearance = std::max( minClearanceDepth, CROWD_DEFAULT_AGENT_RADIUS * CROWD_EGRESS_CLEARANCE_RADIUS_SCALE );
+	// Use the active member's actual footprint rather than the default actor radius.
+	const double activeRadius = std::max( { std::fabs( activeMember->mins.x ), std::fabs( activeMember->maxs.x ),
+		std::fabs( activeMember->mins.y ), std::fabs( activeMember->maxs.y ) } );
+	const double requiredClearance = SVG_Crowd_GetEgressClearanceDepth( activeMember );
 
-	bool releaseNext = false;
-	if ( outwardDepth >= requiredClearance ) {
-		// Active head has physically cleared the doorway aperture into the corridor.
-		releaseNext = true;
-	} else {
-		// Watchdog fail-safes for alive-but-wedged members:
+	bool releaseNext = outwardDepth >= requiredClearance;
+	/**
+	*	A safe departure cannot release a follower while unresolved local points re-enter the same aperture.
+	*	Native ramp refinement can retain a return to an inner jamb after the first outward crossing.
+	**/
+	if ( releaseNext ) {
+		const auto *monster = dynamic_cast<const svg_monster_base_t *>( activeMember );
+		// An empty in-flight route cannot prove departure intent; supported final arrival needs no remaining point.
+		if ( monster != nullptr && monster->stringPulledPath.empty() && !activeMember->crowd.reachedGoal ) {
+			releaseNext = false;
+		} else if ( monster != nullptr ) {
+			const Vector3DP tangent{ group.egressPortalOutward.y, -group.egressPortalOutward.x, 0.0 };
+			const double apertureHalfSpan = group.egressPortalHalfWidth + activeRadius;
+			constexpr size_t aperturePointBudget = 8;
+			const size_t end = std::min( monster->stringPulledPath.size(), monster->stringPathPos + aperturePointBudget );
+			// Inspect only the bounded active prefix; distant formation loops do not prolong doorway ownership.
+			for ( size_t point = monster->stringPathPos; point < end; ++point ) {
+				const Vector3DP delta = monster->stringPulledPath[ point ] - group.egressPortalOrigin;
+				const double depth = QM_Vector3DotProductDP( delta, group.egressPortalOutward );
+				const double lateral = std::fabs( QM_Vector3DotProductDP( delta, tangent ) );
+				// Preserve the token for an unresolved inner-jamb obligation on this doorway's floor.
+				if ( depth < requiredClearance && lateral < apertureHalfSpan &&
+					 std::fabs( delta.z ) <= CROWD_ARRIVAL_MAX_Z_DIFF ) {
+					releaseNext = false;
+					break;
+				}
+			}
+		}
+	}
+	// Refresh a wedged living owner without admitting a follower into its unresolved aperture obligations.
+	if ( !releaseNext ) {
+		// A wedged living head retains aperture ownership while a bounded watchdog refreshes its route.
 		const bool activeStalled = activeMember->crowd.blockedStartTime.Milliseconds() > 0 &&
 			( level.time - activeMember->crowd.blockedStartTime ) >= CROWD_EGRESS_ACTIVE_STALL_TIMEOUT;
 		const bool transitTimedOut = group.egressQueueHeadStartTime.Milliseconds() > 0 &&
 			( level.time - group.egressQueueHeadStartTime ) >= CROWD_EGRESS_TRANSIT_TIMEOUT;
 
+		// Elapsed time cannot prove free space or release a follower into an occupied doorway.
 		if ( activeStalled || transitTimedOut ) {
-			releaseNext = true;
+			SVG_Crowd_ResetMemberNavigation( activeMember );
+			activeMember->crowd.blockedStartTime = 0_ms;
+			group.egressQueueHeadStartTime = level.time;
 		}
+
 	}
 
 	/**
-	*	Advance to next queue rank if doorway clearance or watchdog timeout is satisfied.
+	*	Advance to the next rank only after the live head has physically cleared the doorway.
 	**/
 	if ( releaseNext ) {
+		// Preserve the physical admission witness for every departure, including the last member.
+		gi.dprintf( "[crowd egress clearance] crowd=%" PRId32 " rank=%" PRId32 " ent=%" PRId32 " depth=%.6f required=%.6f time=%" PRId64 "ms\n",
+			group.crowdID, group.egressQueueHead, activeEntityNumber, outwardDepth, requiredClearance, level.time.Milliseconds() );
 		group.egressQueueHead++;
 		group.egressQueueHeadStartTime = level.time;
 
 		if ( group.egressQueueHead < queueCount ) {
 			const int32_t nextEntityNumber = group.egressQueueEntityNumbers[ group.egressQueueHead ];
-			svg_base_edict_t *nextMember = ( nextEntityNumber >= 1 && nextEntityNumber < globals.edictPool->num_edicts )
-				? g_edict_pool.EdictForNumber( nextEntityNumber )
-				: nullptr;
+			svg_base_edict_t *nextMember = SVG_Crowd_ResolveQueueOwner( group, true, group.egressQueueHead );
 
 			if ( nextMember != nullptr && SVG_Entity_IsActive( nextMember ) && nextMember->health > 0 ) {
-				nextMember->crowd.egressReleased = true;
+				// Invalidate submitted routes before publishing this assignment field.
+				nextMember->crowd.SetNavigationAssignment( nextMember->crowd.egressReleased, true );
 				SVG_Crowd_ResetMemberNavigation( nextMember );
 			}
 			gi.dprintf( "[crowd egress release] crowd=%" PRId32 " rank=%" PRId32 " ent=%" PRId32 " time=%" PRId64 "ms\n",
@@ -1650,6 +2457,7 @@ static bool SVG_Crowd_UpdateSerializedEgress( svg_crowd_group_t &group ) {
 **/
 void SVG_Crowd_Init( void ) {
 	s_crowd_debug_draw = gi.cvar( "s_crowd_debug_draw", "0", 0 );
+	s_crowd_recovery_debug = gi.cvar( "nav_crowd_recovery_debug", "0", 0 );
 	s_crowd_lateral_spacing = gi.cvar( "s_crowd_lateral_spacing", "64", 0 );
 	s_crowd_longitudinal_spacing = gi.cvar( "s_crowd_longitudinal_spacing", "64", 0 );
 	s_crowd_cover_max_dist = gi.cvar( "s_crowd_cover_max_dist", "768", 0 );
@@ -1667,7 +2475,8 @@ void SVG_Crowd_Shutdown( void ) {
 		svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i );
 		if ( SVG_Entity_IsActive( ent ) && ent->crowd.activeCoverIdx >= 0 ) {
 			Nav_ReleaseCoverPoint( ent->crowd.activeCoverIdx, ent->s.number );
-			ent->crowd.activeCoverIdx = -1;
+			// Invalidate submitted routes before publishing this assignment field.
+			ent->crowd.SetNavigationAssignment( ent->crowd.activeCoverIdx, -1 );
 		}
 	}
 
@@ -1704,15 +2513,16 @@ void SVG_Crowd_SyncFromEntities( void ) {
 			svg_crowd_group_t group;
 			group.crowdID = cid;
 			group.style = ( cid == 0 ) ? crowd_chase_target_type_t::CROWD_STYLE_SURROUND_PERIMETER : crowd_chase_target_type_t::CROWD_STYLE_ARROW;
-			group.leaderEntityNumber = ( ent->crowd.role == crowd_member_role_t::ROLE_LEADER ) ? ent->s.number : ent->crowd.leaderEntityNumber;
+			// Reconstruct ownership only from a live leader role, not a follower's retained entity number.
+			group.leaderEntityNumber = ( ent->crowd.role == crowd_member_role_t::ROLE_LEADER ) ? ent->s.number : ENTITYNUM_NONE;
+			group.leaderSpawnCount = ( ent->crowd.role == crowd_member_role_t::ROLE_LEADER ) ? ent->spawn_count : -1;
 			g_crowd_groups[ cid ] = group;
 		} else if ( ent->crowd.role == crowd_member_role_t::ROLE_LEADER ) {
 			// Explicitly assign designated squad leader to group registry.
 			g_crowd_groups[ cid ].leaderEntityNumber = ent->s.number;
-			ent->crowd.leaderEntityNumber = ent->s.number;
-		} else if ( ent->crowd.leaderEntityNumber != ENTITYNUM_NONE && g_crowd_groups[ cid ].leaderEntityNumber == ENTITYNUM_NONE ) {
-			// Restore group leader designation from entity state if not already set.
-			g_crowd_groups[ cid ].leaderEntityNumber = ent->crowd.leaderEntityNumber;
+			g_crowd_groups[ cid ].leaderSpawnCount = ent->spawn_count;
+			// Invalidate submitted routes before publishing this assignment field.
+			ent->crowd.SetNavigationAssignment( ent->crowd.leaderEntityNumber, ent->s.number );
 		}
 
 		/**
@@ -1763,16 +2573,26 @@ void SVG_Crowd_RegisterMember( svg_base_edict_t *ent, const int32_t crowdID ) {
 		SVG_Crowd_UnregisterMember( ent );
 	}
 
-	ent->crowd.crowdID = crowdID;
-	ent->crowd.slotIndex = -1;
-	ent->crowd.role = ( crowdID == 0 ) ? crowd_member_role_t::ROLE_CIVILIAN_WANDERER : crowd_member_role_t::ROLE_UNASSIGNED;
-	ent->crowd.leaderEntityNumber = ENTITYNUM_NONE;
+	// Invalidate submitted routes before publishing this assignment field.
+
+	ent->crowd.SetNavigationAssignment( ent->crowd.crowdID, crowdID );
+	// Invalidate submitted routes before publishing this assignment field.
+	ent->crowd.SetNavigationAssignment( ent->crowd.slotIndex, -1 );
+	// Invalidate submitted routes before publishing this assignment field.
+	ent->crowd.SetNavigationAssignment( ent->crowd.role, ( crowdID == 0 ) ? crowd_member_role_t::ROLE_CIVILIAN_WANDERER : crowd_member_role_t::ROLE_UNASSIGNED );
+	// Invalidate submitted routes before publishing this assignment field.
+	ent->crowd.SetNavigationAssignment( ent->crowd.leaderEntityNumber, ENTITYNUM_NONE );
 	ent->crowd.reachedGoal = false;
-	ent->crowd.ingressQueueRank = -1;
-	ent->crowd.ingressReleased = true;
-	ent->crowd.egressQueueRank = -1;
-	ent->crowd.egressReleased = true;
-	ent->crowd.activeCoverIdx = -1;
+	// Invalidate submitted routes before publishing this assignment field.
+	ent->crowd.SetNavigationAssignment( ent->crowd.ingressQueueRank, -1 );
+	// Invalidate submitted routes before publishing this assignment field.
+	ent->crowd.SetNavigationAssignment( ent->crowd.ingressReleased, true );
+	// Invalidate submitted routes before publishing this assignment field.
+	ent->crowd.SetNavigationAssignment( ent->crowd.egressQueueRank, -1 );
+	// Invalidate submitted routes before publishing this assignment field.
+	ent->crowd.SetNavigationAssignment( ent->crowd.egressReleased, true );
+	// Invalidate submitted routes before publishing this assignment field.
+	ent->crowd.SetNavigationAssignment( ent->crowd.activeCoverIdx, -1 );
 	ent->crowd.startTimeForSeeking = level.time;
 	ent->crowd.lastPathCalcTime = 0_ms;
 
@@ -1827,7 +2647,8 @@ void SVG_Crowd_UnregisterMember( svg_base_edict_t *ent ) {
 
 	if ( ent->crowd.activeCoverIdx >= 0 ) {
 		Nav_ReleaseCoverPoint( ent->crowd.activeCoverIdx, ent->s.number );
-		ent->crowd.activeCoverIdx = -1;
+		// Invalidate submitted routes before publishing this assignment field.
+		ent->crowd.SetNavigationAssignment( ent->crowd.activeCoverIdx, -1 );
 	}
 
 	// Remove from group memberEntityNumbers list.
@@ -1836,21 +2657,34 @@ void SVG_Crowd_UnregisterMember( svg_base_edict_t *ent ) {
 		SVG_Squad_UnregisterMember( oldCrowdID, ent->s.number );
 		auto it = g_crowd_groups.find( oldCrowdID );
 		if ( it != g_crowd_groups.end() ) {
+			// Clear the departing lifetime's designation before its entity number can name a replacement member.
+			if ( it->second.leaderEntityNumber == ent->s.number && it->second.leaderSpawnCount == ent->spawn_count ) {
+				it->second.leaderEntityNumber = ENTITYNUM_NONE;
+				it->second.leaderSpawnCount = -1;
+			}
 			auto &membersList = it->second.memberEntityNumbers;
 			membersList.erase( std::remove( membersList.begin(), membersList.end(), ent->s.number ), membersList.end() );
 		}
 	}
 
-	ent->crowd.crowdID = -1;
-	ent->crowd.slotIndex = -1;
-	ent->crowd.role = crowd_member_role_t::ROLE_UNASSIGNED;
-	ent->crowd.leaderEntityNumber = ENTITYNUM_NONE;
-	ent->crowd.reachedGoal = false;
-	ent->crowd.ingressQueueRank = -1;
-	ent->crowd.ingressReleased = true;
-	ent->crowd.egressQueueRank = -1;
-	ent->crowd.egressReleased = true;
+	// Invalidate submitted routes before publishing this assignment field.
 
+	ent->crowd.SetNavigationAssignment( ent->crowd.crowdID, -1 );
+	// Invalidate submitted routes before publishing this assignment field.
+	ent->crowd.SetNavigationAssignment( ent->crowd.slotIndex, -1 );
+	// Invalidate submitted routes before publishing this assignment field.
+	ent->crowd.SetNavigationAssignment( ent->crowd.role, crowd_member_role_t::ROLE_UNASSIGNED );
+	// Invalidate submitted routes before publishing this assignment field.
+	ent->crowd.SetNavigationAssignment( ent->crowd.leaderEntityNumber, ENTITYNUM_NONE );
+	ent->crowd.reachedGoal = false;
+	// Invalidate submitted routes before publishing this assignment field.
+	ent->crowd.SetNavigationAssignment( ent->crowd.ingressQueueRank, -1 );
+	// Invalidate submitted routes before publishing this assignment field.
+	ent->crowd.SetNavigationAssignment( ent->crowd.ingressReleased, true );
+	// Invalidate submitted routes before publishing this assignment field.
+	ent->crowd.SetNavigationAssignment( ent->crowd.egressQueueRank, -1 );
+	// Invalidate submitted routes before publishing this assignment field.
+	ent->crowd.SetNavigationAssignment( ent->crowd.egressReleased, true );
 	/**
 	*	Reset custom skin for monster entities to neutral grey upon unregistering.
 	**/
@@ -1917,26 +2751,75 @@ void SVG_Crowd_GetCrowdMembers( const int32_t crowdID, std::vector<svg_base_edic
 }
 
 /**
+*	@brief	Retrieve living member edicts of a specific crowd (zone-allocated vector overload).
+*	@param	crowdID		Crowd identifier.
+*	@param	outMembers	[out] Vector to receive member entity pointers.
+**/
+void SVG_Crowd_GetCrowdMembers( const int32_t crowdID, svg_vector_t<svg_base_edict_t*, TAG_SVGAME_NAVMESH> &outMembers ) {
+	outMembers.clear();
+	if ( crowdID < 0 ) {
+		return;
+	}
+
+	const svg_crowd_group_t *group = SVG_Crowd_GetGroup( crowdID );
+	if ( !group ) {
+		return;
+	}
+
+	outMembers.reserve( group->memberEntityNumbers.size() );
+	for ( const int32_t num : group->memberEntityNumbers ) {
+		if ( num < 1 || num >= globals.edictPool->num_edicts ) {
+			continue;
+		}
+		svg_base_edict_t *ent = g_edict_pool.EdictForNumber( num );
+		if ( ent && SVG_Entity_IsActive( ent ) && ent->crowd.crowdID == crowdID && ent->health > 0 ) {
+			outMembers.push_back( ent );
+		}
+	}
+}
+
+/**
 *	@brief	Designate a squad member as the squad leader by entity number.
 *	@param	crowdID				Crowd identifier.
 *	@param	leaderEntityNumber	Entity number to set as leader (or ENTITYNUM_NONE to clear).
 **/
 void SVG_Crowd_SetLeader( const int32_t crowdID, const int32_t leaderEntityNumber ) {
+	/**
+	*	Reject a missing group before changing either coordinator.
+	**/
 	svg_crowd_group_t *group = SVG_Crowd_GetGroup( crowdID );
 	if ( !group ) {
 		return;
 	}
+	/**
+	*	Capture an explicit current leader lifetime before publishing the designation.
+	**/
+	const auto *leader = leaderEntityNumber >= 1 && leaderEntityNumber < globals.edictPool->num_edicts ?
+		g_edict_pool.EdictForNumber( leaderEntityNumber ) : nullptr;
+	// A designation cannot bind to an inactive, deceased or nonmember pool slot.
+	if ( leaderEntityNumber != ENTITYNUM_NONE && ( leader == nullptr || !SVG_Entity_IsActive( leader ) ||
+		leader->health <= 0 || leader->crowd.crowdID != crowdID ) ) {
+		return;
+	}
+	group->leaderSpawnCount = leader != nullptr ? leader->spawn_count : -1;
 	group->leaderEntityNumber = leaderEntityNumber;
 	SVG_Squad_SetLeader( crowdID, leaderEntityNumber );
 
+	/**
+	*	Publish the new designation to current members and invalidate their old route ownership.
+	**/
 	std::vector<svg_base_edict_t*> members;
 	SVG_Crowd_GetCrowdMembers( crowdID, members );
+	// Role changes belong only to the explicitly designated current member.
 	for ( svg_base_edict_t *member : members ) {
-		member->crowd.leaderEntityNumber = leaderEntityNumber;
+		// Invalidate submitted routes before publishing this assignment field.
+		member->crowd.SetNavigationAssignment( member->crowd.leaderEntityNumber, leaderEntityNumber );
 		if ( leaderEntityNumber != ENTITYNUM_NONE && member->s.number == leaderEntityNumber ) {
-			member->crowd.role = crowd_member_role_t::ROLE_LEADER;
+			// Invalidate submitted routes before publishing this assignment field.
+			member->crowd.SetNavigationAssignment( member->crowd.role, crowd_member_role_t::ROLE_LEADER );
 		} else if ( member->crowd.role == crowd_member_role_t::ROLE_LEADER ) {
-			member->crowd.role = crowd_member_role_t::ROLE_CENTER;
+			// Invalidate submitted routes before publishing this assignment field.
+			member->crowd.SetNavigationAssignment( member->crowd.role, crowd_member_role_t::ROLE_CENTER );
 		}
 	}
 }
@@ -2068,6 +2951,9 @@ bool SVG_Crowd_ComputeMutualSeparation( const svg_base_edict_t *ent, Vector3DP *
 *	@return	True if a leading teammate was found directly ahead in the travel corridor.
 **/
 bool SVG_Crowd_ComputeTeammateFollowSpeedScale( const int32_t entityNumber, const Vector3DP &moveDir, double *outSpeedScale, bool *outStrictQueueing ) {
+	/**
+	*	Initialize optional diagnostics and reject callers without a valid output or entity slot.
+	**/
 	if ( outStrictQueueing != nullptr ) {
 		*outStrictQueueing = false;
 	}
@@ -2077,22 +2963,29 @@ bool SVG_Crowd_ComputeTeammateFollowSpeedScale( const int32_t entityNumber, cons
 	*outSpeedScale = 1.0;
 
 	const svg_base_edict_t *selfEnt = g_edict_pool.EdictForNumber( entityNumber );
+	// Inactive or unregistered actors cannot participate in crowd arbitration.
 	if ( !selfEnt || !SVG_Entity_IsActive( selfEnt ) || selfEnt->crowd.crowdID < 0 ) {
 		return false;
 	}
 
 	const int32_t crowdID = selfEnt->crowd.crowdID;
 	const svg_crowd_group_t *group = SVG_Crowd_GetGroup( crowdID );
+	// Missing groups have no live teammates to grant physical priority.
 	if ( !group || group->memberEntityNumbers.empty() ) {
 		return false;
 	}
 
+	/**
+	*	Prepare immutable local geometry and conservative unchanged hull extents for this actor pair scan.
+	**/
 	const Vector3DP myOrigin( selfEnt->currentOrigin );
 	double minScale = 1.0;
 	bool foundLeaderAhead = false;
 	bool strictQueueing = false;
 
+	//! Squared lateral corridor extent used by following-distance arbitration.
 	static constexpr double corridorLateralSqr = CROWD_CORRIDOR_LATERAL_THRESHOLD * CROWD_CORRIDOR_LATERAL_THRESHOLD;
+	//! Largest forward distance over which a teammate can affect following speed.
 	static constexpr double maxAheadDist = CROWD_FOLLOW_MIN_SEPARATION + CROWD_FOLLOW_SLOWDOWN_RANGE;
 
 	const double rawRadiusSelf = static_cast<double>( ( selfEnt->maxs.x - selfEnt->mins.x ) * 0.5f );
@@ -2121,6 +3014,9 @@ bool SVG_Crowd_ComputeTeammateFollowSpeedScale( const int32_t entityNumber, cons
 	const bool isNearNarrowWp = isWpFaceNarrow && ( distSelfToWp <= CROWD_BOTTLENECK_FUNNEL_DIST );
 	const bool isBottleneckTraverse = isMyFaceNarrow || isNearNarrowWp;
 
+	/**
+	*	Compare live teammates using shared physical references while retaining doorway and queue permissions.
+	**/
 	for ( const int32_t otherNum : group->memberEntityNumbers ) {
 		if ( otherNum == entityNumber ) {
 			continue;
@@ -2133,8 +3029,11 @@ bool SVG_Crowd_ComputeTeammateFollowSpeedScale( const int32_t entityNumber, cons
 			continue;
 		}
 
-		// The active reservation owner proceeds through the portal without yielding to staged waiters.
-		if ( group->hasSerializedIngress && selfEnt->crowd.ingressReleased && !other->crowd.ingressReleased ) {
+		// The active head also owns its vacated-cell approach; native sweeps still prevent contact.
+		const bool isStagingHead = group->hasSerializedIngress && group->ingressQueueHead >= 0 &&
+			static_cast<size_t>( group->ingressQueueHead ) < group->ingressQueueEntityNumbers.size() &&
+			group->ingressQueueEntityNumbers[ group->ingressQueueHead ] == entityNumber;
+		if ( group->hasSerializedIngress && ( selfEnt->crowd.ingressReleased || isStagingHead ) && !other->crowd.ingressReleased ) {
 			continue;
 		}
 		// An unreleased egress member is holding station in formation; do not yield to an unreleased teammate behind us in the egress queue.
@@ -2175,7 +3074,8 @@ bool SVG_Crowd_ComputeTeammateFollowSpeedScale( const int32_t entityNumber, cons
 
 			// If active waypoints converge on the same passage bottleneck (< 96 units apart):
 			if ( QM_Vector3Distance2DSqrDP( selfWp, otherWp ) < CROWD_BOTTLENECK_WAYPOINT_PROXIMITY_SQR ) {
-				const double distOtherToWp = QM_Vector3Distance2DDP( otherOrigin, otherWp );
+				// Both distances must use our physical aperture reference; nearby route corners are not interchangeable.
+				const double distOtherToWp = QM_Vector3Distance2DDP( otherOrigin, selfWp );
 
 				const bool hasEgressRank = ( group->hasSerializedEgress && selfEnt->crowd.egressQueueRank >= 0 && other->crowd.egressQueueRank >= 0 );
 				const bool hasIngressRank = ( group->hasSerializedIngress && selfEnt->crowd.ingressQueueRank >= 0 && other->crowd.ingressQueueRank >= 0 );
@@ -2192,7 +3092,8 @@ bool SVG_Crowd_ComputeTeammateFollowSpeedScale( const int32_t entityNumber, cons
 				*	rank and entity number breaking ties.
 				**/
 				const Vector3DP selfToWp = selfWp - myOrigin;
-				const Vector3DP otherToWp = otherWp - otherOrigin;
+				// Use the same plane for both actors so a rear actor at a different corner cannot become an insider.
+				const Vector3DP otherToWp = selfWp - otherOrigin;
 				const double selfAlong = QM_Vector3DotProductDP( selfToWp, moveDir );
 				const double otherAlong = QM_Vector3DotProductDP( otherToWp, moveDir );
 				// Positive = waypoint still ahead (still approaching/crossing); negative = past it (inside).
@@ -2289,8 +3190,8 @@ bool SVG_Crowd_ComputeTeammateFollowSpeedScale( const int32_t entityNumber, cons
 			bool shouldYieldAbreast = false;
 			if ( isBottleneckConvergence ) {
 				// In a doorway funnel, the agent physically further from the shared doorway yields:
-				const Vector3DP &oWp = otherMonster->stringPulledPath[ std::min( otherMonster->stringPathPos, otherMonster->stringPulledPath.size() - 1 ) ];
-				const double dOther = QM_Vector3Distance2DDP( otherOrigin, oWp );
+				// Match the convergence arbitration above: compare both actors to the same physical constraint.
+				const double dOther = QM_Vector3Distance2DDP( otherOrigin, selfWp );
 				if ( distSelfToWp > ( dOther + CROWD_BOTTLENECK_DISTANCE_EPSILON ) ) {
 					shouldYieldAbreast = true;
 				} else if ( std::fabs( distSelfToWp - dOther) <= CROWD_BOTTLENECK_DISTANCE_EPSILON ) {
@@ -2566,6 +3467,26 @@ static void SVG_Crowd_AllocateTacticalCover( svg_crowd_group_t &group, const std
 **/
 
 /**
+*	@brief	Compare every formation parameter before proposing an earlier staging row for a new order.
+*	@param	a	Existing order configuration.
+*	@param	b	Requested order configuration.
+*	@return	True only when geometry, orientation, tactical and timing settings all match.
+*	@note	Positions still undergo complete current-native validation; no old corridor or query identity is reused.
+**/
+static bool SVG_Crowd_ParametersMatch( const svg_crowd_params_t &a, const svg_crowd_params_t &b ) {
+	/**
+	*	Compare fields explicitly; byte comparison would include padding and conceal configuration changes.
+	**/
+	return a.lateralSpacing == b.lateralSpacing && a.longitudinalSpacing == b.longitudinalSpacing &&
+		a.maxCoverDistance == b.maxCoverDistance && a.minCoverDistance == b.minCoverDistance &&
+		a.arrivalRadius == b.arrivalRadius && a.maxTimeToSeek.Milliseconds() == b.maxTimeToSeek.Milliseconds() &&
+		a.orientationMode == b.orientationMode && a.fixedYaw == b.fixedYaw && a.pathStaggerMs == b.pathStaggerMs &&
+		a.coverExclusionRadius == b.coverExclusionRadius && a.enableCorridorSqueeze == b.enableCorridorSqueeze &&
+		a.minCorridorSpacing == b.minCorridorSpacing && a.separationRadius == b.separationRadius &&
+		a.separationStrength == b.separationStrength && a.tacticalFlags == b.tacticalFlags;
+}
+
+/**
 *	@brief	Command a crowd to navigate to a world origin in Vector3DP with the specified formation style.
 *	@param	crowdID	Crowd group identifier.
 *	@param	origin	World-space destination origin in Vector3DP.
@@ -2574,6 +3495,11 @@ static void SVG_Crowd_AllocateTacticalCover( svg_crowd_group_t &group, const std
 *	@return	True when orders were successfully dispatched to one or more crowd members.
 **/
 bool MoveAStarCrowdOrigin( const int32_t crowdID, const Vector3DP &origin, const crowd_chase_target_type_t style, const svg_crowd_params_t &params ) {
+	/**
+	*	Measure inclusive synchronous order preparation/assignment separately from tick coordination and nested guide solving.
+	*	Calls made outside SVG_RunFrame remain visible here rather than being misrepresented as measured game-tick work.
+	**/
+	nav_perf_scope_t assignmentScope( NAV_PERF_PHASE_CROWD_ASSIGNMENT );
 	if ( crowdID < 0 ) {
 		return false;
 	}
@@ -2585,16 +3511,65 @@ bool MoveAStarCrowdOrigin( const int32_t crowdID, const Vector3DP &origin, const
 	}
 
 	svg_crowd_group_t &group = g_crowd_groups[ crowdID ];
+	/**
+	*	Preserve candidate positions before resetting an identical active order's transient ownership.
+	*	Reconstructing its wall contour from a dispersed mid-egress centroid can truncate a previously valid row.
+	**/
+	std::vector<Vector3DP> preferredStagingLine;
+	// Changed destinations/configuration or incomplete rows require ordinary preparation instead.
+	if ( group.isMoving && group.hasSerializedIngress && group.targetEntityNumber == ENTITYNUM_NONE &&
+		group.style == style && group.destinationOrigin.x == origin.x && group.destinationOrigin.y == origin.y &&
+		group.destinationOrigin.z == origin.z && SVG_Crowd_ParametersMatch( group.params, params ) &&
+		group.ingressStagingLine.size() == members.size() ) {
+		preferredStagingLine = group.ingressStagingLine;
+	}
+	/**
+	*	An identical interrupted order retains the physical origin aperture rather than selecting a new
+	*	room from its dispersed centroid. Require the same live owners and unchanged mesh/topology.
+	**/
+	bool retainEgress = !preferredStagingLine.empty() && group.hasSerializedEgress &&
+		group.egressQueueIdentityEpoch == Nav_IdentityEpochMainThread() &&
+		group.egressMeshGeneration == g_nav_mesh_generation && group.egressTopologyRevision == g_nav_topology_revision &&
+		group.egressQueueEntityNumbers.size() == members.size() && group.egressQueueIncarnations.size() == members.size() && group.egressQueueSpawnCounts.size() == members.size() &&
+		group.egressQueueHead >= 0 && static_cast<uint64_t>( group.egressQueueHead ) < members.size();
+	// Current members must match immutable queued owners; old clearance needs a current physical witness.
+	for ( uint64_t rank = 0; retainEgress && rank < group.egressQueueEntityNumbers.size(); ++rank ) {
+		const int32_t number = group.egressQueueEntityNumbers[ rank ];
+		const auto found = std::find_if( members.begin(), members.end(), [number]( const svg_base_edict_t *member ) {
+			return member != nullptr && member->s.number == number;
+		} );
+		const auto *monster = found != members.end() ? dynamic_cast<const svg_monster_base_t *>( *found ) : nullptr;
+		// Replaced/removed owners cannot inherit an old release permission.
+		if ( monster == nullptr || monster->navigationIncarnation != group.egressQueueIncarnations[ rank ] ||
+			monster->spawn_count != group.egressQueueSpawnCounts[ rank ] ) {
+			retainEgress = false;
+			break;
+		}
+		// A cleared member teleported back inside must not retain its old departure witness.
+		if ( rank < static_cast<uint64_t>( group.egressQueueHead ) ) {
+			const double radius = std::max( { std::fabs( monster->mins.x ), std::fabs( monster->maxs.x ),
+				std::fabs( monster->mins.y ), std::fabs( monster->maxs.y ) } );
+			const double depth = QM_Vector3DotProductDP( SVG_GetEntityFeetOriginDP( monster ) - group.egressPortalOrigin,
+				group.egressPortalOutward );
+			retainEgress = depth >= std::max( 16.0, radius * CROWD_EGRESS_CLEARANCE_RADIUS_SCALE );
+		}
+	}
 	group.crowdID = crowdID;
 	group.style = style;
 	group.params = params;
 	group.destinationOrigin = origin;
 	group.targetEntityNumber = ENTITYNUM_NONE;
+	group.targetSpawnCount = -1;
+	// Issue a distinct identity even when two orders share one simulation timestamp.
+	++group.orderRevision;
 	group.orderStartTime = level.time;
 	group.isMoving = true;
 	SVG_Squad_SetCommand( crowdID, origin, style, params );
 	SVG_Crowd_ResetSerializedIngress( group, members );
-	SVG_Crowd_ResetSerializedEgress( group, members );
+	// Changed orders discard the old aperture; validated identical owners retain its clearance cursor.
+	if ( !retainEgress ) {
+		SVG_Crowd_ResetSerializedEgress( group, members );
+	}
 
 	// Calculate collective squad centroid in Vector3DP.
 	const Vector3DP centroid = SVG_Crowd_ComputeCentroid( members );
@@ -2661,7 +3636,9 @@ bool MoveAStarCrowdOrigin( const int32_t crowdID, const Vector3DP &origin, const
 		}
 	}
 
+	// Guide construction remains an explicitly measured owner query, independent of the graph worker.
 	if ( startFace >= 0 && goalFace >= 0 && !g_nav_faces.empty() ) {
+		nav_perf_scope_t guideScope( NAV_PERF_PHASE_CROWD_GUIDE );
 		nav_path_policy_t guidePolicy;
 		guidePolicy.agent_radius = static_cast<float>( CROWD_DEFAULT_AGENT_RADIUS );
 		if ( Nav_FindPath( startFace, goalFace, navPathFaces, guidePolicy ) ) {
@@ -3298,28 +4275,36 @@ bool MoveAStarCrowdOrigin( const int32_t crowdID, const Vector3DP &origin, const
 			// Release previous cover if changing.
 			if ( member->crowd.activeCoverIdx >= 0 && member->crowd.activeCoverIdx != slot.coverIndex ) {
 				Nav_ReleaseCoverPoint( member->crowd.activeCoverIdx, member->s.number );
-				member->crowd.activeCoverIdx = -1;
+				// Invalidate submitted routes before publishing this assignment field.
+				member->crowd.SetNavigationAssignment( member->crowd.activeCoverIdx, -1 );
 			}
 
 			// Claim new cover if applicable.
 			if ( slot.coverIndex >= 0 ) {
 				Nav_ClaimCoverPoint( slot.coverIndex, member->s.number );
-				member->crowd.activeCoverIdx = slot.coverIndex;
+				// Invalidate submitted routes before publishing this assignment field.
+				member->crowd.SetNavigationAssignment( member->crowd.activeCoverIdx, slot.coverIndex );
 			}
 
-			member->crowd.slotIndex = slotIdx;
+			// Invalidate submitted routes before publishing this assignment field.
+
+			member->crowd.SetNavigationAssignment( member->crowd.slotIndex, slotIdx );
 			// The protected leader is strictly immutable: only the designated leader holds ROLE_LEADER
 			if ( group.leaderEntityNumber != ENTITYNUM_NONE && member->s.number == group.leaderEntityNumber ) {
-				member->crowd.role = crowd_member_role_t::ROLE_LEADER;
+				// Invalidate submitted routes before publishing this assignment field.
+				member->crowd.SetNavigationAssignment( member->crowd.role, crowd_member_role_t::ROLE_LEADER );
 			} else {
-				member->crowd.role = ( slot.role == crowd_member_role_t::ROLE_LEADER ) ? crowd_member_role_t::ROLE_CENTER : slot.role;
+				// Invalidate submitted routes before publishing this assignment field.
+				member->crowd.SetNavigationAssignment( member->crowd.role, ( slot.role == crowd_member_role_t::ROLE_LEADER ) ? crowd_member_role_t::ROLE_CENTER : slot.role );
 			}
-			member->crowd.assignedGoalOrigin = QM_Vector3FromDP( slot.worldPosition );
+			// Invalidate submitted routes before publishing this assignment field.
+			member->crowd.SetNavigationAssignment( member->crowd.assignedGoalOrigin, QM_Vector3FromDP( slot.worldPosition ) );
 			member->crowd.reachedGoal = false;
 			member->crowd.blockedStartTime = 0_ms;
 			member->crowd.startTimeForSeeking = level.time;
 			member->crowd.maxTimeToSeek = params.maxTimeToSeek;
-			member->crowd.leaderEntityNumber = group.leaderEntityNumber;
+			// Invalidate submitted routes before publishing this assignment field.
+			member->crowd.SetNavigationAssignment( member->crowd.leaderEntityNumber, group.leaderEntityNumber );
 			// Stagger initial path calculation time across squad members.
 			member->crowd.lastPathCalcTime = level.time + QMTime::FromMilliseconds( static_cast<int64_t>( i * params.pathStaggerMs ) );
 			member->nextthink = level.time + FRAME_TIME_MS;
@@ -3338,21 +4323,28 @@ bool MoveAStarCrowdOrigin( const int32_t crowdID, const Vector3DP &origin, const
 			**/
 			if ( member->crowd.activeCoverIdx >= 0 ) {
 				Nav_ReleaseCoverPoint( member->crowd.activeCoverIdx, member->s.number );
-				member->crowd.activeCoverIdx = -1;
+				// Invalidate submitted routes before publishing this assignment field.
+				member->crowd.SetNavigationAssignment( member->crowd.activeCoverIdx, -1 );
 			}
 
-			member->crowd.slotIndex = -1;
+			// Invalidate submitted routes before publishing this assignment field.
+
+			member->crowd.SetNavigationAssignment( member->crowd.slotIndex, -1 );
 			if ( group.leaderEntityNumber != ENTITYNUM_NONE && member->s.number == group.leaderEntityNumber ) {
-				member->crowd.role = crowd_member_role_t::ROLE_LEADER;
+				// Invalidate submitted routes before publishing this assignment field.
+				member->crowd.SetNavigationAssignment( member->crowd.role, crowd_member_role_t::ROLE_LEADER );
 			} else {
-				member->crowd.role = crowd_member_role_t::ROLE_CENTER;
+				// Invalidate submitted routes before publishing this assignment field.
+				member->crowd.SetNavigationAssignment( member->crowd.role, crowd_member_role_t::ROLE_CENTER );
 			}
-			member->crowd.assignedGoalOrigin = QM_Vector3FromDP( origin );
+			// Invalidate submitted routes before publishing this assignment field.
+			member->crowd.SetNavigationAssignment( member->crowd.assignedGoalOrigin, QM_Vector3FromDP( origin ) );
 			member->crowd.reachedGoal = false;
 			member->crowd.blockedStartTime = 0_ms;
 			member->crowd.startTimeForSeeking = level.time;
 			member->crowd.maxTimeToSeek = params.maxTimeToSeek;
-			member->crowd.leaderEntityNumber = group.leaderEntityNumber;
+			// Invalidate submitted routes before publishing this assignment field.
+			member->crowd.SetNavigationAssignment( member->crowd.leaderEntityNumber, group.leaderEntityNumber );
 			member->crowd.lastPathCalcTime = 0_ms;
 			member->nextthink = level.time + FRAME_TIME_MS;
 
@@ -3402,16 +4394,35 @@ bool MoveAStarCrowdOrigin( const int32_t crowdID, const Vector3DP &origin, const
 			maxAgentRadius = std::max( maxAgentRadius, memberRadius );
 		}
 		const bool ingressConfigured = SVG_Crowd_ConfigureSerializedIngress( group, members, guidePath,
-			portalPoint, effectiveDestOrigin, destRoom, portalWidth, maxAgentRadius );
+			portalPoint, effectiveDestOrigin, destRoom, portalWidth, maxAgentRadius,
+			preferredStagingLine.empty() ? nullptr : &preferredStagingLine );
 		gi.dprintf( "[crowd ingress] crowd=%" PRId32 " style=%" PRId32 " members=%zu portal=%d configured=%d queue=%zu\n",
 			group.crowdID, static_cast<int32_t>( effectiveStyle ), members.size(), hasPortal ? 1 : 0,
 			ingressConfigured ? 1 : 0, group.ingressQueueEntityNumbers.size() );
+		// A rejected staging row has stopped the order; do not publish an orphaned egress queue or report success.
+		if ( !ingressConfigured ) {
+			return false;
+		}
 	}
 
 	/**
 	*	Configure serialized in-order room egress when departing an enclosed room/zone through a narrow doorway.
 	**/
-	if ( members.size() > 1 ) {
+	if ( retainEgress ) {
+		/**
+		*	Republish rank/release fields cleared by leaving/rejoining under fresh order and route identities.
+		*	The original physical head still owns clearance and alone can release its next follower.
+		**/
+		for ( uint64_t rank = 0; rank < group.egressQueueEntityNumbers.size(); ++rank ) {
+			auto *member = g_edict_pool.EdictForNumber( group.egressQueueEntityNumbers[ rank ] );
+			member->crowd.SetNavigationAssignment( member->crowd.egressQueueRank, static_cast<int32_t>( rank ) );
+			member->crowd.SetNavigationAssignment( member->crowd.egressReleased,
+				rank <= static_cast<uint64_t>( group.egressQueueHead ) );
+			SVG_Crowd_ResetMemberNavigation( member );
+		}
+		gi.dprintf( "[crowd egress retained] crowd=%" PRId32 " head=%" PRId32 " queue=%zu\n",
+			group.crowdID, group.egressQueueHead, group.egressQueueEntityNumbers.size() );
+	} else if ( members.size() > 1 ) {
 		const nav_room_t *startRoom = Nav_GetRoomForPoint( centroid );
 		if ( startRoom == nullptr && startFace >= 0 && startFace < static_cast<int32_t>( g_nav_faces.size() ) ) {
 			const int32_t startRoomID = g_nav_faces[ startFace ].room_id;
@@ -3459,6 +4470,14 @@ bool MoveAStarCrowdOrigin( const int32_t crowdID, const Vector3 &origin, const c
 *	@return	True when orders were successfully dispatched to one or more crowd members.
 **/
 bool MoveAStarFollowEntity( const int32_t crowdID, const int32_t targetEntityNumber, const crowd_chase_target_type_t style, const svg_crowd_params_t &params ) {
+	/**
+	*	Measure inclusive synchronous order preparation/assignment separately from tick coordination and nested guide solving.
+	*	Calls made outside SVG_RunFrame remain visible here rather than being misrepresented as measured game-tick work.
+	**/
+	nav_perf_scope_t assignmentScope( NAV_PERF_PHASE_CROWD_ASSIGNMENT );
+	/**
+	*	Validate the current order, live target and nonempty membership before issuing a revision.
+	**/
 	if ( crowdID < 0 || targetEntityNumber == ENTITYNUM_NONE || targetEntityNumber < 0 || targetEntityNumber >= globals.edictPool->num_edicts ) {
 		return false;
 	}
@@ -3474,12 +4493,17 @@ bool MoveAStarFollowEntity( const int32_t crowdID, const int32_t targetEntityNum
 		return false;
 	}
 
+	/**
+	*	Publish a new follow-order identity before changing targets, assignments or reservations.
+	**/
 	svg_crowd_group_t &group = g_crowd_groups[ crowdID ];
+	++group.orderRevision;
 	group.crowdID = crowdID;
 	group.style = style;
 	group.params = params;
 	group.destinationOrigin = Vector3DP( targetEnt->currentOrigin );
 	group.targetEntityNumber = targetEntityNumber;
+	group.targetSpawnCount = targetEnt->spawn_count;
 	group.lastTargetEntityOrigin = Vector3DP( targetEnt->currentOrigin );
 	group.orderStartTime = level.time;
 	group.isMoving = true;
@@ -3519,7 +4543,9 @@ bool MoveAStarFollowEntity( const int32_t crowdID, const int32_t targetEntityNum
 		if ( distToDest > 128.0 && !g_nav_faces.empty() ) {
 			const int32_t startPoly = Nav_FindPolyInLeaf( centroid );
 			const int32_t goalPoly = Nav_FindPolyInLeaf( Vector3DP( targetEnt->currentOrigin ) );
+			// Follow guides use the same copied owner graph contract; assignment and live targets stay on this thread.
 			if ( startPoly >= 0 && goalPoly >= 0 ) {
+				nav_perf_scope_t guideScope( NAV_PERF_PHASE_CROWD_GUIDE );
 				std::vector<int32_t> facePath;
 				nav_path_policy_t navPol{};
 				navPol.agent_radius = CROWD_DEFAULT_AGENT_RADIUS;
@@ -3621,12 +4647,14 @@ bool MoveAStarFollowEntity( const int32_t crowdID, const int32_t targetEntityNum
 
 			if ( member->crowd.activeCoverIdx >= 0 && member->crowd.activeCoverIdx != slot.coverIndex ) {
 				Nav_ReleaseCoverPoint( member->crowd.activeCoverIdx, member->s.number );
-				member->crowd.activeCoverIdx = -1;
+				// Invalidate submitted routes before publishing this assignment field.
+				member->crowd.SetNavigationAssignment( member->crowd.activeCoverIdx, -1 );
 			}
 
 			if ( slot.coverIndex >= 0 ) {
 				Nav_ClaimCoverPoint( slot.coverIndex, member->s.number );
-				member->crowd.activeCoverIdx = slot.coverIndex;
+				// Invalidate submitted routes before publishing this assignment field.
+				member->crowd.SetNavigationAssignment( member->crowd.activeCoverIdx, slot.coverIndex );
 			}
 
 			const Vector3 newGoal = QM_Vector3FromDP( slot.worldPosition );
@@ -3642,14 +4670,19 @@ bool MoveAStarFollowEntity( const int32_t crowdID, const int32_t targetEntityNum
 			**/
 			const bool sameWorldGoal = ( goalDistDelta <= CROWD_DEFAULT_ARRIVAL_RADIUS );
 
-			member->crowd.slotIndex = slotIdx;
+			// Invalidate submitted routes before publishing this assignment field.
+
+			member->crowd.SetNavigationAssignment( member->crowd.slotIndex, slotIdx );
 			// The protected leader is strictly immutable: only the designated leader holds ROLE_LEADER
 			if ( group.leaderEntityNumber != ENTITYNUM_NONE && member->s.number == group.leaderEntityNumber ) {
-				member->crowd.role = crowd_member_role_t::ROLE_LEADER;
+				// Invalidate submitted routes before publishing this assignment field.
+				member->crowd.SetNavigationAssignment( member->crowd.role, crowd_member_role_t::ROLE_LEADER );
 			} else {
-				member->crowd.role = ( slot.role == crowd_member_role_t::ROLE_LEADER ) ? crowd_member_role_t::ROLE_CENTER : slot.role;
+				// Invalidate submitted routes before publishing this assignment field.
+				member->crowd.SetNavigationAssignment( member->crowd.role, ( slot.role == crowd_member_role_t::ROLE_LEADER ) ? crowd_member_role_t::ROLE_CENTER : slot.role );
 			}
-			member->crowd.assignedGoalOrigin = newGoal;
+			// Invalidate submitted routes before publishing this assignment field.
+			member->crowd.SetNavigationAssignment( member->crowd.assignedGoalOrigin, newGoal );
 			// Only reset arrival state if the assigned slot moved significantly:
 			if ( goalDistDelta > CROWD_DEFAULT_ARRIVAL_RADIUS ) {
 				member->crowd.reachedGoal = false;
@@ -3661,7 +4694,8 @@ bool MoveAStarFollowEntity( const int32_t crowdID, const int32_t targetEntityNum
 					monster->consecutiveBlockedFrames = 0;
 				}
 			}
-			member->crowd.leaderEntityNumber = group.leaderEntityNumber;
+			// Invalidate submitted routes before publishing this assignment field.
+			member->crowd.SetNavigationAssignment( member->crowd.leaderEntityNumber, group.leaderEntityNumber );
 			member->nextthink = level.time + FRAME_TIME_MS;
 		} else {
 			/**
@@ -3670,21 +4704,28 @@ bool MoveAStarFollowEntity( const int32_t crowdID, const int32_t targetEntityNum
 			**/
 			if ( member->crowd.activeCoverIdx >= 0 ) {
 				Nav_ReleaseCoverPoint( member->crowd.activeCoverIdx, member->s.number );
-				member->crowd.activeCoverIdx = -1;
+				// Invalidate submitted routes before publishing this assignment field.
+				member->crowd.SetNavigationAssignment( member->crowd.activeCoverIdx, -1 );
 			}
 
-			member->crowd.slotIndex = -1;
+			// Invalidate submitted routes before publishing this assignment field.
+
+			member->crowd.SetNavigationAssignment( member->crowd.slotIndex, -1 );
 			if ( group.leaderEntityNumber != ENTITYNUM_NONE && member->s.number == group.leaderEntityNumber ) {
-				member->crowd.role = crowd_member_role_t::ROLE_LEADER;
+				// Invalidate submitted routes before publishing this assignment field.
+				member->crowd.SetNavigationAssignment( member->crowd.role, crowd_member_role_t::ROLE_LEADER );
 			} else {
-				member->crowd.role = crowd_member_role_t::ROLE_CENTER;
+				// Invalidate submitted routes before publishing this assignment field.
+				member->crowd.SetNavigationAssignment( member->crowd.role, crowd_member_role_t::ROLE_CENTER );
 			}
-			member->crowd.assignedGoalOrigin = targetEnt->currentOrigin;
+			// Invalidate submitted routes before publishing this assignment field.
+			member->crowd.SetNavigationAssignment( member->crowd.assignedGoalOrigin, targetEnt->currentOrigin );
 			member->crowd.reachedGoal = false;
 			member->crowd.blockedStartTime = 0_ms;
 			member->crowd.startTimeForSeeking = level.time;
 			member->crowd.maxTimeToSeek = params.maxTimeToSeek;
-			member->crowd.leaderEntityNumber = group.leaderEntityNumber;
+			// Invalidate submitted routes before publishing this assignment field.
+			member->crowd.SetNavigationAssignment( member->crowd.leaderEntityNumber, group.leaderEntityNumber );
 			member->crowd.lastPathCalcTime = 0_ms;
 			member->nextthink = level.time + FRAME_TIME_MS;
 
@@ -3726,6 +4767,11 @@ void SVG_Crowd_SetCrowdStyle( const int32_t crowdID, const crowd_chase_target_ty
 	it->second.style = style;
 	if ( it->second.isMoving ) {
 		if ( it->second.targetEntityNumber != ENTITYNUM_NONE ) {
+			// Reissuing an existing order must resolve its retained target lifetime first.
+			if ( it->second.GetTargetEntity() == nullptr ) {
+				SVG_Crowd_StopCrowd( crowdID );
+				return;
+			}
 			MoveAStarFollowEntity( crowdID, it->second.targetEntityNumber, style, it->second.params );
 		} else {
 			MoveAStarCrowdOrigin( crowdID, it->second.destinationOrigin, style, it->second.params );
@@ -3747,6 +4793,11 @@ void SVG_Crowd_SetCrowdParams( const int32_t crowdID, const svg_crowd_params_t &
 	it->second.params = params;
 	if ( it->second.isMoving ) {
 		if ( it->second.targetEntityNumber != ENTITYNUM_NONE ) {
+			// Reissuing an existing order must resolve its retained target lifetime first.
+			if ( it->second.GetTargetEntity() == nullptr ) {
+				SVG_Crowd_StopCrowd( crowdID );
+				return;
+			}
 			MoveAStarFollowEntity( crowdID, it->second.targetEntityNumber, it->second.style, params );
 		} else {
 			MoveAStarCrowdOrigin( crowdID, it->second.destinationOrigin, it->second.style, params );
@@ -3767,14 +4818,26 @@ void SVG_Crowd_StopCrowd( const int32_t crowdID ) {
 		it->second.ingressPhase = crowd_ingress_phase_t::INACTIVE;
 		it->second.ingressPortalHalfWidth = 0.0;
 		it->second.ingressQueueEntityNumbers.clear();
+		it->second.ingressQueueIncarnations.clear();
+		it->second.ingressQueueSpawnCounts.clear();
+		it->second.ingressQueueIdentityEpoch = 0;
 		it->second.ingressStagingPositions.clear();
+		it->second.ingressStagingTransitRoutes.clear();
 		it->second.ingressStagingLine.clear();
+		// Cancellation discards temporary approach claims together with the doorway reservation.
+		it->second.ingressYieldClaims.clear();
+		it->second.ingressYieldNextProbeTime = 0_ms;
 		it->second.ingressQueueHead = 0;
 		it->second.ingressMarshalCursor = 0;
 		it->second.ingressQueueHeadStartTime = 0_ms;
 		it->second.hasSerializedEgress = false;
 		it->second.egressPortalHalfWidth = 0.0;
 		it->second.egressQueueEntityNumbers.clear();
+		it->second.egressQueueIncarnations.clear();
+		it->second.egressQueueSpawnCounts.clear();
+		it->second.egressQueueIdentityEpoch = 0;
+		it->second.egressMeshGeneration = 0;
+		it->second.egressTopologyRevision = 0;
 		it->second.egressQueueHead = 0;
 		it->second.egressQueueHeadStartTime = 0_ms;
 		it->second.egressNextReleaseTime = 0_ms;
@@ -3786,12 +4849,17 @@ void SVG_Crowd_StopCrowd( const int32_t crowdID ) {
 	for ( svg_base_edict_t *member : members ) {
 		if ( member->crowd.activeCoverIdx >= 0 ) {
 			Nav_ReleaseCoverPoint( member->crowd.activeCoverIdx, member->s.number );
-			member->crowd.activeCoverIdx = -1;
+			// Invalidate submitted routes before publishing this assignment field.
+			member->crowd.SetNavigationAssignment( member->crowd.activeCoverIdx, -1 );
 		}
-		member->crowd.ingressQueueRank = -1;
-		member->crowd.ingressReleased = true;
-		member->crowd.egressQueueRank = -1;
-		member->crowd.egressReleased = true;
+		// Invalidate submitted routes before publishing this assignment field.
+		member->crowd.SetNavigationAssignment( member->crowd.ingressQueueRank, -1 );
+		// Invalidate submitted routes before publishing this assignment field.
+		member->crowd.SetNavigationAssignment( member->crowd.ingressReleased, true );
+		// Invalidate submitted routes before publishing this assignment field.
+		member->crowd.SetNavigationAssignment( member->crowd.egressQueueRank, -1 );
+		// Invalidate submitted routes before publishing this assignment field.
+		member->crowd.SetNavigationAssignment( member->crowd.egressReleased, true );
 		member->crowd.reachedGoal = true;
 	}
 }
@@ -3820,7 +4888,8 @@ svg_crowd_group_t *SVG_Crowd_GetGroup( const int32_t crowdID ) {
 *	@param	arrivalRadius	Current slot arrival radius for this group.
 *	@return	True if a deadlock-resolving slot swap was applied; false otherwise.
 **/
-static bool SVG_Crowd_ResolveStalledMemberOcclusion( svg_crowd_group_t &group, const std::vector<svg_base_edict_t*> &members, const double arrivalRadius ) {
+template<typename MemberContainer>
+static bool SVG_Crowd_ResolveStalledMemberOcclusion( svg_crowd_group_t &group, const MemberContainer &members, const double arrivalRadius ) {
 	/**
 	*	Sanity checks: require multiple members and valid slots.
 	**/
@@ -3984,14 +5053,17 @@ static bool SVG_Crowd_ResolveStalledMemberOcclusion( svg_crowd_group_t &group, c
 	const Vector3DP stalledOldGoal = group.slots[ stalledOldSlotIdx ].worldPosition;
 	const Vector3DP blockerOldGoal = group.slots[ blockerOldSlotIdx ].worldPosition;
 
-	std::swap( stalledMember->crowd.slotIndex, bestSwapMember->crowd.slotIndex );
-	std::swap( stalledMember->crowd.role, bestSwapMember->crowd.role );
+	stalledMember->crowd.SwapNavigationAssignment( stalledMember->crowd.slotIndex, bestSwapMember->crowd, bestSwapMember->crowd.slotIndex );
+	stalledMember->crowd.SwapNavigationAssignment( stalledMember->crowd.role, bestSwapMember->crowd, bestSwapMember->crowd.role );
 	if ( stalledMember->crowd.activeCoverIdx >= 0 || bestSwapMember->crowd.activeCoverIdx >= 0 ) {
-		std::swap( stalledMember->crowd.activeCoverIdx, bestSwapMember->crowd.activeCoverIdx );
+		stalledMember->crowd.SwapNavigationAssignment( stalledMember->crowd.activeCoverIdx, bestSwapMember->crowd, bestSwapMember->crowd.activeCoverIdx );
 	}
 
-	stalledMember->crowd.assignedGoalOrigin = QM_Vector3FromDP( blockerOldGoal );
-	bestSwapMember->crowd.assignedGoalOrigin = QM_Vector3FromDP( stalledOldGoal );
+	// Invalidate submitted routes before publishing this assignment field.
+
+	stalledMember->crowd.SetNavigationAssignment( stalledMember->crowd.assignedGoalOrigin, QM_Vector3FromDP( blockerOldGoal ) );
+	// Invalidate submitted routes before publishing this assignment field.
+	bestSwapMember->crowd.SetNavigationAssignment( bestSwapMember->crowd.assignedGoalOrigin, QM_Vector3FromDP( stalledOldGoal ) );
 	stalledMember->crowd.lastPathCalcTime = 0_ms;
 	bestSwapMember->crowd.lastPathCalcTime = 0_ms;
 	stalledMember->crowd.blockedStartTime = 0_ms;
@@ -4026,7 +5098,8 @@ static bool SVG_Crowd_ResolveStalledMemberOcclusion( svg_crowd_group_t &group, c
 *	@return	True if one or more formation slots were compacted; false otherwise.
 *	@note		Strictly O(M) where M is squad size; executes only when member count decreases below slot count.
 **/
-static bool SVG_Crowd_CompactFormationSlotsOnMemberDeath( svg_crowd_group_t &group, const std::vector<svg_base_edict_t*> &livingMembers ) {
+template<typename MemberContainer>
+static bool SVG_Crowd_CompactFormationSlotsOnMemberDeath( svg_crowd_group_t &group, const MemberContainer &livingMembers ) {
 	/**
 	*	Sanity checks: requires an active moving group with multiple slots and living members.
 	**/
@@ -4065,6 +5138,11 @@ static bool SVG_Crowd_CompactFormationSlotsOnMemberDeath( svg_crowd_group_t &gro
 		svg_base_edict_t *outermostMember = nullptr;
 
 		for ( svg_base_edict_t *candidate : livingMembers ) {
+			// Death compaction must not transfer the designated leader's seat or role to another actor.
+			if ( candidate != nullptr && ( candidate->s.number == group.leaderEntityNumber ||
+				candidate->crowd.role == crowd_member_role_t::ROLE_LEADER ) ) {
+				continue;
+			}
 			if ( candidate != nullptr && candidate->crowd.slotIndex > static_cast<int32_t>( coreSlotIdx ) ) {
 				if ( candidate->crowd.slotIndex > highestClaimedIdx ) {
 					highestClaimedIdx = candidate->crowd.slotIndex;
@@ -4082,12 +5160,16 @@ static bool SVG_Crowd_CompactFormationSlotsOnMemberDeath( svg_crowd_group_t &gro
 		*	Shift the outermost living member into the vacant core slot.
 		**/
 		const int32_t oldSlotIdx = outermostMember->crowd.slotIndex;
-		outermostMember->crowd.slotIndex = static_cast<int32_t>( coreSlotIdx );
-		outermostMember->crowd.role = group.slots[ coreSlotIdx ].role;
-
+		// Invalidate submitted routes before publishing this assignment field.
+		outermostMember->crowd.SetNavigationAssignment( outermostMember->crowd.slotIndex, static_cast<int32_t>( coreSlotIdx ) );
+		// Invalidate submitted routes before publishing this assignment field.
+		const auto slotRole = group.slots[ coreSlotIdx ].role;
+		outermostMember->crowd.SetNavigationAssignment( outermostMember->crowd.role,
+			slotRole == crowd_member_role_t::ROLE_LEADER ? crowd_member_role_t::ROLE_CENTER : slotRole );
 		// If member is moving towards final formation slots (or ingress is released), update goal origin.
 		if ( !group.hasSerializedIngress || outermostMember->crowd.ingressReleased ) {
-			outermostMember->crowd.assignedGoalOrigin = QM_Vector3FromDP( group.slots[ coreSlotIdx ].worldPosition );
+			// Invalidate submitted routes before publishing this assignment field.
+			outermostMember->crowd.SetNavigationAssignment( outermostMember->crowd.assignedGoalOrigin, QM_Vector3FromDP( group.slots[ coreSlotIdx ].worldPosition ) );
 			outermostMember->crowd.reachedGoal = false;
 			SVG_Crowd_ResetMemberNavigation( outermostMember );
 		}
@@ -4105,7 +5187,15 @@ static bool SVG_Crowd_CompactFormationSlotsOnMemberDeath( svg_crowd_group_t &gro
 	*	Truncate orphan peripheral slots beyond the living member count to preserve compactness.
 	**/
 	if ( anyCompacted && group.slots.size() > livingMembers.size() ) {
-		group.slots.resize( livingMembers.size() );
+		// A protected peripheral leader seat may remain beyond the compact core; retain every live claimed index.
+		size_t retainedSlotCount = livingMembers.size();
+		for ( const svg_base_edict_t *member : livingMembers ) {
+			// Only assigned seats contribute to the retained extent.
+			if ( member != nullptr && member->crowd.slotIndex >= 0 ) {
+				retainedSlotCount = std::max( retainedSlotCount, static_cast<size_t>( member->crowd.slotIndex ) + 1 );
+			}
+		}
+		group.slots.resize( std::min( group.slots.size(), retainedSlotCount ) );
 	}
 
 	return anyCompacted;
@@ -4119,7 +5209,8 @@ static bool SVG_Crowd_CompactFormationSlotsOnMemberDeath( svg_crowd_group_t &gro
 *	@param	group	Active crowd coordination group.
 *	@param	members	List of active squad member entities.
 **/
-void SVG_Crowd_OptimizeSlotAssignments( svg_crowd_group_t &group, const std::vector<svg_base_edict_t*> &members ) {
+template<typename MemberContainer>
+static void SVG_Crowd_OptimizeSlotAssignmentsImpl( svg_crowd_group_t &group, const MemberContainer &members ) {
 	/**
 	*	Sanity checks: ensure group has at least two members and valid formation slots.
 	**/
@@ -4208,13 +5299,15 @@ void SVG_Crowd_OptimizeSlotAssignments( svg_crowd_group_t &group, const std::vec
 					const double distBetween = QM_Vector3DistanceDP( posA, posB );
 					if ( dotVel < CROWD_HEADON_COURSE_DOT_THRESHOLD && distBetween < ( combinedRadius * 1.5 ) ) {
 						// Swap slot indices and roles immediately
-						std::swap( memberA->crowd.slotIndex, memberB->crowd.slotIndex );
-						std::swap( memberA->crowd.role, memberB->crowd.role );
+						memberA->crowd.SwapNavigationAssignment( memberA->crowd.slotIndex, memberB->crowd, memberB->crowd.slotIndex );
+						memberA->crowd.SwapNavigationAssignment( memberA->crowd.role, memberB->crowd, memberB->crowd.role );
 						if ( memberA->crowd.activeCoverIdx >= 0 || memberB->crowd.activeCoverIdx >= 0 ) {
-							std::swap( memberA->crowd.activeCoverIdx, memberB->crowd.activeCoverIdx );
+							memberA->crowd.SwapNavigationAssignment( memberA->crowd.activeCoverIdx, memberB->crowd, memberB->crowd.activeCoverIdx );
 						}
-						memberA->crowd.assignedGoalOrigin = QM_Vector3FromDP( goalB );
-						memberB->crowd.assignedGoalOrigin = QM_Vector3FromDP( goalA );
+						// Invalidate submitted routes before publishing this assignment field.
+						memberA->crowd.SetNavigationAssignment( memberA->crowd.assignedGoalOrigin, QM_Vector3FromDP( goalB ) );
+						// Invalidate submitted routes before publishing this assignment field.
+						memberB->crowd.SetNavigationAssignment( memberB->crowd.assignedGoalOrigin, QM_Vector3FromDP( goalA ) );
 						memberA->crowd.lastPathCalcTime = 0_ms;
 						memberB->crowd.lastPathCalcTime = 0_ms;
 						swapped = true;
@@ -4281,17 +5374,19 @@ void SVG_Crowd_OptimizeSlotAssignments( svg_crowd_group_t &group, const std::vec
 				constexpr double hysteresisSq = CROWD_SWAP_HYSTERESIS_MOVING * CROWD_SWAP_HYSTERESIS_MOVING;
 				if ( swapDistSq + hysteresisSq < currDistSq ) {
 					// Swap slot indices and roles
-					std::swap( memberA->crowd.slotIndex, memberB->crowd.slotIndex );
-					std::swap( memberA->crowd.role, memberB->crowd.role );
+					memberA->crowd.SwapNavigationAssignment( memberA->crowd.slotIndex, memberB->crowd, memberB->crowd.slotIndex );
+					memberA->crowd.SwapNavigationAssignment( memberA->crowd.role, memberB->crowd, memberB->crowd.role );
 
 					// If tactical cover, swap active cover leases
 					if ( memberA->crowd.activeCoverIdx >= 0 || memberB->crowd.activeCoverIdx >= 0 ) {
-						std::swap( memberA->crowd.activeCoverIdx, memberB->crowd.activeCoverIdx );
+						memberA->crowd.SwapNavigationAssignment( memberA->crowd.activeCoverIdx, memberB->crowd, memberB->crowd.activeCoverIdx );
 					}
 
-					memberA->crowd.assignedGoalOrigin = QM_Vector3FromDP( goalB );
-					memberB->crowd.assignedGoalOrigin = QM_Vector3FromDP( goalA );
+					// Invalidate submitted routes before publishing this assignment field.
 
+					memberA->crowd.SetNavigationAssignment( memberA->crowd.assignedGoalOrigin, QM_Vector3FromDP( goalB ) );
+					// Invalidate submitted routes before publishing this assignment field.
+					memberB->crowd.SetNavigationAssignment( memberB->crowd.assignedGoalOrigin, QM_Vector3FromDP( goalA ) );
 					// Recompute arrival status symmetrically
 					const double arrivedThresh = arrivalRadius * CROWD_BLOCKED_ARRIVAL_RADIUS_FACTOR;
 					const double distA = QM_Vector3DistanceDP( posA, goalB );
@@ -4318,6 +5413,27 @@ void SVG_Crowd_OptimizeSlotAssignments( svg_crowd_group_t &group, const std::vec
 }
 
 /**
+*	@brief	Dynamically optimize slot assignments among crowd members to eliminate crossing trajectories.
+*	@param	group	Active crowd coordination group.
+*	@param	members	List of active squad member entities.
+**/
+void SVG_Crowd_OptimizeSlotAssignments( svg_crowd_group_t &group, const std::vector<svg_base_edict_t*> &members ) {
+	SVG_Crowd_OptimizeSlotAssignmentsImpl( group, members );
+}
+
+/**
+*	@brief	Dynamically optimize slot assignments among crowd members to eliminate crossing trajectories (zone-allocated overload).
+*	@param	group	Active crowd coordination group.
+*	@param	members	List of active squad member entities.
+**/
+void SVG_Crowd_OptimizeSlotAssignments( svg_crowd_group_t &group, const svg_vector_t<svg_base_edict_t*, TAG_SVGAME_NAVMESH> &members ) {
+	SVG_Crowd_OptimizeSlotAssignmentsImpl( group, members );
+}
+
+//! Reusable frame scratch buffer for crowd group members to prevent per-tick heap allocations.
+static svg_vector_t<svg_base_edict_t*, TAG_SVGAME_NAVMESH> s_crowd_frame_members;
+
+/**
 *	@brief	Execute per-frame crowd coordination, slot updates, and staggered pathing.
 **/
 void SVG_Crowd_Frame( void ) {
@@ -4333,9 +5449,9 @@ void SVG_Crowd_Frame( void ) {
 			continue;
 		}
 
-		std::vector<svg_base_edict_t*> members;
-		SVG_Crowd_GetCrowdMembers( group.crowdID, members );
-		if ( members.empty() ) {
+		s_crowd_frame_members.clear();
+		SVG_Crowd_GetCrowdMembers( group.crowdID, s_crowd_frame_members );
+		if ( s_crowd_frame_members.empty() ) {
 			group.isMoving = false;
 			continue;
 		}
@@ -4356,14 +5472,14 @@ void SVG_Crowd_Frame( void ) {
 		const bool serializedEgressPending = SVG_Crowd_UpdateSerializedEgress( group );
 
 		// Compact formation slots if any squad member died during transit to eliminate vacant interior holes.
-		SVG_Crowd_CompactFormationSlotsOnMemberDeath( group, members );
+		SVG_Crowd_CompactFormationSlotsOnMemberDeath( group, s_crowd_frame_members );
 
 		// Dynamically untangle crossing trajectories and optimize slot assignments among members
-		SVG_Crowd_OptimizeSlotAssignments( group, members );
+		SVG_Crowd_OptimizeSlotAssignments( group, s_crowd_frame_members );
 
 		// Check member arrival states symmetrically and track stationary stall windows.
 		bool allArrived = true;
-		for ( svg_base_edict_t *member : members ) {
+		for ( svg_base_edict_t *member : s_crowd_frame_members ) {
 			const Vector3DP memberPos = SVG_GetEntityFeetOriginDP( member );
 			const Vector3DP slotPos( member->crowd.assignedGoalOrigin );
 			const Vector3DP toSlot = slotPos - memberPos;
@@ -4372,8 +5488,11 @@ void SVG_Crowd_Frame( void ) {
 			const double rawMemberRadius = static_cast<double>( member->maxs.x - member->mins.x ) * 0.5;
 			const double memberRadius = ( rawMemberRadius > 0.0 ) ? rawMemberRadius : CROWD_DEFAULT_AGENT_RADIUS;
 			const double memberArrivalFloor = std::min( configuredArrivalRadius, memberRadius * 0.75 );
-			const double enterArrivalRadius = group.hasSerializedIngress ? CROWD_INGRESS_ARRIVAL_RADIUS :
-				std::max( memberArrivalFloor, std::min( configuredArrivalRadius, std::min( slotSpacing * 0.35, memberRadius * 1.25 ) ) );
+			const auto *navMember = dynamic_cast<const svg_monster_base_t *>( member );
+			// Use the same physical threshold as movement; the manager cannot end an order outside its final event radius.
+			const double enterArrivalRadius = navMember != nullptr ? navMember->GetNavigationArrivalRadius() :
+				( group.hasSerializedIngress ? CROWD_INGRESS_ARRIVAL_RADIUS :
+				  std::max( memberArrivalFloor, std::min( configuredArrivalRadius, std::min( slotSpacing * 0.35, memberRadius * 1.25 ) ) ) );
 			const double exitArrivalRadius = group.hasSerializedIngress ? enterArrivalRadius * 1.35 :
 				std::max( enterArrivalRadius, baseExitArrivalRadius );
 
@@ -4382,11 +5501,11 @@ void SVG_Crowd_Frame( void ) {
 			*	park far off-slot and permanently block the final ingress member.
 			**/
 			if ( member->crowd.reachedGoal ) {
-				if ( zDistToSlot > CROWD_ARRIVAL_MAX_Z_DIFF || distToSlot2D > exitArrivalRadius ) {
+				if ( zDistToSlot > CROWD_ARRIVAL_FLOOR_Z_TOLERANCE || distToSlot2D > exitArrivalRadius ) {
 					member->crowd.reachedGoal = false;
 					member->crowd.blockedStartTime = 0_ms;
 				}
-			} else if ( zDistToSlot <= CROWD_ARRIVAL_MAX_Z_DIFF && distToSlot2D <= enterArrivalRadius ) {
+			} else if ( zDistToSlot <= CROWD_ARRIVAL_FLOOR_Z_TOLERANCE && distToSlot2D <= enterArrivalRadius ) {
 				member->crowd.reachedGoal = true;
 				member->crowd.blockedStartTime = 0_ms;
 			} else {
@@ -4440,7 +5559,7 @@ void SVG_Crowd_Frame( void ) {
 				//! Debounce interval for stalled static-order deadlock resolution passes.
 				static constexpr QMTime CROWD_STATIC_STALLED_RESOLVE_INTERVAL = 200_ms;
 				if ( level.time >= group.nextUpdateTick ) {
-					if ( SVG_Crowd_ResolveStalledMemberOcclusion( group, members, baseEnterArrivalRadius ) ) {
+					if ( SVG_Crowd_ResolveStalledMemberOcclusion( group, s_crowd_frame_members, baseEnterArrivalRadius ) ) {
 						group.nextUpdateTick = level.time + CROWD_STATIC_STALLED_RESOLVE_INTERVAL;
 					} else {
 						group.nextUpdateTick = level.time + CROWD_FOLLOW_REBUILD_MIN_INTERVAL;
@@ -4531,8 +5650,8 @@ void SVG_Crowd_DebugDraw( void ) {
 		}
 
 		// Draw link lines from members to their assigned slots.
-		std::vector<svg_base_edict_t*> members;
-		SVG_Crowd_GetCrowdMembers( group.crowdID, members );
+		s_crowd_frame_members.clear();
+		SVG_Crowd_GetCrowdMembers( group.crowdID, s_crowd_frame_members );
 
 		/**
 		*	Render the complete two-phase route graph so staging and final room-fill
@@ -4559,7 +5678,7 @@ void SVG_Crowd_DebugDraw( void ) {
 			}
 		}
 
-		for ( const svg_base_edict_t *member : members ) {
+		for ( const svg_base_edict_t *member : s_crowd_frame_members ) {
 			if ( member->crowd.slotIndex >= 0 && member->crowd.slotIndex < static_cast<int32_t>( group.slots.size() ) ) {
 				const Vector3 assignedGoal = member->crowd.assignedGoalOrigin;
 				const Vector3 slotPos = QM_Vector3FromDP( group.slots[ member->crowd.slotIndex ].worldPosition );

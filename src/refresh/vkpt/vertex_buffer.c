@@ -822,117 +822,161 @@ static void write_model_vbo_descriptor(int index, VkBuffer buffer, VkDeviceSize 
 	vkUpdateDescriptorSets(qvk.device, 1, &write_descriptor_set, 0, NULL);
 }
 
-static void destroy_model_vbo(model_vbo_t* vbo)
-{
-	vkpt_destroy_model_geometry(&vbo->geom_opaque);
-	vkpt_destroy_model_geometry(&vbo->geom_transparent);
-	vkpt_destroy_model_geometry(&vbo->geom_masked);
+/**
+*	@brief	Destroy all GPU buffers, single-frame static BLASes, and per-frame static BLAS arrays owned by a model VBO.
+*	@param	vbo	Pointer to the model VBO structure to destroy and zero-initialize.
+**/
+static void destroy_model_vbo( model_vbo_t *vbo ) {
+	/**
+	*	Destroy standard single-frame static BLAS geometries.
+	**/
+	// Destroy opaque geometry acceleration structure.
+	vkpt_destroy_model_geometry( &vbo->geom_opaque );
+	// Destroy transparent geometry acceleration structure.
+	vkpt_destroy_model_geometry( &vbo->geom_transparent );
+	// Destroy masked geometry acceleration structure.
+	vkpt_destroy_model_geometry( &vbo->geom_masked );
 
-	buffer_destroy(&vbo->buffer);
-	buffer_destroy(&vbo->staging_buffer);
-	
-	memset(vbo, 0, sizeof(model_vbo_t));
+	/**
+	*	Destroy per-frame static BLAS arrays allocated for variable-topology models (.abc).
+	**/
+	// Check if per-frame BLAS arrays were allocated for this VBO.
+	if ( vbo->num_blas_frames > 0 ) {
+		// Iterate over each frame's BLAS set and release Vulkan acceleration structures.
+		for ( uint32_t f = 0; f < vbo->num_blas_frames; f++ ) {
+			// Destroy opaque geometry for frame f if allocated.
+			if ( vbo->geom_opaque_frames ) {
+				vkpt_destroy_model_geometry( &vbo->geom_opaque_frames[ f ] );
+			}
+			// Destroy transparent geometry for frame f if allocated.
+			if ( vbo->geom_transparent_frames ) {
+				vkpt_destroy_model_geometry( &vbo->geom_transparent_frames[ f ] );
+			}
+			// Destroy masked geometry for frame f if allocated.
+			if ( vbo->geom_masked_frames ) {
+				vkpt_destroy_model_geometry( &vbo->geom_masked_frames[ f ] );
+			}
+		}
+		// Free the per-frame geometry descriptor arrays.
+		Z_Freep( (void **)&vbo->geom_opaque_frames );
+		Z_Freep( (void **)&vbo->geom_transparent_frames );
+		Z_Freep( (void **)&vbo->geom_masked_frames );
+	}
+
+	/**
+	*	Destroy device and staging buffers and clear VBO state.
+	**/
+	// Destroy device-local buffer.
+	buffer_destroy( &vbo->buffer );
+	// Destroy host-visible staging buffer if still present.
+	buffer_destroy( &vbo->staging_buffer );
+
+	// Zero-initialize the model VBO struct.
+	memset( vbo, 0, sizeof( model_vbo_t ) );
 }
 
-static void
-stage_mesh_primitives(uint8_t* staging_data, int* p_write_ptr, float** p_vertex_write_ptr, const model_t* model, const maliasmesh_t* m)
-{
-	int write_ptr = *p_write_ptr;
-	float* vertex_write_ptr = *p_vertex_write_ptr;
+/**
+*	@brief	Stage all animation frames of a single alias mesh into VboPrimitive and static BLAS position buffers.
+*	@param	staging_data		Mapped pointer to the base of the staging buffer.
+*	@param	p_write_ptr			[in,out] Running primitive index across the model VBO.
+*	@param	p_vertex_write_ptr	[in,out] Running float pointer into the static BLAS vertex position section (may be NULL).
+*	@param	model				Source model containing frame count.
+*	@param	m					Mesh whose triangles are being staged.
+**/
+static void stage_mesh_primitives( uint8_t *staging_data, int32_t *p_write_ptr, float **p_vertex_write_ptr, const model_t *model, maliasmesh_t *m ) {
+	/**
+	*	Load running write cursors from caller.
+	**/
+	// Current primitive index in the VBO.
+	int32_t write_ptr = *p_write_ptr;
+	// Current float pointer for static BLAS raw triangle positions.
+	float *vertex_write_ptr = *p_vertex_write_ptr;
+	// Determine whether this mesh uses variable-topology per-frame slices (.abc).
+	const bool is_variable_topology = ( m->frame_numtris != NULL );
 
-	for (int frame = 0; frame < model->numframes; frame++)
-	{
-		for (int tri = 0; tri < m->numtris; tri++)
-		{
-			VboPrimitive* dst = (VboPrimitive*)staging_data + write_ptr;
+	/**
+	*	Iterate over all animation frames and pack each triangle into VboPrimitive
+	*	(plus raw 3x3 float positions when building static BLASes).
+	**/
+	// Loop over every animation frame in the model.
+	for ( int32_t frame = 0; frame < model->numframes; frame++ ) {
+		// Determine triangle count, index offset, and vertex offset for this frame.
+		const int32_t frame_numtris = is_variable_topology ? m->frame_numtris[ frame ] : m->numtris;
+		const int32_t ioffset = is_variable_topology ? m->frame_index_offsets[ frame ] : 0;
+		const int32_t voffset = is_variable_topology ? m->frame_vert_offsets[ frame ] : ( frame * m->numverts );
 
-			int i0 = m->indices[tri * 3 + 0];
-			int i1 = m->indices[tri * 3 + 1];
-			int i2 = m->indices[tri * 3 + 2];
+		// Record the starting primitive offset for this frame on variable-topology meshes.
+		if ( is_variable_topology && m->frame_tri_offsets ) {
+			m->frame_tri_offsets[ frame ] = write_ptr;
+		}
 
-			i0 += frame * m->numverts;
-			i1 += frame * m->numverts;
-			i2 += frame * m->numverts;
+		// Pack all triangles belonging to this frame.
+		for ( int32_t tri = 0; tri < frame_numtris; tri++ ) {
+			// Destination VboPrimitive in the staging buffer.
+			VboPrimitive *dst = (VboPrimitive *)staging_data + write_ptr;
 
-			VectorCopy(m->positions[i0], dst->pos0);
-			VectorCopy(m->positions[i1], dst->pos1);
-			VectorCopy(m->positions[i2], dst->pos2);
+			// Fetch local vertex indices for this triangle.
+			int32_t i0 = m->indices[ ioffset + tri * 3 + 0 ] + voffset;
+			int32_t i1 = m->indices[ ioffset + tri * 3 + 1 ] + voffset;
+			int32_t i2 = m->indices[ ioffset + tri * 3 + 2 ] + voffset;
 
-			if (vertex_write_ptr)
-			{
-				VectorCopy(m->positions[i0], vertex_write_ptr); vertex_write_ptr += 3;
-				VectorCopy(m->positions[i1], vertex_write_ptr); vertex_write_ptr += 3;
-				VectorCopy(m->positions[i2], vertex_write_ptr); vertex_write_ptr += 3;
+			// Copy vertex positions into the VboPrimitive.
+			VectorCopy( m->positions[ i0 ], dst->pos0 );
+			VectorCopy( m->positions[ i1 ], dst->pos1 );
+			VectorCopy( m->positions[ i2 ], dst->pos2 );
+
+			// Also write contiguous 3x vec3 positions for static BLAS geometry build input.
+			if ( vertex_write_ptr ) {
+				VectorCopy( m->positions[ i0 ], vertex_write_ptr );
+				vertex_write_ptr += 3;
+				VectorCopy( m->positions[ i1 ], vertex_write_ptr );
+				vertex_write_ptr += 3;
+				VectorCopy( m->positions[ i2 ], vertex_write_ptr );
+				vertex_write_ptr += 3;
 			}
 
-			dst->normals[0] = encode_normal(m->normals[i0]);
-			dst->normals[1] = encode_normal(m->normals[i1]);
-			dst->normals[2] = encode_normal(m->normals[i2]);
-			
-			dst->tangents[0] = encode_normal(m->tangents[i0]);
-			dst->tangents[1] = encode_normal(m->tangents[i1]);
-			dst->tangents[2] = encode_normal(m->tangents[i2]);
+			// Encode oct/spherical normals for the three triangle vertices.
+			dst->normals[ 0 ] = encode_normal( m->normals[ i0 ] );
+			dst->normals[ 1 ] = encode_normal( m->normals[ i1 ] );
+			dst->normals[ 2 ] = encode_normal( m->normals[ i2 ] );
 
-			dst->uv0[0] = m->tex_coords[i0][0];
-			dst->uv0[1] = m->tex_coords[i0][1];
-			dst->uv1[0] = m->tex_coords[i1][0];
-			dst->uv1[1] = m->tex_coords[i1][1];
-			dst->uv2[0] = m->tex_coords[i2][0];
-			dst->uv2[1] = m->tex_coords[i2][1];
+			// Encode oct/spherical tangents for the three triangle vertices.
+			dst->tangents[ 0 ] = encode_normal( m->tangents[ i0 ] );
+			dst->tangents[ 1 ] = encode_normal( m->tangents[ i1 ] );
+			dst->tangents[ 2 ] = encode_normal( m->tangents[ i2 ] );
 
-			if (m->blend_indices && m->blend_weights)
-			{
-				dst->custom0[0] = m->blend_indices[i0];
-				dst->custom0[1] = m->blend_weights[i0];
-				dst->custom1[0] = m->blend_indices[i1];
-				dst->custom1[1] = m->blend_weights[i1];
-				dst->custom2[0] = m->blend_indices[i2];
-				dst->custom2[1] = m->blend_weights[i2];
+			// Copy texture coordinates for the three triangle vertices.
+			dst->uv0[ 0 ] = m->tex_coords[ i0 ][ 0 ];
+			dst->uv0[ 1 ] = m->tex_coords[ i0 ][ 1 ];
+			dst->uv1[ 0 ] = m->tex_coords[ i1 ][ 0 ];
+			dst->uv1[ 1 ] = m->tex_coords[ i1 ][ 1 ];
+			dst->uv2[ 0 ] = m->tex_coords[ i2 ][ 0 ];
+			dst->uv2[ 1 ] = m->tex_coords[ i2 ][ 1 ];
+
+			// Copy skeletal blend indices and weights if present (IQM models).
+			if ( m->blend_indices && m->blend_weights ) {
+				dst->custom0[ 0 ] = m->blend_indices[ i0 ];
+				dst->custom0[ 1 ] = m->blend_weights[ i0 ];
+				dst->custom1[ 0 ] = m->blend_indices[ i1 ];
+				dst->custom1[ 1 ] = m->blend_weights[ i1 ];
+				dst->custom2[ 0 ] = m->blend_indices[ i2 ];
+				dst->custom2[ 1 ] = m->blend_weights[ i2 ];
 			}
 
+			// Initialize emissive/alpha factors to (1.0f, 1.0f) in IEEE-754 half-float and cluster to -1.
 			dst->emissive_and_alpha = 0x3c003c00; // (1.0f, 1.0f)
 			dst->cluster = -1;
 
+			// Advance primitive write cursor.
 			++write_ptr;
 		}
 	}
-	
+
+	/**
+	*	Commit updated write cursors back to caller.
+	**/
 	*p_write_ptr = write_ptr;
 	*p_vertex_write_ptr = vertex_write_ptr;
-
-#if 0
-	for (int j = 0; j < num_verts; j++)
-		Com_Printf("%f %f %f\n",
-			m->positions[j][0],
-			m->positions[j][1],
-			m->positions[j][2]);
-
-	for (int j = 0; j < m->numtris; j++)
-		Com_Printf("%d %d %d\n",
-			m->indices[j * 3 + 0],
-			m->indices[j * 3 + 1],
-			m->indices[j * 3 + 2]);
-#endif
-
-#if 0
-	char buf[1024];
-	snprintf(buf, sizeof buf, "model_%04d.obj", i);
-	FILE* f = fopen(buf, "wb+");
-	assert(f);
-	for (int j = 0; j < m->numverts; j++) {
-		fprintf(f, "v %f %f %f\n",
-			m->positions[j][0],
-			m->positions[j][1],
-			m->positions[j][2]);
-	}
-	for (int j = 0; j < m->numindices / 3; j++) {
-		fprintf(f, "f %d %d %d\n",
-			m->indices[j * 3 + 0] + 1,
-			m->indices[j * 3 + 1] + 1,
-			m->indices[j * 3 + 2] + 1);
-	}
-	fclose(f);
-#endif
 }
 
 void vkpt_vertex_buffer_invalidate_static_model_vbos(int material_index)
@@ -974,232 +1018,320 @@ void vkpt_vertex_buffer_invalidate_static_model_vbos(int material_index)
 	}
 }
 
-VkResult
-vkpt_vertex_buffer_upload_models()
-{
+/**
+*	@brief	Upload all registered alias/Alembic models to GPU VBOs and build static BLAS acceleration structures.
+*	@return	VK_SUCCESS on completion.
+**/
+VkResult vkpt_vertex_buffer_upload_models( void ) {
+	/**
+	*	First pass: allocate VBOs, suballocate BLAS storage, and populate host staging buffers
+	*	for any newly registered or invalidated models.
+	**/
+	// Track whether any models require a transfer + BLAS build command buffer submission.
 	bool any_models_to_upload = false;
 
-	for(int i = 0; i < MAX_MODELS; i++)
-	{
-		const model_t* model = &r_models[i];
-		model_vbo_t* vbo = model_vertex_data + i;
+	// Iterate over all model slots.
+	for ( int32_t i = 0; i < MAX_MODELS; i++ ) {
+		const model_t *model = &r_models[ i ];
+		model_vbo_t *vbo = model_vertex_data + i;
 
-		if (!model->meshes && vbo->buffer.buffer) {
-			// model unloaded, destroy the VBO
-			write_model_vbo_descriptor(i, null_buffer.buffer, null_buffer.size);
-			destroy_model_vbo(vbo);
-			//Com_Printf("Unloaded model[%d]\n", i);
+		// If the model was unloaded but its GPU VBO still exists, destroy the VBO.
+		if ( !model->meshes && vbo->buffer.buffer ) {
+			write_model_vbo_descriptor( i, null_buffer.buffer, null_buffer.size );
+			destroy_model_vbo( vbo );
 			continue;
 		}
 
-		if(!model->meshes) {
-			// model does not exist
+		// Skip empty model slots.
+		if ( !model->meshes ) {
 			continue;
 		}
 
-		if (model->registration_sequence <= vbo->registration_sequence && vbo->buffer.buffer) {
-			// VBO is valid, nothing to do
+		// Skip models whose VBO is already up-to-date.
+		if ( model->registration_sequence <= vbo->registration_sequence && vbo->buffer.buffer ) {
 			continue;
 		}
 
-		// Destroy the old buffers if they exist.
-		// This may happen when a model is unloaded and then another model
-		// is loaded in the same slot when changing a map.
-		destroy_model_vbo(vbo);
+		// Destroy any previous VBO resources occupying this slot.
+		destroy_model_vbo( vbo );
+		memset( vbo, 0, sizeof( model_vbo_t ) );
 
-		memset(vbo, 0, sizeof(model_vbo_t));
+		assert( model->numframes > 0 );
 
-        assert(model->numframes > 0);
-
-		bool model_is_static = model->numframes == 1 && (!model->skmData || !model->skmData->blend_indices);
+		/**
+		*	Determine whether this model uses static BLAS acceleration structures:
+		*	- Variable-topology stop-motion models (.abc) build 1 static BLAS per frame.
+		*	- Single-frame non-skinned models build 1 static BLAS for the model.
+		**/
+		const bool is_variable_topology = ( model->nummeshes > 0 && model->meshes[ 0 ].frame_numtris != NULL );
+		const bool model_is_static = is_variable_topology || ( model->numframes == 1 && ( !model->skmData || !model->skmData->blend_indices ) );
 		vbo->is_static = model_is_static;
 		vbo->total_tris = 0;
 
-		if (model_is_static)
-		{
-			// Count the geometries of all supported kinds
+		/**
+		*	Count opaque, transparent, and masked meshes for static BLAS geometry initialization.
+		**/
+		uint32_t geom_count_opaque = 0;
+		uint32_t geom_count_transparent = 0;
+		uint32_t geom_count_masked = 0;
 
-			uint32_t geom_count_opaque = 0;
-			uint32_t geom_count_transparent = 0;
-			uint32_t geom_count_masked = 0;
+		if ( model_is_static ) {
+			// Count mesh categories across all submeshes in the model.
+			for ( int32_t nmesh = 0; nmesh < model->nummeshes; nmesh++ ) {
+				maliasmesh_t *m = model->meshes + nmesh;
 
-			for (int nmesh = 0; nmesh < model->nummeshes; nmesh++)
-			{
-				maliasmesh_t* m = model->meshes + nmesh;
-
-				if (MAT_IsTransparent(m->materials[0]->flags))
-				{
+				if ( MAT_IsTransparent( m->materials[ 0 ]->flags ) ) {
 					++geom_count_transparent;
-				}
-				else if (MAT_IsMasked(m->materials[0]->flags))
-				{
+				} else if ( MAT_IsMasked( m->materials[ 0 ]->flags ) ) {
 					++geom_count_masked;
-				}
-				else
-				{
+				} else {
 					++geom_count_opaque;
 				}
 			}
 
-			vkpt_init_model_geometry(&vbo->geom_opaque, geom_count_opaque);
-			vkpt_init_model_geometry(&vbo->geom_transparent, geom_count_transparent);
-			vkpt_init_model_geometry(&vbo->geom_masked, geom_count_masked);
-		}
+			// Allocate either per-frame static BLAS arrays (.abc) or single-frame static BLAS structs.
+			if ( is_variable_topology ) {
+				vbo->num_blas_frames = (uint32_t)model->numframes;
+				vbo->geom_opaque_frames = (model_geometry_t *)Z_Mallocz( sizeof( model_geometry_t ) * vbo->num_blas_frames );
+				vbo->geom_transparent_frames = (model_geometry_t *)Z_Mallocz( sizeof( model_geometry_t ) * vbo->num_blas_frames );
+				vbo->geom_masked_frames = (model_geometry_t *)Z_Mallocz( sizeof( model_geometry_t ) * vbo->num_blas_frames );
 
-		// Count the triangles and create the geometry descriptors for static geometries.
-		// *Note*: the descriptor creation depends on the running value of vbo->total_tris.
-		for (int nmesh = 0; nmesh < model->nummeshes; nmesh++)
-		{
-			maliasmesh_t *m = model->meshes + nmesh;
-
-			if (model_is_static)
-			{
-				if (MAT_IsTransparent(m->materials[0]->flags))
-				{
-					vkpt_append_model_geometry(&vbo->geom_transparent, m->numtris, vbo->total_tris, model->name);
+				// Initialize geometry lists for each frame in the stop-motion sequence.
+				for ( uint32_t f = 0; f < vbo->num_blas_frames; f++ ) {
+					vkpt_init_model_geometry( &vbo->geom_opaque_frames[ f ], geom_count_opaque );
+					vkpt_init_model_geometry( &vbo->geom_transparent_frames[ f ], geom_count_transparent );
+					vkpt_init_model_geometry( &vbo->geom_masked_frames[ f ], geom_count_masked );
 				}
-				else if (MAT_IsMasked(m->materials[0]->flags))
-				{
-					vkpt_append_model_geometry(&vbo->geom_masked, m->numtris, vbo->total_tris, model->name);
-				}
-				else
-				{
-					vkpt_append_model_geometry(&vbo->geom_opaque, m->numtris, vbo->total_tris, model->name);
-				}
+			} else {
+				vkpt_init_model_geometry( &vbo->geom_opaque, geom_count_opaque );
+				vkpt_init_model_geometry( &vbo->geom_transparent, geom_count_transparent );
+				vkpt_init_model_geometry( &vbo->geom_masked, geom_count_masked );
 			}
-
-			vbo->total_tris += m->numtris * model->numframes;
 		}
 
+		/**
+		*	Count total triangles across all meshes/frames and append static BLAS geometry ranges.
+		**/
+		for ( int32_t nmesh = 0; nmesh < model->nummeshes; nmesh++ ) {
+			maliasmesh_t *m = model->meshes + nmesh;
+			m->tri_offset = (int32_t)vbo->total_tris;
+
+			if ( is_variable_topology ) {
+				// Variable-topology mesh: each frame f has m->frame_numtris[f] triangles.
+				for ( int32_t f = 0; f < model->numframes; f++ ) {
+					const uint32_t frame_tris = (uint32_t)m->frame_numtris[ f ];
+					const uint32_t frame_tri_offset = vbo->total_tris;
+					m->frame_tri_offsets[ f ] = (int32_t)frame_tri_offset;
+
+					// Append non-empty frame geometry to the corresponding per-frame BLAS category.
+					if ( frame_tris > 0 ) {
+						if ( MAT_IsTransparent( m->materials[ 0 ]->flags ) ) {
+							vkpt_append_model_geometry( &vbo->geom_transparent_frames[ f ], frame_tris, frame_tri_offset, model->name );
+						} else if ( MAT_IsMasked( m->materials[ 0 ]->flags ) ) {
+							vkpt_append_model_geometry( &vbo->geom_masked_frames[ f ], frame_tris, frame_tri_offset, model->name );
+						} else {
+							vkpt_append_model_geometry( &vbo->geom_opaque_frames[ f ], frame_tris, frame_tri_offset, model->name );
+						}
+					}
+
+					// Advance running triangle count by this frame's triangle count.
+					vbo->total_tris += frame_tris;
+				}
+			} else {
+				// Standard fixed-topology mesh.
+				if ( model_is_static ) {
+					if ( MAT_IsTransparent( m->materials[ 0 ]->flags ) ) {
+						vkpt_append_model_geometry( &vbo->geom_transparent, m->numtris, vbo->total_tris, model->name );
+					} else if ( MAT_IsMasked( m->materials[ 0 ]->flags ) ) {
+						vkpt_append_model_geometry( &vbo->geom_masked, m->numtris, vbo->total_tris, model->name );
+					} else {
+						vkpt_append_model_geometry( &vbo->geom_opaque, m->numtris, vbo->total_tris, model->name );
+					}
+				}
+
+				// Advance running triangle count across all frames of the fixed-topology mesh.
+				vbo->total_tris += m->numtris * model->numframes;
+			}
+		}
+
+		/**
+		*	Compute VBO and staging buffer sizes and suballocate BLAS storage inside vbo->buffer.
+		**/
 		vbo->vertex_data_offset = 0;
 
-		size_t vbo_size = vbo->total_tris * sizeof(VboPrimitive);
+		// Ensure non-zero buffer allocation even if a model has 0 triangles across all frames.
+		const uint32_t alloc_tris = ( vbo->total_tris > 0 ) ? vbo->total_tris : 1;
+		size_t vbo_size = (size_t)alloc_tris * sizeof( VboPrimitive );
 		size_t staging_size = vbo_size;
-		
-		if (model_is_static)
-		{
+
+		if ( model_is_static ) {
 			vbo->vertex_data_offset = vbo_size;
-			vbo_size += vbo->total_tris * sizeof(vec3) * 3;
+			vbo_size += (size_t)alloc_tris * sizeof( vec3 ) * 3;
 			staging_size = vbo_size;
 
-			suballocate_model_blas_memory(&vbo->geom_opaque, &vbo_size, model->name);
-			suballocate_model_blas_memory(&vbo->geom_masked, &vbo_size, model->name);
-			suballocate_model_blas_memory(&vbo->geom_transparent, &vbo_size, model->name);
+			// Suballocate BLAS memory at the end of vbo->buffer.
+			if ( is_variable_topology ) {
+				for ( uint32_t f = 0; f < vbo->num_blas_frames; f++ ) {
+					suballocate_model_blas_memory( &vbo->geom_opaque_frames[ f ], &vbo_size, model->name );
+					suballocate_model_blas_memory( &vbo->geom_masked_frames[ f ], &vbo_size, model->name );
+					suballocate_model_blas_memory( &vbo->geom_transparent_frames[ f ], &vbo_size, model->name );
+				}
+			} else {
+				suballocate_model_blas_memory( &vbo->geom_opaque, &vbo_size, model->name );
+				suballocate_model_blas_memory( &vbo->geom_masked, &vbo_size, model->name );
+				suballocate_model_blas_memory( &vbo->geom_transparent, &vbo_size, model->name );
+			}
 		}
 
-		const VkBufferUsageFlags accel_usage = 
+		/**
+		*	Create device-local VBO buffer, host-visible staging buffer, and Vulkan BLAS handles.
+		**/
+		const VkBufferUsageFlags accel_usage =
 			VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
 			VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR |
 			VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 
-		buffer_create(&vbo->buffer, vbo_size, 
+		buffer_create( &vbo->buffer, vbo_size,
 			VK_BUFFER_USAGE_TRANSFER_DST_BIT |
 			VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
 			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
-			(model_is_static ? accel_usage : 0),
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-		
-		buffer_create(&vbo->staging_buffer, staging_size,
+			( model_is_static ? accel_usage : 0 ),
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT );
+
+		buffer_create( &vbo->staging_buffer, staging_size,
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-			VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+			VK_MEMORY_PROPERTY_HOST_COHERENT_BIT );
 
-		ATTACH_LABEL_VARIABLE_NAME(vbo->buffer.buffer, BUFFER, model->name);
-		ATTACH_LABEL_VARIABLE_NAME(vbo->buffer.memory, DEVICE_MEMORY, model->name);
+		ATTACH_LABEL_VARIABLE_NAME( vbo->buffer.buffer, BUFFER, model->name );
+		ATTACH_LABEL_VARIABLE_NAME( vbo->buffer.memory, DEVICE_MEMORY, model->name );
 
-		if (model_is_static)
-		{
-			char name[MAX_QPATH + 16];
+		if ( model_is_static ) {
+			char name[ MAX_QPATH + 32 ];
 
-			Q_snprintf(name, sizeof(name), "%s:opaque", model->name);
-			create_model_blas(&vbo->geom_opaque, vbo->buffer.buffer, name);
+			if ( is_variable_topology ) {
+				// Create Vulkan acceleration structure objects for each frame f.
+				for ( uint32_t f = 0; f < vbo->num_blas_frames; f++ ) {
+					Q_snprintf( name, sizeof( name ), "%s:f%u:opaque", model->name, f );
+					create_model_blas( &vbo->geom_opaque_frames[ f ], vbo->buffer.buffer, name );
 
-			Q_snprintf(name, sizeof(name), "%s:masked", model->name);
-			create_model_blas(&vbo->geom_masked, vbo->buffer.buffer, name);
+					Q_snprintf( name, sizeof( name ), "%s:f%u:masked", model->name, f );
+					create_model_blas( &vbo->geom_masked_frames[ f ], vbo->buffer.buffer, name );
 
-			Q_snprintf(name, sizeof(name), "%s:transparent", model->name);
-			create_model_blas(&vbo->geom_transparent, vbo->buffer.buffer, name);
+					Q_snprintf( name, sizeof( name ), "%s:f%u:transparent", model->name, f );
+					create_model_blas( &vbo->geom_transparent_frames[ f ], vbo->buffer.buffer, name );
+				}
+			} else {
+				Q_snprintf( name, sizeof( name ), "%s:opaque", model->name );
+				create_model_blas( &vbo->geom_opaque, vbo->buffer.buffer, name );
+
+				Q_snprintf( name, sizeof( name ), "%s:masked", model->name );
+				create_model_blas( &vbo->geom_masked, vbo->buffer.buffer, name );
+
+				Q_snprintf( name, sizeof( name ), "%s:transparent", model->name );
+				create_model_blas( &vbo->geom_transparent, vbo->buffer.buffer, name );
+			}
 		}
 
-		uint8_t* staging_data = buffer_map(&vbo->staging_buffer);
-		memset(staging_data, 0, vbo->staging_buffer.size);
-		int write_ptr = 0;
-		float* vertex_write_ptr = model_is_static ? (float*)(staging_data + vbo->vertex_data_offset) : NULL;
-		
-		for (int nmesh = 0; nmesh < model->nummeshes; nmesh++)
-		{
-			maliasmesh_t* m = model->meshes + nmesh;
-			
+		/**
+		*	Map staging buffer and pack all meshes' primitives and raw BLAS vertex positions.
+		**/
+		uint8_t *staging_data = buffer_map( &vbo->staging_buffer );
+		memset( staging_data, 0, vbo->staging_buffer.size );
+		int32_t write_ptr = 0;
+		float *vertex_write_ptr = model_is_static ? (float *)( staging_data + vbo->vertex_data_offset ) : NULL;
+
+		for ( int32_t nmesh = 0; nmesh < model->nummeshes; nmesh++ ) {
+			maliasmesh_t *m = model->meshes + nmesh;
+
 			m->tri_offset = write_ptr;
 
-			stage_mesh_primitives(staging_data, &write_ptr, &vertex_write_ptr, model, m);
+			stage_mesh_primitives( staging_data, &write_ptr, &vertex_write_ptr, model, m );
 		}
 
-		buffer_unmap(&vbo->staging_buffer);
+		buffer_unmap( &vbo->staging_buffer );
 
 		vbo->registration_sequence = model->registration_sequence;
 		any_models_to_upload = true;
 	}
 
-	if (any_models_to_upload)
-	{
-		VkCommandBuffer cmd_buf = vkpt_begin_command_buffer(&qvk.cmd_buffers_graphics);
+	/**
+	*	Second pass: record transfer copies and BLAS build commands for all staged models,
+	*	submit synchronously, release staging buffers, and update VBO storage buffer descriptors.
+	**/
+	if ( any_models_to_upload ) {
+		VkCommandBuffer cmd_buf = vkpt_begin_command_buffer( &qvk.cmd_buffers_graphics );
 
-		for (int i = 0; i < MAX_MODELS; i++)
-		{
-			model_vbo_t* vbo = model_vertex_data + i;
+		for ( int32_t i = 0; i < MAX_MODELS; i++ ) {
+			model_vbo_t *vbo = model_vertex_data + i;
 
-			if (vbo->staging_buffer.buffer)
-			{
+			if ( vbo->staging_buffer.buffer ) {
 				VkBufferCopy copyRegion = {
 					.size = vbo->staging_buffer.size
 				};
 
-				vkCmdCopyBuffer(cmd_buf, vbo->staging_buffer.buffer, vbo->buffer.buffer, 1, &copyRegion);
+				vkCmdCopyBuffer( cmd_buf, vbo->staging_buffer.buffer, vbo->buffer.buffer, 1, &copyRegion );
 
-				if (vbo->is_static)
-				{
-					BUFFER_BARRIER(cmd_buf,
+				if ( vbo->is_static ) {
+					BUFFER_BARRIER( cmd_buf,
 						.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
 						.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR | VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR,
 						.buffer = vbo->buffer.buffer,
 						.offset = 0,
-						.size = VK_WHOLE_SIZE);
+						.size = VK_WHOLE_SIZE );
 				}
 
-				build_model_blas(cmd_buf, &vbo->geom_opaque, vbo->vertex_data_offset, &vbo->buffer);
-				build_model_blas(cmd_buf, &vbo->geom_transparent, vbo->vertex_data_offset, &vbo->buffer);
-				build_model_blas(cmd_buf, &vbo->geom_masked, vbo->vertex_data_offset, &vbo->buffer);
+				if ( vbo->num_blas_frames > 0 ) {
+					// Build per-frame static BLASes and configure TLAS instance flags for each frame.
+					for ( uint32_t f = 0; f < vbo->num_blas_frames; f++ ) {
+						build_model_blas( cmd_buf, &vbo->geom_opaque_frames[ f ], vbo->vertex_data_offset, &vbo->buffer );
+						build_model_blas( cmd_buf, &vbo->geom_transparent_frames[ f ], vbo->vertex_data_offset, &vbo->buffer );
+						build_model_blas( cmd_buf, &vbo->geom_masked_frames[ f ], vbo->vertex_data_offset, &vbo->buffer );
 
-				vbo->geom_opaque.instance_mask = AS_FLAG_OPAQUE;
-				vbo->geom_opaque.instance_flags = VK_GEOMETRY_INSTANCE_FORCE_OPAQUE_BIT_KHR;
-				vbo->geom_opaque.sbt_offset = SBTO_OPAQUE;
+						vbo->geom_opaque_frames[ f ].instance_mask = AS_FLAG_OPAQUE;
+						vbo->geom_opaque_frames[ f ].instance_flags = VK_GEOMETRY_INSTANCE_FORCE_OPAQUE_BIT_KHR;
+						vbo->geom_opaque_frames[ f ].sbt_offset = SBTO_OPAQUE;
 
-				vbo->geom_transparent.instance_mask = AS_FLAG_TRANSPARENT;
-				vbo->geom_transparent.instance_flags = VK_GEOMETRY_INSTANCE_FORCE_OPAQUE_BIT_KHR;
-				vbo->geom_transparent.sbt_offset = SBTO_OPAQUE;
+						vbo->geom_transparent_frames[ f ].instance_mask = AS_FLAG_TRANSPARENT;
+						vbo->geom_transparent_frames[ f ].instance_flags = VK_GEOMETRY_INSTANCE_FORCE_OPAQUE_BIT_KHR;
+						vbo->geom_transparent_frames[ f ].sbt_offset = SBTO_OPAQUE;
 
-				vbo->geom_masked.instance_mask = AS_FLAG_OPAQUE;
-				vbo->geom_masked.instance_flags = VK_GEOMETRY_INSTANCE_FORCE_NO_OPAQUE_BIT_KHR | VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
-				vbo->geom_masked.sbt_offset = SBTO_MASKED;
+						vbo->geom_masked_frames[ f ].instance_mask = AS_FLAG_OPAQUE;
+						vbo->geom_masked_frames[ f ].instance_flags = VK_GEOMETRY_INSTANCE_FORCE_NO_OPAQUE_BIT_KHR | VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
+						vbo->geom_masked_frames[ f ].sbt_offset = SBTO_MASKED;
+					}
+				} else {
+					build_model_blas( cmd_buf, &vbo->geom_opaque, vbo->vertex_data_offset, &vbo->buffer );
+					build_model_blas( cmd_buf, &vbo->geom_transparent, vbo->vertex_data_offset, &vbo->buffer );
+					build_model_blas( cmd_buf, &vbo->geom_masked, vbo->vertex_data_offset, &vbo->buffer );
 
+					vbo->geom_opaque.instance_mask = AS_FLAG_OPAQUE;
+					vbo->geom_opaque.instance_flags = VK_GEOMETRY_INSTANCE_FORCE_OPAQUE_BIT_KHR;
+					vbo->geom_opaque.sbt_offset = SBTO_OPAQUE;
+
+					vbo->geom_transparent.instance_mask = AS_FLAG_TRANSPARENT;
+					vbo->geom_transparent.instance_flags = VK_GEOMETRY_INSTANCE_FORCE_OPAQUE_BIT_KHR;
+					vbo->geom_transparent.sbt_offset = SBTO_OPAQUE;
+
+					vbo->geom_masked.instance_mask = AS_FLAG_OPAQUE;
+					vbo->geom_masked.instance_flags = VK_GEOMETRY_INSTANCE_FORCE_NO_OPAQUE_BIT_KHR | VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
+					vbo->geom_masked.sbt_offset = SBTO_MASKED;
+				}
 			}
 		}
 
-		vkpt_submit_command_buffer_simple(cmd_buf, qvk.queue_graphics, true);
-		vkQueueWaitIdle(qvk.queue_graphics);
+		vkpt_submit_command_buffer_simple( cmd_buf, qvk.queue_graphics, true );
+		vkQueueWaitIdle( qvk.queue_graphics );
 
-		for (int i = 0; i < MAX_MODELS; i++)
-		{
-			model_vbo_t* vbo = model_vertex_data + i;
+		for ( int32_t i = 0; i < MAX_MODELS; i++ ) {
+			model_vbo_t *vbo = model_vertex_data + i;
 
-			if (vbo->staging_buffer.buffer)
-			{
-				buffer_destroy(&vbo->staging_buffer);
+			if ( vbo->staging_buffer.buffer ) {
+				buffer_destroy( &vbo->staging_buffer );
 
 				// Just uploaded - create the descriptor, but after vkQueueWaitIdle:
 				// otherwise, the descriptor set might be still in use by in-flight shaders.
-				write_model_vbo_descriptor(i, vbo->buffer.buffer, vbo->buffer.size);
+				write_model_vbo_descriptor( i, vbo->buffer.buffer, vbo->buffer.size );
 			}
 		}
 	}

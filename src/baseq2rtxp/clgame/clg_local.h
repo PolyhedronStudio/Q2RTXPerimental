@@ -95,6 +95,11 @@ extern cvar_t *cl_predict;
 extern cvar_t *cl_nolerp;
 extern cvar_t *clg_footsteps;
 
+//! Master toggle for monster animation level of detail (LOD) and distance throttling.
+extern cvar_t *clg_anim_lod_enable;
+//! Distance threshold beyond which monsters use quantized animation LOD instead of full-rate subframe interpolation.
+extern cvar_t *clg_anim_lod_distance;
+
 // Cheesy workaround for various cvars initialized elsewhere in the client, but we need access.
 extern cvar_t *cvar_pt_particle_emissive; // from client FX_Init
 extern cvar_t *cl_particle_num_factor; // from client FX_Init
@@ -315,6 +320,8 @@ typedef struct centity_s {
 	skm_transform_t *bonePoseCache[ SKM_BODY_MAX ] = {};		//! For the current animation(s).
 	skm_transform_t *lastBonePoseCache[ SKM_BODY_MAX ] = {}; //! For the last animation(s).
 	skm_transform_t *eventBonePoseCache[ SKM_BODY_MAX ] = {};//! For the event animation(s).
+	//! Working blend layers for faux animation compositing. (Live states tracked across frames.)
+	sg_skm_blend_layer_t fauxAnimationLayers[ SKM_MAX_BLEND_LAYERS ] = {};
 
 
 	/**

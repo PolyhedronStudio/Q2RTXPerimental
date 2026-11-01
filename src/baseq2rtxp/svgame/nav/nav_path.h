@@ -1,6 +1,9 @@
 #pragma once
 
 #include "svgame/nav/nav_types.h"
+#include "svgame/nav/nav_waypoint.h"
+#include "svgame/nav/nav_movement_geometry.h"
+#include "svgame/memory/svg_containers.h"
 
 //! Maximum legal step height for the path policy.
 static constexpr float NAV_MAX_STEP_SIZE = 18.25f;
@@ -152,6 +155,9 @@ static constexpr double NAV_ABSOLUTE_MIN_PORTAL_PASSAGE_WIDTH = 20.0;
 //! Vertical downward offset used when attempting KD-leaf face lookups at feet level during corner standoff tests.
 static constexpr double NAV_STANDOFF_FEET_SNAP_OFFSET_Z = 18.0;
 
+//! Maximum generated candidate step topology; each caller still enforces its own smaller native rise/drop policy.
+static constexpr double NAV_MAX_TOPOLOGY_STEP_HEIGHT = 32.0;
+
 //! Default maximum step-up height for kinematic physical probing.
 static constexpr float NAV_PROBE_DEFAULT_MAX_STEP_HEIGHT = 18.25f;
 //! Default maximum drop-down height for kinematic physical probing.
@@ -166,6 +172,8 @@ static constexpr double NAV_PROBE_ARRIVAL_TOLERANCE_RATIO_SQR = NAV_PROBE_ARRIVA
 struct nav_halfedge_t;
 //! Forward declaration of monster base edict for path evaluation callback.
 struct svg_monster_base_t;
+//! Caller-owned native scratch is defined separately from the compatibility path API.
+struct svg_nav_route_context_t;
 
 //! Callback signature for custom edge traversal cost evaluation during A* pathfinding.
 //! @param fromFaceIdx Index of face being traversed from.
@@ -315,6 +323,8 @@ struct nav_path_diagnostics_t {
 	bool route_found = false;
 	//! Whether the query indices were valid.
 	bool query_valid = false;
+	//! Completed graph cost used by opt-in synchronous/context parity (weighted search, not an optimality claim).
+	double graph_cost = 0.0;
 	//! Number of unique faces expanded by A*.
 	int32_t expanded_faces = 0;
 	//! Number of transitions that passed all traversal checks.
@@ -331,11 +341,24 @@ struct nav_path_diagnostics_t {
 	int32_t rejected_step_height = 0;
 	//! Number of transitions rejected because the downward drop is too high.
 	int32_t rejected_drop_height = 0;
+	//! Bounded refinement fallback outcome: 0 unused, 1 searching, 2 repaired, 3 no connection, 4 work limit, 5 stitch failure, 6 start support.
+	uint32_t repair_status = 0;
+	//! Maximum local candidate nodes and cumulative edge/sample work for the explicit query.
+	uint32_t repair_nodes = 0, repair_edges = 0, repair_samples = 0;
+	//! Original obligation span currently searched or rejected, for read-only route diagnosis.
+	uint32_t repair_first = 0, repair_last = 0;
+	//! Exact original endpoint pair for the active obligation span.
+	Vector3DP repair_start = {}, repair_goal = {};
 };
 
 /**
  *	@brief	Print the most recent A* rejection summary once.
  *	@note	Intended for the existing `nav_dbg_test` command after a failed route.
+**/
+nav_path_diagnostics_t Nav_CopyLastPathDiagnosticsMainThread( void );
+
+/**
+*	@brief	Print the owner-side compatibility diagnostic copy on explicit request.
 **/
 void Nav_LogLastPathDiagnostics( void );
 
@@ -477,6 +500,104 @@ void Nav_RaycastRoomBoundary2D( const Vector3DP &anchor, const double maxRadius,
 bool Nav_HasGeometricLineOfSight2D( const Vector3DP &p0, const Vector3DP &p1, const double clearanceMargin = 0.0 );
 
 /**
+*	@brief	Reason returned by strict closed-segment boundary clearance.
+**/
+enum class nav_clearance_reason_t : uint8_t {
+	clear,
+	invalid_input,
+	cache_unavailable,
+	boundary_contact
+};
+
+/**
+*	@brief	Revision-tagged geometric result; this does not prove physical support.
+**/
+struct nav_segment_clearance_t {
+	//! Fail closed until all relevant boundary segments have been checked.
+	nav_clearance_reason_t reason = nav_clearance_reason_t::invalid_input;
+	//! Minimum XY clearance among height-filtered cached edges.
+	double minimum_clearance = 0.0;
+	//! Closest edge in the obstacle cache, meaningful only at the recorded revisions.
+	int32_t witness_edge = -1;
+	//! Owned nearest boundary endpoints for explicit diagnostics at the recorded revision.
+	Vector3DP witness_start = {}, witness_end = {};
+	//! Mesh generation owning the witness.
+	uint64_t mesh_generation = 0;
+	//! Topology revision owning the witness.
+	uint64_t topology_revision = 0;
+};
+
+/**
+*	@brief	Check full closed-segment clearance without permissive endpoint exemptions.
+*	@param	p0	Exact start in navigation feet space.
+*	@param	p1	Exact end in navigation feet space.
+*	@param	clearance	Native planar radius plus nonnegative policy margin.
+*	@return	Reason, minimum clearance, closest cached edge and revision identity.
+*	@note	Main-thread reference, O(E); requires a prepared current cache. Does not build
+*			caches, establish containment, check actors, or prove 3D hull/support safety.
+**/
+nav_segment_clearance_t Nav_TestSegmentClearance( const Vector3DP &p0, const Vector3DP &p1, const double clearance );
+/**
+*	@brief	Defined installation outcome for complete route hull/containment/support verification.
+**/
+enum class nav_route_reason_t : uint8_t {
+	clear, invalid_input, invalid_start, invalid_goal, unsafe_segment, native_failure, work_limit, semantic_failure
+};
+/**
+*	@brief	Owned route validation evidence; dynamic actors are rechecked on every live command.
+**/
+struct nav_route_validation_t {
+	//! Fail-closed route installation status.
+	nav_route_reason_t reason = nav_route_reason_t::invalid_input;
+	//! Exact retained link rejected, or -1 for an endpoint/input failure.
+	int32_t segment = -1;
+	//! Full closed-segment static boundary decision and closest witness.
+	nav_segment_clearance_t geometric;
+	//! Native support/progress rejection reason.
+	svg_nav_movement_reason_t physical = svg_nav_movement_reason_t::invalid_input;
+	//! Count of internal native traces and supported continuation samples.
+	uint32_t traces = 0, samples = 0;
+	//! Total authored XY route length and measured minimum flat static clearance.
+	double length = 0.0, minimum_clearance = std::numeric_limits<double>::infinity();
+	//! Owned supported native feet endpoint reached by verification.
+	Vector3DP supported_endpoint = {};
+};
+/**
+*	@brief	Native contact probe for an exact navigation-surface goal.
+*	@note	The probe does not replace the requested route endpoint or change hull radius.
+**/
+struct nav_goal_support_t {
+	//! Feet position used solely for native stationary support classification.
+	Vector3DP probe = {};
+	//! Analytical slope offset from literal nav surface to supported native feet.
+	double offset = 0.0;
+	//! Whether the exact goal is on the navigation surface within reporting tolerance.
+	bool surface = false;
+};
+/**
+*	@brief	Resolve the bounded contact probe shared by production and fixture goal validation.
+*	@param	feet	Exact requested destination in feet space.
+*	@param	radius	Unchanged native planar hull radius.
+*	@param	shape	Explicit analytical capsule/cylinder shape.
+*	@return	A support probe and slope offset; callers must still validate native collision/support.
+**/
+nav_goal_support_t Nav_ResolveHullGoalSupport( const Vector3DP &feet, const double radius, const int32_t shape );
+
+/**
+*	@brief	Validate every retained route link after funnel/refinement/cleanup without modifying endpoints.
+*	@param	points	Exact feet-space route.
+*	@param	mins	Native hull minimum bounds.
+*	@param	maxs	Native hull maximum bounds.
+*	@param	shape	Explicit analytical shape index.
+*	@param	policy	Traversal limits used by route search and live movement.
+*	@param	requireExactGoal	Require final endpoint height; false only for intermediate refinement-link continuation.
+*	@return	Complete geometry/support proof or a defined endpoint/link failure.
+*	@note	Owner-thread static-mask reference; actors remain authoritative in final command validation.
+**/
+nav_route_validation_t Nav_ValidateHullRoute( const std::vector<Vector3DP> &points,
+	const Vector3 &mins, const Vector3 &maxs, const int32_t shape, const nav_path_policy_t &policy, svg_base_edict_t *passEntity = nullptr, const bool requireExactGoal = true, const uint32_t sampleBudget = 8192u );
+
+/**
 *	@brief	Build a smoothed string-pulled path using the Funnel algorithm in full double precision.
 *	@param	path The sequence of face IDs to traverse.
 *	@param	startPos The exact starting position in double precision.
@@ -490,7 +611,7 @@ bool Nav_HasGeometricLineOfSight2D( const Vector3DP &p0, const Vector3DP &p1, co
 *	@param	traceShape Analytical collision shape (0 = Auto, 1 = Capsule, 2 = Cylinder).
 *	@return	True if a valid corridor and string-pull could be generated.
 **/
-bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3DP &startPos, const Vector3DP &goalPos, double agentRadius, std::vector<Vector3DP> &outWaypoints, std::vector<bool> *outForcedWaypoints = nullptr, const Vector3 &agentMins = { -16.0f, -16.0f, -36.0f }, const Vector3 &agentMaxs = { 16.0f, 16.0f, 36.0f }, int32_t traceShape = 1 );
+bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3DP &startPos, const Vector3DP &goalPos, double agentRadius, std::vector<Vector3DP> &outWaypoints, std::vector<bool> *outForcedWaypoints = nullptr, const Vector3 &agentMins = { -16.0f, -16.0f, -36.0f }, const Vector3 &agentMaxs = { 16.0f, 16.0f, 36.0f }, int32_t traceShape = 1, svg_vector_t<svg_nav_waypoint_t, TAG_SVGAME_NAVMESH> *outWaypointRecords = nullptr, const nav_path_policy_t *traversalPolicy = nullptr, nav_route_validation_t *outValidation = nullptr, svg_base_edict_t *passEntity = nullptr, nav_path_diagnostics_t *diagnostics = nullptr, svg_nav_route_context_t *workspace = nullptr );
 
 /**
 *	@brief	Build a smoothed string-pulled path using the Funnel algorithm (single-precision convenience wrapper).
@@ -506,7 +627,7 @@ bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3DP &startPos
 *	@param	traceShape Analytical collision shape (0 = Auto, 1 = Capsule, 2 = Cylinder).
 *	@return	True if a valid corridor and string-pull could be generated.
 **/
-bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3 &startPos, const Vector3 &goalPos, float agentRadius, std::vector<Vector3> &outWaypoints, std::vector<bool> *outForcedWaypoints = nullptr, const Vector3 &agentMins = { -16.0f, -16.0f, -36.0f }, const Vector3 &agentMaxs = { 16.0f, 16.0f, 36.0f }, int32_t traceShape = 1 );
+bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3 &startPos, const Vector3 &goalPos, float agentRadius, std::vector<Vector3> &outWaypoints, std::vector<bool> *outForcedWaypoints = nullptr, const Vector3 &agentMins = { -16.0f, -16.0f, -36.0f }, const Vector3 &agentMaxs = { 16.0f, 16.0f, 36.0f }, int32_t traceShape = 1, svg_vector_t<svg_nav_waypoint_t, TAG_SVGAME_NAVMESH> *outWaypointRecords = nullptr, const nav_path_policy_t *traversalPolicy = nullptr, nav_route_validation_t *outValidation = nullptr, svg_base_edict_t *passEntity = nullptr );
 
 /**
 * 	@brief	Reapply dynamic nav edge state from the current runtime entity states.
@@ -522,12 +643,58 @@ void Nav_ResyncDynamicEntityEdges();
 **/
 void Nav_SetEntityEdgesState( int32_t entity_id, uint32_t flags, bool enable );
 
+/**
+*	NavMesh Generation, Topology Revisions, and Obstacle Cache Management.
+**/
+//! Monotonically increasing navmesh generation identifier, bumped on map load, generation, and clear.
+extern uint64_t g_nav_mesh_generation;
+//! Monotonically increasing topology revision counter, bumped on door/wall state changes and dynamic obstacle updates.
+extern uint64_t g_nav_topology_revision;
+
+/**
+*	@brief	Invalidate the cached obstacle corners and boundary edges table.
+**/
+void Nav_InvalidateObstacleCornersTable( void );
+
+/**
+*	@brief	Reconstruct the entity-to-halfedge mapping table from current mesh halfedges.
+**/
+void Nav_RebuildEntityEdgeRegistry( void );
+
+/**
+*	@brief	Get total count of obstacle cache rebuild operations performed.
+*	@return	Rebuild counter.
+**/
+uint64_t Nav_GetObstacleCacheRebuildCount( void );
+
+/**
+*	@brief	Ensure obstacle corners and solid boundary edges table is up-to-date with current mesh generation and topology.
+**/
+void Nav_EnsureObstacleCornersTable( void );
+
+/**
+*	@brief	A* search node with deterministic tie-breaking on polygon index.
+**/
+struct astar_node_t {
+	int32_t polyIdx = -1;
+	double fScore = 0.0;
+
+	bool operator>( const astar_node_t &other ) const {
+		if ( std::fabs( fScore - other.fScore ) > 1e-6 ) {
+			return fScore > other.fScore;
+		}
+		// Deterministic tie-breaking on polygon index for cross-platform search ordering invariant.
+		return polyIdx > other.polyIdx;
+	}
+};
+using AStarNode = astar_node_t;
+
 
 /**
 *	Global navmesh data containers.
 **/
 //! Global navmesh polygon data (temporary during build).
-extern nav_vector_t<nav_poly_t> g_nav_polys;
+extern svg_vector_t<nav_poly_t, TAG_SVGAME_NAVMESH> g_nav_polys;
 
 //! Half-edge mesh global vertices data
 extern std::vector<Vector3DP> g_nav_vertices;
@@ -539,8 +706,15 @@ extern std::vector<std::vector<int32_t>> g_nav_entity_edges;
 extern std::vector<nav_face_t> g_nav_faces;
 
 //! Global navmesh kdtree node data.
-extern nav_vector_t<nav_kdtree_node_t> g_nav_nodes;
+extern svg_vector_t<nav_kdtree_node_t, TAG_SVGAME_NAVMESH> g_nav_nodes;
 //! Global navmesh leaf link data.
-extern nav_vector_t<nav_leaf_link_t> g_nav_leaf_links;
+extern svg_vector_t<nav_leaf_link_t, TAG_SVGAME_NAVMESH> g_nav_leaf_links;
 //! Global navmesh leaf polygon ID data.
-extern nav_vector_t<int32_t> g_nav_leaf_poly_ids;
+extern svg_vector_t<int32_t, TAG_SVGAME_NAVMESH> g_nav_leaf_poly_ids;
+/**
+*	@brief	Prepare collision-dependent boundary roles in bounded owner-thread work.
+*	@param	edgeBudget	Maximum half-edges examined and maximum traces in this call.
+*	@return	True when the current publication's trace inputs are complete.
+*	@note	No snapshot is published and route callers hold safely while preparation is incomplete.
+**/
+bool Nav_PrepareQueryInputsMainThread( const uint32_t edgeBudget = 128 );

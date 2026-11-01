@@ -1783,36 +1783,71 @@ static material_and_shell_t compute_aliasmesh_material_flags(const entity_t* ent
 //	return mat_shell;
 //}
 
-static void fill_model_instance(ModelInstance* instance, const entity_t* entity, const model_t* model, const maliasmesh_t* mesh,
-	const float* transform, material_and_shell_t mat_shell, int instance_index, int iqm_matrix_index)
-{
-	int cluster = -1;
-	if (bsp_world_model)
-		cluster = BSP_PointLeaf(bsp_world_model->nodes, entity->origin)->cluster;
+/**
+*	@brief	Populate a ModelInstance structure for a given entity and alias/Alembic mesh.
+*	@param	instance			[out] Destination ModelInstance entry in the uniform instance buffer.
+*	@param	entity				Source entity being rendered.
+*	@param	model				Model resource referenced by the entity.
+*	@param	mesh				Submesh within the model.
+*	@param	transform			4x4 world transform matrix for the entity.
+*	@param	mat_shell			Resolved material ID and shell flags.
+*	@param	instance_index		Index of this instance in the frame's model_instances array.
+*	@param	iqm_matrix_index	Starting skeletal matrix index for IQM models (-1 if unskinned).
+**/
+static void fill_model_instance( ModelInstance *instance, const entity_t *entity, const model_t *model, const maliasmesh_t *mesh,
+	const float *transform, material_and_shell_t mat_shell, int32_t instance_index, int32_t iqm_matrix_index ) {
+	/**
+	*	Determine BSP visibility cluster for the entity origin.
+	**/
+	int32_t cluster = -1;
+	if ( bsp_world_model ) {
+		cluster = BSP_PointLeaf( bsp_world_model->nodes, entity->origin )->cluster;
+	}
 
 	// <Q2RTXP>: WID: TODO: BoxOnPlaneSideFast for point leaf? So do an actual proper test instead.
-	
-	int frame = entity->frame;
-	int oldframe = entity->oldframe;
-	if (frame >= model->numframes) frame = 0;
-	if (oldframe >= model->numframes) oldframe = 0;
 
-	memcpy(instance->transform, transform, sizeof(float) * 16);
-	memcpy(instance->transform_prev, transform, sizeof(float) * 16);
+	/**
+	*	Clamp current and previous animation frame indices to valid model bounds.
+	**/
+	int32_t frame = entity->frame;
+	int32_t oldframe = entity->oldframe;
+	if ( frame < 0 || frame >= model->numframes ) {
+		frame = 0;
+	}
+	if ( oldframe < 0 || oldframe >= model->numframes ) {
+		oldframe = 0;
+	}
+
+	/**
+	*	Populate transform, material, cluster, and primitive slice offsets.
+	*	Variable-topology models (.abc) use per-frame triangle counts and offsets.
+	**/
+	memcpy( instance->transform, transform, sizeof( float ) * 16 );
+	memcpy( instance->transform_prev, transform, sizeof( float ) * 16 );
 	instance->material = mat_shell.material_id;
 	instance->shell = mat_shell.shell;
 	instance->cluster = cluster;
-	instance->source_buffer_idx = (int)(model - r_models) + VERTEX_BUFFER_FIRST_MODEL;
-	instance->prim_count = mesh->numtris;
-	instance->prim_offset_curr_pose_curr_frame = mesh->tri_offset + frame * mesh->numtris;
-	instance->prim_offset_prev_pose_curr_frame = mesh->tri_offset + oldframe * mesh->numtris;
+	instance->source_buffer_idx = (int32_t)( model - r_models ) + VERTEX_BUFFER_FIRST_MODEL;
+
+	if ( mesh->frame_numtris && mesh->frame_tri_offsets ) {
+		// Variable-topology stop-motion sequence: select this frame's slice directly.
+		instance->prim_count = mesh->frame_numtris[ frame ];
+		instance->prim_offset_curr_pose_curr_frame = mesh->frame_tri_offsets[ frame ];
+		instance->prim_offset_prev_pose_curr_frame = mesh->frame_tri_offsets[ frame ];
+	} else {
+		// Fixed-topology model: uniform triangle count per frame.
+		instance->prim_count = mesh->numtris;
+		instance->prim_offset_curr_pose_curr_frame = mesh->tri_offset + frame * mesh->numtris;
+		instance->prim_offset_prev_pose_curr_frame = mesh->tri_offset + oldframe * mesh->numtris;
+	}
+
 	instance->prim_offset_curr_pose_prev_frame = instance->prim_offset_curr_pose_curr_frame;
 	instance->prim_offset_prev_pose_prev_frame = instance->prim_offset_prev_pose_curr_frame;
 	instance->pose_lerp_curr_frame = entity->backlerp;
 	instance->pose_lerp_prev_frame = instance->pose_lerp_curr_frame;
 	instance->iqm_matrix_offset_curr_frame = iqm_matrix_index;
 	instance->iqm_matrix_offset_prev_frame = instance->iqm_matrix_offset_curr_frame;
-	instance->alpha_and_frame = floatToHalf((entity->flags & RF_TRANSLUCENT) ? entity->alpha : 1.0f);
+	instance->alpha_and_frame = floatToHalf( ( entity->flags & RF_TRANSLUCENT ) ? entity->alpha : 1.0f );
 	instance->render_buffer_idx = 0; // to be filled later
 	instance->render_prim_offset = 0;
 
@@ -1820,8 +1855,9 @@ static void fill_model_instance(ModelInstance* instance, const entity_t* entity,
 	// for this model. Mark the material with the light flag to avoid double contribution and noise
 	// from the GI rays. This (together with the custom lights) is a hack that should be replaced
 	// by a better model that has a separate mesh for the light rod.
-	if (model->model_class == MCLASS_STATIC_LIGHT)
+	if ( model->model_class == MCLASS_STATIC_LIGHT ) {
 		instance->material |= MATERIAL_FLAG_LIGHT;
+	}
 }
 
 static void add_dlight_spot(const dlight_t* light, DynLightData* dynlight_data)
@@ -2086,6 +2122,105 @@ static void process_bsp_entity( const entity_t *entity, int *instance_count ) {
 #define MESH_FILTER_ALL 7
 
 /**
+*
+*
+*	Skeletal Animation Pose Deduplication & Multi-Pass Cache:
+*
+*
+**/
+
+//! Maximum number of unique skeletal animation poses cached per render frame.
+#define MAX_SKELETAL_POSE_CACHE_ENTRIES 256
+
+/**
+*	@brief	Key identifying an evaluated skeletal animation pose for deduplication.
+**/
+typedef struct iqm_pose_cache_key_s {
+	//! Unique model handle index.
+	uint32_t	model_handle;
+	//! Active animation frame index.
+	int32_t		frame;
+	//! Previous animation frame index for interpolation.
+	int32_t		oldframe;
+	//! Quantized backlerp fraction (scaled to [0..1024]).
+	uint16_t	quantized_backlerp;
+	//! Configured root-motion bone ID.
+	int8_t		root_motion_bone;
+	//! Configured root-motion axis flags.
+	uint8_t		root_motion_flags;
+} iqm_pose_cache_key_t;
+
+/**
+*	@brief	Cached skeletal pose matrix offset entry.
+**/
+typedef struct iqm_pose_cache_entry_s {
+	//! Pose lookup key.
+	iqm_pose_cache_key_t	key;
+	//! Starting index in iqm_matrix_data / iqm_matrices_shadow.
+	int32_t					matrix_offset;
+} iqm_pose_cache_entry_t;
+
+//! Static per-frame storage for deduplicated skeletal poses.
+static iqm_pose_cache_entry_t s_pose_cache[ MAX_SKELETAL_POSE_CACHE_ENTRIES ];
+//! Number of unique skeletal poses evaluated in the current render frame.
+static int32_t s_pose_cache_count = 0;
+
+//! Array mapping each entity index to its already computed IQM matrix offset for multi-pass reuse.
+static int32_t s_entity_iqm_matrix_indices[ MAX_ENTITIES ];
+
+/**
+*	@brief	Reset the per-frame skeletal pose deduplication cache.
+**/
+static inline void IQM_PoseCache_Clear( void ) {
+	s_pose_cache_count = 0;
+}
+
+/**
+*	@brief	Lookup an evaluated skeletal pose matching the given key.
+*	@param	key	Pointer to the pose lookup key.
+*	@return	Matrix offset in iqm_matrix_data if cached, or -1 if no matching pose exists.
+**/
+static inline int32_t IQM_PoseCache_Lookup( const iqm_pose_cache_key_t *key ) {
+	// Sanity check: ensure valid key pointer.
+	if ( key == NULL ) {
+		return -1;
+	}
+
+	// Linear scan through active cached poses for the current frame.
+	for ( int32_t i = 0; i < s_pose_cache_count; i++ ) {
+		const iqm_pose_cache_key_t *k = &s_pose_cache[ i ].key;
+		if ( k->model_handle == key->model_handle &&
+			 k->frame == key->frame &&
+			 k->oldframe == key->oldframe &&
+			 k->quantized_backlerp == key->quantized_backlerp &&
+			 k->root_motion_bone == key->root_motion_bone &&
+			 k->root_motion_flags == key->root_motion_flags ) {
+			return s_pose_cache[ i ].matrix_offset;
+		}
+	}
+
+	return -1;
+}
+
+/**
+*	@brief	Insert an evaluated skeletal pose into the per-frame deduplication cache.
+*	@param	key				Pointer to the pose lookup key.
+*	@param	matrix_offset	Starting matrix offset where the evaluated pose was stored.
+**/
+static inline void IQM_PoseCache_Insert( const iqm_pose_cache_key_t *key, const int32_t matrix_offset ) {
+	// Sanity check: ensure valid key pointer and available cache capacity.
+	if ( key == NULL || s_pose_cache_count >= MAX_SKELETAL_POSE_CACHE_ENTRIES ) {
+		return;
+	}
+
+	// Store key and matrix offset.
+	s_pose_cache[ s_pose_cache_count ].key = *key;
+	s_pose_cache[ s_pose_cache_count ].matrix_offset = matrix_offset;
+	s_pose_cache_count++;
+}
+
+
+/**
 *	@brief	Process a regular (alias/animated/static) model entity and append one or more instances.
 *	@param	entity					Entity pointer to process.
 *	@param	model					Model referenced by the entity.
@@ -2111,6 +2246,7 @@ static void process_bsp_entity( const entity_t *entity, int *instance_count ) {
 static void process_regular_entity(
 	const entity_t *entity,
 	const model_t *model,
+	int entity_index,
 	bool is_viewer_weapon,
 	bool is_double_sided,
 	int *instance_count,
@@ -2148,16 +2284,65 @@ static void process_regular_entity(
 	**/
 	int iqm_matrix_index = -1;
 	if ( model->skmData && model->skmData->num_poses ) {
-		iqm_matrix_index = *iqm_matrix_offset;
+		// Check for multi-pass reuse within the same entity (e.g. opaque -> transparent -> masked).
+		if ( entity_index >= 0 && entity_index < MAX_ENTITIES && s_entity_iqm_matrix_indices[ entity_index ] >= 0 ) {
+			iqm_matrix_index = s_entity_iqm_matrix_indices[ entity_index ];
+		} else {
+			// Determine if this entity's animation pose is eligible for cross-entity deduplication.
+			// Entities with custom bone poses or active bone controllers cannot be deduplicated via frame lerp keys.
+			bool can_deduplicate = ( entity->bonePoses == NULL && entity->lastBonePoses == NULL );
+			if ( can_deduplicate ) {
+				for ( int c = 0; c < SKM_MAX_BONE_CONTROLLERS; c++ ) {
+					if ( entity->boneControllers[ c ].state != 0 ) {
+						can_deduplicate = false;
+						break;
+					}
+				}
+			}
 
-		if ( iqm_matrix_index + model->skmData->num_poses > MAX_IQM_MATRICES ) {
-			assert( !"IQM matrix buffer overflow" );
-			return;
+			iqm_pose_cache_key_t key = {};
+			if ( can_deduplicate ) {
+				key.model_handle = entity->model;
+				key.frame = entity->frame;
+				key.oldframe = entity->oldframe;
+
+				// Quantize backlerp to [0..1024] to prevent floating-point epsilon variations from missing cache.
+				int32_t raw_lerp = (int32_t)( entity->backlerp * 1024.0f + 0.5f );
+				if ( raw_lerp < 0 ) {
+					raw_lerp = 0;
+				} else if ( raw_lerp > 1024 ) {
+					raw_lerp = 1024;
+				}
+				key.quantized_backlerp = (uint16_t)raw_lerp;
+				key.root_motion_bone = (int8_t)entity->rootMotionBoneID;
+				key.root_motion_flags = (uint8_t)entity->rootMotionFlags;
+
+				iqm_matrix_index = IQM_PoseCache_Lookup( &key );
+			}
+
+			// If not found in deduplication cache, compute and append pose transforms now.
+			if ( iqm_matrix_index < 0 ) {
+				iqm_matrix_index = *iqm_matrix_offset;
+
+				if ( iqm_matrix_index + model->skmData->num_poses > MAX_IQM_MATRICES ) {
+					assert( !"IQM matrix buffer overflow" );
+					return;
+				}
+
+				R_ComputePoseTransforms( model, entity, iqm_matrix_data + ( iqm_matrix_index * 12 ) );
+
+				*iqm_matrix_offset += ( int )model->skmData->num_poses;
+
+				if ( can_deduplicate ) {
+					IQM_PoseCache_Insert( &key, iqm_matrix_index );
+				}
+			}
+
+			// Store the resolved matrix index for subsequent passes of this entity.
+			if ( entity_index >= 0 && entity_index < MAX_ENTITIES ) {
+				s_entity_iqm_matrix_indices[ entity_index ] = iqm_matrix_index;
+			}
 		}
-
-		R_ComputePoseTransforms( model, entity, iqm_matrix_data + ( iqm_matrix_index * 12 ) );
-
-		*iqm_matrix_offset += ( int )model->skmData->num_poses;
 	}
 
 	/**
@@ -2172,21 +2357,40 @@ static void process_regular_entity(
 
 	const model_vbo_t *vbo = vkpt_get_model_vbo( model );
 
+	// Clamp current entity frame index to valid model frame bounds.
+	int32_t entity_frame = entity->frame;
+	if ( entity_frame < 0 || entity_frame >= model->numframes ) {
+		entity_frame = 0;
+	}
+
 	/**
 	*	If static BLAS is used, pick the appropriate geometry subset (opaque/masked/transparent)
 	*	and record a BLAS instance for the whole mesh set when available.
+	*	For variable-topology models (.abc), select the pre-built BLAS for the active entity_frame.
 	**/
 	if ( use_static_blas ) {
 		const model_geometry_t *geom = NULL;
 
-		if ( mesh_filter & MESH_FILTER_MASKED )
-			geom = &vbo->geom_masked;
-		else if ( mesh_filter & MESH_FILTER_TRANSPARENT )
-			geom = &vbo->geom_transparent;
-		else
-			geom = &vbo->geom_opaque;
+		if ( vbo->num_blas_frames > 0 ) {
+			const uint32_t blas_frame = ( (uint32_t)entity_frame < vbo->num_blas_frames ) ? (uint32_t)entity_frame : 0;
+			if ( mesh_filter & MESH_FILTER_MASKED ) {
+				geom = &vbo->geom_masked_frames[ blas_frame ];
+			} else if ( mesh_filter & MESH_FILTER_TRANSPARENT ) {
+				geom = &vbo->geom_transparent_frames[ blas_frame ];
+			} else {
+				geom = &vbo->geom_opaque_frames[ blas_frame ];
+			}
+		} else {
+			if ( mesh_filter & MESH_FILTER_MASKED ) {
+				geom = &vbo->geom_masked;
+			} else if ( mesh_filter & MESH_FILTER_TRANSPARENT ) {
+				geom = &vbo->geom_transparent;
+			} else {
+				geom = &vbo->geom_opaque;
+			}
+		}
 
-		if ( geom->accel ) {
+		if ( geom && geom->accel ) {
 			// ugly typecast to match expected mat4 layout
 			mat4 transform_;
 			memcpy( transform_, transform, sizeof( mat4 ) );
@@ -2223,6 +2427,11 @@ static void process_regular_entity(
 		// Skip meshes without uploaded vertex data.
 		if ( mesh->tri_offset < 0 ) {
 			// failed to upload the vertex data - don't instance this mesh
+			continue;
+		}
+
+		// Skip variable-topology submeshes that have zero triangles on the current frame.
+		if ( mesh->frame_numtris && mesh->frame_numtris[ entity_frame ] <= 0 ) {
 			continue;
 		}
 
@@ -2339,6 +2548,15 @@ static void
 prepare_entities( EntityUploadInfo *upload_info ) {
 	entity_frame_num = !entity_frame_num;
 
+	/**
+	*	Reset per-frame skeletal pose deduplication cache and multi-pass entity matrix index map.
+	**/
+	IQM_PoseCache_Clear();
+	const int active_entity_count = ( vkpt_refdef.fd->num_entities < MAX_ENTITIES ) ? vkpt_refdef.fd->num_entities : MAX_ENTITIES;
+	for ( int i = 0; i < active_entity_count; i++ ) {
+		s_entity_iqm_matrix_indices[ i ] = -1;
+	}
+
 	InstanceBuffer *instance_buffer = &vkpt_refdef.uniform_instance_buffer;
 
 	/**
@@ -2445,7 +2663,7 @@ prepare_entities( EntityUploadInfo *upload_info ) {
 				**/
 				bool contains_transparent = false;
 				bool contains_masked = false;
-				process_regular_entity( entity, model, false, false, &model_instance_idx, &animated_instance_idx, &num_instanced_prim,
+				process_regular_entity( entity, model, i, false, false, &model_instance_idx, &animated_instance_idx, &num_instanced_prim,
 					MESH_FILTER_OPAQUE, &contains_transparent, &contains_masked, &iqm_matrix_offset, qvk.iqm_matrices_shadow );
 
 				// If the model contains transparent submeshes, remember its entity index for later transparent pass.
@@ -2507,7 +2725,7 @@ prepare_entities( EntityUploadInfo *upload_info ) {
 		const entity_t *entity = vkpt_refdef.fd->entities + transparent_model_indices[ i ];
 
 		const model_t *model = MOD_ForHandle( entity->model );
-		process_regular_entity( entity, model, false, false, &model_instance_idx, &animated_instance_idx, &num_instanced_prim,
+		process_regular_entity( entity, model, transparent_model_indices[ i ], false, false, &model_instance_idx, &animated_instance_idx, &num_instanced_prim,
 			MESH_FILTER_TRANSPARENT, NULL, NULL, &iqm_matrix_offset, qvk.iqm_matrices_shadow );
 	}
 
@@ -2521,7 +2739,7 @@ prepare_entities( EntityUploadInfo *upload_info ) {
 		const entity_t *entity = vkpt_refdef.fd->entities + masked_model_indices[ i ];
 
 		const model_t *model = MOD_ForHandle( entity->model );
-		process_regular_entity( entity, model, false, true, &model_instance_idx, &animated_instance_idx, &num_instanced_prim,
+		process_regular_entity( entity, model, masked_model_indices[ i ], false, true, &model_instance_idx, &animated_instance_idx, &num_instanced_prim,
 			MESH_FILTER_MASKED, NULL, NULL, &iqm_matrix_offset, qvk.iqm_matrices_shadow );
 	}
 
@@ -2535,7 +2753,7 @@ prepare_entities( EntityUploadInfo *upload_info ) {
 		for ( int i = 0; i < viewer_model_num; i++ ) {
 			const entity_t *entity = vkpt_refdef.fd->entities + viewer_model_indices[ i ];
 			const model_t *model = MOD_ForHandle( entity->model );
-			process_regular_entity( entity, model, false, true, &model_instance_idx, &animated_instance_idx, &num_instanced_prim,
+			process_regular_entity( entity, model, viewer_model_indices[ i ], false, true, &model_instance_idx, &animated_instance_idx, &num_instanced_prim,
 				MESH_FILTER_ALL, NULL, NULL, &iqm_matrix_offset, qvk.iqm_matrices_shadow );
 		}
 	}
@@ -2551,7 +2769,7 @@ prepare_entities( EntityUploadInfo *upload_info ) {
 	for ( int i = 0; i < viewer_weapon_num; i++ ) {
 		const entity_t *entity = vkpt_refdef.fd->entities + viewer_weapon_indices[ i ];
 		const model_t *model = MOD_ForHandle( entity->model );
-		process_regular_entity( entity, model, true, false, &model_instance_idx, &animated_instance_idx, &num_instanced_prim,
+		process_regular_entity( entity, model, viewer_weapon_indices[ i ], true, false, &model_instance_idx, &animated_instance_idx, &num_instanced_prim,
 			MESH_FILTER_ALL, NULL, NULL, &iqm_matrix_offset, qvk.iqm_matrices_shadow );
 
 		if ( info_hand->integer == 1 )
@@ -2567,7 +2785,7 @@ prepare_entities( EntityUploadInfo *upload_info ) {
 	for ( int i = 0; i < explosion_num; i++ ) {
 		const entity_t *entity = vkpt_refdef.fd->entities + explosion_indices[ i ];
 		const model_t *model = MOD_ForHandle( entity->model );
-		process_regular_entity( entity, model, false, false, &model_instance_idx, &animated_instance_idx, &num_instanced_prim,
+		process_regular_entity( entity, model, explosion_indices[ i ], false, false, &model_instance_idx, &animated_instance_idx, &num_instanced_prim,
 			MESH_FILTER_ALL, NULL, NULL, &iqm_matrix_offset, qvk.iqm_matrices_shadow );
 	}
 
@@ -2604,6 +2822,8 @@ prepare_entities( EntityUploadInfo *upload_info ) {
 	*	- fill reverse lookup arrays so shaders/logic can map current -> previous indices and vice-versa
 	*	- copy previous-frame instance parameters (transforms, pose offsets, IQM matrix offsets, lerp) into the current
 	*	  ModelInstance structure so the renderer has access to previous-pose data for motion/temporal effects.
+	*	- skip primitive-index temporal linking when a variable-topology static-BLAS model (.abc) steps to a new frame
+	*	  slice, because triangle indices do not correspond 1:1 across stop-motion topology changes.
 	**/
 	for ( int i = 0; i < model_entity_id_count[ entity_frame_num ]; i++ ) {
 		for ( int j = 0; j < previous_model_count; j++ ) {
@@ -2611,12 +2831,17 @@ prepare_entities( EntityUploadInfo *upload_info ) {
 			memcpy( &hash, &model_entity_ids[ entity_frame_num ][ i ], sizeof( entity_hash_t ) );
 
 			if ( model_entity_ids[ entity_frame_num ][ i ] == model_entity_ids[ !entity_frame_num ][ j ] && hash.entity != 0u ) {
-				instance_buffer->model_current_to_prev[ i ] = j;
-				instance_buffer->model_prev_to_current[ j ] = i;
-
 				// Copy the "prev" instance parameters from the previous frame's instance buffer into the current instance.
 				ModelInstance *mi_curr = instance_buffer->model_instances + i;
 				ModelInstance *mi_prev = model_instances_prev + j;
+
+				// Only link current<->prev for ASVGF gradient primitive matching if topology slice has not changed.
+				const bool topology_changed = ( mi_curr->render_buffer_idx != VERTEX_BUFFER_INSTANCED ) &&
+					( mi_curr->render_prim_offset != mi_prev->render_prim_offset );
+				if ( !topology_changed ) {
+					instance_buffer->model_current_to_prev[ i ] = j;
+					instance_buffer->model_prev_to_current[ j ] = i;
+				}
 
 				memcpy( mi_curr->transform_prev, mi_prev->transform, sizeof( mi_curr->transform_prev ) );
 				mi_curr->prim_offset_curr_pose_prev_frame = mi_prev->prim_offset_curr_pose_curr_frame;
@@ -5102,6 +5327,7 @@ void R_RegisterFunctionsRTX()
 	MOD_LoadMD2 = MOD_LoadMD2_RTX;
 	MOD_LoadMD3 = MOD_LoadMD3_RTX;
 	MOD_LoadIQM = MOD_LoadIQM_RTX;
+	MOD_LoadABC = MOD_LoadABC_RTX;
 	MOD_Reference = MOD_Reference_RTX;
 }
 

@@ -1096,7 +1096,8 @@ void Qcommon_Frame(void)
 
 	// WID: 64-bit-frame: Should we messabout with this?
     if (msec > 75) { // Was: > 250
-        Com_DPrintf("Hitch warning: %u msec frame time\n", msec);
+        // msec is a double; an integer varargs format fabricated zero-duration hitch messages.
+        Com_DPrintf("Hitch warning: %.3f msec frame time\n", msec);
         msec = BASE_FRAMETIME; // time was unreasonable,
         // host OS was hibernated or something
     }

@@ -28,6 +28,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/async.h"
 #include "common/skeletalmodels/cm_skm.h"
 #include "common/skeletalmodels/cm_skm_posecache.h"
+#include "system/pthread.h"
 
 svgame_export_t    *ge;
 
@@ -1450,6 +1451,20 @@ static const int64_t PF_GetServerFrameNumber() {
     return sv.framenum;
 }
 
+/**
+*	@brief	Query execution CPU time for the calling server thread in nanoseconds.
+*	@return	Thread CPU execution time in nanoseconds, or 0 if unsupported.
+**/
+static const uint64_t PF_GetThreadCpuTimeNs( void ) {
+	uint64_t cpu_ns = 0;
+	// Retrieve calling thread CPU time via the cross-platform pthread abstraction.
+	if ( pthread_getcputime( pthread_self(), &cpu_ns ) == 0 ) {
+		return cpu_ns;
+	}
+
+	return 0;
+}
+
 
 
 /**
@@ -1702,8 +1717,10 @@ void SV_InitGameProgs(void) {
 	imports.GetRealSystemTime = PF_GetRealSystemTime;
     imports.GetRealTime = PF_GetRealTime;
     imports.GetServerFrameNumber = PF_GetServerFrameNumber;
+    imports.GetThreadCpuTimeNs = PF_GetThreadCpuTimeNs;
 
 	imports.Com_QueueAsyncWork = Com_QueueAsyncWork;
+	imports.Com_CompleteAsyncWork = Com_CompleteAsyncWork;
 
     // load a new game dll
     imports.multicast = PF_Multicast;

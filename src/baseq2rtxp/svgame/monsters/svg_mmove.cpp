@@ -9,6 +9,8 @@
 #include "svgame/svg_utils.h"
 
 #include "svgame/nav/nav_path.h"
+#include "svgame/nav/nav_movement_geometry.h"
+#include "svgame/nav/nav_perf.h"
 
 #include "svg_mmove.h"
 #include "svg_mmove_slidemove.h"
@@ -89,6 +91,7 @@ const mm_trace_shape_t SVG_MMove_GetNativeShape( const svg_base_edict_t *passEnt
 *       is applied before the sweep and removed from the returned endpoint.
 **/
 const svg_trace_t SVG_MMove_Trace( const Vector3DP &start, const Vector3 &mins, const Vector3 &maxs, const Vector3DP &end, svg_base_edict_t *passEntity, cm_contents_t contentMask, mm_trace_shape_t shape ) {
+	nav_perf_scope_t trace_scope( NAV_PERF_PHASE_MOVEMENT_TRACES );
 	if ( contentMask == CONTENTS_NONE ) {
 		contentMask = CM_CONTENTMASK_MONSTERSOLID;
 	}
@@ -128,6 +131,138 @@ const svg_trace_t SVG_MMove_Trace( const Vector3DP &start, const Vector3 &mins, 
 	#endif
 	tr.endpos.z -= static_cast<float>( centerOffsetZ );
 	return tr;
+}
+
+/**
+*	@brief	Validate explicit native bounds/shape with complete sweeps and landing checks.
+*	@note	The same core serves actor-inclusive live commands and static-mask route installation.
+*	@param	mins	Explicit bbox minima, including asymmetric Z.
+*	@param	maxs	Explicit bbox maxima.
+*	@param	shape	Native capsule or cylinder.
+*	@param	passEntity	Optional entity excluded from collision.
+*	@param	mask	Exact collision contents selected by the caller.
+*	@param	startFeet	Start in feet space.
+*	@param	endFeet	Destination in feet space.
+*	@param	policy	Immutable step/drop/normal policy for this candidate.
+*	@param	reportTraces	Print bounded native traces only for explicit diagnostic commands.
+*	@param	requireEndHeight	Require waypoint elevation as well as horizontal completion.
+*	@param	movementTouches	Optional authoritative contact list; previews do not collect touches.
+*	@param	landingGround	Optional copied landing metadata; caller commits it only on success.
+*	@return	Reason, supported bbox endpoint and trace count; no entity state is changed.
+*	@note	Does not authorize route clearance or crowd reservation; callers check those separately.
+**/
+svg_nav_movement_result_t SVG_Nav_TestMovementHull( const Vector3DP &startFeet, const Vector3DP &endFeet,
+	const Vector3 &mins, const Vector3 &maxs, const mm_trace_shape_t shape, const nav_path_policy_t &policy,
+	svg_base_edict_t *passEntity, const cm_contents_t mask, const bool requireEndHeight, const bool reportTraces,
+	mm_touch_trace_list_t *movementTouches, ground_info_t *landingGround ) {
+	/**
+	*	Reject invalid profiles/policies rather than silently shrinking or substituting a hull.
+	**/
+	svg_nav_movement_result_t result;
+	// Unsupported shapes and nonfinite inputs cannot authorize native sweeps.
+	if ( ( shape != MM_SHAPE_CAPSULE && shape != MM_SHAPE_CYLINDER ) || !std::isfinite( startFeet.x ) || !std::isfinite( startFeet.y ) || !std::isfinite( startFeet.z ) ||
+		 !std::isfinite( endFeet.x ) || !std::isfinite( endFeet.y ) || !std::isfinite( endFeet.z ) ||
+		 !std::isfinite( policy.max_step_height ) || policy.max_step_height < 0.0f ||
+		 !std::isfinite( policy.max_drop_height ) || policy.max_drop_height < 0.0f ||
+		 !std::isfinite( policy.min_step_normal ) || policy.min_step_normal < 0.0f || policy.min_step_normal > 1.0f ||
+		 ( policy.enable_max_drop_height_cap && ( !std::isfinite( policy.max_drop_height_cap ) || policy.max_drop_height_cap < 0.0f ) ) ) {
+		return result;
+	}
+	// Native traces use the X extent as a centered circular radius, so other XY profiles are unsupported.
+	if ( !Nav_IsSupportedNativeHull( mins, maxs ) ||
+		 ( shape == MM_SHAPE_CAPSULE && static_cast<double>( maxs.z ) - mins.z < 2.0 * maxs.x ) ) {
+		result.reason = svg_nav_movement_reason_t::unsupported_hull;
+		return result;
+	}
+
+	/**
+	*	Convert feet to bbox origins once; SVG_MMove_Trace applies the Z-center offset internally.
+	**/
+	Vector3DP startOrigin = startFeet;
+	Vector3DP endOrigin = endFeet;
+	startOrigin.z -= static_cast<double>( mins.z );
+	endOrigin.z -= static_cast<double>( mins.z );
+	result.bbox_endpoint = startOrigin;
+	result.shape = shape;
+	const double maxDrop = policy.enable_max_drop_height_cap ?
+		std::min( static_cast<double>( policy.max_drop_height ), static_cast<double>( policy.max_drop_height_cap ) ) : policy.max_drop_height;
+	/**
+	*	Use the tested traversal decision with native engine sweeps, including authoritative actor masks.
+	**/
+	uint32_t diagnosticIndex = 0;
+	const auto sweep = [&]( const Vector3DP &from, const Vector3DP &to ) {
+		svg_trace_t hit = SVG_MMove_Trace( from, mins, maxs, to, passEntity, mask, result.shape );
+		/**
+		*	Authoritative execution retains native contact effects and full landing metadata.
+		*	Read-only previews pass null outputs and never modify movement or entity state.
+		**/
+		if ( movementTouches != nullptr && hit.fraction < 1.0f ) {
+			SVG_MMove_RegisterTouchTrace( *movementTouches, hit );
+		}
+		// The successful traversal's last trace is its downward static-world landing.
+		if ( landingGround != nullptr && from.x == to.x && from.y == to.y && to.z < from.z ) {
+			landingGround->entityNumber = hit.entityNumber;
+			landingGround->entityLinkCount = hit.ent != nullptr ? hit.ent->linkCount : 0;
+			landingGround->plane = hit.plane;
+			landingGround->surface = hit.surface != nullptr ? *hit.surface : cm_surface_t{};
+			landingGround->contents = hit.contents;
+			landingGround->material = hit.material;
+		}
+		// Copy each internal sweep into fixed storage; reports never depend on borrowed collision buffers.
+		if ( diagnosticIndex < result.probes.size() ) {
+			auto &probe = result.probes[ diagnosticIndex ];
+			probe.start = from;
+			probe.end = to;
+			probe.realized = Vector3DP( hit.endpos );
+			probe.fraction = hit.fraction;
+			probe.normal = Vector3{ hit.plane.normal[ 0 ], hit.plane.normal[ 1 ], hit.plane.normal[ 2 ] };
+			probe.startsolid = hit.startsolid;
+			probe.allsolid = hit.allsolid;
+			probe.mask = static_cast<uint64_t>( mask );
+			probe.shape = static_cast<int32_t>( shape );
+			probe.entity = hit.entityNumber;
+			probe.brush = hit.brushID;
+		}
+		++diagnosticIndex;
+		// Floor contact is support, not a horizontal obstacle; retain only the first actor obstruction.
+		if ( result.blocking_actor == ENTITYNUM_NONE && hit.entityNumber > 0 && hit.fraction < 1.0f &&
+			 ( from.x != to.x || from.y != to.y ) ) {
+			result.blocking_actor = hit.entityNumber;
+		}
+		// Normal movement never prints; explicit probes need raw support/solid evidence at each phase.
+		if ( reportTraces ) {
+			gi.dprintf( "[nav probe trace] phase=%" PRIu32 " from=(%.4f %.4f %.4f) to=(%.4f %.4f %.4f) fraction=%.6f solid=%d/%d end=(%.4f %.4f %.4f) normal=(%.4f %.4f %.4f) entity=%" PRId32 " brush=%" PRId32 "\n",
+				diagnosticIndex - 1, from.x, from.y, from.z, to.x, to.y, to.z, hit.fraction, hit.startsolid, hit.allsolid,
+				hit.endpos.x, hit.endpos.y, hit.endpos.z, hit.plane.normal[ 0 ], hit.plane.normal[ 1 ], hit.plane.normal[ 2 ], hit.entityNumber, hit.brushID );
+		}
+		return hit;
+	};
+	const auto traversal = Nav_TestNativeTraversal( startOrigin, endOrigin, static_cast<double>( policy.max_step_height ),
+		maxDrop, static_cast<double>( policy.min_step_normal ), requireEndHeight, sweep );
+	result.reason = traversal.reason;
+	result.bbox_endpoint = traversal.endpoint;
+	result.trace_count = traversal.trace_count;
+	return result;
+}
+
+/**
+*	@brief	Validate the exact live mover profile with authoritative actor-inclusive masking.
+*	@param	mover	Active native profile and entity excluded from the sweep.
+*	@param	startFeet	Native feet-space command start.
+*	@param	endFeet	Proposed native feet-space endpoint.
+*	@param	policy	Immutable traversal limits.
+*	@param	requireEndHeight	Whether literal endpoint elevation is mandatory.
+*	@param	reportTraces	Emit raw traces only for explicit diagnostics.
+*	@return	Owned movement decision; no world state is changed.
+**/
+svg_nav_movement_result_t SVG_Nav_TestMovementCandidate( svg_base_edict_t *mover, const Vector3DP &startFeet,
+	const Vector3DP &endFeet, const nav_path_policy_t &policy, const bool requireEndHeight, const bool reportTraces ) {
+	// Absent entities cannot supply an authoritative hull or actor mask.
+	if ( mover == nullptr ) {
+		return {};
+	}
+	return SVG_Nav_TestMovementHull( startFeet, endFeet, mover->mins, mover->maxs,
+		SVG_MMove_GetNativeShape( mover ), policy, mover, SVG_GetClipMask( mover ), requireEndHeight, reportTraces );
 }
 
 /**
@@ -311,6 +446,12 @@ static void MMove_StepDown( mm_move_t *monsterMove, const svg_trace_t *trace ) {
 *   @note    All drop/jump/step logic uses the policy struct for limits.
 **/
 const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, const nav_path_policy_t &policy ) {
+	/**
+	*	Start fresh trial diagnostics; accepted counts are assigned only by candidate selection.
+	**/
+	monsterMove->groundDiagnostics = {};
+	monsterMove->elevatedDiagnostics = {};
+	monsterMove->acceptedDiagnostics = {};
 	svg_trace_t trace = {};
 	Vector3DP startOrigin = monsterMove->state.previousOrigin = monsterMove->state.origin;
 	Vector3DP startVelocity = monsterMove->state.previousVelocity = monsterMove->state.velocity;
@@ -321,7 +462,8 @@ const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, con
 	const mm_trace_shape_t movementShape = SVG_MMove_GetNativeShape( monsterMove->monster );
 
 	// Perform an actual 'Step Slide' in double precision.
-	const mm_slide_move_flags_t groundBlockedMask = SVG_MMove_SlideMove( monsterMove->state.origin, monsterMove->state.velocity, monsterMove->frameTime, monsterMove->mins, monsterMove->maxs, monsterMove->monster, monsterMove->touchTraces, false /* monsterMove->hasTime */, movementShape, monsterMove->navPolicy );
+	const mm_slide_move_flags_t groundBlockedMask = SVG_MMove_SlideMove( monsterMove->state.origin, monsterMove->state.velocity, monsterMove->frameTime, monsterMove->mins, monsterMove->maxs, monsterMove->monster, monsterMove->touchTraces, false /* monsterMove->hasTime */, movementShape, monsterMove->navPolicy, &monsterMove->groundDiagnostics );
+	monsterMove->acceptedDiagnostics = monsterMove->groundDiagnostics;
 	mm_slide_move_flags_t blockedMask = groundBlockedMask;
 
 	// Store for downward move XY in double precision.
@@ -351,7 +493,7 @@ const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, con
 	monsterMove->state.velocity = startVelocity;
 
 	// Perform the elevated slide with the same shape so a capsule cannot become a cylinder at the stair seam.
-	const mm_slide_move_flags_t elevatedBlockedMask = SVG_MMove_SlideMove( monsterMove->state.origin, monsterMove->state.velocity, monsterMove->frameTime, monsterMove->mins, monsterMove->maxs, monsterMove->monster, monsterMove->touchTraces, false /* monsterMove->hasTime */, movementShape, monsterMove->navPolicy );
+	const mm_slide_move_flags_t elevatedBlockedMask = SVG_MMove_SlideMove( monsterMove->state.origin, monsterMove->state.velocity, monsterMove->frameTime, monsterMove->mins, monsterMove->maxs, monsterMove->monster, monsterMove->touchTraces, false /* monsterMove->hasTime */, movementShape, monsterMove->navPolicy, &monsterMove->elevatedDiagnostics );
 
 	// Push down the final amount.
 	Vector3DP down = monsterMove->state.origin;
@@ -393,6 +535,8 @@ const mm_slide_move_flags_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, con
 	// thanks to Jitspoe for pointing this one out.
 	else {// if (ps->pmove.pm_flags & PMF_ON_GROUND)
 		acceptedStepUp = true;
+		// Discarded ground clips must not count as accepted elevated motion, and vice versa.
+		monsterMove->acceptedDiagnostics = monsterMove->elevatedDiagnostics;
 		// A valid elevated landing supersedes transient trap flags from the
 		// boundary probe; the landing trace is the authoritative candidate check.
 		blockedMask = elevatedBlockedMask;

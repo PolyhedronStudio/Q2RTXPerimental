@@ -2069,14 +2069,15 @@ void SV_Init(void) {
 	// <Q2RTXP>: WID: gamemode, default is 0 (normal game mode aka SinglePlayer).
 	Cvar_Get( "gamemode", "0", CVAR_SERVERINFO | CVAR_LATCH );
 	
-	cvar_t *sv_cheats = nullptr; //Cvar_Get("cheats", "0", CVAR_SERVERINFO | CVAR_LATCH);
-    if ( developer->integer ) {
-        // Allow cheats.
-        sv_cheats = Cvar_Get( "cheats", "1", CVAR_SERVERINFO | CVAR_LATCH );
-    } else {
-        // Disable cheats.
-        sv_cheats = Cvar_Get( "cheats", "0", CVAR_SERVERINFO | CVAR_LATCH );
-    }
+    /**
+    *	Default cheats to disabled in release builds, which do not own the Debug developer pointer.
+    **/
+#if USE_DEBUG
+    const char *cheatsDefault = developer->integer != 0 ? "1" : "0";
+#else
+    constexpr const char *cheatsDefault = "0";
+#endif
+    Cvar_Get( "cheats", cheatsDefault, CVAR_SERVERINFO | CVAR_LATCH );
     Cvar_Get("dmflags", va("%i", DF_INSTANT_ITEMS), CVAR_SERVERINFO);
     Cvar_Get("fraglimit", "0", CVAR_SERVERINFO);
     Cvar_Get("timelimit", "0", CVAR_SERVERINFO);

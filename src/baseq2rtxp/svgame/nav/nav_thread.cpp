@@ -2,100 +2,177 @@
 #include "nav_generate.h"
 #include "nav_cover_generate.h"
 #include "nav_path.h"
+#include "nav_identity.h"
+#include "nav_query.h"
+#include "nav_worker.h"
+#include "nav_corner_capture.h"
 #include "nav_cover_types.h"
 #include "shared/util/util_strings.h"
 
-//! External cover points vector defined in nav_cover_generate.cpp
-extern std::vector<nav_cover_point_t> g_nav_cover_points;
+#include <algorithm>
+#include <limits>
+#include <array>
+#include <cstdarg>
+#include <cstdio>
 
-//! Shared progress snapshot updated by the async generation worker.
+//! External cover points vector defined in nav_cover_generate.cpp.
+extern svg_vector_t<nav_cover_point_t, TAG_SVGAME_NAVMESH> g_nav_cover_points;
+
+//! Tracks whether the server owner thread is actively inside a generation stage.
+static bool s_nav_generation_worker = false;
+
+//! Generation progress state maintained on the server owner thread.
 static nav_gen_progress_t s_gen_progress = {};
-//! Engine work item used to submit nav generation onto the async queue.
-static asyncwork_t s_gen_work = {};
+
+//! Active generation stage index (0..4) for staged main-thread progression.
+static int32_t s_gen_stage_index = 0;
+
 //! Last server time in milliseconds when progress was printed.
-static uint32_t s_last_progress_print_ms = 0;
+static uint64_t s_last_progress_print_ms = 0;
 
 /**
-*	@brief	Perform the navmesh extraction and build work on the background thread.
-*	@note	This function runs outside the main server loop.
+*	@brief	Read whether the server thread is currently executing a navmesh generation stage.
+*	@return	True while a generation stage is actively running on the server thread.
 **/
-static void Nav_AsyncGenerationWork( void *arg ) {
-	(void)arg;
-
-	// Seed the progress snapshot at the worker start time.
-	const uint32_t start = gi.GetRealTime();
-	s_gen_progress.start_time_ms = start;
-	s_gen_progress.current_time_ms = start;
-	s_gen_progress.time_taken_ms = 0;
-	s_gen_progress.estimated_time_left_ms = 0;
-	s_gen_progress.progress_pct = 0.0f;
-
-	// Extract walkable geometry from the current collision model (0.00 -> 0.25).
-	Nav_DoExtractionWork();
-
-	// Build the half-edge mesh and KD-tree from the extracted polygons (0.25 -> 0.92).
-	Nav_BuildHalfEdgeMesh();
-	Nav_BuildKDTree();
-
-	// Extract precalculated tactical cover points from boundary edges (0.92 -> 0.99).
-	Nav_GenerateCoverPoints();
-
-	// Decompose topological spatial regions, rooms, corridors, and portals.
-	Nav_BuildSpatialRegionsAndPortals();
-
-	// Mark the job as complete in the progress snapshot.
-	Nav_SetGenerationProgress( 1.0f, "Completed" );
-	s_gen_progress.current_time_ms = gi.GetRealTime();
-	s_gen_progress.time_taken_ms = s_gen_progress.current_time_ms - start;
-	s_gen_progress.estimated_time_left_ms = 0;
+bool Nav_IsGenerationWorkerThread( void ) {
+	return s_nav_generation_worker;
 }
 
 /**
-*	@brief	Finalize async generation on the main thread after the worker finishes.
-*	@note	This clears the active flag and prints a completion summary.
+*	@brief	Format and print a bounded generation message on the server owner thread.
+*	@param	format	Printf-style message, consumed before return.
 **/
-static void Nav_AsyncGenerationDone( void *arg ) {
-	(void)arg;
+void Nav_GenerationPrintf( const char *format, ... ) {
+	/**
+	*	Format into stack storage and forward directly to engine developer output.
+	**/
+	std::array<char, 2048> message{};
+	va_list arguments;
+	va_start( arguments, format );
+	std::vsnprintf( message.data(), message.size(), format, arguments );
+	va_end( arguments );
 
-	// Reapply mover/wall state after the mesh registry has been rebuilt.
-	Nav_ResyncDynamicEntityEdges();
+	// Emit diagnostic message if engine developer output is available.
+	if ( gi.dprintf != nullptr ) {
+		gi.dprintf( "%s", message.data() );
+	}
+}
 
-	// The worker is finished, so the progress snapshot can be marked idle.
+/**
+*	@brief	Finalize staged navmesh generation on the main server thread.
+*	@note	Publishes mesh identity revisions, rebuilds dynamic edge tables, and logs completion summary.
+**/
+static void Nav_FinalizeGenerationMainThread( void ) {
+	/**
+	*	Update completion progress and elapsed clock metrics before publishing topology.
+	**/
+	s_nav_generation_worker = false;
+	Nav_SetGenerationProgress( 1.0f, "Completed" );
+	const uint64_t end = gi.GetRealSystemTime();
+	s_gen_progress.current_time_ms = end;
+	s_gen_progress.time_taken_ms = end - s_gen_progress.start_time_ms;
+	s_gen_progress.estimated_time_left_ms = 0;
 	s_gen_progress.is_generating = false;
 	Q_strlcpy( s_gen_progress.stage, "Completed", sizeof( s_gen_progress.stage ) );
-	gi.dprintf( "NavMesh Generation Completed in %.2f s. (Faces: %u, Nodes: %u, Cover Points: %u)\n",
-		s_gen_progress.time_taken_ms / 1000.0f,
-		static_cast<unsigned int>( g_nav_faces.size() ),
-		static_cast<unsigned int>( g_nav_nodes.size() ),
-		static_cast<unsigned int>( g_nav_cover_points.size() ) );
+
+	/**
+	*	Publish live topology on the owner thread after all build stages finish.
+	**/
+	// Issue publication identities through the epoch barrier; never silently wrap a live generation.
+	g_nav_mesh_generation = Nav_IssueIdentityRevisionMainThread();
+	Nav_InvalidateObstacleCornersTable();
+	Nav_RebuildEntityEdgeRegistry();
+	Nav_ResyncDynamicEntityEdges();
+
+	/**
+	*	Emit completion summary to the server console.
+	**/
+	gi.dprintf( "NavMesh Generation Completed in %.2f s. (Faces: %" PRIu32 ", Nodes: %" PRIu32 ", Cover Points: %" PRIu32 ")\n",
+		s_gen_progress.time_taken_ms / 1000.0f, static_cast<uint32_t>( g_nav_faces.size() ),
+		static_cast<uint32_t>( g_nav_nodes.size() ), static_cast<uint32_t>( g_nav_cover_points.size() ) );
 }
 
 /**
-*	@brief	Start a new asynchronous navmesh generation job.
+*	@brief	Execute the next pending navmesh generation stage on the main server thread.
+*	@note	Advances through extraction, half-edge build, KD-tree, cover points, and regions/portals.
+**/
+static void Nav_RunNextGenerationStageMainThread( void ) {
+	/**
+	*	Guard against advancing when no generation is active.
+	**/
+	if ( !s_gen_progress.is_generating ) {
+		return;
+	}
+
+	/**
+	*	Execute the current build stage under the generation role flag so internal
+	*	collision traces and profiler guards treat this work as build-time generation.
+	**/
+	s_nav_generation_worker = true;
+	switch ( s_gen_stage_index ) {
+	case 0:
+		// Stage 0: Extract walkable windings and perform CSG clipping.
+		Nav_DoExtractionWork();
+		s_gen_stage_index = 1;
+		break;
+	case 1:
+		// Stage 1: Weld vertices and construct half-edge topology.
+		Nav_BuildHalfEdgeMesh();
+		s_gen_stage_index = 2;
+		break;
+	case 2:
+		// Stage 2: Build balanced 3D KD-tree and BSP leaf mappings.
+		Nav_BuildKDTree();
+		s_gen_stage_index = 3;
+		break;
+	case 3:
+		// Stage 3: Precalculate tactical cover points along boundary edges.
+		Nav_GenerateCoverPoints();
+		s_gen_stage_index = 4;
+		break;
+	default:
+		// Stage 4: Build spatial regions, portals, and sector connectivity, then finalize.
+		Nav_BuildSpatialRegionsAndPortals();
+		s_gen_stage_index = 5;
+		break;
+	}
+	s_nav_generation_worker = false;
+
+	/**
+	*	Finalize publication once all stages have completed.
+	**/
+	if ( s_gen_stage_index >= 5 ) {
+		Nav_FinalizeGenerationMainThread();
+	}
+}
+
+/**
+*	@brief	Start a new staged navmesh generation job on the server thread.
 *	@note	Rejects duplicate requests while one job is already running.
 **/
-void Nav_StartAsyncGeneration() {
-	// Do not start a second generation job while the first is still active.
+void Nav_StartAsyncGeneration( void ) {
+	/**
+	*	Check duplicate submission; owner-side submissions are serialized.
+	**/
 	if ( s_gen_progress.is_generating ) {
 		gi.dprintf( "NavMesh generation is already in progress...\n" );
 		return;
 	}
 
-	// Reset the shared progress snapshot before queueing fresh work.
-	memset( &s_gen_progress, 0, sizeof( s_gen_progress ) );
-	s_last_progress_print_ms = 0;
+	/**
+	*	Close capture/snapshot acquisition before mutating live geometry.
+	**/
+	Nav_Corner_InvalidateCapture();
+	Nav_InvalidateObstacleCornersTable();
+	const uint64_t start = gi.GetRealSystemTime();
+	s_gen_progress = {};
 	s_gen_progress.is_generating = true;
-	s_gen_progress.start_time_ms = gi.GetRealTime();
-	s_gen_progress.current_time_ms = s_gen_progress.start_time_ms;
+	s_gen_progress.start_time_ms = start;
+	s_gen_progress.current_time_ms = start;
 	Q_strlcpy( s_gen_progress.stage, "Starting", sizeof( s_gen_progress.stage ) );
+	s_gen_stage_index = 0;
+	s_last_progress_print_ms = 0;
 
-	// Bind the worker and completion callbacks to the async work item.
-	s_gen_work.work_cb = Nav_AsyncGenerationWork;
-	s_gen_work.done_cb = Nav_AsyncGenerationDone;
-	s_gen_work.cb_arg = nullptr;
-
-	// Submit the job to the engine async queue.
-	gi.Com_QueueAsyncWork( &s_gen_work );
 	gi.dprintf( "NavMesh Generation Started...\n" );
 }
 
@@ -107,12 +184,14 @@ void Nav_StartAsyncGeneration() {
 **/
 void Nav_SetGenerationProgress( const float progress_pct, const char *stage ) {
 	/**
-	*	Update the progress percentage in the shared status structure monotonically.
+	*	Keep progress monotonic and update its optional bounded stage label.
 	**/
 	const float clamped = QM_Clamp( progress_pct, 0.0f, 1.0f );
+	// Advance progress fraction monotonically.
 	if ( clamped > s_gen_progress.progress_pct ) {
 		s_gen_progress.progress_pct = clamped;
 	}
+	// A null/empty label means retain the current stage rather than erase useful progress.
 	if ( stage != nullptr && stage[ 0 ] != '\0' ) {
 		Q_strlcpy( s_gen_progress.stage, stage, sizeof( s_gen_progress.stage ) );
 	}
@@ -123,65 +202,97 @@ void Nav_SetGenerationProgress( const float progress_pct, const char *stage ) {
 *	@param	stage	Human-readable stage name.
 **/
 void Nav_SetGenerationStage( const char *stage ) {
-	if ( stage != nullptr && stage[ 0 ] != '\0' ) {
-		Q_strlcpy( s_gen_progress.stage, stage, sizeof( s_gen_progress.stage ) );
+	/**
+	*	Validate and copy the new stage label.
+	**/
+	// Null/empty input cannot replace a useful status label.
+	if ( stage == nullptr || stage[ 0 ] == '\0' ) {
+		return;
 	}
+	Q_strlcpy( s_gen_progress.stage, stage, sizeof( s_gen_progress.stage ) );
 }
 
 /**
 *	@brief	Return the current generation progress snapshot.
-*	@return	Reference to the shared progress state.
+*	@return	Copy of the generation progress state.
 **/
-const nav_gen_progress_t &Nav_GetGenerationProgress() {
+nav_gen_progress_t Nav_GetGenerationProgress( void ) {
 	return s_gen_progress;
 }
 
 /**
-*	@brief	Refresh and print async generation status from the main server loop.
+*	@brief	Advance and print staged generation status from the main server loop.
 *	@note	Console output is rate-limited to avoid flooding during long builds.
 **/
-void Nav_UpdateAsyncGeneration() {
-	// Nothing to do once the worker has already completed.
+void Nav_UpdateAsyncGeneration( void ) {
+	/**
+	*	Avoid clock reads and stage checks when no generation is active.
+	**/
 	if ( !s_gen_progress.is_generating ) {
 		return;
 	}
 
-	// Refresh elapsed time from the current server clock.
-	s_gen_progress.current_time_ms = gi.GetRealTime();
-	s_gen_progress.time_taken_ms = s_gen_progress.current_time_ms - s_gen_progress.start_time_ms;
+	/**
+	*	Execute the next generation stage on the main server thread.
+	**/
+	Nav_RunNextGenerationStageMainThread();
+	// Return immediately if the stage completed and finalized generation.
+	if ( !s_gen_progress.is_generating ) {
+		return;
+	}
 
 	/**
-	*	Compute dynamic remaining time estimate using current progress.
+	*	Refresh elapsed time and estimated remaining duration.
 	**/
+	const uint64_t now = gi.GetRealSystemTime();
+	s_gen_progress.current_time_ms = now;
+	s_gen_progress.time_taken_ms = now - s_gen_progress.start_time_ms;
+	// Estimate remaining time when progress has advanced past 1%.
 	if ( s_gen_progress.progress_pct > 0.01f ) {
-		const float elapsed = static_cast< float >( s_gen_progress.time_taken_ms );
-		s_gen_progress.estimated_time_left_ms = static_cast< uint32_t >( elapsed * ( 1.0f - s_gen_progress.progress_pct ) / s_gen_progress.progress_pct );
+		const double remaining = static_cast<double>( s_gen_progress.time_taken_ms ) *
+			( 1.0 - s_gen_progress.progress_pct ) / s_gen_progress.progress_pct;
+		s_gen_progress.estimated_time_left_ms = static_cast<uint64_t>( std::min( remaining, static_cast<double>( UINT32_MAX ) ) );
 	} else {
 		s_gen_progress.estimated_time_left_ms = 0;
 	}
 
-	// Print at a gentle cadence so operators can track long builds without console spam.
-	if ( s_gen_progress.current_time_ms - s_last_progress_print_ms < 1000 ) {
+	/**
+	*	Throttle progress output on the server owner.
+	**/
+	if ( now - s_last_progress_print_ms < 1000 ) {
 		return;
 	}
-	s_last_progress_print_ms = s_gen_progress.current_time_ms;
-
-	// Emit a bounded progress line for server operators with the active stage.
+	s_last_progress_print_ms = now;
 	gi.dprintf( "NavMesh Generation [%s]: %.2f%%, Time Elapsed: %.2f s\n",
-		s_gen_progress.stage[ 0 ] != '\0' ? s_gen_progress.stage : "Building",
-		s_gen_progress.progress_pct * 100.0f,
-		( s_gen_progress.current_time_ms - s_gen_progress.start_time_ms ) / 1000.0f );
+		s_gen_progress.stage[ 0 ] != '\0' ? s_gen_progress.stage : "Building", s_gen_progress.progress_pct * 100.0f,
+		s_gen_progress.time_taken_ms / 1000.0f );
+}
+
+/**
+*	@brief	Finish any remaining generation stages synchronously on the server owner before a lifetime reset.
+*	@note	Ensures live geometry is fully built and published before clear, map change, or shutdown.
+**/
+void Nav_DrainAsyncGenerationMainThread( void ) {
+	/**
+	*	Run all remaining generation stages to completion on the main server thread.
+	**/
+	while ( s_gen_progress.is_generating ) {
+		Nav_RunNextGenerationStageMainThread();
+	}
 }
 
 /**
 *	@brief	Allocate and initialize a new sliced pathfinding query.
 *	@param	start	World-space starting position.
-*	@param	end	World-space target position.
+*	@param	end		World-space target position.
 *	@return	Pointer to the query, or nullptr if allocation fails.
 **/
 nav_path_query_t *Nav_StartPathQuery( const Vector3 &start, const Vector3 &end ) {
-	// Allocate zeroed query storage from the navmesh tag pool.
-	nav_path_query_t *query = ( nav_path_query_t * )gi.TagMallocz( sizeof( nav_path_query_t ), TAG_SVGAME_NAVMESH );
+	/**
+	*	Allocate zeroed query storage from the navmesh tag pool.
+	**/
+	nav_path_query_t *query = static_cast<nav_path_query_t *>( gi.TagMallocz( sizeof( nav_path_query_t ), TAG_SVGAME_NAVMESH ) );
+	// Return nullptr if zone allocation failed.
 	if ( !query ) {
 		return nullptr;
 	}
@@ -196,24 +307,26 @@ nav_path_query_t *Nav_StartPathQuery( const Vector3 &start, const Vector3 &end )
 
 /**
 *	@brief	Advance a sliced pathfinding query within a time budget.
-*	@param	query	Query to process.
+*	@param	query		Query to process.
 *	@param	max_time_ms	Maximum number of milliseconds to spend on this slice.
 **/
 void Nav_ProcessPathQuerySliced( nav_path_query_t *query, uint32_t max_time_ms ) {
-	// Ignore null queries and already-completed queries.
+	/**
+	*	Sanity check: ignore null queries and already-completed queries.
+	**/
 	if ( !query || query->is_finished ) {
 		return;
 	}
 
 	// Track the start time for this processing slice.
-	const uint32_t start_time = gi.GetRealTime();
+	const uint64_t start_time = gi.GetRealSystemTime();
 
 	// Keep processing until the query finishes or the slice budget is exhausted.
 	while ( !query->is_finished ) {
 		// Stub: A* step processing goes here.
 
 		// Yield back to the server frame once the slice budget is spent.
-		if ( ( gi.GetRealTime() - start_time ) >= max_time_ms ) {
+		if ( ( gi.GetRealSystemTime() - start_time ) >= max_time_ms ) {
 			break;
 		}
 	}
@@ -224,6 +337,9 @@ void Nav_ProcessPathQuerySliced( nav_path_query_t *query, uint32_t max_time_ms )
 *	@param	query	Query to release.
 **/
 void Nav_FreePathQuery( nav_path_query_t *query ) {
+	/**
+	*	Release query block if non-null.
+	**/
 	if ( query ) {
 		gi.TagFree( query );
 	}

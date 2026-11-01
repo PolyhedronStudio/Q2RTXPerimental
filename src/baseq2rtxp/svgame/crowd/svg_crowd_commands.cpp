@@ -20,7 +20,10 @@
 #include "svgame/monsters/svg_mmove.h"
 #include "shared/math/qm_vector3_dp.h"
 
+#include <cerrno>
+#include <cmath>
 #include <cstdlib>
+#include <limits>
 #include <cstring>
 #include <vector>
 #include <unordered_map>
@@ -195,52 +198,91 @@ static const char *SVG_Crowd_GetStyleName( const crowd_chase_target_type_t style
 }
 
 /**
-*	@brief	Command handler: crowd_move [crowdID] [x y z | or aim crosshair] [style] [spacing]
+*	@brief	Parse one complete finite coordinate token, including decimal zero.
+*	@param	token	Console coordinate text.
+*	@param	value	Parsed coordinate on success.
+*	@return	True only for a complete finite token within double range.
+**/
+static bool SVG_Crowd_ParseCoordinate( const char *token, double &value ) {
+	/**
+	*	Reject empty tokens before conversion and reject partial or overflowing conversions.
+	**/
+	if ( token == nullptr || *token == '\0' ) {
+		return false;
+	}
+	errno = 0;
+	char *end = nullptr;
+	const double parsed = std::strtod( token, &end );
+	if ( end == token || *end != '\0' || errno == ERANGE || !std::isfinite( parsed ) ) {
+		return false;
+	}
+	value = parsed;
+	return true;
+}
+
+/**
+*	@brief	Order a crowd to explicit coordinates or to the player's crosshair.
+*	@note	Four or more arguments select explicit coordinates; invalid coordinates never become crosshair orders.
 **/
 static void SVG_Command_CrowdMove_f( void ) {
+	/**
+	*	Initialize default formation settings before selecting the command format.
+	**/
 	const int32_t argc = SVG_Crowd_Argc();
 	int32_t crowdID = 1;
 	Vector3DP targetOrigin{ 0.0, 0.0, 0.0 };
 	crowd_chase_target_type_t style = crowd_chase_target_type_t::CROWD_STYLE_ARROW;
 	svg_crowd_params_t params = {};
 
-	// Explicit coordinate format:
-	// crowd_move <crowdID> <x> <y> <z> [style] [spacing]
-	const bool hasExplicitCoords = ( argc >= 4 &&
-		( std::strtod( SVG_Crowd_Argv( 1 ), nullptr ) != 0.0 || strcmp( SVG_Crowd_Argv( 1 ), "0" ) == 0 ) &&
-		( std::strtod( SVG_Crowd_Argv( 2 ), nullptr ) != 0.0 || strcmp( SVG_Crowd_Argv( 2 ), "0" ) == 0 ) &&
-		( std::strtod( SVG_Crowd_Argv( 3 ), nullptr ) != 0.0 || strcmp( SVG_Crowd_Argv( 3 ), "0" ) == 0 ) );
-
-	if ( hasExplicitCoords ) {
-		crowdID = static_cast<int32_t>( std::strtol( SVG_Crowd_Argv( 0 ), nullptr, 10 ) );
-		targetOrigin.x = std::strtod( SVG_Crowd_Argv( 1 ), nullptr );
-		targetOrigin.y = std::strtod( SVG_Crowd_Argv( 2 ), nullptr );
-		targetOrigin.z = std::strtod( SVG_Crowd_Argv( 3 ), nullptr );
-
+	/**
+	*	Parse explicit coordinates without treating any valid representation of zero as missing.
+	**/
+	if ( argc >= 4 ) {
+		// Require complete finite values so malformed commands cannot move a different formation.
+		if ( !SVG_Crowd_ParseCoordinate( SVG_Crowd_Argv( 1 ), targetOrigin.x ) ||
+			 !SVG_Crowd_ParseCoordinate( SVG_Crowd_Argv( 2 ), targetOrigin.y ) ||
+			 !SVG_Crowd_ParseCoordinate( SVG_Crowd_Argv( 3 ), targetOrigin.z ) ) {
+			gi.dprintf( "[CROWD] Invalid explicit coordinates; expected three finite numeric tokens.\n" );
+			return;
+		}
+		// Validate the identifier before narrowing it to the crowd's fixed-width storage.
+		errno = 0;
+		char *end = nullptr;
+		const int64_t identifier = std::strtoll( SVG_Crowd_Argv( 0 ), &end, 10 );
+		if ( end == SVG_Crowd_Argv( 0 ) || *end != '\0' || errno == ERANGE ||
+			 identifier < 0 || identifier > std::numeric_limits<int32_t>::max() ) {
+			gi.dprintf( "[CROWD] Invalid crowd identifier.\n" );
+			return;
+		}
+		crowdID = static_cast<int32_t>( identifier );
+		// Optional formation and spacing follow the three coordinates.
 		if ( argc >= 5 ) {
 			style = SVG_Crowd_ParseStyle( SVG_Crowd_Argv( 4 ) );
 		}
 		if ( argc >= 6 ) {
-			const double spacing = std::strtod( SVG_Crowd_Argv( 5 ), nullptr );
-			if ( spacing > 1.0 ) {
+			double spacing = 0.0;
+			if ( SVG_Crowd_ParseCoordinate( SVG_Crowd_Argv( 5 ), spacing ) && spacing > 1.0 ) {
 				params.lateralSpacing = spacing;
 				params.longitudinalSpacing = spacing;
 			}
 		}
 	} else {
-		// Crosshair targeting format: crowd_move [crowdID] [style] [spacing]
+		/**
+		*	Resolve the crosshair destination before parsing optional identifier/style/spacing.
+		**/
 		if ( !SVG_Crowd_TraceCrosshair( &targetOrigin, nullptr ) ) {
 			gi.dprintf( "[CROWD] Crosshair trace did not hit walkable ground. Usage: crowd_move [crowdID] [style] [spacing] OR crowd_move <crowdID> <x> <y> <z> [style]\n" );
 			return;
 		}
-
+		// A nonnumeric first argument retains the shorthand style-only command.
 		if ( argc >= 1 ) {
-			char *endPtr = nullptr;
-			const long val = std::strtol( SVG_Crowd_Argv( 0 ), &endPtr, 10 );
-			if ( endPtr != SVG_Crowd_Argv( 0 ) && *endPtr == '\0' ) {
-				crowdID = static_cast<int32_t>( val );
+			char *end = nullptr;
+			errno = 0;
+			const int64_t identifier = std::strtoll( SVG_Crowd_Argv( 0 ), &end, 10 );
+			if ( end != SVG_Crowd_Argv( 0 ) && *end == '\0' && errno != ERANGE &&
+				 identifier >= 0 && identifier <= std::numeric_limits<int32_t>::max() ) {
+				crowdID = static_cast<int32_t>( identifier );
 			} else {
-				// Style string passed without numeric crowdID (e.g. crowd_move diamond)
 				style = SVG_Crowd_ParseStyle( SVG_Crowd_Argv( 0 ) );
 			}
 		}
@@ -248,21 +290,23 @@ static void SVG_Command_CrowdMove_f( void ) {
 			style = SVG_Crowd_ParseStyle( SVG_Crowd_Argv( 1 ) );
 		}
 		if ( argc >= 3 ) {
-			const double spacing = std::strtod( SVG_Crowd_Argv( 2 ), nullptr );
-			if ( spacing > 1.0 ) {
+			double spacing = 0.0;
+			if ( SVG_Crowd_ParseCoordinate( SVG_Crowd_Argv( 2 ), spacing ) && spacing > 1.0 ) {
 				params.lateralSpacing = spacing;
 				params.longitudinalSpacing = spacing;
 			}
 		}
 	}
 
+	/**
+	*	Publish success only after the movement order and its queue setup commit successfully.
+	**/
 	const bool success = MoveAStarCrowdOrigin( crowdID, targetOrigin, style, params );
-
 	if ( success ) {
-		gi.dprintf( "[CROWD] Crowd %d ordered to (%.1f, %.1f, %.1f) in style '%s'\n",
+		gi.dprintf( "[CROWD] Crowd %" PRId32 " ordered to (%.1f, %.1f, %.1f) in style '%s'\n",
 			crowdID, targetOrigin.x, targetOrigin.y, targetOrigin.z, SVG_Crowd_GetStyleName( style ) );
 	} else {
-		gi.dprintf( "[CROWD] Failed to order crowd %d: no living members found or invalid destination\n", crowdID );
+		gi.dprintf( "[CROWD] Failed to order crowd %" PRId32 ": no living members found or invalid destination\n", crowdID );
 	}
 }
 
@@ -549,6 +593,25 @@ static void SVG_Command_CrowdStatus_f( void ) {
 		group->ingressPortalOrigin.x, group->ingressPortalOrigin.y, group->ingressPortalOrigin.z,
 		group->ingressPortalInward.x, group->ingressPortalInward.y, group->ingressPortalHalfWidth * 2.0 );
 	/**
+	*	Expose the current adjacent-cell obligation on explicit status requests without authorizing movement.
+	**/
+	const int32_t cell = group->ingressHeadStagingCell;
+	// Only an active bounded staging leg has geometry to report; no diagnostic indexes a stale cell.
+	if ( group->hasSerializedIngress && cell > 0 && static_cast<size_t>( cell ) < group->ingressStagingTransitRoutes.size() ) {
+		const auto &transit = group->ingressStagingTransitRoutes[ cell ];
+		gi.dprintf( "[crowd transit] group=%" PRId32 " head=%" PRId32 " cell=%" PRId32 " points=%zu claims=%zu\n",
+			crowdID, group->ingressQueueHead, cell, transit.size(), group->ingressYieldClaims.size() );
+		// Bound diagnostic output while explicitly reporting any omitted points.
+		for ( size_t index = 0; index < std::min( transit.size(), size_t{ 128 } ); ++index ) {
+			const auto &point = transit[ index ];
+			gi.dprintf( "[crowd transit point] index=%zu feet=(%.9f %.9f %.9f)\n", index, point.x, point.y, point.z );
+		}
+		// A diagnostic limit cannot silently become complete geometry evidence.
+		if ( transit.size() > 128 ) {
+			gi.dprintf( "[crowd transit] incomplete=1 omitted=%zu\n", transit.size() - 128 );
+		}
+	}
+	/**
 	*	Report physical feet positions alongside targets so off-slot stalls are observable.
 	**/
 	for ( const int32_t entityNumber : group->memberEntityNumbers ) {
@@ -558,6 +621,9 @@ static void SVG_Command_CrowdStatus_f( void ) {
 			continue;
 		}
 		const Vector3DP feet = SVG_GetEntityFeetOriginDP( member );
+		// Physical handoff and staging ownership include spawn count/incarnation; report them independently of arrival flags.
+		gi.dprintf( "[crowd owner] ent=%" PRId32 " spawn=%" PRId32 " current_head=%d waiting_yield=%d\n",
+			entityNumber, member->spawn_count, SVG_Crowd_IsCurrentIngressHead( member ), SVG_Crowd_IsWaitingForApproachYield( member ) );
 		const Vector3 &goal = member->crowd.assignedGoalOrigin;
 		const svg_monster_base_t *monster = dynamic_cast<svg_monster_base_t*>( member );
 		gi.dprintf( "[crowd member] ent=%" PRId32 " inRank=%" PRId32 " egRank=%" PRId32 " slot=%" PRId32 " inRel=%d egRel=%d arrived=%d feet=(%.2f %.2f %.2f) goal=(%.2f %.2f %.2f) path=%zu/%zu nextthink=%" PRIu64 "\n",
@@ -567,6 +633,28 @@ static void SVG_Command_CrowdStatus_f( void ) {
 			monster != nullptr ? monster->stringPathPos : size_t{ 0 },
 			monster != nullptr ? monster->stringPulledPath.size() : size_t{ 0 },
 			static_cast<uint64_t>( member->nextthink.Milliseconds() ) );
+		/**
+		*	Report the exact rejection and staging owner independently of route availability.
+		**/
+		if ( monster != nullptr ) {
+			gi.dprintf( "[crowd validation] ent=%" PRId32 " rejected=%d physical=%u geometric=%u clearance=%.4f edge=%" PRId32 " traces=%" PRIu32 " policy=(%.2f %.2f %.2f)\n",
+				entityNumber, monster->navigationCommandRejected, static_cast<uint32_t>( monster->lastMovementValidation.reason ),
+				static_cast<uint32_t>( monster->lastGeometricValidation.reason ), monster->lastGeometricValidation.minimum_clearance,
+				monster->lastGeometricValidation.witness_edge, monster->navigationValidationTraceCount,
+				monster->pathNavigationState.policy.max_step_height, monster->pathNavigationState.policy.max_drop_height,
+				monster->pathNavigationState.policy.min_step_normal );
+			const auto &route = monster->lastRouteValidation;
+			gi.dprintf( "[crowd route validation] ent=%" PRId32 " reason=%u segment=%" PRId32 " physical=%u geometric=%u clearance=%.6f edge=%" PRId32 " samples=%" PRIu32 " traces=%" PRIu32 "\n",
+				entityNumber, static_cast<uint32_t>( route.reason ), route.segment, static_cast<uint32_t>( route.physical ),
+				static_cast<uint32_t>( route.geometric.reason ), route.geometric.minimum_clearance, route.geometric.witness_edge, route.samples, route.traces );
+		}
+		const int32_t rank = member->crowd.ingressQueueRank;
+		// A queue rank must have matching geometry before its assigned goal can be assessed.
+		if ( rank >= 0 && static_cast<size_t>( rank ) < group->ingressStagingPositions.size() ) {
+			const Vector3DP &stage = group->ingressStagingPositions[ rank ];
+			gi.dprintf( "[crowd stage] ent=%" PRId32 " rank=%" PRId32 " feet=(%.2f %.2f %.2f) error=%.2f\n",
+				entityNumber, rank, stage.x, stage.y, stage.z, QM_Vector3Distance2DDP( feet, stage ) );
+		}
 		// Show the active path waypoint as well as the distant assignment to distinguish steering stalls.
 		if ( monster != nullptr && monster->stringPathPos < monster->stringPulledPath.size() ) {
 			const Vector3DP &waypoint = monster->stringPulledPath[ monster->stringPathPos ];
@@ -579,12 +667,12 @@ static void SVG_Command_CrowdStatus_f( void ) {
 				monster->monsterMove.state.previousVelocity.x, monster->monsterMove.state.previousVelocity.y,
 				monster->monsterMove.state.previousVelocity.z );
 			// The reservation owner's full route makes premature corner cutting observable.
-			if ( member->crowd.ingressReleased && !member->crowd.reachedGoal ) {
+			if ( SVG_Crowd_Argc() >= 2 && std::atoi( SVG_Crowd_Argv( 1 ) ) == entityNumber ) {
 				for ( size_t index = 0; index < monster->stringPulledPath.size(); index++ ) {
 					const Vector3DP &point = monster->stringPulledPath[ index ];
 					gi.dprintf( "[crowd route] ent=%" PRId32 " index=%zu point=(%.2f %.2f %.2f) forced=%d\n",
 						entityNumber, index, point.x, point.y, point.z,
-						index < monster->stringPulledWaypointForced.size() && monster->stringPulledWaypointForced[ index ] );
+						monster->SVG_Nav_IsWaypointMandatory( index ) );
 				}
 			}
 			// A read-only sweep identifies physical obstructions independently of navmesh connectivity.
@@ -597,6 +685,203 @@ static void SVG_Command_CrowdStatus_f( void ) {
 				trace.entityNumber, trace.brushID, trace.plane.normal[ 0 ], trace.plane.normal[ 1 ], trace.plane.normal[ 2 ] );
 		}
 	}
+}
+
+/**
+*	@brief	Automated ingress completion checker for M1 regression and benchmark validation.
+*	@note	Validates all arrivals, moving=0, ingress=0, inHead=N/N, unique final slots,
+*			feet-to-final-slot error, floor support, and pairwise hull separation.
+**/
+static void SVG_Command_CrowdCheckIngress_f( void ) {
+	// Validate crowd ID argument.
+	if ( SVG_Crowd_Argc() < 1 ) {
+		gi.dprintf( "Usage: sv crowd_check_ingress <crowdID> [max_seat_error] [min_separation]\n" );
+		return;
+	}
+
+	const int32_t crowdID = std::atoi( SVG_Crowd_Argv( 0 ) );
+	const double maxSeatErrorAllowed = ( SVG_Crowd_Argc() >= 2 ) ? std::atof( SVG_Crowd_Argv( 1 ) ) : 16.0;
+	const double minSeparationRequired = ( SVG_Crowd_Argc() >= 3 ) ? std::atof( SVG_Crowd_Argv( 2 ) ) : 24.0;
+
+	const svg_crowd_group_t *group = SVG_Crowd_GetGroup( crowdID );
+	// Verify crowd group existence.
+	if ( group == nullptr ) {
+		gi.dprintf( "[ingress check] FAIL: group=%" PRId32 " does not exist\n", crowdID );
+		return;
+	}
+
+	// Invalid thresholds must never turn comparisons into an automatic pass.
+	if ( !std::isfinite( maxSeatErrorAllowed ) || maxSeatErrorAllowed < 0.0 ||
+		 !std::isfinite( minSeparationRequired ) || minSeparationRequired < 0.0 ) {
+		gi.dprintf( "[ingress check] FAIL: invalid finite acceptance thresholds\n" );
+		return;
+	}
+
+	/**
+	*	Validate controller completion before inspecting immutable final slot occupancy.
+	**/
+	bool pass = true;
+	gi.dprintf( "[ingress check] ===== CROWD %" PRId32 " INGRESS VERIFICATION =====\n", crowdID );
+
+	// Check whether the group is still in motion.
+	if ( group->isMoving ) {
+		gi.dprintf( "[ingress check] FAIL: group is still marked moving (isMoving=1)\n" );
+		pass = false;
+	}
+	// Check whether serialized ingress coordination is still active.
+	if ( group->hasSerializedIngress ) {
+		gi.dprintf( "[ingress check] FAIL: group still has active serialized ingress (hasSerializedIngress=1)\n" );
+		pass = false;
+	}
+
+	// Check whether the ingress queue head reached all admitted members.
+	const size_t ingressTotal = group->ingressQueueEntityNumbers.size();
+	if ( ingressTotal > 0 && group->ingressQueueHead < static_cast<int32_t>( ingressTotal ) ) {
+		gi.dprintf( "[ingress check] FAIL: ingress queue not fully processed: head=%" PRId32 "/%zu\n",
+			group->ingressQueueHead, ingressTotal );
+		pass = false;
+	}
+
+	// Track member status for slot uniqueness and pairwise separation checks.
+	struct member_check_info_t {
+		int32_t entNum;
+		int32_t slotIdx;
+		Vector3DP feet;
+		Vector3DP goal;
+		double radius;
+		double seatError;
+		bool arrived;
+		bool grounded;
+	};
+	std::vector<member_check_info_t> activeMembers;
+	std::unordered_map<int32_t, int32_t> slotOwners;
+	double maxObservedSeatError = 0.0;
+	size_t arrivedCount = 0;
+
+	// Iterate all members registered to this crowd group.
+	for ( const int32_t entityNumber : group->memberEntityNumbers ) {
+		svg_base_edict_t *member = g_edict_pool.EdictForNumber( entityNumber );
+		// Skip inactive or dead entities.
+		if ( member == nullptr || !SVG_Entity_IsActive( member ) || member->health <= 0 ) {
+			continue;
+		}
+
+		const Vector3DP feet = SVG_GetEntityFeetOriginDP( member );
+		const int32_t slotIndex = member->crowd.slotIndex;
+		// A staging goal is transient; only the immutable formation slot proves final occupancy.
+		if ( slotIndex < 0 || static_cast<size_t>( slotIndex ) >= group->slots.size() ||
+			 !group->slots[ slotIndex ].isNavmeshValid ) {
+			gi.dprintf( "[ingress check] FAIL: ent=%" PRId32 " has no valid final slot\n", entityNumber );
+			pass = false;
+			continue;
+		}
+		const Vector3DP &goal = group->slots[ slotIndex ].worldPosition;
+		const svg_monster_base_t *monster = dynamic_cast<svg_monster_base_t*>( member );
+
+		const double dx = feet.x - static_cast<double>( goal.x );
+		const double dy = feet.y - static_cast<double>( goal.y );
+		const double seatErr2D = std::sqrt( dx * dx + dy * dy );
+		if ( seatErr2D > maxObservedSeatError ) {
+			maxObservedSeatError = seatErr2D;
+		}
+
+		const bool isGrounded = ( monster != nullptr && ( monster->monsterMove.state.mm_flags & MMF_ON_GROUND ) != 0 )
+			|| ( member->groundInfo.entityNumber != ENTITYNUM_NONE );
+
+		member_check_info_t info = {};
+		info.entNum = entityNumber;
+		info.slotIdx = member->crowd.slotIndex;
+		info.feet = feet;
+		info.goal = goal;
+		info.seatError = seatErr2D;
+		info.radius = std::max( std::fabs( static_cast<double>( member->mins.x ) ), static_cast<double>( member->maxs.x ) );
+		info.arrived = member->crowd.reachedGoal && seatErr2D <= maxSeatErrorAllowed &&
+			std::fabs( feet.z - goal.z ) <= MONSTER_NAV_FINAL_GOAL_MAX_Z_DELTA &&
+			( member->crowd.ingressQueueRank < 0 || member->crowd.ingressReleased );
+		// Count physical final arrivals independently of unique slot ownership.
+		if ( info.arrived ) {
+			++arrivedCount;
+		}
+		info.grounded = isGrounded;
+		activeMembers.push_back( info );
+
+		// Check arrival status.
+		if ( !info.arrived ) {
+			gi.dprintf( "[ingress check] FAIL: ent=%" PRId32 " has not reached its final slot\n", entityNumber );
+			pass = false;
+		}
+
+		// Check slot uniqueness.
+		if ( info.slotIdx >= 0 ) {
+			const auto it = slotOwners.find( info.slotIdx );
+			if ( it != slotOwners.end() ) {
+				gi.dprintf( "[ingress check] FAIL: duplicate slot %" PRId32 " shared by ent=%" PRId32 " and ent=%" PRId32 "\n",
+					info.slotIdx, it->second, entityNumber );
+				pass = false;
+			} else {
+				slotOwners[ info.slotIdx ] = entityNumber;
+			}
+		}
+
+		// Check seating accuracy threshold.
+		if ( seatErr2D > maxSeatErrorAllowed ) {
+			gi.dprintf( "[ingress check] FAIL: ent=%" PRId32 " seat error %.2f exceeds allowed threshold %.2f\n",
+				entityNumber, seatErr2D, maxSeatErrorAllowed );
+			pass = false;
+		}
+
+		// Check grounding support.
+		if ( !isGrounded ) {
+			gi.dprintf( "[ingress check] FAIL: ent=%" PRId32 " is not grounded (no ground support)\n", entityNumber );
+			pass = false;
+		}
+
+		gi.dprintf( "[ingress check member] ent=%" PRId32 " slot=%" PRId32 " arrived=%d grounded=%d seatErr=%.2f feet=(%.2f %.2f %.2f) goal=(%.2f %.2f %.2f)\n",
+			entityNumber, info.slotIdx, info.arrived ? 1 : 0, info.grounded ? 1 : 0, seatErr2D,
+			feet.x, feet.y, feet.z, goal.x, goal.y, goal.z );
+	}
+
+	// An empty/dead roster cannot prove the requested crowd filled its destination.
+	if ( activeMembers.empty() || activeMembers.size() != group->memberEntityNumbers.size() ) {
+		gi.dprintf( "[ingress check] FAIL: active roster does not match ordered members\n" );
+		pass = false;
+	}
+
+	/**
+	*	Compare every active hull pair against physical radii as well as the requested threshold.
+	**/
+	double minObservedSep2D = 1e9;
+	int32_t closestPairA = -1;
+	int32_t closestPairB = -1;
+
+	// Check separation across all pairs of active members.
+	for ( size_t i = 0; i < activeMembers.size(); ++i ) {
+		// Each unordered pair is measured once; both native radii contribute to non-overlap.
+		for ( size_t j = i + 1; j < activeMembers.size(); ++j ) {
+			const double dx = activeMembers[ i ].feet.x - activeMembers[ j ].feet.x;
+			const double dy = activeMembers[ i ].feet.y - activeMembers[ j ].feet.y;
+			const double dist2D = std::sqrt( dx * dx + dy * dy );
+
+			// Retain the closest pair for a reproducible separation witness.
+			if ( dist2D < minObservedSep2D ) {
+				minObservedSep2D = dist2D;
+				closestPairA = activeMembers[ i ].entNum;
+				closestPairB = activeMembers[ j ].entNum;
+			}
+
+			// Report separation violation if two agents are clipping into each other's footprint.
+			const double requiredSeparation = std::max( minSeparationRequired, activeMembers[ i ].radius + activeMembers[ j ].radius );
+			if ( dist2D < requiredSeparation ) {
+				gi.dprintf( "[ingress check] FAIL: pair (%" PRId32 ", %" PRId32 ") separation %.2f < required %.2f\n",
+					activeMembers[ i ].entNum, activeMembers[ j ].entNum, dist2D, requiredSeparation );
+				pass = false;
+			}
+		}
+	}
+
+	gi.dprintf( "[ingress check] VERDICT: %s (members=%zu, arrived=%zu, unique_slots=%zu, max_seat_err=%.2f, min_sep2d=%.2f between ents %" PRId32 " and %" PRId32 ")\n",
+		pass ? "PASS" : "FAIL", activeMembers.size(), arrivedCount, slotOwners.size(), maxObservedSeatError,
+		( minObservedSep2D < 1e8 ? minObservedSep2D : 0.0 ), closestPairA, closestPairB );
 }
 
 /**
@@ -640,6 +925,9 @@ bool SVG_Crowd_ServerCommand( const char *cmd ) {
 		return true;
 	} else if ( Q_stricmp( cmd, "crowd_status" ) == 0 ) {
 		SVG_Command_CrowdStatus_f();
+		return true;
+	} else if ( Q_stricmp( cmd, "crowd_check_ingress" ) == 0 || Q_stricmp( cmd, "check_ingress" ) == 0 ) {
+		SVG_Command_CrowdCheckIngress_f();
 		return true;
 	}
 

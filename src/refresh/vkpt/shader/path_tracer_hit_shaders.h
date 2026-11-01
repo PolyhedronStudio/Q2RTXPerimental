@@ -109,26 +109,55 @@ bool pt_logic_masked(int primitiveID, int instanceID, int geometryIndex, uint in
 	return mask_value.x >= 0.5;
 }
 
-vec4 pt_logic_particle(int primitiveID, vec2 bary)
-{
-	const vec3 barycentric = vec3(1.0 - bary.x - bary.y, bary.x, bary.y);
-	const vec2 uv = vec2(0.0, 0.0) * barycentric.x + vec2(1.0, 0.0) * barycentric.y + vec2(1.0, 1.0) * barycentric.z;
+/**
+*	@brief	Evaluate procedural particle quad transparency and color in Any-Hit / Ray-Query.
+*	@param	primitiveID	Triangle index within the particle BLAS (2 triangles per particle quad).
+*	@param	bary		Hardware barycentric coordinates (u, v) for the triangle hit.
+*	@return	Premultiplied HDR RGBA particle contribution, or vec4(0.0) if outside the particle radius.
+**/
+vec4 pt_logic_particle( int primitiveID, vec2 bary ) {
+	/**
+	*	Interpolate continuous [0..1] quad UV coordinates across both triangles of the quad.
+	*	Triangle 0 (even primitiveID) uses vertices (0, 1, 2) -> UVs (0,0), (1,0), (1,1).
+	*	Triangle 1 (odd primitiveID) uses vertices (2, 3, 0) -> UVs (1,1), (0,1), (0,0).
+	**/
+	// Construct full 3-component barycentric weights from hardware (u, v).
+	const vec3 barycentric = vec3( 1.0 - bary.x - bary.y, bary.x, bary.y );
+	// Select UV corner mapping based on whether this is the first or second triangle of the quad.
+	vec2 uv;
+	if ( ( primitiveID & 1 ) == 0 ) {
+		// Triangle 0: top-left (0,0), top-right (1,0), bottom-right (1,1).
+		uv = vec2( 0.0, 0.0 ) * barycentric.x + vec2( 1.0, 0.0 ) * barycentric.y + vec2( 1.0, 1.0 ) * barycentric.z;
+	} else {
+		// Triangle 1: bottom-right (1,1), bottom-left (0,1), top-left (0,0).
+		uv = vec2( 1.0, 1.0 ) * barycentric.x + vec2( 0.0, 1.0 ) * barycentric.y + vec2( 0.0, 0.0 ) * barycentric.z;
+	}
 
-	const float factor = pow(clamp(1.0 - length(vec2(0.5) - uv) * 2.0, 0.0, 1.0), global_ubo.pt_particle_softness);
+	/**
+	*	Compute radial falloff and fetch per-particle color and HDR exposure scaling.
+	**/
+	// Compute soft radial falloff from the quad center (0.5, 0.5).
+	const float factor = pow( clamp( 1.0 - length( vec2( 0.5 ) - uv ) * 2.0, 0.0, 1.0 ), global_ubo.pt_particle_softness );
 
-	if (factor > 0.0)
-	{
+	// Only fetch and shade if the hit lies within the non-zero particle falloff radius.
+	if ( factor > 0.0 ) {
+		// Each particle consists of 2 triangles, so divide primitiveID by 2.
 		const int particle_index = primitiveID / 2;
-		vec4 color = texelFetch(particle_color_buffer, particle_index);
+		// Fetch linear RGB + alpha from the particle color texel buffer.
+		vec4 color = texelFetch( particle_color_buffer, particle_index );
+		// Modulate alpha by radial softness factor and premultiply RGB.
 		color.a *= factor;
 		color.rgb *= color.a;
 
+		// Scale emission by adapted scene luminance and particle brightness cvar.
 		color.rgb *= global_ubo.prev_adapted_luminance * global_ubo.pt_particle_brightness;
 
+		// Return premultiplied HDR color.
 		return color;
 	}
 
-	return vec4(0);
+	// Outside the particle radius, contribute nothing.
+	return vec4( 0.0 );
 }
 
 vec4 pt_logic_beam(int primitiveID, vec2 beam_fade_and_thickness, float hitT, float maxT)

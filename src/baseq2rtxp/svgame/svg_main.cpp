@@ -22,9 +22,13 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/svg_edict_pool.h"
 #include "svgame/svg_clients.h"
 #include "svgame/nav/nav_thread.h"
+#include "svgame/nav/nav_worker.h"
+#include "svgame/nav/nav_actor_fixture.h"
 #include "svgame/nav/nav_core.h"
 #include "svgame/nav/nav_debug.h"
+#include "svgame/nav/nav_corner_capture.h"
 #include "svgame/nav/nav_debug_draw.h"
+#include "svgame/nav/nav_perf.h"
 #include "svgame/nav/nav_generate.h"
 #include "svgame/crowd/svg_crowd_manager.h"
 #include "svgame/crowd/svg_crowd_commands.h"
@@ -219,6 +223,95 @@ void SVG_InitGame( void );
 void SVG_ShutdownGame( void );
 
 /**
+*	@brief	Finish generation before an engine callback reads or changes game entities.
+*	@note	These export wrappers run on the server owner thread; the worker never calls them.
+**/
+static void SVG_NavDrainBeforeEntityCallback( void ) {
+	// Complete the worker and its owner callback while map/entity storage is still alive.
+	Nav_DrainAsyncGenerationMainThread();
+}
+
+/**
+*	@brief	Protect client movement from overlapping nav generation entity reads.
+**/
+static void SVG_NavSafeClientThink( svg_base_edict_t *ent, usercmd_t *cmd ) {
+	SVG_NavDrainBeforeEntityCallback();
+	SVG_Client_Think( ent, cmd );
+}
+
+/**
+*	@brief	Protect client connection state from overlapping nav generation entity reads.
+**/
+static const bool SVG_NavSafeClientConnect( svg_base_edict_t *ent, char *userinfo ) {
+	SVG_NavDrainBeforeEntityCallback();
+	return SVG_Client_Connect( ent, userinfo );
+}
+
+/**
+*	@brief	Protect client spawn state from overlapping nav generation entity reads.
+**/
+static void SVG_NavSafeClientBegin( svg_base_edict_t *ent ) {
+	SVG_NavDrainBeforeEntityCallback();
+	SVG_Client_Begin( ent );
+}
+
+/**
+*	@brief	Protect client removal from overlapping nav generation entity reads.
+**/
+static void SVG_NavSafeClientDisconnect( svg_base_edict_t *ent ) {
+	SVG_NavDrainBeforeEntityCallback();
+	SVG_Client_Disconnect( ent );
+}
+
+/**
+*	@brief	Protect client userinfo changes from overlapping nav generation entity reads.
+**/
+static void SVG_NavSafeClientUserinfoChanged( svg_base_edict_t *ent, char *userinfo ) {
+	SVG_NavDrainBeforeEntityCallback();
+	SVG_Client_UserinfoChanged( ent, userinfo );
+}
+
+/**
+*	@brief	Protect client console actions from overlapping nav generation entity reads.
+**/
+static void SVG_NavSafeClientCommand( svg_base_edict_t *ent ) {
+	SVG_NavDrainBeforeEntityCallback();
+	SVG_Client_Command( ent );
+}
+
+/**
+*	@brief	Protect game serialization from overlapping nav generation entity reads.
+**/
+static void SVG_NavSafeWriteGame( const char *filename, const bool isAutoSave ) {
+	SVG_NavDrainBeforeEntityCallback();
+	SVG_WriteGame( filename, isAutoSave );
+}
+
+/**
+*	@brief	Protect game deserialization from overlapping nav generation entity reads.
+**/
+static void SVG_NavSafeReadGame( const char *filename ) {
+	SVG_NavDrainBeforeEntityCallback();
+	SVG_ReadGame( filename );
+}
+
+/**
+*	@brief	Protect level serialization from overlapping nav generation entity reads.
+**/
+static void SVG_NavSafeWriteLevel( const char *filename ) {
+	SVG_NavDrainBeforeEntityCallback();
+	SVG_WriteLevel( filename );
+}
+
+/**
+*	@brief	Protect level deserialization from overlapping nav generation entity reads.
+**/
+static void SVG_NavSafeReadLevel( const char *filename ) {
+	SVG_NavDrainBeforeEntityCallback();
+	SVG_ReadLevel( filename );
+}
+
+/**
 *	@brief	Returns a pointer to the structure with all entry points
 *			and global variables
 **/
@@ -234,6 +327,7 @@ extern "C" { // WID: C++20: extern "C".
 		globals.PreInit = SVG_PreInitGame;
 		globals.Init = SVG_InitGame;
 		globals.Shutdown = SVG_ShutdownGame;
+		globals.DrainAsyncGeneration = Nav_DrainNavigationReadersMainThread;
 		globals.SpawnEntities = SVG_SpawnEntities;
 		globals.GetTempEventEntityTypeOffset = _Exports_SVG_GetTempEventEntityTypeOffset;
 
@@ -244,17 +338,17 @@ extern "C" { // WID: C++20: extern "C".
 		globals.GetGameModeName = _Exports_SG_GetGameModeName;
 		globals.GameModeAllowSaveGames = SVG_GameModeAllowSaveGames;
 
-		globals.WriteGame = SVG_WriteGame;
-		globals.ReadGame = SVG_ReadGame;
-		globals.WriteLevel = SVG_WriteLevel;
-		globals.ReadLevel = SVG_ReadLevel;
+		globals.WriteGame = SVG_NavSafeWriteGame;
+		globals.ReadGame = SVG_NavSafeReadGame;
+		globals.WriteLevel = SVG_NavSafeWriteLevel;
+		globals.ReadLevel = SVG_NavSafeReadLevel;
 
-		globals.ClientThink = SVG_Client_Think;
-		globals.ClientConnect = SVG_Client_Connect;
-        globals.ClientBegin = SVG_Client_Begin;
-        globals.ClientDisconnect = SVG_Client_Disconnect;
-		globals.ClientUserinfoChanged = SVG_Client_UserinfoChanged;
-		globals.ClientCommand = SVG_Client_Command;
+		globals.ClientThink = SVG_NavSafeClientThink;
+		globals.ClientConnect = SVG_NavSafeClientConnect;
+        globals.ClientBegin = SVG_NavSafeClientBegin;
+        globals.ClientDisconnect = SVG_NavSafeClientDisconnect;
+		globals.ClientUserinfoChanged = SVG_NavSafeClientUserinfoChanged;
+		globals.ClientCommand = SVG_NavSafeClientCommand;
 
 		//globals.PlayerMove = SG_PlayerMove;
 		//globals.ConfigurePlayerMoveParameters = SG_ConfigurePlayerMoveParameters;
@@ -369,11 +463,10 @@ void SVG_InitGame( void ) {
     game.maxclients = maxclients->integer;
     game.maxentities = maxentities->integer;
 
-    // C Random time initializing.
-    Q_srand( time( NULL ) );
-
-    // seed RNG
-    mt_rand.seed( (uint32_t)std::chrono::system_clock::now().time_since_epoch().count() );
+    /**
+    *	Initialize both RNGs before spawning; explicit fixture seeds make native cases reproducible.
+    **/
+    Nav_Corner_InitRandomSeed();
 
     //FIXME: sv_ prefix is wrong for these
     sv_rollspeed = gi.cvar( "sv_rollspeed", "200", 0 );
@@ -483,6 +576,7 @@ void SVG_InitGame( void ) {
     // NavMesh V6: Initialize the nav debugging CVARs.
     Nav_DebugInit();
     SVG_Nav_DebugDraw_Init();
+    Nav_Perf_Init();
 
 	// Initialize Crowd / Crew Navigation Manager.
 	SVG_Crowd_Init();
@@ -513,6 +607,8 @@ void SVG_ShutdownGame( void ) {
     // Notify of shutdown.
     gi.dprintf( "==== Initiating ServerGame Shutdown ====\n" );
 
+	// Finish live-mesh generation before crowd state or entity memory can be released.
+	Nav_DrainAsyncGenerationMainThread();
 	// Shutdown crowd subsystem and release active cover claims.
 	SVG_Crowd_Shutdown();
 
@@ -526,11 +622,13 @@ void SVG_ShutdownGame( void ) {
 	*	We free edicts first since they may be referencing gamemode and level data in their shutdown, and we want to make sure that the gamemode and level are still around when that happens.
 	**/
 	if ( g_edict_pool.edicts != nullptr ) {
-        // Release edict pool ownership in one place; this also frees TAG_SVGAME_LEVEL and TAG_SVGAME_EDICTS.
+        // Release entity objects and the slot array; clients and the level arena have separate owners.
 		g_edicts = SVG_EdictPool_Release( &g_edict_pool );
 	}
 	g_edicts = nullptr;
 	//gi.FreeTags( TAG_SVGAME_EDICTS );
+	// Destroy clients while their game/level references and Lua runtime are still valid.
+	SVG_Clients_Release();
 	gi.FreeTags( TAG_SVGAME );
 
 	// Shutdown the Lua VM.
@@ -540,6 +638,10 @@ void SVG_ShutdownGame( void ) {
     // game.mode->Shutdown();
     delete game.mode;
     game.mode = nullptr;
+
+	// Lua, game-mode, entity and client borrowers have retired before their level arena is reclaimed.
+	level = {};
+	gi.FreeTags( TAG_SVGAME_LEVEL );
 
     // Notify of shutdown.
     gi.dprintf( "==== ServerGame Shutdown ====\n" );
@@ -732,16 +834,54 @@ void SVG_RunFrame(void) {
 	//	SVG_SetupDoorPortalSpawnStates();
 	//}
 
+	/**
+	*	The generation worker still builds the live mesh. Keep entity thinking and
+	*	nav debug readers out of its exclusive build window until publication.
+	**/
+	if ( Nav_GetGenerationProgress().is_generating ) {
+		Nav_UpdateAsyncGeneration();
+		return;
+	}
+
+	// Include bounded collision preparation in total server frame performance monitoring.
+	// Keep a paired measurement decision; ordinary gameplay needs no frame clock reads.
+	const bool measureNavigationTick = Nav_Perf_IsEnabled();
+	const auto tick_start_time = measureNavigationTick ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
+	// Begin paired owner navigation sums before delivery; the tick end records zero-work samples too.
+	Nav_Perf_BeginTick();
+	// Advance collision-dependent publication inputs once per game frame under a hard edge/trace bound.
+	/**
+	*	Include owner-side preparation in per-tick orchestration; nested native commits count once.
+	**/
+	{
+		nav_perf_scope_t preparationScope( NAV_PERF_PHASE_NAV_ORCHESTRATION );
+		Nav_PrepareQueryInputsMainThread();
+	}
+
     // Increase the frame number we're in for this level..
     level.frameNumber++;
     // Increase the amount of time that has passed for this level.
     level.time += FRAME_TIME_MS;
+	// Deliver in the actual upcoming gameplay frame so callbacks and audit ownership share its tick/time.
+	/**
+	*	Include owner-side delivery in per-tick orchestration; nested native commits count once.
+	**/
+	{
+		nav_perf_scope_t deliveryScope( NAV_PERF_PHASE_NAV_ORCHESTRATION );
+		Nav_QueryWorkerBeginFrameMainThread();
+	}
+	// Optional benchmark stimuli use the same owner tick before the real entity dispatcher.
+	Nav_ActorBenchmarkTickMainThread();
     // Reseed the mersennery twister.
     mt_rand.seed( level.frameNumber );
     // Begin nav debug draw frame bookkeeping.
     SVG_Nav_DebugDraw_BeginFrame();
     // NavMesh V6: Perform KD-Tree Debug Drawing.
-    SVG_Nav_DebugDraw();
+	{
+		nav_perf_scope_t debug_draw_scope( NAV_PERF_PHASE_DEBUG_DRAWING );
+		SVG_Nav_DebugDraw();
+		Nav_Corner_DebugDraw();
+	}
 
     /**
 	*	WID: LUA: CallBack.
@@ -849,7 +989,10 @@ void SVG_RunFrame(void) {
     SVG_PushMove_UpdateMoveWithEntities();
 
 	// Process per-frame crowd coordination, slot tracking, and follow updates.
-	SVG_Crowd_Frame();
+	{
+		nav_perf_scope_t crowd_scope( NAV_PERF_PHASE_CROWD_COORDINATION );
+		SVG_Crowd_Frame();
+	}
 	
 	/**
 	*	WID: LUA: CallBack.
@@ -882,7 +1025,28 @@ void SVG_RunFrame(void) {
     *        second pass lets already-running incremental searches make extra progress before the frame ends.
     **/
     // Flush nav debug draw stream after all subsystems have had a chance to submit primitives.
-    SVG_Nav_DebugDraw_FlushFrame();
+	{
+		nav_perf_scope_t debug_flush_scope( NAV_PERF_PHASE_DEBUG_DRAWING );
+		SVG_Nav_DebugDraw_FlushFrame();
+	}
     // Service the legacy KD-tree nav generator once per frame so progress output appears while it runs.
+    // Publish collected requests only after entity/crowd updates finish.
+	/**
+	*	Include owner-side publication in per-tick orchestration; nested native commits count once.
+	**/
+	{
+		nav_perf_scope_t publicationScope( NAV_PERF_PHASE_NAV_ORCHESTRATION );
+		Nav_QueryWorkerEndFrameMainThread();
+	}
     Nav_UpdateAsyncGeneration();
+
+	// Record total server tick duration and evaluate against the 40 Hz (25 ms) deadline.
+	// Only frames with a measured start need an ending clock read.
+	if ( measureNavigationTick ) {
+		const auto tick_end_time = std::chrono::steady_clock::now();
+		const double tick_time_us = std::chrono::duration<double, std::micro>( tick_end_time - tick_start_time ).count();
+		Nav_Perf_RecordTick( tick_time_us );
+	}
+	// Optional report/phase resets are outside the sealed gameplay measurement.
+	Nav_ActorBenchmarkEndFrameMainThread();
 }

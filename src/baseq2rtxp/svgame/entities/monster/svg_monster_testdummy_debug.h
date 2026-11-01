@@ -100,6 +100,10 @@ struct svg_monster_testdummy_debug_t : public svg_monster_base_t {
 	**/
 	//! Tracks whether the NPC has been enabled by the player.
 	bool isActivated = false;
+	//! Opt-in native fixture exercises the real no-cover retreat branch without replacing movement code.
+	bool navigationFixtureNoCover = false;
+	//! Explicitly verified native fixture control; preserves authored hull, root motion and movement policy.
+	bool navigationFixtureControl = false;
 	//! Last server time when the activator was confirmed visible.
 	QMTime lastPlayerVisibleTime = 0_ms;
 
@@ -258,6 +262,11 @@ struct svg_monster_testdummy_debug_t : public svg_monster_base_t {
 	*	@return	Adjusted edge traversal cost.
 	**/
 	double OnNavEvaluateEdgeCost( const int32_t fromFaceIdx, const int32_t toFaceIdx, const nav_halfedge_t &he, const double baseCost ) override;
+	/**
+	*	@brief	Copy the debug dummy's complete corridor/scared-stair cost preferences.
+	*	@return	True; the pure request represents both current active cost behaviors.
+	**/
+	bool BuildNavigationCostSnapshot( nav_query_cost_policy_t &cost ) const override;
 
 	/**
 	*	@brief	State tracking for the "stare-halt" waypoint reaction example.

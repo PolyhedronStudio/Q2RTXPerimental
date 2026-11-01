@@ -570,13 +570,15 @@ static inline void PM_GetLiquidContentsForPoint( const Vector3 &position, cm_liq
 *
 **/
 /**
-*	@brief	Corrects a allsolid ground trace by jittering around the current position.
+*	@brief	Corrects an allsolid ground trace by jittering around the current position.
 *			Returns true if a valid ground trace was found.
-*	@note	In case of success the pml.groundTrace will be set to the new valid trace.
-*			When this function returns false, the player is in freefall.
+*	@param	trace	[in/out] Ground trace result to repair.
+*	@return	True if a non-solid position was found and the ground trace was updated.
+*	@note	In case of success `pm->state->pmove.origin` and `pml.groundTrace` are updated
+*			to the new valid position and trace.
 **/
 static const int32_t PM_CorrectAllSolidGround( cm_trace_t *trace ) {
-	int32_t	i, j, k;
+	int32_t i, j, k;
 
 	#ifdef PMOVE_PRINT_GROUNDTRACE_DEBUGINFO
 		SG_DPrintf( "[" SG_GAME_MODULE_STR " (%" PRId64 ")]: %s : allsolid; \n", pm->simulationTime.Milliseconds(), __func__ );
@@ -593,9 +595,12 @@ static const int32_t PM_CorrectAllSolidGround( cm_trace_t *trace ) {
 			(double)pm->state->pmove.origin.x, (double)pm->state->pmove.origin.y, (double)pm->state->pmove.origin.z );
 	#endif
 
+	/**
+	*	Jitter around the current origin to locate a nearby non-solid capsule position.
+	**/
 	Vector3 testPoint = {};
 
-	// jitter around
+	// Search a 3x3x3 neighborhood around the current origin.
 	for ( i = -1; i <= 1; i++ ) {
 		for ( j = -1; j <= 1; j++ ) {
 			for ( k = -1; k <= 1; k++ ) {
@@ -603,7 +608,7 @@ static const int32_t PM_CorrectAllSolidGround( cm_trace_t *trace ) {
 				testPoint[ 0 ] += (float)( i );
 				testPoint[ 1 ] += (float)( j );
 				testPoint[ 2 ] += (float)( k );
-				*trace = PM_Trace( testPoint, pm->mins, pm->maxs, testPoint );
+				*trace = PM_TraceCapsule( testPoint, pm->mins, pm->maxs, testPoint );
 				#ifdef PMOVE_PRINT_GROUNDTRACE_DEBUGINFO_CCORRECTALLSOLID_SECOND
 					SG_DPrintf( "[" SG_GAME_MODULE_STR " (%" PRId64 ")]: %s : jitter testPoint=(%.3f %.3f %.3f) -> fraction=%.6f startsolid=%d allsolid=%d plane.normal=(%.6f %.6f %.6f) ent=%d\n",
 						pm->simulationTime.Milliseconds(), __func__,
@@ -612,9 +617,11 @@ static const int32_t PM_CorrectAllSolidGround( cm_trace_t *trace ) {
 						(double)trace->plane.normal[0], (double)trace->plane.normal[1], (double)trace->plane.normal[2],
 						trace->entityNumber );
 				#endif
+				// If a valid position is found, commit it to the player origin and re-probe the ground.
 				if ( !trace->allsolid ) {
-					Vector3 down_point = pm->state->pmove.origin - Vector3{ 0.f, 0.f, 0.25f };
-					*trace = PM_Trace( pm->state->pmove.origin, pm->mins, pm->maxs, down_point );
+					pm->state->pmove.origin = testPoint;
+					const Vector3 down_point = pm->state->pmove.origin - Vector3{ 0.f, 0.f, (float)PM_STEP_GROUND_DIST };
+					*trace = PM_TraceCapsule( pm->state->pmove.origin, pm->mins, pm->maxs, down_point );
 					pml.groundTrace = *trace;
 					return true;
 				}
@@ -622,6 +629,9 @@ static const int32_t PM_CorrectAllSolidGround( cm_trace_t *trace ) {
 		}
 	}
 
+	/**
+	*	No valid nearby position was found; clear ground contact and fall back to aerial state.
+	**/
 	// Not walking or on ground.
 	pm->ground.entityNumber = ENTITYNUM_NONE;
 
@@ -670,16 +680,19 @@ static void PM_GroundTraceMissed( void ) {
 }
 
 /**
-*	@brief	Called before, and after moving, to catagorize which entity/surface/plane we're standing
+*	@brief	Called before, and after moving, to categorize which entity/surface/plane we're standing
 *			on if any at all.
 **/
 static void PM_GroundTrace( void ) {
+	/**
+	*	Probe downward using the player's capsule shape so ground classification matches slide-move.
+	**/
 	// Keep previous ground contact so we can detect true air->ground landing transitions.
 	const int32_t previousGroundEntity = pm->ground.entityNumber;
 	// Trace downwards to find ground.
 	Vector3 point = pm->state->pmove.origin - Vector3{ 0.f, 0.f, (float)PM_STEP_GROUND_DIST };
-	// Use cylinder for world-ground probing so slope/stair classification matches step-slide logic.
-	cm_trace_t trace = PM_TraceCylinder( pm->state->pmove.origin, pm->mins, pm->maxs, point );
+	// Use capsule for world-ground probing so slope/stair/curved-brush classification matches slide-move.
+	cm_trace_t trace = PM_TraceCapsule( pm->state->pmove.origin, pm->mins, pm->maxs, point );
 	pml.groundTrace = trace;
 
 
@@ -928,9 +941,12 @@ static void PM_AddCurrents( Vector3 & wishVelocity ) {
 **/
 /**
 *	@brief	Decide whether to duck, and/or unduck.
+*	@return	True if the ducked flag state changed.
 **/
 static inline const bool PM_CheckDuck() {
-	// Can't duck if gibbed.
+	/**
+	*	Sanity check: gibbed players cannot change duck state.
+	**/
 	if ( pm->state->pmove.pm_type == PM_GIB /*|| pm->state->pmove.pm_type == PM_DEAD*/ ) {
 		return false;
 	}
@@ -938,6 +954,10 @@ static inline const bool PM_CheckDuck() {
 	cm_trace_t trace;
 	bool flags_changed = false;
 
+	/**
+	*	Evaluate duck/stand-up transitions using capsule traces so curved/angled walls
+	*	adjacent to the player do not falsely block standing up due to AABB corner overhang.
+	**/
 	// Dead:
 	if ( pm->state->pmove.pm_type == PM_DEAD ) {
 		// TODO: This makes no sense, since the actual check in SetDimensions
@@ -954,9 +974,9 @@ static inline const bool PM_CheckDuck() {
 		( /*pm->ground.entity*/ pml.isWalking || ( pm->liquid.level <= cm_liquid_level_t::LIQUID_FEET && !PM_AboveLiquid() ) ) &&
 		!( pm->state->pmove.pm_flags & PMF_ON_LADDER ) ) {
 		if ( !( pm->state->pmove.pm_flags & PMF_DUCKED ) ) {
-			// check that duck won't be blocked
+			// Check that duck won't be blocked using the capsule hull.
 			Vector3 check_maxs = PM_BBOX_DUCKED_MAXS;// { pm->maxs.x, pm->maxs.y, PM_BBOX_DUCKED_MAXS.z };
-			trace = PM_Trace( pm->state->pmove.origin, pm->mins, check_maxs, pm->state->pmove.origin );
+			trace = PM_TraceCapsule( pm->state->pmove.origin, pm->mins, check_maxs, pm->state->pmove.origin );
 			if ( !trace.allsolid ) {
 				// Duck is possible.
 				pm->state->pmove.pm_flags |= PMF_DUCKED;
@@ -967,9 +987,9 @@ static inline const bool PM_CheckDuck() {
 	// Stand Up: If possible, try to get out of the "ducked" state.
 	} else {
 		if ( pm->state->pmove.pm_flags & PMF_DUCKED ) {
-			// try to stand up
+			// Try to stand up using the capsule hull.
 			Vector3 check_maxs = PM_BBOX_STANDUP_MAXS;// { pm->maxs.x, pm->maxs.y, PM_BBOX_STANDUP_MAXS.z };
-			trace = PM_Trace( pm->state->pmove.origin, pm->mins, check_maxs, pm->state->pmove.origin );
+			trace = PM_TraceCapsule( pm->state->pmove.origin, pm->mins, check_maxs, pm->state->pmove.origin );
 			if ( !trace.allsolid ) {
 				pm->state->pmove.pm_flags &= ~PMF_DUCKED;
 				flags_changed = true;
@@ -977,14 +997,12 @@ static inline const bool PM_CheckDuck() {
 		}
 	}
 
+	/**
+	*	Apply bounding box updates only when the ducked state changed.
+	**/
 	// Escape if nothing has changed.
 	if ( !flags_changed ) {
 		return false;
-	} else {
-		//// (Re-)Initialize the duck ease.
-		//#ifdef PMOVE_EASE_BBOX_AND_VIEWHEIGHT
-		//pm->easeDuckHeight = QMEaseState::new_ease_state( pm->simulationTime, pmp->pm_duck_viewheight_speed );
-		//#endif
 	}
 
 	// Determine the possible new dimensions since our flags have changed.
@@ -1602,9 +1620,13 @@ static void PM_LadderMove( void ) {
 *
 **/
 /**
-*	@brief
+*	@brief	Check for ladder attachment and water-jump ledges while in water.
+*	@return	True if a water jump was initiated.
 **/
 static const bool PM_CheckWaterJump( void ) {
+	/**
+	*	Sanity check: skip if a movement timer is already active.
+	**/
 	// Already got time set, occupied with something else.
 	if ( pm->state->pmove.pm_time ) {
 		return false;
@@ -1612,12 +1634,15 @@ static const bool PM_CheckWaterJump( void ) {
 
 	pm->state->pmove.pm_flags &= ~PMF_ON_LADDER;
 
+	/**
+	*	Probe forward for a ladder brush using the capsule hull.
+	**/
 	// Check for ladder.
 	Vector3 flatForward = QM_Vector3NormalizeDP( Vector2( pml.forward ) );
 	// Spot to test for possible ladder we're riding.
 	Vector3 spot = pm->state->pmove.origin + ( flatForward * 1 );
-	// Perform trace.
-	cm_trace_t trace = PM_Trace( pm->state->pmove.origin, pm->mins, pm->maxs, spot, CONTENTS_LADDER );
+	// Perform capsule trace against ladder contents.
+	cm_trace_t trace = PM_TraceCapsule( pm->state->pmove.origin, pm->mins, pm->maxs, spot, CONTENTS_LADDER );
 	if ( ( trace.fraction < 1. ) && ( trace.contents & CONTENTS_LADDER ) && pm->liquid.level < LIQUID_WAIST ) {
 		pm->state->pmove.pm_flags |= PMF_ON_LADDER;
 	}
@@ -1646,8 +1671,8 @@ static const bool PM_CheckWaterJump( void ) {
 	// The distance ahead to check for obstructions.
 	double PM_WATERJUMP_PREDICT_DIST = QM_BBox3Distance( BBox3( Vector2( pm->mins ), Vector2( pm->maxs ) ) );
 	
-	// Perform the trace.
-	trace = PM_Trace( pm->state->pmove.origin, pm->mins, pm->maxs, pm->state->pmove.origin + ( flatForward * PM_WATERJUMP_PREDICT_DIST ), CM_CONTENTMASK_SOLID );
+	// Perform the capsule trace.
+	trace = PM_TraceCapsule( pm->state->pmove.origin, pm->mins, pm->maxs, pm->state->pmove.origin + ( flatForward * PM_WATERJUMP_PREDICT_DIST ), CM_CONTENTMASK_SOLID );
 	// We aren't blocked, or what we're blocked by is something we can walk up.
 	if ( trace.fraction == 1.0f || trace.plane.normal[ 2 ] >= PM_STEP_MIN_NORMAL ) {
 		return false;
@@ -2173,6 +2198,9 @@ static void PM_EraseInputCommandState() {
 *	@brief	Will look for whether we're latching on to a ladder.
 **/
 static void PM_CheckSpecialMovement() {
+	/**
+	*	Sanity check: skip if a movement timer is already active.
+	**/
 	// Having time means we're already doing some form of 'special' movement.
 	if ( pm->state->pmove.pm_time ) {
 		return;
@@ -2181,6 +2209,9 @@ static void PM_CheckSpecialMovement() {
 	// Remove ladder flag.
 	pm->state->pmove.pm_flags &= ~PMF_ON_LADDER;
 
+	/**
+	*	Probe forward for a ladder brush using the capsule hull.
+	**/
 	// Re-Check for a ladder.
 	Vector3DP flatforward = QM_Vector3NormalizeDP( Vector3DP{
 		(double)pml.forward.x,
@@ -2189,7 +2220,7 @@ static void PM_CheckSpecialMovement() {
 	} );
 	const Vector3DP spot = Vector3DP( pm->state->pmove.origin ) + ( flatforward * 1.0 );
 	Vector3 floatSpot = Vector3( spot );
-	cm_trace_t trace = PM_Trace( pm->state->pmove.origin, pm->mins, pm->maxs, floatSpot, CONTENTS_LADDER );
+	cm_trace_t trace = PM_TraceCapsule( pm->state->pmove.origin, pm->mins, pm->maxs, floatSpot, CONTENTS_LADDER );
 	if ( ( trace.fraction < 1. ) && ( trace.contents & CONTENTS_LADDER ) 
 		// Uncomment to disable underwater ladders.
 		/*&& pm->liquid.level < cm_liquid_level_t::LIQUID_WAIST*/ ) {

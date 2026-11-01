@@ -30,6 +30,9 @@ typedef enum sg_skm_body_part_e {
 //! Number of queued up animation events to select the most prioritized from.
 static constexpr int32_t SKM_MAX_ANIMATION_QUEUE = 4;
 
+//! Maximum number of blend layers that can be composited on top of the base pose.
+static constexpr int32_t SKM_MAX_BLEND_LAYERS = 4;
+
 /**
 *	@brief	
 **/
@@ -88,6 +91,52 @@ typedef struct sg_skm_animation_mixer_s {
 	//! Animation Event Parameters.
 	int32_t animationEventsParams[ SKM_MAX_ANIMATION_QUEUE ];
 } sg_skm_animation_mixer_t;
+
+/**
+*	@brief	Blend layer application mode.
+**/
+typedef enum sg_skm_blend_mode_e {
+	//! Weighted slerp/lerp of the base pose towards the layer pose. (Default.)
+	SKM_BLEND_MODE_OVERRIDE = 0,
+	//! Additive: apply the layer's delta relative to its reference pose on top of the base pose.
+	SKM_BLEND_MODE_ADDITIVE,
+
+	SKM_BLEND_MODE_MAX
+} sg_skm_blend_mode_t;
+
+/**
+*	@brief	A single blend layer: an animation state composited over the base pose,
+*			starting at a given bone, with per-bone weights and a fade envelope.
+**/
+typedef struct sg_skm_blend_layer_s {
+	//! The layer's animation state. (Reuses the regular state struct.)
+	sg_skm_animation_state_t state;
+	//! Bone number at which this layer starts blending. (-1 == inactive layer.)
+	int32_t startBone;
+	//! How the layer is applied to the base pose. (OVERRIDE or ADDITIVE.)
+	sg_skm_blend_mode_t mode;
+	//! Per-bone blend weights, indexed by bone number. (0.0 == keep base, 1.0 == full layer.)
+	float boneWeights[ SKM_MAX_BONES ];
+	//! Weight applied to bones under startBone that have no explicit mask entry.
+	float defaultWeight;
+	//! Fade-in duration in milliseconds. (0 == instant.)
+	int64_t fadeInTime;
+	//! Fade-out duration in milliseconds, applied after timeEnd. (0 == instant.)
+	int64_t fadeOutTime;
+} sg_skm_blend_layer_t;
+
+/**
+*	@brief	A named 'faux animation': a composite recipe of blend layers that is
+*			registered alongside real IQM animations and resolvable by name.
+**/
+typedef struct sg_skm_faux_animation_s {
+	//! Recipe name, resolvable through SG_SKM_GetFauxAnimationForName.
+	char name[ MAX_QPATH ];
+	//! Number of active layers in this recipe.
+	int32_t numberOfLayers;
+	//! The recipe's layers, applied in order on top of the base pose.
+	sg_skm_blend_layer_t layers[ SKM_MAX_BLEND_LAYERS ];
+} sg_skm_faux_animation_t;
 
 
 
@@ -231,6 +280,62 @@ void SG_SKM_LerpRangeBonePoses( const model_t * model, const skm_transform_t * f
 *   @brief  Will recursively blend(lerp by lerpfracs/slerp by fraction) the addBonePoses to addToBonePoses starting from the boneNode.
 **/
 void SG_SKM_RecursiveBlendFromBone( const skm_transform_t *addBonePoses, const skm_transform_t *addToBonePoses, skm_transform_t *outBonePoses, const skm_bone_node_t *boneNode, const double backLerp, const double fraction );
+/**
+*	@brief	Applies a blend layer on top of the base pose, starting from startBoneNumber,
+*			using the layer's per-bone weights, mode, and fade envelope for the given time.
+*			'baseBonePoses' and 'outBonePoses' may alias.
+*	@note	layerPose is expected to be a full num_poses sized pose buffer processed from
+*			the layer's animation state for the same moment in time.
+**/
+void SG_SKM_ApplyBlendLayer( const model_t *model, const sg_skm_blend_layer_t *layer, const skm_transform_t *layerPose, const skm_transform_t *baseBonePoses, skm_transform_t *outBonePoses, const QMTime &currentTime );
+
+
+
+/**
+*
+*
+*
+*   Faux Animations(Composite Recipes):
+*
+*
+*
+**/
+/**
+*	@brief	Returns a pointer to the model's faux animation recipe matching 'name', or nullptr.
+*			Resolves recipes parsed from the model's .skc config, falling back to the
+*			built-in code-side defaults.
+**/
+const sg_skm_faux_animation_t *SG_SKM_GetFauxAnimationForName( const model_t *model, const char *name );
+/**
+*	@brief	Applies all layers of the given faux animation recipe on top of the base pose,
+*			processing each layer's animation state for the current time.
+*			'baseBonePoses' and 'outBonePoses' may alias.
+*	@return	True if any layer was actually applied(still playing).
+**/
+const bool SG_SKM_ApplyFauxAnimation( const model_t *model, const sg_skm_faux_animation_t *fauxAnimation, sg_skm_blend_layer_t *workingLayers, const int32_t maxWorkingLayers, const QMTime &currentTime, const skm_transform_t *baseBonePoses, skm_transform_t *outBonePoses );
+
+
+
+/**
+*
+*
+*
+*   Module Bindings(Engine Access Wrappers):
+*
+*
+*
+**/
+/**
+*	@brief	Returns a pointer to the first bone that has a matching name, or nullptr.
+*			(Per-module binding wrapper around the engine's SKM_GetBoneByName.)
+**/
+skm_bone_node_t *SG_SKM_GetBoneByName( const model_t *model, const char *boneName );
+/**
+*	@brief	Returns a pointer to the model's bone poses for 'frame'.
+*			Frame will wrap around in case of exceeding the frame pose limit.
+*			(Per-module binding wrapper around the engine's SKM_GetBonePosesForFrame.)
+**/
+const skm_transform_t *SG_SKM_GetBonePosesForFrame( const model_t *model, const int32_t frame );
 
 
 

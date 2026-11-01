@@ -1,20 +1,37 @@
 /*
+
 Copyright (C) 1997-2001 Id Software, Inc.
 
+
+
 This program is free software; you can redistribute it and/or modify
+
 it under the terms of the GNU General Public License as published by
+
 the Free Software Foundation; either version 2 of the License, or
+
 (at your option) any later version.
 
+
+
 This program is distributed in the hope that it will be useful,
+
 but WITHOUT ANY WARRANTY; without even the implied warranty of
+
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+
 GNU General Public License for more details.
 
+
+
 You should have received a copy of the GNU General Public License along
+
 with this program; if not, write to the Free Software Foundation, Inc.,
+
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
 */
+
 #include "svgame/svg_local.h"
 #include "svgame/svg_entity_events.h"
 #include "svgame/svg_utils.h"
@@ -23,215 +40,469 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "sharedgame/sg_means_of_death.h"
 #include "sharedgame/sg_tempentity_events.h"
 
+
+
 /**
+
 *   @brief  Marks the edict as free
+
 **/
+
 DECLARE_GLOBAL_CALLBACK_THINK( M_droptofloor );
 
 
+
+
+
 /**
-*	@brief
+
+*	@brief	Checks whether the monster is standing on a walkable ground surface and updates its ground info.
+
+*	@param	ent		Monster entity to check.
+
+*	@param	mask	Collision contents mask to trace against.
+
 **/
+
 void M_CheckGround( svg_base_edict_t *ent, const cm_contents_t mask ) {
-	vec3_t      point;
-	svg_trace_t     trace;
+
+	vec3_t point;
+
+	svg_trace_t trace;
+
+
+
+	/**
+
+	*	Sanity check movement flags and upward velocity before probing for ground.
+
+	**/
 
 	// Swimming and flying monsters don't check for ground.
+
 	if ( ent->flags & ( FL_SWIM | FL_FLY ) ) {
+
 		return;
+
 	}
+
+
 
 	// Too high of a velocity, we're moving upwards rapidly.
+
 	if ( ent->velocity[ 2 ] > 100 ) {
+
 		ent->groundInfo.entityNumber = ENTITYNUM_NONE;
+
 		return;
+
 	}
+
+
+
+	/**
+
+	*	Trace one-quarter unit down using the entity's collision shape (capsule/box) so
+
+	*	ground contact agrees with `SVG_MMove_SlideMove`.
+
+	**/
 
 	// If the hull point one-quarter unit down is solid the entity is on ground.
+
 	point[ 0 ] = ent->currentOrigin[ 0 ];
+
 	point[ 1 ] = ent->currentOrigin[ 1 ];
+
 	point[ 2 ] = ent->currentOrigin[ 2 ] - 0.25f;
 
-	trace = SVG_Trace( ent->currentOrigin, ent->mins, ent->maxs, point, ent, mask );
 
-	// check steepness
+
+	trace = SVG_TraceEntityShape( ent->currentOrigin, point, ent, ent, mask );
+
+
+
+	// Check steepness of the contacted plane.
+
 	if ( trace.plane.normal[ 2 ] < 0.7f && !trace.startsolid ) {
+
 		ent->groundInfo.entityNumber = ENTITYNUM_NONE;
+
 		return;
+
 	}
 
-//  ent->groundentity = trace.ent;
-//  ent->groundentity_linkcount = trace.ent->linkCount;
-//  if (!trace.startsolid && !trace.allsolid)
-//      VectorCopy (trace.endpos, ent->s.origin);
+
+
+	/**
+
+	*	Commit valid ground contact state and snap the monster onto the ground surface.
+
+	**/
+
 	if ( !trace.startsolid && !trace.allsolid ) {
-		//VectorCopy( trace.endpos, ent->s.origin );
+
 		SVG_Util_SetEntityOrigin( ent, trace.endpos, true );
+
 		if ( trace.ent != nullptr ) {
+
 			ent->groundInfo.entityNumber = trace.ent->s.number;
+
 			ent->groundInfo.entityLinkCount = trace.ent->linkCount;
+
 		} else {
+
 			ent->groundInfo.entityNumber = ENTITYNUM_NONE;
+
 		}
+
+
 
 		ent->groundInfo.material = trace.material;
+
 		ent->groundInfo.contents = trace.contents;
-		ent->groundInfo.surface = *trace.surface;
-		//ent->velocity[ 2 ] = 0;
+
+		if ( trace.surface != nullptr ) {
+
+			ent->groundInfo.surface = *trace.surface;
+
+		}
+
 	}
+
 }
 
+
+
 /**
-*	@brief
+
+*	@brief	Categorize liquid immersion depth and contents for a monster at a given position.
+
+*	@param	ent			Monster entity being categorized.
+
+*	@param	in_point	World-space origin to sample from.
+
+*	@param	liquidlevel	[out] Computed liquid immersion level.
+
+*	@param	liquidtype	[out] Computed liquid contents flags.
+
 **/
+
 void M_CatagorizePosition( svg_base_edict_t *ent, const Vector3 &in_point, cm_liquid_level_t &liquidlevel, cm_contents_t &liquidtype ) {
+
 	//
+
 	// get liquidlevel
+
 	//
+
 	Vector3 point = in_point + Vector3{ 0.f, 0.f, ent->mins[ 2 ] + 1 };
+
 	cm_contents_t cont = gi.pointcontents( &point );
 
+
+
 	if ( !( cont & CM_CONTENTMASK_LIQUID ) ) {
+
 		liquidlevel = cm_liquid_level_t::LIQUID_NONE;
+
 		liquidtype = CONTENTS_NONE;
+
 		return;
+
 	}
+
+
 
 	liquidtype = cont;
+
 	liquidlevel = cm_liquid_level_t::LIQUID_FEET;
+
 	point.z += 26;
+
 	cont = gi.pointcontents( &point );
+
 	if ( !( cont & CM_CONTENTMASK_LIQUID ) ) {
+
 		return;
+
 	}
+
+
 
 	liquidlevel = cm_liquid_level_t::LIQUID_WAIST;
+
 	point[ 2 ] += 22;
+
 	cont = gi.pointcontents( &point );
+
 	if ( cont & CM_CONTENTMASK_LIQUID ) {
+
 		liquidlevel = cm_liquid_level_t::LIQUID_UNDER;
+
 	}
+
 }
 
+
+
 /**
+
 *	@brief	Apply world effects to monster entity.
+
 **/
+
 void M_WorldEffects( svg_base_edict_t *ent ) {
-	int     dmg;
+
+	int32_t dmg;
+
+
 
     if (ent->health > 0) {
+
         if (!(ent->flags & FL_SWIM)) {
+
             if (ent->liquidInfo.level < 3) {
+
                 ent->airFinishedBreathTime = level.time + 12_sec;
+
             } else if (ent->airFinishedBreathTime < level.time) {
+
                 // drown!
+
                 if (ent->debouncePainTime < level.time ) {
-					dmg = 2 + (int)( 2 * floorf( ( level.time - ent->airFinishedBreathTime ).Seconds( ) ) );
+
+					dmg = 2 + (int32_t)( 2 * floorf( ( level.time - ent->airFinishedBreathTime ).Seconds( ) ) );
+
                     if (dmg > 15)
+
                         dmg = 15;
+
                     SVG_DamageEntity(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, dmg, 0, DAMAGE_NO_ARMOR, MEANS_OF_DEATH_WATER );
+
                     ent->debouncePainTime = level.time + 1_sec;
+
                 }
+
             }
+
         } else {
+
             if (ent->liquidInfo.level > 0) {
+
                 ent->airFinishedBreathTime = level.time + 9_sec;
+
             } else if (ent->airFinishedBreathTime < level.time ) {
+
                 // suffocate!
+
                 if (ent->debouncePainTime < level.time ) {
-					dmg = 2 + (int)( 2 * floorf( ( level.time - ent->airFinishedBreathTime ).Seconds( ) ) );
+
+					dmg = 2 + (int32_t)( 2 * floorf( ( level.time - ent->airFinishedBreathTime ).Seconds( ) ) );
+
                     if (dmg > 15)
+
                         dmg = 15;
+
                     SVG_DamageEntity(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, dmg, 0, DAMAGE_NO_ARMOR, MEANS_OF_DEATH_WATER );
+
                     ent->debouncePainTime = level.time + 1_sec;
+
                 }
+
             }
+
         }
+
     }
+
+
 
 	if ( ent->liquidInfo.level == 0 ) {
+
 		if ( ent->flags & FL_INWATER ) {
+
 			//gi.sound( ent, CHAN_BODY, gi.soundindex( "player/water_feet_out01.wav" ), 1, ATTN_NORM, 0 );
+
 			SVG_EntityEvent_GeneralSoundEx( ent, CHAN_BODY, gi.soundindex( "player/water_feet_out01.wav" ), ATTN_NORM );
+
 			ent->flags = static_cast<entity_flags_t>( ent->flags & ~FL_INWATER );
+
 		}
+
 		return;
+
 	}
 
+
+
     if ((ent->liquidInfo.type & CONTENTS_LAVA) && !(ent->flags & FL_IMMUNE_LAVA)) {
+
         if (ent->debounceDamageTime < level.time ) {
+
             ent->debounceDamageTime = level.time + 0.2_sec;
+
             SVG_DamageEntity(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, 10 * ent->liquidInfo.level, 0, DAMAGE_NONE, MEANS_OF_DEATH_LAVA );
+
         }
-    }
-    if ((ent->liquidInfo.type & CONTENTS_SLIME) && !(ent->flags & FL_IMMUNE_SLIME)) {
-        if (ent->debounceDamageTime < level.time ) {
-            ent->debounceDamageTime = level.time + 1_sec;
-            SVG_DamageEntity(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, 4 * ent->liquidInfo.level, 0, DAMAGE_NONE, MEANS_OF_DEATH_SLIME );
-        }
+
     }
 
+    if ((ent->liquidInfo.type & CONTENTS_SLIME) && !(ent->flags & FL_IMMUNE_SLIME)) {
+
+        if (ent->debounceDamageTime < level.time ) {
+
+            ent->debounceDamageTime = level.time + 1_sec;
+
+            SVG_DamageEntity(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, 4 * ent->liquidInfo.level, 0, DAMAGE_NONE, MEANS_OF_DEATH_SLIME );
+
+        }
+
+    }
+
+
+
 	if ( !( ent->flags & FL_INWATER ) ) {
+
 		if ( !( ent->svFlags & SVF_DEADENTITY ) ) {
+
 			if ( ent->liquidInfo.type & CONTENTS_LAVA ) {
+
 				//if ( random() <= 0.5f )
+
 				//	gi.sound( ent, CHAN_BODY, gi.soundindex( "player/lava1.wav" ), 1, ATTN_NORM, 0 );
+
 				//else
+
 				//	gi.sound( ent, CHAN_BODY, gi.soundindex( "player/lava2.wav" ), 1, ATTN_NORM, 0 );
+
 				const std::string burn_sfx_path = SG_RandomResourcePath( "player/burn", "wav", 0, 2 );
+
 				//gi.sound( ent, CHAN_BODY, gi.soundindex( burn_sfx_path.c_str() ), 1, ATTN_NORM, 0 );
+
 				SVG_EntityEvent_GeneralSoundEx( ent, CHAN_BODY, gi.soundindex( burn_sfx_path.c_str() ), ATTN_NORM );
+
 			} else if ( ent->liquidInfo.type & CONTENTS_SLIME ) {
+
 				//gi.sound( ent, CHAN_BODY, gi.soundindex( "player/water_feet_in01.wav" ), 1, ATTN_NORM, 0 );
+
 				SVG_EntityEvent_GeneralSoundEx( ent, CHAN_BODY, gi.soundindex( "player/water_feet_in01.wav" ), ATTN_NORM);
+
 			} else if ( ent->liquidInfo.type & CONTENTS_WATER ) {
+
 				//gi.sound( ent, CHAN_BODY, gi.soundindex( "player/water_feet_in01.wav" ), 1, ATTN_NORM, 0 );
+
 				SVG_EntityEvent_GeneralSoundEx( ent, CHAN_BODY, gi.soundindex( "player/water_feet_in01.wav" ), ATTN_NORM );
+
 			}
+
 		}
+
+
 
 		ent->flags = static_cast<entity_flags_t>( ent->flags | FL_INWATER );
 
+
+
         ent->debounceDamageTime = 0_ms;
+
     }
+
 }
 
-/**
-*	@brief	
-**/
-DEFINE_GLOBAL_CALLBACK_THINK( M_droptofloor )( svg_base_edict_t *ent ) -> void {
-	vec3_t      end;
-	svg_trace_t     trace;
 
-	cm_contents_t mask = SVG_GetClipMask( ent );
+
+/**
+
+*	@brief	Drops a monster entity down to the floor using its entity collision shape.
+
+*	@param	ent	Monster entity to drop to the floor.
+
+**/
+
+DEFINE_GLOBAL_CALLBACK_THINK( M_droptofloor )( svg_base_edict_t *ent ) -> void {
+
+	vec3_t end;
+
+	svg_trace_t trace;
+
+
+
+	/**
+
+	*	Sweep the monster's collision shape downward to find the floor below its spawn position.
+
+	**/
+
+	const cm_contents_t mask = SVG_GetClipMask( ent );
+
+
 
 	ent->currentOrigin[ 2 ] += 1;
+
 	VectorCopy( ent->currentOrigin, end );
+
 	end[ 2 ] -= CM_MAX_WORLD_HALF_SIZE;
 
-	trace = SVG_Trace( ent->currentOrigin, ent->mins, ent->maxs, end, ent, mask );
+
+
+	trace = SVG_TraceEntityShape( ent->currentOrigin, end, ent, ent, mask );
+
+
+
+	// Abort if the monster started in solid or found no floor.
 
 	if ( trace.fraction == 1 || trace.allsolid || ( trace.startsolid ) ) {
+
 		return;
+
 	}
+
+
+
+	/**
+
+	*	Link the monster at the landed position and update ground and liquid state.
+
+	**/
 
 	VectorCopy( trace.endpos, ent->currentOrigin );
 
+
+
 	gi.linkentity( ent );
+
 	M_CheckGround( ent, mask );
+
 	M_CatagorizePosition( ent, ent->currentOrigin, ent->liquidInfo.level, ent->liquidInfo.type );
+
 }
+
+
 
 void M_SetEffects( svg_base_edict_t *ent ) {
+
 	ent->s.entityFlags &= ~( EF_COLOR_SHELL );
+
 	ent->s.renderfx &= ~( RF_SHELL_RED | RF_SHELL_GREEN | RF_SHELL_BLUE );
 
+
+
 	// WID: TODO: Monster Reimplement.
+
 	//if ( ent->monsterinfo.aiflags & AI_RESURRECTING ) {
+
 	//	ent->s.entityFlags |= EF_COLOR_SHELL;
+
 	//	ent->s.renderfx |= RF_SHELL_RED;
+
 	//}
 
+
+
 	if ( ent->health <= 0 )
+
 		return;
+
 }
+

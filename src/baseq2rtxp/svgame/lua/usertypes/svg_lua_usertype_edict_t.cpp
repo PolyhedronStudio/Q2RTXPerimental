@@ -85,8 +85,8 @@ lua_edict_t::lua_edict_t( svg_base_edict_t *_edict ) /*: edict(_edict)*/ {
 		handle.number = _edict->s.number;
 		handle.spawnCount = _edict->spawn_count;
 	} else {
-		handle.number = -1;
-		handle.spawnCount = -1;
+		handle.number = ENTITYNUM_NONE;
+		handle.spawnCount = ENTITYNUM_NONE;
 	}
 
 	// Returns if invalid.

@@ -95,6 +95,7 @@ SET(SRC_BASEQ2RTXP_CLGAME
 	
     baseq2rtxp/clgame/game_ui/clg_ui_main.cpp
     baseq2rtxp/clgame/game_ui/menus/clg_ui_menu_armory.cpp
+    baseq2rtxp/clgame/game_ui/menus/clg_ui_menu_q2rtxp.cpp
     baseq2rtxp/clgame/game_ui/menus/clg_ui_menu_scoreboard.cpp
     baseq2rtxp/clgame/game_ui/menus/clg_ui_menu_team.cpp
     baseq2rtxp/clgame/game_ui/menus/clg_ui_menu_test.cpp
@@ -163,6 +164,7 @@ SET(HEADERS_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/effects/clg_fx_particles.h
 
     baseq2rtxp/clgame/game_ui/clg_ui_main.h
+    baseq2rtxp/clgame/game_ui/menus/clg_ui_menu_q2rtxp.h
     #baseq2rtxp/clgame/game_ui/menus/clg_ui_menu_armory.h
     #baseq2rtxp/clgame/game_ui/menus/clg_ui_menu_team.h
     #baseq2rtxp/clgame/game_ui/menus/clg_ui_menu_test.h
@@ -209,6 +211,8 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_weapon.cpp
 	baseq2rtxp/svgame/svg_skeletal_hitboxes.cpp
 	baseq2rtxp/svgame/memory/svg_raiiobject.cpp
+	baseq2rtxp/svgame/memory/svg_zone_allocator.cpp
+	baseq2rtxp/svgame/memory/svg_containers_test.cpp
 
 	baseq2rtxp/svgame/crowd/svg_crowd_formations.cpp
 	baseq2rtxp/svgame/crowd/svg_squad_coordinator.cpp
@@ -334,9 +338,12 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/nav/nav_generate.cpp
 	baseq2rtxp/svgame/nav/nav_kdtree_builder.cpp
 	baseq2rtxp/svgame/nav/nav_path.cpp
+	baseq2rtxp/svgame/nav/nav_perf.cpp
+	baseq2rtxp/svgame/nav/nav_corner_capture.cpp
 	baseq2rtxp/svgame/nav/nav_persistence.cpp
 	baseq2rtxp/svgame/nav/nav_sector_graph.cpp
 	baseq2rtxp/svgame/nav/nav_thread.cpp
+	baseq2rtxp/svgame/nav/nav_worker.cpp
 )
 SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_chase.h
@@ -368,6 +375,10 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/crowd/svg_crowd_manager.h
 	baseq2rtxp/svgame/crowd/svg_crowd_commands.h
 
+	baseq2rtxp/svgame/memory/svg_zone_allocator.h
+	baseq2rtxp/svgame/memory/svg_containers.h
+	baseq2rtxp/svgame/memory/svg_containers_test.h
+
 	baseq2rtxp/svgame/nav/nav_containers.h
 	baseq2rtxp/svgame/nav/nav_core.h
 	baseq2rtxp/svgame/nav/nav_cover_debug.h
@@ -378,6 +389,7 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/nav/nav_debug.h
 	baseq2rtxp/svgame/nav/nav_generate.h
 	baseq2rtxp/svgame/nav/nav_kdtree_builder.h
+	baseq2rtxp/svgame/nav/nav_perf.h
 	baseq2rtxp/svgame/nav/nav_persistence.h
 	baseq2rtxp/svgame/nav/nav_thread.h
 	baseq2rtxp/svgame/nav/nav_types.h
@@ -746,6 +758,7 @@ endif()
 #
 SET(SRC_LINUX
 	unix/hunk.c
+	unix/pthread.c
 	unix/system.c
 	unix/tty.c
 )
@@ -803,6 +816,7 @@ SET(SRC_VKPT
 	refresh/vkpt/material.c
 	refresh/vkpt/matrix.c
 	refresh/vkpt/mgpu.c
+	refresh/vkpt/model_abc.cpp
 	refresh/vkpt/models.c
 	refresh/vkpt/path_tracer.c
 	refresh/vkpt/physical_sky.c

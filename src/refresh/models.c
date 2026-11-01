@@ -29,6 +29,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #endif
 #include "format/sp2.h"
 #include "format/iqm.h"
+#include "format/abc.h"
 #include "refresh/images.h"
 #include "refresh/models.h"
 #include "../client/cl_client.h"
@@ -455,6 +456,9 @@ qhandle_t R_RegisterModel(const char *name)
 		break;
     case IQM_IDENT:
         load = MOD_LoadIQM;
+        break;
+    case ABC_IDENT:
+        load = MOD_LoadABC;
         break;
     default:
         ret = Q_ERR_UNKNOWN_FORMAT;

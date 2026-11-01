@@ -147,38 +147,42 @@ static bool CM_TryVisitBrush( std::unordered_set<const mbrush_t *> *visitedBrush
 	return visitedBrushes->insert( brush ).second;
 }
 
+/**
+*	@brief	Clip a swept shape against a brush and record the earliest blocking plane.
+*	@param	p1				Trace start point in local brush space.
+*	@param	p2				Trace end point in local brush space.
+*	@param	reantrantState	Mutable re-entrant trace state shared across brush tests.
+*	@param	brush			Brush to clip against.
+*	@note	Expands each brush plane to match the active trace shape before testing.
+**/
+static void CM_ClipShapeToBrush( const Vector3 &p1, const Vector3 &p2, cm_trace_reantrant_state_t *reantrantState, mbrush_t *brush ) {
 	/**
-	*	@brief	Clip a swept shape against a brush and record the earliest blocking plane.
-	*	@param	p1	Trace start point in world space.
-	*	@param	p2	Trace end point in world space.
-	*	@param	reantrantState	Mutable re-entrant trace state shared across brush tests.
-	*	@param	brush	Brush to clip against.
-	*	@note	Expands each brush plane to match the active trace shape before testing.
+	*	Bail out immediately when the brush has no sides.
+	*	Without any planes there is nothing meaningful to clip against.
 	**/
-	static void CM_ClipShapeToBrush( const Vector3 &p1, const Vector3 &p2, cm_trace_reantrant_state_t *reantrantState, mbrush_t *brush ) {
-		/**
-		/*	Bail out immediately when the brush has no sides.
-	/*	Without any planes there is nothing meaningful to clip against.
-	**/
-	if ( !brush->numsides )
+	if ( !brush->numsides ) {
 		return;
+	}
 
 	/**
-	/*	Attempt analytic continuous collision detection for shapes sweeping against axial boxes.
-	/*	This avoids snagging caused by bevel approximations when brushing over stair corners.
+	*	Attempt analytic continuous collision detection for rounded shapes sweeping against unrotated axial boxes.
+	*	This avoids snagging caused by bevel approximations when brushing over stair corners.
 	**/
-	if ( reantrantState->trShape.type == SHAPE_SPHERE ||
+	if ( !reantrantState->isRotated && (
+		reantrantState->trShape.type == SHAPE_SPHERE ||
 		reantrantState->trShape.type == SHAPE_CAPSULE ||
-		reantrantState->trShape.type == SHAPE_CYLINDER ) {
+		reantrantState->trShape.type == SHAPE_CYLINDER ) ) {
 		Vector3 boxMins, boxMaxs;
-		if ( reantrantState->trShape.type != SHAPE_AABB && CM_IsBrushAxialBox( brush, boxMins, boxMaxs ) ) {
+		// Use exact analytical sweep if the brush is an axis-aligned box.
+		if ( CM_IsBrushAxialBox( brush, boxMins, boxMaxs ) ) {
 			float tHit = 1.0f;
-			Vector3 nHit;
+			Vector3 nHit = {};
 			bool startsolid = false;
 
+			// Perform analytical shape-vs-AABB continuous collision detection.
 			if ( CM_SweepShapeVsAxialBox( p1, p2, reantrantState->trShape.radius, reantrantState->trShape.halfHeight,
 				reantrantState->trShape.type, boxMins, boxMaxs, tHit, nHit, startsolid ) ) {
-
+				// Handle embedded start position.
 				if ( startsolid ) {
 					reantrantState->trResult.startsolid = true;
 					if ( tHit == 0.0f ) {
@@ -188,50 +192,62 @@ static bool CM_TryVisitBrush( std::unordered_set<const mbrush_t *> *visitedBrush
 						reantrantState->trResult.brushID = brush->brushID;
 						reantrantState->trResult.material = nullptr;
 					}
-				} else {
-					if ( tHit > -1.0f && tHit < 1.0f ) {
-						Vector3 V = QM_Vector3Subtract( p2, p1 );
-						float dot = QM_Vector3DotProduct( V, nHit );
-						float t_adjusted = tHit;
-						if ( dot < 0.0f ) {
-							// Use the larger separation only for lateral contacts; floor and ceiling traces must not bounce.
-							const float separation = ( std::fabs( nHit.z ) < 0.5f )
-								? SWEEP_ROUNDED_SHAPE_EPSILON
-								: SWEEP_DIST_EPSILON;
-							float dist_back = separation / -dot;
-							t_adjusted -= dist_back;
-						}
-						if ( t_adjusted < 0.0f ) {
-							t_adjusted = 0.0f;
-						}
+				} else if ( tHit > -1.0f && tHit < 1.0f ) {
+					// Pull the hit fraction slightly back along the sweep to maintain a clean separation epsilon.
+					const Vector3 V = QM_Vector3Subtract( p2, p1 );
+					const float dot = QM_Vector3DotProduct( V, nHit );
+					float t_adjusted = tHit;
+					if ( dot < 0.0f ) {
+						// Use the larger separation only for lateral contacts; floor and ceiling traces must not bounce.
+						const float separation = ( std::fabs( nHit.z ) < 0.5f )
+							? SWEEP_ROUNDED_SHAPE_EPSILON
+							: SWEEP_DIST_EPSILON;
+						const float dist_back = separation / -dot;
+						t_adjusted -= dist_back;
+					}
+					if ( t_adjusted < 0.0f ) {
+						t_adjusted = 0.0f;
+					}
 
-						if ( t_adjusted < reantrantState->trResult.fraction ) {
-							reantrantState->trResult.fraction = t_adjusted;
-							reantrantState->trResult.plane.normal[ 0 ] = nHit.x;
-							reantrantState->trResult.plane.normal[ 1 ] = nHit.y;
-							reantrantState->trResult.plane.normal[ 2 ] = nHit.z;
-							reantrantState->trResult.plane.dist = QM_Vector3DotProduct( p1 + ( p2 - p1 ) * tHit, nHit );
-							reantrantState->trResult.plane.type = 3;
-							reantrantState->trResult.surface = &( brush->firstbrushside[ 0 ].texinfo->c );
-							reantrantState->trResult.contents = static_cast< cm_contents_t >( brush->contents );
-							reantrantState->trResult.brushID = brush->brushID;
-						}
+					// Commit the analytical hit if it is earlier than any previously recorded hit.
+					if ( t_adjusted < reantrantState->trResult.fraction ) {
+						reantrantState->trResult.fraction = t_adjusted;
+						reantrantState->trResult.plane.normal[ 0 ] = nHit.x;
+						reantrantState->trResult.plane.normal[ 1 ] = nHit.y;
+						reantrantState->trResult.plane.normal[ 2 ] = nHit.z;
+						reantrantState->trResult.plane.dist = QM_Vector3DotProduct( p1 + ( p2 - p1 ) * tHit, nHit );
+						reantrantState->trResult.plane.type = PLANE_NON_AXIAL;
+						reantrantState->trResult.surface = &( brush->firstbrushside[ 0 ].texinfo->c );
+						reantrantState->trResult.material = reantrantState->trResult.surface->material;
+						reantrantState->trResult.contents = static_cast< cm_contents_t >( brush->contents );
+						reantrantState->trResult.brushID = brush->brushID;
+						reantrantState->trResult.plane2 = reantrantState->trResult.plane;
+						reantrantState->trResult.surface2 = reantrantState->trResult.surface;
+						reantrantState->trResult.material2 = reantrantState->trResult.material;
 					}
 				}
 			}
-			return; // Handled analytically, no need for the generic loop.
+			// Handled analytically; skip the generic plane-expansion loop.
+			return;
 		}
 	}
 
 	/**
-	/*	Working storage reused while comparing the segment against each brush plane.
+	*	Working storage reused while comparing the segment against each brush plane.
 	**/
 	cm_plane_t *plane = nullptr;
 
 	//! Lead side(s) for the plane(s) that produce the best entering fraction.
 	mbrushside_t *leadside[ 2 ] = { nullptr, nullptr };
 	//! Clip plane(s) associated with the best entering fraction(s).
-	cm_plane_t *clipplane[ 2 ] = { nullptr, nullptr, };
+	cm_plane_t *clipplane[ 2 ] = { nullptr, nullptr };
+
+	//! Best shallow boundary plane being entered when starting within the boundary tolerance.
+	cm_plane_t *shallowEnterPlane = nullptr;
+	//! Brush side corresponding to the best shallow boundary plane being entered.
+	mbrushside_t *shallowEnterSide = nullptr;
+	//! Largest signed start distance among shallow boundary planes being entered.
+	float shallowEnterMaxD1 = -99999.0f;
 
 	//! Distances from both endpoints to the current plane.
 	double d1 = 0.;
@@ -251,9 +267,9 @@ static bool CM_TryVisitBrush( std::unordered_set<const mbrush_t *> *visitedBrush
 	bool startout = false;
 
 	/**
-	/*	Compare the trace segment against every plane in the brush.
-	/*	Track the latest entry fraction and earliest exit fraction so the final result reflects
-	/*	the first meaningful collision.
+	*	Compare the trace segment against every plane in the brush.
+	*	Track the latest entry fraction and earliest exit fraction so the final result reflects
+	*	the first meaningful collision.
 	**/
 	mbrushside_t *side = brush->firstbrushside;
 	mbrushside_t *endside = side + brush->numsides;
@@ -261,12 +277,13 @@ static bool CM_TryVisitBrush( std::unordered_set<const mbrush_t *> *visitedBrush
 
 	float max_d1 = -99999.0f;
 
-	for ( i = 0, side = side; side < endside; i++, side++ ) {
+	// Iterate over all sides of the brush (authored sides plus generated bevel sides).
+	for ( i = 0; side < endside; i++, side++ ) {
 		plane = side->plane;
 
 		/**
-		/*	Expand the plane by the active trace shape before measuring endpoint distances.
-		/*	This keeps point, box, sphere, cylinder, and capsule tests consistent.
+		*	Expand the plane by the active trace shape before measuring endpoint distances.
+		*	This keeps point, box, sphere, cylinder, and capsule tests consistent.
 		**/
 		Vector3 worldNormal = plane->normal;
 		if ( reantrantState->isRotated ) {
@@ -310,6 +327,7 @@ static bool CM_TryVisitBrush( std::unordered_set<const mbrush_t *> *visitedBrush
 		d1 = DotProductDP( p1, plane->normal ) - dist;
 		d2 = DotProductDP( p2, plane->normal ) - dist;
 
+		// Track the least-negative or positive start distance across all planes.
 		if ( d1 > max_d1 ) {
 			max_d1 = ( float )d1;
 		}
@@ -322,22 +340,31 @@ static bool CM_TryVisitBrush( std::unordered_set<const mbrush_t *> *visitedBrush
 		}
 
 		/**
-		/*	Reject the whole brush when the segment remains in front of a plane.
-		/*	This is a fast early-out for traces that never enter the hull.
+		*	Reject the whole brush when the segment remains in front of a plane.
+		*	This is a fast early-out for traces that never enter the hull.
 		**/
 		if ( d1 > 0. && ( d2 >= DIST_EPSILON || d2 >= d1 ) ) {
 			return;
 		}
 
 		/**
-		/*	If both endpoints are behind this plane, the plane cannot clip the trace.
+		*	If both endpoints are behind this plane, check whether this plane is a shallow
+		*	boundary contact being pushed deeper into before skipping crossing math.
 		**/
 		if ( d1 <= 0. && d2 <= 0. ) {
+			// Record the outermost shallow boundary plane when the sweep moves further into it.
+			if ( d1 >= -STARTSOLID_BOUNDARY_EPSILON && ( d2 < d1 - 1e-4 || d2 < -STARTSOLID_BOUNDARY_EPSILON ) ) {
+				if ( ( float )d1 > shallowEnterMaxD1 ) {
+					shallowEnterMaxD1 = ( float )d1;
+					shallowEnterPlane = plane;
+					shallowEnterSide = side;
+				}
+			}
 			continue;
 		}
 
 		/**
-		/*	Record the best enter/leave fraction for the current plane crossing.
+		*	Record the best enter/leave fraction for the current plane crossing.
 		**/
 		if ( d1 > d2 ) {
 			f = ( d1 - DIST_EPSILON ) / ( d1 - d2 );
@@ -367,17 +394,23 @@ static bool CM_TryVisitBrush( std::unordered_set<const mbrush_t *> *visitedBrush
 	}
 
 	/**
-	/*	Treat a shallow overlap as a boundary contact only when no entering plane was recorded.
-	/*	A tangent or exiting sweep can then continue, while movement deeper into the brush still
-	/*	uses the already-recorded entering plane at fraction zero.
+	*	Resolve shallow boundary overlaps where the start point lies within `STARTSOLID_BOUNDARY_EPSILON`
+	*	of the expanded hull surface. Tangential or exiting sweeps are allowed to proceed, whereas
+	*	sweeps moving deeper into the boundary plane are blocked at fraction 0 with that plane's normal
+	*	so slide-move can clip velocity instead of tunneling into `allsolid`.
 	**/
-	if ( !startout && max_d1 >= -STARTSOLID_BOUNDARY_EPSILON && enterfrac[ 0 ] < 0. ) {
+	if ( !startout && max_d1 >= -STARTSOLID_BOUNDARY_EPSILON ) {
 		startout = true;
+		if ( enterfrac[ 0 ] < 0. && shallowEnterPlane != nullptr ) {
+			enterfrac[ 0 ] = 0.;
+			clipplane[ 0 ] = shallowEnterPlane;
+			leadside[ 0 ] = shallowEnterSide;
+		}
 	}
 
 	if ( !startout ) {
 		/**
-		/*	The trace starts inside the brush, so mark the result as solid at fraction 0.
+		*	The trace starts deeply inside the brush, so mark the result as solid at fraction 0.
 		**/
 		reantrantState->trResult.startsolid = true;
 		if ( !getout ) {
@@ -391,8 +424,8 @@ static bool CM_TryVisitBrush( std::unordered_set<const mbrush_t *> *visitedBrush
 	}
 
 	/**
-	/*	Commit the first valid entering plane when it occurs before the leaving plane.
-	/*	This updates the trace result with brush and surface data for the hit.
+	*	Commit the first valid entering plane when it occurs before the leaving plane.
+	*	This updates the trace result with brush and surface data for the hit.
 	**/
 	if ( enterfrac[ 0 ] < leavefrac ) {
 		if ( enterfrac[ 0 ] > -1. && enterfrac[ 0 ] < reantrantState->trResult.fraction ) {
@@ -416,40 +449,63 @@ static bool CM_TryVisitBrush( std::unordered_set<const mbrush_t *> *visitedBrush
 			reantrantState->trResult.plane2 = *clipplane[ 0 ];
 			reantrantState->trResult.surface2 = &( leadside[ 0 ]->texinfo->c );
 			reantrantState->trResult.material2 = reantrantState->trResult.surface2->material;
-			//trace->plane2 = {};
-			//trace->surface2 = nullptr;
 			#endif
 		}
 	}
 }
 
 /**
-/*	@brief	Test whether a shape's start point lies inside a brush.
-/*	@param	p1	Start point to classify.
-/*	@param	reantrantState	Mutable re-entrant trace state shared across brush tests.
-/*	@param	brush	Brush to test against.
-/*	@note	Sets `startsolid` and `allsolid` when the point is fully contained.
+*	@brief	Test whether a shape's start point lies inside a brush.
+*	@param	p1				Start point to classify in local brush space.
+*	@param	reantrantState	Mutable re-entrant trace state shared across brush tests.
+*	@param	brush			Brush to test against.
+*	@note	Sets `startsolid` and `allsolid` when the shape is genuinely embedded in the brush.
 **/
 static void CM_TestShapeInBrush( const Vector3 &p1, cm_trace_reantrant_state_t *reantrantState, mbrush_t *brush ) {
 	/**
-	/*	Bail out immediately when the brush has no sides.
-	/*	Without any planes there is nothing meaningful to test against.
+	*	Bail out immediately when the brush has no sides.
+	*	Without any planes there is nothing meaningful to test against.
 	**/
-	int         i;
-	cm_plane_t *plane;
-	double       dist;
-	double       d1;
-	mbrushside_t *side;
-
-	if ( !brush->numsides )
+	if ( !brush->numsides ) {
 		return;
+	}
 
 	/**
-	/*	Walk each plane and ensure the point remains behind it after expansion.
+	*	Use the exact analytical overlap check for rounded shapes against unrotated axial boxes
+	*	so position tests agree with swept traces around box corners.
 	**/
-	side = brush->firstbrushside;
-	for ( i = 0; i < brush->numsides; i++, side++ ) {
-		plane = side->plane;
+	if ( !reantrantState->isRotated && (
+		reantrantState->trShape.type == SHAPE_SPHERE ||
+		reantrantState->trShape.type == SHAPE_CAPSULE ||
+		reantrantState->trShape.type == SHAPE_CYLINDER ) ) {
+		Vector3 boxMins, boxMaxs;
+		if ( CM_IsBrushAxialBox( brush, boxMins, boxMaxs ) ) {
+			float tHit = 1.0f;
+			Vector3 nHit = {};
+			bool startsolid = false;
+
+			if ( CM_SweepShapeVsAxialBox( p1, p1, reantrantState->trShape.radius, reantrantState->trShape.halfHeight,
+				reantrantState->trShape.type, boxMins, boxMaxs, tHit, nHit, startsolid ) && startsolid ) {
+				reantrantState->trResult.startsolid = reantrantState->trResult.allsolid = true;
+				reantrantState->trResult.fraction = 0;
+				reantrantState->trResult.contents = static_cast< cm_contents_t >( brush->contents );
+				reantrantState->trResult.brushID = brush->brushID;
+				reantrantState->trResult.material = nullptr;
+			}
+			return;
+		}
+	}
+
+	/**
+	*	Walk each plane and ensure the point remains behind it after expansion.
+	**/
+	const double boundaryEpsilon = ( reantrantState->trShape.type == SHAPE_AABB || reantrantState->trShape.type == SHAPE_POINT )
+		? 0.0
+		: -STARTSOLID_BOUNDARY_EPSILON;
+
+	mbrushside_t *side = brush->firstbrushside;
+	for ( int32_t i = 0; i < brush->numsides; i++, side++ ) {
+		cm_plane_t *plane = side->plane;
 
 		Vector3 worldNormal = plane->normal;
 		if ( reantrantState->isRotated ) {
@@ -486,23 +542,24 @@ static void CM_TestShapeInBrush( const Vector3 &p1, cm_trace_reantrant_state_t *
 			expand = -( reantrantState->trShape.radius + ( reantrantState->trShape.halfHeight * std::abs( worldNormal.z ) ) );
 			break;
 		}
-		dist = plane->dist - expand;
-
-		d1 = DotProductDP( p1, plane->normal ) - dist;
+		const double dist = plane->dist - expand;
+		const double d1 = DotProductDP( p1, plane->normal ) - dist;
 
 		/**
-		/*	A point in front of any plane cannot be inside the brush.
+		*	A point outside or on the boundary of any plane is not embedded inside the brush.
 		**/
-		if ( d1 > 0. )
+		if ( d1 > boundaryEpsilon ) {
 			return;
+		}
 	}
 
 	/**
-	/*	The point is inside every brush plane, so mark the trace as solid.
+	*	The point is inside every brush plane beyond the boundary tolerance, so mark the trace as solid.
 	**/
 	reantrantState->trResult.startsolid = reantrantState->trResult.allsolid = true;
 	reantrantState->trResult.fraction = 0;
 	reantrantState->trResult.contents = static_cast< cm_contents_t >( brush->contents );
+	reantrantState->trResult.brushID = brush->brushID;
 	reantrantState->trResult.material = nullptr;
 }
 

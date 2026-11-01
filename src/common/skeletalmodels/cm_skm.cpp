@@ -17,6 +17,7 @@
 #include "common/math.h"
 #include "common/skeletalmodels/cm_skm.h"
 #include "common/skeletalmodels/cm_skm_configuration.h"
+#include <xmmintrin.h>
 
 #include "system/hunk.h"
 
@@ -58,18 +59,37 @@ static void QuatSlerp( const quat_t from, const quat_t _to, float fraction, quat
 		QuatCopy( _to, to );
 	}
 
-	float backlerp, lerp;
-	if ( cosAngle < 0.999999f ) {
-		// spherical lerp (slerp)
-		const float angle = acosf( cosAngle );
-		const float sinAngle = sinf( angle );
-		backlerp = sinf( ( 1.0f - fraction ) * angle ) / sinAngle;
-		lerp = sinf( fraction * angle ) / sinAngle;
-	} else {
-		// linear lerp
-		backlerp = 1.0f - fraction;
-		lerp = fraction;
+	// For angles smaller than ~1.8 degrees, fast normalized linear interpolation (nlerp)
+	// avoids transcendental functions (acosf, sinf) with zero perceptible error.
+	if ( cosAngle >= 0.9995f ) {
+		const float backlerp = 1.0f - fraction;
+		const float lerp = fraction;
+		const float rx = from[ 0 ] * backlerp + to[ 0 ] * lerp;
+		const float ry = from[ 1 ] * backlerp + to[ 1 ] * lerp;
+		const float rz = from[ 2 ] * backlerp + to[ 2 ] * lerp;
+		const float rw = from[ 3 ] * backlerp + to[ 3 ] * lerp;
+
+		const float lengthSq = rx * rx + ry * ry + rz * rz + rw * rw;
+		if ( lengthSq > 0.0f ) {
+			const float invLen = 1.0f / sqrtf( lengthSq );
+			out[ 0 ] = rx * invLen;
+			out[ 1 ] = ry * invLen;
+			out[ 2 ] = rz * invLen;
+			out[ 3 ] = rw * invLen;
+		} else {
+			out[ 0 ] = 0.0f;
+			out[ 1 ] = 0.0f;
+			out[ 2 ] = 0.0f;
+			out[ 3 ] = 1.0f;
+		}
+		return;
 	}
+
+	// Spherical lerp (slerp) for larger angular differences
+	const float angle = acosf( cosAngle );
+	const float sinAngle = sinf( angle );
+	const float backlerp = sinf( ( 1.0f - fraction ) * angle ) / sinAngle;
+	const float lerp = sinf( fraction * angle ) / sinAngle;
 
 	out[ 0 ] = from[ 0 ] * backlerp + to[ 0 ] * lerp;
 	out[ 1 ] = from[ 1 ] * backlerp + to[ 1 ] * lerp;
@@ -77,21 +97,41 @@ static void QuatSlerp( const quat_t from, const quat_t _to, float fraction, quat
 	out[ 3 ] = from[ 3 ] * backlerp + to[ 3 ] * lerp;
 }
 
-// "multiply" 3x4 matrices, these are assumed to be the top 3 rows
-// of a 4x4 matrix with the last row = (0 0 0 1)
-static void Matrix34Multiply( const float *a, const float *b, float *out ) {
-	out[ 0 ] = a[ 0 ] * b[ 0 ] + a[ 1 ] * b[ 4 ] + a[ 2 ] * b[ 8 ];
-	out[ 1 ] = a[ 0 ] * b[ 1 ] + a[ 1 ] * b[ 5 ] + a[ 2 ] * b[ 9 ];
-	out[ 2 ] = a[ 0 ] * b[ 2 ] + a[ 1 ] * b[ 6 ] + a[ 2 ] * b[ 10 ];
-	out[ 3 ] = a[ 0 ] * b[ 3 ] + a[ 1 ] * b[ 7 ] + a[ 2 ] * b[ 11 ] + a[ 3 ];
-	out[ 4 ] = a[ 4 ] * b[ 0 ] + a[ 5 ] * b[ 4 ] + a[ 6 ] * b[ 8 ];
-	out[ 5 ] = a[ 4 ] * b[ 1 ] + a[ 5 ] * b[ 5 ] + a[ 6 ] * b[ 9 ];
-	out[ 6 ] = a[ 4 ] * b[ 2 ] + a[ 5 ] * b[ 6 ] + a[ 6 ] * b[ 10 ];
-	out[ 7 ] = a[ 4 ] * b[ 3 ] + a[ 5 ] * b[ 7 ] + a[ 6 ] * b[ 11 ] + a[ 7 ];
-	out[ 8 ] = a[ 8 ] * b[ 0 ] + a[ 9 ] * b[ 4 ] + a[ 10 ] * b[ 8 ];
-	out[ 9 ] = a[ 8 ] * b[ 1 ] + a[ 9 ] * b[ 5 ] + a[ 10 ] * b[ 9 ];
-	out[ 10 ] = a[ 8 ] * b[ 2 ] + a[ 9 ] * b[ 6 ] + a[ 10 ] * b[ 10 ];
-	out[ 11 ] = a[ 8 ] * b[ 3 ] + a[ 9 ] * b[ 7 ] + a[ 10 ] * b[ 11 ] + a[ 11 ];
+/**
+*	@brief	Multiply two 3x4 affine matrices using SSE SIMD vectorization.
+*	@param	a	Left 3x4 matrix (12 floats).
+*	@param	b	Right 3x4 matrix (12 floats).
+*	@param	out	[out] Result 3x4 matrix (12 floats).
+**/
+static inline void Matrix34Multiply( const float *a, const float *b, float *out ) {
+	const __m128 b0 = _mm_loadu_ps( b + 0 );
+	const __m128 b1 = _mm_loadu_ps( b + 4 );
+	const __m128 b2 = _mm_loadu_ps( b + 8 );
+
+	// Row 0
+	const __m128 a0_0 = _mm_set1_ps( a[ 0 ] );
+	const __m128 a0_1 = _mm_set1_ps( a[ 1 ] );
+	const __m128 a0_2 = _mm_set1_ps( a[ 2 ] );
+	const __m128 t0 = _mm_set_ps( a[ 3 ], 0.0f, 0.0f, 0.0f );
+	const __m128 r0 = _mm_add_ps( _mm_add_ps( _mm_mul_ps( a0_0, b0 ), _mm_mul_ps( a0_1, b1 ) ), _mm_add_ps( _mm_mul_ps( a0_2, b2 ), t0 ) );
+
+	// Row 1
+	const __m128 a1_0 = _mm_set1_ps( a[ 4 ] );
+	const __m128 a1_1 = _mm_set1_ps( a[ 5 ] );
+	const __m128 a1_2 = _mm_set1_ps( a[ 6 ] );
+	const __m128 t1 = _mm_set_ps( a[ 7 ], 0.0f, 0.0f, 0.0f );
+	const __m128 r1 = _mm_add_ps( _mm_add_ps( _mm_mul_ps( a1_0, b0 ), _mm_mul_ps( a1_1, b1 ) ), _mm_add_ps( _mm_mul_ps( a1_2, b2 ), t1 ) );
+
+	// Row 2
+	const __m128 a2_0 = _mm_set1_ps( a[ 8 ] );
+	const __m128 a2_1 = _mm_set1_ps( a[ 9 ] );
+	const __m128 a2_2 = _mm_set1_ps( a[ 10 ] );
+	const __m128 t2 = _mm_set_ps( a[ 11 ], 0.0f, 0.0f, 0.0f );
+	const __m128 r2 = _mm_add_ps( _mm_add_ps( _mm_mul_ps( a2_0, b0 ), _mm_mul_ps( a2_1, b1 ) ), _mm_add_ps( _mm_mul_ps( a2_2, b2 ), t2 ) );
+
+	_mm_storeu_ps( out + 0, r0 );
+	_mm_storeu_ps( out + 4, r1 );
+	_mm_storeu_ps( out + 8, r2 );
 }
 
 static void JointToMatrix( const quat_t rot, const vec3_t scale, const vec3_t trans, float *mat ) {
@@ -716,56 +756,41 @@ void SKM_RecursiveBlendFromBone( const skm_transform_t *addBonePoses, skm_transf
 *	@brief	Compute "Local/Model-Space" matrices for the given pose transformations.
 **/
 void SKM_TransformBonePosesLocalSpace( const skm_model_t *model, const skm_transform_t *relativeBonePose, const skm_bone_controller_t *boneControllers, float *pose_matrices ) {
-	// multiply by inverse of bind pose and parent 'pose mat' (bind pose transform matrix)
+	/**
+	*	Sanity checks: ensure valid model data, relative poses, and destination output.
+	**/
+	if ( model == nullptr || relativeBonePose == nullptr || pose_matrices == nullptr || model->num_poses == 0 ) {
+		return;
+	}
+
+	/**
+	*	Temporary buffer holding accumulated absolute model-space joint matrices.
+	*	Using thread_local storage avoids stack blowups while keeping the memory cache-hot and thread-safe.
+	**/
+	static thread_local float modelSpaceJoints[ SKM_MAX_BONES * 12 ];
+
 	const skm_transform_t *relativeJoint = relativeBonePose;
 	const int *jointParent = model->jointParents;
 	const float *invBindMat = model->invBindJoints;
 	float *poseMat = pose_matrices;
+
 	for ( uint32_t pose_idx = 0; pose_idx < model->num_poses; pose_idx++, relativeJoint++, jointParent++, invBindMat += 12, poseMat += 12 ) {
-		float mat1[ 12 ] = { }, mat2[ 12 ] = { };
+		float localMat[ 12 ] = {};
+		float *modelMat = &modelSpaceJoints[ pose_idx * 12 ];
 
-		// Default to the relative joint.
-		//skm_transform_t jointTransform = *relativeJoint;
+		// Convert the relative joint rotation/scale/translation to a 3x4 affine matrix.
+		JointToMatrix( relativeJoint->rotate, relativeJoint->scale, relativeJoint->translate, localMat );
 
-		//// Determine whether we have a bone controller for this pose joint.
-		//if ( boneControllers != nullptr ) {
-		//	// Iterate controllers.
-		//	for ( int32_t i = 0; i < SKM_MAX_BONE_CONTROLLERS; i++ ) {
-		//		// Get controller ptr.
-		//		const skm_bone_controller_t *boneController = &boneControllers[ i ];
-		//		// Skip if inactive.
-		//		if ( boneController->state != SKM_BONE_CONTROLLER_STATE_ACTIVE ) {
-		//			continue;
-		//		}
-		//		// If controller is active, and matches the bone number, override the desired bone transform properties:
-		//		if ( pose_idx == boneController->boneNumber || ( boneController->boneNumber == -1 && *jointParent < 0 ) ) {
-		//			// Rotate:
-		//			if ( boneController->transformMask & SKM_BONE_CONTROLLER_TRANSFORM_ROTATION ) {
-		//				Vector4Copy( boneControllers->transform.rotate, jointTransform.rotate );
-		//			}
-		//			// Translate:
-		//			if ( boneController->transformMask & SKM_BONE_CONTROLLER_TRANSFORM_TRANSLATE ) {
-		//				VectorCopy( boneControllers->transform.translate, jointTransform.translate );
-		//			}
-		//			// Scale:
-		//			if ( boneController->transformMask & SKM_BONE_CONTROLLER_TRANSFORM_SCALE ) {
-		//				VectorCopy( boneControllers->transform.scale, jointTransform.scale );
-		//			}
-		//		}
-		//	}
-		//}
-
-		// Now convert the joint to a 3x4 matrix.
-		JointToMatrix( relativeJoint->rotate, relativeJoint->scale, relativeJoint->translate, mat1 );
-
-		// Concatenate if not the root joint.
+		// If this is a child joint, concatenate with the parent's accumulated model-space transform.
+		// Otherwise, the root joint's local matrix is already in model space.
 		if ( *jointParent >= 0 ) {
-			Matrix34Multiply( &model->bindJoints[ ( *jointParent ) * 12 ], mat1, mat2 );
-			Matrix34Multiply( mat2, invBindMat, mat1 );
-			Matrix34Multiply( &pose_matrices[ ( *jointParent ) * 12 ], mat1, poseMat );
+			Matrix34Multiply( &modelSpaceJoints[ ( *jointParent ) * 12 ], localMat, modelMat );
 		} else {
-			Matrix34Multiply( mat1, invBindMat, poseMat );
+			memcpy( modelMat, localMat, sizeof( float ) * 12 );
 		}
+
+		// Compute final skinning matrix S_j = A_j * B_j^-1 (multiplying absolute pose by inverse bind pose).
+		Matrix34Multiply( modelMat, invBindMat, poseMat );
 	}
 }
 

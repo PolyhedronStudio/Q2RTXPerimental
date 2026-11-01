@@ -136,11 +136,11 @@ void SplitWinding( const winding_t *in, const cm_plane_t *split, double epsilon,
 	*	Per-vertex distance evaluation and side classification buffer setup.
 	**/
 	// Signed distance buffer for each vertex relative to the clipping plane.
-	nav_vector_t<double> dists;
+	svg_vector_t<double, TAG_SVGAME_NAVMESH> dists;
 	dists.resize( static_cast< size_t >( in->num_points + 4 ) );
 
 	// Side classification buffer (0 = FRONT, 1 = BACK, 2 = ON PLANE).
-	nav_vector_t<int32_t> sides;
+	svg_vector_t<int32_t, TAG_SVGAME_NAVMESH> sides;
 	sides.resize( static_cast< size_t >( in->num_points + 4 ) );
 
 	// Side count histogram counters.
@@ -809,7 +809,7 @@ void SimplifyAllNavPolygonsCollinearVertices() {
 	Nav_SetGenerationProgress( 0.50f, "Perimeter Simplification" );
 
 	if ( total_simplified > 0 ) {
-		gi.dprintf( "SimplifyAllNavPolygonsCollinearVertices: simplified perimeter vertices on %d polygons.\n", total_simplified );
+		Nav_GenerationPrintf( "SimplifyAllNavPolygonsCollinearVertices: simplified perimeter vertices on %d polygons.\n", total_simplified );
 	}
 }
 
@@ -827,7 +827,7 @@ void Nav_MergeCoplanarPolygons() {
 	}
 
 	// Print starting message for diagnostics.
-	gi.dprintf( "Nav_MergeCoplanarPolygons: starting with %d polygons...\n", static_cast< int32_t >( g_nav_polys.size() ) );
+	Nav_GenerationPrintf( "Nav_MergeCoplanarPolygons: starting with %d polygons...\n", static_cast< int32_t >( g_nav_polys.size() ) );
 
 	// Loop control flags.
 	bool merged_any = true;
@@ -951,7 +951,7 @@ void Nav_MergeCoplanarPolygons() {
 	}
 
 	// Print summary diagnostic log.
-	gi.dprintf( "Nav_MergeCoplanarPolygons: finished after %\" PRId32 \" passes, reduced from %d to %d polygons.\n",
+	Nav_GenerationPrintf( "Nav_MergeCoplanarPolygons: finished after %\" PRId32 \" passes, reduced from %d to %d polygons.\n",
 		pass_count, static_cast< int32_t >( g_nav_polys.size() ), static_cast< int32_t >( clean_polys.size() ) );
 
 	// Commit compacted polygon vector.
@@ -977,7 +977,7 @@ void Nav_DissolveSlivers() {
 	}
 
 	// Log start of sliver dissolution pass.
-	gi.dprintf( "Nav_DissolveSlivers: evaluating %d polygons...\n", static_cast< int32_t >( g_nav_polys.size() ) );
+	Nav_GenerationPrintf( "Nav_DissolveSlivers: evaluating %d polygons...\n", static_cast< int32_t >( g_nav_polys.size() ) );
 
 	int32_t discarded_degenerates = 0;
 	std::vector<nav_poly_t> clean_polys;
@@ -1030,7 +1030,7 @@ void Nav_DissolveSlivers() {
 	Nav_SetGenerationProgress( 0.48f, "Dissolving Slivers" );
 
 	// Log completion summary.
-	gi.dprintf( "Nav_DissolveSlivers: discarded %\" PRId32 \" degenerates, remaining polygons: %d\n",
+	Nav_GenerationPrintf( "Nav_DissolveSlivers: discarded %\" PRId32 \" degenerates, remaining polygons: %d\n",
 		discarded_degenerates, static_cast< int32_t >( g_nav_polys.size() ) );
 }
 
@@ -1061,7 +1061,7 @@ static void PartitionPolygonsRecursive( PolyContainer &polys, const Vector3DP &m
 	}
 	recurse_count++;
 	if ( recurse_count % 10000 == 0 ) {
-		gi.dprintf( "PartitionPolygonsRecursive: count=%" PRId32 ", depth=%" PRId32 ", polys=%d, extents=(%.1f, %.1f, %.1f)\n",
+		Nav_GenerationPrintf( "PartitionPolygonsRecursive: count=%" PRId32 ", depth=%" PRId32 ", polys=%d, extents=(%.1f, %.1f, %.1f)\n",
 			recurse_count, depth, static_cast< int32_t >( polys.size() ), maxs.x - mins.x, maxs.y - mins.y, maxs.z - mins.z );
 	}
 
@@ -1347,7 +1347,7 @@ void Nav_PartitionPolygons() {
 	}
 
 	// Log start of polygon partitioning pass.
-	gi.dprintf( "Nav_PartitionPolygons: partitioning %d polygons...\n", static_cast< int32_t >( g_nav_polys.size() ) );
+	Nav_GenerationPrintf( "Nav_PartitionPolygons: partitioning %d polygons...\n", static_cast< int32_t >( g_nav_polys.size() ) );
 
 	// Compute tight 3D bounding box for all extracted polygons.
 	Vector3DP mins = Vector3DP( g_nav_polys[ 0 ].vertices[ 0 ] );
@@ -1367,5 +1367,5 @@ void Nav_PartitionPolygons() {
 	PartitionPolygonsRecursive( g_nav_polys, mins, maxs, 0 );
 
 	// Log completion summary.
-	gi.dprintf( "Nav_PartitionPolygons: finished, resulting in %d partitioned polygons.\n", static_cast< int32_t >( g_nav_polys.size() ) );
+	Nav_GenerationPrintf( "Nav_PartitionPolygons: finished, resulting in %d partitioned polygons.\n", static_cast< int32_t >( g_nav_polys.size() ) );
 }

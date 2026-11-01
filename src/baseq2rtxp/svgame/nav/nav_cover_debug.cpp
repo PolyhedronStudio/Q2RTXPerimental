@@ -14,10 +14,11 @@
 #include "nav_debug_draw.h"
 #include "svgame/svg_local.h"
 #include "svgame/svg_utils.h"
+#include "svgame/memory/svg_containers.h"
 #include <vector>
 
 //! External reference to the global list of generated cover points.
-extern std::vector<nav_cover_point_t> g_nav_cover_points;
+extern svg_vector_t<nav_cover_point_t, TAG_SVGAME_NAVMESH> g_nav_cover_points;
 
 //! Console variable enabling tactical cover visualization.
 static cvar_t *s_nav_debug_cover = nullptr;

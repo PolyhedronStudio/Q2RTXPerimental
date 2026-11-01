@@ -37,6 +37,8 @@ extern "C" {
 
 // Scoreboard UI
 #include "clgame/game_ui/menus/clg_ui_menu_scoreboard.h"
+// Q2RTXP Script Menus UI
+#include "clgame/game_ui/menus/clg_ui_menu_q2rtxp.h"
 
 //! Define to use R_DrawString font rendering instead of the atlas font.
 //#define USE_R_DRAW_STRING_FONT 1
@@ -223,6 +225,14 @@ static void CLG_UI_RemoveKeyDestFlag( const keydest_t flag ) {
 *			GameUI menu system, which avoids divergent local/server scoreboard lifetimes.
 **/
 static void CLG_UI_SyncScoreboardMenuFromStats( void ) {
+	/**
+	*	Do not override the main menu or in-game escape menu with scoreboard stats.
+	**/
+	// Keep active MAIN or GAME menu untouched.
+	if ( s_gameui_ctx.activeMenuID == sg_game_ui_menu_id::MAIN || s_gameui_ctx.activeMenuID == sg_game_ui_menu_id::GAME ) {
+		return;
+	}
+
 	const int64_t layoutValue = clgi.client->frame.ps.stats[ STAT_LAYOUTS ];
 	const bool scoreboardRequested = layoutValue == static_cast< int64_t >( sg_game_ui_menu_id::SCOREBOARD );
 	const bool scoreboardOpen = s_gameui_ctx.activeMenuID == sg_game_ui_menu_id::SCOREBOARD;
@@ -241,6 +251,10 @@ void CLG_UI_AllocateContext() {
 	// Allocate the MicroUI context in TAG_CLGAME_GAME_MICRO_UI.
 	if ( !s_gameui_ctx.mu_ctx ) {
 		s_gameui_ctx.mu_ctx = ( mu_Context * )clgi.TagMallocz( sizeof( mu_Context ), TAG_CLGAME_GAME_MICRO_UI );
+		// Initialize the UI context defaults before binding callbacks because mu_init clears the function pointers.
+		mu_init( s_gameui_ctx.mu_ctx );
+		// Bind the text metric callbacks immediately so the first menu frame has valid sizing data.
+		MicroUI_SetTextMeasureCallbacks( s_gameui_ctx.mu_ctx );
 	}
 	// Register the atlas only once and pass renderer-owned memory because raw image backends free the provided pixel buffer.
 	if ( s_gameui_ctx.atlas.textureCopy == nullptr ) {
@@ -272,11 +286,6 @@ void CLG_UI_AllocateContext() {
 	if ( s_gameui_ctx.fontHandle == 0 ) {
 		s_gameui_ctx.fontHandle = clgi.R_RegisterFontTTF( "fonts/segoeui.ttf", targetFontSize );
 	}
-	// Initialize the UI context defaults before binding callbacks because mu_init clears the function pointers.
-	mu_init( s_gameui_ctx.mu_ctx );
-	// Bind the text metric callbacks immediately so the first menu frame has valid sizing data.
-	MicroUI_SetTextMeasureCallbacks( s_gameui_ctx.mu_ctx );
-
 }
 /**
 *	Free the client's UI context, called when the client disconnects and before clearing its state.
@@ -292,6 +301,7 @@ void CLG_UI_FreeContext() {
 	// Clear UI state so reconnect/disconnect cannot leave a stale menu active.
 	s_gameui_ctx.activeMenuID = sg_game_ui_menu_id::NONE;
 	s_gameui_ctx.layoutWarmupPending = false;
+	CLG_MUI_CloseAllMenus();
 	// Release the registered atlas handle so a future UI allocation recreates it cleanly.
 	if ( s_gameui_ctx.atlas.imageHandle != 0 ) {
 		// Unregister the atlas texture from the renderer, this will free the texture and any associated resources on the renderer side, and it allows us to clean up properly when the client game shuts down or reloads.
@@ -399,6 +409,7 @@ void CLG_UI_CloseMenu() {
 	// Clear active menu so GameUI stops processing.
 	s_gameui_ctx.activeMenuID = sg_game_ui_menu_id::NONE;
 	s_gameui_ctx.layoutWarmupPending = false;
+	CLG_MUI_CloseAllMenus();
 
 	// Reset MicroUI state so stale captured widget/focus state does not persist across menu re-opens.
 	if ( s_gameui_ctx.mu_ctx ) {
@@ -423,6 +434,11 @@ void CLG_UI_OpenMenu( const sg_game_ui_menu_id menuID ) {
 		return;
 	}
 
+	// Ensure the MicroUI context and font/atlas resources are allocated.
+	if ( !s_gameui_ctx.mu_ctx ) {
+		CLG_UI_AllocateContext();
+	}
+
 	// If the menu is already open, keep things as is.
 	if ( menuID != sg_game_ui_menu_id::NONE && menuID == s_gameui_ctx.activeMenuID ) {
 		return;
@@ -437,6 +453,106 @@ void CLG_UI_OpenMenu( const sg_game_ui_menu_id menuID ) {
 	s_gameui_ctx.activeMenuID = menuID;
 	// Warm up the layout on the first visible frame so scrollbar-dependent sizing stabilizes before the user sees it.
 	s_gameui_ctx.layoutWarmupPending = true;
+}
+
+/**
+*	@brief	Open a root Q2RTXP MicroUI menu by name (e.g. `"main"` at boot or `"game"` in-game).
+*	@param	menuName	Null-terminated script menu name (`"main"`, `"game"`, etc.).
+**/
+void CLG_UI_OpenRootMenu( const char *menuName ) {
+	/**
+	*	Sanity check menu name.
+	**/
+	// Ignore null or empty root menu names.
+	if ( menuName == nullptr || menuName[ 0 ] == '\0' ) {
+		return;
+	}
+
+	/**
+	*	Ensure the MicroUI context is allocated before opening a root menu (e.g. at early boot).
+	**/
+	if ( !s_gameui_ctx.mu_ctx ) {
+		CLG_UI_AllocateContext();
+	}
+
+	/**
+	*	Open the requested Q2RTXP root menu and switch input destination to KEY_GAME_UI.
+	**/
+	CLG_MUI_OpenRootMenu( menuName );
+	const bool isGameMenu = ( Q_stricmp( menuName, "game" ) == 0 );
+	s_gameui_ctx.activeMenuID = isGameMenu ? sg_game_ui_menu_id::GAME : sg_game_ui_menu_id::MAIN;
+	s_gameui_ctx.layoutWarmupPending = true;
+
+	// Switch key destination from console/menu to KEY_GAME_UI and close the console overlay.
+	const keydest_t currentDest = clgi.GetKeyEventDestination();
+	clgi.SetKeyEventDestination( static_cast< keydest_t >( ( currentDest & ~( KEY_CONSOLE | KEY_MENU ) ) | KEY_GAME_UI ) );
+	if ( clgi.Con_Close != nullptr ) {
+		clgi.Con_Close( qtrue );
+	}
+}
+
+/**
+*	@brief	Push a Q2RTXP MicroUI menu onto the active menu stack by name.
+*	@param	menuName	Null-terminated script menu name.
+**/
+void CLG_UI_PushMenu( const char *menuName ) {
+	/**
+	*	Sanity check menu name.
+	**/
+	// Ignore null or empty menu names.
+	if ( menuName == nullptr || menuName[ 0 ] == '\0' ) {
+		return;
+	}
+
+	/**
+	*	Ensure the MicroUI context is allocated.
+	**/
+	if ( !s_gameui_ctx.mu_ctx ) {
+		CLG_UI_AllocateContext();
+	}
+
+	/**
+	*	Push the named menu onto the Q2RTXP MicroUI stack and activate GameUI input focus.
+	**/
+	if ( CLG_MUI_PushMenuByName( menuName ) ) {
+		// Activate MAIN or GAME mode if not already in a Q2RTXP menu.
+		if ( s_gameui_ctx.activeMenuID != sg_game_ui_menu_id::MAIN && s_gameui_ctx.activeMenuID != sg_game_ui_menu_id::GAME ) {
+			const bool inGame = ( clgi.GetConnectionState != nullptr ) && ( clgi.GetConnectionState() >= ca_active );
+			s_gameui_ctx.activeMenuID = inGame ? sg_game_ui_menu_id::GAME : sg_game_ui_menu_id::MAIN;
+		}
+		s_gameui_ctx.layoutWarmupPending = true;
+
+		// Switch key destination to KEY_GAME_UI and close the console overlay.
+		const keydest_t currentDest = clgi.GetKeyEventDestination();
+		clgi.SetKeyEventDestination( static_cast< keydest_t >( ( currentDest & ~( KEY_CONSOLE | KEY_MENU ) ) | KEY_GAME_UI ) );
+		if ( clgi.Con_Close != nullptr ) {
+			clgi.Con_Close( qtrue );
+		}
+	}
+}
+
+/**
+*	@brief	Pop the top-most menu from the active GameUI menu stack, or close the menu if at root.
+**/
+void CLG_UI_PopMenu( void ) {
+	/**
+	*	If a Q2RTXP menu is active, pop one layer from its navigation stack.
+	**/
+	if ( s_gameui_ctx.activeMenuID == sg_game_ui_menu_id::MAIN || s_gameui_ctx.activeMenuID == sg_game_ui_menu_id::GAME ) {
+		CLG_MUI_PopMenu();
+		// If popping emptied the stack, ensure GameUI is fully closed; otherwise warm up the revealed menu.
+		if ( !CLG_MUI_IsMenuActive() ) {
+			CLG_UI_CloseMenu();
+		} else {
+			s_gameui_ctx.layoutWarmupPending = true;
+		}
+		return;
+	}
+
+	/**
+	*	For single-layer menus (such as Scoreboard), close the menu directly.
+	**/
+	CLG_UI_CloseMenu();
 }
 
 /**
@@ -534,6 +650,14 @@ void CLG_UI_TextInputEvent( const char *str ) {
 void CLG_UI_DrawRenderCommands() {
 	if ( !s_gameui_ctx.mu_ctx ) {
 		return;
+	}
+
+	/**
+	*	Draw the menu wallpaper background (`conback.png`) before MicroUI commands when disconnected.
+	**/
+	// Render the menu background if the Q2RTXP main/game menu stack is active.
+	if ( s_gameui_ctx.activeMenuID == sg_game_ui_menu_id::MAIN || s_gameui_ctx.activeMenuID == sg_game_ui_menu_id::GAME ) {
+		CLG_MUI_DrawBackground();
 	}
 
 	// The active drawing command, used for iterating the command list.
@@ -1227,10 +1351,12 @@ static void __process_frame( mu_Context *ctx ) {
 	// Begin actual menu building.
 	mu_begin( ctx );
 	{
-		//windowsVisible += __style_window( ctx );
-		//windowsVisible += __log_window( ctx );
-		//windowsVisible += __test_window( ctx );
-		windowsVisible += CLG_MUI_ProcessScoreBoard( ctx );
+		// Dispatch to the active menu builder based on activeMenuID.
+		if ( s_gameui_ctx.activeMenuID == sg_game_ui_menu_id::SCOREBOARD ) {
+			windowsVisible += CLG_MUI_ProcessScoreBoard( ctx );
+		} else if ( s_gameui_ctx.activeMenuID == sg_game_ui_menu_id::MAIN || s_gameui_ctx.activeMenuID == sg_game_ui_menu_id::GAME ) {
+			windowsVisible += CLG_MUI_ProcessQ2RTXPMenus( ctx );
+		}
 	}
 	// Done building menus.
 	mu_end( ctx );
@@ -1241,3 +1367,29 @@ static void __process_frame( mu_Context *ctx ) {
 		CLG_UI_CloseMenu();
 	}
 }
+
+/**
+*	@brief	Process and render a complete GameUI frame (used when the client is disconnected/at boot menu).
+*	@param	refcfg	Current renderer configuration containing screen dimensions.
+**/
+void CLG_UI_DrawFrame( refcfg_t *refcfg ) {
+	/**
+	*	Synchronize screen dimensions from the renderer configuration before building UI layout.
+	**/
+	// Update shared screen width and height when refcfg is provided.
+	if ( refcfg != nullptr && clgi.screen != nullptr ) {
+		clgi.screen->screenWidth = refcfg->width;
+		clgi.screen->screenHeight = refcfg->height;
+	}
+
+	/**
+	*	Process the active MicroUI menu frame and submit its render commands.
+	**/
+	// Reset 2D scale and alpha scale to 1.0 prior to MicroUI rendering.
+	clgi.R_SetScale( 1.0f );
+	clgi.R_SetAlphaScale( 1.0f );
+
+	// Build MicroUI frame commands and render them.
+	CLG_UI_ProcessFrame();
+	CLG_UI_DrawRenderCommands();
+}

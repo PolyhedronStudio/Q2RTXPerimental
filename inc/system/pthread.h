@@ -20,13 +20,29 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #ifndef _WIN32
 	#include <pthread.h>
+	#include <time.h>
+	#include <errno.h>
+	#include <stdint.h>
+
+	#ifdef __cplusplus
+	extern "C" {
+	#endif
+
+	/**
+	*	@brief	Query execution CPU time for a POSIX thread in nanoseconds.
+	*	@param	thread		Thread handle to inspect (or 0 / pthread_self() for calling thread).
+	*	@param	out_time_ns	[out] Receives thread CPU execution time in nanoseconds.
+	*	@return	0 on success, or non-zero error code on failure.
+	**/
+	int pthread_getcputime(pthread_t thread, uint64_t *out_time_ns);
+
+	#ifdef __cplusplus
+	}
+	#endif
 #else
 
-	#define WIN32_LEAN_AND_MEAN
-	#define VC_EXTRALEAN
-	#define NOMINMAX
-	#include <windows.h>
-	#include <errno.h>
+	#include "shared/shared.h"
+	#include <stdint.h>
 
 	#define PTHREAD_MUTEX_INITIALIZER   {0}
 	#define PTHREAD_COND_INITIALIZER    {0}
@@ -40,62 +56,34 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 	typedef unsigned int pthread_t;
 
 	typedef struct {
-		SRWLOCK srw;
+		void *handle;
 	} pthread_mutex_t;
 
 	typedef struct {
-		CONDITION_VARIABLE cond;
+		void *handle;
 	} pthread_cond_t;
 
-	static inline int pthread_mutex_init(pthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr)
-	{
-		InitializeSRWLock(&mutex->srw);
-		return 0;
-	}
+	int pthread_mutex_init(pthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr);
+	int pthread_mutex_lock(pthread_mutex_t *mutex);
+	int pthread_mutex_trylock(pthread_mutex_t *mutex);
+	int pthread_mutex_unlock(pthread_mutex_t *mutex);
+	int pthread_mutex_destroy(pthread_mutex_t *mutex);
 
-	static inline int pthread_mutex_lock(pthread_mutex_t *mutex)
-	{
-		AcquireSRWLockExclusive(&mutex->srw);
-		return 0;
-	}
+	int pthread_cond_init(pthread_cond_t *cond, pthread_condattr_t *cond_attr);
+	int pthread_cond_signal(pthread_cond_t *cond);
+	int pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex);
+	int pthread_cond_destroy(pthread_cond_t *cond);
 
-	static inline int pthread_mutex_trylock(pthread_mutex_t *mutex)
-	{
-		return TryAcquireSRWLockExclusive(&mutex->srw) ? 0 : EBUSY;
-	}
+	pthread_t pthread_self(void);
+	int pthread_equal(pthread_t t1, pthread_t t2);
 
-	static inline int pthread_mutex_unlock(pthread_mutex_t *mutex)
-	{
-		ReleaseSRWLockExclusive(&mutex->srw);
-		return 0;
-	}
-
-	static inline int pthread_mutex_destroy(pthread_mutex_t *mutex)
-	{
-		return 0;
-	}
-
-	static inline int pthread_cond_init(pthread_cond_t *cond, pthread_condattr_t *cond_attr)
-	{
-		InitializeConditionVariable(&cond->cond);
-		return 0;
-	}
-
-	static inline int pthread_cond_signal(pthread_cond_t *cond)
-	{
-		WakeConditionVariable(&cond->cond);
-		return 0;
-	}
-
-	static inline int pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
-	{
-		return SleepConditionVariableSRW(&cond->cond, &mutex->srw, INFINITE, 0) ? 0 : ETIMEDOUT;
-	}
-
-	static inline int pthread_cond_destroy(pthread_cond_t *cond)
-	{
-		return 0;
-	}
+	/**
+	*	@brief	Query execution CPU time for a Windows thread emulation handle in nanoseconds.
+	*	@param	thread		Thread ID to inspect (or 0 / pthread_self() for calling thread).
+	*	@param	out_time_ns	[out] Receives thread CPU execution time in nanoseconds.
+	*	@return	0 on success, or non-zero error code on failure.
+	**/
+	int pthread_getcputime(pthread_t thread, uint64_t *out_time_ns);
 
 	int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
 					   void *(*start_routine)(void *), void *arg);

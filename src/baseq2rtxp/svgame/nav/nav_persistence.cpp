@@ -2,9 +2,11 @@
 #include "nav_generate.h"
 #include "nav_cover_types.h"
 #include "nav_cover_query.h"
+#include "nav_path.h"
+#include "nav_identity.h"
 
 //! External reference to the global list of generated cover points.
-extern std::vector<nav_cover_point_t> g_nav_cover_points;
+extern svg_vector_t<nav_cover_point_t, TAG_SVGAME_NAVMESH> g_nav_cover_points;
 
 /**
 * @brief Save the current navmesh to a .nav7 file.
@@ -48,11 +50,11 @@ bool Nav_Save( const char *filepath ) {
     if (header.num_faces > 0)
         fwrite(g_nav_faces.data(), sizeof(nav_face_t), header.num_faces, f);
     if (header.num_kdtree_nodes > 0)
-        fwrite(g_nav_nodes.get_data(), sizeof(nav_kdtree_node_t), header.num_kdtree_nodes, f);
+        fwrite(g_nav_nodes.data(), sizeof(nav_kdtree_node_t), header.num_kdtree_nodes, f);
     if (header.num_leaf_links > 0)
-        fwrite(g_nav_leaf_links.get_data(), sizeof(nav_leaf_link_t), header.num_leaf_links, f);
+        fwrite(g_nav_leaf_links.data(), sizeof(nav_leaf_link_t), header.num_leaf_links, f);
     if (header.num_leaf_face_ids > 0)
-        fwrite(g_nav_leaf_poly_ids.get_data(), sizeof(int32_t), header.num_leaf_face_ids, f);
+        fwrite(g_nav_leaf_poly_ids.data(), sizeof(int32_t), header.num_leaf_face_ids, f);
     if (header.num_cover_points > 0)
         fwrite(g_nav_cover_points.data(), sizeof(nav_cover_point_t), header.num_cover_points, f);
 
@@ -133,6 +135,11 @@ bool Nav_Load( const char *filepath ) {
 
     Nav_RebuildCoverSpatialIndex();
     Nav_BuildSpatialRegionsAndPortals();
+    // Issue publication identities through the epoch barrier; never silently wrap a live generation.
+    g_nav_mesh_generation = Nav_IssueIdentityRevisionMainThread();
+    Nav_InvalidateObstacleCornersTable();
+    Nav_RebuildEntityEdgeRegistry();
+    Nav_ResyncDynamicEntityEdges();
 
     fclose(f);
     gi.dprintf("NavMesh Loaded from %s successfully (Faces: %d, Nodes: %d, Cover Points: %d).\n", 

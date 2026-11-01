@@ -537,9 +537,39 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
         //memcpy( currentLerpedPose, lowerEventStatePose, SKM_MAX_BONES ); // This is faster if we override from the hips.
         SG_SKM_RecursiveBlendFromBone( lowerEventStatePose, finalStatePose, finalStatePose, hipsBone, 1, 1 ); // Slower path..
     }
-    // If playing, the upper event state overrides only the spine bone and all its child bones.
-    if ( upperEventIsPlaying /*&& upperEventBodyState->timeEnd >= extrapolatedTime*/ ) {
-        SG_SKM_RecursiveBlendFromBone( upperEventStatePose, finalStatePose, finalStatePose, spineBone, 1, 1 );
+    /**
+    *   'Upper Event' Blend Layering:
+    **/
+    // Instead of a binary spine-chain override, composite the upper event animation as a
+    // weighted blend layer: arms at full weight, spine chain softened so the base pose's
+    // posture (e.g. a crouch's bent neck/back/shoulders) is preserved.
+    if ( upperEventIsPlaying && upperEventStatePose ) {
+        // The faux animation recipe matching this event's animation, if any.
+        const skm_anim_t *upperEventAnimation = SG_SKM_GetAnimationForHandle( model, upperEventBodyState->animationID );
+        const sg_skm_faux_animation_t *fauxAnimation = ( upperEventAnimation ? SG_SKM_GetFauxAnimationForName( model, upperEventAnimation->name ) : nullptr );
+
+        if ( fauxAnimation && fauxAnimation->numberOfLayers > 0 && spineBone ) {
+            // The recipe supplies only the blend MASK; the animation itself is already
+            // processed into upperEventStatePose by the regular pipeline above. Build a
+            // working layer from the recipe's first layer, carrying the live event state
+            // so the fade envelope tracks the actual animation timing.
+            sg_skm_blend_layer_t *workingLayer = &packetEntity->fauxAnimationLayers[ 0 ];
+            const sg_skm_blend_layer_t *recipeLayer = &fauxAnimation->layers[ 0 ];
+
+            workingLayer->state = *upperEventBodyState;
+            workingLayer->startBone = recipeLayer->startBone;
+            workingLayer->mode = recipeLayer->mode;
+            workingLayer->defaultWeight = recipeLayer->defaultWeight;
+            workingLayer->fadeInTime = recipeLayer->fadeInTime;
+            workingLayer->fadeOutTime = recipeLayer->fadeOutTime;
+            memcpy( workingLayer->boneWeights, recipeLayer->boneWeights, sizeof( recipeLayer->boneWeights ) );
+
+            // Apply the layer on top of the current pose.
+            SG_SKM_ApplyBlendLayer( model, workingLayer, upperEventStatePose, finalStatePose, finalStatePose, extrapolatedTime );
+        } else {
+            // No recipe: fall back to the old binary spine-chain override.
+            SG_SKM_RecursiveBlendFromBone( upperEventStatePose, finalStatePose, finalStatePose, spineBone, 1, 1 );
+        }
     }
 
 

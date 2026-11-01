@@ -50,212 +50,293 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 extern cvar_t *cvar_r_drawHitboxMeshes;
 
-static void extract_model_lights(model_t* model)
-{
-	// Count the triangles in the model that have a material with the is_light flag set
-	
-	int num_lights = 0;
-	
-	for (int mesh_idx = 0; mesh_idx < model->nummeshes; mesh_idx++)
-	{
-		const maliasmesh_t* mesh = model->meshes + mesh_idx;
-		for (int skin_idx = 0; skin_idx < mesh->numskins; skin_idx++)
-		{
-			const pbr_material_t* mat = mesh->materials[skin_idx];
-			if ((mat->flags & MATERIAL_FLAG_LIGHT) != 0 && mat->image_emissive)
-			{
-				if (mesh->numskins != 1)
-				{
-					Com_DPrintf("Warning: model %s mesh %d has LIGHT material(s) but more than 1 skin (%d), "
-						"which is unsupported.\n", model->name, mesh_idx, mesh->numskins);
+/**
+*	@brief	Extract triangle light polygons from static single-frame model meshes with emissive LIGHT materials.
+*	@param	model	Model whose meshes are inspected for emissive light triangles.
+**/
+static void extract_model_lights( model_t *model ) {
+	/**
+	*	Count the triangles in the model that have a material with the MATERIAL_FLAG_LIGHT flag set.
+	**/
+	// Initialize total light triangle counter.
+	int32_t num_lights = 0;
+
+	// Iterate over all submeshes in the model.
+	for ( int32_t mesh_idx = 0; mesh_idx < model->nummeshes; mesh_idx++ ) {
+		// Retrieve pointer to the current mesh.
+		const maliasmesh_t *mesh = model->meshes + mesh_idx;
+		// Check each skin assigned to the mesh.
+		for ( int32_t skin_idx = 0; skin_idx < mesh->numskins; skin_idx++ ) {
+			// Retrieve the PBR material for this skin slot.
+			const pbr_material_t *mat = mesh->materials[ skin_idx ];
+			// Check if the material is flagged as an emissive light source.
+			if ( mat && ( mat->flags & MATERIAL_FLAG_LIGHT ) != 0 && mat->image_emissive ) {
+				// Multi-skin light models are unsupported.
+				if ( mesh->numskins != 1 ) {
+					Com_DPrintf( "Warning: model %s mesh %d has LIGHT material(s) but more than 1 skin (%d), "
+						"which is unsupported.\n", model->name, mesh_idx, mesh->numskins );
 					return;
 				}
 
+				// Accumulate the triangle count for this light mesh.
 				num_lights += mesh->numtris;
 			}
 		}
 	}
 
-	// If there are no light triangles, there's nothing to do
-	if (num_lights == 0)
-		return;
-
-	// Validate our current implementation limitations, give warnings if they are hit
-	
-	if (model->numframes > 1)
-	{
-		Com_DPrintf("Warning: model %s has LIGHT material(s) but more than 1 vertex animation frame, "
-			"which is unsupported.\n", model->name);
+	/**
+	*	Early return if no light triangles were found or if the model is animated.
+	**/
+	// If there are no light triangles, there's nothing to do.
+	if ( num_lights == 0 ) {
 		return;
 	}
 
-	if (model->skmData && model->skmData->blend_weights)
-	{
-		Com_DPrintf("Warning: model %s has LIGHT material(s) and skeletal animations, "
-			"which is unsupported.\n", model->name);
+	// Validate our current implementation limitations, give warnings if they are hit.
+	if ( model->numframes > 1 ) {
+		Com_DPrintf( "Warning: model %s has LIGHT material(s) but more than 1 vertex animation frame, "
+			"which is unsupported.\n", model->name );
 		return;
 	}
 
-	// Actually extract the lights now
-	
-	if (!(model->light_polys = Hunk_Alloc(&model->hunk, sizeof(light_poly_t) * num_lights))) {
-		Com_DPrintf("Warning: unable to allocate memory for %i light polygons.\n", num_lights);
+	// Skeletal models with blend weights cannot use static light polygon extraction.
+	if ( model->skmData && model->skmData->blend_weights ) {
+		Com_DPrintf( "Warning: model %s has LIGHT material(s) and skeletal animations, "
+			"which is unsupported.\n", model->name );
+		return;
+	}
+
+	/**
+	*	Allocate and populate the model's light polygon array.
+	**/
+	// Allocate hunk memory for the extracted light polygons.
+	if ( !( model->light_polys = Hunk_Alloc( &model->hunk, sizeof( light_poly_t ) * num_lights ) ) ) {
+		Com_DPrintf( "Warning: unable to allocate memory for %i light polygons.\n", num_lights );
 		return;
 	}
 	model->num_light_polys = num_lights;
 
+	// Reset write index before populating light polygons.
 	num_lights = 0;
 
-	for (int mesh_idx = 0; mesh_idx < model->nummeshes; mesh_idx++)
-	{
-		const maliasmesh_t* mesh = model->meshes + mesh_idx;
-		assert(mesh->numskins == 1);
-		assert(mesh->indices);
-		assert(mesh->positions);
-		
-		pbr_material_t* mat = mesh->materials[0];
-		if ((mat->flags & MATERIAL_FLAG_LIGHT) != 0 && mat->image_emissive)
-		{
-			for (int tri_idx = 0; tri_idx < mesh->numtris; tri_idx++)
-			{
-				light_poly_t* light = model->light_polys + num_lights;
+	// Iterate over all submeshes to extract triangle vertices and emissive properties.
+	for ( int32_t mesh_idx = 0; mesh_idx < model->nummeshes; mesh_idx++ ) {
+		const maliasmesh_t *mesh = model->meshes + mesh_idx;
+		Q_assert( mesh->numskins == 1 );
+		Q_assert( mesh->indices );
+		Q_assert( mesh->positions );
+
+		pbr_material_t *mat = mesh->materials[ 0 ];
+		// Extract triangles only from light-flagged emissive materials.
+		if ( ( mat->flags & MATERIAL_FLAG_LIGHT ) != 0 && mat->image_emissive ) {
+			// Iterate over each triangle in the mesh.
+			for ( int32_t tri_idx = 0; tri_idx < mesh->numtris; tri_idx++ ) {
+				light_poly_t *light = model->light_polys + num_lights;
 				num_lights++;
 
-				int i0 = mesh->indices[tri_idx * 3 + 0];
-				int i1 = mesh->indices[tri_idx * 3 + 1];
-				int i2 = mesh->indices[tri_idx * 3 + 2];
-				
-				assert(i0 < mesh->numverts);
-				assert(i1 < mesh->numverts);
-				assert(i2 < mesh->numverts);
+				// Fetch vertex indices for the current triangle.
+				int32_t i0 = mesh->indices[ tri_idx * 3 + 0 ];
+				int32_t i1 = mesh->indices[ tri_idx * 3 + 1 ];
+				int32_t i2 = mesh->indices[ tri_idx * 3 + 2 ];
 
-				memcpy(light->positions + 0, mesh->positions + i0, sizeof(vec3_t));
-				memcpy(light->positions + 3, mesh->positions + i1, sizeof(vec3_t));
-				memcpy(light->positions + 6, mesh->positions + i2, sizeof(vec3_t));
-				
-				// Cluster is assigned after model instancing and transformation
+				Q_assert( i0 < mesh->numverts );
+				Q_assert( i1 < mesh->numverts );
+				Q_assert( i2 < mesh->numverts );
+
+				// Copy the three triangle vertex positions into the light polygon.
+				memcpy( light->positions + 0, mesh->positions + i0, sizeof( vec3_t ) );
+				memcpy( light->positions + 3, mesh->positions + i1, sizeof( vec3_t ) );
+				memcpy( light->positions + 6, mesh->positions + i2, sizeof( vec3_t ) );
+
+				// Cluster is assigned after model instancing and transformation.
 				light->cluster = -1;
-
 				light->material = mat;
 
-				VectorCopy(mat->image_emissive->light_color, light->color);
+				// Copy emissive light color from the material's emissive texture.
+				VectorCopy( mat->image_emissive->light_color, light->color );
 
-				if (!mat->image_emissive->entire_texture_emissive)
-				{
-					// This extraction doesn't support partially emissive textures, so pretend the entire
-					// texture is uniformly emissive and dim the light according to the area fraction.
+				// Compute emissive area factor if only part of the texture is emissive.
+				if ( !mat->image_emissive->entire_texture_emissive ) {
 					light->emissive_factor =
-						(mat->image_emissive->max_light_texcoord[0] - mat->image_emissive->min_light_texcoord[0]) *
-						(mat->image_emissive->max_light_texcoord[1] - mat->image_emissive->min_light_texcoord[1]);
-				}
-				else
+						( mat->image_emissive->max_light_texcoord[ 0 ] - mat->image_emissive->min_light_texcoord[ 0 ] ) *
+						( mat->image_emissive->max_light_texcoord[ 1 ] - mat->image_emissive->min_light_texcoord[ 1 ] );
+				} else {
 					light->emissive_factor = 1.f;
-				
-				get_triangle_off_center(light->positions, light->off_center, NULL, 1.f);
-				
+				}
+
+				// Compute slightly inset triangle center for cluster lookup.
+				get_triangle_off_center( light->positions, light->off_center, NULL, 1.f );
 			}
 		}
 	}
 }
 
-static void compute_missing_model_tangents(model_t* model)
-{
-	for (int mesh_idx = 0; mesh_idx < model->nummeshes; mesh_idx++)
-	{
-		maliasmesh_t* mesh = model->meshes + mesh_idx;
+/**
+*	@brief	Compute per-vertex tangent vectors and bitangent handedness for all meshes in `model`
+*			that do not already provide precomputed tangents.
+*	@param	model	Model whose meshes require tangent space computation.
+*	@note	Supports both fixed-topology meshes (MD2/MD3/IQM) and variable-topology per-frame meshes (Alembic .abc).
+**/
+static void compute_missing_model_tangents( model_t *model ) {
+	/**
+	*	Iterate over all submeshes in the model and compute tangents where missing.
+	**/
+	for ( int32_t mesh_idx = 0; mesh_idx < model->nummeshes; mesh_idx++ ) {
+		maliasmesh_t *mesh = model->meshes + mesh_idx;
 
-		if (mesh->tangents)
+		// Skip meshes that already have tangents or have no vertices.
+		if ( mesh->tangents || mesh->numverts <= 0 ) {
 			continue;
+		}
 
-		size_t tangent_size = mesh->numverts * model->numframes * sizeof(vec3_t);
+		/**
+		*	Determine total vertex count across all frames and allocate tangent storage.
+		*	For variable-topology meshes (mesh->frame_numtris != NULL), mesh->numverts already
+		*	stores the sum of frame_numverts across all frames.
+		**/
+		const bool is_variable_topology = ( mesh->frame_numtris != NULL );
+		const size_t total_verts = is_variable_topology
+			? ( size_t )mesh->numverts
+			: ( size_t )mesh->numverts * ( size_t )model->numframes;
+		const size_t tangent_size = total_verts * sizeof( vec3_t );
 
-		mesh->tangents = MOD_Malloc(tangent_size);
+		// Allocate and zero-initialize tangent vectors on the model hunk.
+		mesh->tangents = MOD_Malloc( tangent_size );
+		if ( !mesh->tangents ) {
+			continue;
+		}
+		memset( mesh->tangents, 0, tangent_size );
 
-		memset(mesh->tangents, 0, tangent_size);
+		int32_t handedness = 0;
 
-		int handedness = 0;
+		/**
+		*	Accumulate triangle tangent vectors into each triangle's three vertices per frame.
+		**/
+		for ( int32_t frame = 0; frame < model->numframes; frame++ ) {
+			// Resolve per-frame vertex offset, index offset, and triangle count.
+			const int32_t voffset = is_variable_topology
+				? mesh->frame_vert_offsets[ frame ]
+				: ( frame * mesh->numverts );
+			const int32_t ioffset = is_variable_topology
+				? mesh->frame_index_offsets[ frame ]
+				: 0;
+			const int32_t frame_tris = is_variable_topology
+				? mesh->frame_numtris[ frame ]
+				: mesh->numtris;
 
-		for (int frame = 0; frame < model->numframes; frame++)
-		{
-			int voffset = frame * mesh->numverts;
+			// Accumulate tangent directions across all triangles in this frame.
+			for ( int32_t tri = 0; tri < frame_tris; tri++ ) {
+				const int32_t iA = mesh->indices[ ioffset + tri * 3 + 0 ] + voffset;
+				const int32_t iB = mesh->indices[ ioffset + tri * 3 + 1 ] + voffset;
+				const int32_t iC = mesh->indices[ ioffset + tri * 3 + 2 ] + voffset;
 
-			for (int tri = 0; tri < mesh->numtris; tri++)
-			{
-				int iA = mesh->indices[tri * 3 + 0] + voffset;
-				int iB = mesh->indices[tri * 3 + 1] + voffset;
-				int iC = mesh->indices[tri * 3 + 2] + voffset;
+				const vec3_t *pA = mesh->positions + iA;
+				const vec3_t *pB = mesh->positions + iB;
+				const vec3_t *pC = mesh->positions + iC;
 
-				const vec3_t* pA = mesh->positions + iA;
-				const vec3_t* pB = mesh->positions + iB;
-				const vec3_t* pC = mesh->positions + iC;
+				const vec2_t *tA = mesh->tex_coords + iA;
+				const vec2_t *tB = mesh->tex_coords + iB;
+				const vec2_t *tC = mesh->tex_coords + iC;
 
-				const vec2_t* tA = mesh->tex_coords + iA;
-				const vec2_t* tB = mesh->tex_coords + iB;
-				const vec2_t* tC = mesh->tex_coords + iC;
-
+				// Compute position edge deltas.
 				vec3_t dP0, dP1;
-				VectorSubtract(*pB, *pA, dP0);
-				VectorSubtract(*pC, *pA, dP1);
+				VectorSubtract( *pB, *pA, dP0 );
+				VectorSubtract( *pC, *pA, dP1 );
 
+				// Compute UV edge deltas.
 				vec2_t dt0, dt1;
-				Vector2Subtract(*tB, *tA, dt0);
-				Vector2Subtract(*tC, *tA, dt1);
+				Vector2Subtract( *tB, *tA, dt0 );
+				Vector2Subtract( *tC, *tA, dt1 );
 
-				float inv_r = dt0[0] * dt1[1] - dt1[0] * dt0[1];
-
-				if (inv_r == 0.f)
+				// Compute UV determinant; skip degenerate UV triangles.
+				const float inv_r = dt0[ 0 ] * dt1[ 1 ] - dt1[ 0 ] * dt0[ 1 ];
+				if ( inv_r == 0.f ) {
 					continue;
+				}
 
-				float r = 1.f / inv_r;
+				const float r = 1.f / inv_r;
 
+				// Evaluate unnormalized tangent vector and normalize it.
 				vec3_t tangent = {
-					(dt1[1] * dP0[0] - dt0[1] * dP1[0]) * r,
-					(dt1[1] * dP0[1] - dt0[1] * dP1[1]) * r,
-					(dt1[1] * dP0[2] - dt0[1] * dP1[2]) * r };
+					( dt1[ 1 ] * dP0[ 0 ] - dt0[ 1 ] * dP1[ 0 ] ) * r,
+					( dt1[ 1 ] * dP0[ 1 ] - dt0[ 1 ] * dP1[ 1 ] ) * r,
+					( dt1[ 1 ] * dP0[ 2 ] - dt0[ 1 ] * dP1[ 2 ] ) * r
+				};
 
-				VectorNormalize(tangent);
+				VectorNormalize( tangent );
 
-				vec3_t* tangentA = mesh->tangents + iA;
-				vec3_t* tangentB = mesh->tangents + iB;
-				vec3_t* tangentC = mesh->tangents + iC;
+				// Accumulate tangent into each of the triangle's vertices.
+				vec3_t *tangentA = mesh->tangents + iA;
+				vec3_t *tangentB = mesh->tangents + iB;
+				vec3_t *tangentC = mesh->tangents + iC;
 
-				VectorAdd(*tangentA, tangent, *tangentA);
-				VectorAdd(*tangentB, tangent, *tangentB);
-				VectorAdd(*tangentC, tangent, *tangentC);
+				VectorAdd( *tangentA, tangent, *tangentA );
+				VectorAdd( *tangentB, tangent, *tangentB );
+				VectorAdd( *tangentC, tangent, *tangentC );
 
-				if (handedness == 0)
-				{
+				// Determine tangent frame handedness from the first valid triangle.
+				if ( handedness == 0 ) {
 					vec3_t bitangent = {
-						(dt0[0] * dP1[0] - dt1[0] * dP0[0]) * r,
-						(dt0[0] * dP1[1] - dt1[0] * dP0[1]) * r,
-						(dt0[0] * dP1[2] - dt1[0] * dP0[2]) * r };
+						( dt0[ 0 ] * dP1[ 0 ] - dt1[ 0 ] * dP0[ 0 ] ) * r,
+						( dt0[ 0 ] * dP1[ 1 ] - dt1[ 0 ] * dP0[ 1 ] ) * r,
+						( dt0[ 0 ] * dP1[ 2 ] - dt1[ 0 ] * dP0[ 2 ] ) * r
+					};
 
-					VectorNormalize(bitangent);
+					VectorNormalize( bitangent );
 
-					const vec3_t* normal = mesh->normals + iA;
+					const vec3_t *normal = mesh->normals + iA;
 
 					vec3_t cross;
-					CrossProduct(*normal, tangent, cross);
+					CrossProduct( *normal, tangent, cross );
 
-					float dot = DotProduct(cross, bitangent);
+					const float dot = DotProduct( cross, bitangent );
 
-					if (dot < 0.f)
+					if ( dot < 0.f ) {
 						handedness = -1;
-					else if (dot > 0.f)
+					} else if ( dot > 0.f ) {
 						handedness = 1;
+					}
 				}
 			}
 		}
 
-		for (int vtx = 0; vtx < mesh->numverts * model->numframes; vtx++)
-		{
-			vec3_t* tangent = mesh->tangents + vtx;
-
-			VectorNormalize(*tangent);
+		/**
+		*	Normalize accumulated vertex tangents and provide an orthogonal fallback
+		*	if any vertex had degenerate UV gradients.
+		**/
+		for ( size_t vtx = 0; vtx < total_verts; vtx++ ) {
+			vec3_t *tangent = mesh->tangents + vtx;
+			const float len = VectorNormalize( *tangent );
+			// If a vertex received zero tangent contribution, construct a unit vector orthogonal to its normal.
+			if ( len < 1e-5f ) {
+				const vec3_t *n = mesh->normals + vtx;
+				vec3_t up = { 0.f, 0.f, 1.f };
+				if ( fabsf( ( *n )[ 2 ] ) > 0.99f ) {
+					VectorSet( up, 1.f, 0.f, 0.f );
+				}
+				CrossProduct( up, *n, *tangent );
+				VectorNormalize( *tangent );
+			}
 		}
 
-		mesh->handedness = (handedness < 0);
+		mesh->handedness = ( handedness < 0 );
 	}
+}
+
+/**
+*	@brief	Public wrapper around `compute_missing_model_tangents` for external model loaders (e.g., Alembic `.abc`).
+*	@param	model	Model whose missing mesh tangents should be computed.
+**/
+void vkpt_compute_missing_model_tangents( model_t *model ) {
+	compute_missing_model_tangents( model );
+}
+
+/**
+*	@brief	Public wrapper around `extract_model_lights` for external model loaders (e.g., Alembic `.abc`).
+*	@param	model	Model whose emissive light polygons should be extracted.
+**/
+void vkpt_extract_model_lights( model_t *model ) {
+	extract_model_lights( model );
 }
 
 int MOD_LoadMD2_RTX(model_t *model, const void *rawdata, size_t length, const char* mod_name)

@@ -11,9 +11,12 @@
 ********************************************************************/
 #pragma once
 
+#include "svgame/nav/nav_identity.h"
+
 #include "shared/shared.h"
 
 #include <cstdint>
+#include <utility>
 
 /**
 *	@brief	Crowd/crew target chase styles and formation patterns.
@@ -97,6 +100,9 @@ static constexpr double CROWD_DEFAULT_LONGITUDINAL_SPACING = 64.0;
 static constexpr double CROWD_DEFAULT_MIN_CORRIDOR_SPACING = 24.0;
 //! Maximum allowable vertical Z difference for satisfying formation slot arrival.
 static constexpr double CROWD_ARRIVAL_MAX_Z_DIFF = 48.0;
+
+//! Final/staging arrival tolerance for native support offsets; a different stair tread must remain en route.
+static constexpr double CROWD_ARRIVAL_FLOOR_Z_TOLERANCE = 6.0;
 //! Multiplier applied to arrival radius when testing if a stationary/blocked agent has reached its slot.
 static constexpr double CROWD_BLOCKED_ARRIVAL_RADIUS_FACTOR = 2.0;
 //! Minimum horizontal speed squared under which a blocked crowd member is considered stationary.
@@ -270,10 +276,10 @@ static constexpr double CROWD_CONSTRAINED_INGRESS_SQUEEZE_THRESHOLD = 0.95;
 //! Maximum aperture width in world units for a passage/portal to be classified as a constrained bottleneck.
 static constexpr double CROWD_PORTAL_BOTTLENECK_MAX_WIDTH = 128.0;
 
-//! Maximum stationary stall interval before an obstructed egress leader releases the next member as fail-safe.
+//! Stationary stall interval before refreshing an obstructed egress leader while retaining aperture ownership.
 static constexpr QMTime CROWD_EGRESS_ACTIVE_STALL_TIMEOUT = 2000_ms;
 
-//! Maximum egress transit timeout before releasing the next member if the active head is delayed.
+//! Egress transit watchdog interval for refreshing the active head without releasing an unadmitted follower.
 static constexpr QMTime CROWD_EGRESS_TRANSIT_TIMEOUT = 5000_ms;
 
 //! Hull radius multiplier required to clear the doorway aperture plane before releasing the next egress member.
@@ -429,6 +435,36 @@ struct svg_crowd_slot_t {
 *	@brief	Crowd/crew membership and per-agent coordination state stored on entities.
 **/
 struct crowd_t {
+	//! Monotonic revision invalidated before exposing any navigation assignment change.
+	uint64_t navigationRevision = 0;
+	/**
+	*	@brief	Publish one changed assignment field after invalidating old route requests.
+	*	@param	field	Owned assignment field being replaced.
+	*	@param	value	New scalar/vector assignment value.
+	*	@note	Repeated identical assignments retain the revision and avoid pointless replans.
+	**/
+	template<typename T>
+	void SetNavigationAssignment( T &field, const T &value ) {
+		// Only a real assignment change can obsolete a submitted route.
+		if ( field != value ) {
+			navigationRevision = Nav_IssueIdentityRevisionMainThread();
+			field = value;
+		}
+	}
+
+	/**
+	*	@brief	Exchange two assignment fields after invalidating both owners.
+	*	@note	Used for slot/role/cover swaps; values remain unchanged when equal.
+	**/
+	template<typename T>
+	void SwapNavigationAssignment( T &field, crowd_t &other, T &otherField ) {
+		// Publish both revision changes before either assignment becomes visible to submission.
+		if ( field != otherField ) {
+			navigationRevision = Nav_IssueIdentityRevisionMainThread();
+			other.navigationRevision = Nav_IssueIdentityRevisionMainThread();
+			std::swap( field, otherField );
+		}
+	}
 	//! Crowd identifier: -1 = none, 0 = neutral NPC crowd, > 0 = squad/enemy crowd ID.
 	int32_t crowdID = -1;
 	//! Assigned slot index within the active formation (-1 = unassigned).

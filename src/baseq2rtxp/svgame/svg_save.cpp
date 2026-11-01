@@ -132,6 +132,8 @@ void SVG_ReadGame( const char *filename ) {
     gzFile	f;
     int     i;
 
+    // Destroy constructed clients before bulk game storage is retired.
+    SVG_Clients_Release();
     gi.FreeTags(TAG_SVGAME);
     game = {};
 

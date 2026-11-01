@@ -10,12 +10,13 @@
 #include "nav_core.h"
 #include "nav_types.h"
 #include "nav_containers.h"
+#include "svgame/memory/svg_containers.h"
 #include "nav_csg.h"
 #include "nav_kdtree_builder.h"
 #include <vector>
 
 //! Temporary polygon data produced during extraction.
-extern nav_vector_t<nav_poly_t> g_nav_polys;
+extern svg_vector_t<nav_poly_t, TAG_SVGAME_NAVMESH> g_nav_polys;
 //! Packed vertex array used by the half-edge mesh.
 extern std::vector<Vector3DP> g_nav_vertices;
 //! Packed half-edge array used by the half-edge mesh.
@@ -30,11 +31,11 @@ extern std::vector<nav_room_t> g_nav_rooms;
 extern std::vector<nav_portal_t> g_nav_portals;
 
 //! KD-tree nodes generated for spatial queries.
-extern nav_vector_t<nav_kdtree_node_t> g_nav_nodes;
+extern svg_vector_t<nav_kdtree_node_t, TAG_SVGAME_NAVMESH> g_nav_nodes;
 //! BSP leaf to face-span mapping used during leaf-local lookups.
-extern nav_vector_t<nav_leaf_link_t> g_nav_leaf_links;
+extern svg_vector_t<nav_leaf_link_t, TAG_SVGAME_NAVMESH> g_nav_leaf_links;
 //! Flattened face-id list referenced by the leaf link table.
-extern nav_vector_t<int32_t> g_nav_leaf_poly_ids;
+extern svg_vector_t<int32_t, TAG_SVGAME_NAVMESH> g_nav_leaf_poly_ids;
 
 /**
 *	@brief	Trigger navmesh generation from the console.

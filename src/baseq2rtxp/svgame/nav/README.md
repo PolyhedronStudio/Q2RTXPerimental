@@ -248,7 +248,7 @@ Navigation simulation executes inside the entity's server think loop ([`GenericT
 
 This step-by-step tutorial explains the complete lifecycle of how a monster entity utilizes the navigation system, from initial spawn configuration to high-level target pursuit, reactive tactical callbacks, cover ambushes, and autonomous recovery.
 
-### 7.1 Stage A: Entity Spawning, Bounding Boxes & Hull Collision Setup
+### 7.1 Stage A: Entity Spawning, Bounding Boxes & Hull Collision Setup[masterplan readme](../../../../docs/devmarkdown/masterplan-readme.md)
 In your monster's `Spawn()` method, initialize physical bounds and collision hulls. The navigation mesh requires capsule hulls with feet-aligned bounding boxes:
 
 ```cpp
@@ -488,7 +488,7 @@ Defined in [`nav_path.h`](nav_path.h#L183):
 | `rebuild_goal_dist_3d` | `float` | `32.0f` | 3D goal movement distance triggering path recalculation. |
 | `rebuild_interval` | `int32_t` | `25` | Debounce interval between path recalculations in milliseconds. |
 | `allow_small_obstruction_jump` | `bool` | `true` | Allows small hops over low obstacles. |
-| `max_obstruction_jump_height` | `float` | `48.0f` | Maximum obstacle height jumpable. |
+| `max_obstruction_jump_height` | `float` | `72.0f` | Maximum obstacle height jumpable. |
 | `step_clearance` | `float` | `4.0f` | Extra overhead clearance required before attempting step. |
 | `allow_gap_jumping` | `bool` | `true` | Allows agent to leap across disjoint mesh gaps. |
 | `max_jump_distance` | `float` | `256.0f` | Maximum horizontal gap jump span. |

@@ -266,8 +266,8 @@ struct nav_face_t {
     uint32_t surface_flags = 0;
     //! Topological spatial room / zone index this face belongs to (-1 if unassigned).
     int32_t room_id = -1;
-    //! Mailbox query identifier to prevent redundant narrow-phase testing across adjacent leaves.
-    mutable uint32_t last_query_id = 0;
+    //! Reserved query identifier (kept for binary .nav layout compatibility, queries do not mutate).
+    uint32_t last_query_id = 0;
 };
 
 /**

@@ -369,6 +369,11 @@ typedef struct {
 	model_geometry_t geom_opaque;
 	model_geometry_t geom_transparent;
 	model_geometry_t geom_masked;
+	//! Optional per-frame static BLAS arrays for variable-topology stop-motion models (.abc)
+	model_geometry_t *geom_opaque_frames;
+	model_geometry_t *geom_transparent_frames;
+	model_geometry_t *geom_masked_frames;
+	uint32_t num_blas_frames;
 	size_t vertex_data_offset;
 	uint32_t total_tris;
 	bool is_static;
@@ -831,6 +836,15 @@ typedef struct maliasmesh_s {
 	uint32_t        *blend_weights; // iqm only
 	struct pbr_material_s **materials;
 	bool            handedness;
+	/**
+	*	Variable-topology stop-motion sequence data (Alembic .abc):
+	*	NULL for standard fixed-topology MD2/MD3/IQM models.
+	**/
+	int32_t         *frame_vert_offsets;
+	int32_t         *frame_numverts;
+	int32_t         *frame_index_offsets;
+	int32_t         *frame_numtris;
+	int32_t         *frame_tri_offsets;
 } maliasmesh_t;
 
 // needed for model.c
@@ -948,10 +962,15 @@ void IMG_Unload_RTX(image_t *image);
 void IMG_ReadPixels_RTX(screenshot_t *s);
 void IMG_ReadPixelsHDR_RTX(screenshot_t *s);
 
+QEXTERN_C_OPEN
 int MOD_LoadMD2_RTX(model_t *model, const void *rawdata, size_t length, const char* mod_name);
 int MOD_LoadMD3_RTX(model_t* model, const void* rawdata, size_t length, const char* mod_name);
 int MOD_LoadIQM_RTX(model_t *model, const void *rawdata, size_t length, const char* mod_name);
+int MOD_LoadABC_RTX( model_t *model, const void *rawdata, size_t length, const char *mod_name );
 void MOD_Reference_RTX(model_t *model);
+void vkpt_compute_missing_model_tangents( model_t *model );
+void vkpt_extract_model_lights( model_t *model );
+QEXTERN_C_CLOSE
 
 #endif  /*__VKPT_H__*/
 

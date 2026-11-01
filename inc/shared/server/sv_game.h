@@ -30,7 +30,7 @@ typedef Vector3* cpp_vec3_t;
 // sv_game.h -- server game dll information visible to server
 //
 
-#define SVGAME_API_VERSION    1337
+#define SVGAME_API_VERSION    1338
 
 
 /**
@@ -213,12 +213,19 @@ typedef struct {
     *   @brief  The actual server frame number we are processing.
     **/
     const int64_t ( *GetServerFrameNumber )( void );
+    /**
+    *   @brief  Query calling thread CPU execution time in nanoseconds.
+    *   @return Thread CPU execution time in nanoseconds, or 0 if unsupported.
+    **/
+    const uint64_t ( *GetThreadCpuTimeNs )( void );
 
 
 	/**
 	*	Asynchronous PThreading:
 	**/
 	void ( *Com_QueueAsyncWork )( asyncwork_t *work );
+	//! Pump completed asynchronous callbacks on the server owner before module unload.
+	void ( *Com_CompleteAsyncWork )( void );
 
     /**
     *
@@ -608,6 +615,8 @@ typedef struct {
     void ( *PreInit )( void );
     void ( *Init )( void );
     void ( *Shutdown )( void );
+    //! Finish game-owned async work before the engine replaces collision-map storage.
+    void ( *DrainAsyncGeneration )( void );
 
     //! Each new level entered will cause a call to SpawnEntities
     void ( *SpawnEntities )( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities );

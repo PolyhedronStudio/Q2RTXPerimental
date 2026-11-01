@@ -647,5 +647,5 @@ void CLG_LocalEntity_ClearState() {
 	CLG_LocalEntity_FreeAllClasses();
 
 	// Clear out client entities array.
-	memset( clg_entities, 0, globals.entity_size * sizeof( clg_entities[ 0 ] ) );
+	memset( clg_entities, 0, static_cast<size_t>( globals.max_entities ) * globals.entity_size );
 }

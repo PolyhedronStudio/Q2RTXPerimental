@@ -595,7 +595,7 @@ void SCR_BeginLoadingPlaque(void)
 #endif
 
     // if at console or menu, don't bring up the plaque
-    if (cls.key_dest & (KEY_CONSOLE | KEY_MENU)) {
+    if (cls.key_dest & (KEY_CONSOLE | KEY_MENU | KEY_GAME_UI)) {
         return;
     }
 
@@ -650,15 +650,21 @@ static void SCR_DrawActive(void)
         return;
     }
 
-    // Draw black background if not active
+    // Draw black background if not active, and render any active ClientGame MicroUI menu (e.g. boot main menu).
     if (cls.state < ca_active) {
         R_DrawFill8(0, 0, r_config.width, r_config.height, 0);
+        if ( clge != nullptr && clge->GameUI_DrawFrame != nullptr ) {
+            clge->GameUI_DrawFrame( &r_config );
+        }
         return;
     }
 
-    // If we're in cinematic mode, draw the cinematic and return.
+    // If we're in cinematic mode, draw the cinematic and any active ClientGame MicroUI menu, then return.
     if (cls.state == ca_cinematic) {
         SCR_DrawCinematic();
+        if ( clge != nullptr && clge->GameUI_DrawFrame != nullptr ) {
+            clge->GameUI_DrawFrame( &r_config );
+        }
         return;
     }
 

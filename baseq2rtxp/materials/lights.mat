@@ -18,3 +18,73 @@ textures/lights/stllight001:
 	emissive_factor 0.294117647058825
 	is_light 1
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+models/env/tlight07/tlight07:
+	texture_base models/env/tlight07/tlight07.tga
+	texture_normals models/env/tlight07/tlight07_n.tga
+	
+models/env/tlight07/tlight07_bulb:
+	texture_base models/env/tlight07/tlight07_bulb.tga
+	texture_emissive models/env/tlight07/tlight07_bulb.tga
+	metalness_factor 0.000000
+	specular_factor 0.000000
+	emissive_factor 2.0
+	is_light 1
+	
+models/env/tlight07/tlight07_redled:
+	texture_base models/env/tlight07/tlight07_redled.tga
+	metalness_factor 0.000000
+	specular_factor 0.000000
+	kind UNLIT
+	
+models/env/tlight07/tlight07_1:
+	texture_base models/env/tlight07/tlight07.tga
+	texture_normals models/env/tlight07/tlight07_n.tga
+
+models/env/tlight07/tlight07_bulb_1:
+	texture_base models/env/tlight07/tlight07_bulb.tga
+	metalness_factor 0.000000
+	specular_factor 0.000000
+	
+models/env/tlight07/tlight07_redled_1:
+	texture_base models/env/tlight07/tlight07_redled.tga
+	metalness_factor 0.000000
+	specular_factor 0.000000
+	
+models/env/tlight07/tlight07_2:
+	texture_base models/env/tlight07/tlight07.tga
+	texture_normals models/env/tlight07/tlight07_n.tga
+
+models/env/tlight07/tlight07_bulb_2:
+	texture_base models/env/tlight07/tlight07_bulb.tga
+	metalness_factor 0.000000
+	specular_factor 0.000000
+	kind UNLIT
+	
+models/env/tlight07/tlight07_redled_2:
+	texture_base models/env/tlight07/tlight07_redled.tga
+	metalness_factor 0.000000
+	specular_factor 0.000000
+	kind UNLIT

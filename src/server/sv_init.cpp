@@ -273,19 +273,25 @@ static bool check_server(mapcmd_t *cmd, const char *server, bool nextserver)
     return true;
 }
 
-/*
-==============
-SV_ParseMapCmd
-
-Parses mapcmd into more C friendly form.
-Loads and fully validates the map to make sure server doesn't get killed.
-==============
-*/
+/**
+*	@brief	Parse and validate a map command, loading its collision model.
+*	@param	cmd	Mutable map command and collision storage.
+*	@return	True when a supported map or media command loaded successfully.
+*	@note	Drains game-owned generation before loading a replacement BSP cache.
+**/
 const bool SV_ParseMapCmd(mapcmd_t *cmd)
 {
     char *s, *ch;
     char copy[MAX_QPATH];
     bool killserver = false;
+
+    /**
+    *	Finish any game-owned collision reader before check_server can load or
+    *	replace the map's BSP cache. SpawnEntities runs too late for this barrier.
+    **/
+    if ( ge != nullptr && ge->DrainAsyncGeneration != nullptr ) {
+        ge->DrainAsyncGeneration();
+    }
 
     // copy it off to keep original mapcmd intact
     Q_strlcpy(copy, cmd->buffer, sizeof(copy));

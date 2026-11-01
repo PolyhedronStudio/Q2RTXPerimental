@@ -134,21 +134,39 @@ static void QuatSlerp(const quat_t from, const quat_t _to, float fraction, quat_
 		QuatCopy(_to, to);
 	}
 
-	float backlerp, lerp;
-	if (cosAngle < 0.999999f)
+	// For small angles, fast normalized linear interpolation (nlerp) avoids transcendental calls
+	if (cosAngle >= 0.9995f)
 	{
-		// spherical lerp (slerp)
-		const float angle = acosf(cosAngle);
-		const float sinAngle = sinf(angle);
-		backlerp = sinf((1.0f - fraction) * angle) / sinAngle;
-		lerp = sinf(fraction * angle) / sinAngle;
+		const float backlerp = 1.0f - fraction;
+		const float rx = from[0] * backlerp + to[0] * fraction;
+		const float ry = from[1] * backlerp + to[1] * fraction;
+		const float rz = from[2] * backlerp + to[2] * fraction;
+		const float rw = from[3] * backlerp + to[3] * fraction;
+
+		const float lengthSq = rx * rx + ry * ry + rz * rz + rw * rw;
+		if (lengthSq > 0.0f)
+		{
+			const float invLen = 1.0f / sqrtf(lengthSq);
+			out[0] = rx * invLen;
+			out[1] = ry * invLen;
+			out[2] = rz * invLen;
+			out[3] = rw * invLen;
+		}
+		else
+		{
+			out[0] = 0.0f;
+			out[1] = 0.0f;
+			out[2] = 0.0f;
+			out[3] = 1.0f;
+		}
+		return;
 	}
-	else
-	{
-		// linear lerp
-		backlerp = 1.0f - fraction;
-		lerp = fraction;
-	}
+
+	// Spherical lerp (slerp)
+	const float angle = acosf(cosAngle);
+	const float sinAngle = sinf(angle);
+	const float backlerp = sinf((1.0f - fraction) * angle) / sinAngle;
+	const float lerp = sinf(fraction * angle) / sinAngle;
 
 	out[0] = from[0] * backlerp + to[0] * lerp;
 	out[1] = from[1] * backlerp + to[1] * lerp;

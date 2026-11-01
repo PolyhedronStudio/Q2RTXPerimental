@@ -171,6 +171,21 @@ const model_t *SG_GetModelDataForHandle( const qhandle_t handle ) {
 	return gi.GetModelDataForHandle( handle );
 }
 
+/**
+*   @brief  Returns a pointer to the first bone that has a matching name.
+**/
+skm_bone_node_t *SG_SKM_GetBoneByName( const model_t *model, const char *boneName ) {
+	return gi.SKM_GetBoneByName( model, boneName );
+}
+
+/**
+*   @return A pointer to the model's bone poses for 'frame'.
+*			Frame will wrap around in case of exceeding the frame pose limit.
+**/
+const skm_transform_t *SG_SKM_GetBonePosesForFrame( const model_t *model, const int32_t frame ) {
+	return gi.SKM_GetBonePosesForFrame( model, frame );
+}
+
 
 
 /**

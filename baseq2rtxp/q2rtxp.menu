@@ -55,7 +55,7 @@ end
 */
 
 background "conback.png"
-font conchars
+font "fonts/segoeui.ttf"
 /* cursor crosshair01 Uncomment when enabling USE_UI_ENABLE_CUSTOM_CURSOR */
 /*weapon w_railgun.md2*/
 
@@ -573,8 +573,8 @@ begin keys
     bind "Up/Jump" +moveup
     bind "Down/Crouch" +movedown
     blank
-    bind "Next Weapon" weapnext
-    bind "Previous Weapon" weapprev
+    bind "Next Weapon" +wpbar_next
+    bind "Previous Weapon" +wpbar_prev
     blank
     bind "Inventory" inven
     bind "Inventory Use Selected Item" invuse

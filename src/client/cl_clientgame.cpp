@@ -472,6 +472,26 @@ void PF_Cmd_RemoveCommand( const char *name ) {
 }
 
 /**
+*	@brief	Appends a command string to the local client command buffer.
+*	@param	text	Null-terminated command string to append.
+**/
+static void PF_Cbuf_AddText( const char *text ) {
+	/**
+	*	Sanity check: ensure caller provided a valid command string.
+	**/
+	// Ignore null or empty command strings.
+	if ( text == nullptr || text[ 0 ] == '\0' ) {
+		return;
+	}
+
+	/**
+	*	Append command text to the global command buffer.
+	**/
+	// Enqueue text into cmd_buffer for execution.
+	Cbuf_AddText( &cmd_buffer, text );
+}
+
+/**
 *
 *
 *	ConfigStrings:
@@ -1421,6 +1441,7 @@ void CL_GM_LoadProgs( void ) {
 	imports.Cmd_Register = PF_Cmd_Register;
 	imports.Cmd_Deregister = PF_Cmd_Deregister;
 	imports.CL_ClientCommand = CL_ClientCommand;
+	imports.Cbuf_AddText = PF_Cbuf_AddText;
 	imports.GetScoreboardEntries = CL_GetScoreboardEntries;
 	imports.GetScoreboardClientCount = CL_GetScoreboardClientCount;
 	imports.GetScoreboardTeamCount = CL_GetScoreboardTeamCount;

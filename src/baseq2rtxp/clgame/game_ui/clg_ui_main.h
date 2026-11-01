@@ -44,6 +44,23 @@ enum class sg_game_ui_menu_id : int64_t;
 void CLG_UI_OpenMenu( const sg_game_ui_menu_id menuID );
 
 /**
+*	@brief	Open a root Q2RTXP MicroUI menu by name (e.g. `"main"` at boot or `"game"` in-game).
+*	@param	menuName	Null-terminated script menu name (`"main"`, `"game"`, etc.).
+**/
+void CLG_UI_OpenRootMenu( const char *menuName );
+
+/**
+*	@brief	Push a Q2RTXP MicroUI menu onto the active menu stack by name.
+*	@param	menuName	Null-terminated script menu name.
+**/
+void CLG_UI_PushMenu( const char *menuName );
+
+/**
+*	@brief	Pop the top-most menu from the active GameUI menu stack, or close the menu if at root.
+**/
+void CLG_UI_PopMenu( void );
+
+/**
 *	@brief	Query whether the given GameUI menu is currently the active menu.
 *	@param	menuID	Menu identifier to compare against the current active menu.
 *	@return	True when the requested menu is currently active.
@@ -97,6 +114,13 @@ void CLG_UI_TextInputEvent( const char *str );
 *	@brief	Iterate the mu drawing commands and render them using the client's rendering functions.
 **/
 void CLG_UI_DrawRenderCommands();
+
+/**
+*	@brief	Process and render a complete GameUI frame (used when the client is disconnected/at boot menu).
+*	@param	refcfg	Current renderer configuration containing screen dimensions.
+**/
+void CLG_UI_DrawFrame( refcfg_t *refcfg );
+
 
 
 

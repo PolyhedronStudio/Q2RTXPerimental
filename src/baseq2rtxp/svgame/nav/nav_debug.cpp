@@ -107,7 +107,7 @@ static std::vector<int32_t> s_nav_dbg_test_path = {};
 //! Cached string-pulled route rendered beside the raw A* face-center chain.
 static std::vector<Vector3> s_nav_dbg_test_waypoints = {};
 //! Flags parallel to s_nav_dbg_test_waypoints for mandatory stair constraints.
-static std::vector<bool> s_nav_dbg_test_forced_waypoints = {};
+static svg_vector_t<svg_nav_waypoint_t, TAG_SVGAME_NAVMESH> s_nav_dbg_test_waypoint_records = {};
 //! Whether cached test route is valid and should be rendered.
 static bool s_nav_dbg_has_test_path = false;
 
@@ -225,7 +225,7 @@ static void Nav_DebugDrawTestRoute() {
 		Vector3 funnelPrevious = s_nav_dbg_test_waypoints[ 0 ];
 		for ( size_t waypointIndex = 0; waypointIndex < s_nav_dbg_test_waypoints.size(); waypointIndex++ ) {
 			const Vector3 &waypoint = s_nav_dbg_test_waypoints[ waypointIndex ];
-			const bool forced = waypointIndex < s_nav_dbg_test_forced_waypoints.size() && s_nav_dbg_test_forced_waypoints[ waypointIndex ];
+			const bool forced = waypointIndex < s_nav_dbg_test_waypoint_records.size() && Nav_WaypointIsMandatory( s_nav_dbg_test_waypoint_records[ waypointIndex ] );
 			const uint32_t waypointColor = forced ? DEBUG_FORCED_WAYPOINT_COLOR : DEBUG_FUNNEL_ROUTE_COLOR;
 			SVG_Nav_DebugDraw_AddSphere( waypoint, forced ? 5.0f : 3.0f, waypointColor, SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE );
 			if ( waypointIndex > 0 ) {
@@ -250,7 +250,7 @@ void Nav_DebugSetGoalACommand( void ) {
 	s_nav_dbg_has_test_path = false;
 	s_nav_dbg_test_path.clear();
 	s_nav_dbg_test_waypoints.clear();
-	s_nav_dbg_test_forced_waypoints.clear();
+	s_nav_dbg_test_waypoint_records.clear();
 	gi.dprintf( "nav_dbg_goal_a: center=(%.2f %.2f %.2f) feet=(%.2f %.2f %.2f) face=%d\n",
 		playerCenter.x, playerCenter.y, playerCenter.z,
 		s_nav_dbg_goal_a_origin.x, s_nav_dbg_goal_a_origin.y, s_nav_dbg_goal_a_origin.z, s_nav_dbg_goal_a_face );
@@ -270,7 +270,7 @@ void Nav_DebugSetGoalBCommand( void ) {
 	s_nav_dbg_has_test_path = false;
 	s_nav_dbg_test_path.clear();
 	s_nav_dbg_test_waypoints.clear();
-	s_nav_dbg_test_forced_waypoints.clear();
+	s_nav_dbg_test_waypoint_records.clear();
 	gi.dprintf( "nav_dbg_goal_b: center=(%.2f %.2f %.2f) feet=(%.2f %.2f %.2f) face=%d\n",
 		playerCenter.x, playerCenter.y, playerCenter.z,
 		s_nav_dbg_goal_b_origin.x, s_nav_dbg_goal_b_origin.y, s_nav_dbg_goal_b_origin.z, s_nav_dbg_goal_b_face );
@@ -356,12 +356,12 @@ static void Nav_DebugLogTestPathDiagnostics( const nav_path_policy_t &policy ) {
 	*	Run the same funnel stage used by NPC movement and retain its finite waypoint output.
 	**/
 	s_nav_dbg_test_waypoints.clear();
-	s_nav_dbg_test_forced_waypoints.clear();
-	const bool string_pull_ok = Nav_StringPull( s_nav_dbg_test_path, s_nav_dbg_goal_a_origin, s_nav_dbg_goal_b_origin, policy.agent_radius, s_nav_dbg_test_waypoints, &s_nav_dbg_test_forced_waypoints );
+	s_nav_dbg_test_waypoint_records.clear();
+	const bool string_pull_ok = Nav_StringPull( s_nav_dbg_test_path, s_nav_dbg_goal_a_origin, s_nav_dbg_goal_b_origin, policy.agent_radius, s_nav_dbg_test_waypoints, nullptr, Vector3{ -16.0f, -16.0f, -36.0f }, Vector3{ 16.0f, 16.0f, 36.0f }, 1, &s_nav_dbg_test_waypoint_records, &policy );
 	gi.dprintf( "nav_dbg_test_diag: funnel_success=%d waypoint_count=%d\n", string_pull_ok ? 1 : 0, static_cast< int32_t >( s_nav_dbg_test_waypoints.size() ) );
 	for ( size_t waypoint_index = 0; waypoint_index < s_nav_dbg_test_waypoints.size(); waypoint_index++ ) {
 		const Vector3 &waypoint = s_nav_dbg_test_waypoints[ waypoint_index ];
-		const bool forced = waypoint_index < s_nav_dbg_test_forced_waypoints.size() && s_nav_dbg_test_forced_waypoints[ waypoint_index ];
+		const bool forced = waypoint_index < s_nav_dbg_test_waypoint_records.size() && Nav_WaypointIsMandatory( s_nav_dbg_test_waypoint_records[ waypoint_index ] );
 		gi.dprintf( "nav_dbg_test_diag: waypoint[%d] forced=%d pos=(%.2f %.2f %.2f)\n", static_cast< int32_t >( waypoint_index ), forced ? 1 : 0, waypoint.x, waypoint.y, waypoint.z );
 	}
 }
@@ -386,7 +386,7 @@ void Nav_DebugTestPathCommand( void ) {
 
 	s_nav_dbg_test_path.clear();
 	s_nav_dbg_test_waypoints.clear();
-	s_nav_dbg_test_forced_waypoints.clear();
+	s_nav_dbg_test_waypoint_records.clear();
 	s_nav_dbg_has_test_path = Nav_FindPath( s_nav_dbg_goal_a_face, s_nav_dbg_goal_b_face, s_nav_dbg_test_path, policy );
 	gi.dprintf( "nav_dbg_test: A=%d B=%d success=%d nodes=%d\n",
 		s_nav_dbg_goal_a_face, s_nav_dbg_goal_b_face, s_nav_dbg_has_test_path ? 1 : 0, static_cast< int32_t >( s_nav_dbg_test_path.size() ) );
@@ -395,6 +395,26 @@ void Nav_DebugTestPathCommand( void ) {
 		Nav_LogLastPathDiagnostics();
 	}
 	Nav_DebugLogTestPathDiagnostics( policy );
+}
+
+/**
+*	@brief	Get currently captured nav debug test goals A and B if both are set.
+*	@param	outGoalA	[out] Optional pointer to receive world position of goal A.
+*	@param	outGoalB	[out] Optional pointer to receive world position of goal B.
+*	@return	True if both test goals are currently set.
+**/
+bool Nav_DebugGetTestGoals( Vector3 *outGoalA, Vector3 *outGoalB ) {
+	// Return false if either goal has not been set yet.
+	if ( !s_nav_dbg_has_goal_a || !s_nav_dbg_has_goal_b ) {
+		return false;
+	}
+	if ( outGoalA != nullptr ) {
+		*outGoalA = s_nav_dbg_goal_a_origin;
+	}
+	if ( outGoalB != nullptr ) {
+		*outGoalB = s_nav_dbg_goal_b_origin;
+	}
+	return true;
 }
 
 static void RecursiveDrawNodes( int32_t nodeIndex, const Vector3 &playerPos, float radius ) {
@@ -791,7 +811,7 @@ void Nav_DebugDrawNPCPaths( void ) {
 
 			for ( size_t wpIdx = 0; wpIdx < numWaypoints; wpIdx++ ) {
 				const Vector3 wpPos = QM_Vector3FromDP( dummy->stringPulledPath[ wpIdx ] );
-				const bool forced = ( wpIdx < dummy->stringPulledWaypointForced.size() && dummy->stringPulledWaypointForced[ wpIdx ] );
+				const bool forced = ( dummy->SVG_Nav_IsWaypointMandatory( wpIdx ) );
 				const bool isTraversed = ( wpIdx < currentTargetIdx );
 				const bool isActiveTarget = ( wpIdx == currentTargetIdx );
 
@@ -804,7 +824,7 @@ void Nav_DebugDrawNPCPaths( void ) {
 
 					// Connect previous traversed waypoint to current entity feet to show traveled route.
 					if ( hasPrevWp ) {
-						const uint32_t prevColor = ( ( wpIdx - 1 ) < dummy->stringPulledWaypointForced.size() && dummy->stringPulledWaypointForced[ wpIdx - 1 ] )
+						const uint32_t prevColor = ( dummy->SVG_Nav_IsWaypointMandatory( wpIdx - 1 ) )
 							? NPC_PATH_TRAVERSED_FORCED : NPC_PATH_TRAVERSED_COLOR;
 						SVG_Nav_DebugDraw_AddLine( prevWpPos, myFeet, prevColor, SG_SVC_DEBUG_DRAW_STYLE_FLAG_NONE, 2.5f, 0.0f );
 					}

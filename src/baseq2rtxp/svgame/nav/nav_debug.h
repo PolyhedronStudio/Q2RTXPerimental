@@ -31,6 +31,14 @@ void Nav_DebugSetGoalBCommand( void );
 void Nav_DebugTestPathCommand( void );
 
 /**
+*	@brief	Get currently captured nav debug test goals A and B if both are set.
+*	@param	outGoalA	[out] Optional pointer to receive world position of goal A.
+*	@param	outGoalB	[out] Optional pointer to receive world position of goal B.
+*	@return	True if both test goals are currently set.
+**/
+bool Nav_DebugGetTestGoals( Vector3 *outGoalA, Vector3 *outGoalB );
+
+/**
 * @brief Render monster and NPC navigation path debug overlays.
 **/
 void Nav_DebugDrawNPCPaths( void );

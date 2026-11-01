@@ -20,12 +20,13 @@
 #include "common/collisionmodel.h"
 #include "svgame/svg_local.h"
 #include "svgame/svg_utils.h"
+#include "svgame/memory/svg_containers.h"
 #include <cmath>
 #include <vector>
 #include <algorithm>
 
 //! Global list of precalculated tactical cover points generated for the current navmesh.
-std::vector<nav_cover_point_t> g_nav_cover_points = {};
+svg_vector_t<nav_cover_point_t, TAG_SVGAME_NAVMESH> g_nav_cover_points = {};
 
 /**
 *	@brief	Clear all active cover points from memory.
@@ -411,7 +412,7 @@ void Nav_GenerateCoverPoints( void ) {
 	Nav_RebuildCoverSpatialIndex();
 
 	// Log extraction summary.
-	gi.dprintf( "NavMesh Cover Generation: Extracted %u raw candidates -> %u validated tactical cover points.\n",
+	Nav_GenerationPrintf( "NavMesh Cover Generation: Extracted %u raw candidates -> %u validated tactical cover points.\n",
 		static_cast<uint32_t>( raw_candidates.size() ),
 		static_cast<uint32_t>( g_nav_cover_points.size() ) );
 }

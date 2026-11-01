@@ -75,6 +75,7 @@ extern int (*MOD_LoadMD2)(model_t *model, const void *rawdata, size_t length, co
 extern int (*MOD_LoadMD3)(model_t *model, const void *rawdata, size_t length, const char* mod_name);
 #endif
 extern int(*MOD_LoadIQM)(model_t* model, const void* rawdata, size_t length, const char* mod_name);
+extern int (*MOD_LoadABC)( model_t *model, const void *rawdata, size_t length, const char *mod_name );
 extern void (*MOD_Reference)(model_t *model);
 
 // Extern C

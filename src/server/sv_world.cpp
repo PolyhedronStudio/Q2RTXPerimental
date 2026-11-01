@@ -1003,6 +1003,10 @@ static cm_trace_t SV_ClipMoveToEntities(const Vector3 &start, const Vector3 *min
             && ( touch->svFlags & SVF_PLAYER ) ) {
             continue;
         }
+        // Match analytical and hull-backed monster filtering to the requested contents mask.
+        if ( !( contentmask & CONTENTS_MONSTER ) && ( touch->svFlags & SVF_MONSTER ) ) {
+            continue;
+        }
 
         cm_trace_shape_t touchShape = { .type = SHAPE_AABB };
         if ( touch->solid == SOLID_SPHERE ) touchShape.type = SHAPE_SPHERE;
@@ -1037,19 +1041,12 @@ static cm_trace_t SV_ClipMoveToEntities(const Vector3 &start, const Vector3 *min
             touchShape.radius = std::max(touchShape.extents.x, touchShape.extents.y);
             touchShape.halfHeight = touchShape.extents.z;
 
-            // SV_AnalyticalShapeSweep expects `touch->currentOrigin` to be the center.
-            // We temporarily adjust it, or better yet, we should fix SV_AnalyticalShapeSweep.
-            // But since we can't easily change touch, we pass the adjusted touch center as a new argument?
-            // Wait, SV_AnalyticalShapeSweep reads `touch->currentOrigin`.
-            // We can just temporarily shift touch->currentOrigin!
-            Vector3 originalOrigin = touch->currentOrigin;
-            touch->currentOrigin.x += (touch->mins.x + touch->maxs.x) * 0.5f;
-            touch->currentOrigin.y += (touch->mins.y + touch->maxs.y) * 0.5f;
-            touch->currentOrigin.z += (touch->mins.z + touch->maxs.z) * 0.5f;
-
-            etrace = CM_AnalyticalShapeSweep( centerStart, shapeA, centerEnd, touch->currentOrigin, touchShape );
-            
-            touch->currentOrigin = originalOrigin;
+            // Compute the touched shape center locally; a trace must never mutate shared entity state.
+            Vector3 touchCenter = touch->currentOrigin;
+            touchCenter.x += (touch->mins.x + touch->maxs.x) * 0.5f;
+            touchCenter.y += (touch->mins.y + touch->maxs.y) * 0.5f;
+            touchCenter.z += (touch->mins.z + touch->maxs.z) * 0.5f;
+            etrace = CM_AnalyticalShapeSweep( centerStart, shapeA, centerEnd, touchCenter, touchShape );
 
             // Recalculate endpos correctly and stamp touched entity identity
             if ( etrace.fraction < 1.0f ) {
@@ -1107,7 +1104,7 @@ static cm_trace_t SV_ClipMoveToEntities(const Vector3 &start, const Vector3 *min
 *	@param	contentmask	Brush contents mask to test against.
 *	@return	Best trace result against touched entities.
 *	@note	When both shapes are non-AABB, the function performs an analytical sweep
-*			in center-space and temporarily shifts the touched entity origin to match.
+*			in center-space using a local shape center without altering the entity origin.
 **/
 static cm_trace_t SV_ClipMoveToEntitiesShape( const Vector3 &start, const cm_trace_shape_t &shape,
 	const Vector3 &end,
@@ -1216,6 +1213,10 @@ static cm_trace_t SV_ClipMoveToEntitiesShape( const Vector3 &start, const cm_tra
 			&& ( touch->svFlags & SVF_PLAYER ) ) {
 			continue;
 		}
+		// Static-only native probes exclude monster solids just as their contents mask requests.
+		if ( !( contentmask & CONTENTS_MONSTER ) && ( touch->svFlags & SVF_MONSTER ) ) {
+			continue;
+		}
 
 		/**
 		*	Build the touched entity's collision shape so we can choose the
@@ -1235,17 +1236,14 @@ static cm_trace_t SV_ClipMoveToEntitiesShape( const Vector3 &start, const cm_tra
 			touchShape.radius = std::max( touchShape.extents.x, touchShape.extents.y );
 			touchShape.halfHeight = touchShape.extents.z;
 
-			// Temporarily shift the entity origin to its brush/shape center for the sweep.
-			Vector3 originalOrigin = touch->currentOrigin;
-			touch->currentOrigin.x += ( touch->mins.x + touch->maxs.x ) * 0.5f;
-			touch->currentOrigin.y += ( touch->mins.y + touch->maxs.y ) * 0.5f;
-			touch->currentOrigin.z += ( touch->mins.z + touch->maxs.z ) * 0.5f;
+			// Use a local shape center so concurrent traces cannot observe a shifted entity origin.
+			Vector3 touchCenter = touch->currentOrigin;
+			touchCenter.x += ( touch->mins.x + touch->maxs.x ) * 0.5f;
+			touchCenter.y += ( touch->mins.y + touch->maxs.y ) * 0.5f;
+			touchCenter.z += ( touch->mins.z + touch->maxs.z ) * 0.5f;
 
 			// Sweep the moving shape against the analytical representation of the target.
-			etrace = CM_AnalyticalShapeSweep( start, shape, end, touch->currentOrigin, touchShape );
-
-			// Restore the original entity origin before continuing to the next candidate.
-			touch->currentOrigin = originalOrigin;
+			etrace = CM_AnalyticalShapeSweep( start, shape, end, touchCenter, touchShape );
 
 			/**
 			*	Analytical sweeps may not fill all entity metadata, so normalize the
@@ -1686,16 +1684,12 @@ const cm_trace_t q_gameabi SV_Clip( const edict_ptr_t *clipEntity, const Vector3
                 touchShape.radius = std::max(touchShape.extents.x, touchShape.extents.y);
                 touchShape.halfHeight = touchShape.extents.z;
 
-                Vector3 originalOrigin = clipEntity->currentOrigin;
-                // const_cast because clipEntity is const edict_ptr_t*, but we're temporarily shifting it for math.
-                sv_edict_t *tempClip = const_cast<sv_edict_t*>( clipEntity );
-                tempClip->currentOrigin.x += (clipEntity->mins.x + clipEntity->maxs.x) * 0.5f;
-                tempClip->currentOrigin.y += (clipEntity->mins.y + clipEntity->maxs.y) * 0.5f;
-                tempClip->currentOrigin.z += (clipEntity->mins.z + clipEntity->maxs.z) * 0.5f;
-
-                trace = CM_AnalyticalShapeSweep( centerStart, shapeA, centerEnd, clipEntity->currentOrigin, touchShape );
-
-                tempClip->currentOrigin = originalOrigin;
+                // The explicit center input keeps the const clip entity immutable for concurrent traces.
+                Vector3 clipCenter = clipEntity->currentOrigin;
+                clipCenter.x += (clipEntity->mins.x + clipEntity->maxs.x) * 0.5f;
+                clipCenter.y += (clipEntity->mins.y + clipEntity->maxs.y) * 0.5f;
+                clipCenter.z += (clipEntity->mins.z + clipEntity->maxs.z) * 0.5f;
+                trace = CM_AnalyticalShapeSweep( centerStart, shapeA, centerEnd, clipCenter, touchShape );
 
                 if ( trace.fraction < 1.0f ) {
                     trace.endpos.x = start.x + (end.x - start.x) * trace.fraction;

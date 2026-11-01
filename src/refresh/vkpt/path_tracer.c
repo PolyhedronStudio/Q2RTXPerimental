@@ -526,56 +526,82 @@ static inline int accel_matches_top_level(accel_match_info_t *match,
 #define DYNAMIC_GEOMETRY_BLOAT_FACTOR 2
 
 
-static void
-vkpt_pt_create_accel_bottom(
+/**
+*	@brief	Build or rebuild a bottom-level acceleration structure (BLAS) for triangle geometry.
+*	@param	cmd_buf			Command buffer to record the acceleration structure build into.
+*	@param	buffer_vertex	Vertex buffer resource containing triangle positions.
+*	@param	offset_vertex	Byte offset into `buffer_vertex`.
+*	@param	buffer_index	Optional 32-bit index buffer resource (`NULL` for unindexed triangles).
+*	@param	offset_index	Byte offset into `buffer_index`.
+*	@param	num_vertices	Number of active vertices to include in the build.
+*	@param	num_indices		Number of active indices to include in the build (`0` if unindexed).
+*	@param	vertex_stride	Byte stride between consecutive vertices in `buffer_vertex`.
+*	@param	blas			Target BLAS wrapper struct to allocate and populate.
+*	@param	is_dynamic		True if this BLAS is rebuilt frequently and should over-allocate capacity.
+*	@param	fast_build		True to prefer fast build over fast trace.
+**/
+static void vkpt_pt_create_accel_bottom(
 	VkCommandBuffer cmd_buf,
-	BufferResource_t* buffer_vertex,
+	BufferResource_t *buffer_vertex,
 	VkDeviceAddress offset_vertex,
-	BufferResource_t* buffer_index,
+	BufferResource_t *buffer_index,
 	VkDeviceAddress offset_index,
 	uint32_t num_vertices,
 	uint32_t num_indices,
 	VkDeviceSize vertex_stride,
-	accel_struct_t* blas,
+	accel_struct_t *blas,
 	bool is_dynamic,
-	bool fast_build)
-{
-	assert(blas);
+	bool fast_build ) {
+	/**
+	*	Sanity checks and early out when no geometry is present.
+	**/
+	// Ensure caller provided a valid BLAS tracking structure.
+	assert( blas );
 
-	if (num_vertices == 0)
-	{
+	// Mark BLAS as not present and skip build if there are no vertices.
+	if ( num_vertices == 0 ) {
 		blas->present = false;
 		return;
 	}
-	
-	assert(buffer_vertex->address);
-	if (buffer_index) assert(buffer_index->address);
 
+	// Validate device addresses for vertex and optional index buffers.
+	assert( buffer_vertex->address );
+	if ( buffer_index ) {
+		assert( buffer_index->address );
+	}
+
+	/**
+	*	Configure Vulkan triangle geometry and BLAS build info descriptors.
+	**/
+	// Populate triangle geometry descriptor using 32-bit indices when an index buffer is supplied.
 	VkAccelerationStructureGeometryTrianglesDataKHR triangles;
-	memset(&triangles, 0, sizeof(triangles));
+	memset( &triangles, 0, sizeof( triangles ) );
 	triangles.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR;
 	triangles.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
 	triangles.vertexData.deviceAddress = buffer_vertex->address + offset_vertex;
 	triangles.vertexStride = vertex_stride;
-	triangles.maxVertex = max(num_vertices, 1) - 1;
-	triangles.indexData.deviceAddress = buffer_index ? (buffer_index->address + offset_index) : 0;
-	triangles.indexType = buffer_index ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_NONE_KHR;
+	triangles.maxVertex = max( num_vertices, 1 ) - 1;
+	triangles.indexData.deviceAddress = buffer_index ? ( buffer_index->address + offset_index ) : 0;
+	triangles.indexType = buffer_index ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_NONE_KHR;
 
+	// Wrap triangle data into acceleration structure geometry union.
 	VkAccelerationStructureGeometryDataKHR geometry_data;
-	memset(&geometry_data, 0, sizeof(geometry_data));
+	memset( &geometry_data, 0, sizeof( geometry_data ) );
 	geometry_data.triangles = triangles;
 
+	// Configure geometry entry as triangle geometry.
 	VkAccelerationStructureGeometryKHR geometry;
-	memset(&geometry, 0, sizeof(geometry));
+	memset( &geometry, 0, sizeof( geometry ) );
 	geometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
 	geometry.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
 	geometry.geometry = geometry_data;
 
-	const VkAccelerationStructureGeometryKHR* geometries = &geometry;
+	// Pointer to single geometry descriptor for buildInfo.
+	const VkAccelerationStructureGeometryKHR *geometries = &geometry;
 
+	// Prepare build geometry info; destination BLAS handle is assigned after allocation check.
 	VkAccelerationStructureBuildGeometryInfoKHR buildInfo;
-	memset(&buildInfo, 0, sizeof(buildInfo));
-	// Prepare build info now, acceleration is filled later
+	memset( &buildInfo, 0, sizeof( buildInfo ) );
 	buildInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
 	buildInfo.pNext = NULL;
 	buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
@@ -587,70 +613,71 @@ vkpt_pt_create_accel_bottom(
 	buildInfo.pGeometries = geometries;
 	buildInfo.ppGeometries = NULL;
 
+	/**
+	*	Check whether the existing BLAS allocation is sufficient or needs (re)allocation.
+	**/
 	int doFree = 0;
 	int doAlloc = 0;
 
-	if (!is_dynamic || !accel_matches(&blas->match, fast_build, num_vertices, num_indices) || blas->accel == VK_NULL_HANDLE)
-	{
+	// Reallocate if static, if capacity/flags no longer match, or if no handle exists yet.
+	if ( !is_dynamic || !accel_matches( &blas->match, fast_build, num_vertices, num_indices ) || blas->accel == VK_NULL_HANDLE ) {
 		doAlloc = 1;
-		doFree = (blas->accel != VK_NULL_HANDLE);
+		doFree = ( blas->accel != VK_NULL_HANDLE );
 	}
 
-	if (doFree)
-	{
-		destroy_accel_struct(blas);
+	// Destroy the previous BLAS and backing buffer before reallocating.
+	if ( doFree ) {
+		destroy_accel_struct( blas );
 	}
 
-	// Find size to build on the device
-	uint32_t max_primitive_count = max(num_vertices, num_indices) / 3; // number of tris
+	// Query required BLAS and scratch byte sizes for the active primitive count.
+	uint32_t max_primitive_count = max( num_vertices, num_indices ) / 3;
 	VkAccelerationStructureBuildSizesInfoKHR sizeInfo;
-	memset(&sizeInfo, 0, sizeof(sizeInfo));
+	memset( &sizeInfo, 0, sizeof( sizeInfo ) );
 	sizeInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
-	qvkGetAccelerationStructureBuildSizesKHR(qvk.device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &buildInfo, &max_primitive_count, &sizeInfo);
+	qvkGetAccelerationStructureBuildSizesKHR( qvk.device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &buildInfo, &max_primitive_count, &sizeInfo );
 
-	if (doAlloc)
-	{
+	// Allocate backing buffer and create the acceleration structure handle when required.
+	if ( doAlloc ) {
 		uint32_t num_vertices_to_allocate = num_vertices;
 		uint32_t num_indices_to_allocate = num_indices;
 
-		// Allocate more memory / larger BLAS for dynamic objects
-		if (is_dynamic)
-		{
-			if (blas >= blas_decals && blas < blas_decals + MAX_FRAMES_IN_FLIGHT)
-			{
-				// Decals can spawn frequently during combat. Allocate the maximum possible 
-				// BLAS size to avoid stalling the pipeline with synchronous memory allocations.
+		// Over-allocate dynamic BLAS capacity to avoid frequent synchronous reallocations.
+		if ( is_dynamic ) {
+			if ( blas >= blas_decals && blas < blas_decals + MAX_FRAMES_IN_FLIGHT ) {
+				// Decals can spawn frequently during combat; pre-size for maximum decal vertices.
 				num_vertices_to_allocate = VKPT_DECAL_GEOMETRY_MAX_VERTICES;
 				num_indices_to_allocate = 0;
-			}
-			else
-			{
+			} else {
+				// Apply dynamic geometry bloat factor for particles, sprites, and animated meshes.
 				num_vertices_to_allocate *= DYNAMIC_GEOMETRY_BLOAT_FACTOR;
 				num_indices_to_allocate *= DYNAMIC_GEOMETRY_BLOAT_FACTOR;
 			}
 
-			max_primitive_count = max(num_vertices_to_allocate, num_indices_to_allocate) / 3;
-			geometry.geometry.triangles.maxVertex = max(num_vertices_to_allocate, 1) - 1;
-			memset(&sizeInfo, 0, sizeof(sizeInfo));
+			// Re-query build sizes for the bloated allocation capacity.
+			max_primitive_count = max( num_vertices_to_allocate, num_indices_to_allocate ) / 3;
+			geometry.geometry.triangles.maxVertex = max( num_vertices_to_allocate, 1 ) - 1;
+			memset( &sizeInfo, 0, sizeof( sizeInfo ) );
 			sizeInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
-			qvkGetAccelerationStructureBuildSizesKHR(qvk.device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &buildInfo, &max_primitive_count, &sizeInfo);
-			geometry.geometry.triangles.maxVertex = max(num_vertices, 1) - 1;
+			qvkGetAccelerationStructureBuildSizesKHR( qvk.device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &buildInfo, &max_primitive_count, &sizeInfo );
+			geometry.geometry.triangles.maxVertex = max( num_vertices, 1 ) - 1;
 		}
 
-		// Create acceleration structure
+		// Populate acceleration structure creation info.
 		VkAccelerationStructureCreateInfoKHR createInfo = {
 			.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
 			.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
 			.size = sizeInfo.accelerationStructureSize
 		};
 
-		// Create the buffer for the acceleration structure
-		buffer_create(&blas->mem, sizeInfo.accelerationStructureSize, VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+		// Create the device-local storage buffer for the acceleration structure.
+		buffer_create( &blas->mem, sizeInfo.accelerationStructureSize, VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT );
 		createInfo.buffer = blas->mem.buffer;
 
-		// Create the acceleration structure
-		qvkCreateAccelerationStructureKHR(qvk.device, &createInfo, NULL, &blas->accel);
+		// Create the Vulkan acceleration structure object.
+		qvkCreateAccelerationStructureKHR( qvk.device, &createInfo, NULL, &blas->accel );
 
+		// Record the allocated capacity in the match info for subsequent frames.
 		blas->match.fast_build = fast_build;
 		blas->match.vertex_count = num_vertices_to_allocate;
 		blas->match.index_count = num_indices_to_allocate;
@@ -658,26 +685,31 @@ vkpt_pt_create_accel_bottom(
 		blas->match.instance_count = 0;
 	}
 
-	// set where the build lands
+	/**
+	*	Sub-allocate scratch space and record the BLAS build command.
+	**/
+	// Set destination BLAS handle.
 	buildInfo.dstAccelerationStructure = blas->accel;
 
-	// Use shared scratch buffer for holding the temporary data of the acceleration structure builder
+	// Assign aligned slice of the shared acceleration structure scratch buffer.
 	buildInfo.scratchData.deviceAddress = buf_accel_scratch.address + scratch_buf_ptr;
-	assert(buf_accel_scratch.address);
+	assert( buf_accel_scratch.address );
 
-	// Update the scratch buffer ptr
+	// Advance and align the scratch buffer pointer.
 	scratch_buf_ptr += sizeInfo.buildScratchSize;
-	scratch_buf_ptr = align(scratch_buf_ptr, minAccelerationStructureScratchOffsetAlignment);
-	assert(scratch_buf_ptr < SIZE_SCRATCH_BUFFER);
+	scratch_buf_ptr = align( scratch_buf_ptr, minAccelerationStructureScratchOffsetAlignment );
+	assert( scratch_buf_ptr < SIZE_SCRATCH_BUFFER );
 
-	// build offset
+	// Specify active primitive count for this frame's build.
 	VkAccelerationStructureBuildRangeInfoKHR offset;
-	memset(&offset, 0, sizeof(offset));
-	offset.primitiveCount = max(num_vertices, num_indices) / 3;
-	const VkAccelerationStructureBuildRangeInfoKHR* offsets = &offset;
+	memset( &offset, 0, sizeof( offset ) );
+	offset.primitiveCount = max( num_vertices, num_indices ) / 3;
+	const VkAccelerationStructureBuildRangeInfoKHR *offsets = &offset;
 
-	qvkCmdBuildAccelerationStructuresKHR(cmd_buf, 1, &buildInfo, &offsets);
+	// Record the device BLAS build command.
+	qvkCmdBuildAccelerationStructuresKHR( cmd_buf, 1, &buildInfo, &offsets );
 
+	// Mark BLAS as valid for TLAS inclusion this frame.
 	blas->present = true;
 }
 

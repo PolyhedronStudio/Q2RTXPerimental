@@ -145,6 +145,8 @@ typedef struct hud_static_s {
 
 	//! Handles in an array, to the numbers used for armor/health/ammo indicators.
 	qhandle_t hud_icon_numbers[ 10 ] = { };
+	//! Handle to the TrueType font used for armor/health/ammo numeric indicators.
+	qhandle_t hud_font_numbers = 0;
 } hud_static_t;
 
 

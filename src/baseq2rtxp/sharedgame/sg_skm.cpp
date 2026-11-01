@@ -12,6 +12,18 @@
 #include "sharedgame/sg_shared.h"
 #include "sharedgame/sg_skm.h"
 
+#include "common/skeletalmodels/cm_skm.h"
+
+#include <algorithm>
+#include <iterator>
+
+/**
+*   The .skc parsed faux animation recipes (skm_faux_animation_t, refresh/shared_types.h)
+*   are reinterpret_cast to sg_skm_faux_animation_t; verify the layouts stay identical.
+**/
+static_assert( sizeof( sg_skm_faux_animation_t ) == sizeof( skm_faux_animation_t ), "sg_skm_faux_animation_t must mirror skm_faux_animation_t (refresh/shared_types.h)" );
+static_assert( sizeof( sg_skm_blend_layer_t ) == sizeof( skm_faux_layer_t ), "sg_skm_blend_layer_t must mirror skm_faux_layer_t (refresh/shared_types.h)" );
+
 
 
 /**
@@ -305,6 +317,210 @@ const skm_anim_t *SG_SKM_GetAnimationForHandle( const model_t *model, const qhan
 *
 *
 *
+*   Faux Animations(Composite Recipes):
+*
+*
+*
+**/
+/**
+*	@brief	Internal support routine: Fills the given layer with the built-in default
+*			recipe settings for the crouch + fire pistol composite.
+*			Keeps the arms at full weight while preserving the crouch's bent
+*			spine/neck posture by fading the fire pose out towards the root.
+**/
+static void SG_SKM_FauxAnimation_DefaultCrouchFirePistolLayer( sg_skm_blend_layer_t *layer ) {
+	// Zero out.
+	memset( layer, 0, sizeof( sg_skm_blend_layer_t ) );
+	// The layer's animation is resolved by name at SetState time; mark inactive by default.
+	layer->startBone = -1;
+	layer->mode = SKM_BLEND_MODE_OVERRIDE;
+	// Preserve crouch posture: full weight on the arms, fading out down the spine.
+	layer->defaultWeight = 1.0f;
+	layer->fadeInTime = 100;
+	layer->fadeOutTime = 150;
+}
+
+/**
+*	@brief	Internal support routine: Builds the built-in default faux animation recipes
+*			for the given model. Returns the number of recipes built.
+*	@note	These are code-side fallbacks for models that lack a 'faux_animations'
+*			section in their .skc configuration file.
+**/
+static int32_t SG_SKM_FauxAnimation_GenerateDefaults( const model_t *model, sg_skm_faux_animation_t *outRecipes, const int32_t maxRecipes ) {
+	// Sanity checks.
+	if ( !model || !model->skmData || !model->skmConfig || !outRecipes || maxRecipes <= 0 ) {
+		return 0;
+	}
+
+	// The bone nodes we need for the default masks.
+	const skm_bone_node_t *spineBone = SG_SKM_GetBoneByName( model, "mixamorig8:Spine" );
+	const skm_bone_node_t *spine1Bone = SG_SKM_GetBoneByName( model, "mixamorig8:Spine1" );
+	const skm_bone_node_t *spine2Bone = SG_SKM_GetBoneByName( model, "mixamorig8:Spine2" );
+	const skm_bone_node_t *neckBone = SG_SKM_GetBoneByName( model, "mixamorig8:Neck" );
+	// Without a spine to start from, the defaults make no sense.
+	if ( !spineBone ) {
+		return 0;
+	}
+
+	int32_t numberOfRecipes = 0;
+
+	/**
+	*   Recipe: 'fire_crouch_pistol' - fire while crouched.
+	*			Arms at full weight, spine chain mostly preserved from the crouch pose.
+	**/
+	if ( numberOfRecipes < maxRecipes ) {
+		sg_skm_faux_animation_t *recipe = &outRecipes[ numberOfRecipes ];
+		memset( recipe, 0, sizeof( sg_skm_faux_animation_t ) );
+		Q_strlcpy( recipe->name, "fire_crouch_pistol", MAX_QPATH );
+
+		// Single layer: the fire animation, blended from the spine with a soft mask.
+		sg_skm_blend_layer_t *layer = &recipe->layers[ 0 ];
+		SG_SKM_FauxAnimation_DefaultCrouchFirePistolLayer( layer );
+		layer->startBone = spineBone->number;
+		layer->defaultWeight = 1.0f;
+
+		// Soften the spine chain so the crouch's bent neck/back/shoulders survive.
+		if ( spine2Bone ) { layer->boneWeights[ spine2Bone->number ] = 0.6f; }
+		if ( spine1Bone ) { layer->boneWeights[ spine1Bone->number ] = 0.3f; }
+		layer->boneWeights[ spineBone->number ] = 0.1f;
+		if ( neckBone ) { layer->boneWeights[ neckBone->number ] = 0.15f; }
+
+		recipe->numberOfLayers = 1;
+		numberOfRecipes++;
+	}
+
+	return numberOfRecipes;
+}
+
+/**
+*	@brief	Returns a pointer to the model's faux animation recipe matching 'name', or nullptr.
+*			Resolves recipes parsed from the model's .skc config, falling back to the
+*			built-in code-side defaults.
+**/
+const sg_skm_faux_animation_t *SG_SKM_GetFauxAnimationForName( const model_t *model, const char *name ) {
+	// Sanity checks.
+	if ( !model || !model->skmConfig || !name || name[ 0 ] == '\0' ) {
+		return nullptr;
+	}
+
+	// The model's faux animation recipes, parsed from its .skc config.
+	const skm_config_t *skmConfig = model->skmConfig;
+	if ( skmConfig->numberOfFauxAnimations > 0 ) {
+		for ( int32_t i = 0; i < skmConfig->numberOfFauxAnimations; i++ ) {
+			if ( !Q_strncasecmp( skmConfig->fauxAnimations[ i ].name, name, MAX_QPATH ) ) {
+				// The .skc parsed recipe layout mirrors sg_skm_faux_animation_t
+				// (guarded by the static_asserts at the top of this file).
+				return reinterpret_cast<const sg_skm_faux_animation_t *>( &skmConfig->fauxAnimations[ i ] );
+			}
+		}
+	}
+
+	// Fall back to the built-in code-side defaults.
+	static sg_skm_faux_animation_t defaultRecipes[ 8 ];
+	static int32_t numberOfDefaultRecipes = 0;
+	static const model_t *defaultsModel = nullptr;
+
+	// (Re-)generate the defaults whenever we're asked about a different model.
+	if ( defaultsModel != model ) {
+		numberOfDefaultRecipes = SG_SKM_FauxAnimation_GenerateDefaults( model, defaultRecipes, (int32_t)std::size( defaultRecipes ) );
+		defaultsModel = model;
+	}
+
+	for ( int32_t i = 0; i < numberOfDefaultRecipes; i++ ) {
+		if ( !Q_strncasecmp( defaultRecipes[ i ].name, name, MAX_QPATH ) ) {
+			return &defaultRecipes[ i ];
+		}
+	}
+
+	// No recipe found.
+	return nullptr;
+}
+
+/**
+*	@brief	Applies all layers of the given faux animation recipe on top of the base pose,
+*			processing each layer's animation state for the current time.
+*			'baseBonePoses' and 'outBonePoses' may alias.
+*	@return	True if any layer was actually applied(still playing).
+**/
+const bool SG_SKM_ApplyFauxAnimation( const model_t *model, const sg_skm_faux_animation_t *fauxAnimation, sg_skm_blend_layer_t *workingLayers, const int32_t maxWorkingLayers, const QMTime &currentTime, const skm_transform_t *baseBonePoses, skm_transform_t *outBonePoses ) {
+	// Sanity checks.
+	if ( !model || !model->skmData || !fauxAnimation || !workingLayers || !baseBonePoses || !outBonePoses ) {
+		return false;
+	}
+
+	// Whether any layer was actually applied.
+	bool anyLayerApplied = false;
+
+	// Apply each of the recipe's layers in order.
+	const int32_t numberOfLayers = std::clamp( fauxAnimation->numberOfLayers, 0, SKM_MAX_BLEND_LAYERS );
+	for ( int32_t layerIndex = 0; layerIndex < numberOfLayers; layerIndex++ ) {
+		// Skip if we ran out of working layer slots.
+		if ( layerIndex >= maxWorkingLayers ) {
+			break;
+		}
+
+		// The recipe's layer.
+		const sg_skm_blend_layer_t *recipeLayer = &fauxAnimation->layers[ layerIndex ];
+		// The working layer slot that tracks this recipe layer's live state.
+		sg_skm_blend_layer_t *workingLayer = &workingLayers[ layerIndex ];
+
+		// An inactive recipe layer(startBone == -1) is skipped entirely.
+		if ( recipeLayer->startBone < 0 ) {
+			continue;
+		}
+
+		// Sync the working layer's animation state with the recipe's, keeping the
+		// live timers so fades keep working across frames.
+		const bool wasSet = SG_SKM_SetStateAnimation( model, &workingLayer->state,
+			recipeLayer->state.animationID,
+			recipeLayer->state.timeStart, recipeLayer->state.frameTime,
+			recipeLayer->state.isLooping, false );
+
+		// Copy over the static layer properties.
+		workingLayer->startBone = recipeLayer->startBone;
+		workingLayer->mode = recipeLayer->mode;
+		workingLayer->defaultWeight = recipeLayer->defaultWeight;
+		workingLayer->fadeInTime = recipeLayer->fadeInTime;
+		workingLayer->fadeOutTime = recipeLayer->fadeOutTime;
+		memcpy( workingLayer->boneWeights, recipeLayer->boneWeights, sizeof( recipeLayer->boneWeights ) );
+
+		// Process the layer's animation state for the current time, producing its pose.
+		double layerBackLerp = 0.0;
+		int32_t layerCurrentFrame = 0, layerOldFrame = 0;
+		const bool layerIsPlaying = !SG_SKM_ProcessAnimationStateForTime( model, &workingLayer->state, currentTime, &layerOldFrame, &layerCurrentFrame, &layerBackLerp );
+
+		// Out of bounds frames mean the layer's animation isn't valid for this model.
+		if ( layerCurrentFrame < 0 || layerCurrentFrame >= (int32_t)model->skmData->num_frames ) {
+			continue;
+		}
+
+		// Fetch and lerp the layer's frame poses.
+		const skm_transform_t *layerFramePose = SG_SKM_GetBonePosesForFrame( model, layerCurrentFrame );
+		const skm_transform_t *layerOldFramePose = SG_SKM_GetBonePosesForFrame( model, layerOldFrame );
+		if ( !layerFramePose || !layerOldFramePose ) {
+			continue;
+		}
+
+		// Lerp into the working layer's pose buffer. (Stored right after the state.)
+		skm_transform_t *layerPoseBuffer = ( skm_transform_t * )( workingLayer + 1 );
+		SG_SKM_LerpBonePoses( model, layerFramePose, layerOldFramePose,
+			( 1.0f - (float)layerBackLerp ), (float)layerBackLerp,
+			layerPoseBuffer, 0, SKM_POSE_TRANSLATE_ALL );
+
+		// Apply the layer onto the(possibly already layered) base pose.
+		SG_SKM_ApplyBlendLayer( model, workingLayer, layerPoseBuffer, baseBonePoses, outBonePoses, currentTime );
+		anyLayerApplied = true;
+	}
+
+	return anyLayerApplied;
+}
+
+
+
+/**
+*
+*
+*
 *	AnimationState Functionalities:
 *
 *
@@ -588,29 +804,40 @@ const bool SG_SKM_SetStateAnimation( const model_t *model, sg_skm_animation_stat
 *	@brief	Compute "Local/Model-Space" matrices for the given pose transformations.
 **/
 void SG_SKM_TransformBonePosesLocalSpace( const skm_model_t *model, const skm_transform_t *relativeBonePose, float *pose_matrices ) {
-    // multiply by inverse of bind pose and parent 'pose mat' (bind pose transform matrix)
+    /**
+    *   Sanity: verify model, pose pointers and destination buffer.
+    **/
+    if ( model == nullptr || relativeBonePose == nullptr || pose_matrices == nullptr || model->num_poses == 0 ) {
+        return;
+    }
+
+    /**
+    *   Temporary buffer holding accumulated absolute model-space joint matrices.
+    **/
+    static thread_local mat3x4 modelSpaceJoints[ SKM_MAX_BONES ];
+
     const skm_transform_t *relativeJoint = relativeBonePose;
     const int *jointParent = model->jointParents;
     const mat3x4 *invBindMat = (const mat3x4 *)model->invBindJoints;
-    const mat3x4 *bindJointMats = (const mat3x4 *)model->bindJoints;
     mat3x4 *poseMat = (mat3x4 *)pose_matrices;
-    mat3x4 *poseMatrices = (mat3x4 *)pose_matrices;
-    for ( uint32_t pose_idx = 0; pose_idx < model->num_poses; pose_idx++, relativeJoint++, jointParent++, invBindMat += 1/*12*/, poseMat += 1/*12*/ ) {
-        // Matrices.
-        mat3x4 mat1 = { };
-        mat3x4 mat2 = { };
 
-        // Now convert the joint to a 3x4 matrix.
-        JointToMatrix( relativeJoint->rotate, relativeJoint->scale, relativeJoint->translate, mat1 );
+    for ( uint32_t pose_idx = 0; pose_idx < model->num_poses; pose_idx++, relativeJoint++, jointParent++, invBindMat++, poseMat++ ) {
+        mat3x4 localMat = {};
+        mat3x4 *modelMat = &modelSpaceJoints[ pose_idx ];
 
-        // Concatenate if not the root joint.
+        // Convert the joint's relative transform to a 3x4 affine matrix.
+        JointToMatrix( relativeJoint->rotate, relativeJoint->scale, relativeJoint->translate, localMat );
+
+        // If this is a child joint, accumulate onto parent's model-space matrix.
+        // Otherwise, root joint's local matrix is already in model space.
         if ( *jointParent >= 0 ) {
-            Matrix34Multiply( bindJointMats[ ( *jointParent ) /** 12*/ ], mat1, mat2 );
-            Matrix34Multiply( mat2, *invBindMat, mat1 );
-            Matrix34Multiply( poseMatrices[ ( *jointParent ) /** 12*/ ], mat1, *poseMat );
+            Matrix34Multiply( modelSpaceJoints[ *jointParent ], localMat, *modelMat );
         } else {
-            Matrix34Multiply( mat1, *invBindMat, *poseMat );
+            memcpy( modelMat, &localMat, sizeof( mat3x4 ) );
         }
+
+        // Compute skinning matrix: S_j = A_j * B_j^-1
+        Matrix34Multiply( *modelMat, *invBindMat, *poseMat );
     }
 }
 
@@ -741,10 +968,124 @@ void SG_SKM_RecursiveBlendFromBone( const skm_transform_t *addBonePoses, const s
     // Recursively blend all thise bone node's children.
     for ( int32_t i = 0; i < boneNode->numberOfChildNodes; i++ ) {
         const skm_bone_node_t *childBoneNode = boneNode->childBones[ i ];
-        if ( childBoneNode != nullptr && childBoneNode->numberOfChildNodes > 0 ) {
+        // Note: recurse for every child, including leaf bones, otherwise leaf bones
+        // (e.g. hands) would never receive the blend.
+        if ( childBoneNode != nullptr ) {
             SG_SKM_RecursiveBlendFromBone( addBonePoses, addToBonePoses, outBonePoses, childBoneNode, backLerp, fraction );
         }
     }
+}
+
+/**
+*	@brief	Internal support routine: Recursively applies the blend layer's weighted
+*			pose to the base pose, starting from the given bone node.
+**/
+static void SG_SKM_ApplyBlendLayerRecursive( const skm_transform_t *layerPose, const skm_transform_t *baseBonePoses, skm_transform_t *outBonePoses, const skm_bone_node_t *boneNode, const float boneWeight, const sg_skm_blend_mode_t mode ) {
+    // If the bone node is invalid, escape.
+    if ( !boneNode || !layerPose || !baseBonePoses || !outBonePoses ) {
+        return;
+    }
+
+    // Get bone number.
+    const int32_t boneNumber = ( boneNode->number > 0 ? boneNode->number : 0 );
+
+    // Offset to the actual bone transforms.
+    const skm_transform_t *layerBone = layerPose + boneNumber;
+    const skm_transform_t *baseBone = baseBonePoses + boneNumber;
+    skm_transform_t *outBone = outBonePoses + boneNumber;
+
+    // Full weight: straight copy of the layer pose.
+    if ( boneWeight >= 1.0f ) {
+        VectorCopy( layerBone->translate, outBone->translate );
+        QuatCopy( layerBone->rotate, outBone->rotate );
+        VectorCopy( layerBone->scale, outBone->scale );
+    // Zero weight: keep the base pose as is.
+    } else if ( boneWeight <= 0.0f ) {
+        VectorCopy( baseBone->translate, outBone->translate );
+        QuatCopy( baseBone->rotate, outBone->rotate );
+        VectorCopy( baseBone->scale, outBone->scale );
+    } else {
+        // Weighted lerp of the translation and scale.
+        outBone->translate[ 0 ] = baseBone->translate[ 0 ] + ( layerBone->translate[ 0 ] - baseBone->translate[ 0 ] ) * boneWeight;
+        outBone->translate[ 1 ] = baseBone->translate[ 1 ] + ( layerBone->translate[ 1 ] - baseBone->translate[ 1 ] ) * boneWeight;
+        outBone->translate[ 2 ] = baseBone->translate[ 2 ] + ( layerBone->translate[ 2 ] - baseBone->translate[ 2 ] ) * boneWeight;
+        outBone->scale[ 0 ] = baseBone->scale[ 0 ] + ( layerBone->scale[ 0 ] - baseBone->scale[ 0 ] ) * boneWeight;
+        outBone->scale[ 1 ] = baseBone->scale[ 1 ] + ( layerBone->scale[ 1 ] - baseBone->scale[ 1 ] ) * boneWeight;
+        outBone->scale[ 2 ] = baseBone->scale[ 2 ] + ( layerBone->scale[ 2 ] - baseBone->scale[ 2 ] ) * boneWeight;
+
+        // Weighted slerp of the rotation.
+        QuatSlerp( baseBone->rotate, layerBone->rotate, boneWeight, outBone->rotate );
+    }
+
+    // Recursively apply to all this bone node's children.
+    for ( int32_t i = 0; i < boneNode->numberOfChildNodes; i++ ) {
+        const skm_bone_node_t *childBoneNode = boneNode->childBones[ i ];
+        if ( childBoneNode != nullptr ) {
+            SG_SKM_ApplyBlendLayerRecursive( layerPose, baseBonePoses, outBonePoses, childBoneNode, boneWeight, mode );
+        }
+    }
+}
+
+/**
+*	@brief	Applies a blend layer on top of the base pose, starting from startBoneNumber,
+*			using the layer's per-bone weights, mode, and fade envelope for the given time.
+*			'baseBonePoses' and 'outBonePoses' may alias.
+*	@note	layerPose is expected to be a full num_poses sized pose buffer processed from
+*			the layer's animation state for the same moment in time.
+**/
+void SG_SKM_ApplyBlendLayer( const model_t *model, const sg_skm_blend_layer_t *layer, const skm_transform_t *layerPose, const skm_transform_t *baseBonePoses, skm_transform_t *outBonePoses, const QMTime &currentTime ) {
+    // Sanity checks.
+    if ( !model || !model->skmData || !model->skmConfig || !layer || !layerPose || !baseBonePoses || !outBonePoses ) {
+        return;
+    }
+    // An inactive layer(startBone == -1) is never applied.
+    if ( layer->startBone < 0 ) {
+        return;
+    }
+
+    // Acquire the start bone node.
+    const skm_bone_node_t *startBoneNode = &model->skmConfig->boneArray[ layer->startBone ];
+    if ( !startBoneNode || startBoneNode->name[ 0 ] == '\0' ) {
+        return;
+    }
+
+    /**
+    *   Calculate the fade envelope for the current moment in time.
+    **/
+    // Default to a fully faded-in layer.
+    float fadeWeight = 1.0f;
+
+    // Fade-in: ramp up from the moment the layer's animation started.
+    if ( layer->fadeInTime > 0 ) {
+        const int64_t timeSinceStart = ( currentTime - layer->state.timeStart ).Milliseconds();
+        if ( timeSinceStart < layer->fadeInTime ) {
+            fadeWeight *= ( timeSinceStart > 0 ? static_cast<float>( timeSinceStart ) / static_cast<float>( layer->fadeInTime ) : 0.0f );
+        }
+    }
+
+    // Fade-out: ramp down after the animation's expected end time.
+    if ( layer->fadeOutTime > 0 ) {
+        const int64_t timeSinceEnd = ( currentTime - layer->state.timeEnd ).Milliseconds();
+        if ( timeSinceEnd > 0 ) {
+            if ( timeSinceEnd < layer->fadeOutTime ) {
+                fadeWeight *= ( 1.0f - static_cast<float>( timeSinceEnd ) / static_cast<float>( layer->fadeOutTime ) );
+            } else {
+                // Fully faded out.
+                return;
+            }
+        }
+    }
+
+    // If we've faded out entirely, there's nothing to apply.
+    if ( fadeWeight <= 0.0f ) {
+        return;
+    }
+
+    /**
+    *   Apply the layer, bone by bone, starting from the start bone.
+    **/
+    // The start bone itself always uses the default weight.
+    SG_SKM_ApplyBlendLayerRecursive( layerPose, baseBonePoses, outBonePoses, startBoneNode, layer->defaultWeight * fadeWeight, layer->mode );
 }
 
 
@@ -809,9 +1150,11 @@ void SG_SKM_LerpBonePoses( const model_t *model, const skm_transform_t *frameBon
             }
             #endif
 
-            //VectorCopy( pose->translate, relativeJoint->translate );
-            //QuatCopy( pose->rotate, relativeJoint->rotate );
-            //VectorCopy( pose->scale, relativeJoint->scale );
+            // Copy the pose data directly. (The buffers alias, so the pose is already
+            // in place; only the root-motion masked bone above needs rewriting.)
+            VectorCopy( pose->translate, relativeJoint->translate );
+            QuatCopy( pose->rotate, relativeJoint->rotate );
+            VectorCopy( pose->scale, relativeJoint->scale );
         }
         // Lerp the animation frame pose.
     } else {

@@ -11,6 +11,9 @@
 #include "nav_sector_graph.h"
 #include "nav_cover_generate.h"
 #include "nav_path.h"
+#include "nav_identity.h"
+#include "nav_route_context.h"
+#include "nav_corner_capture.h"
 #include "nav_thread.h"
 #include <algorithm>
 #include <cctype>
@@ -35,7 +38,7 @@
 *	Global navmesh data containers.
 **/
 //! Global navmesh polygon data (temporary during build).
-nav_vector_t<nav_poly_t> g_nav_polys;
+svg_vector_t<nav_poly_t, TAG_SVGAME_NAVMESH> g_nav_polys;
 
 //! Half-edge mesh global vertices data
 std::vector<Vector3DP> g_nav_vertices;
@@ -51,11 +54,11 @@ std::vector<nav_portal_t> g_nav_portals;
 std::vector<std::vector<int32_t>> g_nav_entity_edges;
 
 //! Global navmesh kdtree node data.
-nav_vector_t<nav_kdtree_node_t> g_nav_nodes;
+svg_vector_t<nav_kdtree_node_t, TAG_SVGAME_NAVMESH> g_nav_nodes;
 //! Global navmesh leaf link data.
-nav_vector_t<nav_leaf_link_t> g_nav_leaf_links;
+svg_vector_t<nav_leaf_link_t, TAG_SVGAME_NAVMESH> g_nav_leaf_links;
 //! Global navmesh leaf polygon ID data.
-nav_vector_t<int32_t> g_nav_leaf_poly_ids;
+svg_vector_t<int32_t, TAG_SVGAME_NAVMESH> g_nav_leaf_poly_ids;
 
 //! Maximum bin count used for KD-tree Surface Area Heuristic (SAH) spatial partitioning.
 static constexpr int32_t KDTREE_MAX_BIN = 32;
@@ -125,7 +128,7 @@ static void ResetNavGenerationDiagnostics( void ) {
 **/
 static void LogNavGenerationDiagnostics( const char *stage ) {
 	// Emit aggregate stage diagnostic summary to server developer console.
-	gi.dprintf(
+	Nav_GenerationPrintf(
 		"NavMesh Diagnostics [%s]: extracted=%d dynamicExtracted=%d dynamicEntities=%d dynamicBrushes=%d dynamicOriginSkips=%d noNavMeshSkips=%d partitionInput=%d acceptedSplits=%d rejectedSplits=%d dynamicPreserved=%d transitionPreserved=%d containedClipSkips=%d transitionPortals=%d worldSplices=%d dynamicSplices=%d\n",
 		stage,
 		s_nav_generation_diagnostics.extracted_polys,
@@ -155,7 +158,7 @@ static void LogNavGenerationDiagnostics( const char *stage ) {
 		const int32_t splice_count = ( splice_it != s_nav_generation_diagnostics.splices_by_entity.end() ) ? splice_it->second : 0;
 		const auto portal_it = s_nav_generation_diagnostics.transition_portals_by_entity.find( entry.first );
 		const int32_t portal_count = ( portal_it != s_nav_generation_diagnostics.transition_portals_by_entity.end() ) ? portal_it->second : 0;
-		gi.dprintf( "NavMesh Diagnostics [%s] entity=%d extracted=%d portals=%d splices=%d\n",
+		Nav_GenerationPrintf( "NavMesh Diagnostics [%s] entity=%d extracted=%d portals=%d splices=%d\n",
 			stage,
 			entry.first,
 			entry.second,
@@ -199,7 +202,7 @@ static void LogNavGenerationDiagnostics( const char *stage ) {
 			const Vector3DP edge_end = Vector3DP( g_nav_vertices[ g_nav_halfedges[ edge.next_idx ].vertex_idx ] );
 			const Vector3DP twin_start = Vector3DP( g_nav_vertices[ twin.vertex_idx ] );
 			const Vector3DP twin_end = Vector3DP( g_nav_vertices[ g_nav_halfedges[ twin.next_idx ].vertex_idx ] );
-			gi.dprintf(
+			Nav_GenerationPrintf(
 				"NavMesh Portal [entity=%d pair=%d/%d faces=%d/%d] edge=(%.1f %.1f %.1f)->(%.1f %.1f %.1f) twin=(%.1f %.1f %.1f)->(%.1f %.1f %.1f) dz=%.1f\n",
 				entity_id,
 				edge_index,
@@ -559,8 +562,15 @@ void Nav_GenerateCommand() {
 **/
 void Nav_Clear() {
 	/**
+	*	Complete any writer before freeing the live mesh, its tagged buffers or
+	*	the servergame callback code that the engine worker is executing.
+	**/
+	Nav_DrainAsyncGenerationMainThread();
+	/**
 	*	Clear all navmesh global data containers.
 	**/
+	// Flush selected incarnations before the same map or entity numbers can be reused by a new mesh lifetime.
+	Nav_Corner_InvalidateCapture();
 	g_nav_polys.clear();
 	g_nav_vertices.clear();
 	g_nav_halfedges.clear();
@@ -574,8 +584,12 @@ void Nav_Clear() {
 	Nav_ClearCoverPoints();
 	Nav_SectorGraph_Clear();
 
+	// Issue publication identities through the epoch barrier; never silently wrap a live generation.
+	g_nav_mesh_generation = Nav_IssueIdentityRevisionMainThread();
+	Nav_InvalidateObstacleCornersTable();
+
 	// Log memory clear message to server console.
-	gi.dprintf( "NavMesh memory cleared.\n" );
+	Nav_GenerationPrintf( "NavMesh memory cleared.\n" );
 }
 
 /**
@@ -586,12 +600,12 @@ void Nav_StatusCommand( void ) {
 	/**
 	*	Collect the latest progress snapshot from the nav generation worker.
 	**/
-	const nav_gen_progress_t &progress = Nav_GetGenerationProgress();
+	const nav_gen_progress_t progress = Nav_GetGenerationProgress();
 
 	/**
 	*	Print a stable summary line so server operators can see whether generation is active, what stage it is in, and how far it has progressed.
 	**/
-	gi.dprintf(
+	Nav_GenerationPrintf(
 		"NavMesh status: generating=%d stage=\"%s\" progress=%.2f%% elapsed=%.2f s remaining=%.2f s\n",
 		progress.is_generating ? 1 : 0,
 		progress.stage[ 0 ] != '\0' ? progress.stage : ( progress.is_generating ? "Building" : "Idle" ),
@@ -701,10 +715,10 @@ static winding_t BaseWindingForPlane( const cm_plane_t *p ) {
 * @return True when the winding survives the clip.
 **/
 static bool ChopWindingInPlace( winding_t *in, const cm_plane_t *split, double epsilon ) {
-	nav_vector_t<double> dists;
+	svg_vector_t<double, TAG_SVGAME_NAVMESH> dists;
 	dists.resize( static_cast< size_t >( in->num_points + 4 ) );
 
-	nav_vector_t<int32_t> sides;
+	svg_vector_t<int32_t, TAG_SVGAME_NAVMESH> sides;
 	sides.resize( static_cast< size_t >( in->num_points + 4 ) );
 
 
@@ -1699,7 +1713,7 @@ void Nav_DoExtractionWork() {
 	cm_t *cm = gi.GetCollisionModel();
 	// Safety check: Ensure the collision model and its cache are valid before proceeding.
 	if ( !cm || !cm->cache ) {
-		gi.dprintf( "Nav_DoExtractionWork: No collision model or cache!\n" );
+		Nav_GenerationPrintf( "Nav_DoExtractionWork: No collision model or cache!\n" );
 		return;
 	}
 	// Get the BSP data from the collision model's cache
@@ -1799,7 +1813,7 @@ void Nav_DoExtractionWork() {
 		}
 
 		const mmodel_t &dynamic_model = bsp->models[ brush_instance.model_num ];
-		gi.dprintf( "NavMesh DynamicBrush [entity=%d model=%d instance=%d brush=%d contents=0x%08x sides=%d texture=%s offset=(%.1f %.1f %.1f) angles=(%.1f %.1f %.1f) modelLocal=(%.1f %.1f %.1f)->(%.1f %.1f %.1f)]\n",
+		Nav_GenerationPrintf( "NavMesh DynamicBrush [entity=%d model=%d instance=%d brush=%d contents=0x%08x sides=%d texture=%s offset=(%.1f %.1f %.1f) angles=(%.1f %.1f %.1f) modelLocal=(%.1f %.1f %.1f)->(%.1f %.1f %.1f)]\n",
 			brush_instance.entity_id,
 			brush_instance.model_num,
 			brush_instance.instance_id,
@@ -2180,7 +2194,7 @@ void Nav_DoExtractionWork() {
 							}
 						}
 
-						gi.dprintf( "NavMesh DynamicFootprint [sourceBrush=%d side=%d entity=%d transition=%d vertices=%d area=%.1f bounds=(%.1f %.1f %.1f)->(%.1f %.1f %.1f)]\n",
+						Nav_GenerationPrintf( "NavMesh DynamicFootprint [sourceBrush=%d side=%d entity=%d transition=%d vertices=%d area=%.1f bounds=(%.1f %.1f %.1f)->(%.1f %.1f %.1f)]\n",
 							brush_num,
 							j,
 							poly.entity_id,
@@ -2211,7 +2225,7 @@ void Nav_DoExtractionWork() {
 	}
 
 	// Print a summary of the extraction process to the server console for debugging and verification.
-	gi.dprintf( "Nav_DoExtractionWork: Checked %d brushes. Found %d solid/detail brushes, %d playerclip-only brushes, %d walkable sides. Extracted %d polys, pruned %d sliver fragments.\n",
+	Nav_GenerationPrintf( "Nav_DoExtractionWork: Checked %d brushes. Found %d solid/detail brushes, %d playerclip-only brushes, %d walkable sides. Extracted %d polys, pruned %d sliver fragments.\n",
 		bsp->numbrushes, solid_brushes, playerclip_brushes, walkable_sides, ( int )g_nav_polys.size(), sliver_pruned_fragments );
 	LogNavGenerationDiagnostics( "Extraction" );
 	Nav_SetGenerationProgress( 0.25f, "Geometry Extraction" );
@@ -2279,7 +2293,7 @@ static bool InsertDynamicPortalConformanceVertex( nav_poly_t &target, const int3
 	}
 
 	// Dynamic entity footprints and their adjoining world floors must share one walkable elevation, or be within stepping distance.
-	if ( std::fabs( source_vertex.z - projected_vertex.z ) > ( NAV_MAX_STEP_SIZE + 4.0 ) ) {
+	if ( std::fabs( source_vertex.z - projected_vertex.z ) > ( NAV_MAX_TOPOLOGY_STEP_HEIGHT + 4.0 ) ) {
 		return false;
 	}
 
@@ -2352,7 +2366,7 @@ static void Nav_ResolveDynamicPortalTJunctions() {
 	Nav_SetGenerationProgress( 0.54f, "Dynamic Portal Conformance" );
 
 	if ( conformance_splices > 0 ) {
-		gi.dprintf( "NavMesh: Conformed %d dynamic portal edge vertices.\n", conformance_splices );
+		Nav_GenerationPrintf( "NavMesh: Conformed %d dynamic portal edge vertices.\n", conformance_splices );
 	}
 }
 
@@ -2371,7 +2385,8 @@ static void Nav_ResolveTJunctionsByEdgeSplicing() {
 	// Strict coplanar snapping tolerance used when both polygons share one geometric plane.
 	static constexpr double MAX_PLANAR_POINT_DISTANCE = 0.25;
 	// Maximum vertical separation eligible for projected step/slope edge subdivision.
-	static constexpr double MAX_PROJECTED_STEP_SPLICE_HEIGHT = NAV_MAX_STEP_SIZE;
+	// Project eligible candidate surfaces before exact edge matching; actual movement limits remain query-specific.
+	static constexpr double MAX_PROJECTED_STEP_SPLICE_HEIGHT = NAV_MAX_TOPOLOGY_STEP_HEIGHT;
 	// Maximum horizontal distance from an existing edge for a true T-junction vertex.
 	static constexpr double MAX_EDGE_PROJECTION_DISTANCE = 0.5;
 	// Include walkable step-height neighbors in the spatial index so their 2D seam vertices can conform.
@@ -2622,7 +2637,7 @@ static void Nav_ResolveTJunctionsByEdgeSplicing() {
 			}
 
 			if ( totalSplices > 10000 ) {
-				gi.dprintf( "NavMesh WARNING: Aborting Edge Splicing due to infinite loop! (Splices > 10000)\n" );
+				Nav_GenerationPrintf( "NavMesh WARNING: Aborting Edge Splicing due to infinite loop! (Splices > 10000)\n" );
 				break;
 			}
 
@@ -2636,7 +2651,7 @@ static void Nav_ResolveTJunctionsByEdgeSplicing() {
 	Nav_SetGenerationProgress( 0.60f, "Edge Splicing" );
 
 	if ( totalSplices > 0 ) {
-		gi.dprintf( "NavMesh: Spliced %d T-Junction vertices.\n", totalSplices );
+		Nav_GenerationPrintf( "NavMesh: Spliced %d T-Junction vertices.\n", totalSplices );
 	}
 	LogNavGenerationDiagnostics( "Splice" );
 }
@@ -2976,7 +2991,8 @@ void Nav_BuildHalfEdgeMesh() {
 							continue;
 						}
 
-						static constexpr double MAX_Z_DIFF = NAV_MAX_STEP_SIZE;
+						// Retain candidate topology independently of the default monster step height; query policy still rejects forbidden rises.
+						static constexpr double MAX_Z_DIFF = NAV_MAX_TOPOLOGY_STEP_HEIGHT;
 						const double z_delta = std::abs( ( a1.z + a2.z ) * 0.5 - ( b1.z + b2.z ) * 0.5 );
 						if ( z_delta > MAX_Z_DIFF ) {
 							continue;
@@ -3141,7 +3157,8 @@ void Nav_BuildHalfEdgeMesh() {
 					const double dz_same_2 = std::abs( a2.z - b2.z );
 
 					static constexpr double MAX_DIST_SQR = 1.0;
-					static constexpr double MAX_Z_DIFF = NAV_MAX_STEP_SIZE;
+					// Retain candidate topology independently of the default monster step height; query policy still rejects forbidden rises.
+						static constexpr double MAX_Z_DIFF = NAV_MAX_TOPOLOGY_STEP_HEIGHT;
 					const bool reversed_endpoint_match =
 						dx_rev_1 * dx_rev_1 + dy_rev_1 * dy_rev_1 < MAX_DIST_SQR && dz_rev_1 <= MAX_Z_DIFF &&
 						dx_rev_2 * dx_rev_2 + dy_rev_2 * dy_rev_2 < MAX_DIST_SQR && dz_rev_2 <= MAX_Z_DIFF;
@@ -3311,7 +3328,8 @@ void Nav_BuildHalfEdgeMesh() {
 
 					if ( overlapLen >= 2.0 ) {
 						double dz = std::abs( ( a1.z + a2.z ) * 0.5 - ( b1.z + b2.z ) * 0.5 );
-						static constexpr double MAX_Z_DIFF = NAV_MAX_STEP_SIZE;
+						// Retain candidate topology independently of the default monster step height; query policy still rejects forbidden rises.
+						static constexpr double MAX_Z_DIFF = NAV_MAX_TOPOLOGY_STEP_HEIGHT;
 						if ( dz <= MAX_Z_DIFF ) {
 							if ( overlapLen > bestOverlap ) {
 								bestOverlap = overlapLen;
@@ -3519,9 +3537,9 @@ void Nav_BuildHalfEdgeMesh() {
 	// Validate mesh ownership before KD construction changes face storage order.
 	Nav_ValidateTopology( "HalfEdge" );
 
-	gi.dprintf( "NavMesh Half-Edge Generation Completed. %d vertices, %d half-edges, %d faces.\n",
+	Nav_GenerationPrintf( "NavMesh Half-Edge Generation Completed. %d vertices, %d half-edges, %d faces.\n",
 		g_nav_vertices.size(), g_nav_halfedges.size(), g_nav_faces.size() );
-	gi.dprintf( "NavMesh Topology Diagnostics: deterministicLinks=%d firstPassLinks=%d secondPassLinks=%d twinnedEdges=%d boundaryEdges=%d shortBoundaryEdges=%d twinReverseMismatch=%d tinyOverlapTwins=%d\n",
+	Nav_GenerationPrintf( "NavMesh Topology Diagnostics: deterministicLinks=%d firstPassLinks=%d secondPassLinks=%d twinnedEdges=%d boundaryEdges=%d shortBoundaryEdges=%d twinReverseMismatch=%d tinyOverlapTwins=%d\n",
 		deterministic_twin_links, first_pass_twin_links, second_pass_twin_links, twinned_edges, boundary_edges, short_boundary_edges, twin_reverse_mismatch, tiny_overlap_twins );
 	LogNavGenerationDiagnostics( "HalfEdge" );
 	Nav_SetGenerationProgress( 0.85f, "Half-Edge Mesh Ready" );
@@ -3553,9 +3571,9 @@ bool Nav_ValidateTopology( const char *stage ) {
 		}
 
 		reported_failures++;
-		gi.dprintf( "NavMesh Validate [%s] ", stage_name );
-		gi.dprintf( format, first, second );
-		gi.dprintf( "\n" );
+		Nav_GenerationPrintf( "NavMesh Validate [%s] ", stage_name );
+		Nav_GenerationPrintf( format, first, second );
+		Nav_GenerationPrintf( "\n" );
 	};
 
 	/**
@@ -3627,7 +3645,7 @@ bool Nav_ValidateTopology( const char *stage ) {
 		}
 	}
 
-	gi.dprintf( "NavMesh Validate [%s]: faces=%d edges=%d vertices=%d nodes=%d failures=%d\n",
+	Nav_GenerationPrintf( "NavMesh Validate [%s]: faces=%d edges=%d vertices=%d nodes=%d failures=%d\n",
 		stage_name,
 		static_cast< int32_t >( g_nav_faces.size() ),
 		static_cast< int32_t >( g_nav_halfedges.size() ),
@@ -3775,7 +3793,8 @@ void Nav_BuildSpatialRegionsAndPortals() {
 			if ( isDoorwayAperture ||
 			     ( minClearance < NAV_PORTAL_NARROW_CLEARANCE && maxClearance >= NAV_PORTAL_NARROW_CLEARANCE ) ||
 			     ( faceA.clearance < NAV_PORTAL_TIGHT_CLEARANCE && faceB.clearance < NAV_PORTAL_TIGHT_CLEARANCE && ( faceA.num_edges <= 4 || faceB.num_edges <= 4 ) ) ||
-			     ( verticalDelta >= 12.0 && verticalDelta <= static_cast<double>( NAV_MAX_STEP_HEIGHT ) ) ) {
+			     // Candidate high steps must remain explicit room boundaries even when the default actor cannot climb them.
+			     ( verticalDelta >= 12.0 && verticalDelta <= NAV_MAX_TOPOLOGY_STEP_HEIGHT ) ) {
 				isPortalHalfedge[ e ] = true;
 				isPortalHalfedge[ he.twin_idx ] = true;
 				portalTypes[ e ] = ( verticalDelta >= 12.0 ) ? PORTAL_TYPE_OPEN_APERTURE : PORTAL_TYPE_OPEN_APERTURE;
@@ -3975,16 +3994,21 @@ void Nav_BuildSpatialRegionsAndPortals() {
 		nav_raycast_result_t resLeft = {};
 		nav_raycast_result_t resRight = {};
 
-		Nav_RaycastHalfEdge2D( room.centroid, Vector3DP{ 0.0, 1.0, 0.0 }, NAV_WALL_STANDOFF_TRACE_DIST, &resBack );
-		Nav_RaycastHalfEdge2D( room.centroid, Vector3DP{ -1.0, 0.0, 0.0 }, NAV_WALL_STANDOFF_TRACE_DIST, &resLeft );
-		Nav_RaycastHalfEdge2D( room.centroid, Vector3DP{ 1.0, 0.0, 0.0 }, NAV_WALL_STANDOFF_TRACE_DIST, &resRight );
+		// The generation worker owns the live mesh and its obstacle cache until publication.
+		const nav_route_mesh_view_t generationView = Nav_MakeGenerationRouteView();
+		svg_nav_route_context_t rayContext;
+		// The pure cast requires one visit token per classified solid edge.
+		rayContext.edge_tokens.resize( generationView.solid_edges.size() );
+		Nav_RaycastHalfEdge2D( generationView, rayContext, room.centroid, Vector3DP{ 0.0, 1.0, 0.0 }, NAV_WALL_STANDOFF_TRACE_DIST, &resBack );
+		Nav_RaycastHalfEdge2D( generationView, rayContext, room.centroid, Vector3DP{ -1.0, 0.0, 0.0 }, NAV_WALL_STANDOFF_TRACE_DIST, &resLeft );
+		Nav_RaycastHalfEdge2D( generationView, rayContext, room.centroid, Vector3DP{ 1.0, 0.0, 0.0 }, NAV_WALL_STANDOFF_TRACE_DIST, &resRight );
 
 		room.wall_standoff_back = resBack.hitSolidWall ? resBack.hitDistance : ( resBack.hitDistance < NAV_WALL_STANDOFF_TRACE_DIST ? resBack.hitDistance : NAV_WALL_STANDOFF_DEFAULT_DIST );
 		room.wall_standoff_left = resLeft.hitSolidWall ? resLeft.hitDistance : ( resLeft.hitDistance < NAV_WALL_STANDOFF_TRACE_DIST ? resLeft.hitDistance : NAV_WALL_STANDOFF_DEFAULT_DIST );
 		room.wall_standoff_right = resRight.hitSolidWall ? resRight.hitDistance : ( resRight.hitDistance < NAV_WALL_STANDOFF_TRACE_DIST ? resRight.hitDistance : NAV_WALL_STANDOFF_DEFAULT_DIST );
 	}
 
-	gi.dprintf( "NavMesh Spatial Decomposition: Discovered %d rooms/zones and %d transition portals.\n",
+	Nav_GenerationPrintf( "NavMesh Spatial Decomposition: Discovered %d rooms/zones and %d transition portals.\n",
 		static_cast<int32_t>( g_nav_rooms.size() ),
 		static_cast<int32_t>( g_nav_portals.size() ) );
 
@@ -4000,14 +4024,25 @@ void Nav_BuildSpatialRegionsAndPortals() {
 *	@return	Pointer to the enclosing nav_room_t, or nullptr if unassigned/outside mesh.
 **/
 const nav_room_t *Nav_GetRoomForPoint( const Vector3DP &pos ) {
-	int32_t faceIdx = Nav_FindFaceInLeafStrict( pos );
+	/**
+	*	During spatial-region generation the worker owns live mesh construction, before
+	*	a route publication exists. Keep this topology lookup on that stable live
+	*	geometry; route queries use the copied publication instead.
+	**/
+	nav_route_mesh_view_t liveMesh;
+	liveMesh.vertices = std::span<const Vector3DP>( g_nav_vertices.data(), g_nav_vertices.size() );
+	liveMesh.halfedges = std::span<const nav_halfedge_t>( g_nav_halfedges.data(), g_nav_halfedges.size() );
+	liveMesh.faces = std::span<const nav_face_t>( g_nav_faces.data(), g_nav_faces.size() );
+	liveMesh.nodes = std::span<const nav_kdtree_node_t>( g_nav_nodes.data(), g_nav_nodes.size() );
+	svg_nav_route_context_t context;
+	int32_t faceIdx = Nav_FindFaceInLeafStrict( liveMesh, context, pos );
 	if ( faceIdx < 0 || faceIdx >= static_cast<int32_t>( g_nav_faces.size() ) ) {
 		Vector3DP feetPos = pos;
 		feetPos.z -= CROWD_SLOT_FEET_SNAP_OFFSET_Z;
-		faceIdx = Nav_FindFaceInLeafStrict( feetPos );
+		faceIdx = Nav_FindFaceInLeafStrict( liveMesh, context, feetPos );
 	}
 	if ( faceIdx < 0 || faceIdx >= static_cast<int32_t>( g_nav_faces.size() ) ) {
-		faceIdx = Nav_FindClosestFaceInLeaf( pos );
+		faceIdx = Nav_FindClosestFaceInLeaf( liveMesh, context, pos );
 	}
 	if ( faceIdx >= 0 && faceIdx < static_cast<int32_t>( g_nav_faces.size() ) ) {
 		const int32_t roomId = g_nav_faces[ faceIdx ].room_id;

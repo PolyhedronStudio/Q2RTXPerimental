@@ -25,6 +25,10 @@
 //! We need this one.
 extern cvar_t *scr_alpha;
 extern cvar_t *scr_scale;
+extern cvar_t *scr_font;
+
+//! Nominal pixel height for the large HUD element numbers TrueType font (matches the ~42px digit cap height and ~32px digit width of the HUD sprites).
+static constexpr float HUD_ELEMENT_NUMBER_FONT_SIZE = 80.0f;
 #if 0
 cvar_t *hud_alpha = nullptr;
 cvar_t *hud_scale = nullptr;
@@ -279,6 +283,10 @@ void CLG_HUD_RegisterScreenMedia( void ) {
         clg_hud_static.hud_icon_numbers[ i ] = clgi.R_RegisterPic( numberPicName.c_str() );
     }
 
+    // Register large TrueType font for HUD numeric indicators.
+    const char *fontPath = ( scr_font && scr_font->string && scr_font->string[ 0 ] != '\0' ) ? scr_font->string : "fonts/segoeui.ttf";
+    clg_hud_static.hud_font_numbers = clgi.R_RegisterFontTTF( fontPath, HUD_ELEMENT_NUMBER_FONT_SIZE );
+
     // Precache crosshair.
     scr_hud_crosshair_changed( hud_crosshair_type );
 }
@@ -391,6 +399,9 @@ static constexpr double HUD_ELEMENT_BACKGROUND_MIN_HEIGHT   = 64.;
 //! Half width and height of the minimal HUD Element background. These define the size of the corners.
 static constexpr double HUD_ELEMENT_BACKGROUND_HALF_WIDTH   = HUD_ELEMENT_BACKGROUND_MIN_WIDTH / 2.;
 static constexpr double HUD_ELEMENT_BACKGROUND_HALF_HEIGHT  = HUD_ELEMENT_BACKGROUND_MIN_HEIGHT / 2.;
+
+// <Q2RTXP>: WID: Old Sprite Based approach for HUD element Backgrounds.
+#if 0
 /**
 *   @brief Draws a background for HUD elements, such as health, ammo, etc. Operates as a simplified 9-grid system.
 **/
@@ -504,68 +515,153 @@ void CLG_HUD_DrawElementBackground( const double &x, const double &y, const doub
     );
 
 }
+#endif
 
 /**
-*   @return Returns the next X offset for a HUD element context item positioned after the numbers last coordinates.
+*	@brief	Returns the active TrueType font handle for large HUD numbers, registering it on demand.
+*	@return	Font handle for HUD numeric indicators.
 **/
-const double CLG_HUD_GetWidthForElementNumberValue( const double numberPicWidth, const int32_t value ) {
-    // Convert value to string.
-    const std::string valueStr = std::to_string( value );
-    // Get the length of the string.
-    const int32_t valueStrLength = valueStr.length();
-    // Add 32 for each missing character, so we can right focus the numbers.
-    //const double centerX = w / 2.0;
-
-    // Calculate the width of the string.
-    const double valueStrWidth = valueStrLength * numberPicWidth;
-
-    return valueStrWidth;
+static qhandle_t CLG_HUD_GetNumberFont( void ) {
+	/**
+	*	Resolve current screen font path and ensure the scaled HUD number TTF instance is registered.
+	**/
+	const char *fontPath = ( scr_font && scr_font->string && scr_font->string[ 0 ] != '\0' ) ? scr_font->string : "fonts/segoeui.ttf";
+	clg_hud_static.hud_font_numbers = clgi.R_RegisterFontTTF( fontPath, HUD_ELEMENT_NUMBER_FONT_SIZE );
+	return clg_hud_static.hud_font_numbers;
 }
+
 /**
-*   @brief Draws the numbers 0-9 for on top of a HUD element background.
+*	@brief	Computes the top Y coordinate to pass to R_DrawString so that the visual cap-height
+*			of the TTF digits (0..9) is vertically centered within the HUD element container.
+*	@param	containerStartY	Top Y coordinate of the HUD container box.
+*	@param	containerHeight	Height of the HUD container box.
+*	@return	Top Y coordinate for R_DrawString.
 **/
-const double CLG_HUD_DrawElementNumberValue( const double &startXOffset, const double &startY, const double &w, const double &h, const int32_t value ) {
-	// Constant width/height for a number pic.
-	const double numberPicWidth = w;
-    const double numberPicHeight = h;
+static inline const double CLG_HUD_GetElementNumberDrawY( const double containerStartY, const double containerHeight ) {
+	/**
+	*	In stb_truetype (Segoe UI), ascent is ~0.811 * pixel_height and digit cap-height is ~0.526 * pixel_height.
+	*	The visual vertical center of a digit glyph relative to R_DrawString's top Y is:
+	*	(ascent - 0.5 * cap_height) = ~0.548 * pixel_height.
+	*	Aligning that visual center with (containerStartY + containerHeight * 0.5) centers the digits with the 48x48 icon.
+	**/
+	return containerStartY + ( containerHeight * 0.5 ) - ( static_cast<double>( HUD_ELEMENT_NUMBER_FONT_SIZE ) * 0.548 );
+}
 
-    // Convert value to string.
-	const std::string valueStr = std::to_string( value );
-	// Get the length of the string.
-	const int32_t valueStrLength = valueStr.length();
-	// Add 32 for each missing character, so we can right focus the numbers.
-    //const double centerX = w / 2.0;
-
-    // Calculate the width of the string.
-    const double valueStrWidth = valueStrLength * numberPicWidth;
-	// Returns X coordinate for next element after numbers are drawn.
-	const double nextXOffset = startXOffset + ( valueStrLength * numberPicWidth );
-
-    // Iterate over the string its characters.
-    for ( int32_t i = 0; i < valueStrLength; i++ ) {
-        // Get the character at the current index.
-        const char numberChar = valueStr[ i ];
-        // Convert the character to an integer.
-        const int32_t number = numberChar - '0';
-        // Make sure the number is in range.
-        if ( number < 0 || number > 9 ) {
-            continue; // Skip invalid characters.
-        }
-
-        // Calculate the X position for the number pic.
-        //double numberX = _centerX - ( valueStrWidth / 4. ) + ( i * numberPicWidth / 2 );
-        const double baseX = startXOffset;
-        const double numberX = baseX + ( i * numberPicWidth );// -( numberPicWidth / 2.0 );
-        // Draw the number pic.
-        //CLG_HUD_DrawNumberPic( numberX, centerY, number );
-        const qhandle_t numberPic = clg_hud_static.hud_icon_numbers[ number ];
-        clgi.R_DrawStretchPic( numberX, startY,
-            numberPicWidth, numberPicHeight, 
-            numberPic 
-		);    
+/**
+*	@brief	Measures the pixel width of a HUD element string using the large HUD numbers TTF font.
+*	@param	str					Null-terminated string to measure.
+*	@param	fallbackCharWidth	Fallback character width if TTF font is unavailable.
+*	@return	Total width of the string in HUD-scaled pixels.
+**/
+static const double CLG_HUD_GetWidthForElementString( const char *str, const double fallbackCharWidth ) {
+	/**
+	*	Sanity check: return zero width for empty strings.
+	**/
+	if ( !str || str[ 0 ] == '\0' ) {
+		return 0.0;
 	}
 
-	return nextXOffset; // Return the next X offset.
+	/**
+	*	Measure using the TrueType HUD number font if available; otherwise fall back to fixed width.
+	**/
+	const qhandle_t numFont = CLG_HUD_GetNumberFont();
+	if ( numFont > 0 && clgi.Font_StringWidthTTF != nullptr ) {
+		return static_cast<double>( clgi.Font_StringWidthTTF( numFont, str ) );
+	}
+
+	return static_cast<double>( strlen( str ) ) * fallbackCharWidth;
+}
+
+/**
+*	@brief	Calculates the pixel width of a numeric value rendered with the HUD number TTF font.
+*	@param	numberPicWidth	Fallback width per digit if TTF font is unavailable.
+*	@param	value			Integer value to measure.
+*	@return	Total width of the rendered number in HUD-scaled pixels.
+**/
+const double CLG_HUD_GetWidthForElementNumberValue( const double numberPicWidth, const int32_t value ) {
+	// Convert value to string and measure using TTF metrics.
+	const std::string valueStr = std::to_string( value );
+	return CLG_HUD_GetWidthForElementString( valueStr.c_str(), numberPicWidth );
+}
+
+/**
+*	@brief	Draws a string (such as numbers or the "/" separator) using the large HUD numbers TTF font.
+*	@param	startXOffset	Horizontal start coordinate.
+*	@param	startY			Vertical top coordinate for R_DrawString.
+*	@param	str				Null-terminated string to render.
+*	@return	Ending X coordinate after rendering the string.
+**/
+static const double CLG_HUD_DrawElementString( const double startXOffset, const double startY, const char *str ) {
+	/**
+	*	Sanity check: ensure valid non-empty string.
+	**/
+	if ( !str || str[ 0 ] == '\0' ) {
+		return startXOffset;
+	}
+
+	const qhandle_t numFont = CLG_HUD_GetNumberFont();
+	if ( numFont > 0 ) {
+		const int32_t endX = clgi.R_DrawString(
+			static_cast<int32_t>( Q_rint( startXOffset ) ),
+			static_cast<int32_t>( Q_rint( startY ) ),
+			0,
+			strlen( str ),
+			str,
+			numFont
+		);
+		return static_cast<double>( endX );
+	}
+
+	return startXOffset;
+}
+
+/**
+*	@brief	Draws the numeric value for a HUD element using TrueType font rendering (with sprite fallback).
+*	@param	startXOffset	Horizontal start coordinate.
+*	@param	startY			Vertical top coordinate.
+*	@param	w				Fallback width per digit sprite.
+*	@param	h				Fallback height per digit sprite.
+*	@param	value			Integer value to render.
+*	@return	Next X offset after the rendered digits.
+**/
+const double CLG_HUD_DrawElementNumberValue( const double &startXOffset, const double &startY, const double &w, const double &h, const int32_t value ) {
+	// Convert value to string.
+	const std::string valueStr = std::to_string( value );
+
+	/**
+	*	Render with the TrueType HUD number font when available.
+	**/
+	const qhandle_t numFont = CLG_HUD_GetNumberFont();
+	if ( numFont > 0 ) {
+		return CLG_HUD_DrawElementString( startXOffset, startY, valueStr.c_str() );
+	}
+
+	/**
+	*	Fallback: render with number sprites if TrueType font is unavailable.
+	**/
+	const double numberPicWidth = w;
+	const double numberPicHeight = h;
+	const int32_t valueStrLength = static_cast<int32_t>( valueStr.length() );
+	const double nextXOffset = startXOffset + ( valueStrLength * numberPicWidth );
+
+	// Iterate over the string characters.
+	for ( int32_t i = 0; i < valueStrLength; i++ ) {
+		const char numberChar = valueStr[ i ];
+		const int32_t number = numberChar - '0';
+		if ( number < 0 || number > 9 ) {
+			continue;
+		}
+
+		const double numberX = startXOffset + ( i * numberPicWidth );
+		const qhandle_t numberPic = clg_hud_static.hud_icon_numbers[ number ];
+		clgi.R_DrawStretchPic(
+			numberX, startY,
+			numberPicWidth, numberPicHeight,
+			numberPic
+		);
+	}
+
+	return nextXOffset;
 }
 
 /**
@@ -1104,16 +1200,21 @@ static void CLG_HUD_DrawHealthIndicators() {
 	double backGroundStartX = HUD_ELEMENT_OFFSET;
 	const double backGroundStartY = clgi.screen->hudScaledHeight - ( HUD_ELEMENT_OFFSET + HUD_ELEMENT_HEIGHT );
 
+	// Check if the TrueType HUD number font is active for vertical alignment.
+	const bool hasNumberFont = ( CLG_HUD_GetNumberFont() > 0 );
+
 	// Icon origin.
 	const double iconStartX = backGroundStartX + HUD_ELEMENT_PADDING;
 	const double iconStartY = backGroundStartY + HUD_ELEMENT_PADDING;
 
 	// Number digits origin (icon width 48 + 10 px padding).
 	const double numberStartX = iconStartX + 48.0 + 10.0;
-	const double numberStartY = backGroundStartY + 4.0;
+	const double numberStartY = hasNumberFont
+		? CLG_HUD_GetElementNumberDrawY( backGroundStartY, HUD_ELEMENT_HEIGHT )
+		: ( backGroundStartY + 4.0 );
 
 	// Width of the health container box based on digit count.
-	const double backGroundWidth = ( numberStartX - backGroundStartX ) + 10.0 + CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, currentHealth );
+	const double backGroundWidth = ( numberStartX - backGroundStartX ) + CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, currentHealth ) + HUD_ELEMENT_PADDING;
 
 	/**
 	*	Health Value Transition & Glow Pulse Detection:
@@ -1205,10 +1306,10 @@ static void CLG_HUD_DrawHealthIndicators() {
 
 	// Armor number digits origin.
 	const double armorNumberStartX = armorIconStartX + 48.0 + 10.0;
-	const double armorNumberStartY = backGroundStartY + 4.0;
+	const double armorNumberStartY = numberStartY;
 
 	// Width of armor container box based on digit count.
-	const double armorBackGroundWidth = ( armorNumberStartX - backGroundStartX ) + 10.0 + CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, currentArmor );
+	const double armorBackGroundWidth = ( armorNumberStartX - backGroundStartX ) + CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, currentArmor ) + HUD_ELEMENT_PADDING;
 
 	/**
 	*	Armor Value Transition & Glow Pulse Detection:
@@ -1315,23 +1416,33 @@ static void CLG_HUD_DrawAmmoIndicators() {
 	static constexpr double HUD_ELEMENT_NUMBERS_DEST_HEIGHT = 64.0;
 	static constexpr double HUD_ELEMENT_NUMBERS_DEST_WIDTH = 32.0;
 
-	// Calculate total width of ammo box: icon (48) + padding + clip digits + slash (32) + reserve digits.
-	double backGroundWidth = 48.0 + ( HUD_ELEMENT_PADDING * 2.0 ) + 8.0;
-	backGroundWidth += CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, currentClip );
-	backGroundWidth += HUD_ELEMENT_NUMBERS_DEST_WIDTH; // Slash "/" icon width.
-	backGroundWidth += CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, currentReserve );
+	// Check if the TrueType HUD number font is active.
+	const bool hasNumberFont = ( CLG_HUD_GetNumberFont() > 0 );
+
+	// Measure widths of clip digits, "/" separator, and reserve digits.
+	const double clipWidth = CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, currentClip );
+	const double slashWidth = hasNumberFont
+		? CLG_HUD_GetWidthForElementString( "/", HUD_ELEMENT_NUMBERS_DEST_WIDTH )
+		: HUD_ELEMENT_NUMBERS_DEST_WIDTH;
+	const double reserveWidth = CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, currentReserve );
+	const double ammoNumbersWidth = clipWidth + slashWidth + reserveWidth;
+
+	// Calculate total width of ammo box: left padding + (clip / reserve) + 10px gap + icon (48) + right padding.
+	const double backGroundWidth = HUD_ELEMENT_PADDING + ammoNumbersWidth + 10.0 + 48.0 + HUD_ELEMENT_PADDING;
 
 	// Anchor ammo box to the bottom-right corner of the HUD.
 	const double backGroundStartX = clgi.screen->hudScaledWidth - ( backGroundWidth + HUD_ELEMENT_OFFSET );
 	const double backGroundStartY = clgi.screen->hudScaledHeight - ( HUD_ELEMENT_OFFSET + HUD_ELEMENT_HEIGHT );
 
-	// Icon origin.
-	const double iconStartX = backGroundStartX + HUD_ELEMENT_PADDING;
-	const double iconStartY = backGroundStartY + HUD_ELEMENT_PADDING;
+	// Number digits origin (left side of the ammo container box).
+	double numberStartX = backGroundStartX + HUD_ELEMENT_PADDING;
+	const double numberStartY = hasNumberFont
+		? CLG_HUD_GetElementNumberDrawY( backGroundStartY, HUD_ELEMENT_HEIGHT )
+		: ( backGroundStartY + 4.0 );
 
-	// Number digits origin.
-	double numberStartX = iconStartX + 48.0 + 8.0;
-	const double numberStartY = backGroundStartY + 4.0;
+	// Ammo icon origin positioned at the rightmost area of the ammo container box.
+	const double iconStartX = backGroundStartX + backGroundWidth - ( HUD_ELEMENT_PADDING + 48.0 );
+	const double iconStartY = backGroundStartY + HUD_ELEMENT_PADDING;
 
 	/**
 	*	Ammo Value Transition & Glow Pulse Detection:
@@ -1385,18 +1496,6 @@ static void CLG_HUD_DrawAmmoIndicators() {
 	);
 
 	/**
-	*	Render Ammo Bullet Icon (hud_icon_ammo_pistol):
-	**/
-	clgi.R_SetColor( ammoColor );
-	clgi.R_SetAlpha( clgi.screen->hud_alpha );
-	clgi.R_SetScale( clgi.screen->hud_scale );
-	clgi.R_DrawStretchPic(
-		iconStartX, iconStartY,
-		48.0, 48.0,
-		ammoIcon
-	);
-
-	/**
 	*	Render Clip Ammo Digits:
 	**/
 	clgi.R_SetColor( ammoColor );
@@ -1411,24 +1510,28 @@ static void CLG_HUD_DrawAmmoIndicators() {
 	);
 
 	/**
-	*	Render Slash "/" Separator (hud_icon_slash):
+	*	Render Slash "/" Separator:
 	**/
-	numberStartX += CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, currentClip );
+	numberStartX += clipWidth;
 	clgi.R_SetColor( ammoColor );
 	clgi.R_SetAlpha( clgi.screen->hud_alpha );
 	clgi.R_SetScale( clgi.screen->hud_scale );
-	clgi.R_DrawStretchPic(
-		numberStartX,
-		numberStartY,
-		HUD_ELEMENT_NUMBERS_DEST_WIDTH,
-		HUD_ELEMENT_NUMBERS_DEST_HEIGHT,
-		clg_hud_static.hud_icon_slash
-	);
+	if ( hasNumberFont ) {
+		CLG_HUD_DrawElementString( numberStartX, numberStartY, "/" );
+	} else {
+		clgi.R_DrawStretchPic(
+			numberStartX,
+			numberStartY,
+			HUD_ELEMENT_NUMBERS_DEST_WIDTH,
+			HUD_ELEMENT_NUMBERS_DEST_HEIGHT,
+			clg_hud_static.hud_icon_slash
+		);
+	}
 
 	/**
 	*	Render Reserve Ammo Digits:
 	**/
-	numberStartX += HUD_ELEMENT_NUMBERS_DEST_WIDTH;
+	numberStartX += slashWidth;
 	clgi.R_SetColor( ammoColor );
 	clgi.R_SetAlpha( clgi.screen->hud_alpha );
 	clgi.R_SetScale( clgi.screen->hud_scale );
@@ -1438,6 +1541,18 @@ static void CLG_HUD_DrawAmmoIndicators() {
 		HUD_ELEMENT_NUMBERS_DEST_WIDTH,
 		HUD_ELEMENT_NUMBERS_DEST_HEIGHT,
 		currentReserve
+	);
+
+	/**
+	*	Render Ammo Bullet Icon at the Rightmost Area of the Element (hud_icon_ammo_pistol):
+	**/
+	clgi.R_SetColor( ammoColor );
+	clgi.R_SetAlpha( clgi.screen->hud_alpha );
+	clgi.R_SetScale( clgi.screen->hud_scale );
+	clgi.R_DrawStretchPic(
+		iconStartX, iconStartY,
+		48.0, 48.0,
+		ammoIcon
 	);
 
 	// Reset renderer color and alpha.

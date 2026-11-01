@@ -26,6 +26,11 @@ enum class sg_game_ui_menu_id : int64_t {
 	//! Menu to test with.
 	TEST,
 
+	//! Main menu (opened at boot time or when disconnected).
+	MAIN,
+	//! In-game escape menu (opened when pressing Escape while in-game).
+	GAME,
+
 	// Maximum number of menu IDs, must be last in the enum.
 	MAX_ID
 };

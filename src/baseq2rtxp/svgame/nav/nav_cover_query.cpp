@@ -12,15 +12,17 @@
 #include "nav_cover_query.h"
 #include "nav_cover_types.h"
 #include "nav_core.h"
+#include "nav_perf.h"
 #include "svgame/svg_local.h"
 #include "svgame/svg_utils.h"
 #include "svgame/svg_level_locals.h"
+#include "svgame/memory/svg_containers.h"
 #include <algorithm>
 #include <vector>
 #include <cmath>
 
 //! External reference to the global list of generated cover points.
-extern std::vector<nav_cover_point_t> g_nav_cover_points;
+extern svg_vector_t<nav_cover_point_t, TAG_SVGAME_NAVMESH> g_nav_cover_points;
 
 //! Spatial cell size in Quake units for tactical cover point spatial hashing.
 static constexpr float NAV_COVER_GRID_CELL_SIZE = 256.0f;
@@ -36,12 +38,12 @@ struct nav_cover_grid_t {
 	//! Grid row count.
 	int32_t height = 0;
 	//! Flattened 2D array of cover point indices per grid cell.
-	std::vector<std::vector<int32_t>> cells = {};
+	svg_vector_t<svg_vector_t<int32_t, TAG_SVGAME_NAVMESH>, TAG_SVGAME_NAVMESH> cells = {};
 
 	/**
 	*	@brief	Construct spatial grid from the current global cover points list.
 	**/
-	void Build( const std::vector<nav_cover_point_t> &points ) {
+	void Build( const svg_vector_t<nav_cover_point_t, TAG_SVGAME_NAVMESH> &points ) {
 		cells.clear();
 		width = 0;
 		height = 0;
@@ -82,7 +84,8 @@ struct nav_cover_grid_t {
 	/**
 	*	@brief	Collect candidate cover point indices within a 2D circle from the spatial grid.
 	**/
-	void QueryRadius( const Vector3 &center, const float radius, std::vector<int32_t> &out_indices ) const {
+	template <typename Container = std::vector<int32_t>>
+	void QueryRadius( const Vector3 &center, const float radius, Container &out_indices ) const {
 		out_indices.clear();
 		if ( cells.empty() || radius <= 0.0f ) {
 			return;
@@ -104,7 +107,8 @@ struct nav_cover_grid_t {
 	/**
 	*	@brief	Collect candidate cover point indices within a 2D circle from the spatial grid in Vector3DP double precision.
 	**/
-	void QueryRadius( const Vector3DP &center, const double radius, std::vector<int32_t> &out_indices ) const {
+	template <typename Container = std::vector<int32_t>>
+	void QueryRadius( const Vector3DP &center, const double radius, Container &out_indices ) const {
 		out_indices.clear();
 		if ( cells.empty() || radius <= 0.0 ) {
 			return;
@@ -141,7 +145,7 @@ struct nav_cover_grid_t {
 static nav_cover_grid_t s_cover_grid = {};
 
 //! List of currently claimed cover point indices for fast O(C) reservation queries.
-static std::vector<int32_t> s_active_claimed_cover_indices = {};
+static svg_vector_t<int32_t, TAG_SVGAME_NAVMESH> s_active_claimed_cover_indices = {};
 
 //! Candidate cover point record with precomputed tactical score.
 struct nav_cover_candidate_t {
@@ -150,9 +154,9 @@ struct nav_cover_candidate_t {
 };
 
 //! Persistent static buffer for broad-phase grid cover point candidate queries.
-static std::vector<int32_t> s_cover_grid_candidates;
+static svg_vector_t<int32_t, TAG_SVGAME_NAVMESH> s_cover_grid_candidates;
 //! Persistent static buffer for ranked tactical cover candidates.
-static std::vector<nav_cover_candidate_t> s_cover_candidates;
+static svg_vector_t<nav_cover_candidate_t, TAG_SVGAME_NAVMESH> s_cover_candidates;
 
 /**
 *	@brief		Build or rebuild the 2D spatial grid acceleration index for tactical cover points.
@@ -614,6 +618,7 @@ const bool Nav_FindCoverPoints( const Vector3DP &search_origin, const Vector3DP 
 	const Vector3DP &threat_forward,
 	const size_t max_results,
 	const bool require_engagement_los ) {
+	nav_perf_scope_t cover_scope( NAV_PERF_PHASE_COVER_SCORING_TRACES );
 	/**
 	*	Sanity checks: Ensure output pointer and cover points list are valid.
 	**/

@@ -12,6 +12,10 @@
 ********************************************************************/
 #pragma once
 
+#include "svgame/nav/nav_query.h"
+#include "svgame/nav/nav_actor_query.h"
+#include "svgame/nav/nav_identity.h"
+
 // Entity includes
 #include "svgame/entities/svg_base_edict.h"
 
@@ -21,6 +25,7 @@
 
 // Navigation
 #include "svgame/nav/nav_path.h"
+#include "svgame/nav/nav_steering.h"
 #include "svgame/nav/nav_cover_query.h"
 
 // Forward declarations.
@@ -69,7 +74,8 @@ static constexpr double MONSTER_NAV_MIN_TWO_AGENT_ABREAST_CLEARANCE = MONSTER_NA
 static constexpr double MONSTER_NAV_GENTLE_TURN_MIN_DOT = 0.866;
 
 //! Maximum allowed vertical elevation difference to final goal position to consider arrived.
-static constexpr double MONSTER_NAV_FINAL_GOAL_MAX_Z_DELTA = 32.0;
+//! A nearby XY goal on another tread is not arrival; allow only small native support/slope offsets.
+static constexpr double MONSTER_NAV_FINAL_GOAL_MAX_Z_DELTA = 6.0;
 
 //! Angular deviation threshold in degrees beyond which speed scaling begins decelerating into turns.
 static constexpr double MONSTER_NAV_CORNER_DECEL_THRESHOLD_DEG = 35.0;
@@ -222,8 +228,129 @@ struct svg_monster_base_t : public svg_base_edict_t {
 	std::vector<int32_t> navPath;
 	//! Cached string-pulled path in high-precision Vector3DP.
 	std::vector<Vector3DP> stringPulledPath;
-	//! Per-waypoint constraints that preserve mandatory stair approaches and crossings.
-	std::vector<bool> stringPulledWaypointForced;
+	//! Authoritative owned semantic obligations, supporting faces and callback state per route point.
+	svg_vector_t<svg_nav_waypoint_t, TAG_SVGAME_NAVMESH> navigationWaypoints;
+	//! Transient slot incarnation changes on construction/reset independently of saved spawn_count.
+	uint64_t navigationIncarnation = Nav_IssueIdentityRevisionMainThread();
+	//! Behavioral revision invalidated before explicit state changes or route cancellation.
+	uint64_t navigationStateRevision = 0;
+	//! Actor and publication identity accepted with the current native route.
+	nav_query_identity_t navigationAcceptedIdentity;
+	//! Request-owned diagnostics copied on route completion for actor-local inspection.
+	nav_path_diagnostics_t navigationDiagnostics;
+	//! Exclusive owner-side workspaces retain warm capacities without sharing mutable query scratch.
+	svg_nav_graph_workspace_t navigationGraphWorkspace;
+	//! Native route scratch is transient, omitted from save descriptors and never used off the owner.
+	svg_nav_route_context_t navigationRouteContext;
+	/**
+	*	@brief	Validate every actor/publication revision before installing a copied reply.
+	**/
+	bool SVG_Nav_IsIdentityCurrent( const nav_query_identity_t &identity ) const;
+	/**
+	*	@brief	Capture a pointer-free actor/order/publication identity on the owner thread.
+	**/
+	nav_query_identity_t SVG_Nav_CaptureIdentity();
+	/**
+	*	@brief	Owner-visible request lifecycle, distinct from physical route arrival.
+	**/
+	using NavigationQueryState = nav_actor_query_state_t;
+	//! Pending/terminal status is transient and never restored from save data.
+	NavigationQueryState navigationQueryState = NavigationQueryState::Idle;
+	//! Monotonic timestamp immediately before the latest actual worker submission attempt.
+	uint64_t navigationSubmittedNs = 0;
+	//! Actual owner submission tick retained for independently asserted deterministic delivery gates.
+	uint64_t navigationSubmittedTick = 0;
+	//! Transport's earliest eligible owner tick, copied at submission rather than inferred from first capture.
+	uint64_t navigationEarliestDeliveryTick = 0;
+	//! Reader solve boundaries copied by the owner from a matched completion lease.
+	uint64_t navigationGraphStartNs = 0, navigationGraphFinishNs = 0;
+	//! Submission identity owning the timing fields; synchronous requests cannot reuse them.
+	uint64_t navigationTimingSequence = 0;
+	//! Timing namespace prevents a wrapped sequence from being mistaken for an earlier submission.
+	uint64_t navigationTimingEpoch = 0;
+	//! Last timed request whose commit or terminal disposition has already been counted.
+	uint64_t navigationTerminalCountedSequence = 0;
+	/**
+	*	@brief	Set a terminal query state and count its latest worker disposition exactly once.
+	*	@param	state	NoRoute, Stale, Cancelled or ResourceLimited terminal disposition.
+	*	@param	cause	Explicit owner-side attachment cause; never changes state or acceptance.
+	*	@note	Only the currently timed actual worker submission contributes to terminal metrics.
+	**/
+	void SVG_Nav_SetQueryTerminalState( const NavigationQueryState state,
+		const nav_actor_terminal_cause_t cause = nav_actor_terminal_cause_t::Unspecified );
+	//! Native policy and original target retained exclusively on the owner for the latest request.
+	nav_path_policy_t navigationPendingPolicy;
+	//! Physical limits accepted with the installed route, independent of a pending replacement.
+	nav_path_policy_t navigationCommittedPolicy;
+	Vector3 navigationPendingTarget = {};
+	//! Submission reason retained for identical synchronous/worker performance accounting.
+	int32_t navigationPendingReason = 0;
+	/**
+	*	@brief	Validate ownership of an installed route while a replacement goal is pending.
+	**/
+	bool SVG_Nav_IsCommittedRouteUsable() const;
+	/**
+	*	@brief	Consume copied terminal graph data after releasing the transport lease.
+	**/
+	void SVG_Nav_AcceptWorkerResult();
+	//! Latest actual submission sequence; an older same-goal reply cannot replace a newer submission.
+	uint64_t navigationRequestSequence = 0;
+	//! Monotonic identity of accepted route installations and explicit route resets.
+	uint64_t navigationRouteRevision = 0;
+	//! Monotonic identity of requested target changes, separate from installed geometry.
+	uint64_t navigationGoalRevision = 0;
+	//! Goal identity accepted by the current route; obsolete targets cannot release waypoints.
+	uint64_t navigationAcceptedGoalRevision = 0;
+	//! Requested feet-space goal used to detect even small obsolete target changes.
+	Vector3DP navigationRequestedGoal = {};
+	//! Whether a requested target identity has been initialized.
+	bool navigationRequestedGoalValid = false;
+	//! Mesh generation of the accepted semantic route and supporting faces.
+	uint64_t waypointFacesMeshGeneration = 0;
+	//! Topology revision under which the currently committed route was accepted.
+	uint64_t waypointTopologyRevision = 0;
+	//! Prevent repeated final-goal callbacks while the accepted route remains installed.
+	bool finalWaypointEventFired = false;
+	//! Last physical command validation for diagnosis; contains no borrowed scratch pointers.
+	svg_nav_movement_result_t lastMovementValidation;
+	//! Complete static route installation result, including a rejected retained link.
+	nav_route_validation_t lastRouteValidation;
+	//! Last strict boundary result, separate from native collision/support validation.
+	nav_segment_clearance_t lastGeometricValidation;
+	//! Total candidate-native sweeps during this grounded navigation update.
+	uint32_t navigationValidationTraceCount = 0;
+	//! Hold an unsafe command until a route replan succeeds rather than repeatedly inching forward.
+	bool navigationCommandRejected = false;
+	//! Structured shared release reason and per-frame advancement budget.
+	svg_nav_release_t lastWaypointRelease;
+	uint64_t navigationReleaseFrame = UINT64_MAX;
+	uint32_t navigationReleasesThisFrame = 0;
+	//! Callback audit is scoped to one tick and stores at most two releases plus one final event.
+	uint64_t navigationEventFrame = UINT64_MAX;
+	//! Fired route/index pairs are copied before invoking gameplay code, which may replace navigation.
+	std::array<uint64_t, 3> navigationEventRoutes = {};
+	std::array<uint32_t, 3> navigationEventIndices = {};
+	std::array<bool, 3> navigationEventFinal = {};
+	//! Number of valid callback audit entries for navigationEventFrame.
+	uint32_t navigationEventCount = 0;
+	//! Bounded named steering stages and final candidate decisions.
+	svg_nav_steering_t navigationSteering;
+	//! Explicit fixture speed multiplier; ordinary monsters retain 1.0.
+	double navigationFixtureSpeedScale = 1.0;
+	//! Explicit console fixture bounds survive standing-animation selection; ordinary actors keep their authored hull.
+	bool navigationFixtureProfile = false;
+	//! Validated native fixture minima and maxima in bbox-origin coordinates.
+	Vector3 navigationFixtureMins, navigationFixtureMaxs;
+	//! Opt-in causal mode: 0 normal, 1 geometry hold, 2 direct frozen, 3 blend frozen, 4 separation frozen, 5 normal replan.
+	uint32_t navigationFixtureMode = 0;
+	//! Currently resolved standing polygon face.
+	int32_t currentStandingFace = -1;
+	//! Server time when currentStandingFace was last resolved.
+	QMTime lastStandingFaceResolveTime = -1_ms;
+	//! Snapshot marks of corridor faces for O(1) hysteresis lookup in OnNavEvaluateEdgeCost.
+	std::vector<uint32_t> corridorMembershipMarks;
+	//! Stamp identifying active corridor membership snapshot.
+	uint32_t corridorMembershipStamp = 0;
 	//! Current position in the navPath vector.
 	size_t pathPos = 0;
 	//! Current position in the stringPulledPath vector.
@@ -273,10 +400,11 @@ struct svg_monster_base_t : public svg_base_edict_t {
 	/**
 	*	@brief	Path evaluation result states.
 	**/
-	enum class PathComputeResult {
+	enum class PathComputeResult : uint8_t {
 		Failed,                 // Path generation failed completely
 		ReusedCached,           // Reused the existing valid path (debounced)
-		NewPathGenerated        // Generated a brand new path successfully
+		NewPathGenerated,       // Generated a brand new path successfully
+		Pending                 // Request is outstanding; this is neither failure nor arrival
 	};
 
 	/**
@@ -301,6 +429,12 @@ struct svg_monster_base_t : public svg_base_edict_t {
 	**/
 	const bool ShouldRecalcPath( const Vector3 &pos );
 	/**
+	*	@brief	Resolve current standing polygon face with local polygon and topological cache before KD-leaf lookup.
+	*	@param	myFeetDP	Agent feet-origin position in Vector3DP.
+	*	@return	Resolved face index or -1 if no face found.
+	**/
+	int32_t ResolveCurrentFace( const Vector3DP &myFeetDP );
+	/**
 	*	@brief	Find the current KD-Tree polygon the entity is standing on.
 	**/
 	const int32_t FindCurrentPoly();
@@ -310,6 +444,48 @@ struct svg_monster_base_t : public svg_base_edict_t {
 	*	@param	force	When true, bypasses debouncing and recalculates immediately.
 	**/
 	PathComputeResult ComputePathTo( const Vector3 &target, const bool force = false );
+	/**
+	*	@brief	Shared owner-only funnel, native proof and revision-checked route installation.
+	**/
+	PathComputeResult SVG_Nav_InstallCorridor( svg_nav_result_t &candidate, const Vector3DP &feet,
+		const Vector3DP &goal, const Vector3 &target, const nav_path_policy_t &policy, const int32_t reason );
+
+	/**
+	*	@brief	Read mandatory status only from the authoritative semantic route contract.
+	*	@param	index	Waypoint index in the accepted route revision.
+	*	@return	True for a mandatory intermediate obligation.
+	**/
+	bool SVG_Nav_IsWaypointMandatory( const size_t index ) const;
+	/**
+	*	@brief	Dispatch a waypoint callback once within its accepted route revision.
+	*	@param	index	Reached point index; rejected proposals never call this helper.
+	**/
+	void SVG_Nav_FireWaypoint( const size_t index );
+	/**
+	*	@brief	Evaluate one shared release contract with structured reason and owned witnesses.
+	*	@param	index	Proposed intermediate waypoint.
+	*	@param	progressEligible	Radius/approach-plane proposal.
+	*	@return	Owned decision; clear permits one commit within the two-per-frame budget.
+	**/
+	svg_nav_release_t SVG_Nav_QueryWaypointRelease( const size_t index, const bool progressEligible );
+	/**
+	*	@brief	Store the shared release decision and consume its budget only on success.
+	*	@param	index	Proposed retained constraint.
+	*	@param	progressEligible	Progress proposal, never itself authorization.
+	*	@return	True when geometry, native support, revisions and budget authorize release.
+	**/
+	bool SVG_Nav_CanAdvanceWaypoint( const size_t index, const bool progressEligible );
+	/**
+	*	@brief	Return the shared physical arrival radius for this actor's current crowd or solo order.
+	*	@return	Radius used by both path-following and crowd station keeping.
+	*	@note	Serialized staging retains its tighter queue-cell radius; native radius affects small actors.
+	**/
+	double GetNavigationArrivalRadius() const;
+	/**
+	*	@brief	Commit the final event from realized supported arrival before a crowd can end its order.
+	*	@note	Requires current accepted geometry and all intermediate obligations already released.
+	**/
+	void SVG_Nav_CheckFinalArrival();
 	/**
 	*	@brief	Progress along navigation path, advance active segments, and compute lookahead steering direction.
 	*	@param	finalGoal		Destination goal in world space.
@@ -402,6 +578,13 @@ struct svg_monster_base_t : public svg_base_edict_t {
 	*	@return	Adjusted edge traversal cost.
 	**/
 	virtual double OnNavEvaluateEdgeCost( const int32_t fromFaceIdx, const int32_t toFaceIdx, const nav_halfedge_t &he, const double baseCost );
+	/**
+	*	@brief	Declare a pure copied representation of this dynamic class's edge-cost policy.
+	*	@param	cost	Scalar preferences copied into an owned request before solving.
+	*	@return	False keeps an unknown override explicitly synchronous; never infer purity from its base class.
+	*	@note	Subclasses must opt in and represent all virtual edge-cost behavior, including current state.
+	**/
+	virtual bool BuildNavigationCostSnapshot( nav_query_cost_policy_t &cost ) const;
 	/**
 	*	@brief	Static bridge dispatching nav_path_policy_t edge cost callbacks to monster instances.
 	**/

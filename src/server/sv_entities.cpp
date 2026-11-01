@@ -360,11 +360,15 @@ static inline const bool SV_SendClientIDSkipCheck( sv_edict_t *ent, const int32_
             | SVF_SENDCLIENT_BITMASK_IDS ) )
         ) {
         //Com_Error( ERR_DROP, "SV_SendClientIDSkipCheck: Entity(#%d) has both SVF_NOCLIENT + SVF_SENDCLIENT_* and/or SVF_NO_CULL flags set.\n", ent->s.number );
+        // Only Debug builds own developer diagnostics; release builds retain the invalid-flags error.
+#if USE_DEBUG
         if ( developer->integer ) {
             Com_DPrintf( "SV_SendClientIDSkipCheck: Entity(#%d) has both SVF_NOCLIENT + SVF_SENDCLIENT_* and/or SVF_NO_CULL flags set.\n", ent->s.number );
-        } else {
-            Com_Error( ERR_DROP, "SV_SendClientIDSkipCheck: Entity(#%d) has both SVF_NOCLIENT + SVF_SENDCLIENT_* and/or SVF_NO_CULL flags set.\n", ent->s.number );
+            // Debug diagnostic mode omits the invalid entity without entering the fatal release path.
+            return true;
         }
+#endif
+        Com_Error( ERR_DROP, "SV_SendClientIDSkipCheck: Entity(#%d) has both SVF_NOCLIENT + SVF_SENDCLIENT_* and/or SVF_NO_CULL flags set.\n", ent->s.number );
         return true;
     }
 

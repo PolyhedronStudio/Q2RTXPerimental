@@ -136,3 +136,8 @@ baseq2rtxp/maps/*.bsp
 /markdowns/muffinator-research
 /markdowns/archived
 /dedicated_mp_debug_dm_test.bat
+/baseq2rtxp/m4fixtures
+*.mtsdf
+/scripts/tests
+/scripts/__pycache__
+/tests/navigation

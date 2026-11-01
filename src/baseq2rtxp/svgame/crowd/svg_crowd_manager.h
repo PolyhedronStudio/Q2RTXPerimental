@@ -16,6 +16,7 @@
 #include "svgame/crowd/svg_crowd_formations.h"
 #include "svgame/nav/nav_path.h"
 #include "svgame/nav/nav_cover_query.h"
+#include "svgame/memory/svg_zone_allocator.h"
 #include "shared/math/qm_vector3_dp.h"
 
 #include <vector>
@@ -49,6 +50,8 @@ enum class crowd_ingress_phase_t : uint8_t {
 struct svg_crowd_group_t {
 	//! Crowd identifier (0 = neutral NPC crowd, > 0 = tactical squad).
 	int32_t crowdID = -1;
+	//! Monotonic identity of issued crowd orders, including synchronous retargeting.
+	uint64_t orderRevision = 0;
 	//! Active chase/formation style.
 	crowd_chase_target_type_t style = crowd_chase_target_type_t::CROWD_STYLE_ARROW;
 	//! Configuration parameters for spacing, tactical cover, etc.
@@ -57,8 +60,12 @@ struct svg_crowd_group_t {
 	Vector3DP destinationOrigin = { 0.0, 0.0, 0.0 };
 	//! Entity number of the target being followed (ENTITYNUM_NONE if navigating to static destinationOrigin).
 	int32_t targetEntityNumber = ENTITYNUM_NONE;
+	//! Pool lifetime captured with the followed target number; a reused slot cannot inherit the order.
+	int32_t targetSpawnCount = -1;
 	//! Entity number of the designated squad leader establishing the formation path (ENTITYNUM_NONE if unassigned).
 	int32_t leaderEntityNumber = ENTITYNUM_NONE;
+	//! Pool lifetime captured with the designated leader number.
+	int32_t leaderSpawnCount = -1;
 	//! Last recorded origin of targetEntity (used to detect when to rebuild formation).
 	Vector3DP lastTargetEntityOrigin = { 0.0, 0.0, 0.0 };
 	//! Forward heading in degrees used for the active formation orientation.
@@ -79,12 +86,43 @@ struct svg_crowd_group_t {
 	double ingressPortalHalfWidth = 0.0;
 	//! Frozen front-to-back entity order for the current doorway reservation queue.
 	std::vector<int32_t> ingressQueueEntityNumbers = {};
+	//! Incarnation of each immutable ingress owner; swaps carry this key with the entity number.
+	svg_vector_t<uint64_t, TAG_SVGAME_NAVMESH> ingressQueueIncarnations = {};
+	//! Pool spawn counts paired with queued entity numbers; a reused slot cannot inherit ownership.
+	svg_vector_t<int32_t, TAG_SVGAME_NAVMESH> ingressQueueSpawnCounts = {};
 	//! Exterior staging position indexed directly by ingress queue rank.
 	std::vector<Vector3DP> ingressStagingPositions = {};
+	//! Owned static native routes from each exterior cell to its immediately preceding cell.
+	std::vector<std::vector<Vector3DP>> ingressStagingTransitRoutes = {};
 	//! Immutable geometric row for plotting; ownership recovery may reorder the reservation records.
 	std::vector<Vector3DP> ingressStagingLine = {};
 	//! O(1) index of the member currently owning the doorway reservation.
 	int32_t ingressQueueHead = 0;
+	//! Adjacent exterior cell currently approached by the active head; admission requires cell zero.
+	int32_t ingressHeadStagingCell = 0;
+	/**
+	*	Reversible approach reservations; final seats and queue ranks are independent.
+	**/
+	struct ingress_yield_t {
+		//! Follower holding outside the current transit.
+		int32_t entityNumber = ENTITYNUM_NONE;
+		//! Incarnation preventing entity-slot reuse from inheriting this claim.
+		uint64_t incarnation = 0;
+		//! Pool lifetime of this follower, checked before restoring any saved goal.
+		int32_t spawnCount = 0;
+		//! Owning head rank; completion releases this holding obligation.
+		int32_t head = -1;
+		//! Original staging destination restored after that head completes admission.
+		Vector3 resumeGoal = {};
+		//! Supported holding destination reserved against other temporary claims.
+		Vector3 holdingGoal = {};
+		//! Full native hull radius used for holding-point separation.
+		double radius = 0.0;
+	};
+	//! At most one claim per queued follower; storage is reserved during order construction.
+	svg_vector_t<ingress_yield_t, TAG_SVGAME_NAVMESH> ingressYieldClaims = {};
+	//! Earliest retry for the bounded native holding-point probes.
+	QMTime ingressYieldNextProbeTime = 0_ms;
 	//! O(1) cursor retained for ingress phase bookkeeping while admission is queue-head gated.
 	int32_t ingressMarshalCursor = 0;
 	//! Server timestamp when the current queue head began waiting for its staging cell or final room slot.
@@ -113,6 +151,18 @@ struct svg_crowd_group_t {
 	double egressPortalHalfWidth = 0.0;
 	//! Ordered entity numbers of crowd members queued for egress (closest to exit door first).
 	std::vector<int32_t> egressQueueEntityNumbers = {};
+	//! Identity namespaces owning the physical queues; revision rollover cancels these reservations.
+	uint64_t ingressQueueIdentityEpoch = 0;
+	//! Identity namespace owning origin aperture clearance and its incarnation records.
+	uint64_t egressQueueIdentityEpoch = 0;
+	//! Incarnation of each frozen egress owner; recycled entity slots cannot inherit clearance.
+	svg_vector_t<uint64_t, TAG_SVGAME_NAVMESH> egressQueueIncarnations = {};
+	//! Pool spawn counts paired with queued entity numbers; a reused slot cannot inherit ownership.
+	svg_vector_t<int32_t, TAG_SVGAME_NAVMESH> egressQueueSpawnCounts = {};
+	//! Mesh publication and topology that own this physical aperture reservation.
+	uint64_t egressMeshGeneration = 0;
+	//! Dynamic topology revision that owns the retained aperture geometry.
+	uint64_t egressTopologyRevision = 0;
 	//! O(1) index of the member currently at the head of the egress release queue.
 	int32_t egressQueueHead = 0;
 	//! Server timestamp when the current queue head began waiting to clear the exit doorway.
@@ -252,6 +302,13 @@ void SVG_Crowd_GetCrowdMembers( const int32_t crowdID, std::vector<int32_t> &out
 void SVG_Crowd_GetCrowdMembers( const int32_t crowdID, std::vector<svg_base_edict_t*> &outMembers );
 
 /**
+*	@brief	Retrieve living member edicts of a specific crowd (zone-allocated vector overload).
+*	@param	crowdID		Crowd identifier.
+*	@param	outMembers	[out] Vector to receive member entity pointers.
+**/
+void SVG_Crowd_GetCrowdMembers( const int32_t crowdID, svg_vector_t<svg_base_edict_t*, TAG_SVGAME_NAVMESH> &outMembers );
+
+/**
 *	@brief	Update the formation style of an active crowd group.
 *	@param	crowdID	Crowd identifier.
 *	@param	style	New formation style.
@@ -312,6 +369,53 @@ bool SVG_Crowd_ComputeTeammateFollowSpeedScale( const int32_t entityNumber, cons
 void SVG_Crowd_OptimizeSlotAssignments( svg_crowd_group_t &group, const std::vector<svg_base_edict_t*> &members );
 
 /**
+*	@brief	Dynamically optimize slot assignments among crowd members to eliminate crossing trajectories (zone-allocated overload).
+*	@param	group	Active crowd coordination group.
+*	@param	members	List of active squad member entities.
+**/
+void SVG_Crowd_OptimizeSlotAssignments( svg_crowd_group_t &group, const svg_vector_t<svg_base_edict_t*, TAG_SVGAME_NAVMESH> &members );
+
+/**
 *	@brief	Render debug visualization for all active crowd groups and formation slots.
 **/
 void SVG_Crowd_DebugDraw( void );
+
+/**
+*	@brief	Check the current pool/navigation lifetime against the physically cleared origin queue prefix.
+*	@param	member	Actor whose clearance token is queried.
+*	@return	True only while the same live queued owner has cleared an active origin aperture.
+*	@note	Read-only, constant-time and owner-thread only; entity number alone cannot grant clearance.
+**/
+bool SVG_Crowd_HasClearedEgress( const svg_base_edict_t *member );
+
+/**
+*	@brief	Test current ingress-head ownership using the retained pool and navigation lifetime.
+*	@param	member	Potential current staging head.
+*	@return	True only for the active namespace's exact queued owner.
+*	@note	Read-only owner-thread lookup; a matching entity number or rank alone is insufficient.
+**/
+bool SVG_Crowd_IsCurrentIngressHead( const svg_base_edict_t *member );
+
+/**
+*	@brief	Test exact current holding-mover ownership using pool lifetime, incarnation and unchanged intent.
+*	@param	member	Potential follower carrying a reversible holding assignment.
+*	@return	True only for a current active-head claim and the exact queued owner.
+*	@note	Read-only bounded lookup; no admission, rank, role or goal changes occur.
+**/
+bool SVG_Crowd_IsCurrentApproachYieldMember( const svg_base_edict_t *member );
+
+/**
+*	@brief	Test whether the active approach head must wait for its current follower holding move.
+*	@param	member	Current potential ingress owner.
+*	@return	True until the exact pool/incarnation-owned holding assignment physically arrives.
+*	@note	Read-only bounded lookup; stale claims cannot pause a replacement actor.
+**/
+bool SVG_Crowd_IsWaitingForApproachYield( const svg_base_edict_t *member );
+
+/**
+*	@brief	Compute the exact full-footprint depth required to clear the origin aperture.
+*	@param	member	Live native hull whose footprint is retained.
+*	@return	Required outward center depth, or infinity for a missing actor.
+*	@note	Uses the existing clearance scale; no radius or release policy is reduced.
+**/
+double SVG_Crowd_GetEgressClearanceDepth( const svg_base_edict_t *member );

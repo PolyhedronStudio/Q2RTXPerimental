@@ -183,7 +183,7 @@ void Key_SetDest( keydest_t dest ) {
 	int diff;
 
 // if not connected, console or menu should be up
-	if ( cls.state < ca_active && !( dest & ( KEY_MENU | KEY_CONSOLE ) ) ) {
+	if ( cls.state < ca_active && !( dest & ( KEY_MENU | KEY_CONSOLE | KEY_GAME_UI ) ) ) {
 		dest = static_cast< keydest_t >( dest | KEY_CONSOLE ); // WID: C++20: Used to be dest 'dest |= KEY_CONSOLE'.
 	}
 
@@ -340,6 +340,54 @@ int Key_EnumBindings(int key, const char *binding)
     return -1;
 }
 
+/**
+*	@brief	Detect the legacy TAB scoreboard binding that still uses plain "score".
+*	@param	key	Engine key code from the input backend.
+*	@param	binding	Resolved binding text for the key.
+*	@return	True when this key should behave like hold-to-show scoreboard input.
+**/
+static const bool Key_IsLegacyScoreboardBinding( const int32_t key, const char *binding ) {
+    return key == K_TAB && binding != nullptr && !Q_stricmp( binding, "score" );
+}
+
+/**
+*	@brief	Detect legacy weapon slot bindings (e.g. 1 "use fists", 2 "use pistol").
+*	@param	key	Engine key code.
+*	@param	binding	Resolved binding text.
+*	@return	True when this key matches legacy weapon equip bindings.
+**/
+static const bool Key_IsLegacyWeaponSlotBinding( const int32_t key, const char *binding ) {
+    if ( key == '1' && binding != nullptr && !Q_stricmp( binding, "use fists" ) ) {
+        return true;
+    }
+    if ( key == '2' && binding != nullptr && !Q_stricmp( binding, "use pistol" ) ) {
+        return true;
+    }
+    return false;
+}
+
+/**
+*	@brief	Normalize legacy bindings before storing them in the active key table.
+*	@param	key	Engine key code the binding belongs to.
+*	@param	binding	Binding text supplied by config execution or the bind command.
+*	@return	Binding text that should be persisted in memory for this key.
+*	@note	This upgrades legacy TAB scoreboard configs from plain "score" to "+score"
+*			and legacy 1/2 bindings ("use fists"/"use pistol") to "+wpbar_slot1"/"+wpbar_slot2".
+**/
+static const char *Key_NormalizeBindingForStorage( const int32_t key, const char *binding ) {
+    if ( Key_IsLegacyScoreboardBinding( key, binding ) ) {
+        return "+score";
+    }
+    if ( key == '1' && binding != nullptr && !Q_stricmp( binding, "use fists" ) ) {
+        return "+wpbar_slot1";
+    }
+    if ( key == '2' && binding != nullptr && !Q_stricmp( binding, "use pistol" ) ) {
+        return "+wpbar_slot2";
+    }
+
+    return binding;
+}
+
 /*
 ===================
 Key_SetBinding
@@ -356,7 +404,7 @@ void Key_SetBinding(int keynum, const char *binding)
     }
 
 // allocate memory for new binding
-    keybindings[keynum] = Z_CopyString(binding);
+    keybindings[keynum] = Z_CopyString(Key_NormalizeBindingForStorage(keynum, binding));
 }
 
 static void Key_Name_g(genctx_t *ctx)
@@ -683,34 +731,7 @@ static const bool Key_ShouldDispatchBinding( const int32_t key, const bool down 
         ( !down && Q_IsBitSet( buttondown, key ) );
 }
 
-/**
-*	@brief	Detect the legacy TAB scoreboard binding that still uses plain "score".
-*	@param	key	Engine key code from the input backend.
-*	@param	binding	Resolved binding text for the key.
-*	@return	True when this key should behave like hold-to-show scoreboard input.
-*	@note	Older configs may still bind TAB to "score" instead of "+score". Treating that
-*			combination as a held button preserves the intended modern scoreboard behavior
-*			without requiring the user to manually rewrite existing configs.
-**/
-static const bool Key_IsLegacyScoreboardBinding( const int32_t key, const char *binding ) {
-    return key == K_TAB && binding != nullptr && !Q_stricmp( binding, "score" );
-}
 
-/**
-*	@brief	Normalize legacy bindings before storing them in the active key table.
-*	@param	key	Engine key code the binding belongs to.
-*	@param	binding	Binding text supplied by config execution or the bind command.
-*	@return	Binding text that should be persisted in memory for this key.
-*	@note	This upgrades legacy TAB scoreboard configs from plain "score" to the explicit
-*			+score hold binding so later config writes preserve the corrected behavior.
-**/
-static const char *Key_NormalizeBindingForStorage( const int32_t key, const char *binding ) {
-    if ( Key_IsLegacyScoreboardBinding( key, binding ) ) {
-        return "+score";
-    }
-
-    return binding;
-}
 
 /**
 *	@brief	Dispatch one key event through the command binding interpreter.
@@ -882,7 +903,7 @@ void Key_Event(unsigned key, bool down, unsigned time)
         }
 
         if ( consoleActive ) {
-            if ( cls.state < ca_active && !( cls.key_dest & KEY_MENU ) ) {
+            if ( cls.state < ca_active && !( cls.key_dest & ( KEY_MENU | KEY_GAME_UI ) ) ) {
 				UI_OpenMenu( UIMENU_MAIN );
 			} else {
 				Con_Close( true );
@@ -893,7 +914,11 @@ void Key_Event(unsigned key, bool down, unsigned time)
             Key_Message(key);
         } else if ( gameUIActive ) {
             if ( clge ) {
-                clge->GameUI_CloseMenu();
+                if ( clge->GameUI_PopMenu ) {
+                    clge->GameUI_PopMenu();
+                } else {
+                    clge->GameUI_CloseMenu();
+                }
             }
         } else if (cls.state >= ca_active) {
             UI_OpenMenu(UIMENU_GAME);

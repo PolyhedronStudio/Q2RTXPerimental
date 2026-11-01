@@ -15,9 +15,17 @@
 #include <cstdlib>
 
 #include "svgame/nav/nav_generate.h"
+#include "svgame/nav/nav_thread.h"
+#include "svgame/nav/nav_worker.h"
+#include "svgame/nav/nav_actor_fixture.h"
 #include "svgame/nav/nav_debug.h"
 #include "svgame/nav/nav_persistence.h"
+#include "svgame/nav/nav_perf.h"
+#include "svgame/nav/nav_corner_capture.h"
+#include "svgame/nav/nav_query.h"
 #include "svgame/crowd/svg_crowd_commands.h"
+#include "svgame/memory/svg_zone_allocator.h"
+#include "svgame/memory/svg_containers_test.h"
 
 
 
@@ -331,6 +339,27 @@ void SVG_ServerCommand(void) {
     char    *cmd;
 
     cmd = gi.argv(1);
+    /**
+    *	Exclude owner-side nav and crowd readers while the generation worker
+    *	mutates the live mesh. Status is a synchronized copy; clear and load
+    *	drain the worker before touching geometry.
+    **/
+    const bool is_nav_command = Q_stricmpn( cmd, "nav_", 4 ) == 0;
+    const bool is_crowd_command = Q_stricmpn( cmd, "crowd_", 6 ) == 0 ||
+        Q_stricmp( cmd, "move_crowd" ) == 0 || Q_stricmp( cmd, "movecrowd" ) == 0 ||
+        Q_stricmp( cmd, "follow_crowd" ) == 0 || Q_stricmp( cmd, "followcrowd" ) == 0 ||
+        Q_stricmp( cmd, "check_ingress" ) == 0;
+    const bool is_generation_control =
+        Q_stricmp( cmd, "nav_status" ) == 0 ||
+        Q_stricmp( cmd, "nav_wait" ) == 0 ||
+        Q_stricmp( cmd, "nav_generate" ) == 0 ||
+        Q_stricmp( cmd, "nav_clear" ) == 0 ||
+        Q_stricmp( cmd, "nav_load" ) == 0;
+    if ( Nav_GetGenerationProgress().is_generating &&
+         ( is_nav_command || is_crowd_command ) && !is_generation_control ) {
+        gi.dprintf( "Navigation command '%s' is unavailable while generation is running.\n", cmd );
+        return;
+    }
     if ( Q_stricmp( cmd, "test" ) == 0 )
         ServerCommand_Test_f();
     else if ( Q_stricmp( cmd, "brush_info" ) == 0 )
@@ -339,6 +368,16 @@ void SVG_ServerCommand(void) {
         Nav_GenerateCommand();
     else if ( Q_stricmp( cmd, "nav_status" ) == 0 )
         Nav_StatusCommand();
+    else if ( Q_stricmp( cmd, "nav_wait" ) == 0 ) {
+        // The diagnostic barrier waits for a complete generation before the next scripted probe.
+        Nav_DrainAsyncGenerationMainThread();
+		// Diagnostic setup explicitly waits for bounded preparation batches instead of a simulated timer.
+		while ( !Nav_PrepareQueryInputsMainThread() ) {
+			// Each batch is bounded; ordinary gameplay advances the same preparation once per tick.
+		}
+
+        Nav_StatusCommand();
+    }
     else if ( Q_stricmp( cmd, "nav_dbg_goal_a" ) == 0 )
         Nav_DebugSetGoalACommand();
     else if ( Q_stricmp( cmd, "nav_dbg_goal_b" ) == 0 )
@@ -355,10 +394,74 @@ void SVG_ServerCommand(void) {
     }
     else if ( Q_stricmp( cmd, "nav_clear" ) == 0 )
         Nav_Clear();
-	//else if ( Q_stricmp( cmd, "nav_query_stats" ) == 0 )
-	//       ServerCommand_NavQueryStats_f();
-	//   else if ( Q_stricmp( cmd, "nav_bench_path" ) == 0 )
-	//       ServerCommand_NavBenchPath_f();
+	// Copied-snapshot lifetime tests remain explicit owner-thread diagnostics.
+	else if ( Q_stricmp( cmd, "nav_actor_fixture" ) == 0 ) {
+		Nav_Actor_FixtureCommand();
+	}
+	else if ( Q_stricmp( cmd, "nav_worker_queue" ) == 0 ) {
+		Nav_QueryWorkerQueueCommand();
+	}
+	else if ( Q_stricmp( cmd, "nav_worker_check" ) == 0 ) {
+		Nav_QueryWorkerCheckCommand();
+	} else if ( Q_stricmp( cmd, "nav_worker_start" ) == 0 ) {
+		Nav_StartQueryWorkerMainThread();
+	} else if ( Q_stricmp( cmd, "nav_worker_stop" ) == 0 ) {
+		Nav_StopQueryWorkerMainThread();
+	} else if ( Q_stricmp( cmd, "nav_worker_status" ) == 0 ) {
+		Nav_QueryWorkerStatusCommand();
+	}
+	else if ( Q_stricmp( cmd, "nav_query_identity_check" ) == 0 ) {
+		Nav_QueryIdentityCheckCommand();
+	}
+	else if ( Q_stricmp( cmd, "nav_query_snapshot_check" ) == 0 ) {
+		Nav_QuerySnapshotCheckCommand();
+	}
+	// Snapshot/reference parity is opt-in and stays on the server owner thread.
+	else if ( Q_stricmp( cmd, "nav_query_parity" ) == 0 ) {
+		Nav_QueryParityCommand();
+	}
+    // Bounded corner diagnostics remain opt-in and use the standalone navigation subsystem.
+    else if ( Q_stricmp( cmd, "nav_corner_camera" ) == 0 ) {
+		Nav_Corner_CameraCommand();
+	}
+	else if ( Q_stricmp( cmd, "nav_corner_overlay" ) == 0 ) {
+		Nav_Corner_OverlayCommand();
+	}
+	else if ( Q_stricmp( cmd, "nav_corner_audit" ) == 0 ) {
+		Nav_Corner_AuditCommand();
+	}
+	else if ( Q_stricmp( cmd, "nav_corner_replay" ) == 0 ) {
+		Nav_Corner_ReplayCommand();
+	}
+	else if ( Q_stricmp( cmd, "nav_corner_profile" ) == 0 ) {
+		Nav_Corner_ProfileCommand();
+	} else if ( Q_stricmp( cmd, "nav_corner_mode" ) == 0 ) {
+		Nav_Corner_ModeCommand();
+	} else if ( Q_stricmp( cmd, "nav_corner_route" ) == 0 ) {
+		Nav_Corner_RouteCommand();
+	}
+    else if ( Q_stricmp( cmd, "nav_corner_goal" ) == 0 )
+        Nav_Corner_GoalCommand();
+    else if ( Q_stricmp( cmd, "nav_corner_place" ) == 0 )
+        Nav_Corner_PlaceCommand();
+    else if ( Q_stricmp( cmd, "nav_corner_probe" ) == 0 )
+        Nav_Corner_ProbeCommand();
+    else if ( Q_stricmp( cmd, "nav_corner_capture" ) == 0 )
+        Nav_Corner_CaptureCommand();
+    else if ( Q_stricmp( cmd, "nav_corner_report" ) == 0 )
+        Nav_Corner_ReportCommand();
+    else if ( Q_stricmp( cmd, "nav_perf_reset" ) == 0 )
+        Nav_Perf_ResetCommand();
+    else if ( Q_stricmp( cmd, "nav_perf_report" ) == 0 )
+        Nav_Perf_ReportCommand();
+    else if ( Q_stricmp( cmd, "nav_bench_path" ) == 0 )
+        Nav_Perf_BenchPathCommand();
+    else if ( Q_stricmp( cmd, "nav_perf_check_gates" ) == 0 || Q_stricmp( cmd, "nav_check_gates" ) == 0 )
+        Nav_Perf_CheckGatesCommand();
+    else if ( Q_stricmp( cmd, "nav_alloc_report" ) == 0 || Q_stricmp( cmd, "zone_alloc_report" ) == 0 )
+        SVG_ZoneAllocator_ReportStats();
+    else if ( Q_stricmp( cmd, "nav_alloc_test" ) == 0 || Q_stricmp( cmd, "zone_alloc_test" ) == 0 )
+        SVG_Containers_RunUnitTestsCommand();
     else if ( Q_stricmp( cmd, "addip" ) == 0 )
         ServerCommand_AddIP_f();
     else if ( Q_stricmp( cmd, "removeip" ) == 0 )

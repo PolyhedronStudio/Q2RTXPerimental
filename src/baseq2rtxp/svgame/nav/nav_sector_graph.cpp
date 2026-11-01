@@ -1,3 +1,4 @@
+#include "svgame/nav/nav_thread.h"
 /********************************************************************
 *
 *
@@ -13,6 +14,7 @@
 #include "svgame/nav/nav_generate.h"
 #include "svgame/nav/nav_core.h"
 #include "svgame/svg_local.h"
+#include "svgame/memory/svg_containers.h"
 
 #include <limits>
 #include <algorithm>
@@ -21,141 +23,177 @@
 static int32_t s_navSectorCount = 0;
 
 //! Precomputed all-pairs topological distance matrix (flattened N x N table).
-static std::vector<double> s_navSectorDistanceMatrix;
+static svg_vector_t<double, TAG_SVGAME_NAVMESH> s_navSectorDistanceMatrix;
 
 //! Precomputed next-portal lookup table (flattened N x N table storing portal index).
-static std::vector<int32_t> s_navSectorNextPortalMatrix;
+static svg_vector_t<int32_t, TAG_SVGAME_NAVMESH> s_navSectorNextPortalMatrix;
 
 //! Precomputed next-sector lookup table (flattened N x N table storing adjacent sector index).
-static std::vector<int32_t> s_navSectorNextSectorMatrix;
+static svg_vector_t<int32_t, TAG_SVGAME_NAVMESH> s_navSectorNextSectorMatrix;
 
 /**
-*	@brief	Initialize and precompute the topological NavSector graph from active rooms and portals.
+*	@brief	One copied directed sector adjacency edge, rebuilt when passability changes.
+**/
+struct nav_sector_edge_t {
+	//! Neighbor sector and exact source portal index.
+	int32_t sector = -1, portal = -1;
+	//! Original centroid-to-portal-to-centroid traversal distance.
+	double distance = 0.0;
+};
+/**
+*	@brief	A queued distance candidate for a destination-rooted shortest-path tree.
+**/
+struct nav_sector_candidate_t {
+	//! Candidate sector and distance; stale heap entries are ignored.
+	int32_t sector = -1;
+	double distance = 0.0;
+};
+//! Contiguous adjacency offsets avoid scanning every portal during shortest-path relaxation.
+static svg_vector_t<size_t, TAG_SVGAME_NAVMESH> s_navSectorOffsets;
+//! Passable directed adjacency copied from the authoritative portal records.
+static svg_vector_t<nav_sector_edge_t, TAG_SVGAME_NAVMESH> s_navSectorEdges;
+//! A column becomes valid only after its destination-rooted shortest-path tree completes.
+static svg_vector_t<uint8_t, TAG_SVGAME_NAVMESH> s_navSectorColumnsValid;
+//! Exclusive retained heap scratch; query-time routing never allocates.
+static svg_vector_t<nav_sector_candidate_t, TAG_SVGAME_NAVMESH> s_navSectorHeap;
+
+/**
+*	@brief	Prepare sparse sector adjacency and invalidate cached destination trees.
+*	@note	No all-pairs search runs at load or per-door updates; all query scratch is prepared here.
 **/
 void Nav_SectorGraph_Build( void ) {
 	/**
-	*	Sanity checks: verify that spatial rooms and portals exist.
+	*	Retain capacity across door state changes; full release remains the clear/map-retirement operation.
 	**/
-	// Clear any previous graph state before rebuilding.
-	Nav_SectorGraph_Clear();
-
-	// If no rooms have been decomposed, abort graph construction.
-	if ( g_nav_rooms.empty() ) {
+	s_navSectorCount = static_cast<int32_t>( g_nav_rooms.size() );
+	const size_t count = g_nav_rooms.size();
+	s_navSectorColumnsValid.assign( count, 0 );
+	s_navSectorOffsets.assign( count + 1, 0 );
+	s_navSectorDistanceMatrix.resize( count * count );
+	s_navSectorNextPortalMatrix.resize( count * count );
+	s_navSectorNextSectorMatrix.resize( count * count );
+	s_navSectorEdges.clear();
+	s_navSectorHeap.clear();
+	// Empty topology owns no route, even if retained capacity came from an earlier map.
+	if ( count == 0 ) {
 		return;
 	}
-
 	/**
-	*	Allocate and initialize flattened all-pairs shortest path matrices.
+	*	Copy finite nonnegative portal costs once, preserving portal order and parallel connections.
 	**/
-	// Store the authoritative sector count.
-	s_navSectorCount = static_cast<int32_t>( g_nav_rooms.size() );
-	const int32_t N = s_navSectorCount;
-	const size_t matrixSize = static_cast<size_t>( N ) * static_cast<size_t>( N );
-
-	//! Infinity sentinel value for unlinked sectors.
-	static constexpr double NAV_SECTOR_INFINITY_DIST = std::numeric_limits<double>::infinity();
-
-	// Initialize distances to infinity, portals to -1, and next sectors to -1.
-	s_navSectorDistanceMatrix.assign( matrixSize, NAV_SECTOR_INFINITY_DIST );
-	s_navSectorNextPortalMatrix.assign( matrixSize, -1 );
-	s_navSectorNextSectorMatrix.assign( matrixSize, -1 );
-
-	// Self-distances along the diagonal are identically zero.
-	for ( int32_t i = 0; i < N; i++ ) {
-		const size_t diagIdx = static_cast<size_t>( i ) * static_cast<size_t>( N ) + static_cast<size_t>( i );
-		s_navSectorDistanceMatrix[ diagIdx ] = 0.0;
-		s_navSectorNextSectorMatrix[ diagIdx ] = i;
+	const auto eligible = [&]( const nav_portal_t &portal ) {
+		return portal.is_passable && portal.from_room_id >= 0 && portal.to_room_id >= 0 &&
+			portal.from_room_id < s_navSectorCount && portal.to_room_id < s_navSectorCount &&
+			portal.from_room_id != portal.to_room_id;
+	};
+	// Count directed adjacency slots before filling the contiguous edge array.
+	for ( const auto &portal : g_nav_portals ) {
+		if ( eligible( portal ) ) {
+			++s_navSectorOffsets[ static_cast<size_t>( portal.from_room_id ) + 1 ];
+			++s_navSectorOffsets[ static_cast<size_t>( portal.to_room_id ) + 1 ];
+		}
 	}
-
-	/**
-	*	Populate direct 1-hop adjacency edges from active transition portals.
-	**/
-	// Iterate through all transition portals linking adjacent rooms.
-	for ( size_t pIdx = 0; pIdx < g_nav_portals.size(); pIdx++ ) {
-		const nav_portal_t &portal = g_nav_portals[ pIdx ];
-
-		// Skip impassable portals (e.g. locked doors).
-		if ( !portal.is_passable ) {
+	// Prefix sums give each sector a fixed adjacency interval.
+	for ( size_t index = 1; index <= count; ++index ) {
+		s_navSectorOffsets[ index ] += s_navSectorOffsets[ index - 1 ];
+	}
+	s_navSectorEdges.resize( s_navSectorOffsets.back() );
+	auto cursors = s_navSectorOffsets;
+	// Each accepted portal contributes two symmetric edges with the original exact weight.
+	for ( size_t index = 0; index < g_nav_portals.size(); ++index ) {
+		const auto &portal = g_nav_portals[ index ];
+		if ( !eligible( portal ) ) {
 			continue;
 		}
-
-		const int32_t roomA = portal.from_room_id;
-		const int32_t roomB = portal.to_room_id;
-
-		// Validate that endpoint room indices are within bounds and distinct.
-		if ( roomA < 0 || roomA >= N || roomB < 0 || roomB >= N || roomA == roomB ) {
-			continue;
-		}
-
-		// Calculate 3D Euclidean distance from room A centroid to portal center, plus portal center to room B centroid.
-		const double distAtoP = QM_Vector3DistanceDP( g_nav_rooms[ roomA ].centroid, portal.center );
-		const double distPtoB = QM_Vector3DistanceDP( portal.center, g_nav_rooms[ roomB ].centroid );
-		const double edgeDistance = distAtoP + distPtoB;
-
-		const size_t idxAB = static_cast<size_t>( roomA ) * static_cast<size_t>( N ) + static_cast<size_t>( roomB );
-		const size_t idxBA = static_cast<size_t>( roomB ) * static_cast<size_t>( N ) + static_cast<size_t>( roomA );
-
-		// If multiple portals connect the same pair of rooms, retain the shortest traversal distance.
-		if ( edgeDistance < s_navSectorDistanceMatrix[ idxAB ] ) {
-			s_navSectorDistanceMatrix[ idxAB ] = edgeDistance;
-			s_navSectorDistanceMatrix[ idxBA ] = edgeDistance;
-
-			s_navSectorNextPortalMatrix[ idxAB ] = static_cast<int32_t>( pIdx );
-			s_navSectorNextPortalMatrix[ idxBA ] = static_cast<int32_t>( pIdx );
-
-			s_navSectorNextSectorMatrix[ idxAB ] = roomB;
-			s_navSectorNextSectorMatrix[ idxBA ] = roomA;
-		}
+		const int32_t a = portal.from_room_id, b = portal.to_room_id;
+		const double distance = QM_Vector3DistanceDP( g_nav_rooms[ a ].centroid, portal.center ) +
+			QM_Vector3DistanceDP( portal.center, g_nav_rooms[ b ].centroid );
+		// Nonfinite weights cannot relax a route; keep slots but mark them unusable.
+		const double weight = std::isfinite( distance ) && distance >= 0.0 ? distance : std::numeric_limits<double>::infinity();
+		s_navSectorEdges[ cursors[ a ]++ ] = { b, static_cast<int32_t>( index ), weight };
+		s_navSectorEdges[ cursors[ b ]++ ] = { a, static_cast<int32_t>( index ), weight };
 	}
-
-	/**
-	*	Execute Floyd-Warshall All-Pairs Shortest Path (APSP) algorithm.
-	*	Given typical sector counts (N <= 128), N^3 is <= 2e6 cycles (< 1 millisecond).
-	**/
-	// Intermediate pivot sector k:
-	for ( int32_t k = 0; k < N; k++ ) {
-		const size_t kRow = static_cast<size_t>( k ) * static_cast<size_t>( N );
-
-		// Source sector i:
-		for ( int32_t i = 0; i < N; i++ ) {
-			const size_t iRow = static_cast<size_t>( i ) * static_cast<size_t>( N );
-			const double distIK = s_navSectorDistanceMatrix[ iRow + static_cast<size_t>( k ) ];
-
-			// If source cannot reach pivot k, skip evaluation.
-			if ( distIK >= NAV_SECTOR_INFINITY_DIST ) {
-				continue;
-			}
-
-			// Destination sector j:
-			for ( int32_t j = 0; j < N; j++ ) {
-				const double distKJ = s_navSectorDistanceMatrix[ kRow + static_cast<size_t>( j ) ];
-
-				// If pivot k cannot reach destination j, skip evaluation.
-				if ( distKJ >= NAV_SECTOR_INFINITY_DIST ) {
-					continue;
-				}
-
-				const double candidateDist = distIK + distKJ;
-				const size_t idxIJ = iRow + static_cast<size_t>( j );
-
-				// If path via pivot k improves cumulative distance, update shortest path and routing tables.
-				if ( candidateDist < s_navSectorDistanceMatrix[ idxIJ ] ) {
-					s_navSectorDistanceMatrix[ idxIJ ] = candidateDist;
-					s_navSectorNextPortalMatrix[ idxIJ ] = s_navSectorNextPortalMatrix[ iRow + static_cast<size_t>( k ) ];
-					s_navSectorNextSectorMatrix[ idxIJ ] = s_navSectorNextSectorMatrix[ iRow + static_cast<size_t>( k ) ];
-				}
-			}
-		}
-	}
-
-	gi.dprintf( "NavSectorGraph: Precomputed topological APSP for %d sectors and %d portals.\n",
+	// At most one successful relaxation per directed edge plus the destination seed can be queued.
+	s_navSectorHeap.reserve( s_navSectorEdges.size() + 1 );
+	Nav_GenerationPrintf( "NavSectorGraph: Prepared sparse routing for %d sectors and %d portals (destination trees on demand).\n",
 		s_navSectorCount, static_cast<int32_t>( g_nav_portals.size() ) );
+}
+
+/**
+*	@brief	Compute and retain only the requested destination's shortest-path tree.
+*	@param	destination	Valid destination sector index.
+*	@note	Owner/generation-exclusive context; no allocations or live actor access. Strict improvements and
+*			settled-parent ordering keep zero-cost portal chains acyclic. Equal routes use sector/portal order.
+**/
+static void Nav_SectorGraph_EnsureDestination( const int32_t destination ) {
+	/**
+	*	A completed column belongs to the current adjacency build and can be reused without search.
+	**/
+	if ( s_navSectorColumnsValid[ destination ] != 0 ) {
+		return;
+	}
+	const size_t count = static_cast<size_t>( s_navSectorCount );
+	const auto cell = [&]( const int32_t sector ) { return static_cast<size_t>( sector ) * count + static_cast<size_t>( destination ); };
+	// Initialize only this destination column; other columns remain unread until separately completed.
+	for ( int32_t sector = 0; sector < s_navSectorCount; ++sector ) {
+		s_navSectorDistanceMatrix[ cell( sector ) ] = std::numeric_limits<double>::infinity();
+		s_navSectorNextPortalMatrix[ cell( sector ) ] = -1;
+		s_navSectorNextSectorMatrix[ cell( sector ) ] = -1;
+	}
+	s_navSectorDistanceMatrix[ cell( destination ) ] = 0.0;
+	s_navSectorNextSectorMatrix[ cell( destination ) ] = destination;
+	s_navSectorHeap.clear();
+	const auto order = []( const nav_sector_candidate_t &a, const nav_sector_candidate_t &b ) {
+		return a.distance != b.distance ? a.distance > b.distance : a.sector > b.sector;
+	};
+	const auto push = [&]( const int32_t sector, const double distance ) {
+		Q_assert( s_navSectorHeap.size() < s_navSectorHeap.capacity() );
+		s_navSectorHeap.push_back( { sector, distance } );
+		std::push_heap( s_navSectorHeap.begin(), s_navSectorHeap.end(), order );
+	};
+	push( destination, 0.0 );
+	/**
+	*	Relax sparse adjacency toward the destination, retaining direct next hops and exact portal identities.
+	**/
+	while ( !s_navSectorHeap.empty() ) {
+		std::pop_heap( s_navSectorHeap.begin(), s_navSectorHeap.end(), order );
+		const auto current = s_navSectorHeap.back();
+		s_navSectorHeap.pop_back();
+		// An improved sector may leave an older queued distance; never expand that stale entry.
+		if ( current.distance != s_navSectorDistanceMatrix[ cell( current.sector ) ] ) {
+			continue;
+		}
+		// Each outgoing adjacency is symmetric, so its portal is also the neighbor's next hop toward current.
+		for ( size_t index = s_navSectorOffsets[ current.sector ]; index < s_navSectorOffsets[ current.sector + 1 ]; ++index ) {
+			const auto &edge = s_navSectorEdges[ index ];
+			const double candidate = current.distance + edge.distance;
+			const size_t target = cell( edge.sector );
+			// Strict improvement matches shortest-distance semantics and avoids zero-cost parent cycles.
+			if ( candidate < s_navSectorDistanceMatrix[ target ] ) {
+				s_navSectorDistanceMatrix[ target ] = candidate;
+				s_navSectorNextPortalMatrix[ target ] = edge.portal;
+				s_navSectorNextSectorMatrix[ target ] = current.sector;
+				push( edge.sector, candidate );
+			}
+		}
+	}
+	// Publication follows the entire tree; no query can consume a partly computed column.
+	s_navSectorColumnsValid[ destination ] = 1;
 }
 
 /**
 *	@brief	Clear all precalculated matrices and release graph memory.
 **/
 void Nav_SectorGraph_Clear( void ) {
+	// Map retirement releases adjacency, cached-column validity and retained query scratch too.
+	s_navSectorOffsets.clear();
+	s_navSectorOffsets.shrink_to_fit();
+	s_navSectorEdges.clear();
+	s_navSectorEdges.shrink_to_fit();
+	s_navSectorColumnsValid.clear();
+	s_navSectorColumnsValid.shrink_to_fit();
+	s_navSectorHeap.clear();
+	s_navSectorHeap.shrink_to_fit();
 	// Reset sector count to zero.
 	s_navSectorCount = 0;
 	// Release distance matrix memory.
@@ -201,6 +239,9 @@ const nav_portal_t *Nav_SectorGraph_GetNextPortal( const int32_t fromSector, con
 		return nullptr;
 	}
 
+	// Prepare only the destination tree requested by this query.
+	Nav_SectorGraph_EnsureDestination( toSector );
+
 	const size_t idx = static_cast<size_t>( fromSector ) * static_cast<size_t>( s_navSectorCount ) + static_cast<size_t>( toSector );
 	const int32_t portalId = s_navSectorNextPortalMatrix[ idx ];
 
@@ -213,7 +254,7 @@ const nav_portal_t *Nav_SectorGraph_GetNextPortal( const int32_t fromSector, con
 }
 
 /**
-*	@brief	Query the precomputed topological path distance connecting two sectors.
+*	@brief	Query the cached topological path distance connecting two sectors.
 *	@param	fromSector	Source sector index.
 *	@param	toSector	Destination sector index.
 *	@return	Distance in world units, or infinity if disconnected.
@@ -223,6 +264,9 @@ double Nav_SectorGraph_GetSectorDistance( const int32_t fromSector, const int32_
 	if ( fromSector < 0 || fromSector >= s_navSectorCount || toSector < 0 || toSector >= s_navSectorCount ) {
 		return std::numeric_limits<double>::infinity();
 	}
+
+	// Prepare only the destination tree requested by this query.
+	Nav_SectorGraph_EnsureDestination( toSector );
 
 	const size_t idx = static_cast<size_t>( fromSector ) * static_cast<size_t>( s_navSectorCount ) + static_cast<size_t>( toSector );
 	return s_navSectorDistanceMatrix[ idx ];
@@ -248,6 +292,9 @@ bool Nav_SectorGraph_BuildRoute( const int32_t fromSector, const int32_t toSecto
 	if ( fromSector == toSector ) {
 		return true;
 	}
+
+	// Prepare only the destination tree requested by this query.
+	Nav_SectorGraph_EnsureDestination( toSector );
 
 	int32_t currentSector = fromSector;
 	int32_t hops = 0;
@@ -377,6 +424,6 @@ void Nav_SectorGraph_SetPortalPassable( const int32_t portalId, const bool isPas
 	// Update portal record.
 	g_nav_portals[ portalId ].is_passable = isPassable;
 
-	// Rebuild graph matrices to reflect altered connectivity.
+	// Rebuild sparse adjacency and invalidate destination trees before any later query.
 	Nav_SectorGraph_Build();
 }

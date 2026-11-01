@@ -1,0 +1,271 @@
+{
+  "schema": 1,
+  "date": "2026-10-03",
+  "milestone": "M5",
+  "milestone_status": "IN PROGRESS",
+  "first_slice_status": "DONE",
+  "full_milestone_acceptance": false,
+  "scope": "Copied graph ownership and synchronous pure lookup/portal/A* foundation; no path worker enabled.",
+  "frozen_inputs": {
+    "Q2RTXPerimental_d.exe": "B39B2A1D7B7EBB61B5F5B6731FA3323F3EBC9E7E594308DC029948065FFF7907",
+    "baseq2rtxp\\svgamex86_64_d.dll": "422F1A1CC4F8A82C9201968390F7A3E2441B7B716BF5B2EC770B16EA6EF7419B",
+    "baseq2rtxp\\maps\\q2rtxp_dev_nav01.bsp": "137B9B110CC460DE1F87144E48F1A79F1488306DF55A2C230F600A31FB9124FA",
+    "baseq2rtxp\\maps\\m4_corners.bsp": "873529E960484C16083599939E4365E1A689FD47742895C40DFD66ADF0F3D6F9"
+  },
+  "validation": {
+    "ctest_passed": 3,
+    "ctest_failed": 0,
+    "query_contract_checks": 8088,
+    "independent_thread_solves": 4000,
+    "native_cases_passed": 428,
+    "native_cases_failed": 0,
+    "native_repetitions": 1,
+    "native_stair_cases": 108,
+    "crowd_phases_passed": 4,
+    "crowd_repetitions": 2,
+    "crowd_member_phase_audits": 40,
+    "capture_lifecycle_passed": 5,
+    "snapshot_lifecycle_passed": 3,
+    "generation_status_samples": 18,
+    "capture_hashes_verified": 432,
+    "parity_compared": 2075,
+    "parity_mismatches": 0,
+    "parity_excluded": 0,
+    "parity_resource_limited": 0
+  },
+  "reports": {
+    "native": {
+      "path": "out/build/nav-corner-geometry/matrix/m5-query-parity-final/summary.json",
+      "sha256": "EB5368CEA65A7BCDF5F3FE6160E79CD5885FF1015A978C3D3481AFE1C27FDC4E"
+    },
+    "crowd": {
+      "path": "out/build/nav-corner-geometry/crowd_matrix/m5-query-crowd-regression/summary.json",
+      "sha256": "F9F86616555033E97E55695F9A08C2C7D25C5A604A94FB78BCD311F36CDB8E93"
+    },
+    "capture_lifecycle": {
+      "path": "out/build/nav-corner-geometry/lifecycle/m5-query-capture-lifecycle/summary.json",
+      "sha256": "5C09FAA11B6DFD8A8CA24B57968D233DBC756BB1DCDC90E8E3295E3B3DC045D2"
+    },
+    "snapshot_lifecycle": {
+      "path": "out/build/nav-corner-geometry/query_snapshot/m5-query-snapshot-lifecycle/summary.json",
+      "sha256": "E05654F48049E2DAAC80C002030D5A4B28E335064CFCCC9B7733C3FCA1B9BD03"
+    }
+  },
+  "ctest_log": {
+    "path": "out/build/nav-corner-geometry/Testing/Temporary/LastTest.log",
+    "sha256": "1624F16471CA9929C47CF2595D6169D2BC29391CEB6DC57D209D7C8C5DF02EC1"
+  },
+  "build_log": {
+    "path": "out/build/m5-query-lifetime-build.log",
+    "sha256": "FF7689F1EB5305FFAE10C40674A9A52C217136032496E034F5A0EBD5AB98ACD7"
+  },
+  "parity_batches": [
+    {
+      "log": "baseq2rtxp/logs/m5-query-parity-final-b000.log",
+      "log_sha256": "E4A5E3A9D28FA786807FA4EDA736E00FF324D6F1E0EE9B230C59C5CE30ACDBF4",
+      "compared": 72,
+      "mismatches": 0,
+      "excluded": 0,
+      "resource_limited": 0,
+      "verdict": "PASS"
+    },
+    {
+      "log": "baseq2rtxp/logs/m5-query-parity-final-b001.log",
+      "log_sha256": "3EA529F9FB49C912076BE310A29954C2BB2E9783E976D3C6621BEDC9095E83CE",
+      "compared": 72,
+      "mismatches": 0,
+      "excluded": 0,
+      "resource_limited": 0,
+      "verdict": "PASS"
+    },
+    {
+      "log": "baseq2rtxp/logs/m5-query-parity-final-b002.log",
+      "log_sha256": "B6286388ED8EA0E0D23CF3438803EFD55A660096B8E9AB5815B8E25CADBC074D",
+      "compared": 122,
+      "mismatches": 0,
+      "excluded": 0,
+      "resource_limited": 0,
+      "verdict": "PASS"
+    },
+    {
+      "log": "baseq2rtxp/logs/m5-query-parity-final-b003.log",
+      "log_sha256": "A277C170AE3F152045E995C0315B3A100484F963D2DB460016CB88697D5C4A94",
+      "compared": 126,
+      "mismatches": 0,
+      "excluded": 0,
+      "resource_limited": 0,
+      "verdict": "PASS"
+    },
+    {
+      "log": "baseq2rtxp/logs/m5-query-parity-final-b004.log",
+      "log_sha256": "BE50EE8E93FFDD91993D06C920E740DF5B23BD3FC55555484E46E222E731CA30",
+      "compared": 144,
+      "mismatches": 0,
+      "excluded": 0,
+      "resource_limited": 0,
+      "verdict": "PASS"
+    },
+    {
+      "log": "baseq2rtxp/logs/m5-query-parity-final-b005.log",
+      "log_sha256": "2AEF48B07BF33CB32420D5E671B10B39C961ADA40B64270C91217833363E6BB2",
+      "compared": 162,
+      "mismatches": 0,
+      "excluded": 0,
+      "resource_limited": 0,
+      "verdict": "PASS"
+    },
+    {
+      "log": "baseq2rtxp/logs/m5-query-parity-final-b006.log",
+      "log_sha256": "FCD5A3CE7CA8E762FFA614D78DDF64F0BF170FBD4BD1D7C00B4B997028EAF1C8",
+      "compared": 180,
+      "mismatches": 0,
+      "excluded": 0,
+      "resource_limited": 0,
+      "verdict": "PASS"
+    },
+    {
+      "log": "baseq2rtxp/logs/m5-query-parity-final-b007.log",
+      "log_sha256": "D500B0B48C4AA6139EB27053837B6F923B7B2B1F821C7A524BB4B843C7DE992A",
+      "compared": 180,
+      "mismatches": 0,
+      "excluded": 0,
+      "resource_limited": 0,
+      "verdict": "PASS"
+    },
+    {
+      "log": "baseq2rtxp/logs/m5-query-parity-final-b008.log",
+      "log_sha256": "2A4964F5CB3DD359B50AEB49D3BD9FDDC4E369BC9AB995C8C8BE0D069EEC6EAD",
+      "compared": 180,
+      "mismatches": 0,
+      "excluded": 0,
+      "resource_limited": 0,
+      "verdict": "PASS"
+    },
+    {
+      "log": "baseq2rtxp/logs/m5-query-parity-final-b009.log",
+      "log_sha256": "694220E30FE5BB20DE0F9E5DDCC09D614CC1DEA3F3C8E7CF8E82DC81F6767294",
+      "compared": 108,
+      "mismatches": 0,
+      "excluded": 0,
+      "resource_limited": 0,
+      "verdict": "PASS"
+    },
+    {
+      "log": "baseq2rtxp/logs/m5-query-parity-final-b010.log",
+      "log_sha256": "DF1211B93A6995C5D199F7EC874A67FDB77DAD20A836BFFF801BC193A57E6A01",
+      "compared": 72,
+      "mismatches": 0,
+      "excluded": 0,
+      "resource_limited": 0,
+      "verdict": "PASS"
+    },
+    {
+      "log": "baseq2rtxp/logs/m5-query-parity-final-b011.log",
+      "log_sha256": "622BDCA9270C2B67CBC0D364D1E9F09A643E2E0230E601DCA8802704215FADAB",
+      "compared": 62,
+      "mismatches": 0,
+      "excluded": 0,
+      "resource_limited": 0,
+      "verdict": "PASS"
+    },
+    {
+      "log": "baseq2rtxp/logs/m5-query-parity-final-b012.log",
+      "log_sha256": "B561936E0BE267593C4E53EBC153455FE04C2D3EAA7FF3211CB6F98A86B44F30",
+      "compared": 105,
+      "mismatches": 0,
+      "excluded": 0,
+      "resource_limited": 0,
+      "verdict": "PASS"
+    },
+    {
+      "log": "baseq2rtxp/logs/m5-query-parity-final-b013.log",
+      "log_sha256": "0C754CCD761EA1AE85F4E78BE91DB0838ACD81AE6EBB73821666A17AF81F4C75",
+      "compared": 54,
+      "mismatches": 0,
+      "excluded": 0,
+      "resource_limited": 0,
+      "verdict": "PASS"
+    },
+    {
+      "log": "baseq2rtxp/logs/m5-query-parity-final-b014.log",
+      "log_sha256": "4DCF1ECC3B86B7283BFEECF59D96D4A79B914E8D8EBC5138EC432F7E59F465BF",
+      "compared": 72,
+      "mismatches": 0,
+      "excluded": 0,
+      "resource_limited": 0,
+      "verdict": "PASS"
+    },
+    {
+      "log": "baseq2rtxp/logs/m5-query-parity-final-b015.log",
+      "log_sha256": "A60AEBECD9540B716B571A4BABB4A30939AF00D74ABB2AE89964ACABB45B62D2",
+      "compared": 72,
+      "mismatches": 0,
+      "excluded": 0,
+      "resource_limited": 0,
+      "verdict": "PASS"
+    },
+    {
+      "log": "baseq2rtxp/logs/m5-query-parity-final-b016.log",
+      "log_sha256": "7D4AC6D8389535A4918D15DF1FCAB85ABB637EE5585486FF97D786EAABB1ACCD",
+      "compared": 72,
+      "mismatches": 0,
+      "excluded": 0,
+      "resource_limited": 0,
+      "verdict": "PASS"
+    },
+    {
+      "log": "baseq2rtxp/logs/m5-query-parity-final-b017.log",
+      "log_sha256": "CE7E7FA738B9F10DEE22E85ED8959703F702A09D6FA05BE8F98862ABFD615CB9",
+      "compared": 144,
+      "mismatches": 0,
+      "excluded": 0,
+      "resource_limited": 0,
+      "verdict": "PASS"
+    },
+    {
+      "log": "baseq2rtxp/logs/m5-query-parity-final-b018.log",
+      "log_sha256": "4AADB377B82897BDF7DA04B76FDDD6A270430EDB8F891BFAF8BDB34345C3989E",
+      "compared": 76,
+      "mismatches": 0,
+      "excluded": 0,
+      "resource_limited": 0,
+      "verdict": "PASS"
+    }
+  ],
+  "source_fingerprints": {
+    "src/baseq2rtxp/svgame/nav/nav_query_algorithm.h": "C8C8177F987419774B18C08C2880DE7DB5BC90AFD65F6EC554782684FD6ACB95",
+    "src/baseq2rtxp/svgame/nav/nav_query.h": "7886766E9606CE7B5C76EC8AA4A02B77D071A3948A03286211FFDF33DA0EF2FB",
+    "src/baseq2rtxp/svgame/nav/nav_path.cpp": "0221029A113CDCD1108DA981AD50EEF387908E1A9E4584A21BF53C44C4CFE130",
+    "src/baseq2rtxp/svgame/nav/nav_path.h": "31B09482433128035FC8B458FBB61B34FA6A15655952F199ED31663FE3CF34F5",
+    "src/baseq2rtxp/svgame/nav/nav_thread.cpp": "480EEFC683A8E70CF890615519E857AEC6FB8555834B8D68CC31AE35589AE985",
+    "src/baseq2rtxp/svgame/nav/nav_thread.h": "5B0759A7EF5DFD575D212EE09B18E05D77B6EE40189BEF815A03E7790C9DF4F9",
+    "src/baseq2rtxp/svgame/nav/nav_generate.cpp": "A6CA7C16AA6C1D45502CF98748EBACED13A0E5DC2C2282178A9E0B12A5795DDA",
+    "src/baseq2rtxp/svgame/entities/monster/svg_monster_base.cpp": "62154B9F4D07903338F8B969EC8927117C7C76D206AA581146523D358E1F47FD",
+    "src/baseq2rtxp/svgame/entities/monster/svg_monster_base.h": "1F686C9D583FD298AA351D34C7B5485C8485E06A0257B724061C60331147CB23",
+    "src/baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_debug.cpp": "F4C1AFE1BA0301DE1CEB919331AA9D1EE1BF1036CCAF3F44755DF9CB582E3154",
+    "src/baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_debug.h": "9F4846F22F4603D3250B84B71EE21242D4B43A1916A72FB825447BB1D5DF9338",
+    "src/baseq2rtxp/svgame/svg_commands_server.cpp": "38DE55C90215A455D7E5FE4E706BB8E1C0A0CBCC49BDCE7341026A4C4A10DEE7",
+    "tests/navigation/query_context.cpp": "2466CDB6FC276493F4C15B93DDDD49F8CC6E0E286B118B9542E73ED46F0C8C81",
+    "tests/navigation/CMakeLists.txt": "BA0AFE1871748397B4B85634AC1C80D005FB6FCE64473C99279BF6905DC465EF",
+    "scripts/test_nav_corners.ps1": "CAD247829B22DA89A27F30AF75989BAE4C79099427AA3217EB2EB29B972A5C8F",
+    "scripts/test_nav_corner_matrix.py": "34A8AD7EB3F215D527B5291F5060B6931028D63E9EB6B8AC465FA8B5A82ACB80",
+    "scripts/test_nav_query_snapshot.py": "9E69D1AC4006336FA272DD15E8605868B45956B04DE397A2E8F8C4638D5C69C0"
+  },
+  "remaining": [
+    "Wire entity incarnation and goal/state/crowd revisions into production request/result lifecycle; implement controlled revision-overflow drain/reset.",
+    "Own full M4 waypoint results and funnel/LOS/refinement scratch and request-local diagnostics.",
+    "Move remaining lookup callers to copied inputs and isolate native collision-dependent proof/commit in an explicit named owner phase.",
+    "Bound trace-dependent snapshot preparation; complete live generation/load/clear reader barriers or private generation publication, allocator and teardown audit.",
+    "Validate full route/mandatory-waypoint/endpoints/cost parity and lifecycle stress after remaining ownership changes."
+  ],
+  "limits": [
+    "Native parity checks graph validity, corridor IDs, score, selected strict face and corridor portals; full independently context-owned funnel/refinement parity remains pending.",
+    "Native matrix uses one repetition and crowd uses two; M4 historical twenty-repetition acceptance remains separate.",
+    "Scared stair cost is covered by production-core unit fixtures; no separate native scared-state scenario is claimed.",
+    "Only solver vector backing allocation/free is instrumented; no complete game or engine allocator/race-freedom proof.",
+    "Existing generation worker still mutates live geometry and uses engine imports; copied progress synchronization alone does not make that pipeline safe.",
+    "No fresh renderer/animation review, worker scheduling result, timing improvement or speedup is claimed.",
+    "Production identity schema includes future actor revisions, but current synchronous bridge does not populate those actor revisions.",
+    "Earlier first-build parity reference uses a different DLL and is historical, not part of the current totals."
+  ]
+}

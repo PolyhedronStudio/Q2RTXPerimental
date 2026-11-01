@@ -373,35 +373,43 @@ const pm_slidemove_flags_t PM_StepSlideMove_Generic(
 	// Did we step?
 	//bool stepped = false;
 
-	// Initialize the slide move its origin, and velocity, as wel as setting its flags to none.
+	/**
+	*	Perform the initial horizontal/vertical slide move before testing step-up behavior.
+	**/
+	// Initialize the slide move its origin, and velocity, as well as setting its flags to none.
 	pm_slidemove_flags_t slideMoveFlags = PM_SLIDEMOVEFLAG_NONE;
 	Vector3 start_o = pm->state->pmove.origin;
 	Vector3 start_v = pm->state->pmove.velocity;
 	// Perform a normal slide move first, then try stepping if we hit a wall.
 	slideMoveFlags |= PM_SlideMove_Generic( pm, pml, applyGravity );
 
-	// Initial down check: only a small ground contact probe.
-	// Do not pre-drop by a full step height when moving off edges; let gravity handle descent.
+	/**
+	*	Probe slightly downward for ground contact using the same capsule shape as the slide move.
+	*	Do not pre-drop by a full step height when moving off edges; let gravity handle descent.
+	**/
 	Vector3 down = pm->state->pmove.origin;
 	down.z -= PM_STEP_GROUND_DIST;
-	//down.z -= stepSize + PM_STEP_GROUND_DIST;
-	trace = PM_TraceCylinder( pm->state->pmove.origin, pm->mins, pm->maxs, down );
+	trace = PM_TraceCapsule( pm->state->pmove.origin, pm->mins, pm->maxs, down );
 
-	// Never step up when you still have up velocity.
+	// Never step up when you still have upward velocity away from a non-walkable surface.
 	if ( QM_Vector3DotProductDP( trace.plane.normal, pm->state->pmove.velocity ) > 0.0 &&
 		( trace.fraction == 1.0f || QM_Vector3DotProductDP( trace.plane.normal, QM_Vector3Up() ) < PM_STEP_MIN_NORMAL ) ) {
 		pm->step_clip = true;
 		return slideMoveFlags;
 	}
 
-	// If we are still on the ground, don't step up.
+	// Preserve the unstepped slide result for comparison against the stepped slide result.
 	Vector3 down_o = pm->state->pmove.origin;
 	Vector3 down_v = pm->state->pmove.velocity;
 
-	// Try and step up.
+	/**
+	*	Attempt to step up by `PM_STEP_MAX_SIZE`, re-run the slide move at the elevated height,
+	*	and trace back down onto the step landing.
+	**/
+	// Try and step up using the capsule shape.
 	Vector3 up = start_o;
 	up.z += PM_STEP_MAX_SIZE /*+ PM_STEP_GROUND_DIST*/;
-	trace = PM_TraceCylinder( start_o, pm->mins, pm->maxs, up );
+	trace = PM_TraceCapsule( start_o, pm->mins, pm->maxs, up );
 	if ( trace.allsolid ) {
 		// Can't step up.
 		return slideMoveFlags;
@@ -417,8 +425,8 @@ const pm_slidemove_flags_t PM_StepSlideMove_Generic(
 	// Push down the final amount.
 	down = pm->state->pmove.origin;
 	down.z -= stepSize + PM_STEP_GROUND_DIST;
-	// Use a capsule trace to avoid stepping down into a ledge or hole.
-	trace = PM_TraceCylinder( pm->state->pmove.origin, pm->mins, pm->maxs, down );
+	// Use a capsule trace to match the slide hull and avoid shape-mismatch allsolid states.
+	trace = PM_TraceCapsule( pm->state->pmove.origin, pm->mins, pm->maxs, down );
 
 	// Used below for down step.
 	if ( !trace.allsolid ) {
@@ -433,6 +441,9 @@ const pm_slidemove_flags_t PM_StepSlideMove_Generic(
 		#endif
 	}
 
+	/**
+	*	Compare horizontal progress between the base slide and the elevated step slide.
+	**/
 	// Save the down and up distances for comparison.
 	up = pm->state->pmove.origin;
 
@@ -467,6 +478,9 @@ const pm_slidemove_flags_t PM_StepSlideMove_Generic(
 		pm->state->pmove.velocity[ 2 ] = down_v.z;
 	}
 
+	/**
+	*	Step down stairs or slopes when walking on ground.
+	**/
 	// Paril: Step down stairs/slopes
 	if ( 
 		// Has to be either walking, or have a ground plane.
@@ -483,7 +497,7 @@ const pm_slidemove_flags_t PM_StepSlideMove_Generic(
 		// Try stepping down to the ground, if we are not already on the ground.
 		down = pm->state->pmove.origin;
 		down.z -= stepSize + PM_STEP_GROUND_DIST; // <Q2RTXP>: WID: -= stepSize + PM_STEP_GROUND_DIST.
-		trace = PM_TraceCylinder( pm->state->pmove.origin, pm->mins, pm->maxs, down );
+		trace = PM_TraceCapsule( pm->state->pmove.origin, pm->mins, pm->maxs, down );
 
 		#if 0
 		// If we are not all solid, and we hit something, and it is a walkable surface, then step down.

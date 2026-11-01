@@ -49,7 +49,7 @@ struct nav_path_policy_t;
 /**
 *	@brief	Attempts to trace clip into velocity direction for the current frametime in double precision.
 **/
-const mm_slide_move_flags_t SVG_MMove_SlideMove( Vector3DP &origin, Vector3DP &velocity, const double frametime, const Vector3 &mins, const Vector3 &maxs, svg_base_edict_t *passEntity, mm_touch_trace_list_t &touch_traces, const bool has_time, mm_trace_shape_t override_shape = MM_SHAPE_AUTO, const nav_path_policy_t *navPolicy = nullptr );
+const mm_slide_move_flags_t SVG_MMove_SlideMove( Vector3DP &origin, Vector3DP &velocity, const double frametime, const Vector3 &mins, const Vector3 &maxs, svg_base_edict_t *passEntity, mm_touch_trace_list_t &touch_traces, const bool has_time, mm_trace_shape_t override_shape = MM_SHAPE_AUTO, const nav_path_policy_t *navPolicy = nullptr, mm_motion_diagnostics_t *diagnostics = nullptr );
 
 /**
 *	@brief	Single-precision adapter for SVG_MMove_SlideMove.

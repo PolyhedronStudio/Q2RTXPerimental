@@ -144,7 +144,7 @@ void Con_Close( bool force ) {
 	}
 
 	// if not connected, console or menu should be up
-	if ( cls.state < ca_active && !( cls.key_dest & KEY_MENU ) ) {
+	if ( cls.state < ca_active && !( cls.key_dest & ( KEY_MENU | KEY_GAME_UI ) ) ) {
 		return;
 	}
 
@@ -1161,7 +1161,7 @@ void Con_RunConsole( void ) {
 		return;
 	}
 
-	if ( !( cls.key_dest & KEY_MENU ) ) {
+	if ( !( cls.key_dest & ( KEY_MENU | KEY_GAME_UI ) ) ) {
 		if ( cls.state == ca_disconnected ) {
 			// draw fullscreen console
 			con.destHeight = con.currentHeight = 1;

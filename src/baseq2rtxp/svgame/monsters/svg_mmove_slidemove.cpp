@@ -135,12 +135,61 @@ const int32_t SVG_MMove_ClipVelocity( const Vector3DP &in, const Vector3DP &norm
 }
 
 /**
-*	@brief	Attempts to trace clip into velocity direction for the current frametime in double precision.
+*	@brief	Resolve authoritative native-hull slide motion while reporting trial-local clips.
+*	@param	origin	[in,out] BBox origin in double precision.
+*	@param	velocity	[in,out] Command/result velocity.
+*	@param	frametime	Authoritative simulation tick duration.
+*	@param	mins	Relative bbox minima.
+*	@param	maxs	Relative bbox maxima.
+*	@param	passEntity	Mover excluded from collision.
+*	@param	touch_traces	Deduplicated gameplay contact traces (not the clip oracle).
+*	@param	has_time	Existing movement-time compatibility flag.
+*	@param	override_shape	Native analytical shape.
+*	@param	navPolicy	Traversal/deflection policy.
+*	@param	diagnostics	Optional trial-local direct clip/solid/recovery counters.
+*	@return	Authoritative moved/blocked/trapped flags.
+*	@note	Accepted ground/elevated diagnostics are selected by SVG_MMove_StepSlideMove.
 **/
-const mm_slide_move_flags_t SVG_MMove_SlideMove( Vector3DP &origin, Vector3DP &velocity, const double frametime, const Vector3 &mins, const Vector3 &maxs, svg_base_edict_t *passEntity, mm_touch_trace_list_t &touch_traces, const bool has_time, mm_trace_shape_t override_shape, const nav_path_policy_t *navPolicy ) {
+const mm_slide_move_flags_t SVG_MMove_SlideMove( Vector3DP &origin, Vector3DP &velocity, const double frametime, const Vector3 &mins, const Vector3 &maxs, svg_base_edict_t *passEntity, mm_touch_trace_list_t &touch_traces, const bool has_time, mm_trace_shape_t override_shape, const nav_path_policy_t *navPolicy, mm_motion_diagnostics_t *diagnostics ) {
 	Vector3DP dir = {};
 
 	Vector3DP planes[ MM_MAX_CLIP_PLANES ] = {};
+	// Retain contact ownership alongside each plane so later clips are classified at the clip site.
+	bool actorPlanes[ MM_MAX_CLIP_PLANES ] = {};
+	// Copy trace ownership per plane before the transient trace is reused by the next bump.
+	int32_t planeEntities[ MM_MAX_CLIP_PLANES ] = {};
+	int32_t planeBrushes[ MM_MAX_CLIP_PLANES ] = {};
+	Vector3DP planeContacts[ MM_MAX_CLIP_PLANES ] = {};
+
+	const auto clip = [&]( const Vector3DP &input, const Vector3DP &normal, Vector3DP &output, const int32_t planeIndex ) {
+		const Vector3DP before = input;
+		SVG_MMove_ClipVelocity( input, normal, output, 1.01 );
+		// Count actual changes, not mere contacts or discarded duplicate touches.
+		if ( diagnostics != nullptr && QM_Vector3DistanceSqrDP( before, output ) > 1e-12 ) {
+			// Retain the actual clipping witness, rather than inferring it from a later trace or blocked flag.
+			if ( diagnostics->clip_count < diagnostics->clips.size() ) {
+				auto &witness = diagnostics->clips[ diagnostics->clip_count++ ];
+				witness.contact = planeContacts[ planeIndex ];
+				witness.before = before;
+				witness.after = output;
+				witness.normal = normal;
+				witness.entity = planeEntities[ planeIndex ];
+				witness.brush = planeBrushes[ planeIndex ];
+				witness.actor = actorPlanes[ planeIndex ];
+			} else {
+				diagnostics->clip_overflow = true;
+			}
+
+			if ( actorPlanes[ planeIndex ] ) {
+				++diagnostics->actor_clips;
+			} else if ( std::fabs( normal.z ) < MM_MIN_WALL_NORMAL_Z &&
+				 ( before.x != output.x || before.y != output.y ) ) {
+				++diagnostics->static_wall_clips;
+			} else {
+				++diagnostics->floor_or_riser_clips;
+			}
+		}
+	};
 
 	svg_trace_t	trace = {};
 	Vector3DP	end = {};
@@ -148,7 +197,7 @@ const mm_slide_move_flags_t SVG_MMove_SlideMove( Vector3DP &origin, Vector3DP &v
 	double d = 0.0;
 	double time_left = 0.0;
 
-	int i = 0, j = 0;
+	int32_t i = 0, j = 0;
 	int32_t bumpcount = 0;
 	int32_t numbumps = MM_MAX_CLIP_PLANES - 1;
 
@@ -160,9 +209,16 @@ const mm_slide_move_flags_t SVG_MMove_SlideMove( Vector3DP &origin, Vector3DP &v
 
 	time_left = frametime;
 
+	// Bound collision retries by the clip-plane budget so a trapped mover cannot spin.
 	for ( bumpcount = 0; bumpcount < numbumps; bumpcount++ ) {
 		end = origin + ( velocity * time_left );
 		trace = SVG_MMove_Trace( QM_Vector3FromDP( origin ), mins, maxs, QM_Vector3FromDP( end ), passEntity, CONTENTS_NONE, override_shape );
+
+		// Solid-state counters survive a later clear trace or blocked-mask overwrite.
+		if ( diagnostics != nullptr ) {
+			diagnostics->startsolid += trace.startsolid ? 1 : 0;
+			diagnostics->allsolid += trace.allsolid ? 1 : 0;
+		}
 
 		if ( trace.allsolid ) {
 			// Entity is trapped in another solid, DON'T build up falling damage.
@@ -186,7 +242,7 @@ const mm_slide_move_flags_t SVG_MMove_SlideMove( Vector3DP &origin, Vector3DP &v
 
 			bool better = false;
 
-			for ( int i = 0; i < 3; i++ ) {
+			for ( int32_t i = 0; i < 3; i++ ) {
 				if ( std::fabs( clipped_a[ i ] ) < std::fabs( clipped_b[ i ] ) ) {
 					better = true;
 					break;
@@ -237,6 +293,10 @@ const mm_slide_move_flags_t SVG_MMove_SlideMove( Vector3DP &origin, Vector3DP &v
 			const double repeatDot = isVerticalWall ? MM_VERTICAL_PLANE_REPEAT_DOT : MM_PLANE_REPEAT_DOT;
 			if ( QM_Vector3DotProductDP( contactNormal, planes[ i ] ) > repeatDot ) {
 				velocity = velocity + contactNormal;
+				// A repeated-plane nudge is a recovery event even if a subsequent sweep clears.
+				if ( diagnostics != nullptr ) {
+					++diagnostics->recovery_nudges;
+				}
 				break;
 			}
 		}
@@ -255,6 +315,11 @@ const mm_slide_move_flags_t SVG_MMove_SlideMove( Vector3DP &origin, Vector3DP &v
 			break;
 		}
 		planes[ numplanes ] = contactNormal;
+		planeEntities[ numplanes ] = trace.entityNumber;
+		planeBrushes[ numplanes ] = trace.brushID;
+		planeContacts[ numplanes ] = Vector3DP( trace.endpos );
+		// Distinguish living actor collisions from static world/BSP obstacle clips.
+		actorPlanes[ numplanes ] = trace.ent != nullptr && ( trace.ent->client != nullptr || ( trace.ent->svFlags & SVF_MONSTER ) != 0 );
 		numplanes++;
 
 		/**
@@ -270,23 +335,24 @@ const mm_slide_move_flags_t SVG_MMove_SlideMove( Vector3DP &origin, Vector3DP &v
 			}
 			foundClipVelocity = true;
 
-			SVG_MMove_ClipVelocity( original_velocity, planes[ clipPlaneIndex ], clipVelocity, 1.01 );
+			clip( original_velocity, planes[ clipPlaneIndex ], clipVelocity, clipPlaneIndex );
 			int32_t secondPlaneIndex = 0;
 			for ( secondPlaneIndex = 0; secondPlaneIndex < numplanes; secondPlaneIndex++ ) {
 				if ( secondPlaneIndex == clipPlaneIndex || !SVG_MMove_IsEnteringPlane( clipVelocity, planes[ secondPlaneIndex ] ) ) {
 					continue;
 				}
 
-				SVG_MMove_ClipVelocity( clipVelocity, planes[ secondPlaneIndex ], clipVelocity, 1.01 );
+				clip( clipVelocity, planes[ secondPlaneIndex ], clipVelocity, secondPlaneIndex );
 				if ( QM_Vector3DotProductDP( clipVelocity, planes[ clipPlaneIndex ] ) >= 0.0 ) {
 					continue;
 				}
 
 				/**
-				* Move along the crease of two blocking planes, then distinguish a valid flat-ground
-				* corner from a true three-plane wedge.
+				*	Move along the normalized crease of two blocking planes, then distinguish a valid
+				*	flat-ground corner from a true three-plane wedge.
 				**/
 				dir = QM_Vector3CrossProductDP( planes[ clipPlaneIndex ], planes[ secondPlaneIndex ] );
+				dir = QM_Vector3NormalizeDP( dir );
 				d = QM_Vector3DotProductDP( dir, original_velocity );
 				clipVelocity = dir * d;
 
@@ -299,7 +365,7 @@ const mm_slide_move_flags_t SVG_MMove_SlideMove( Vector3DP &origin, Vector3DP &v
 					const bool secondIsVertical = std::fabs( planes[ secondPlaneIndex ].z ) < 0.1;
 					if ( firstIsVertical && secondIsVertical && planes[ thirdPlaneIndex ].z >= MM_MIN_STEP_NORMAL ) {
 						// A pair of walls plus a walkable floor is a valid flat-ground corner.
-						SVG_MMove_ClipVelocity( clipVelocity, planes[ thirdPlaneIndex ], clipVelocity, 1.01 );
+						clip( clipVelocity, planes[ thirdPlaneIndex ], clipVelocity, thirdPlaneIndex );
 						continue;
 					}
 

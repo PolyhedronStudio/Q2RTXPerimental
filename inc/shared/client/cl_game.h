@@ -233,6 +233,11 @@ typedef struct {
 	**/
 	void ( *CL_ClientCommand )( const char *string );
 	/**
+	*       @brief  Appends a command string to the local client command buffer.
+	*       @note   Used by client-game UI menus to execute local console commands (e.g. map, quit, vid_restart).
+	**/
+	void ( *Cbuf_AddText )( const char *text );
+	/**
 	*   @brief  Returns the active scoreboard entries parsed from the engine.
 	**/
 	const scoreboard_entry_t *( *GetScoreboardEntries )( void );
@@ -1154,6 +1159,14 @@ typedef struct {
 
 	//! Called when the client needs to close the active GameUI menu and restore normal input.
 	void ( *GameUI_CloseMenu )( void );
+	//! Called when the engine requests opening a root menu by name (e.g. "main" or "game").
+	void ( *GameUI_OpenRootMenu )( const char *menuName );
+	//! Called when the engine or a console command pushes a menu by name onto the active menu stack.
+	void ( *GameUI_PushMenu )( const char *menuName );
+	//! Called when the engine or Escape key pops the top menu from the active menu stack.
+	void ( *GameUI_PopMenu )( void );
+	//! Called to process and draw the active GameUI frame when the client is not in ca_active state (e.g. boot main menu).
+	void ( *GameUI_DrawFrame )( refcfg_t *refcfg );
 
 
 	/**

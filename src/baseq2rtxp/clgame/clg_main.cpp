@@ -90,6 +90,10 @@ cvar_t *clg_noskins = nullptr;
 cvar_t *cl_predict = nullptr;
 cvar_t *cl_nolerp = nullptr;
 cvar_t *clg_footsteps = nullptr;
+//! Master toggle for monster animation level of detail (LOD) and distance throttling.
+cvar_t *clg_anim_lod_enable = nullptr;
+//! Distance threshold beyond which monsters use quantized animation LOD instead of full-rate subframe interpolation.
+cvar_t *clg_anim_lod_distance = nullptr;
 
 // Cheesy workaround for various cvars initialized elsewhere in the client, but we need access.
 cvar_t *cvar_pt_particle_emissive = nullptr; // from client FX_Init
@@ -153,6 +157,8 @@ centity_t *clg_entities = nullptr;
 
 //! View Commands.
 extern cmdreg_t clg_view_cmds[];
+//! View Commands.
+extern cmdreg_t clg_weaponbar_cmds[ ];
 
 
 
@@ -557,6 +563,10 @@ void PF_ShutdownGame( void ) {
 	// Clear out the UI Context, if any.
 	CLG_UI_FreeContext();
 
+	// Deregister registered command blocks.
+	clgi.Cmd_Deregister( clg_weaponbar_cmds );
+	clgi.Cmd_Deregister( clg_view_cmds );
+
 	// Shutdown weapon selector keys and HUD menu state.
 	CLG_Keys_Shutdown();
 	CLG_WeaponMenu_Shutdown();
@@ -629,6 +639,8 @@ void PF_InitGame( void ) {
 
 	// Client effects.
 	clg_footsteps = clgi.CVar_Get( "clg_footsteps", "1", 0 );
+	clg_anim_lod_enable = clgi.CVar_Get( "clg_anim_lod_enable", "1", CVAR_ARCHIVE );
+	clg_anim_lod_distance = clgi.CVar_Get( "clg_anim_lod_distance", "1024", CVAR_ARCHIVE );
 	clg_kickangles = clgi.CVar_Get( "clg_kickangles", "1", CVAR_CHEAT );
 	clg_noskins = clgi.CVar_Get( "clg_noskins", "0", 0 );
 	cl_nolerp = clgi.CVar_Get( "cl_nolerp", "0", 0 ); // Fetched from engine.
@@ -685,6 +697,8 @@ void PF_InitGame( void ) {
 
 	// Register view command callbacks.
 	clgi.Cmd_Register( clg_view_cmds );
+	// Register weaponbar menu command callbacks.
+	clgi.Cmd_Register( clg_weaponbar_cmds );
 
 	clgi.Cmd_AddMacro( "clg_health_m", CLG_Health_m );
 	clgi.Cmd_AddMacro( "clg_ammo_m", CLG_Ammo_m );
@@ -786,8 +800,8 @@ extern "C" { // WID: C++20: extern "C".
 		**/
 		//! Called when the client receives a key event, gives the client game a chance to handle it 
 		//! when the client's current key event destination is set to keyEventDest_t::GAME_UI.
-			//! Called when the client receives a mouse move event, gives the client game a chance to handle it 
-	//! when the client's current input(key) event destination is set to keyEventDest_t::GAME_UI.
+		//! Called when the client receives a mouse move event, gives the client game a chance to handle it 
+		//! when the client's current input(key) event destination is set to keyEventDest_t::GAME_UI.
 		globals.GameUI_MouseMoveEvent = PF_GameUI_MouseMoveEvent;
 		//! Called when the client receives a mouse button event, gives the client game a chance to handle it 
 		//! when the client's current input(key) event destination is set to keyEventDest_t::GAME_UI.
@@ -796,17 +810,13 @@ extern "C" { // WID: C++20: extern "C".
 		//! when the client's current input(key) event destination is set to keyEventDest_t::GAME_UI.
 		globals.GameUI_MouseScrollEvent = PF_GameUI_MouseScrollEvent;
 		globals.GameUI_CloseMenu = CLG_UI_CloseMenu;
+		globals.GameUI_OpenRootMenu = CLG_UI_OpenRootMenu;
+		globals.GameUI_PushMenu = CLG_UI_PushMenu;
+		globals.GameUI_PopMenu = CLG_UI_PopMenu;
+		globals.GameUI_DrawFrame = CLG_UI_DrawFrame;
 
 		globals.GameUI_KeyEvent = PF_GameUI_KeyEvent;
 		globals.GameUI_TextInputEvent = PF_GameUI_TextInputEvent;
-
-
-		//! Called when the client receives a key event, gives the client game a chance to handle it 
-		//! when the client's current key event destination is set to keyEventDest_t::GAME_UI.
-		void ( *GameUI_KeyEvent )( const int32_t key, const bool isDdown );
-		//! Called when the client receives a character event, gives the client game a chance to handle it 
-		//! when the client's current key event destination is set to keyEventDest_t::GAME_UI.
-		void ( *GameUI_TextInputEvent )( const char *str );
 
 		globals.UsePrediction = PF_UsePrediction;
 		globals.CheckPredictionError = PF_CheckPredictionError;

@@ -60,3 +60,32 @@ void CLG_WeaponMenu_Close( void );
 *	@return	True if active.
 **/
 const bool CLG_WeaponMenu_IsOpen( void );
+
+
+/**
+*
+*
+*	Weapon Bar user input Movement Intersceptors:
+*
+*
+**/
+/**
+*	@brief	When +forward button is pressed down.
+*	@note	If the HUD weapon selector menu is open, only the UPARROW key navigates to the previous slot.
+*			Any other key (such as 'W') is ignored by the menu and forwarded to normal movement as usual.
+**/
+const bool IN_WeaponBar_ForwardDown( void );
+/**
+*	@brief	When +forward button is released (up).
+**/
+const bool IN_WeaponBar_ForwardUp( void );
+/**
+*	@brief	When +back button is pressed down.
+*	@note	If the HUD weapon selector menu is open, only the DOWNARROW key navigates to the next slot.
+*			Any other key (such as 'S') is ignored by the menu and forwarded to normal movement as usual.
+**/
+const bool IN_WeaponBar_BackDown( void );
+/**
+*	@brief	When +back button is released (up).
+**/
+const bool IN_WeaponBar_BackUp( void );

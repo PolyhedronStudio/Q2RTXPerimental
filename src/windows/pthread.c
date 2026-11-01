@@ -16,10 +16,17 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#include "client.h"
+#include "shared/shared.h"
 #include "shared/util/util_list.h"
 #include "system/pthread.h"
+
+#define WIN32_LEAN_AND_MEAN
+#define VC_EXTRALEAN
+#define NOMINMAX
+#include <windows.h>
 #include <process.h>
+#include <stdlib.h>
+#include <errno.h>
 
 typedef struct {
     list_t entry;
@@ -48,6 +55,66 @@ static unsigned __stdcall thread_func(void *arg)
     winthread_t *t = arg;
     t->ret = t->func(t->arg);
     return 0;
+}
+
+/**
+*	Mutex operations backed by Windows SRWLOCK.
+**/
+int pthread_mutex_init(pthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr)
+{
+	(void)mutexattr;
+	InitializeSRWLock((PSRWLOCK)&mutex->handle);
+	return 0;
+}
+
+int pthread_mutex_lock(pthread_mutex_t *mutex)
+{
+	AcquireSRWLockExclusive((PSRWLOCK)&mutex->handle);
+	return 0;
+}
+
+int pthread_mutex_trylock(pthread_mutex_t *mutex)
+{
+	return TryAcquireSRWLockExclusive((PSRWLOCK)&mutex->handle) ? 0 : EBUSY;
+}
+
+int pthread_mutex_unlock(pthread_mutex_t *mutex)
+{
+	ReleaseSRWLockExclusive((PSRWLOCK)&mutex->handle);
+	return 0;
+}
+
+int pthread_mutex_destroy(pthread_mutex_t *mutex)
+{
+	(void)mutex;
+	return 0;
+}
+
+/**
+*	Condition variable operations backed by Windows CONDITION_VARIABLE.
+**/
+int pthread_cond_init(pthread_cond_t *cond, pthread_condattr_t *cond_attr)
+{
+	(void)cond_attr;
+	InitializeConditionVariable((PCONDITION_VARIABLE)&cond->handle);
+	return 0;
+}
+
+int pthread_cond_signal(pthread_cond_t *cond)
+{
+	WakeConditionVariable((PCONDITION_VARIABLE)&cond->handle);
+	return 0;
+}
+
+int pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
+{
+	return SleepConditionVariableSRW((PCONDITION_VARIABLE)&cond->handle, (PSRWLOCK)&mutex->handle, INFINITE, 0) ? 0 : ETIMEDOUT;
+}
+
+int pthread_cond_destroy(pthread_cond_t *cond)
+{
+	(void)cond;
+	return 0;
 }
 
 int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
@@ -93,4 +160,82 @@ int pthread_join(pthread_t thread, void **retval)
 done:
     pthread_mutex_unlock(&mutex);
     return ret;
+}
+
+/**
+*	@brief	Return thread identifier of calling thread.
+*	@return	Calling thread identifier as pthread_t.
+**/
+pthread_t pthread_self( void ) {
+	return (pthread_t)GetCurrentThreadId();
+}
+
+/**
+*	@brief	Compare two thread identifiers for equality.
+*	@param	t1	First thread identifier.
+*	@param	t2	Second thread identifier.
+*	@return	Non-zero if thread identifiers are equal, 0 otherwise.
+**/
+int pthread_equal( pthread_t t1, pthread_t t2 ) {
+	return ( t1 == t2 );
+}
+
+/**
+*	@brief	Query execution CPU time for a Windows thread emulation handle in nanoseconds.
+*	@param	thread		Thread ID to inspect (or 0 / pthread_self() for calling thread).
+*	@param	out_time_ns	[out] Receives thread CPU execution time in nanoseconds.
+*	@return	0 on success, or non-zero error code on failure.
+**/
+int pthread_getcputime( pthread_t thread, uint64_t *out_time_ns ) {
+	// Guard against null output pointer.
+	if ( !out_time_ns ) {
+		return EINVAL;
+	}
+
+	HANDLE hThread = (HANDLE)0;
+	BOOL mustClose = FALSE;
+
+	// Use fast pseudo-handle for current thread without handle allocation.
+	if ( thread == 0 || thread == (pthread_t)GetCurrentThreadId() ) {
+		hThread = GetCurrentThread();
+	} else {
+		// First check whether the thread is tracked in our internal thread registry.
+		pthread_mutex_lock( &mutex );
+		winthread_t *t = find_thread( thread );
+		if ( t && t->handle ) {
+			hThread = t->handle;
+		}
+		pthread_mutex_unlock( &mutex );
+
+		// If untracked, attempt opening thread handle with query privileges.
+		if ( !hThread ) {
+			hThread = OpenThread( THREAD_QUERY_LIMITED_INFORMATION, FALSE, (DWORD)thread );
+			if ( !hThread ) {
+				hThread = OpenThread( THREAD_QUERY_INFORMATION, FALSE, (DWORD)thread );
+			}
+			if ( !hThread ) {
+				return ESRCH;
+			}
+			mustClose = TRUE;
+		}
+	}
+
+	FILETIME creationTime = { 0 }, exitTime = { 0 }, kernelTime = { 0 }, userTime = { 0 };
+	const BOOL ok = GetThreadTimes( hThread, &creationTime, &exitTime, &kernelTime, &userTime );
+	if ( mustClose ) {
+		CloseHandle( hThread );
+	}
+
+	// Validate query success and convert 100-nanosecond intervals to nanoseconds.
+	if ( ok ) {
+		ULARGE_INTEGER kt, ut;
+		kt.LowPart = kernelTime.dwLowDateTime;
+		kt.HighPart = kernelTime.dwHighDateTime;
+		ut.LowPart = userTime.dwLowDateTime;
+		ut.HighPart = userTime.dwHighDateTime;
+		*out_time_ns = ( kt.QuadPart + ut.QuadPart ) * 100ULL;
+		return 0;
+	}
+
+	return EIO;
 }

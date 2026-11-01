@@ -35,6 +35,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //! Maximum joints for SKM configuration info.
 #define SKM_MAX_BONES IQM_MAX_JOINTS
 #define SKM_MAX_BONE_CONTROLLERS 4
+#define SKM_MAX_LAYERS 4
 
 //! Refresh limits.
 #define MAX_DLIGHTS 32
@@ -454,6 +455,67 @@ typedef struct skm_rootmotion_set_s {
 *           Also pre-calculated and stored are the rootmotion translation/distance for
 *           all frames per animation.
 **/
+/**
+*   @brief  A single faux animation blend layer. (C-compatible mirror of
+*           sg_skm_blend_layer_t in sharedgame/sg_skm.h; QMTime fields are stored
+*           as plain int64_t milliseconds so C compilation units can use it too.)
+**/
+typedef struct skm_faux_layer_state_s {
+    //! Animation Index.
+    int32_t animationID;
+    //! Whether it is looping or not.
+    bool isLooping;
+    //! Root Motion Flags for this animation.
+    int32_t rootMotionFlags;
+    //! Start time. (Milliseconds.)
+    int64_t timeStart;
+    //! Duration of animation( ( srcEndFrame - srcStartFrame ) * frameTime ). (Milliseconds.)
+    int64_t timeDuration;
+    //! Expected time of ending the animation. ( timeStart + timeDuration ). (Milliseconds.)
+    int64_t timeEnd;
+    //! FrameTime for this animation.
+    double frameTime;
+    //! Actual last calculated(making it current) frame.
+    int32_t currentFrame;
+    //! Previously last calculated frame.
+    int32_t previousFrame;
+    //! Total offset for the animation's model source start frame index.
+    int32_t srcStartFrame;
+    //! Total offset for the animation's model source end frame index.
+    int32_t srcEndFrame;
+} skm_faux_layer_state_t;
+
+typedef struct skm_faux_layer_s {
+    //! The layer's animation state.
+    skm_faux_layer_state_t state;
+    //! Bone number at which this layer starts blending. (-1 == inactive layer.)
+    int32_t startBone;
+    //! How the layer is applied to the base pose. (0 == OVERRIDE, 1 == ADDITIVE.)
+    int32_t mode;
+    //! Per-bone blend weights, indexed by bone number. (0.0 == keep base, 1.0 == full layer.)
+    float boneWeights[ SKM_MAX_BONES ];
+    //! Weight applied to bones under startBone that have no explicit mask entry.
+    float defaultWeight;
+    //! Fade-in duration in milliseconds. (0 == instant.)
+    int64_t fadeInTime;
+    //! Fade-out duration in milliseconds, applied after timeEnd. (0 == instant.)
+    int64_t fadeOutTime;
+} skm_faux_layer_t;
+
+/**
+*   @brief  A named 'faux animation': a composite recipe of blend layers that is
+*           registered alongside real IQM animations and resolvable by name.
+*           (C-compatible mirror of sg_skm_faux_animation_t.)
+**/
+typedef struct skm_faux_animation_s {
+    //! Recipe name, resolvable through SG_SKM_GetFauxAnimationForName.
+    char name[ MAX_QPATH ];
+    //! Number of active layers in this recipe.
+    int32_t numberOfLayers;
+    //! The recipe's layers, applied in order on top of the base pose.
+    skm_faux_layer_t layers[ SKM_MAX_LAYERS ];
+} skm_faux_animation_t;
+
 typedef struct skm_config_s {
     //! Actual number of bones stored in the parenting model_t iqm data.
     int32_t numberOfBones;
@@ -477,8 +539,16 @@ typedef struct skm_config_s {
 
     //! Stores all pre-calculated motions of the Root Motion Bone, for all frames, of each animation.
     skm_rootmotion_set_t rootMotion;
-} skm_config_t;
 
+    //! Faux animation recipes parsed from the .skc 'faux_animations' section.
+    //! (Hunk allocated; nullptr when the model has no faux animations.)
+    //! These are file-scope typedefs so C compilation units can use them as well;
+    //! their layout mirrors sg_skm_faux_animation_t (sharedgame/sg_skm.h) without
+    //! pulling sharedgame headers into the refresh.
+    skm_faux_animation_t *fauxAnimations;
+    //! Actual number of faux animation recipes stored.
+    int32_t numberOfFauxAnimations;
+} skm_config_t;
 
 /**
 *
