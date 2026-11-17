@@ -9,6 +9,7 @@
 #include "clgame/clg_effects.h"
 #include "clgame/clg_entities.h"
 #include "clgame/clg_precache.h"
+#include "clgame/fx/clg_fx_blood_hero.h"
 
 #include "sharedgame/sg_entity_flags.h"
 
@@ -341,13 +342,10 @@ static void CLG_PacketEntity_ApplyShellEffects( uint32_t &entityFlags, int32_t &
 *   @brief  Adds trail entityFlags to the entity.
 **/
 static void CLG_PacketEntity_AddTrailEffects( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *nextState, const uint32_t entityFlags ) {
-    // If no rotation flag is set, add specified trail flags.
-    // WID: Why not? Let's just do this.
-    //if ( entityFlags & ~EF_ROTATE ) {
+    // If gib flag is present, spawn modern 3D Alembic fluid mesh animations along its velocity path.
     if ( entityFlags & EF_GIB ) {
-        CLG_FX_DiminishingTrail( packetEntity->lerpOrigin, refreshEntity->origin, packetEntity, entityFlags );
+        CLG_FX_GibBloodTrail( packetEntity, refreshEntity->origin );
     }
-    //}
 }
 
 /**

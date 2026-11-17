@@ -9,6 +9,7 @@
 #include "clgame/clg_effects.h"
 #include "clgame/clg_entities.h"
 #include "clgame/clg_temp_entities.h"
+#include "clgame/fx/clg_fx_blood_hero.h"
 
 #include "sharedgame/sg_entity_flags.h"
 
@@ -50,16 +51,15 @@ void CLG_PacketEntity_AddGib( centity_t *packetEntity, entity_t *refreshEntity, 
         LerpAngles( packetEntity->prev.angles, packetEntity->current.angles, clgi.client->lerpfrac, refreshEntity->angles );
     }
 
-    // If no rotation flag is set, add specified trail flags.
-    // WID: Why not? Let's just do this.
-    if ( nextState->entityFlags & ~EF_ROTATE ) {
-        //if ( nextState->entityFlags & EF_GIB ) {
-        CLG_FX_DiminishingTrail( packetEntity->lerpOrigin, refreshEntity->origin, packetEntity, nextState->entityFlags | EF_GIB );
-    }
-    
+    /**
+    *	Emit 3D Alembic fluid mesh animations along the gib trajectory whilst moving by velocity.
+    *	Replaces legacy diminishing point particle trails with modern animated fluid meshes.
+    **/
+    CLG_FX_GibBloodTrail( packetEntity, refreshEntity->origin );
+
     // Add refresh entity to scene.
     clgi.V_AddEntity( refreshEntity );
      
-    // skip:
+    // Commit current origin for next frame's displacement calculation.
     VectorCopy( refreshEntity->origin, packetEntity->lerpOrigin );
 }

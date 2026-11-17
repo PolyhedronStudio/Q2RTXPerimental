@@ -16,15 +16,19 @@
 #include "sharedgame/sg_shared.h"
 #include <cstdint>
 
+// Forward declarations:
+struct centity_s;
+typedef struct centity_s centity_t;
+
 /**
 *	Constants and Configuration
 **/
 //! Maximum concurrent hero blood splatters in the world
-constexpr int32_t MAX_HERO_BLOOD_SPLATS = 48;
+constexpr int32_t MAX_HERO_BLOOD_SPLATS = 64;
 //! Half-life duration in milliseconds for blood splatter opacity dissipation after playback completes
-constexpr float HERO_BLOOD_HALF_LIFE_MS = 80.0f;
+constexpr float HERO_BLOOD_HALF_LIFE_MS = 120.0f;
 //! Duration in milliseconds for smooth fade-out and scale decay over the final droplet phase
-constexpr int32_t HERO_BLOOD_FADE_DURATION_MS = 100;
+constexpr int32_t HERO_BLOOD_FADE_DURATION_MS = 200;
 //! Maximum animation playback frames per Alembic sequence
 constexpr int32_t MAX_HERO_BLOOD_FRAMES = 60;
 
@@ -101,3 +105,13 @@ clg_hero_blood_splat_t *CLG_FX_BloodHero_Spawn( const Vector3 &origin, const Vec
 *			exponential half-life decay, mover tracking, and scene emission.
 **/
 void CLG_FX_BloodHero_Frame( void );
+
+/**
+*	@brief		Spawn 3D Alembic fluid mesh animations along a moving gib's trajectory.
+*	@details	When a gib is thrown, launches multiple Alembic blood splatter animations
+*			following the gib's flight velocity, and continues spawning droplets along
+*			its path until the gib slows or comes to rest.
+*	@param	packetEntity	Client entity representing the flying gib.
+*	@param	currentOrigin	Current lerped world-space origin of the gib.
+**/
+void CLG_FX_GibBloodTrail( centity_t *packetEntity, const Vector3 &currentOrigin );

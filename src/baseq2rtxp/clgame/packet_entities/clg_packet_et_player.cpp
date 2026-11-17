@@ -9,6 +9,7 @@
 #include "clgame/clg_effects.h"
 #include "clgame/clg_entities.h"
 #include "clgame/clg_precache.h"
+#include "clgame/fx/clg_fx_blood_hero.h"
 
 #include "sharedgame/sg_entities.h"
 #include "sharedgame/sg_entity_flags.h"
@@ -537,39 +538,9 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
         //memcpy( currentLerpedPose, lowerEventStatePose, SKM_MAX_BONES ); // This is faster if we override from the hips.
         SG_SKM_RecursiveBlendFromBone( lowerEventStatePose, finalStatePose, finalStatePose, hipsBone, 1, 1 ); // Slower path..
     }
-    /**
-    *   'Upper Event' Blend Layering:
-    **/
-    // Instead of a binary spine-chain override, composite the upper event animation as a
-    // weighted blend layer: arms at full weight, spine chain softened so the base pose's
-    // posture (e.g. a crouch's bent neck/back/shoulders) is preserved.
-    if ( upperEventIsPlaying && upperEventStatePose ) {
-        // The faux animation recipe matching this event's animation, if any.
-        const skm_anim_t *upperEventAnimation = SG_SKM_GetAnimationForHandle( model, upperEventBodyState->animationID );
-        const sg_skm_faux_animation_t *fauxAnimation = ( upperEventAnimation ? SG_SKM_GetFauxAnimationForName( model, upperEventAnimation->name ) : nullptr );
-
-        if ( fauxAnimation && fauxAnimation->numberOfLayers > 0 && spineBone ) {
-            // The recipe supplies only the blend MASK; the animation itself is already
-            // processed into upperEventStatePose by the regular pipeline above. Build a
-            // working layer from the recipe's first layer, carrying the live event state
-            // so the fade envelope tracks the actual animation timing.
-            sg_skm_blend_layer_t *workingLayer = &packetEntity->fauxAnimationLayers[ 0 ];
-            const sg_skm_blend_layer_t *recipeLayer = &fauxAnimation->layers[ 0 ];
-
-            workingLayer->state = *upperEventBodyState;
-            workingLayer->startBone = recipeLayer->startBone;
-            workingLayer->mode = recipeLayer->mode;
-            workingLayer->defaultWeight = recipeLayer->defaultWeight;
-            workingLayer->fadeInTime = recipeLayer->fadeInTime;
-            workingLayer->fadeOutTime = recipeLayer->fadeOutTime;
-            memcpy( workingLayer->boneWeights, recipeLayer->boneWeights, sizeof( recipeLayer->boneWeights ) );
-
-            // Apply the layer on top of the current pose.
-            SG_SKM_ApplyBlendLayer( model, workingLayer, upperEventStatePose, finalStatePose, finalStatePose, extrapolatedTime );
-        } else {
-            // No recipe: fall back to the old binary spine-chain override.
-            SG_SKM_RecursiveBlendFromBone( upperEventStatePose, finalStatePose, finalStatePose, spineBone, 1, 1 );
-        }
+    // If playing, the upper event state overrides only the spine bone and all its child bones.
+    if ( upperEventIsPlaying /*&& upperEventBodyState->timeEnd >= extrapolatedTime*/ ) {
+        SG_SKM_RecursiveBlendFromBone( upperEventStatePose, finalStatePose, finalStatePose, spineBone, 1, 1 );
     }
 
 
@@ -806,12 +777,9 @@ void CLG_ETPlayer_LerpAngles( centity_t *packetEntity, entity_t *refreshEntity, 
 **/
 void CLG_ETPlayer_AddEffects( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *nextState ) {
     // This is specific to when the player entity turns into GIB without being an ET_GIB.
-    // If no rotation flag is set, add specified trail flags. We don't need it spamming
-    // a blood trail of entities when it basically stopped motion.
-    if ( nextState->entityFlags & ~EF_ROTATE ) {
-        if ( nextState->entityFlags & EF_GIB ) {
-            CLG_FX_DiminishingTrail( packetEntity->lerpOrigin, refreshEntity->origin, packetEntity, nextState->entityFlags | EF_GIB );
-        }
+    // If gib flag is present, spawn modern 3D Alembic fluid mesh animations along velocity path.
+    if ( nextState->entityFlags & EF_GIB ) {
+        CLG_FX_GibBloodTrail( packetEntity, refreshEntity->origin );
     }
 }
 

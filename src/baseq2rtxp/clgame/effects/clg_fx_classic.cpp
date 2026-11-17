@@ -275,14 +275,14 @@ void CLG_FX_BloodParticleEffect( const Vector3 &org, const Vector3 &dir, [[maybe
 			Vector3 splatterOrigin = org;
 			Vector3 splatterDir = dir;
 			float splatterScale = baseScale;
-			float splatterSpeed = 150.0f;
+			float splatterSpeed = 25.0f;
 
 			// Differentiate between primary impact burst (index 0) and secondary divergent splatters (index > 0).
 			if ( i == 0 ) {
 				// Primary splatter size is impacted by damage with a subtle +/- 10% randomness factor.
 				const float primaryRandomFactor = 0.90f + ( frand() * 0.20f );
 				splatterScale = std::clamp( baseScale * primaryRandomFactor, 0.40f, 2.10f );
-				splatterSpeed = 140.0f + ( crand() * 20.0f );
+				splatterSpeed = 25.0f + ( crand() * 8.0f );
 			} else {
 				// Secondary splatters: offset position slightly along the wound perimeter.
 				const float radialOffset = 1.0f + ( frand() * 3.5f );
@@ -303,8 +303,8 @@ void CLG_FX_BloodParticleEffect( const Vector3 &org, const Vector3 &dir, [[maybe
 				const float secondaryRandomFactor = 0.50f + ( frand() * 0.55f );
 				splatterScale = std::clamp( baseScale * secondaryRandomFactor, 0.25f, 1.75f );
 
-				// Stagger velocity slightly between secondary droplets.
-				splatterSpeed = 110.0f + ( frand() * 70.0f );
+				// Gentle drift velocity so mesh expands right at the wound site rather than flying away.
+				splatterSpeed = 20.0f + ( frand() * 10.0f );
 			}
 
 			// Spawn 3D Alembic hero splatter mesh with its calculated origin, angular direction, velocity, and scale.
@@ -339,96 +339,68 @@ void CLG_FX_MonsterDeathBloodSplatter( const Vector3 &origin, const Vector3 &ang
 	/**
 	*	Calculate torso center and construct directional orientation basis.
 	**/
-	// Torso / chest emission center (approximately 28 units above feet origin).
-	const Vector3 chestOrigin = origin + Vector3{ 0.0f, 0.0f, 28.0f };
+	// Torso / chest emission center (approximately 26 units above feet origin).
+	const Vector3 chestOrigin = origin + Vector3{ 0.0f, 0.0f, 26.0f };
 
 	// Compute forward, right, and world-up vectors from victim orientation angles.
 	Vector3 forward = {}, right = {}, upVec = {};
 	QM_AngleVectors( angles, &forward, &right, &upVec );
 	const Vector3 up( 0.0f, 0.0f, 1.0f );
 
-	// Determine primary directional bias from knockback velocity if significant, otherwise victim facing.
-	Vector3 biasDir = forward;
-	const float velLen2 = ( velocity.x * velocity.x ) + ( velocity.y * velocity.y ) + ( velocity.z * velocity.z );
-	// If the victim has significant movement or knockback velocity, align primary spray with momentum.
-	if ( velLen2 > ( 10.0f * 10.0f ) ) {
-		biasDir = QM_Vector3Normalize( velocity );
+	/**
+	*	1. Radial 360-degree explosive burst:
+	*	   Pop 8 distinct Alembic fluid meshes erupting outward along the full horizontal circle,
+	*	   angled slightly upward into an explosive dome around the monster's body.
+	*	   Drift speed is kept low (20-35 units/s) so the internal fluid simulation expansion
+	*	   forms the visible "pop" and explosion out of the body rather than rocketing away.
+	**/
+	constexpr int32_t numRadial = 8;
+	for ( int32_t i = 0; i < numRadial; i++ ) {
+		// Distribute burst azimuths evenly in 45-degree increments around the monster's perimeter.
+		const float angleRad = ( static_cast<float>( i ) * ( 6.2831853f / static_cast<float>( numRadial ) ) ) + ( crand() * 0.12f );
+		const Vector3 radialHoriz = ( forward * cosf( angleRad ) ) + ( right * sinf( angleRad ) );
+
+		// Explosive upward/outward dome elevation.
+		const float elevation = 0.18f + ( frand() * 0.28f );
+		const Vector3 burstDir = QM_Vector3Normalize( radialHoriz + Vector3{ 0.0f, 0.0f, elevation } );
+
+		// Start on the outer torso volume so the fluid meshes pop visibly out of the monster's body.
+		const Vector3 burstOrigin = chestOrigin + ( radialHoriz * ( 5.0f + ( frand() * 5.0f ) ) ) + Vector3{ 0.0f, 0.0f, ( frand() - 0.5f ) * 8.0f };
+		// Low outward drift velocity so the mesh simulation blossoms directly at the body.
+		const Vector3 burstVel = burstDir * ( 22.0f + ( frand() * 14.0f ) );
+		// Chunky, visible 3D fluid pop scale.
+		const float burstScale = 1.15f + ( frand() * 0.40f );
+
+		CLG_FX_BloodHero_Spawn( burstOrigin, burstDir, burstVel, ENTITYNUM_WORLD, burstScale );
 	}
 
 	/**
-	*	Trajectory branch definitions replicating the classic point particle dispersion route
-	*	with high-fidelity 3D Alembic fluid mesh sequences.
+	*	2. High vertical erupting fountains:
+	*	   Erupt 2 vertical geysers straight up from the torso/neck wound into the air.
 	**/
-	struct death_splat_def_t {
-		Vector3 dir;
-		float speed;
-		float scale;
-		float offsetDist;
-	};
+	// Vertical geyser 1:
+	const Vector3 geyserDir1 = QM_Vector3Normalize( Vector3{ crand() * 0.12f, crand() * 0.12f, 0.98f } );
+	const Vector3 geyserOrigin1 = chestOrigin + Vector3{ crand() * 2.0f, crand() * 2.0f, 10.0f };
+	const Vector3 geyserVel1 = geyserDir1 * ( 26.0f + ( frand() * 10.0f ) );
+	CLG_FX_BloodHero_Spawn( geyserOrigin1, geyserDir1, geyserVel1, ENTITYNUM_WORLD, 1.35f + ( frand() * 0.30f ) );
 
-	// Construct 6 distinct arterial trajectory branches covering the 3D burst envelope:
-	const death_splat_def_t branches[ 6 ] = {
-		// 0: Primary forward-up arterial geyser (main exiting blood jet).
-		{
-			QM_Vector3Normalize( ( biasDir * 0.82f ) + ( up * 0.57f ) + ( right * crand() * 0.10f ) ),
-			190.0f + ( frand() * 30.0f ),
-			1.30f + ( frand() * 0.25f ),
-			4.0f
-		},
-		// 1: High vertical fountain erupting straight up from torso / neck wound.
-		{
-			QM_Vector3Normalize( ( biasDir * 0.15f ) + ( right * crand() * 0.20f ) + ( up * 0.98f ) ),
-			170.0f + ( frand() * 30.0f ),
-			1.10f + ( frand() * 0.25f ),
-			3.5f
-		},
-		// 2: Flank right spray arcing outward and forward.
-		{
-			QM_Vector3Normalize( ( biasDir * 0.48f ) + ( right * 0.80f ) + ( up * 0.36f ) ),
-			150.0f + ( frand() * 30.0f ),
-			0.95f + ( frand() * 0.20f ),
-			3.0f
-		},
-		// 3: Flank left spray arcing outward and forward.
-		{
-			QM_Vector3Normalize( ( biasDir * 0.48f ) - ( right * 0.80f ) + ( up * 0.36f ) ),
-			150.0f + ( frand() * 30.0f ),
-			0.95f + ( frand() * 0.20f ),
-			3.0f
-		},
-		// 4: Rear-upward spill / back-splatter dripping behind victim.
-		{
-			QM_Vector3Normalize( ( -biasDir * 0.55f ) + ( right * crand() * 0.35f ) + ( up * 0.25f ) ),
-			110.0f + ( frand() * 25.0f ),
-			0.80f + ( frand() * 0.20f ),
-			2.5f
-		},
-		// 5: Forward low downward-slanted spray splashing towards the ground in front.
-		{
-			QM_Vector3Normalize( ( biasDir * 0.90f ) - ( up * 0.18f ) + ( right * crand() * 0.20f ) ),
-			140.0f + ( frand() * 25.0f ),
-			0.90f + ( frand() * 0.20f ),
-			4.0f
-		}
-	};
+	// Vertical geyser 2:
+	const Vector3 geyserDir2 = QM_Vector3Normalize( Vector3{ crand() * 0.18f, crand() * 0.18f, 0.94f } );
+	const Vector3 geyserOrigin2 = chestOrigin + Vector3{ crand() * 3.0f, crand() * 3.0f, 6.0f };
+	const Vector3 geyserVel2 = geyserDir2 * ( 22.0f + ( frand() * 10.0f ) );
+	CLG_FX_BloodHero_Spawn( geyserOrigin2, geyserDir2, geyserVel2, ENTITYNUM_WORLD, 1.20f + ( frand() * 0.25f ) );
 
 	/**
-	*	Spawn each individual Alembic fluid splatter mesh instance and its associated floor decals.
+	*	3. Ground pooling decals:
+	*	   Cast downward traces around the monster's perimeter to spawn generous blood pooling on the floor.
 	**/
-	for ( int32_t i = 0; i < 6; i++ ) {
-		const death_splat_def_t &b = branches[ i ];
-
-		// Offset splatter spawn origin along branch direction so meshes do not overlap at source.
-		const Vector3 splatterOrigin = chestOrigin + ( b.dir * b.offsetDist ) + Vector3{ crand() * 1.5f, crand() * 1.5f, crand() * 1.5f };
-		const Vector3 splatterVel = b.dir * b.speed;
-
-		// Spawn 3D Alembic fluid mesh entity.
-		CLG_FX_BloodHero_Spawn( splatterOrigin, b.dir, splatterVel, ENTITYNUM_WORLD, b.scale );
-
-		// Cast a downward ray from the trajectory arc onto solid world geometry for ground pooling decals.
-		const Vector3 floorTraceStart = splatterOrigin + ( b.dir * 20.0f );
-		const Vector3 floorTraceEnd = floorTraceStart + Vector3{ 0.0f, 0.0f, -128.0f };
-		const cm_trace_t floorTrace = CLG_Clip( floorTraceStart, nullptr, nullptr, floorTraceEnd, nullptr, CM_CONTENTMASK_SOLID );
+	constexpr int32_t numFloorPools = 5;
+	for ( int32_t d = 0; d < numFloorPools; d++ ) {
+		const float poolAngle = static_cast<float>( d ) * ( 6.2831853f / static_cast<float>( numFloorPools ) );
+		const float poolOffset = ( d == 0 ) ? 0.0f : ( 12.0f + ( frand() * 14.0f ) );
+		const Vector3 traceStart = origin + Vector3{ cosf( poolAngle ) * poolOffset, sinf( poolAngle ) * poolOffset, 20.0f };
+		const Vector3 traceEnd = traceStart + Vector3{ 0.0f, 0.0f, -96.0f };
+		const cm_trace_t floorTrace = CLG_Clip( traceStart, nullptr, nullptr, traceEnd, nullptr, CM_CONTENTMASK_SOLID );
 
 		// Check if ray struck upward-facing solid world geometry.
 		if ( floorTrace.fraction < 1.0f && !floorTrace.allsolid && !floorTrace.startsolid && floorTrace.plane.normal[ 2 ] > 0.60f ) {
@@ -437,8 +409,8 @@ void CLG_FX_MonsterDeathBloodSplatter( const Vector3 &origin, const Vector3 &ang
 			VectorCopy( floorTrace.plane.normal, decal_params.normal );
 			decal_params.materialHash = bloodMaterials[ Q_rand() % 3 ];
 			decal_params.surfaceClass = SG_DECAL_SURFACE_FLESH;
-			// Diameter proportional to spray volume (16 to 24 units).
-			decal_params.radius = 8.0f + ( frand() * 4.0f );
+			// Diameter proportional to pool size (18 to 28 units).
+			decal_params.radius = 9.0f + ( frand() * 5.0f );
 			decal_params.depth = 6.0f;
 			decal_params.rotationRadians = frand() * 6.2831853f;
 			decal_params.lifeSeconds = 25.0f;
@@ -830,6 +802,16 @@ CLG_FX_DiminishingTrail
 ===============
 */
 void CLG_FX_DiminishingTrail( const Vector3 &start, const Vector3 &end, centity_t *old, int flags ) {
+	/**
+	*	Sanity / early exit:
+	*	Gib entities use modern 3D Alembic fluid mesh animations along their velocity trajectory.
+	*	Suppress legacy diminishing point particles completely for EF_GIB so no rogue or uninitialized
+	*	sparks ever linger or rise from gib paths.
+	**/
+	if ( ( flags & EF_GIB ) != 0 ) {
+		return;
+	}
+
     vec3_t      move;
     vec3_t      vec;
     float       len;
@@ -863,33 +845,29 @@ void CLG_FX_DiminishingTrail( const Vector3 &start, const Vector3 &end, centity_
         // drop less particles as it flies
         if ( ( Q_rand() & 1023 ) < old->trailCount ) {
             p = CLG_AllocateParticle();
-            if ( !p )
+            if ( !p ) {
                 return;
+            }
             VectorClear( p->accel );
 
             p->time = clgi.client->time;
+            p->alpha = 1.0f;
+            p->alphavel = -1.0f / ( 1.0f + frand() * 0.2f );
 
-            if ( flags & EF_GIB ) {
-				// Suppress point particles for gib trails so 3D fluid meshes are exclusively used.
-				continue;
-            } else {
-                p->alpha = 1.0f;
-                p->alphavel = -1.0f / ( 1 + frand() * 0.2f );
+            p->color = 4 + ( Q_rand() & 7 );
+            p->brightness = 1.0f;
 
-                p->color = 4 + ( Q_rand() & 7 );
-                p->brightness = 1.0f;
-
-                for ( j = 0; j < 3; j++ ) {
-                    p->org[ j ] = move[ j ] + crand() * orgscale;
-                    p->vel[ j ] = crand() * velscale;
-                }
-                p->accel[ 2 ] = 20;
+            for ( j = 0; j < 3; j++ ) {
+                p->org[ j ] = move[ j ] + crand() * orgscale;
+                p->vel[ j ] = crand() * velscale;
             }
+            p->accel[ 2 ] = 20;
         }
 
         old->trailCount -= 5;
-        if ( old->trailCount < 100 )
+        if ( old->trailCount < 100 ) {
             old->trailCount = 100;
+        }
         VectorAdd( move, vec, move );
     }
 }

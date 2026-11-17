@@ -239,11 +239,13 @@ static inline void EntityState_ResetState( centity_t *cent, const entity_state_t
     }
     // For diminishing rocket / grenade trails.
     cent->trailCount = 1024;
+	// Reset gib blood fluid mesh distance and count trackers.
+	cent->gib_distance_accum = 0.0f;
+	cent->gib_blood_splat_count = 0;
 
 	// Set the lerp origin to the current origin by default.
     cent->lerpOrigin = nextState->origin;
 	cent->lerpAngles = nextState->angles;
-;
     if ( nextState->entityType == ET_PLAYER ) {
         ResetPlayerEntity( cent );
     }

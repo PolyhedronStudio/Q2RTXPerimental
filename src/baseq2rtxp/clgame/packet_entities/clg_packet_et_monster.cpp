@@ -10,6 +10,7 @@
 #include "clgame/clg_effects.h"
 #include "clgame/clg_entities.h"
 #include "clgame/clg_temp_entities.h"
+#include "clgame/fx/clg_fx_blood_hero.h"
 
 #include "sharedgame/sg_entity_flags.h"
 
@@ -203,12 +204,9 @@ void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEnti
     //
     LerpAngles( packetEntity->prev.angles, packetEntity->current.angles, clgi.client->lerpfrac, refreshEntity->angles );
 
-    // If no rotation flag is set, add specified trail flags. We don't need it spamming
-    // a blood trail of entities when it basically stopped motion.
-    if ( nextState->entityFlags & ~EF_ROTATE ) {
-        if ( nextState->entityFlags & EF_GIB ) {
-            CLG_FX_DiminishingTrail( packetEntity->lerpOrigin, refreshEntity->origin, packetEntity, nextState->entityFlags | EF_GIB );
-        }
+    // If gib flag is present, spawn modern 3D Alembic fluid mesh animations along velocity path.
+    if ( nextState->entityFlags & EF_GIB ) {
+        CLG_FX_GibBloodTrail( packetEntity, refreshEntity->origin );
     }
 
 	/**

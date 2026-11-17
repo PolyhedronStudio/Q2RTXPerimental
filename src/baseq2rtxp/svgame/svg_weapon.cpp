@@ -187,6 +187,9 @@ static svg_trace_t SVG_TraceBullet( const Vector3 &start, const Vector3 &end, co
             const Vector3 nextStart = lastTrace.endpos + shotDirection * retraceEpsilon;
             const Vector3 remaining = end - nextStart;
             if ( QM_Vector3DotProduct( remaining, shotDirection ) <= 0.0f ) {
+                lastTrace.fraction = 1.0f;
+                lastTrace.ent = nullptr;
+                lastTrace.entityNumber = ENTITYNUM_WORLD;
                 return lastTrace;
             }
             currentStart = nextStart;

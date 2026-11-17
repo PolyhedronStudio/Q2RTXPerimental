@@ -1001,12 +1001,14 @@ static void CLG_EntityEvent_ImpactGunShot( const Vector3 &origin, const Vector3 
 
 	/**
 	*	World impact handling:
-	*	Queue gunshot decal and spawn local smoke and flash animation.
-	*	Legacy point particles (CLG_FX_ParticleEffect) are intentionally omitted
-	*	so decals do not spray upward dirt point particles.
+	*	Queue gunshot decal, spawn classic smoke and spark dirt-point particles,
+	*	and play local ricochet sound.
 	**/
 	// Queue a decal spawn request from the impact event payload.
 	CLG_DecalEvents_HandleImpactGunShot( &origin.x, decodedDirection, direction, count, hitEntityNumber );
+
+	// Call the generic particle effect function for gunshot smoke and dirt sparks.
+	CLG_FX_ParticleEffect( &origin.x, decodedDirection, 0, count );
 
 	// Bullet hit "smoke and flash" model anim.
 	CLG_SmokeAndFlash( origin );

@@ -365,6 +365,10 @@ typedef struct centity_s {
 	bool	monster_death_fx_spawned = false;
 	//! Whether this entity was previously seen in a living animation frame (< 512).
 	bool	was_alive = false;
+	//! Accumulated travel distance for gib 3D fluid mesh emission along flight trajectory.
+	float	gib_distance_accum = 0.0f;
+	//! Count of 3D fluid mesh splatters emitted for this gib instance.
+	int32_t	gib_blood_splat_count = 0;
 } centity_t;
 
 /**

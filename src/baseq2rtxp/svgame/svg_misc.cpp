@@ -183,7 +183,7 @@ void SVG_Misc_ThrowHead( svg_base_edict_t *self, const char *gibname, const int3
     }
 
     Vector3 velocityDamage = SVG_Misc_VelocityForDamage(damage);
-    VectorMA(self->velocity, vscale, vd, self->velocity);
+    VectorMA(self->velocity, vscale, &velocityDamage.x, self->velocity);
     ClipGibVelocity(self);
 
     self->avelocity[YAW] = crandom() * 600;
