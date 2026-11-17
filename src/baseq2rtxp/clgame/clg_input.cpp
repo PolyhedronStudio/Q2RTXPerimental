@@ -633,13 +633,13 @@ void PF_FinalizeMoveCommand( client_movecmd_t *moveCommand ) {
         moveCommand->cmd.buttons |= BUTTON_ANY;
     }
 
-    if ( moveCommand->cmd.msec > 75 ) { // Was: > 250
+    if ( moveCommand->cmd.msec > 75.0 ) { // Was: > 250
+        // Debug display before clamping to reasonable frame time.
+        #if USE_DEBUG
+        clgi.Print( PRINT_DEVELOPER, "%s: moveCommand->cmd.msec(%.3f) was unreasonable(max is 75)!\n", __func__, moveCommand->cmd.msec );
+        #endif
         // Time was unreasonable.
         moveCommand->cmd.msec = BASE_FRAMETIME; // Was: 100
-        // Debug display.
-        #if USE_DEBUG
-        clgi.Print( PRINT_DEVELOPER, "%s: moveCommand->cmd.msec(%i) was unreasonable(max is 75)!\n", __func__, moveCommand->cmd.msec );
-        #endif
     }
 
     // Rebuild the movement vector, get basic movement from keyboard.

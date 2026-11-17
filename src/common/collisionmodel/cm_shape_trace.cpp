@@ -749,7 +749,8 @@ recheck:
 		frac2 = ( t1 - offset - DIST_EPSILON ) * idist;
 		frac = ( t1 + offset + DIST_EPSILON ) * idist;
 	} else {
-		side = 0;
+		// When the sweep is parallel to the plane, choose the near child corresponding to the ray's side.
+		side = ( t1 < 0.0 ) ? 1 : 0;
 		frac = 1;
 		frac2 = 0;
 	}

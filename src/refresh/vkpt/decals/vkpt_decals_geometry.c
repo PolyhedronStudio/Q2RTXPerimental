@@ -23,12 +23,12 @@ typedef struct vkpt_decal_runtime_item_s {
 
 //! Tracks whether the geometry subsystem was initialized.
 static qboolean s_vkpt_decals_geometry_initialized = false;
-static bool s_vkpt_decals_blas_dirty = false; // Tracks whether decal BLAS needs rebuild
-// Mutex to protect decal geometry subsystem state
+//! Tracks whether decal BLAS needs rebuild per frame in flight.
+static bool s_vkpt_decals_blas_dirty[ MAX_FRAMES_IN_FLIGHT ] = { true, true };
+//! Mutex to protect decal geometry subsystem state.
 static SDL_mutex *s_vkpt_decals_mutex = NULL;
-// Removed s_decals_blas_dirty
-//! Latest uploaded vertex count for phase validation/debugging.
-static uint32_t s_vkpt_decals_vertex_count = 0u;
+//! Latest uploaded vertex count for phase validation/debugging per frame in flight.
+static uint32_t s_vkpt_decals_vertex_count[ MAX_FRAMES_IN_FLIGHT ] = { 0u, 0u };
 //! CPU-visible vertex buffer used as BLAS input and shader descriptor source.
 static BufferResource_t s_vkpt_decal_vertex_buffer[ MAX_FRAMES_IN_FLIGHT ] = { 0 };
 //! Runtime retained dynamic decal submissions.
@@ -51,6 +51,7 @@ typedef struct vkpt_decal_material_lookup_s {
     char materialName[ MAX_QPATH ]; // material name (materials/*.mat entry) or texture path
     uint32_t textureIndex; // image index in r_images (global descriptor array)
 	uint32_t maskTextureIndex; // optional mask image index in r_images
+	uint32_t normalTextureIndex; // optional normal map image index in r_images
     qboolean triedLoad;
 } vkpt_decal_material_lookup_t;
 
@@ -120,7 +121,10 @@ static_assert( offsetof( vkpt_decal_vertex_t, alpha ) == ( sizeof( float ) * 13u
 static_assert( offsetof( vkpt_decal_vertex_t, textureIndex ) == ( sizeof( float ) * 14u ), "vkpt_decal_vertex_t.textureIndex offset mismatch" );
 #endif
 
-static void vkpt_decals_geometry_try_resolve_texture_indices_for_name( const char *materialName, uint32_t *outTextureIndex, uint32_t *outMaskTextureIndex ) {
+static void vkpt_decals_geometry_try_resolve_texture_indices_for_name( const char *materialName, uint32_t *outTextureIndex, uint32_t *outMaskTextureIndex, uint32_t *outNormalTextureIndex ) {
+	if ( outNormalTextureIndex ) {
+		*outNormalTextureIndex = 0u;
+	}
 	if ( outTextureIndex ) {
 		*outTextureIndex = 0u;
 	}
@@ -139,6 +143,9 @@ static void vkpt_decals_geometry_try_resolve_texture_indices_for_name( const cha
 		}
 		if ( outMaskTextureIndex && mat->image_mask && mat->image_mask != R_NOTEXTURE ) {
 			*outMaskTextureIndex = (uint32_t)( mat->image_mask - r_images );
+		}
+		if ( outNormalTextureIndex && mat->image_normals && mat->image_normals != R_NOTEXTURE ) {
+			*outNormalTextureIndex = (uint32_t)( mat->image_normals - r_images );
 		}
 	}
 
@@ -168,6 +175,7 @@ void vkpt_decals_geometry_set_material_mapping( const uint32_t materialHash, con
 			Q_strlcpy( s_vkpt_decal_material_lookup[ i ].materialName, materialName, sizeof( s_vkpt_decal_material_lookup[ i ].materialName ) );
 			s_vkpt_decal_material_lookup[ i ].textureIndex = 0u;
 			s_vkpt_decal_material_lookup[ i ].maskTextureIndex = 0u;
+			s_vkpt_decal_material_lookup[ i ].normalTextureIndex = 0u;
 			s_vkpt_decal_material_lookup[ i ].triedLoad = false;
 			return;
 		}
@@ -183,6 +191,7 @@ void vkpt_decals_geometry_set_material_mapping( const uint32_t materialHash, con
 	Q_strlcpy( lookup->materialName, materialName, sizeof( lookup->materialName ) );
 	lookup->textureIndex = 0u;
 	lookup->maskTextureIndex = 0u;
+	lookup->normalTextureIndex = 0u;
 	lookup->triedLoad = false;
 }
 
@@ -207,6 +216,9 @@ void vkpt_decals_geometry_dump_material_mappings( void ) {
 		Com_Printf( "[vkpt decals]                 mask texture %u%s\n",
 			lookup->maskTextureIndex,
 			( lookup->maskTextureIndex == 0u ) ? " (none)" : "" );
+		Com_Printf( "[vkpt decals]               normal texture %u%s\n",
+			lookup->normalTextureIndex,
+			( lookup->normalTextureIndex == 0u ) ? " (none)" : "" );
 	}
 }
 
@@ -246,10 +258,19 @@ static uint32_t vkpt_decals_geometry_resolve_texture_index( const uint32_t mater
 		lookup->triedLoad = true;
 		lookup->textureIndex = 0u;
 		lookup->maskTextureIndex = 0u;
+		lookup->normalTextureIndex = 0u;
 
-		vkpt_decals_geometry_try_resolve_texture_indices_for_name( lookup->materialName, &lookup->textureIndex, &lookup->maskTextureIndex );
+		vkpt_decals_geometry_try_resolve_texture_indices_for_name( lookup->materialName, &lookup->textureIndex, &lookup->maskTextureIndex, &lookup->normalTextureIndex );
 		if ( lookup->textureIndex == 0u && lookup->materialName[ 0 ] == '/' ) {
-			vkpt_decals_geometry_try_resolve_texture_indices_for_name( lookup->materialName + 1, &lookup->textureIndex, &lookup->maskTextureIndex );
+			vkpt_decals_geometry_try_resolve_texture_indices_for_name( lookup->materialName + 1, &lookup->textureIndex, &lookup->maskTextureIndex, &lookup->normalTextureIndex );
+		}
+
+		// Fall back to the first registered default decal material if this custom material's textures are missing on disk.
+		if ( lookup->textureIndex == 0u && lookupIndex > 0 && s_vkpt_decal_material_lookup[ 0 ].materialName[ 0 ] != '\0' ) {
+			Com_WPrintf( "vkpt: decal material '%s' resolved to no texture; falling back to default '%s'\n",
+				lookup->materialName, s_vkpt_decal_material_lookup[ 0 ].materialName );
+			vkpt_decals_geometry_try_resolve_texture_indices_for_name( s_vkpt_decal_material_lookup[ 0 ].materialName,
+				&lookup->textureIndex, &lookup->maskTextureIndex, &lookup->normalTextureIndex );
 		}
 
 		if ( lookup->textureIndex == 0u ) {
@@ -285,6 +306,24 @@ static uint32_t vkpt_decals_geometry_resolve_mask_texture_index( const uint32_t 
 	}
 
 	return lookup->maskTextureIndex;
+}
+
+static uint32_t vkpt_decals_geometry_resolve_normal_texture_index( const uint32_t materialHash ) {
+	if ( s_vkpt_decal_material_lookup_count <= 0 ) {
+		return 0u;
+	}
+
+	const int32_t lookupIndex = vkpt_decals_geometry_find_material_lookup( materialHash );
+	if ( lookupIndex < 0 ) {
+		return 0u;
+	}
+
+	vkpt_decal_material_lookup_t *lookup = &s_vkpt_decal_material_lookup[ lookupIndex ];
+	if ( !lookup->triedLoad ) {
+		(void)vkpt_decals_geometry_resolve_texture_index( materialHash );
+	}
+
+	return lookup->normalTextureIndex;
 }
 
 /**
@@ -382,6 +421,7 @@ static void vkpt_decals_geometry_append_decal_quad( const decal_t *decal, vkpt_d
 	vkpt_decals_geometry_build_basis( decal->dir, right, up );
 	const uint32_t textureIndex = vkpt_decals_geometry_resolve_texture_index( decal->materialHash );
 	const uint32_t maskTextureIndex = vkpt_decals_geometry_resolve_mask_texture_index( decal->materialHash );
+	const uint32_t normalTextureIndex = vkpt_decals_geometry_resolve_normal_texture_index( decal->materialHash );
 	const uint32_t decalFlags = ( cvar_pt_decals_mask_invert && cvar_pt_decals_mask_invert->integer != 0 ) ? VKPT_DECAL_FLAG_MASK_INVERTED : 0u;
 	const float normalBias = 0.10f;
 
@@ -430,6 +470,7 @@ static void vkpt_decals_geometry_append_decal_quad( const decal_t *decal, vkpt_d
 		vertex->alpha = ( decal->alpha > 0.0f ) ? decal->alpha : 1.0f;
 		vertex->textureIndex = textureIndex;
 		vertex->maskTextureIndex = maskTextureIndex;
+		vertex->normalTextureIndex = normalTextureIndex;
 		vertex->decalFlags = decalFlags;
 	}
 }
@@ -464,8 +505,10 @@ static void vkpt_decals_geometry_submit_runtime_vertices( const vkpt_decal_verte
 	item->vertexCount = copyCount;
 	item->spawnTimeMs = Sys_Milliseconds();
 	item->lifeMs = isStatic ? 0u : lifeMs;
-	// Any runtime vertex submission may change the BLAS contents.
-	s_vkpt_decals_blas_dirty = true;
+	// Any runtime vertex submission may change the BLAS contents across all frames in flight.
+	for ( int32_t f = 0; f < MAX_FRAMES_IN_FLIGHT; f++ ) {
+		s_vkpt_decals_blas_dirty[ f ] = true;
+	}
 }
 
 VkResult vkpt_decals_geometry_initialize( void ) {
@@ -475,7 +518,10 @@ VkResult vkpt_decals_geometry_initialize( void ) {
         s_vkpt_decals_mutex = SDL_CreateMutex();
     }
     s_vkpt_decals_geometry_initialized = true;
-    s_vkpt_decals_vertex_count = 0u;
+	for ( int32_t f = 0; f < MAX_FRAMES_IN_FLIGHT; f++ ) {
+		s_vkpt_decals_vertex_count[ f ] = 0u;
+		s_vkpt_decals_blas_dirty[ f ] = true;
+	}
     s_vkptDynamicDecalItemCount = 0;
     s_vkptStaticDecalItemCount = 0;
     cvar_pt_decals_mask_invert = Cvar_Get( "pt_decals_mask_invert", "0", CVAR_ARCHIVE );
@@ -514,9 +560,10 @@ void vkpt_decals_geometry_clear_transient( void ) {
 
 	s_vkptDynamicDecalItemCount = 0;
 	s_vkptStaticDecalItemCount = 0;
-	s_vkpt_decals_vertex_count = 0u;
-	// Clearing transient decals invalidates the BLAS.
-	s_vkpt_decals_blas_dirty = true;
+	for ( int32_t f = 0; f < MAX_FRAMES_IN_FLIGHT; f++ ) {
+		s_vkpt_decals_vertex_count[ f ] = 0u;
+		s_vkpt_decals_blas_dirty[ f ] = true;
+	}
 
 	vkpt_decals_geometry_unlock();
 }
@@ -539,15 +586,16 @@ void vkpt_decals_geometry_clear( void ) {
 	**/
 	s_vkptDynamicDecalItemCount = 0;
 	s_vkptStaticDecalItemCount = 0;
-	s_vkpt_decals_vertex_count = 0u;
-	// Clearing all decals means BLAS must be rebuilt (or cleared).
-	s_vkpt_decals_blas_dirty = true;
-
+	for ( int32_t f = 0; f < MAX_FRAMES_IN_FLIGHT; f++ ) {
+		s_vkpt_decals_vertex_count[ f ] = 0u;
+		s_vkpt_decals_blas_dirty[ f ] = true;
+	}
 
 	// Reset resolved texture indices since the image library is rebuilt on map changes
 	for ( int32_t i = 0; i < s_vkpt_decal_material_lookup_count; i++ ) {
 		s_vkpt_decal_material_lookup[ i ].textureIndex = 0u;
 		s_vkpt_decal_material_lookup[ i ].maskTextureIndex = 0u;
+		s_vkpt_decal_material_lookup[ i ].normalTextureIndex = 0u;
 		s_vkpt_decal_material_lookup[ i ].triedLoad = false;
 	}
 
@@ -575,7 +623,10 @@ void vkpt_decals_geometry_shutdown( void ) {
     vkpt_decals_geometry_clear_material_mappings();
 
     s_vkpt_decals_geometry_initialized = false;
-    s_vkpt_decals_vertex_count = 0u;
+	for ( int32_t f = 0; f < MAX_FRAMES_IN_FLIGHT; f++ ) {
+		s_vkpt_decals_vertex_count[ f ] = 0u;
+		s_vkpt_decals_blas_dirty[ f ] = true;
+	}
     s_vkptDynamicDecalItemCount = 0;
     s_vkptStaticDecalItemCount = 0;
     vkDeviceWaitIdle(qvk.device);
@@ -598,7 +649,9 @@ void vkpt_decals_geometry_submit_legacy( const decal_t *decal ) {
 	uint32_t quadVertexCount = 0u;
 	vkpt_decals_geometry_append_decal_quad( decal, quadVertices, &quadVertexCount, (uint32_t)LENGTH( quadVertices ) );
 	vkpt_decals_geometry_submit_runtime_vertices( quadVertices, quadVertexCount, VKPT_DECAL_GEOMETRY_LIFE_MS, false );
-	s_vkpt_decals_blas_dirty = true; // New decal added, mark BLAS dirty
+	for ( int32_t f = 0; f < MAX_FRAMES_IN_FLIGHT; f++ ) {
+		s_vkpt_decals_blas_dirty[ f ] = true;
+	}
 	vkpt_decals_geometry_unlock();
 }
 
@@ -623,6 +676,7 @@ void vkpt_decals_geometry_submit_mesh( const decal_mesh_vertex_t *vertices, int3
 	vkpt_decal_vertex_t convertedVertices[ VKPT_DECAL_GEOMETRY_MAX_VERTICES_PER_ITEM ] = { 0 };
 	const uint32_t textureIndex = vkpt_decals_geometry_resolve_texture_index( materialHash );
 	const uint32_t maskTextureIndex = vkpt_decals_geometry_resolve_mask_texture_index( materialHash );
+	const uint32_t normalTextureIndex = vkpt_decals_geometry_resolve_normal_texture_index( materialHash );
 	const uint32_t decalFlags = ( cvar_pt_decals_mask_invert && cvar_pt_decals_mask_invert->integer != 0 ) ? VKPT_DECAL_FLAG_MASK_INVERTED : 0u;
 	const float resolvedAlpha = ( alpha > 0.0f ) ? alpha : 1.0f;
 	const float normalBias = 0.10f;
@@ -649,6 +703,7 @@ void vkpt_decals_geometry_submit_mesh( const decal_mesh_vertex_t *vertices, int3
 		dst->alpha = resolvedAlpha;
 		dst->textureIndex = textureIndex;
 		dst->maskTextureIndex = maskTextureIndex;
+		dst->normalTextureIndex = normalTextureIndex;
 		dst->decalFlags = decalFlags;
 	}
 
@@ -665,7 +720,9 @@ void vkpt_decals_geometry_submit_mesh( const decal_mesh_vertex_t *vertices, int3
 	}
 
 	vkpt_decals_geometry_submit_runtime_vertices( convertedVertices, (uint32_t)triangleAlignedVertexCount, lifeMs, isStaticSubmission );
-	s_vkpt_decals_blas_dirty = true; // New or updated decal mesh, mark BLAS dirty
+	for ( int32_t f = 0; f < MAX_FRAMES_IN_FLIGHT; f++ ) {
+		s_vkpt_decals_blas_dirty[ f ] = true;
+	}
 
 cleanup:
 	vkpt_decals_geometry_unlock();
@@ -690,14 +747,20 @@ VkResult vkpt_decals_geometry_upload( const vkpt_decal_vertex_t *vertices, uint3
 	}
 
 	if ( !vertices || vertexCount == 0u ) {
-		s_vkpt_decals_vertex_count = 0u;
+		for ( int32_t f = 0; f < MAX_FRAMES_IN_FLIGHT; f++ ) {
+			s_vkpt_decals_vertex_count[ f ] = 0u;
+			s_vkpt_decals_blas_dirty[ f ] = true;
+		}
 		return VK_SUCCESS;
 	}
 
 	vkpt_decals_geometry_lock();
-	const VkResult uploadResult = vkpt_decals_geometry_upload_frame( 0, vertices, vertexCount );
+	for ( int32_t f = 0; f < MAX_FRAMES_IN_FLIGHT; f++ ) {
+		(void)vkpt_decals_geometry_upload_frame( f, vertices, vertexCount );
+		s_vkpt_decals_blas_dirty[ f ] = true;
+	}
 	vkpt_decals_geometry_unlock();
-	return uploadResult;
+	return VK_SUCCESS;
 }
 
 static VkResult vkpt_decals_geometry_upload_frame( const int32_t frameIndex, const vkpt_decal_vertex_t *vertices, uint32_t vertexCount ) {
@@ -714,7 +777,7 @@ static VkResult vkpt_decals_geometry_upload_frame( const int32_t frameIndex, con
 	memcpy( mappedVertices, vertices, vertexBytes );
 	buffer_unmap( &s_vkpt_decal_vertex_buffer[ frameIndex ] );
 
-	s_vkpt_decals_vertex_count = vertexCount;
+	s_vkpt_decals_vertex_count[ frameIndex ] = vertexCount;
 	return VK_SUCCESS;
 }
 
@@ -726,8 +789,8 @@ VkResult vkpt_decals_geometry_build_blas( VkCommandBuffer cmd_buf, const int32_t
 	vkpt_decals_geometry_log_state( "build-entry" );
 	vkpt_decals_geometry_lock();
 
-	// If no decal data changed since last build, skip BLAS rebuild.
-	if ( !s_vkpt_decals_blas_dirty ) {
+	// If no decal data changed since last build for this frame, skip BLAS rebuild.
+	if ( !s_vkpt_decals_blas_dirty[ frameIndex ] ) {
 		vkpt_decals_geometry_unlock();
 		return VK_SUCCESS;
 	}
@@ -736,7 +799,8 @@ VkResult vkpt_decals_geometry_build_blas( VkCommandBuffer cmd_buf, const int32_t
 	vkpt_decals_geometry_prune_dynamic( nowMs );
 
 	if ( cls.state < ca_active || vkpt_decals_get_render_mode() != VKPT_DECAL_RENDER_PATH_TRACED || ( s_vkptDynamicDecalItemCount <= 0 && s_vkptStaticDecalItemCount <= 0 ) ) {
-		s_vkpt_decals_vertex_count = 0u;
+		s_vkpt_decals_vertex_count[ frameIndex ] = 0u;
+		s_vkpt_decals_blas_dirty[ frameIndex ] = false;
 		vkpt_decals_geometry_log_state( "build-empty" );
 		VkResult blasResult = vkpt_pt_create_decal_blas( cmd_buf, frameIndex, NULL, 0, 0, NULL, 0, 0 );
 		vkpt_decals_geometry_unlock();
@@ -765,7 +829,8 @@ VkResult vkpt_decals_geometry_build_blas( VkCommandBuffer cmd_buf, const int32_t
 	}
 
 	if ( generatedVertexCount < 3u ) {
-		s_vkpt_decals_vertex_count = 0u;
+		s_vkpt_decals_vertex_count[ frameIndex ] = 0u;
+		s_vkpt_decals_blas_dirty[ frameIndex ] = false;
 		vkpt_decals_geometry_log_state( "build-written-too-small" );
 		vkpt_decals_geometry_unlock();
 		VkResult blasResult = vkpt_pt_create_decal_blas( cmd_buf, frameIndex, NULL, 0, 0, NULL, 0, 0 );
@@ -806,14 +871,15 @@ VkResult vkpt_decals_geometry_build_blas( VkCommandBuffer cmd_buf, const int32_t
 	}
 
 	if ( writeVertex < 3u ) {
-		s_vkpt_decals_vertex_count = 0u;
+		s_vkpt_decals_vertex_count[ frameIndex ] = 0u;
+		s_vkpt_decals_blas_dirty[ frameIndex ] = false;
 		vkpt_decals_geometry_log_state( "build-written-too-small" );
 		vkpt_decals_geometry_unlock();
 		VkResult blasResult = vkpt_pt_create_decal_blas( cmd_buf, frameIndex, NULL, 0, 0, NULL, 0, 0 );
 		return blasResult;
 	}
 
-	s_vkpt_decals_vertex_count = writeVertex;
+	s_vkpt_decals_vertex_count[ frameIndex ] = writeVertex;
 
 	// Unlock here: we have safely captured the CPU decal items into s_vkptGeneratedVertices.
 	// We no longer need to stall the client thread while uploading to Vulkan or building the BLAS.
@@ -825,11 +891,11 @@ VkResult vkpt_decals_geometry_build_blas( VkCommandBuffer cmd_buf, const int32_t
 		return uploadResult;
 	}
 
-	// Reset dirty flag after successful build.
-	s_vkpt_decals_blas_dirty = false;
+	// Reset dirty flag for THIS frame after successful build.
+	s_vkpt_decals_blas_dirty[ frameIndex ] = false;
 
 	vkpt_decals_geometry_log_state( "build-uploaded" );
-	VkResult blasResult = vkpt_pt_create_decal_blas( cmd_buf, frameIndex, &s_vkpt_decal_vertex_buffer[ frameIndex ], 0, s_vkpt_decals_vertex_count, NULL, 0, 0 );
+	VkResult blasResult = vkpt_pt_create_decal_blas( cmd_buf, frameIndex, &s_vkpt_decal_vertex_buffer[ frameIndex ], 0, s_vkpt_decals_vertex_count[ frameIndex ], NULL, 0, 0 );
 
 	return blasResult;
 }
@@ -839,7 +905,7 @@ void vkpt_decals_geometry_append_tlas_instance( const int32_t frameIndex ) {
 		return;
 	}
 
-	if ( s_vkpt_decals_vertex_count == 0u ) {
+	if ( s_vkpt_decals_vertex_count[ frameIndex ] == 0u ) {
 		return;
 	}
 

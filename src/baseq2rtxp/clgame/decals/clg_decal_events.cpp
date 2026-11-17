@@ -60,16 +60,17 @@ static const centity_t *CLG_DecalEvents_GetClipEntity( const int32_t hitEntityNu
         return nullptr;
     }
 
-    if ( !clgi.GetEntityHullNode ) {
+    const centity_t *entity = &clg_entities[ hitEntityNumber ];
+
+    /**
+    *    Refinement traces must only target true inline brush-model movers (e.g. doors, plats).
+    *    Characters, monsters, and non-brush entities must never be snapped against.
+    **/
+    if ( entity->current.solid != BOUNDS_BRUSHMODEL ) {
         return nullptr;
     }
 
-    const centity_t *entity = &clg_entities[ hitEntityNumber ];
-    /**
-    *    Accept any entity that exposes an inline hull for transformed clipping. Some mover
-    *    snapshots can momentarily use alternate solid encodings while retaining brush hulls.
-    **/
-    if ( clgi.GetEntityHullNode( entity ) == nullptr ) {
+    if ( !clgi.GetEntityHullNode || clgi.GetEntityHullNode( entity ) == nullptr ) {
         return nullptr;
     }
 

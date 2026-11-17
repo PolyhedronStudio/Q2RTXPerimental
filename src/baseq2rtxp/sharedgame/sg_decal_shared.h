@@ -53,6 +53,8 @@ typedef enum sg_decal_material_hash_e {
 	SG_DECAL_MATERIAL_HASH_GUNSHOT_CONCRETE = 0x9F2A0D3Bu,
 	SG_DECAL_MATERIAL_HASH_SPARKS_METAL = 0x61D4C8A5u,
 	SG_DECAL_MATERIAL_HASH_BLOOD_FLESH = 0xA17C5E2Du,
+	SG_DECAL_MATERIAL_HASH_BLOOD_FLESH_02 = 0xA17C5E2Eu,
+	SG_DECAL_MATERIAL_HASH_BLOOD_FLESH_03 = 0xA17C5E2Fu,
 	SG_DECAL_MATERIAL_HASH_SPLINTER_WOOD = 0xF4B0E29Cu,
 	SG_DECAL_MATERIAL_HASH_CRACK_GLASS = 0x3ED19A77u
 } sg_decal_material_hash_t;
@@ -64,7 +66,9 @@ typedef enum sg_decal_material_hash_e {
 //! Metal impact decal material path.
 #define SG_DECAL_MATERIAL_PATH_SPARKS_METAL "textures/decals/bullets/bullethole_01"
 //! Flesh impact decal material path.
-#define SG_DECAL_MATERIAL_PATH_BLOOD_FLESH "textures/decals/bullets/bullethole_01"
+#define SG_DECAL_MATERIAL_PATH_BLOOD_FLESH "textures/decals/blood/blood_splat_01"
+#define SG_DECAL_MATERIAL_PATH_BLOOD_FLESH_02 "textures/decals/blood/blood_splat_02"
+#define SG_DECAL_MATERIAL_PATH_BLOOD_FLESH_03 "textures/decals/blood/blood_splat_03"
 //! Wood impact decal material path.
 #define SG_DECAL_MATERIAL_PATH_SPLINTER_WOOD "textures/decals/bullets/bullethole_01"
 //! Glass impact decal material path.

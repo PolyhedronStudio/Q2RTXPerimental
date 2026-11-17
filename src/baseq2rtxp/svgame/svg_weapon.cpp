@@ -599,13 +599,10 @@ static void fire_lead(svg_base_edict_t *self, const Vector3 &start, const Vector
                 //if ( strncmp( tr.surface->name, "sky", 3 ) != 0 ) {
 				//if ( ( tr.surface->flags & CM_SURFACE_FLAG_SKY ) != 0 ) {
                     svg_base_edict_t *tempEventEntity = SVG_TempEventEntity_GunShot( tr.endpos, tr.plane.normal, te_impact, 28, 40 );
-                    // Preserve the impacted brush-model or skeletal hull entity so the client can resolve inline-model decals.
+                    // Preserve the impacted brush-model mover entity so the client can resolve inline-model decals.
+                    // Characters/monsters with skeletal hitboxes must never be targeted as decal movers.
                     if ( tempEventEntity && tr.ent && tr.ent->s.number > ENTITYNUM_WORLD ) {
-                        if ( tr.brushID < 0 ) {
-                            // Extract the entity number from the hull brushID.
-                            tempEventEntity->s.otherEntityNumber = -( tr.brushID + 1 );
-                            tempEventEntity->s.entityFlags |= EF_ENTITY_EVENT_TARGET_OTHER;
-                        } else if ( tr.ent->solid == SOLID_BSP && ( tr.ent->movetype == MOVETYPE_PUSH || tr.ent->movetype == MOVETYPE_STOP ) ) {
+                        if ( tr.ent->solid == SOLID_BSP && ( tr.ent->movetype == MOVETYPE_PUSH || tr.ent->movetype == MOVETYPE_STOP ) ) {
                             tempEventEntity->s.otherEntityNumber = tr.ent->s.number;
                             tempEventEntity->s.entityFlags |= EF_ENTITY_EVENT_TARGET_OTHER;
                         }

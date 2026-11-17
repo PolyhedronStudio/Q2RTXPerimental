@@ -338,6 +338,15 @@ fail:
 
 // Publicly exposed to refresh modules so, extern "C".
 int MOD_LoadSP2Json( model_t *model, const void *rawdata, size_t length, const char *mod_name );
+/**
+*	@brief	Load an Alembic (`.abc`) Ogawa model into `model_t` for the VKPT renderer.
+*	@param	model		Target `model_t` structure to populate.
+*	@param	rawdata		Pointer to the in-memory `.abc` file bytes loaded via `FS_LoadFile`.
+*	@param	length		Size of `rawdata` in bytes.
+*	@param	mod_name	Virtual filesystem path of the model (e.g. `"models/fx/bulletShotImpact01.abc"`).
+*	@return	`Q_ERR_SUCCESS` (0) on success, or a negative `Q_ERR_*` error code on failure.
+**/
+int MOD_LoadABC_RTX( model_t *model, const void *rawdata, size_t length, const char *mod_name );
 
 qhandle_t R_RegisterModel(const char *name)
 {
@@ -448,6 +457,9 @@ qhandle_t R_RegisterModel(const char *name)
         load = MOD_LoadMD3;
         break;
 #endif
+	case ABC_IDENT:
+		load = MOD_LoadABC_RTX;
+		break;
     case SP2_IDENT:
         load = MOD_LoadSP2;
         break;
@@ -456,9 +468,6 @@ qhandle_t R_RegisterModel(const char *name)
 		break;
     case IQM_IDENT:
         load = MOD_LoadIQM;
-        break;
-    case ABC_IDENT:
-        load = MOD_LoadABC;
         break;
     default:
         ret = Q_ERR_UNKNOWN_FORMAT;

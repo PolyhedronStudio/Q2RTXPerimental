@@ -28,6 +28,6 @@
 //! Maximum supported IPolyMesh objects (submeshes) per Alembic model.
 #define ABC_MAX_MESHES				32
 //! Maximum supported vertices per frame in a single Alembic submesh.
-#define ABC_MAX_VERTS_PER_FRAME		65536
+#define ABC_MAX_VERTS_PER_FRAME		524288
 //! Maximum supported triangles per frame in a single Alembic submesh.
-#define ABC_MAX_TRIS_PER_FRAME		131072
+#define ABC_MAX_TRIS_PER_FRAME		262144

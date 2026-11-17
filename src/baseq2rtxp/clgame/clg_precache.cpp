@@ -11,6 +11,7 @@
 #include "clgame/clg_effects.h"
 #include "clgame/clg_parse.h"
 #include "clgame/clg_precache.h"
+#include "clgame/fx/clg_fx_blood_hero.h"
 
 
 
@@ -163,6 +164,9 @@ void PF_PrecacheClientModels( void ) {
 	clgi.SetSpriteModelVerticality( precache.models.sprite_explo06 );
 	precache.models.sprite_explo07 = clgi.R_RegisterModel( "sprites/explo05/explo07.spj" );
 	clgi.SetSpriteModelVerticality( precache.models.sprite_explo07 );
+
+    // Precache 3D Alembic hero blood splatter models.
+    CLG_PrecacheHeroBlood();
 
     // Precaches all local 'model path' registered files.
     CLG_PrecacheLocalModels();

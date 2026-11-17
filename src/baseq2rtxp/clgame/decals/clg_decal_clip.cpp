@@ -255,16 +255,17 @@ static const centity_t *CLG_DecalClip_GetInlineBrushEntity( const int32_t entity
         return nullptr;
     }
 
-    if ( !clgi.GetEntityHullNode ) {
+    const centity_t *entity = &clg_entities[ entityNumber ];
+
+    /**
+    *    Only true inline brush-model entities can be clipped as mover receivers.
+    *    Characters, monsters, and non-brush entities must never be targeted as inline hulls.
+    **/
+    if ( entity->current.solid != BOUNDS_BRUSHMODEL ) {
         return nullptr;
     }
 
-    const centity_t *entity = &clg_entities[ entityNumber ];
-    /**
-    *    Accept any entity that provides a valid inline hull node. This keeps mover-domain
-    *    decal clipping robust when network snapshots expose transitional solid encodings.
-    **/
-    if ( clgi.GetEntityHullNode( entity ) == nullptr ) {
+    if ( !clgi.GetEntityHullNode || clgi.GetEntityHullNode( entity ) == nullptr ) {
         return nullptr;
     }
 
@@ -508,20 +509,8 @@ static void CLG_DecalClip_ProjectPointToUv( const clg_decal_clip_context_t &cont
     vec3_t toPoint = {};
     VectorSubtract( point, context.spawn.origin, toPoint );
 
-    float u = ( DotProduct( toPoint, context.basisRight ) / ( context.halfSize * 2.0f ) ) + 0.5f;
-    float v = ( DotProduct( toPoint, context.basisUp ) / ( context.halfSize * 2.0f ) ) + 0.5f;
-
-    if ( u < 0.0f ) {
-        u = 0.0f;
-    } else if ( u > 1.0f ) {
-        u = 1.0f;
-    }
-
-    if ( v < 0.0f ) {
-        v = 0.0f;
-    } else if ( v > 1.0f ) {
-        v = 1.0f;
-    }
+    const float u = ( DotProduct( toPoint, context.basisRight ) / ( context.halfSize * 2.0f ) ) + 0.5f;
+    const float v = ( DotProduct( toPoint, context.basisUp ) / ( context.halfSize * 2.0f ) ) + 0.5f;
 
     outUv[ 0 ] = u;
     outUv[ 1 ] = v;
@@ -1849,6 +1838,22 @@ const bool CLG_DecalClip_ClipSurfaceToDecal( const clg_decal_clip_context_t &con
 
     if ( outUsedConcreteBspClip ) {
         *outUsedConcreteBspClip = true;
+    }
+
+    /**
+    *    Verify that every vertex in the clipped polygon lies strictly within the decal volume bounds.
+    *    If any vertex escaped clipping (e.g. collinear numerical instability), reject the polygon.
+    **/
+    const float maxExtent = ( context.halfSize * 1.5f ) + 8.0f;
+    const float maxDepthExtent = ( context.halfDepth * 3.0f ) + 16.0f;
+    for ( int32_t i = 0; i < outPolygon->vertexCount; i++ ) {
+        vec3_t toVertex = {};
+        VectorSubtract( outPolygon->positions[ i ], context.spawn.origin, toVertex );
+        if ( fabsf( DotProduct( toVertex, context.basisRight ) ) > maxExtent ||
+             fabsf( DotProduct( toVertex, context.basisUp ) ) > maxExtent ||
+             fabsf( DotProduct( toVertex, context.basisForward ) ) > maxDepthExtent ) {
+            return false;
+        }
     }
 
     /**

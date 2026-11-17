@@ -290,6 +290,17 @@ const int32_t svg_monster_base_t::ProcessSlideMove() {
 			&monsterMove.touchTraces, &landing );
 		navigationValidationTraceCount += lastMovementValidation.trace_count;
 		if ( lastMovementValidation.reason == svg_nav_movement_reason_t::clear ) {
+			/**
+			*	On an ascending step transition or staircase flight, downward floor traces can probe
+			*	past the upper step edge onto lower treads when the hull partially overhangs the riser.
+			*	Clamping to the current feet elevation prevents the mover from being pulled back down.
+			**/
+			const bool isAscending = ( !stringPulledPath.empty() && stringPathPos < stringPulledPath.size() &&
+				stringPulledPath[ stringPathPos ].z > feet.z - NAV_MOVEMENT_ENDPOINT_TOLERANCE );
+			if ( isAscending && lastMovementValidation.bbox_endpoint.z < ( feet.z - mins.z ) - NAV_MOVEMENT_ENDPOINT_TOLERANCE ) {
+				lastMovementValidation.bbox_endpoint.z = feet.z - mins.z;
+			}
+
 			// Commit only the fully swept supported endpoint; no slide, recovery displacement or radius reduction.
 			monsterMove.state.origin = lastMovementValidation.bbox_endpoint;
 			monsterMove.state.velocity.z = 0.0;
@@ -404,6 +415,7 @@ void svg_monster_base_t::ResetNavigationPath() {
 	navigationValidationTraceCount = 0;
 	currentStandingFace = -1;
 	lastStandingFaceResolveTime = -1_ms;
+	lastStandingFaceFeetOrigin = Vector3DP{ 0.0, 0.0, 0.0 };
 	pathPos = 0;
 	stringPathPos = 0;
 }
@@ -437,13 +449,21 @@ int32_t svg_monster_base_t::ResolveCurrentFace( const Vector3DP &myFeetDP ) {
 	}
 
 	/**
-	*	Fast frame deduplication: if already resolved this server frame, verify containment and return.
+	*	Fast frame deduplication: if already resolved this server frame at the same feet position,
+	*	return immediately in O(1) without re-running polygon/KD-tree scans.
 	**/
 	if ( lastStandingFaceResolveTime == level.time && currentStandingFace >= 0 && static_cast<size_t>( currentStandingFace ) < g_nav_faces.size() ) {
+		// If queried at the exact same physical feet position within this server frame, reuse the cached face directly.
+		if ( QM_Vector3DistanceSqrDP( myFeetDP, lastStandingFaceFeetOrigin ) < 0.001 ) {
+			return currentStandingFace;
+		}
+
+		// Otherwise, if the position shifted slightly within the same frame, verify containment and return.
 		const nav_face_t &face = g_nav_faces[ currentStandingFace ];
 		if ( Nav_PointInsideFace2D( myFeetDP, face ) ) {
 			const double zDelta = std::fabs( myFeetDP.z - face.center.z );
 			if ( zDelta <= static_cast<double>( NAV_MAX_STEP_HEIGHT ) * 2.0 ) {
+				lastStandingFaceFeetOrigin = myFeetDP;
 				return currentStandingFace;
 			}
 		}
@@ -458,6 +478,7 @@ int32_t svg_monster_base_t::ResolveCurrentFace( const Vector3DP &myFeetDP ) {
 			const double zDelta = std::fabs( myFeetDP.z - face.center.z );
 			if ( zDelta <= static_cast<double>( NAV_MAX_STEP_HEIGHT ) * 2.0 ) {
 				lastStandingFaceResolveTime = level.time;
+				lastStandingFaceFeetOrigin = myFeetDP;
 				return currentStandingFace;
 			}
 		}
@@ -473,6 +494,7 @@ int32_t svg_monster_base_t::ResolveCurrentFace( const Vector3DP &myFeetDP ) {
 						if ( zDelta <= static_cast<double>( NAV_MAX_STEP_HEIGHT ) * 2.0 ) {
 							currentStandingFace = nbrIdx;
 							lastStandingFaceResolveTime = level.time;
+							lastStandingFaceFeetOrigin = myFeetDP;
 							return currentStandingFace;
 						}
 					}
@@ -493,6 +515,7 @@ int32_t svg_monster_base_t::ResolveCurrentFace( const Vector3DP &myFeetDP ) {
 				if ( zDelta <= static_cast<double>( NAV_MAX_STEP_HEIGHT ) * 2.0 ) {
 					currentStandingFace = pathFaceIdx;
 					lastStandingFaceResolveTime = level.time;
+					lastStandingFaceFeetOrigin = myFeetDP;
 					return currentStandingFace;
 				}
 			}
@@ -508,6 +531,7 @@ int32_t svg_monster_base_t::ResolveCurrentFace( const Vector3DP &myFeetDP ) {
 							if ( zDelta <= static_cast<double>( NAV_MAX_STEP_HEIGHT ) * 2.0 ) {
 								currentStandingFace = nbrIdx;
 								lastStandingFaceResolveTime = level.time;
+								lastStandingFaceFeetOrigin = myFeetDP;
 								return currentStandingFace;
 							}
 						}
@@ -522,6 +546,7 @@ int32_t svg_monster_base_t::ResolveCurrentFace( const Vector3DP &myFeetDP ) {
 	**/
 	currentStandingFace = Nav_FindClosestFaceInLeaf( myFeetDP );
 	lastStandingFaceResolveTime = level.time;
+	lastStandingFaceFeetOrigin = myFeetDP;
 	return currentStandingFace;
 }
 
@@ -584,7 +609,7 @@ bool svg_monster_base_t::SVG_Nav_IsCommittedRouteUsable() const {
 	**/
 	auto identity = navigationAcceptedIdentity;
 	// A goal-only replan/backoff may retain safe geometry; order/state changes still fail closed.
-	if ( Nav_IsActorQueryWorkerEnabledMainThread() && !stringPulledPath.empty() ) {
+	if ( !stringPulledPath.empty() ) {
 		identity.goal = navigationGoalRevision;
 	}
 	auto current = pathNavigationState.policy;
@@ -860,8 +885,7 @@ svg_monster_base_t::PathComputeResult svg_monster_base_t::ComputePathTo( const V
 	*	Missing/obsolete routes already fail the cooldown gate; avoid spatial work before that decision.
 	*	Current routes retain corridor reuse checks and all forced/worker retry semantics.
 	**/
-	if ( queryBackoff && ( pathEmpty || navigationAcceptedGoalRevision != navigationGoalRevision ||
-		!SVG_Nav_IsIdentityCurrent( navigationAcceptedIdentity ) ) ) {
+	if ( queryBackoff && ( pathEmpty || !SVG_Nav_IsCommittedRouteUsable() ) ) {
 		Nav_Perf_CountRequest( reqReason, NAV_PERF_OUTCOME_COOLDOWN_THROTTLED );
 		return PathComputeResult::Failed;
 	}
@@ -1054,7 +1078,9 @@ svg_monster_base_t::PathComputeResult svg_monster_base_t::ComputePathTo( const V
 	// When a recalculation is actually required, enforce minimum cooldown interval to prevent high-frequency A* thrashing:
 	if ( queryBackoff ) {
 		Nav_Perf_CountRequest( reqReason, NAV_PERF_OUTCOME_COOLDOWN_THROTTLED );
-		return pathEmpty || !SVG_Nav_IsIdentityCurrent( navigationAcceptedIdentity ) || navigationAcceptedGoalRevision != navigationGoalRevision ? PathComputeResult::Failed : PathComputeResult::ReusedCached;
+		return ( pathEmpty || !SVG_Nav_IsCommittedRouteUsable() || !stillOnPath || navigationCommandRejected )
+			? PathComputeResult::Failed
+			: PathComputeResult::ReusedCached;
 	}
 
 	/**
@@ -2258,7 +2284,15 @@ const bool svg_monster_base_t::StepMoveToGoal( const Vector3 &goalOrigin ) {
 		}
 	}
 	navigationSteering.constraint_distance = constraintDistance;
-	const double limitedSpeed = tickSeconds > 0.0 ? std::min( frameVelocity, constraintDistance / tickSeconds ) : 0.0;
+
+	/**
+	*	Step transitions require forward momentum to execute Quake 2 physics step-up/step-down
+	*	over the vertical riser without decelerating into a standstill deadlock before the edge.
+	**/
+	const bool isTargetForced = ( !stringPulledPath.empty() && stringPathPos < stringPulledPath.size() && SVG_Nav_IsWaypointMandatory( stringPathPos ) );
+	const bool awaitingStepTransition = ( isTargetForced && std::fabs( stringPulledPath[ stringPathPos ].z - validationFeet.z ) > MONSTER_NAV_STEP_MIN_DELTA );
+	const double limitedSpeed = tickSeconds > 0.0 ?
+		( awaitingStepTransition ? frameVelocity : std::min( frameVelocity, constraintDistance / tickSeconds ) ) : 0.0;
 	const Vector3DP candidates[ 3 ] = { moveDirDP * limitedSpeed, directDirection * limitedSpeed, directDirection * ( limitedSpeed * 0.5 ) };
 	bool candidateAccepted = false;
 	// Retain the opposite of the same first blocker tangent for this owner-thread trial only.
@@ -2267,7 +2301,7 @@ const bool svg_monster_base_t::StepMoveToGoal( const Vector3 &goalOrigin ) {
 	int32_t blockingActor = ENTITYNUM_NONE;
 	// Current floor classification separates flat-corner clearance from native step/ramp traversal.
 	const int32_t validationFace = ResolveCurrentFace( validationFeet );
-	const bool flatSurface = validationFace >= 0 && static_cast<size_t>( validationFace ) < g_nav_faces.size() &&
+	const bool flatSurface = !awaitingStepTransition && validationFace >= 0 && static_cast<size_t>( validationFace ) < g_nav_faces.size() &&
 		g_nav_faces[ validationFace ].normal.z >= 0.999 && ( g_nav_faces[ validationFace ].room_id < 0 || static_cast<size_t>( g_nav_faces[ validationFace ].room_id ) >= g_nav_rooms.size() ||
 		  g_nav_rooms[ g_nav_faces[ validationFace ].room_id ].zone_type != ZONE_TYPE_CORRIDOR_STAIRS );
 	// A rejected command remains held through the normal replan cooldown instead of endless short retries.
@@ -2351,7 +2385,7 @@ const bool svg_monster_base_t::StepMoveToGoal( const Vector3 &goalOrigin ) {
 			if ( flatSurface && lastGeometricValidation.reason != nav_clearance_reason_t::clear ) {
 				continue;
 			}
-			lastMovementValidation = SVG_Nav_TestMovementCandidate( this, validationFeet, predictedFeet, pathNavigationState.policy, false );
+			lastMovementValidation = SVG_Nav_TestMovementCandidate( this, validationFeet, predictedFeet, pathNavigationState.policy, false, false );
 			evidence.native = lastMovementValidation;
 			navigationValidationTraceCount += lastMovementValidation.trace_count;
 			// Retain the physical actor witness for the remaining bounded fallback candidate.
@@ -2360,6 +2394,17 @@ const bool svg_monster_base_t::StepMoveToGoal( const Vector3 &goalOrigin ) {
 			}
 			// Commit only the exact projected candidate that passed both static and physical validation.
 			if ( lastMovementValidation.reason == svg_nav_movement_reason_t::clear ) {
+				/**
+				*	On an ascending step transition or staircase flight, downward floor traces can probe
+				*	past the upper step edge onto lower treads when the hull partially overhangs the riser.
+				*	Clamping to the current feet elevation prevents candidate acceptance from pulling the mover down.
+				**/
+				const bool isAscending = ( !stringPulledPath.empty() && stringPathPos < stringPulledPath.size() &&
+					stringPulledPath[ stringPathPos ].z > validationFeet.z - NAV_MOVEMENT_ENDPOINT_TOLERANCE );
+				if ( isAscending && lastMovementValidation.bbox_endpoint.z < ( validationFeet.z - mins.z ) - NAV_MOVEMENT_ENDPOINT_TOLERANCE ) {
+					lastMovementValidation.bbox_endpoint.z = validationFeet.z - mins.z;
+				}
+
 				velocityDP = projected;
 				evidence.accepted = true;
 				candidateAccepted = true;

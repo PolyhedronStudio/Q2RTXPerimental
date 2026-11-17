@@ -80,6 +80,8 @@ static void CLG_Decals_ConfigureRendererMaterialMappings( void ) {
     clgi.R_SetDecalMaterialMapping( SG_DECAL_MATERIAL_HASH_GUNSHOT_CONCRETE, SG_DECAL_MATERIAL_PATH_GUNSHOT_CONCRETE );
     clgi.R_SetDecalMaterialMapping( SG_DECAL_MATERIAL_HASH_SPARKS_METAL, SG_DECAL_MATERIAL_PATH_SPARKS_METAL );
     clgi.R_SetDecalMaterialMapping( SG_DECAL_MATERIAL_HASH_BLOOD_FLESH, SG_DECAL_MATERIAL_PATH_BLOOD_FLESH );
+    clgi.R_SetDecalMaterialMapping( SG_DECAL_MATERIAL_HASH_BLOOD_FLESH_02, SG_DECAL_MATERIAL_PATH_BLOOD_FLESH_02 );
+    clgi.R_SetDecalMaterialMapping( SG_DECAL_MATERIAL_HASH_BLOOD_FLESH_03, SG_DECAL_MATERIAL_PATH_BLOOD_FLESH_03 );
     clgi.R_SetDecalMaterialMapping( SG_DECAL_MATERIAL_HASH_SPLINTER_WOOD, SG_DECAL_MATERIAL_PATH_SPLINTER_WOOD );
     clgi.R_SetDecalMaterialMapping( SG_DECAL_MATERIAL_HASH_CRACK_GLASS, SG_DECAL_MATERIAL_PATH_CRACK_GLASS );
 }
@@ -129,6 +131,10 @@ static const char *CLG_Decals_GetMaterialPathForHash( const uint32_t materialHas
             return SG_DECAL_MATERIAL_PATH_SPARKS_METAL;
         case SG_DECAL_MATERIAL_HASH_BLOOD_FLESH:
             return SG_DECAL_MATERIAL_PATH_BLOOD_FLESH;
+        case SG_DECAL_MATERIAL_HASH_BLOOD_FLESH_02:
+            return SG_DECAL_MATERIAL_PATH_BLOOD_FLESH_02;
+        case SG_DECAL_MATERIAL_HASH_BLOOD_FLESH_03:
+            return SG_DECAL_MATERIAL_PATH_BLOOD_FLESH_03;
         case SG_DECAL_MATERIAL_HASH_SPLINTER_WOOD:
             return SG_DECAL_MATERIAL_PATH_SPLINTER_WOOD;
         case SG_DECAL_MATERIAL_HASH_CRACK_GLASS:
@@ -153,19 +159,15 @@ static const centity_t *CLG_Decals_GetMoverAttachmentEntity( const int32_t entit
 
     const centity_t *entity = &clg_entities[ entityNumber ];
 
-    if ( entity->current.solid == BOUNDS_BRUSHMODEL ) {
-        return entity;
-    }
-
     /**
-    *    Some mover snapshots expose transitional solid encodings while still providing a
-    *    valid inline hull node. Accept that path so attachment remains stable.
+    *    Only true inline brush-model movers (e.g. doors, plats, buttons) can anchor decals.
+    *    Monsters, players, and characters must never be treated as mover decal receivers.
     **/
-    if ( !clgi.GetEntityHullNode ) {
+    if ( entity->current.solid != BOUNDS_BRUSHMODEL ) {
         return nullptr;
     }
 
-    if ( clgi.GetEntityHullNode( entity ) == nullptr ) {
+    if ( !clgi.GetEntityHullNode || clgi.GetEntityHullNode( entity ) == nullptr ) {
         return nullptr;
     }
 
@@ -488,10 +490,12 @@ static bool CLG_Decals_IsValidRendererMesh( const clg_decal_mesh_t &mesh ) {
     for ( int32_t i = 0; i + 2 < mesh.vertexCount; i += 3 ) {
         vec3_t edge1 = {};
         vec3_t edge2 = {};
+        vec3_t edge3 = {};
         vec3_t triNormal = {};
 
         VectorSubtract( mesh.vertices[ i + 1 ].position, mesh.vertices[ i + 0 ].position, edge1 );
         VectorSubtract( mesh.vertices[ i + 2 ].position, mesh.vertices[ i + 0 ].position, edge2 );
+        VectorSubtract( mesh.vertices[ i + 2 ].position, mesh.vertices[ i + 1 ].position, edge3 );
         CrossProduct( edge1, edge2, triNormal );
 
         if ( !std::isfinite( triNormal[ 0 ] ) || !std::isfinite( triNormal[ 1 ] ) || !std::isfinite( triNormal[ 2 ] ) ) {
@@ -499,6 +503,17 @@ static bool CLG_Decals_IsValidRendererMesh( const clg_decal_mesh_t &mesh ) {
         }
 
         if ( VectorLengthSquared( triNormal ) <= ( 0.001f * 0.001f ) ) {
+            return false;
+        }
+
+        /**
+        *    Reject any degenerate or stretched sliver triangle whose edges span an unrealistic distance.
+        *    Decal footprints are local impacts; triangles must never stretch across world space.
+        **/
+        constexpr float maxEdgeLengthSq = 48.0f * 48.0f;
+        if ( VectorLengthSquared( edge1 ) > maxEdgeLengthSq ||
+             VectorLengthSquared( edge2 ) > maxEdgeLengthSq ||
+             VectorLengthSquared( edge3 ) > maxEdgeLengthSq ) {
             return false;
         }
     }
@@ -1144,6 +1159,8 @@ static void CLG_Decals_DumpMaterials_f( void ) {
     clgi.Print( PRINT_ALL, "  0x%08x -> %s\n", SG_DECAL_MATERIAL_HASH_GUNSHOT_CONCRETE, SG_DECAL_MATERIAL_PATH_GUNSHOT_CONCRETE );
     clgi.Print( PRINT_ALL, "  0x%08x -> %s\n", SG_DECAL_MATERIAL_HASH_SPARKS_METAL, SG_DECAL_MATERIAL_PATH_SPARKS_METAL );
     clgi.Print( PRINT_ALL, "  0x%08x -> %s\n", SG_DECAL_MATERIAL_HASH_BLOOD_FLESH, SG_DECAL_MATERIAL_PATH_BLOOD_FLESH );
+    clgi.Print( PRINT_ALL, "  0x%08x -> %s\n", SG_DECAL_MATERIAL_HASH_BLOOD_FLESH_02, SG_DECAL_MATERIAL_PATH_BLOOD_FLESH_02 );
+    clgi.Print( PRINT_ALL, "  0x%08x -> %s\n", SG_DECAL_MATERIAL_HASH_BLOOD_FLESH_03, SG_DECAL_MATERIAL_PATH_BLOOD_FLESH_03 );
     clgi.Print( PRINT_ALL, "  0x%08x -> %s\n", SG_DECAL_MATERIAL_HASH_SPLINTER_WOOD, SG_DECAL_MATERIAL_PATH_SPLINTER_WOOD );
     clgi.Print( PRINT_ALL, "  0x%08x -> %s\n", SG_DECAL_MATERIAL_HASH_CRACK_GLASS, SG_DECAL_MATERIAL_PATH_CRACK_GLASS );
 
@@ -1186,7 +1203,8 @@ static void CLG_Decals_SubmitLegacyDecal( clg_decal_instance_t *instance, const 
             VectorSet( legacyDecal.albedo, 0.68f, 0.70f, 0.72f );
             break;
         case SG_DECAL_SURFACE_FLESH:
-            VectorSet( legacyDecal.albedo, 0.42f, 0.10f, 0.10f );
+            // Preserve the authored red color channels in blood_splat textures without extra darkening.
+            VectorSet( legacyDecal.albedo, 1.0f, 1.0f, 1.0f );
             break;
         case SG_DECAL_SURFACE_WOOD:
             VectorSet( legacyDecal.albedo, 0.38f, 0.25f, 0.12f );
@@ -1236,9 +1254,10 @@ static void CLG_Decals_SubmitLegacyDecal( clg_decal_instance_t *instance, const 
 
             /**
             *    In path-traced mode, keep the fallback in the mesh path too so we never drop
-            *    back to legacy sprite-style submission.
+            *    back to legacy sprite-style submission. Never emit mid-air fallback planes
+            *    for blood decals when no surrounding world/brush surface was clipped.
             **/
-            const bool allowImpactPlaneFallback = ( s_clgDecalLastTriangleCount <= 0 );
+            const bool allowImpactPlaneFallback = ( s_clgDecalLastTriangleCount <= 0 && params.hitEntityNumber == ENTITYNUM_WORLD );
             if ( allowImpactPlaneFallback && CLG_Decals_SubmitImpactPlaneMesh( context, legacyDecal.albedo, legacyDecal.alpha, resolvedMaterialHash, rendererLifeSeconds ) ) {
                 if ( s_clgDecalLastTriangleCount <= 0 ) {
                     s_clgDecalLastCandidateCount = 0;

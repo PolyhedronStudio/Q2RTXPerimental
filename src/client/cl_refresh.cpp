@@ -594,7 +594,7 @@ int( *MOD_LoadMD3 )( model_t *model, const void *rawdata, size_t length, const c
 #endif
 int( *MOD_LoadIQM )( model_t *model, const void *rawdata, size_t length, const char *mod_name ) = NULL;
 //! Loads an Alembic (.abc) Ogawa mesh sequence model for the active renderer.
-int( *MOD_LoadABC )( model_t *model, const void *rawdata, size_t length, const char *mod_name ) = nullptr;
+int( *MOD_LoadABC )( model_t *model, const void *rawdata, size_t length, const char *mod_name ) = NULL;
 void( *MOD_Reference )( model_t *model ) = NULL;
 
 int get_auto_scale( void ) {

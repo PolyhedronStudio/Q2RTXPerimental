@@ -46,10 +46,10 @@ struct DecalVertex {
 	float alpha;
 	uint textureIndex;
 	uint maskTextureIndex;
+	uint normalTextureIndex;
 	uint decalFlags;
 	uint pad2_x;
 	uint pad2_y;
-	uint pad2_z;
 };
 
 layout(set = 0, binding = 5, std430)
@@ -279,11 +279,13 @@ bool pt_logic_decal_sample(int primitiveID, vec2 bary, out vec3 outAlbedo, out f
 	const vec3 albedo2 = vec3(v2.albedo_x, v2.albedo_y, v2.albedo_z);
 	float mask_alpha = 1.0;
 	vec2 uv = (uv0 * barycentric.x) + (uv1 * barycentric.y) + (uv2 * barycentric.z);
-	uv = clamp(uv, vec2(0.0), vec2(1.0));
+	if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0)
+		return false;
 	vec3 albedo = (albedo0 * barycentric.x) + (albedo1 * barycentric.y) + (albedo2 * barycentric.z);
 	float alpha = (v0.alpha * barycentric.x) + (v1.alpha * barycentric.y) + (v2.alpha * barycentric.z);
 	const uint textureIndex = v0.textureIndex;
 	const uint maskTextureIndex = v0.maskTextureIndex;
+	const uint normalTextureIndex = v0.normalTextureIndex;
 	const uint decalFlags = v0.decalFlags;
 
 	if (maskTextureIndex > 0u)
@@ -316,6 +318,14 @@ bool pt_logic_decal_sample(int primitiveID, vec2 bary, out vec3 outAlbedo, out f
 		// When a dedicated mask texture exists, that mask controls coverage.
 		if (maskTextureIndex == 0u)
 			alpha *= sampled.a;
+	}
+
+	if (normalTextureIndex > 0u)
+	{
+		vec4 normal_sample = global_textureLod(normalTextureIndex, uv, 0);
+		vec3 normal_ts = normal_sample.rgb * 2.0 - 1.0;
+		float normal_shading = clamp(dot(normal_ts, vec3(0.0, 0.0, 1.0)) * 0.7 + 0.3, 0.2, 1.2);
+		albedo *= normal_shading;
 	}
 
 	alpha = clamp(alpha, 0.0, 1.0);

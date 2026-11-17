@@ -8,31 +8,6 @@
 #include "clgame/clg_local.h"
 #include "clgame/decals/clg_decal_pool.h"
 
-/**
-*    @brief  Finds the oldest active pool entry for deterministic eviction.
-*    @param  pool Pool state to inspect.
-*    @return Oldest active entry or nullptr when no active entries exist.
-**/
-static clg_decal_instance_t *CLG_DecalPool_FindOldestActive( clg_decal_pool_t *pool ) {
-    if ( !pool || !pool->instances || pool->activeCount <= 0 ) {
-        return nullptr;
-    }
-
-    clg_decal_instance_t *oldest = nullptr;
-    for ( int32_t i = 0; i < pool->capacity; i++ ) {
-        clg_decal_instance_t *instance = &pool->instances[ i ];
-        if ( instance->runtime.active == qfalse ) {
-            continue;
-        }
-
-        if ( oldest == nullptr || instance->runtime.spawnTime < oldest->runtime.spawnTime ) {
-            oldest = instance;
-        }
-    }
-
-    return oldest;
-}
-
 const bool CLG_DecalPool_Init( clg_decal_pool_t *pool, const int32_t capacity ) {
     if ( !pool || capacity <= 0 ) {
         return false;
@@ -48,6 +23,7 @@ const bool CLG_DecalPool_Init( clg_decal_pool_t *pool, const int32_t capacity ) 
     pool->instances = instances;
     pool->capacity = capacity;
     pool->activeCount = 0;
+    pool->headIndex = 0;
     pool->nextId = 1u;
     pool->generation = 1u;
     return true;
@@ -65,6 +41,7 @@ void CLG_DecalPool_Shutdown( clg_decal_pool_t *pool ) {
     pool->instances = nullptr;
     pool->capacity = 0;
     pool->activeCount = 0;
+    pool->headIndex = 0;
     pool->nextId = 1u;
     pool->generation = 1u;
 }
@@ -76,6 +53,7 @@ void CLG_DecalPool_Clear( clg_decal_pool_t *pool ) {
 
     memset( pool->instances, 0, sizeof( clg_decal_instance_t ) * pool->capacity );
     pool->activeCount = 0;
+    pool->headIndex = 0;
     pool->generation++;
 }
 
@@ -84,24 +62,17 @@ clg_decal_instance_t *CLG_DecalPool_Alloc( clg_decal_pool_t *pool ) {
         return nullptr;
     }
 
-    for ( int32_t i = 0; i < pool->capacity; i++ ) {
-        clg_decal_instance_t *instance = &pool->instances[ i ];
-        if ( instance->runtime.active != qfalse ) {
-            continue;
-        }
+    // O(1) Circular FIFO allocation: grab next slot at headIndex
+    clg_decal_instance_t *instance = &pool->instances[ pool->headIndex ];
+    pool->headIndex = ( pool->headIndex + 1 ) % pool->capacity;
 
-        memset( instance, 0, sizeof( *instance ) );
+    if ( instance->runtime.active == qfalse ) {
         pool->activeCount++;
-        return instance;
     }
 
-    clg_decal_instance_t *oldest = CLG_DecalPool_FindOldestActive( pool );
-    if ( !oldest ) {
-        return nullptr;
-    }
-
-    memset( oldest, 0, sizeof( *oldest ) );
-    return oldest;
+    // Reset entry in O(1) without iterating
+    memset( instance, 0, sizeof( *instance ) );
+    return instance;
 }
 
 const bool CLG_DecalPool_FreeById( clg_decal_pool_t *pool, const uint32_t decalId ) {

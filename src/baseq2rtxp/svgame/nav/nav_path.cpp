@@ -3460,16 +3460,9 @@ static bool Nav_ClipPortalForAgentClearance( const nav_route_mesh_view_t &mesh, 
 int32_t Nav_FindClosestFaceInLeaf( const nav_route_mesh_view_t &mesh, svg_nav_route_context_t &context, const Vector3DP &point ) {
 	/**
 	*	Prefer local KD-tree face lookup for stable corner progression.
+	*	Nav_FindPolyInLeaf searches the containing KD-leaf first and falls back to Nav_FindClosestPolyGlobal on failure.
 	**/
-	const int32_t leafFace = Nav_FindPolyInLeaf( mesh, context, point );
-	if ( leafFace >= 0 && static_cast< size_t >( leafFace ) < mesh.faces.size() ) {
-		return leafFace;
-	}
-
-	/**
-	*	Fallback to global closest poly lookup only if leaf search completely failed.
-	**/
-	return Nav_FindClosestPolyGlobal( mesh, context, point );
+	return Nav_FindPolyInLeaf( mesh, context, point );
 }
 
 /**
@@ -3933,14 +3926,15 @@ static void Nav_EnforceConvexCornerWaypoints( const nav_route_mesh_view_t &mesh,
 			const Vector3DP &p0 = waypoints[ i ];
 			const Vector3DP &p1 = waypoints[ i + 1 ];
 
-			// Condition check: Only bypass corner standoffs if BOTH endpoints are forced waypoints
-			// (e.g. consecutive steps on a staircase or door portal centerline pairs).
-			// Transition segments entering a forced waypoint from open space (!isP0Forced && isP1Forced)
-			// or exiting into open space (isP0Forced && !isP1Forced) must retain corner standoffs
-			// so agents rounding an outside corner before stepping up do not hug or clip the corner wall.
+			// Condition check: Bypass corner standoffs between consecutive forced waypoints (stair flights,
+			// door centerlines), or on vertical step transitions entering or leaving a forced step portal.
+			// Stepping onto or off a riser requires perpendicular alignment to the tread; corner standoffs
+			// must never be inserted midway through a vertical riser step.
 			const bool isP0Forced = ( forcedWaypoints != nullptr && i < forcedWaypoints->size() && ( *forcedWaypoints )[ i ] );
 			const bool isP1Forced = ( forcedWaypoints != nullptr && i + 1 < forcedWaypoints->size() && ( *forcedWaypoints )[ i + 1 ] );
-			if ( isP0Forced && isP1Forced ) {
+			const bool isStepTransition = ( std::fabs( p1.z - p0.z ) >= NAV_STEP_MIN_VERTICAL_DELTA &&
+				std::fabs( p1.z - p0.z ) <= static_cast<double>( NAV_MAX_STEP_HEIGHT ) );
+			if ( ( isP0Forced && isP1Forced ) || ( ( isP0Forced || isP1Forced ) && isStepTransition ) ) {
 				continue;
 			}
 
@@ -4412,7 +4406,7 @@ nav_route_validation_t Nav_ValidateHullRouteNativeMainThread( const nav_route_me
 	const cm_contents_t staticMask = CM_CONTENTMASK_SOLID | CONTENTS_MONSTERCLIP;
 	const auto native = [&]( const Vector3DP &start, const Vector3DP &end, const bool requireHeight = false ) {
 		const auto hit = SVG_Nav_TestMovementHull( start, end, mins, maxs,
-			static_cast<mm_trace_shape_t>( shape ), policy, passEntity, staticMask, requireHeight );
+			static_cast<mm_trace_shape_t>( shape ), policy, passEntity, staticMask, requireHeight, false );
 		result.traces += hit.trace_count;
 		result.physical = hit.reason;
 		return hit;
@@ -4421,9 +4415,22 @@ nav_route_validation_t Nav_ValidateHullRouteNativeMainThread( const nav_route_me
 	*	The actual start must already be physically supported; recovery is an explicit separate state.
 	**/
 	const auto start = native( points.front(), points.front(), true );
+	Vector3DP supported = start.bbox_endpoint;
+	supported.z += mins.z;
 	if ( start.reason != svg_nav_movement_reason_t::clear ) {
-		result.reason = nav_route_reason_t::invalid_start;
-		return result;
+		/**
+		*	When an actor is already physically grounded at a step edge or tread boundary,
+		*	a single center-downward point probe may drop past the riser onto a lower step or floor.
+		*	If the entity is currently grounded at this exact feet elevation, accept the start
+		*	and use its grounded position as the route simulation anchor.
+		**/
+		const bool isGroundedAtStart = ( passEntity != nullptr && passEntity->groundInfo.entityNumber != ENTITYNUM_NONE &&
+			std::fabs( SVG_GetEntityFeetOriginDP( passEntity ).z - points.front().z ) <= NAV_MOVEMENT_ENDPOINT_TOLERANCE );
+		if ( !isGroundedAtStart || start.reason != svg_nav_movement_reason_t::elevation_policy ) {
+			result.reason = nav_route_reason_t::invalid_start;
+			return result;
+		}
+		supported = points.front();
 	}
 	/**
 	*	Classify the exact goal before checking links; an invalid destination cannot become an incidental segment failure.
@@ -4478,8 +4485,6 @@ nav_route_validation_t Nav_ValidateHullRouteNativeMainThread( const nav_route_me
 		// An empty lateral interval cannot enter this finite reservation; touching its stop plane is legal.
 		return first <= last && std::min( depth + depthDelta * first, depth + depthDelta * last ) < stop;
 	};
-	Vector3DP supported = start.bbox_endpoint;
-	supported.z += mins.z;
 	/**
 	*	Validate every complete flat link and simulate supported horizontal continuation through every elevation.
 	**/
@@ -4487,6 +4492,8 @@ nav_route_validation_t Nav_ValidateHullRouteNativeMainThread( const nav_route_me
 		result.segment = static_cast<int32_t>( index - 1 );
 		const Vector3DP &previous = points[ index - 1 ];
 		const Vector3DP &target = points[ index ];
+		gi.dprintf( "[nav route segment] seg=%" PRId32 " prev=(%.2f %.2f %.2f) target=(%.2f %.2f %.2f) supported=(%.2f %.2f %.2f)\n",
+			result.segment, previous.x, previous.y, previous.z, target.x, target.y, target.z, supported.x, supported.y, supported.z );
 		// Reject reserved geometry before traces; bounded repair must choose another fully supported link.
 		if ( entersReservedOrigin( previous, target ) ) {
 			result.reason = nav_route_reason_t::unsafe_segment;
@@ -4522,12 +4529,16 @@ nav_route_validation_t Nav_ValidateHullRouteNativeMainThread( const nav_route_me
 		// Keep local descent samples until native support actually reaches this flat surface.
 		const bool continuousFlat = flat && std::fabs( supported.z - previous.z ) <= NAV_MOVEMENT_ENDPOINT_TOLERANCE &&
 			Nav_IsContinuousFlatSpan( mesh, context, previous, target );
-		const uint32_t count = continuousFlat ? 1u : std::max( 1u, static_cast<uint32_t>( requestedSamples ) );
+		const double verticalDelta = std::fabs( target.z - previous.z );
+		const bool isStepTransition = ( verticalDelta >= NAV_STEP_MIN_VERTICAL_DELTA && verticalDelta <= NAV_MAX_STEP_HEIGHT );
+		const uint32_t count = ( continuousFlat || isStepTransition ) ? 1u : std::max( 1u, static_cast<uint32_t>( requestedSamples ) );
 		// Bound reference work before a malformed or enormous route can stall installation indefinitely.
 		if ( count > std::min( sampleBudget, 8192u ) || result.samples + count > std::min( sampleBudget, 8192u ) ) {
 			result.reason = nav_route_reason_t::work_limit;
 			return result;
 		}
+		const bool isAscending = ( target.z > previous.z + NAV_MOVEMENT_ENDPOINT_TOLERANCE );
+		const double minSegmentZ = std::min( previous.z, target.z );
 		// Retain only a local containment hint; crossings fall back to the unchanged nearest-face lookup.
 		int32_t supportFace = face;
 		// Each sample is a horizontal native command; landing selects actual support instead of jumping to nav Z.
@@ -4537,12 +4548,34 @@ nav_route_validation_t Nav_ValidateHullRouteNativeMainThread( const nav_route_me
 			const auto movement = native( supported, end );
 			++result.samples;
 			if ( movement.reason != svg_nav_movement_reason_t::clear ) {
+				gi.dprintf( "[nav route segment fail] seg=%" PRId32 " sample=%" PRIu32 "/%" PRIu32 " supported=(%.2f %.2f %.2f) end=(%.2f %.2f %.2f) reason=%u endpoint=(%.2f %.2f %.2f)\n",
+					result.segment, sample, count, supported.x, supported.y, supported.z, end.x, end.y, end.z,
+					static_cast<uint32_t>( movement.reason ), movement.bbox_endpoint.x, movement.bbox_endpoint.y, movement.bbox_endpoint.z );
 				result.reason = nav_route_reason_t::native_failure;
 				result.supported_endpoint = supported;
 				return result;
 			}
-			supported = movement.bbox_endpoint;
-			supported.z += mins.z;
+			const double landedZ = movement.bbox_endpoint.z + mins.z;
+			gi.dprintf( "[nav route segment ok] seg=%" PRId32 " sample=%" PRIu32 "/%" PRIu32 " prev_supp_z=%.2f landedZ=%.2f movement_bbox_z=%.2f mins_z=%.2f minSegmentZ=%.2f target_z=%.2f isAsc=%d\n",
+				result.segment, sample, count, supported.z, landedZ, movement.bbox_endpoint.z, static_cast<double>( mins.z ), minSegmentZ, target.z, isAscending ? 1 : 0 );
+			supported.x = movement.bbox_endpoint.x;
+			supported.y = movement.bbox_endpoint.y;
+
+			/**
+			*	On a step transition (e.g. climbing or descending stairs), the floor landing trace can probe down
+			*	up to max_drop (128 units). When the agent hull partially overhangs the tread or riser edge, a downward
+			*	probe can fall past the step surface and hit an extraneous lower step or floor below this segment.
+			*	Clamping to the segment's minimum elevation (and to target.z once stepped up on an ascent) prevents
+			*	the agent from being erroneously pulled down into lower geometry.
+			**/
+			const double minAllowedZ = ( isAscending && supported.z >= target.z - NAV_MOVEMENT_ENDPOINT_TOLERANCE )
+				? target.z
+				: minSegmentZ;
+			if ( landedZ < minAllowedZ - NAV_MOVEMENT_ENDPOINT_TOLERANCE ) {
+				supported.z = minAllowedZ;
+			} else {
+				supported.z = landedZ;
+			}
 			/**
 			*	Prove containment locally before repeating a KD/global search for every small native step.
 			*	An eligible containing face within the lookup's 64-unit plane threshold guarantees that its
@@ -5209,37 +5242,66 @@ bool Nav_PrepareRouteNativeMainThread( const nav_route_mesh_view_t &mesh, svg_na
 				const double runwayDist = effectiveAgentRadius + NAV_STEP_RUNWAY_MARGIN;
 
 				// 1. Check if entering a stair flight from a flat platform/room/ground:
-				// If face is NOT preceded by another stair step, insert a frontal approach runway waypoint on face.
+				// If face is NOT preceded along the path route sequence by another stair step,
+				// insert a frontal approach runway waypoint on face (or adjacent coplanar ground).
 				// This aligns the agent perpendicularly to the bottom riser before starting the flight.
 				bool prevIsStep = false;
-				for ( int32_t pe = 0; pe < face.num_edges; pe++ ) {
-					const nav_halfedge_t &phe = mesh.halfedges[ face.first_edge_idx + pe ];
-					if ( phe.twin_idx != -1 ) {
-						const nav_face_t &twinFace = mesh.faces[ mesh.halfedges[ phe.twin_idx ].face_idx ];
-						const bool neighborIsRamp = ( face.normal.z < NAV_RAMP_MAX_NORMAL_Z || twinFace.normal.z < NAV_RAMP_MAX_NORMAL_Z );
-						const double neighborDelta = neighborIsRamp ? 0.0 : std::max( std::fabs( phe.z_diff ), std::fabs( twinFace.center.z - face.center.z ) );
-						if ( !neighborIsRamp && neighborDelta >= NAV_STEP_LANDING_MIN_DELTA && neighborDelta <= NAV_MAX_STEP_HEIGHT ) {
-							prevIsStep = true;
-							break;
-						}
+				if ( i > 0 ) {
+					const nav_face_t &prevFace = mesh.faces[ path[ i - 1 ] ];
+					const bool prevIsRamp = ( face.normal.z < NAV_RAMP_MAX_NORMAL_Z || prevFace.normal.z < NAV_RAMP_MAX_NORMAL_Z );
+					const double prevDelta = prevIsRamp ? 0.0 : std::fabs( face.center.z - prevFace.center.z );
+					if ( !prevIsRamp && prevDelta >= NAV_STEP_LANDING_MIN_DELTA && prevDelta <= NAV_MAX_STEP_HEIGHT ) {
+						prevIsStep = true;
 					}
 				}
 
 				if ( !prevIsStep && portalLen > 0.001 ) {
-					Vector3DP approachPoint = ( rawLeft + rawRight ) * 0.5 - fwd * runwayDist;
-					approachPoint.z = face.center.z;
-					if ( Nav_PointInsideFace2D( mesh, context, approachPoint, face ) ) {
-						funnel_portal_t approachPortal;
-						approachPortal.left = approachPoint;
-						approachPortal.right = approachPoint;
-						approachPortal.force_waypoint = true;
-						Nav_RecordWaypointConstraint( context, approachPoint, NAV_WAYPOINT_STEP_APPROACH | NAV_WAYPOINT_MANDATORY, sourcePortal, -1, face_idx );
-						context.portals.push_back( approachPortal );
+					// Check if incoming position is already squarely on the approach runway in front of the step
+					const Vector3DP &incomingPos = ( i == 0 ) ? startPos : mesh.faces[ path[ i - 1 ] ].center;
+					Vector3DP toIncoming = incomingPos - ( ( rawLeft + rawRight ) * 0.5 );
+					toIncoming.z = 0.0;
+					const double forwardDist = QM_Vector3DotProductDP( toIncoming, -fwd );
+					Vector3DP lateral = toIncoming - ( -fwd * forwardDist );
+					const double lateralDist = QM_Vector3LengthDP( lateral );
+					const bool alreadyOnRunway = ( forwardDist >= 0.0 && forwardDist <= runwayDist && lateralDist <= effectiveAgentRadius );
+
+					if ( !alreadyOnRunway ) {
+						Vector3DP approachPoint = ( rawLeft + rawRight ) * 0.5 - fwd * runwayDist;
+						approachPoint.z = face.center.z;
+						int32_t approachFace = face_idx;
+						if ( !Nav_PointInsideFace2D( mesh, context, approachPoint, face ) ) {
+							approachFace = Nav_FindClosestFaceInLeaf( mesh, context, approachPoint );
+							if ( approachFace >= 0 ) {
+								const nav_face_t &af = mesh.faces[ approachFace ];
+								if ( std::fabs( af.center.z - face.center.z ) > 2.0 || !Nav_PointInsideFace2D( mesh, context, approachPoint, af ) ) {
+									approachFace = -1;
+								}
+							}
+						}
+						if ( approachFace >= 0 ) {
+							funnel_portal_t approachPortal;
+							approachPortal.left = approachPoint;
+							approachPortal.right = approachPoint;
+							approachPortal.force_waypoint = true;
+							Nav_RecordWaypointConstraint( context, approachPoint, NAV_WAYPOINT_STEP_APPROACH | NAV_WAYPOINT_MANDATORY, sourcePortal, -1, approachFace );
+							context.portals.push_back( approachPortal );
+						}
 					}
 				}
 
-				// 2. Stair step transition (ascending or descending): lock portal to the exact midpoint of the step width at tread elevation.
+				// 2. Stair step transition (ascending or descending): lock portal past the step riser onto the tread at tread elevation.
 				Vector3DP mid = ( rawLeft + rawRight ) * 0.5;
+				if ( portalLen > 0.001 ) {
+					// Advance past the riser edge onto the destination tread along the stair progression direction.
+					// Leave a clearance margin from the front of the hull to the next riser to prevent grazing contact.
+					constexpr double NAV_STEP_NEXT_RISER_MARGIN = 2.0;
+					const double maxOffset = std::max( 4.0, effectiveAgentRadius - NAV_STEP_NEXT_RISER_MARGIN );
+					Vector3DP toNextCenter = nextFace.center - mid;
+					toNextCenter.z = 0.0;
+					const double forwardDist = QM_Vector3DotProductDP( toNextCenter, fwd );
+					const double stepOffset = ( forwardDist > 0.0 ) ? std::min( forwardDist, maxOffset ) : maxOffset;
+					mid = mid + fwd * stepOffset;
+				}
 				mid.z = nextFace.center.z;
 				portal.left = mid;
 				portal.right = mid;
@@ -5252,31 +5314,48 @@ bool Nav_PrepareRouteNativeMainThread( const nav_route_mesh_view_t &mesh, svg_na
 				// completely preventing lateral drift off the platform cliff edges.
 				if ( portalLen > 0.001 ) {
 					bool nextIsStep = false;
-					for ( int32_t ne = 0; ne < nextFace.num_edges; ne++ ) {
-						const nav_halfedge_t &nhe = mesh.halfedges[ nextFace.first_edge_idx + ne ];
-						if ( nhe.twin_idx != -1 ) {
-							const nav_face_t &twinFace = mesh.faces[ mesh.halfedges[ nhe.twin_idx ].face_idx ];
-							const bool neighborIsRamp = ( nextFace.normal.z < NAV_RAMP_MAX_NORMAL_Z || twinFace.normal.z < NAV_RAMP_MAX_NORMAL_Z );
-							const double neighborDelta = neighborIsRamp ? 0.0 : std::max( std::fabs( nhe.z_diff ), std::fabs( twinFace.center.z - nextFace.center.z ) );
-							if ( !neighborIsRamp && neighborDelta >= NAV_STEP_LANDING_MIN_DELTA && neighborDelta <= NAV_MAX_STEP_HEIGHT ) {
-								nextIsStep = true;
-								break;
-							}
+					if ( i + 2 < path.size() ) {
+						const nav_face_t &afterFace = mesh.faces[ path[ i + 2 ] ];
+						const bool nextIsRamp = ( nextFace.normal.z < NAV_RAMP_MAX_NORMAL_Z || afterFace.normal.z < NAV_RAMP_MAX_NORMAL_Z );
+						const double nextDelta = nextIsRamp ? 0.0 : std::fabs( afterFace.center.z - nextFace.center.z );
+						if ( !nextIsRamp && nextDelta >= NAV_STEP_LANDING_MIN_DELTA && nextDelta <= NAV_MAX_STEP_HEIGHT ) {
+							nextIsStep = true;
 						}
 					}
 
 					if ( !nextIsStep ) {
-						Vector3DP runwayPoint = ( rawLeft + rawRight ) * 0.5 + fwd * runwayDist;
-						runwayPoint.z = nextFace.center.z;
+						// Check if outgoing goal/next position is already squarely on the landing runway
+						const Vector3DP &outgoingPos = ( i + 2 < path.size() ) ? mesh.faces[ path[ i + 2 ] ].center : goalPos;
+						Vector3DP toOutgoing = outgoingPos - ( ( rawLeft + rawRight ) * 0.5 );
+						toOutgoing.z = 0.0;
+						const double forwardDist = QM_Vector3DotProductDP( toOutgoing, fwd );
+						Vector3DP lateral = toOutgoing - ( fwd * forwardDist );
+						const double lateralDist = QM_Vector3LengthDP( lateral );
+						const bool alreadyOnRunway = ( forwardDist >= 0.0 && forwardDist <= runwayDist && lateralDist <= effectiveAgentRadius );
 
-						// Only insert runway landing if the point physically lies within the landing face polygon
-						if ( Nav_PointInsideFace2D( mesh, context, runwayPoint, nextFace ) ) {
-							funnel_portal_t runwayPortal;
-							runwayPortal.left = runwayPoint;
-							runwayPortal.right = runwayPoint;
-							runwayPortal.force_waypoint = true;
-							Nav_RecordWaypointConstraint( context, runwayPoint, NAV_WAYPOINT_STEP_LANDING | NAV_WAYPOINT_MANDATORY, sourcePortal, -1, next_face_idx );
-							context.portals.push_back( runwayPortal );
+						if ( !alreadyOnRunway ) {
+							Vector3DP runwayPoint = ( rawLeft + rawRight ) * 0.5 + fwd * runwayDist;
+							runwayPoint.z = nextFace.center.z;
+							int32_t runwayFace = next_face_idx;
+							if ( !Nav_PointInsideFace2D( mesh, context, runwayPoint, nextFace ) ) {
+								runwayFace = Nav_FindClosestFaceInLeaf( mesh, context, runwayPoint );
+								if ( runwayFace >= 0 ) {
+									const nav_face_t &rf = mesh.faces[ runwayFace ];
+									if ( std::fabs( rf.center.z - nextFace.center.z ) > 2.0 || !Nav_PointInsideFace2D( mesh, context, runwayPoint, rf ) ) {
+										runwayFace = -1;
+									}
+								}
+							}
+
+							// Only insert runway landing if the point physically lies within the landing face polygon
+							if ( runwayFace >= 0 ) {
+								funnel_portal_t runwayPortal;
+								runwayPortal.left = runwayPoint;
+								runwayPortal.right = runwayPoint;
+								runwayPortal.force_waypoint = true;
+								Nav_RecordWaypointConstraint( context, runwayPoint, NAV_WAYPOINT_STEP_LANDING | NAV_WAYPOINT_MANDATORY, sourcePortal, -1, runwayFace );
+								context.portals.push_back( runwayPortal );
+							}
 						}
 					}
 				}
@@ -5600,6 +5679,15 @@ bool Nav_PrepareRouteNativeMainThread( const nav_route_mesh_view_t &mesh, svg_na
 }
 
 /**
+*	@brief	Get persistent thread-local route context for synchronous query wrappers.
+*	@note	Eliminates per-query heap allocations and container construction across all nav queries.
+**/
+static svg_nav_route_context_t &Nav_GetThreadLocalRouteContext() {
+	static thread_local svg_nav_route_context_t s_threadRouteContext;
+	return s_threadRouteContext;
+}
+
+/**
 *	@brief	Compatibility wrapper owns one complete native route context through semantic assembly.
 *	@note	No mutable funnel/refinement scratch is shared with another request.
 **/
@@ -5611,8 +5699,7 @@ bool Nav_StringPull( const std::vector<int32_t> &path, const Vector3DP &startPos
 	}
 
 	// Preserve the explicit A* diagnostic snapshot before route-local refinement.
-	svg_nav_route_context_t localContext;
-	auto &context = workspace != nullptr ? *workspace : localContext;
+	auto &context = ( workspace != nullptr ) ? *workspace : Nav_GetThreadLocalRouteContext();
 	context.diagnostics = diagnostics != nullptr ? *diagnostics : nav_path_diagnostics_t{};
 	// Prepare native lookup visitation on the owner before entering the route phase.
 	context.edge_tokens.resize( routeLease.Get()->RouteView().solid_edges.size() );
@@ -5838,7 +5925,7 @@ int32_t Nav_FindClosestFaceInLeaf( const Vector3DP &point ) {
 	if ( snapshot == nullptr ) {
 		return -1;
 	}
-	svg_nav_route_context_t context;
+	auto &context = Nav_GetThreadLocalRouteContext();
 	return Nav_FindClosestFaceInLeaf( snapshot->RouteView(), context, point );
 }
 
@@ -5853,7 +5940,7 @@ int32_t Nav_FindFaceInLeafStrict( const Vector3DP &point ) {
 	if ( snapshot == nullptr ) {
 		return -1;
 	}
-	svg_nav_route_context_t context;
+	auto &context = Nav_GetThreadLocalRouteContext();
 	return Nav_FindFaceInLeafStrict( snapshot->RouteView(), context, point );
 }
 
@@ -5868,7 +5955,7 @@ int32_t Nav_FindPolyInLeaf( const Vector3DP &point ) {
 	if ( snapshot == nullptr ) {
 		return -1;
 	}
-	svg_nav_route_context_t context;
+	auto &context = Nav_GetThreadLocalRouteContext();
 	return Nav_FindPolyInLeaf( snapshot->RouteView(), context, point );
 }
 
@@ -5883,7 +5970,7 @@ int32_t Nav_FindClosestPolyGlobal( const Vector3DP &point ) {
 	if ( snapshot == nullptr ) {
 		return -1;
 	}
-	svg_nav_route_context_t context;
+	auto &context = Nav_GetThreadLocalRouteContext();
 	return Nav_FindClosestPolyGlobal( snapshot->RouteView(), context, point );
 }
 
@@ -5898,7 +5985,7 @@ bool Nav_PointInsideFace2D( const Vector3DP &point, const nav_face_t &face ) {
 	if ( snapshot == nullptr ) {
 		return false;
 	}
-	svg_nav_route_context_t context;
+	auto &context = Nav_GetThreadLocalRouteContext();
 	return Nav_PointInsideFace2D( snapshot->RouteView(), context, point, face );
 }
 
@@ -5913,7 +6000,7 @@ int32_t Nav_FindLeafNode( const Vector3DP &point ) {
 	if ( snapshot == nullptr ) {
 		return -1;
 	}
-	svg_nav_route_context_t context;
+	auto &context = Nav_GetThreadLocalRouteContext();
 	return Nav_FindLeafNode( snapshot->RouteView(), context, point );
 }
 
@@ -5927,7 +6014,7 @@ int32_t Nav_FindReachableFaceInLeaf( const Vector3DP &point, const int32_t targe
 	if ( snapshot == nullptr ) {
 		return -1;
 	}
-	svg_nav_route_context_t context;
+	auto &context = Nav_GetThreadLocalRouteContext();
 	return Nav_FindReachableFaceInLeaf( snapshot->RouteView(), context, point, targetFace, agentRadius );
 }
 
@@ -5941,7 +6028,7 @@ int32_t Nav_GetFaceComponent( const int32_t faceIdx ) {
 	if ( snapshot == nullptr ) {
 		return -1;
 	}
-	svg_nav_route_context_t context;
+	auto &context = Nav_GetThreadLocalRouteContext();
 	return Nav_GetFaceComponent( snapshot->RouteView(), context, faceIdx );
 }
 
@@ -5955,7 +6042,7 @@ static bool Nav_ClipFaceLineInterval2D( const nav_face_t &face, const Vector3DP 
 	if ( snapshot == nullptr ) {
 		return false;
 	}
-	svg_nav_route_context_t context;
+	auto &context = Nav_GetThreadLocalRouteContext();
 	return Nav_ClipFaceLineInterval2D( snapshot->RouteView(), context, face, lineOrigin, lineDirection, lineLength, excludedFaceIdx, minimumClearance, outMinT, outMaxT );
 }
 
@@ -5969,7 +6056,7 @@ bool Nav_GetPortalEndpoints( int32_t faceA, int32_t faceB, Vector3DP *outV0, Vec
 	if ( snapshot == nullptr ) {
 		return false;
 	}
-	svg_nav_route_context_t context;
+	auto &context = Nav_GetThreadLocalRouteContext();
 	return Nav_GetPortalEndpoints( snapshot->RouteView(), context, faceA, faceB, outV0, outV1 );
 }
 
@@ -5985,7 +6072,7 @@ nav_segment_clearance_t Nav_TestSegmentClearance( const Vector3DP &p0, const Vec
 		nav_segment_clearance_t unavailable; unavailable.reason = nav_clearance_reason_t::cache_unavailable; return unavailable;
 	}
 	// Allocate query-local visitation only before solving, on the owner.
-	svg_nav_route_context_t context;
+	auto &context = Nav_GetThreadLocalRouteContext();
 	// The strict linear scan does not use visitation tokens; avoid a whole-mesh allocation per movement check.
 	const auto result = Nav_TestSegmentClearance( snapshot->RouteView(), context, p0, p1, clearance );
 	return result;
@@ -6003,7 +6090,7 @@ bool Nav_HasGeometricLineOfSight2D( const Vector3DP &p0, const Vector3DP &p1, co
 		return false;
 	}
 	// Allocate query-local visitation only before solving, on the owner.
-	svg_nav_route_context_t context;
+	auto &context = Nav_GetThreadLocalRouteContext();
 	context.edge_tokens.resize( snapshot->RouteView().solid_edges.size() );
 	const auto result = Nav_HasGeometricLineOfSight2D( snapshot->RouteView(), context, p0, p1, clearanceMargin );
 	return result;
@@ -6021,7 +6108,7 @@ void Nav_RaycastRoomBoundary2D( const Vector3DP &anchor, const double maxRadius,
 		return;
 	}
 	// Allocate query-local visitation only before solving, on the owner.
-	svg_nav_route_context_t context;
+	auto &context = Nav_GetThreadLocalRouteContext();
 	context.edge_tokens.resize( snapshot->RouteView().solid_edges.size() );
 	Nav_RaycastRoomBoundary2D( snapshot->RouteView(), context, anchor, maxRadius, numRays, outDoorYaw, outHasDoor, outMinWallDist, outAvgWallDist, outZoneType, agentRadius );
 }
@@ -6038,7 +6125,7 @@ bool Nav_RaycastHalfEdge2D( const Vector3DP &start, const Vector3DP &dirNorm, co
 		return false;
 	}
 	// Allocate query-local visitation only before solving, on the owner.
-	svg_nav_route_context_t context;
+	auto &context = Nav_GetThreadLocalRouteContext();
 	context.edge_tokens.resize( snapshot->RouteView().solid_edges.size() );
 	const auto result = Nav_RaycastHalfEdge2D( snapshot->RouteView(), context, start, dirNorm, maxDistance, outResult );
 	return result;
@@ -6056,7 +6143,7 @@ bool Nav_CircleCastHalfEdge2D( const Vector3DP &start, const Vector3DP &dirNorm,
 		return false;
 	}
 	// Allocate query-local visitation only before solving, on the owner.
-	svg_nav_route_context_t context;
+	auto &context = Nav_GetThreadLocalRouteContext();
 	context.edge_tokens.resize( snapshot->RouteView().solid_edges.size() );
 	const auto result = Nav_CircleCastHalfEdge2D( snapshot->RouteView(), context, start, dirNorm, maxDistance, agentRadius, outResult );
 	return result;
@@ -6088,7 +6175,7 @@ static void Nav_PruneUnsafeFlatPortals( std::vector<Vector3DP> &waypoints, std::
 	if ( snapshot == nullptr ) {
 		return;
 	}
-	svg_nav_route_context_t context;
+	auto &context = Nav_GetThreadLocalRouteContext();
 	// Context-local visitation cannot modify copied obstacle caches or another query.
 	context.edge_tokens.resize( snapshot->RouteView().solid_edges.size() );
 	context.corner_tokens.resize( snapshot->RouteView().corners.size() );
@@ -6105,7 +6192,7 @@ static bool Nav_ProjectOptionalFlatPortal( const Vector3DP &previous, Vector3DP 
 	if ( snapshot == nullptr ) {
 		return false;
 	}
-	svg_nav_route_context_t context;
+	auto &context = Nav_GetThreadLocalRouteContext();
 	// Context-local visitation cannot modify copied obstacle caches or another query.
 	context.edge_tokens.resize( snapshot->RouteView().solid_edges.size() );
 	context.corner_tokens.resize( snapshot->RouteView().corners.size() );
@@ -6123,7 +6210,7 @@ static bool Nav_IsContinuousFlatSpan( const Vector3DP &start, const Vector3DP &e
 	if ( snapshot == nullptr ) {
 		return false;
 	}
-	svg_nav_route_context_t context;
+	auto &context = Nav_GetThreadLocalRouteContext();
 	// Context-local visitation cannot modify copied obstacle caches or another query.
 	context.edge_tokens.resize( snapshot->RouteView().solid_edges.size() );
 	context.corner_tokens.resize( snapshot->RouteView().corners.size() );
@@ -6157,7 +6244,7 @@ static bool Nav_ClipPortalForAgentClearance( const int32_t faceAIdx, const int32
 	if ( snapshot == nullptr ) {
 		return false;
 	}
-	svg_nav_route_context_t context;
+	auto &context = Nav_GetThreadLocalRouteContext();
 	// Context-local visitation cannot modify copied obstacle caches or another query.
 	context.edge_tokens.resize( snapshot->RouteView().solid_edges.size() );
 	context.corner_tokens.resize( snapshot->RouteView().corners.size() );
@@ -6196,7 +6283,7 @@ nav_route_validation_t Nav_ValidateHullRoute( const std::vector<Vector3DP> &poin
 	if ( snapshot == nullptr ) {
 		nav_route_validation_t failed; failed.reason = nav_route_reason_t::semantic_failure; return failed;
 	}
-	svg_nav_route_context_t context;
+	auto &context = Nav_GetThreadLocalRouteContext();
 	context.edge_tokens.resize( snapshot->RouteView().solid_edges.size() );
 	context.corner_tokens.resize( snapshot->RouteView().corners.size() );
 	return Nav_ValidateHullRouteNativeMainThread( snapshot->RouteView(), context, points, mins, maxs, shape, policy, passEntity, requireExactGoal, sampleBudget );
@@ -6213,7 +6300,7 @@ nav_goal_support_t Nav_ResolveHullGoalSupport( const Vector3DP &feet, const doub
 	if ( snapshot == nullptr ) {
 		return {};
 	}
-	svg_nav_route_context_t context;
+	auto &context = Nav_GetThreadLocalRouteContext();
 	context.edge_tokens.resize( snapshot->RouteView().solid_edges.size() );
 	context.corner_tokens.resize( snapshot->RouteView().corners.size() );
 	return Nav_ResolveHullGoalSupport( snapshot->RouteView(), context, feet, radius, shape );

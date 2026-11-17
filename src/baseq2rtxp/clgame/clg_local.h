@@ -1,4 +1,3 @@
-extern cvar_t *clg_debug_draw_skeletal_hitboxes;
 /********************************************************************
 *
 *
@@ -88,6 +87,8 @@ extern cvar_t *clg_debug_entity_events;
 extern cvar_t *clg_debug_pmove_changed_events;
 extern cvar_t *clg_debug_draw_entity_bounds;
 extern cvar_t *clg_debug_draw;
+//! Whether to draw skeletal hitboxes for debugging.
+extern cvar_t *clg_debug_draw_skeletal_hitboxes;
 
 extern cvar_t *clg_kickangles;
 extern cvar_t *clg_noskins;
@@ -97,8 +98,13 @@ extern cvar_t *clg_footsteps;
 
 //! Master toggle for monster animation level of detail (LOD) and distance throttling.
 extern cvar_t *clg_anim_lod_enable;
-//! Distance threshold beyond which monsters use quantized animation LOD instead of full-rate subframe interpolation.
+//! Distance threshold beyond which monsters use quantized animation LOD instead of 
+//! full-rate subframe interpolation.
+//! [NOTE]: This is a Quake Engine unit distance, not a world unit distance.
+//! (1 world unit = 1/8 Quake Engine unit.)
 extern cvar_t *clg_anim_lod_distance;
+//! Actual Quake Engine unit distance threshold beyond which monsters use quantized animation LOD instead of full-rate subframe interpolation.
+static const double CLG_ANIM_LOD_DISTANCE = 1024.;//1024.;
 
 // Cheesy workaround for various cvars initialized elsewhere in the client, but we need access.
 extern cvar_t *cvar_pt_particle_emissive; // from client FX_Init
@@ -216,7 +222,7 @@ static constexpr int32_t CLG_MOVEINFOFLAG_WALK = BIT( 5 );
 *			Received/Predicted (player/entity-)state changes between each frame.
 **/
 typedef struct clg_entity_moveinfo_s {
-	//! Servertime of the frame for which this move info was generated.
+	//! Server time of the frame for which this move info was generated.
 	QMTime serverTime;
 
 	//! 2D Direction Offset and Unit Vectors derived from 'Previous' and 'Current' (player/entity-)state origin changes.

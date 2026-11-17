@@ -22,6 +22,7 @@
 #include "clgame/clg_screen.h"
 #include "clgame/clg_view.h"
 #include "clgame/decals/clg_decals.h"
+#include "clgame/fx/clg_fx_blood_hero.h"
 
 #include "clgame/clg_keys.h"
 #include "clgame/hud/clg_hud_weaponmenu.h"
@@ -559,6 +560,8 @@ void PF_ShutdownGame( void ) {
 
 	// Shutdown decals before we free tags.
 	CLG_Decals_Shutdown();
+	// Shutdown hero blood splatter subsystem.
+	CLG_FX_BloodHero_Shutdown();
 
 	// Clear out the UI Context, if any.
 	CLG_UI_FreeContext();
@@ -640,7 +643,7 @@ void PF_InitGame( void ) {
 	// Client effects.
 	clg_footsteps = clgi.CVar_Get( "clg_footsteps", "1", 0 );
 	clg_anim_lod_enable = clgi.CVar_Get( "clg_anim_lod_enable", "1", CVAR_ARCHIVE );
-	clg_anim_lod_distance = clgi.CVar_Get( "clg_anim_lod_distance", "1024", CVAR_ARCHIVE );
+	clg_anim_lod_distance = clgi.CVar_Get( "clg_anim_lod_distance", std::to_string(CLG_ANIM_LOD_DISTANCE).c_str(), CVAR_ARCHIVE);
 	clg_kickangles = clgi.CVar_Get( "clg_kickangles", "1", CVAR_CHEAT );
 	clg_noskins = clgi.CVar_Get( "clg_noskins", "0", 0 );
 	cl_nolerp = clgi.CVar_Get( "cl_nolerp", "0", 0 ); // Fetched from engine.
@@ -712,6 +715,8 @@ void PF_InitGame( void ) {
 	CLG_InitEffects();
 	CLG_TemporaryEntities_Init();
 	CLG_Decals_Init();
+	// Initialize hero blood splatter subsystem.
+	CLG_FX_BloodHero_Init();
 
 	/**
 	*	Default EAX Environment:

@@ -30,8 +30,9 @@ typedef struct vkpt_decal_vertex_s {
 	float alpha;
 	uint32_t textureIndex;
 	uint32_t maskTextureIndex;
+	uint32_t normalTextureIndex;
 	uint32_t decalFlags;
-	uint32_t pad2[ 3 ];
+	uint32_t pad2[ 2 ];
 } vkpt_decal_vertex_t;
 
 VkResult vkpt_decals_geometry_initialize( void );

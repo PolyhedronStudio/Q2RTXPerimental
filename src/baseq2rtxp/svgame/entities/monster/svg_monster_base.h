@@ -347,6 +347,8 @@ struct svg_monster_base_t : public svg_base_edict_t {
 	int32_t currentStandingFace = -1;
 	//! Server time when currentStandingFace was last resolved.
 	QMTime lastStandingFaceResolveTime = -1_ms;
+	//! Feet origin in double precision when currentStandingFace was last resolved.
+	Vector3DP lastStandingFaceFeetOrigin = { 0.0, 0.0, 0.0 };
 	//! Snapshot marks of corridor faces for O(1) hysteresis lookup in OnNavEvaluateEdgeCost.
 	std::vector<uint32_t> corridorMembershipMarks;
 	//! Stamp identifying active corridor membership snapshot.

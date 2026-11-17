@@ -46,6 +46,7 @@ typedef struct clg_decal_pool_s {
     clg_decal_instance_t *instances;
     int32_t capacity;
     int32_t activeCount;
+    int32_t headIndex; //!< Next circular FIFO allocation index for O(1) alloc/eviction
     uint32_t nextId;
     uint32_t generation;
 } clg_decal_pool_t;
@@ -71,7 +72,7 @@ void CLG_DecalPool_Shutdown( clg_decal_pool_t *pool );
 void CLG_DecalPool_Clear( clg_decal_pool_t *pool );
 
 /**
-*    @brief  Allocates a runtime entry, evicting oldest active entry when full.
+*    @brief  Allocates a runtime entry, evicting oldest active entry when full in O(1).
 *    @param  pool Pool state to allocate from.
 *    @return Pointer to writable entry, or nullptr on failure.
 **/

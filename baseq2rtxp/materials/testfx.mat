@@ -1,0 +1,17 @@
+models/fx/blood_alembic01/blood_alembic01:
+	texture_base models/fx/blood_alembic01/blood_alembic01.png
+	texture_normals models/fx/blood_alembic01/blood_alembic01_n.png
+	base_factor 2.5
+	bump_scale 1.0
+	metalness_factor 0.0
+	specular_factor 0.5
+	roughness_override 0.15
+
+models/fx/blood_alembic01:
+	texture_base models/fx/blood_alembic01/blood_alembic01.png
+	texture_normals models/fx/blood_alembic01/blood_alembic01_n.png
+	base_factor 2.5
+	bump_scale 1.0
+	metalness_factor 0.0
+	specular_factor 0.5
+	roughness_override 0.15

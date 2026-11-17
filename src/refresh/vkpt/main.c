@@ -2377,7 +2377,11 @@ static void process_regular_entity(
 				geom = &vbo->geom_masked_frames[ blas_frame ];
 			} else if ( mesh_filter & MESH_FILTER_TRANSPARENT ) {
 				geom = &vbo->geom_transparent_frames[ blas_frame ];
-			} else {
+				// Fall back to opaque frame BLAS when an opaque static/Alembic model fades via RF_TRANSLUCENT.
+				if ( ( !geom || !geom->accel ) && alpha < 1.0f ) {
+					geom = &vbo->geom_opaque_frames[ blas_frame ];
+				}
+			} else if ( alpha >= 1.0f ) {
 				geom = &vbo->geom_opaque_frames[ blas_frame ];
 			}
 		} else {
@@ -2385,7 +2389,11 @@ static void process_regular_entity(
 				geom = &vbo->geom_masked;
 			} else if ( mesh_filter & MESH_FILTER_TRANSPARENT ) {
 				geom = &vbo->geom_transparent;
-			} else {
+				// Fall back to opaque BLAS when an opaque static model fades via RF_TRANSLUCENT.
+				if ( ( !geom || !geom->accel ) && alpha < 1.0f ) {
+					geom = &vbo->geom_opaque;
+				}
+			} else if ( alpha >= 1.0f ) {
 				geom = &vbo->geom_opaque;
 			}
 		}

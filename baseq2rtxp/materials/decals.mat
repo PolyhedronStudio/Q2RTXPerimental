@@ -6,3 +6,57 @@ textures/decals/bullets/bullethole_01:
 	bump_scale 1.0
 	specular_factor 0.125
 	roughness_override -1
+
+textures/decals/blood/blood_splat_01:
+	texture_base textures/decals/blood/*.png
+	texture_normals textures/decals/blood/*_n.png
+	texture_mask textures/decals/blood/*_m.png
+	base_factor 1
+	bump_scale 1.0
+	specular_factor 0.5
+	roughness_override 0.05
+
+textures/decals/blood/blood_splat_02:
+	texture_base textures/decals/blood/*.png
+	texture_normals textures/decals/blood/*_n.png
+	texture_mask textures/decals/blood/*_m.png
+	base_factor 1
+	bump_scale 1.0
+	specular_factor 0.5
+	roughness_override 0.05
+
+textures/decals/blood/blood_splat_03:
+	texture_base textures/decals/blood/*.png
+	texture_normals textures/decals/blood/*_n.png
+	texture_mask textures/decals/blood/*_m.png
+	base_factor 1
+	bump_scale 1.0
+	specular_factor 0.5
+	roughness_override 0.05
+
+textures/decals/blood/bloodsplat_01:
+	texture_base textures/decals/blood/*.dds
+	texture_normals textures/decals/blood/*_n.dds
+    texture_mask textures/decals/blood/*_m.dds
+	base_factor 1
+	bump_scale 1.0
+	specular_factor 0.125
+	roughness_override -1
+
+textures/decals/blood/bloodsplat_02:
+	texture_base textures/decals/blood/*.dds
+	texture_normals textures/decals/blood/*_n.dds
+    texture_mask textures/decals/blood/*_m.dds
+	base_factor 1
+	bump_scale 1.0
+	specular_factor 0.125
+	roughness_override -1
+
+textures/decals/blood/bloodsplat_03:
+	texture_base textures/decals/blood/*.dds
+	texture_normals textures/decals/blood/*_n.dds
+    texture_mask textures/decals/blood/*_m.dds
+	base_factor 1
+	bump_scale 1.0
+	specular_factor 0.125
+	roughness_override -1

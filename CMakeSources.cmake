@@ -79,11 +79,15 @@ SET(SRC_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/clg_view_weapon.cpp
 	baseq2rtxp/clgame/clg_view_state_transition.cpp
 	baseq2rtxp/clgame/clg_world.cpp
+
 	baseq2rtxp/clgame/decals/clg_decal_clip.cpp
 	baseq2rtxp/clgame/decals/clg_decal_mesh.cpp
 	baseq2rtxp/clgame/decals/clg_decal_events.cpp
 	baseq2rtxp/clgame/decals/clg_decal_pool.cpp
 	baseq2rtxp/clgame/decals/clg_decals.cpp
+
+    baseq2rtxp/clgame/fx/clg_fx_blood_hero.cpp
+    baseq2rtxp/clgame/fx/clg_fx_blood_utils.cpp
 
 	baseq2rtxp/clgame/effects/clg_fx_classic.cpp
 	baseq2rtxp/clgame/effects/clg_fx_dynamiclights.cpp
@@ -150,10 +154,14 @@ SET(HEADERS_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/clg_view_weapon.h
 	baseq2rtxp/clgame/clg_view_state_transition.h
 	baseq2rtxp/clgame/clg_world.h
+
 	baseq2rtxp/clgame/decals/clg_decal_clip.h
 	baseq2rtxp/clgame/decals/clg_decal_mesh.h
 	baseq2rtxp/clgame/decals/clg_decal_pool.h
 	baseq2rtxp/clgame/decals/clg_decals.h
+
+    baseq2rtxp/clgame/fx/clg_fx_blood_hero.h
+    baseq2rtxp/clgame/fx/clg_fx_blood_utils.h
 
 	baseq2rtxp/clgame/effects/clg_fx_classic.h
 	baseq2rtxp/clgame/effects/clg_fx_dynamiclights.h

@@ -580,6 +580,8 @@ static uint32_t load_material_file(const char* file_name, pbr_material_t* dest, 
 			// copy the material name but not the colon
 			linebuf[len - 1] = 0;
 			Q_strlcpy(dest->name, linebuf, sizeof(dest->name));
+			// Normalize material definition name to lowercase so case-sensitive sorted lookup in MAT_Find always matches.
+			Q_strlwr(dest->name);
 			dest->image_flags = source;
 			dest->registration_sequence = registration_sequence;
 
@@ -781,13 +783,8 @@ static void load_material_image(image_t** image, const char* filename, pbr_mater
 {
 	*image = IMG_Find(filename, type, flags | IF_EXACT | (mat->image_flags & IF_SRC_MASK));
 	if (*image == R_NOTEXTURE) {
-		/* Also try inexact loading in case of an override texture.
-		 * Useful for games that ship a texture in a different directory
-		 * (compared to the baseq2 location): the override is still picked
-		 * up, but if the same path is written to a materials file, a
-		 * warning is emitted, since overrides are in generally in baseq2. */
-		if(strncmp(filename, "overrides/", 10) == 0)
-			*image = IMG_Find(filename, type, flags | IF_EXACT);
+		// Retry across all search paths so materials can resolve textures from either base or game directories.
+		*image = IMG_Find(filename, type, flags | IF_EXACT);
 	}
 }
 
@@ -837,7 +834,10 @@ void MAT_FindBaseTexture( pbr_material_t *mat, const char *name, imagetype_t typ
 	// WID: This will try and load the image that is specified, expecting a 'hi-res HD' texture.
 	if ( mat->filename_base[ 0 ] ) {
 		load_material_image( &mat->image_base, mat->filename_base, mat, type, flags | IF_SRGB );
-		Q_strlcpy( mat->filename_base, mat->image_base->filepath, sizeof( mat->filename_base ) );
+		// Only overwrite filename_base with the resolved filepath when a valid texture was found.
+		if ( mat->image_base != R_NOTEXTURE ) {
+			Q_strlcpy( mat->filename_base, mat->image_base->filepath, sizeof( mat->filename_base ) );
+		}
 	} else {
 		mat->image_base = R_NOTEXTURE;
 	}

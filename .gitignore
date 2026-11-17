@@ -141,3 +141,9 @@ baseq2rtxp/maps/*.bsp
 /scripts/tests
 /scripts/__pycache__
 /tests/navigation
+/baseq2rtxp/models/fx/blood_alembic01
+/docs/devmarkdown
+/IDEA.md
+/tools/fteqw-iqmtool
+/tools/lua
+/tools/luac

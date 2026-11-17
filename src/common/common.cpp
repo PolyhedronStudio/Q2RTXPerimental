@@ -78,9 +78,7 @@ static int      com_argc;
 cvar_t  *z_perturb;
 #endif
 
-#if USE_DEBUG
 QEXTERN_C_ENCLOSE( cvar_t *developer; );
-#endif
 cvar_t  *timescale;
 cvar_t  *fixedtime;
 QEXTERN_C_ENCLOSE( cvar_t *dedicated; );
@@ -890,9 +888,7 @@ void Qcommon_Init(int argc, char **argv)
 #if USE_CLIENT
     host_speeds = Cvar_Get("host_speeds", "0", 0);
 #endif
-#if USE_DEBUG
     developer = Cvar_Get("developer", "1", 0);
-#endif
     timescale = Cvar_Get("timescale", "1", CVAR_CHEAT);
     fixedtime = Cvar_Get("fixedtime", "0", CVAR_CHEAT);
     logfile_enable = Cvar_Get("logfile", "1", 0);
@@ -1096,8 +1092,7 @@ void Qcommon_Frame(void)
 
 	// WID: 64-bit-frame: Should we messabout with this?
     if (msec > 75) { // Was: > 250
-        // msec is a double; an integer varargs format fabricated zero-duration hitch messages.
-        Com_DPrintf("Hitch warning: %.3f msec frame time\n", msec);
+        Com_DPrintf("Hitch warning: %u msec frame time\n", msec);
         msec = BASE_FRAMETIME; // time was unreasonable,
         // host OS was hibernated or something
     }

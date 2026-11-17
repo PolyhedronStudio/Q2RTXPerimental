@@ -72,6 +72,7 @@ OPTION(CONFIG_BUILD_DEV_MATHS_VERIFIER "Build a verifier for the 4x4 mat maths" 
 if (MSVC)
     OPTION(CONFIG_BUILD_WITH_EDIT_AND_CONTINUE "Build with Edit and Continue support (MSVC only)" ON)
 endif()
+OPTION(CONFIG_FAST_DEBUG "Enable FastDebug: optimized performance with full debug symbols and USE_DEBUG enabled" OFF)
 
 # WIN32: Expect it to be installed by developer instead.
 IF( CONFIG_BUILD_CLIENT_TARGET )
@@ -158,6 +159,10 @@ IF(MSVC)
     replace_msvcrt(CMAKE_C_FLAGS_RELEASE "/MT")
     replace_msvcrt(CMAKE_C_FLAGS_RELWITHDEBINFO "/MT")
 
+    # FastDebug build configuration: /O2 /Zi /Ob2 with dynamic CRT
+    set(CMAKE_C_FLAGS_FASTDEBUG "/O2 /Zi /Ob2 /MP" CACHE STRING "Flags used by the C compiler during FastDebug builds." FORCE)
+    replace_msvcrt(CMAKE_C_FLAGS_FASTDEBUG "/MD")
+
     # Enable multi-processor compilation when using MSBuild
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MP")
 
@@ -167,14 +172,23 @@ IF(MSVC)
     replace_msvcrt(CMAKE_CXX_FLAGS_RELEASE "/MT")
     replace_msvcrt(CMAKE_CXX_FLAGS_RELWITHDEBINFO "/MT")
 
+    # FastDebug C++ build configuration
+    set(CMAKE_CXX_FLAGS_FASTDEBUG "/O2 /Zi /Ob2 /MP" CACHE STRING "Flags used by the C++ compiler during FastDebug builds." FORCE)
+    replace_msvcrt(CMAKE_CXX_FLAGS_FASTDEBUG "/MD")
+
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
 
     IF(CONFIG_BUILD_WITH_EDIT_AND_CONTINUE)
-        set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>")
+        set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug,FastDebug,RelWithDebInfo>:EditAndContinue>")
         message(STATUS "Building with Edit and Continue support")
     ELSE()
         #message(STATUS "Building without Edit and Continue support")
     ENDIF()
+
+    if(CONFIG_FAST_DEBUG)
+        message(STATUS "FastDebug enabled: Optimizations active with USE_DEBUG and full symbols")
+        add_compile_definitions(USE_DEBUG)
+    endif()
 
 # ---- MSVC Sanitizer Flags ----
 if (MSVC AND CONFIG_ENABLE_SANITIZERS)

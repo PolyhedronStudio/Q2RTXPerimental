@@ -8,9 +8,14 @@
 #include "clgame/clg_local.h"
 #include "clgame/clg_effects.h"
 #include "clgame/effects/clg_fx_classic.h"
+#include "clgame/clg_world.h"
+#include "clgame/decals/clg_decals.h"
+#include "clgame/fx/clg_fx_blood_hero.h"
 
 #include "sharedgame/sg_entity_flags.h"
 #include "sharedgame/sg_muzzleflashes.h"
+
+#include <algorithm>
 
 // Wall Impact Puffs.
 void CLG_FX_ParticleEffect( const Vector3 &org, const Vector3 &dir, int color, int count ) {
@@ -140,62 +145,89 @@ void CLG_FX_ParticleEffectWaterSplash( const Vector3 &org, const Vector3 &dir, i
     }
 }
 
-void CLG_FX_BloodParticleEffect( const Vector3 &org, const Vector3 &dir, int color, int count ) {
-    //// add decal:
-    //decal_t dec = {
-    //  .pos = {org[ 0 ],org[ 1 ],org[ 2 ]},
-    //  .dir = {dir[ 0 ],dir[ 1 ],dir[ 2 ]},
-    //  .spread = 0.25f,
-    //  .length = 350
-    //};
-    //clgi.R_AddDecal( &dec );
-	static constexpr float dirt_horizontal_spread = 2.0f;
-	static constexpr float dirt_vertical_spread = 1.0f;
-	static constexpr float dirt_base_velocity = 40.0f;
-	static constexpr float dirt_rand_velocity = 70.0f;
+/**
+*	@brief	Spawns blood decals and 3D Alembic hero fluid meshes for flesh wound impacts.
+*	@note	Legacy point-based particle cloud allocation is removed so that only the modern
+*			3D Alembic fluid mesh and path-traced decals appear on monster and player hits.
+*	@param	org		Origin of the blood effect.
+*	@param	dir		Direction vector of the blood spray / impact force.
+*	@param	color	Legacy base color palette index (unused).
+*	@param	count	Severity of the wound / particle count factor.
+**/
+void CLG_FX_BloodParticleEffect( const Vector3 &org, const Vector3 &dir, [[maybe_unused]] int color, int count ) {
+	/**
+	*	Array of available blood splatter decal material hashes for random texture variation.
+	**/
+	static constexpr sg_decal_material_hash_t bloodMaterials[] = {
+		SG_DECAL_MATERIAL_HASH_BLOOD_FLESH,
+		SG_DECAL_MATERIAL_HASH_BLOOD_FLESH_02,
+		SG_DECAL_MATERIAL_HASH_BLOOD_FLESH_03
+	};
 
-	Vector3 oy = { 0.f, 1.f, 0.f };	//VectorSet( oy, 0.0f, 1.0f, 0.0f );
-	if ( fabsf( QM_Vector3DotProductDP( oy, dir ) ) > 0.95 ) {
-		oy = { 1.f, 0.f, 0.f }; //VectorSet( oy, 1.0f, 0.0f, 0.0f );
+	/**
+	*	1. Downward drip: cast a ray straight down from the wound towards the floor beneath the victim.
+	**/
+	const Vector3 floorTraceEnd = org + Vector3{ crand() * 6.0f, crand() * 6.0f, -140.0f };
+	const cm_trace_t floorTrace = CLG_Clip( org, nullptr, nullptr, floorTraceEnd, nullptr, CM_CONTENTMASK_SOLID );
+	const bool hitFloorSolid = ( floorTrace.fraction < 1.0f && !floorTrace.allsolid && !floorTrace.startsolid );
+	const bool hitFloorSky = ( floorTrace.surface != nullptr && ( floorTrace.surface->flags & CM_SURFACE_FLAG_SKY ) != 0 );
+
+	// Only spawn a floor drip if we struck upward-facing solid world geometry.
+	if ( hitFloorSolid && !hitFloorSky && floorTrace.plane.normal[ 2 ] > 0.5f ) {
+		sg_decal_spawn_params_t decal_params = {};
+		VectorCopy( floorTrace.endpos, decal_params.origin );
+		VectorCopy( floorTrace.plane.normal, decal_params.normal );
+		decal_params.materialHash = bloodMaterials[ Q_rand() % 3 ];
+		decal_params.surfaceClass = SG_DECAL_SURFACE_FLESH;
+		// Authoritative floor drip pool radius (diameter 20 - 28 units), proportional to character scale (32-unit width).
+		decal_params.radius = 10.0f + ( frand() * 4.0f );
+		decal_params.depth = 8.0f;
+		decal_params.rotationRadians = frand() * 6.2831853f;
+		decal_params.lifeSeconds = 20.0f;
+		decal_params.fadeInSeconds = 0.04f;
+		decal_params.fadeOutSeconds = 0.40f;
+		decal_params.hitEntityNumber = ENTITYNUM_WORLD;
+		decal_params.flags = SG_DECAL_FLAG_DYNAMIC;
+		(void)CLG_Decals_QueueSpawn( decal_params );
 	}
-	Vector3 ox = QM_Vector3CrossProduct( oy, dir ); //CrossProduct(oy, dir, ox);
-	
-	// Apply particle count factor.
-	count *= cl_particle_num_factor->value;
 
-	// Create particles.
-	for ( int32_t i = 0; i < count; i++ ) {
-		// Allocate particle.
-		clg_particle_t *p = CLG_AllocateParticle();
-		if ( !p ) {
-			return;
-		}
+	/**
+	*	2. Exit spray: cast a short ray along the bullet exit vector (-dir) onto a close rear wall.
+	*	   Only surfaces within close proximity (<= 100 units) receive backsplatter.
+	**/
+	const Vector3 exitTraceEnd = org + ( dir * -100.0f ) + Vector3{ 0.0f, 0.0f, -10.0f };
+	const cm_trace_t exitTrace = CLG_Clip( org, nullptr, nullptr, exitTraceEnd, nullptr, CM_CONTENTMASK_SOLID );
+	const bool hitExitSolid = ( exitTrace.fraction < 1.0f && !exitTrace.allsolid && !exitTrace.startsolid );
+	const bool hitExitSky = ( exitTrace.surface != nullptr && ( exitTrace.surface->flags & CM_SURFACE_FLAG_SKY ) != 0 );
 
-		// Set particle properties.
-		p->time = clgi.client->time;
+	// Avoid duplicate floor streaks if the floor drip already covered the floor.
+	if ( hitExitSolid && !hitExitSky && ( fabsf( exitTrace.plane.normal[ 2 ] ) < 0.7f || !hitFloorSolid ) ) {
+		sg_decal_spawn_params_t decal_params = {};
+		VectorCopy( exitTrace.endpos, decal_params.origin );
+		VectorCopy( exitTrace.plane.normal, decal_params.normal );
+		decal_params.materialHash = bloodMaterials[ Q_rand() % 3 ];
+		decal_params.surfaceClass = SG_DECAL_SURFACE_FLESH;
+		// Wall backsplatter radius (diameter 24 - 32 units).
+		decal_params.radius = 12.0f + ( frand() * 4.0f );
+		decal_params.depth = 8.0f;
+		decal_params.rotationRadians = frand() * 6.2831853f;
+		decal_params.lifeSeconds = 20.0f;
+		decal_params.fadeInSeconds = 0.04f;
+		decal_params.fadeOutSeconds = 0.40f;
+		decal_params.hitEntityNumber = ENTITYNUM_WORLD;
+		decal_params.flags = SG_DECAL_FLAG_DYNAMIC;
+		(void)CLG_Decals_QueueSpawn( decal_params );
+	}
 
-		p->color = color + ( Q_rand() & 7 );
-		p->brightness = 0.5f;
-
-		// Calculate particle origin.
-		Vector3 origin = org; // VectorCopy( org, origin );
-		origin = QM_Vector3MultiplyAdd( origin, dirt_horizontal_spread * crand(), ox ); //VectorMA( origin, dirt_horizontal_spread * crand(), ox, origin );
-		origin = QM_Vector3MultiplyAdd( origin, dirt_horizontal_spread * crand(), oy ); //VectorMA( origin, dirt_horizontal_spread * crand(), oy, origin );		
-		origin = QM_Vector3MultiplyAdd( origin, dirt_vertical_spread * frand() + 1.0f, dir ); //VectorMA( origin, dirt_vertical_spread * frand() + 1.0f, dir, origin );
-		VectorCopy( origin, p->org );
-
-		// Calculate particle velocity.
-		Vector3 velocity = origin - org; // VectorSubtract( origin, org, velocity );
-		velocity = QM_Vector3Normalize( velocity ); ////VectorNormalize( velocity );
-		velocity = QM_Vector3ScaleDP( velocity, dirt_base_velocity + frand() * dirt_rand_velocity ); // //VectorScale( velocity, dirt_base_velocity + frand() * dirt_rand_velocity, p->vel );
-		VectorCopy( velocity, p->vel );
-
-		// Set remaining particle properties.
-		p->accel[ 0 ] = p->accel[ 1 ] = 0;
-		p->accel[ 2 ] = -PARTICLE_GRAVITY;
-		p->alpha = 1.0f;
-		// Set particle alpha velocity.
-		p->alphavel = -1.0f / ( 0.5f + frand() * 0.3f );
+	/**
+	*	Spawn a 3D Alembic hero fluid splatter at the wound impact site on every blood impact.
+	**/
+	// Emit hero fluid geometry whenever positive blood severity is requested.
+	if ( count > 0 ) {
+		// Scale splatter volume so the ~10-unit Alembic mesh reads clearly at Quake character scale without stretching.
+		const float heroScale = std::clamp( 1.0f + ( static_cast<float>( count ) / 50.0f ), 1.0f, 1.8f );
+		const Vector3 velocity = dir * 150.0f;
+		CLG_FX_BloodHero_Spawn( org, dir, velocity, ENTITYNUM_WORLD, heroScale );
 	}
 }
 

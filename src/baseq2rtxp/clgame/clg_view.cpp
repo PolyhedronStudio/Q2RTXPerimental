@@ -16,6 +16,7 @@
 #include "clgame/clg_screen.h"
 #include "clgame/clg_view.h"
 #include "clgame/clg_world.h"
+#include "clgame/fx/clg_fx_blood_hero.h"
 
 #include "clgame/clg_view_weapon.h"
 
@@ -388,6 +389,11 @@ void CLG_PrepareViewEntities( void ) {
 
     // Add the view weapon model.
     CLG_AddViewWeapon();
+
+    /**
+    *   Update and emit active 3D Alembic hero blood splatter entities.
+    **/
+    CLG_FX_BloodHero_Frame();
 
     // Add in .md2/.md3/.iqm model 'debugger' entity.
     //CLG_AddTestModel();

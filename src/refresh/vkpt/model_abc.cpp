@@ -18,6 +18,7 @@
 #include <cmath>
 #include <cstring>
 #include <algorithm>
+#include <array>
 #include <string>
 #include <vector>
 
@@ -1035,9 +1036,10 @@ static bool ABC_UnpackPolyMeshFrame(
 		if ( n_idx >= num_raw_normals ) {
 			return false;
 		}
-		out_n[ 0 ] = raw_normals[ n_idx * 3 + 0 ];
-		out_n[ 1 ] = raw_normals[ n_idx * 3 + 1 ];
-		out_n[ 2 ] = raw_normals[ n_idx * 3 + 2 ];
+		// Convert Alembic Y-up coordinates (rx, ry, rz) to Quake Z-up (rz, rx, ry).
+		out_n[ 0 ] = raw_normals[ n_idx * 3 + 2 ];
+		out_n[ 1 ] = raw_normals[ n_idx * 3 + 0 ];
+		out_n[ 2 ] = raw_normals[ n_idx * 3 + 1 ];
 		return true;
 	};
 
@@ -1071,9 +1073,9 @@ static bool ABC_UnpackPolyMeshFrame(
 
 	/**
 	*	Build vertex arrays and triangulate polygon faces.
-	*	In Alembic (RenderMan convention), polygon vertices wind clockwise when viewed from outside;
-	*	we triangulate each n-gon as `(c0, c + k + 1, c + k)` and verify against authored normals if present.
+	*	Track raw vertex indices per output vertex so smooth normals can be accumulated across UV seams.
 	**/
+	std::vector<int32_t> raw_pos_for_vert;
 	if ( !needs_corner_split ) {
 		// Direct 1:1 vertex mapping with `P`.
 		if ( num_raw_verts > ABC_MAX_VERTS_PER_FRAME ) {
@@ -1085,11 +1087,15 @@ static bool ABC_UnpackPolyMeshFrame(
 		out_frame->positions.resize( num_raw_verts );
 		out_frame->normals.resize( num_raw_verts );
 		out_frame->tex_coords.resize( num_raw_verts );
+		raw_pos_for_vert.resize( num_raw_verts );
 
 		for ( uint32_t v = 0; v < num_raw_verts; v++ ) {
-			out_frame->positions[ v ][ 0 ] = raw_positions[ v * 3 + 0 ];
-			out_frame->positions[ v ][ 1 ] = raw_positions[ v * 3 + 1 ];
-			out_frame->positions[ v ][ 2 ] = raw_positions[ v * 3 + 2 ];
+			// Record raw position index for smooth normal accumulation.
+			raw_pos_for_vert[ v ] = ( int32_t )v;
+			// Convert Alembic Y-up coordinates (rx, ry, rz) to Quake Z-up (rz, rx, ry).
+			out_frame->positions[ v ][ 0 ] = raw_positions[ v * 3 + 2 ];
+			out_frame->positions[ v ][ 1 ] = raw_positions[ v * 3 + 0 ];
+			out_frame->positions[ v ][ 2 ] = raw_positions[ v * 3 + 1 ];
 			fetch_corner_normal( v, v, out_frame->normals[ v ] );
 			fetch_corner_uv( v, v, out_frame->tex_coords[ v ] );
 		}
@@ -1135,6 +1141,7 @@ static bool ABC_UnpackPolyMeshFrame(
 		out_frame->positions.reserve( std::min<uint32_t>( num_corners, ABC_MAX_VERTS_PER_FRAME ) );
 		out_frame->normals.reserve( std::min<uint32_t>( num_corners, ABC_MAX_VERTS_PER_FRAME ) );
 		out_frame->tex_coords.reserve( std::min<uint32_t>( num_corners, ABC_MAX_VERTS_PER_FRAME ) );
+		raw_pos_for_vert.reserve( std::min<uint32_t>( num_corners, ABC_MAX_VERTS_PER_FRAME ) );
 
 		// Helper that finds or inserts a deduplicated vertex for a polygon corner.
 		auto find_or_add_corner_vertex = [&]( const uint32_t corner_idx ) -> int32_t {
@@ -1174,14 +1181,16 @@ static bool ABC_UnpackPolyMeshFrame(
 			}
 
 			const int32_t new_v = ( int32_t )out_frame->positions.size();
+			// Convert Alembic Y-up coordinates (rx, ry, rz) to Quake Z-up (rz, rx, ry).
 			vec3_t pos = {
+				raw_positions[ raw_pos_idx * 3 + 2 ],
 				raw_positions[ raw_pos_idx * 3 + 0 ],
-				raw_positions[ raw_pos_idx * 3 + 1 ],
-				raw_positions[ raw_pos_idx * 3 + 2 ]
+				raw_positions[ raw_pos_idx * 3 + 1 ]
 			};
 			out_frame->positions.push_back( { pos[ 0 ], pos[ 1 ], pos[ 2 ] } );
 			out_frame->normals.push_back( { n[ 0 ], n[ 1 ], n[ 2 ] } );
 			out_frame->tex_coords.push_back( { uv[ 0 ], uv[ 1 ] } );
+			raw_pos_for_vert.push_back( raw_pos_idx );
 
 			next_vert.push_back( head_for_pos[ raw_pos_idx ] );
 			head_for_pos[ raw_pos_idx ] = new_v;
@@ -1235,12 +1244,10 @@ static bool ABC_UnpackPolyMeshFrame(
 	}
 
 	/**
-	*	If normals were provided in the `.abc` file, verify that triangle winding agrees with
-	*	the authored normals (`cross(p1 - p0, p2 - p0) . N > 0`) so VKPT's `flat_normal` matches `geo_normal`.
-	*	If normals were NOT provided, compute smooth area-weighted vertex normals from the triangles.
+	*	Verify outward triangle winding and generate/normalize smooth vertex normals.
 	**/
 	if ( has_normals ) {
-		int32_t winding_votes = 0;
+		// Flip any individual triangle whose geometric normal disagrees with its authored vertex normals.
 		for ( uint32_t t = 0; t < num_tris; t++ ) {
 			const int32_t i0 = out_frame->indices[ t * 3 + 0 ];
 			const int32_t i1 = out_frame->indices[ t * 3 + 1 ];
@@ -1254,17 +1261,8 @@ static bool ABC_UnpackPolyMeshFrame(
 			VectorAdd( out_frame->normals[ i0 ], out_frame->normals[ i1 ], avg_n );
 			VectorAdd( avg_n, out_frame->normals[ i2 ], avg_n );
 
-			const float d = DotProduct( fn, avg_n );
-			if ( d > 1e-6f ) {
-				winding_votes++;
-			} else if ( d < -1e-6f ) {
-				winding_votes--;
-			}
-		}
-
-		// Flip triangle winding if authored normals indicate counter-clockwise source faces.
-		if ( winding_votes < 0 ) {
-			for ( uint32_t t = 0; t < num_tris; t++ ) {
+			// Swap winding if geometric normal opposes authored shading normal so VKPT does not flip geo_normal.
+			if ( DotProduct( fn, avg_n ) < -1e-6f ) {
 				std::swap( out_frame->indices[ t * 3 + 1 ], out_frame->indices[ t * 3 + 2 ] );
 			}
 		}
@@ -1276,11 +1274,8 @@ static bool ABC_UnpackPolyMeshFrame(
 			}
 		}
 	} else {
-		// Synthesize smooth area-weighted vertex normals across shared positions.
-		for ( uint32_t v = 0; v < num_verts; v++ ) {
-			VectorClear( out_frame->normals[ v ] );
-		}
-
+		// Measure signed volume to determine whether the archive stores inward- or outward-wound faces.
+		double signed_volume = 0.0;
 		for ( uint32_t t = 0; t < num_tris; t++ ) {
 			const int32_t i0 = out_frame->indices[ t * 3 + 0 ];
 			const int32_t i1 = out_frame->indices[ t * 3 + 1 ];
@@ -1291,13 +1286,50 @@ static bool ABC_UnpackPolyMeshFrame(
 			VectorSubtract( out_frame->positions[ i2 ], out_frame->positions[ i0 ], e2 );
 			CrossProduct( e1, e2, area_normal );
 
-			VectorAdd( out_frame->normals[ i0 ], area_normal, out_frame->normals[ i0 ] );
-			VectorAdd( out_frame->normals[ i1 ], area_normal, out_frame->normals[ i1 ] );
-			VectorAdd( out_frame->normals[ i2 ], area_normal, out_frame->normals[ i2 ] );
+			signed_volume += ( double )DotProduct( out_frame->positions[ i0 ], area_normal );
 		}
 
+		// Invert all triangles if signed volume is negative so front-facing normals point outward.
+		if ( signed_volume < 0.0 ) {
+			for ( uint32_t t = 0; t < num_tris; t++ ) {
+				std::swap( out_frame->indices[ t * 3 + 1 ], out_frame->indices[ t * 3 + 2 ] );
+			}
+		}
+
+		// Accumulate area-weighted face normals per raw position to stay smooth across UV seams.
+		std::vector<std::array<float, 3>> raw_accum( num_raw_verts, { 0.0f, 0.0f, 0.0f } );
+		for ( uint32_t t = 0; t < num_tris; t++ ) {
+			const int32_t i0 = out_frame->indices[ t * 3 + 0 ];
+			const int32_t i1 = out_frame->indices[ t * 3 + 1 ];
+			const int32_t i2 = out_frame->indices[ t * 3 + 2 ];
+
+			vec3_t e1, e2, area_normal;
+			VectorSubtract( out_frame->positions[ i1 ], out_frame->positions[ i0 ], e1 );
+			VectorSubtract( out_frame->positions[ i2 ], out_frame->positions[ i0 ], e2 );
+			CrossProduct( e1, e2, area_normal );
+
+			const int32_t tri_verts[ 3 ] = { i0, i1, i2 };
+			for ( int32_t c = 0; c < 3; c++ ) {
+				const int32_t raw_idx = raw_pos_for_vert[ tri_verts[ c ] ];
+				if ( raw_idx >= 0 && ( uint32_t )raw_idx < num_raw_verts ) {
+					raw_accum[ raw_idx ][ 0 ] += area_normal[ 0 ];
+					raw_accum[ raw_idx ][ 1 ] += area_normal[ 1 ];
+					raw_accum[ raw_idx ][ 2 ] += area_normal[ 2 ];
+				}
+			}
+		}
+
+		// Normalize shared raw normals and assign each output vertex its smoothed unit normal.
+		for ( uint32_t r = 0; r < num_raw_verts; r++ ) {
+			if ( VectorNormalize( raw_accum[ r ].data() ) < 1e-5f ) {
+				raw_accum[ r ] = { 0.0f, 0.0f, 1.0f };
+			}
+		}
 		for ( uint32_t v = 0; v < num_verts; v++ ) {
-			if ( VectorNormalize( out_frame->normals[ v ] ) < 1e-5f ) {
+			const int32_t raw_idx = raw_pos_for_vert[ v ];
+			if ( raw_idx >= 0 && ( uint32_t )raw_idx < num_raw_verts ) {
+				VectorCopy( raw_accum[ raw_idx ].data(), out_frame->normals[ v ] );
+			} else {
 				VectorSet( out_frame->normals[ v ], 0.0f, 0.0f, 1.0f );
 			}
 		}
@@ -1346,7 +1378,7 @@ static bool ABC_UnpackPolyMeshFrame(
 *	@param	model		Target `model_t` structure to populate.
 *	@param	rawdata		Pointer to the in-memory `.abc` file bytes loaded via `FS_LoadFile`.
 *	@param	length		Size of `rawdata` in bytes.
-*	@param	mod_name	Virtual filesystem path of the model (e.g. `"models/fx/blood_splat_01.abc"`).
+*	@param	mod_name	Virtual filesystem path of the model (e.g. `"models/fx/bulletShotImpact01.abc"`).
 *	@return	`Q_ERR_SUCCESS` (0) on success, or a negative `Q_ERR_*` error code on failure.
 **/
 extern "C" int MOD_LoadABC_RTX( model_t *model, const void *rawdata, size_t length, const char *mod_name ) {

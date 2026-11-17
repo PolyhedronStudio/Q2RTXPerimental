@@ -84,6 +84,19 @@ const bool CLG_DecalMesh_AppendPolygon( clg_decal_mesh_t *mesh, const clg_decal_
             continue;
         }
 
+        /**
+        *    Reject any degenerate or stretched sliver triangle whose edges span an unrealistic distance.
+        *    Decal footprints are local impacts; triangles must never stretch across world space.
+        **/
+        constexpr float maxEdgeLengthSq = 48.0f * 48.0f;
+        vec3_t edge3 = {};
+        VectorSubtract( polygon.positions[ i + 1 ], polygon.positions[ i ], edge3 );
+        if ( VectorLengthSquared( edge1 ) > maxEdgeLengthSq ||
+             VectorLengthSquared( edge2 ) > maxEdgeLengthSq ||
+             VectorLengthSquared( edge3 ) > maxEdgeLengthSq ) {
+            continue;
+        }
+
         if ( mesh->vertexCount + 3 > (int32_t)std::size( mesh->vertices ) ) {
             return false;
         }

@@ -280,7 +280,7 @@ void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEnti
             // Check if animation LOD throttling should be applied based on distance or camera-relative position.
             bool throttle_anim = false;
             if ( clg_anim_lod_enable != nullptr && clg_anim_lod_enable->integer != 0 ) {
-                const float lodDist = ( clg_anim_lod_distance != nullptr ) ? clg_anim_lod_distance->value : 1024.0f;
+                const float lodDist = ( clg_anim_lod_distance != nullptr ) ? clg_anim_lod_distance->value : CLG_ANIM_LOD_DISTANCE;
                 const Vector3 toEnt = refreshEntity->origin - Vector3( clgi.client->refdef.vieworg );
                 const float distSq = QM_Vector3DotProduct( toEnt, toEnt );
 
