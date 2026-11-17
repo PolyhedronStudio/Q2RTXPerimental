@@ -282,61 +282,162 @@ void SVG_Command_Noclip_f(svg_base_edict_t *ent)
 }
 
 
-/*
-==================
-SVG_Command_UseItem_f
+/**
+*	@brief	Use an inventory item or select a weapon for active use.
+*	@param	ent	Entity (player client) invoking the command.
+*	@note	Resolves items by classname (e.g. "weapon_pistol", "weapon_fists")
+*			as well as user-facing pickup name (e.g. "Pistol", "Fists", "Combat Pistol").
+**/
+void SVG_Command_UseItem_f( svg_base_edict_t *ent ) {
+	/**
+	*	Sanity checks: ensure entity and client state are valid.
+	**/
+	// Check if entity and client pointers are valid.
+	if ( !ent || !ent->client ) {
+		return;
+	}
 
-Use an inventory item
-==================
-*/
-void SVG_Command_UseItem_f(svg_base_edict_t *ent) {
-    const char *s = gi.args();
-    const gitem_t *it = SVG_Item_FindByPickupName(s);
-    if (!it) {
-        gi.cprintf(ent, PRINT_HIGH, "unknown item: %s\n", s);
-        return;
-    }
-    if (!it->use) {
-        gi.cprintf(ent, PRINT_HIGH, "Item is not usable.\n");
-        return;
-    }
-    const int32_t index = ITEM_INDEX(it);
-    if (!ent->client->pers.inventory[index]) {
-        gi.cprintf(ent, PRINT_HIGH, "Out of item: %s\n", s);
-        return;
-    }
+	// If no argument was passed to the command, exit early.
+	if ( gi.argc() < 2 ) {
+		return;
+	}
 
-    gi.dprintf( "%s: WE ARE USING %s\n", __func__, s );
-    // Dispatch the item use callback.
-    it->use(ent, it);
+	/**
+	*	Item Resolution:
+	*	1) Check argv(1) by classname (e.g. "weapon_pistol").
+	*	2) Check argv(1) by pickup name (e.g. "Pistol").
+	*	3) Check cleaned full args by classname and pickup name for unquoted multi-word strings.
+	**/
+	// Retrieve the primary argument token.
+	const char *name = gi.argv( 1 );
+	// Attempt lookup by classname first.
+	const gitem_t *it = SVG_Item_FindByClassName( name );
+	// Fall back to pickup name if classname lookup fails.
+	if ( !it ) {
+		it = SVG_Item_FindByPickupName( name );
+	}
+
+	// If still not found and raw args exist, strip surrounding quotes and leading spaces.
+	if ( !it && gi.args() && *gi.args() ) {
+		const char *cleanArgs = COM_StripQuotes( gi.args() );
+		// Skip leading spaces or tabs in raw arguments string.
+		while ( *cleanArgs == ' ' || *cleanArgs == '\t' ) {
+			cleanArgs++;
+		}
+		// Attempt lookup with cleaned argument string.
+		if ( *cleanArgs != '\0' ) {
+			it = SVG_Item_FindByClassName( cleanArgs );
+			if ( !it ) {
+				it = SVG_Item_FindByPickupName( cleanArgs );
+			}
+		}
+	}
+
+	/**
+	*	Validate item lookup result and usability.
+	**/
+	// Check if item was recognized.
+	if ( !it ) {
+		gi.cprintf( ent, PRINT_HIGH, "unknown item: %s\n", name ? name : "" );
+		return;
+	}
+	// Verify that the item has a valid use callback.
+	if ( !it->use ) {
+		gi.cprintf( ent, PRINT_HIGH, "Item is not usable.\n" );
+		return;
+	}
+
+	/**
+	*	Verify inventory ownership.
+	*	Fists (melee) are innate and always available to the player;
+	*	other weapons and items require an inventory count greater than zero.
+	**/
+	const int32_t index = ITEM_INDEX( it );
+	const bool isFists = ( ( it->flags & ITEM_FLAG_WEAPON ) && ( it->weapon_index == WEAP_FISTS ) );
+	// Check if the player owns this item in inventory.
+	if ( !isFists && ( index <= 0 || index >= MAX_ITEMS || ent->client->pers.inventory[ index ] <= 0 ) ) {
+		gi.cprintf( ent, PRINT_HIGH, "Out of item: %s\n", it->pickup_name ? it->pickup_name : ( it->classname ? it->classname : "" ) );
+		return;
+	}
+
+	gi.dprintf( "%s: WE ARE USING %s\n", __func__, it->classname ? it->classname : "unknown" );
+	// Dispatch the item use callback.
+	it->use( ent, it );
 }
 
 
-/*
-==================
-SVG_Command_Drop_f
+/**
+*	@brief	Drop an inventory item from player possession into the game world.
+*	@param	ent	Entity (player client) invoking the drop command.
+**/
+void SVG_Command_Drop_f( svg_base_edict_t *ent ) {
+	/**
+	*	Sanity checks: ensure entity and client state are valid.
+	**/
+	// Check if entity and client pointers are valid.
+	if ( !ent || !ent->client ) {
+		return;
+	}
 
-Drop an inventory item
-==================
-*/
-void SVG_Command_Drop_f(svg_base_edict_t *ent) {
-    const char *s = gi.args();
-    const gitem_t *it = SVG_Item_FindByPickupName(s);
-    if (!it) {
-        gi.cprintf(ent, PRINT_HIGH, "unknown item: %s\n", s);
-        return;
-    }
-    if (!it->drop) {
-        gi.cprintf(ent, PRINT_HIGH, "Item is not dropable.\n");
-        return;
-    }
-    const int32_t index = ITEM_INDEX(it);
-    if (!ent->client->pers.inventory[index]) {
-        gi.cprintf(ent, PRINT_HIGH, "Out of item: %s\n", s);
-        return;
-    }
+	// If no argument was passed to the command, exit early.
+	if ( gi.argc() < 2 ) {
+		return;
+	}
 
-    it->drop(ent, it);
+	/**
+	*	Item Resolution: check classname and pickup name.
+	**/
+	// Retrieve the primary argument token.
+	const char *name = gi.argv( 1 );
+	// Attempt lookup by classname first.
+	const gitem_t *it = SVG_Item_FindByClassName( name );
+	// Fall back to pickup name if classname lookup fails.
+	if ( !it ) {
+		it = SVG_Item_FindByPickupName( name );
+	}
+
+	// If still not found and raw args exist, strip surrounding quotes and leading spaces.
+	if ( !it && gi.args() && *gi.args() ) {
+		const char *cleanArgs = COM_StripQuotes( gi.args() );
+		// Skip leading spaces or tabs in raw arguments string.
+		while ( *cleanArgs == ' ' || *cleanArgs == '\t' ) {
+			cleanArgs++;
+		}
+		// Attempt lookup with cleaned argument string.
+		if ( *cleanArgs != '\0' ) {
+			it = SVG_Item_FindByClassName( cleanArgs );
+			if ( !it ) {
+				it = SVG_Item_FindByPickupName( cleanArgs );
+			}
+		}
+	}
+
+	/**
+	*	Validate item lookup result and droppability.
+	**/
+	// Check if item was recognized.
+	if ( !it ) {
+		gi.cprintf( ent, PRINT_HIGH, "unknown item: %s\n", name ? name : "" );
+		return;
+	}
+	// Verify that the item has a valid drop callback.
+	if ( !it->drop ) {
+		gi.cprintf( ent, PRINT_HIGH, "Item is not dropable.\n" );
+		return;
+	}
+
+	/**
+	*	Verify inventory ownership before dropping.
+	**/
+	const int32_t index = ITEM_INDEX( it );
+	// Check if the player owns this item in inventory.
+	if ( index <= 0 || index >= MAX_ITEMS || !ent->client->pers.inventory[ index ] ) {
+		gi.cprintf( ent, PRINT_HIGH, "Out of item: %s\n", it->pickup_name ? it->pickup_name : ( it->classname ? it->classname : "" ) );
+		return;
+	}
+
+	// Dispatch the item drop callback.
+	it->drop( ent, it );
 }
 
 #if 0
@@ -892,10 +993,17 @@ void SVG_Client_Command( svg_base_edict_t *ent ) {
     }
 
     //
-    // Inventory:
+    // Inventory & Weapon Selection:
     //
-    if ( Q_stricmp( cmd, "useitem" ) == 0 ) {
+    if ( Q_stricmp( cmd, "useitem" ) == 0 ||
+         Q_stricmp( cmd, "+useitem" ) == 0 ||
+         Q_stricmp( cmd, "use" ) == 0 ||
+         Q_stricmp( cmd, "+use" ) == 0 ) {
         SVG_Command_UseItem_f( ent );
+    } else if ( Q_stricmp( cmd, "-useitem" ) == 0 ||
+                Q_stricmp( cmd, "-use" ) == 0 ) {
+        // Button release stubs: consume client-side keyup events so they never fall through to chat.
+        return;
     } else if ( Q_stricmp( cmd, "drop" ) == 0 ) {
         SVG_Command_Drop_f( ent );
     #if 0

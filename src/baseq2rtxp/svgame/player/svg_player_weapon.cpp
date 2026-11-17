@@ -474,51 +474,61 @@ allowchange:
 
 
 /**
-*   @brief  Will prepare a switch to the newly passed weapon.
+*	@brief	Prepares a switch to the newly requested weapon item.
+*	@param	ent		Entity (player client) requesting the weapon change.
+*	@param	item	Item descriptor pointer of the weapon to equip.
+*	@note	Validates ammo availability across current clip and inventory reserve.
 **/
 void SVG_Player_Weapon_Use( svg_base_edict_t *ent, const gitem_t *item ) {
-    int32_t ammo_index = 0;
-    const gitem_t *ammo_item = nullptr;
+	/**
+	*	Sanity checks: ensure entity, client state, and weapon item pointer are valid.
+	**/
+	if ( !ent || !ent->client || !item ) {
+		return;
+	}
 
-    // Escape if we're already using it
-    if ( item == ent->client->pers.weapon ) {
-        return;
-    }
+	/**
+	*	Check if player is already using this weapon.
+	**/
+	// If already using this weapon and not currently changing away from it, nothing to do.
+	if ( item == ent->client->pers.weapon && ( !ent->client->newweapon || ent->client->newweapon == item ) ) {
+		return;
+	}
+	// If player was in the process of changing away, but re-selects the active weapon, cancel pending switch.
+	if ( item == ent->client->pers.weapon && ent->client->newweapon != nullptr ) {
+		ent->client->newweapon = nullptr;
+		return;
+	}
 
-    // See if the weapon we're going to use has any ammo in its clip.
-    //bool hasClipAmmo = false;
-    //if ( ent->client->pers.weapon ) {
-    //    if ( ent->client->pers.weapon->weapon_index ) {
-    //        if ( ent->client->pers.weapon_clip_ammo[ ent->client->pers.weapon->weapon_index ] >= 1 ) {
-    //            hasClipAmmo = true;
-    //        }
-    //    }
-    //}
+	/**
+	*	Check ammo availability if this weapon consumes ammo and empty selection is disabled.
+	**/
+	int32_t ammo_index = 0;
+	const gitem_t *ammo_item = nullptr;
+	if ( item->ammo && item->ammo[ 0 ] != '\0' && !g_select_empty->value && !( item->flags & ITEM_FLAG_AMMO ) ) {
+		ammo_item = SVG_Item_FindByPickupName( item->ammo );
+		ammo_index = ammo_item ? ITEM_INDEX( ammo_item ) : 0;
 
-    if ( item->ammo && !g_select_empty->value && !( item->flags & ITEM_FLAG_AMMO ) ) {
-        ammo_item = SVG_Item_FindByPickupName( item->ammo );
-        ammo_index = ITEM_INDEX( ammo_item );
+		// Fetch weapon clip ammo and reserve inventory ammo.
+		const int32_t clipAmmo = ( item->weapon_index > 0 && item->weapon_index < MAX_ITEMS )
+			? ent->client->pers.weapon_clip_ammo[ item->weapon_index ] : 0;
+		const int32_t reserveAmmo = ( ammo_index > 0 && ammo_index < MAX_ITEMS )
+			? ent->client->pers.inventory[ ammo_index ] : 0;
 
-        if ( ent->client->pers.weapon_clip_ammo[ ammo_index] && ent->client->pers.inventory[ent->client->ammo_index] <= 0 ) {
-            gi.cprintf( ent, PRINT_HIGH, "No %s for %s.\n", ammo_item->pickup_name, item->pickup_name );
-            return;
-        }
-            //if ( !hasClipAmmo && !ent->client->pers.inventory[ ammo_index ] ) {
-        //    gi.cprintf( ent, PRINT_HIGH, "No %s for %s.\n", ammo_item->pickup_name, item->pickup_name );
-        //    return;
-        //}
+		// If out of both clip ammo and reserve ammo, reject weapon switch.
+		if ( clipAmmo <= 0 && reserveAmmo <= 0 ) {
+			gi.cprintf( ent, PRINT_HIGH, "No %s for %s.\n", ammo_item ? ammo_item->pickup_name : "ammo", item->pickup_name );
+			return;
+		}
+	}
 
-        //if ( !hasClipAmmo && ent->client->pers.inventory[ ammo_index ] < item->quantity ) {
-        //    gi.cprintf( ent, PRINT_HIGH, "Not enough %s for %s.\n", ammo_item->pickup_name, item->pickup_name );
-        //    return;
-        //}
-    }
-
-    // Weapons require the info pointer to be set to their specific description struct.
-    if ( item->info ) {
-        // change to this weapon when down
-        ent->client->newweapon = item;
-    }
+	/**
+	*	Engage weapon change: assign newweapon so weapon think initiates holster and draw.
+	**/
+	if ( item->info ) {
+		// Change to this weapon when current weapon finishes holstering.
+		ent->client->newweapon = item;
+	}
 }
 /**
 *   @brief  Called if the weapon item is wanted to be dropped by the player.
