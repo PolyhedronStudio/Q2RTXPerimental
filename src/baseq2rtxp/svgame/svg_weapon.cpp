@@ -62,7 +62,13 @@ static bool SVG_TraceBullet_FindAnimatedEnvelopeCandidate( const Vector3 &start,
         if ( candidate->solid == SOLID_NOT ) {
             continue;
         }
-        if ( candidate->takedamage < DAMAGE_YES ) {
+        // Candidate must be damageable or a monster/corpse entity.
+        const bool isMonsterOrCorpse = (
+            ( candidate->svFlags & ( SVF_MONSTER | SVF_DEADENTITY ) ) ||
+            candidate->s.entityType == ET_MONSTER ||
+            candidate->s.entityType == ET_MONSTER_CORPSE
+        );
+        if ( candidate->takedamage < DAMAGE_YES && !isMonsterOrCorpse ) {
             continue;
         }
 
@@ -176,6 +182,17 @@ static svg_trace_t SVG_TraceBullet( const Vector3 &start, const Vector3 &end, co
         lastTrace = SVG_Trace( currentStart, qm_vector3_null, qm_vector3_null, end, currentPass, contentMask );
         NormalizeTraceIdentity( lastTrace );
 
+        // Ensure bullet retraces never hit the shooter.
+        if ( lastTrace.ent == originalPassEntity ) {
+            const Vector3 nextStart = lastTrace.endpos + shotDirection * retraceEpsilon;
+            const Vector3 remaining = end - nextStart;
+            if ( QM_Vector3DotProduct( remaining, shotDirection ) <= 0.0f ) {
+                return lastTrace;
+            }
+            currentStart = nextStart;
+            continue;
+        }
+
         // Nothing hit or world-only result, no refinement work required.
         if ( lastTrace.fraction >= 1.0f || !lastTrace.ent ) {
             svg_trace_t animatedOnlyTrace = {};
@@ -192,8 +209,14 @@ static svg_trace_t SVG_TraceBullet( const Vector3 &start, const Vector3 &end, co
             return lastTrace;
         }
 
-        // Refine only damageable entities.
-        if ( lastTrace.ent->takedamage >= DAMAGE_YES ) {
+        // Refine damageable entities or monster/corpses with skeletal hitboxes.
+        const bool isMonsterOrCorpse = (
+            ( lastTrace.ent->svFlags & ( SVF_MONSTER | SVF_DEADENTITY ) ) ||
+            lastTrace.ent->s.entityType == ET_MONSTER ||
+            lastTrace.ent->s.entityType == ET_MONSTER_CORPSE
+        );
+
+        if ( lastTrace.ent->takedamage >= DAMAGE_YES || isMonsterOrCorpse ) {
             // Preserve legacy behavior for non-skeletal/static targets (md2/md3 or iqm without usable skeleton data).
             // Only retrace-through is allowed when this entity can actually be refined against skeletal hitboxes.
             if ( !SVG_SkeletalHitboxes_HasRefinableData( lastTrace.ent ) ) {
@@ -508,118 +531,128 @@ static void fire_lead(svg_base_edict_t *self, const Vector3 &start, const Vector
     bool    water = false;
     cm_contents_t  content_mask = ( CM_CONTENTMASK_SHOT | CM_CONTENTMASK_LIQUID );
     
-	// Trace a line from the origin the supposed bullet shot start point.
-    svg_trace_t tr = SVG_Trace(self->s.origin, qm_vector3_null, qm_vector3_null, start, self, CM_CONTENTMASK_SHOT);
-	// If we hit something, and it is not sky, then we can continue.
-    if ( !( tr.fraction < 1.0f ) ) {
-        // Calculate the direction of the bullet.
-        QM_Vector3ToAngles( aimdir, &dir.x );
-		// Get the forward, right, and up vectors.
-        QM_AngleVectors(dir, &forward, &right, &up);
+	/**
+	*	Verify clear line of fire between player view/eye origin and projected muzzle start.
+	*	If an obstacle obstructs this segment, abort immediately without spawning any impact.
+	**/
+	Vector3 eyeOrigin = self->s.origin;
+	eyeOrigin[ 2 ] += static_cast<float>( self->viewheight );
+	const svg_trace_t muzzleCheckTrace = SVG_Trace( eyeOrigin, qm_vector3_null, qm_vector3_null, start, self, CM_CONTENTMASK_SHOT );
+	if ( muzzleCheckTrace.fraction < 1.0f ) {
+		return;
+	}
 
-		// Calculate the spread of the bullet.
-        const float r = crandom_opend() * hspread; //frandom( -hspread, hspread );
-        const float u = crandom_opend() * vspread; //frandom( -vspread, vspread );
+	svg_trace_t tr = {};
 
-		// Calculate the end point of the bullet.
-        VectorMA(start, CM_MAX_WORLD_SIZE, forward, end);
-        VectorMA(end, r, right, end);
-        VectorMA(end, u, up, end);
+	// Calculate the direction of the bullet.
+	QM_Vector3ToAngles( aimdir, &dir.x );
+	// Get the forward, right, and up vectors.
+	QM_AngleVectors( dir, &forward, &right, &up );
 
-        // Determine if we started from within a water brush.
-        if ( gi.pointcontents(&start) & CM_CONTENTMASK_LIQUID ) {
-			// We are in water.
-            water = true;
-			// Copy the start point into the water start point.
-            VectorCopy(start, water_start);
-			// Remove the water mask from the content mask.
-            content_mask = static_cast<cm_contents_t>( content_mask & ~CM_CONTENTMASK_LIQUID ); // content_mask &= ~CM_CONTENTMASK_LIQUID
-        }
+	// Calculate the spread of the bullet.
+	const float r = crandom_opend() * hspread; //frandom( -hspread, hspread );
+	const float u = crandom_opend() * vspread; //frandom( -vspread, vspread );
 
-        // Trace the bullet using the bullet-only refinement path.
-        tr = SVG_TraceBullet( start, end, self, content_mask );
+	// Calculate the end point of the bullet.
+	VectorMA( start, CM_MAX_WORLD_SIZE, forward, end );
+	VectorMA( end, r, right, end );
+	VectorMA( end, u, up, end );
 
-        // See if we hit water.
-        if ( tr.contents & CM_CONTENTMASK_LIQUID ) {
-            // Splash type.
-            sg_entity_events_t splashType = EV_FX_SPLASH_UNKNOWN;
+	// Determine if we started from within a water brush.
+	if ( gi.pointcontents( &start ) & CM_CONTENTMASK_LIQUID ) {
+		// We are in water.
+		water = true;
+		// Copy the start point into the water start point.
+		VectorCopy( start, water_start );
+		// Remove the water mask from the content mask.
+		content_mask = static_cast<cm_contents_t>( content_mask & ~CM_CONTENTMASK_LIQUID ); // content_mask &= ~CM_CONTENTMASK_LIQUID
+	}
 
-            // We are in water.
-            water = true;
-            // Copy the start point into the water start point.
-            VectorCopy( tr.endpos, water_start );
+	// Trace the bullet using the bullet-only refinement path.
+	tr = SVG_TraceBullet( start, end, self, content_mask );
 
-            // Determine the color of the splash.
-            if ( tr.contents & CONTENTS_WATER ) {
-                if ( strcmp( tr.surface->name, "*brwater" ) == 0 ) {
-                    splashType = EV_FX_SPLASH_WATER_BROWN;
-                } else {
-                    splashType = EV_FX_SPLASH_WATER_BLUE;
-                }
-            } else if ( tr.contents & CONTENTS_SLIME ) {
-                splashType = EV_FX_SPLASH_SLIME;
-            } else if ( tr.contents & CONTENTS_LAVA ) {
-                splashType = EV_FX_SPLASH_LAVA;
-            }
+	// See if we hit water.
+	if ( tr.contents & CM_CONTENTMASK_LIQUID ) {
+		// Splash type.
+		sg_entity_events_t splashType = EV_FX_SPLASH_UNKNOWN;
 
-            if ( splashType != EV_FX_SPLASH_UNKNOWN ) {
-				SVG_TempEventEntity_SplashParticles( tr.endpos, tr.plane.normal, splashType, 8, 16 );
-            }
+		// We are in water.
+		water = true;
+		// Copy the start point into the water start point.
+		VectorCopy( tr.endpos, water_start );
 
-            // If trace start != trace end pos.
-            if ( !VectorCompare( start, tr.endpos ) ) {
-                // Change bullet's course when it has entered enters water
-                VectorSubtract( end, start, dir );
-                QM_Vector3ToAngles( dir, &dir.x );
-                QM_AngleVectors( dir, &forward, &right, &up );
-                // Ensure to clamp the ranges properly.
-                float hMinArg = std::min( -hspread * 2.0f, hspread * 2.0f );
-                float hMaxArg = std::max( -hspread * 2.0f, hspread * 2.0f );
-                float vMinArg = std::min( -vspread * 2.0f, vspread * 2.0f );
-                float vMaxArg = std::max( -vspread * 2.0f, vspread * 2.0f );
-                // Calculate the spread of the bullet.
-                const float r = frandom( hMinArg, hMaxArg );
-                const float u = frandom( vMinArg, vMaxArg );
-                VectorMA( water_start, CM_MAX_WORLD_SIZE, forward, end );
-                VectorMA( end, r, right, end );
-                VectorMA( end, u, up, end );
-            }
+		// Determine the color of the splash.
+		if ( tr.contents & CONTENTS_WATER ) {
+			if ( strcmp( tr.surface->name, "*brwater" ) == 0 ) {
+				splashType = EV_FX_SPLASH_WATER_BROWN;
+			} else {
+				splashType = EV_FX_SPLASH_WATER_BLUE;
+			}
+		} else if ( tr.contents & CONTENTS_SLIME ) {
+			splashType = EV_FX_SPLASH_SLIME;
+		} else if ( tr.contents & CONTENTS_LAVA ) {
+			splashType = EV_FX_SPLASH_LAVA;
+		}
 
-            // Re-trace ignoring water using the same bullet-only refinement path.
-            tr = SVG_TraceBullet( water_start, end, self, CM_CONTENTMASK_SHOT );
-        }
-    }
+		if ( splashType != EV_FX_SPLASH_UNKNOWN ) {
+			SVG_TempEventEntity_SplashParticles( tr.endpos, tr.plane.normal, splashType, 8, 16 );
+		}
 
-    // send gun puff / flash
-    if ( !( ( tr.surface ) && ( tr.surface->flags & CM_SURFACE_FLAG_SKY ) ) ) {
-        if ( tr.fraction < 1.0f ) {
-            if ( tr.ent->takedamage ) {
-                SVG_DamageEntity( tr.ent, self, self, aimdir, tr.endpos, tr.plane.normal, damage, kick, DAMAGE_BULLET, meansOfDeath );
-            } else {
-                //if ( strncmp( tr.surface->name, "sky", 3 ) != 0 ) {
-				//if ( ( tr.surface->flags & CM_SURFACE_FLAG_SKY ) != 0 ) {
-                    svg_base_edict_t *tempEventEntity = SVG_TempEventEntity_GunShot( tr.endpos, tr.plane.normal, te_impact, 28, 40 );
-                    // Preserve the impacted brush-model mover entity so the client can resolve inline-model decals.
-                    // Characters/monsters with skeletal hitboxes must never be targeted as decal movers.
-                    if ( tempEventEntity && tr.ent && tr.ent->s.number > ENTITYNUM_WORLD ) {
-                        if ( tr.ent->solid == SOLID_BSP && ( tr.ent->movetype == MOVETYPE_PUSH || tr.ent->movetype == MOVETYPE_STOP ) ) {
-                            tempEventEntity->s.otherEntityNumber = tr.ent->s.number;
-                            tempEventEntity->s.entityFlags |= EF_ENTITY_EVENT_TARGET_OTHER;
-                        }
-                    }
-					//gi.WriteUint8( svc_temp_entity );
-                    //gi.WritePosition( &tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-                    //const Vector3 planeNormal = tr.plane.normal;
-                    //gi.WriteDir8( &planeNormal );
-                    //gi.multicast( &tr.endpos, MULTICAST_PVS, false );
+		// If trace start != trace end pos.
+		if ( !VectorCompare( start, tr.endpos ) ) {
+			// Change bullet's course when it has entered enters water
+			VectorSubtract( end, start, dir );
+			QM_Vector3ToAngles( dir, &dir.x );
+			QM_AngleVectors( dir, &forward, &right, &up );
+			// Ensure to clamp the ranges properly.
+			float hMinArg = std::min( -hspread * 2.0f, hspread * 2.0f );
+			float hMaxArg = std::max( -hspread * 2.0f, hspread * 2.0f );
+			float vMinArg = std::min( -vspread * 2.0f, vspread * 2.0f );
+			float vMaxArg = std::max( -vspread * 2.0f, vspread * 2.0f );
+			// Calculate the spread of the bullet.
+			const float r = frandom( hMinArg, hMaxArg );
+			const float u = frandom( vMinArg, vMaxArg );
+			VectorMA( water_start, CM_MAX_WORLD_SIZE, forward, end );
+			VectorMA( end, r, right, end );
+			VectorMA( end, u, up, end );
+		}
 
-					if ( self->client ) {
-						SVG_PlayerNoise_MakeNoise( self, tr.endpos, PLAYER_NOISE_IMPACT );
+		// Re-trace ignoring water using the same bullet-only refinement path.
+		tr = SVG_TraceBullet( water_start, end, self, CM_CONTENTMASK_SHOT );
+	}
+
+	// send gun puff / flash / blood impact
+	if ( !( ( tr.surface ) && ( tr.surface->flags & CM_SURFACE_FLAG_SKY ) ) ) {
+		if ( tr.fraction < 1.0f && tr.ent ) {
+			// Distinguish between living entities, dead monster corpses, and world geometry.
+			const bool isMonsterOrCorpse = (
+				( tr.ent->svFlags & ( SVF_MONSTER | SVF_DEADENTITY ) ) ||
+				tr.ent->s.entityType == ET_MONSTER ||
+				tr.ent->s.entityType == ET_MONSTER_CORPSE
+			);
+
+			if ( tr.ent->takedamage >= DAMAGE_YES ) {
+				SVG_DamageEntity( tr.ent, self, self, aimdir, tr.endpos, tr.plane.normal, damage, kick, DAMAGE_BULLET, meansOfDeath );
+			} else if ( isMonsterOrCorpse ) {
+				// Shooting a dead monster or corpse: spawn flesh blood impact, NEVER gunshot or sparks.
+				SVG_TempEventEntity_Blood( tr.endpos, tr.plane.normal, 20 );
+			} else {
+				svg_base_edict_t *tempEventEntity = SVG_TempEventEntity_GunShot( tr.endpos, tr.plane.normal, te_impact, 28, 40 );
+				// Preserve the impacted brush-model mover entity so the client can resolve inline-model decals.
+				// Characters/monsters with skeletal hitboxes must never be targeted as decal movers.
+				if ( tempEventEntity && tr.ent && tr.ent->s.number > ENTITYNUM_WORLD ) {
+					if ( tr.ent->solid == SOLID_BSP && ( tr.ent->movetype == MOVETYPE_PUSH || tr.ent->movetype == MOVETYPE_STOP ) ) {
+						tempEventEntity->s.otherEntityNumber = tr.ent->s.number;
+						tempEventEntity->s.entityFlags |= EF_ENTITY_EVENT_TARGET_OTHER;
 					}
-                //}
-            }
-        }
-    }
+				}
+
+				if ( self->client ) {
+					SVG_PlayerNoise_MakeNoise( self, tr.endpos, PLAYER_NOISE_IMPACT );
+				}
+			}
+		}
+	}
 
     // if went through water, determine where the end and make a bubble trail
     if ( water ) {

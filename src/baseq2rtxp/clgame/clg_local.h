@@ -361,6 +361,10 @@ typedef struct centity_s {
 	int64_t	fly_stopTime = 0;
 	//! For diminishing grenade trails.
 	int64_t	trailCount = 0;
+	//! Whether a monster death blood splatter burst has already been spawned for this entity instance.
+	bool	monster_death_fx_spawned = false;
+	//! Whether this entity was previously seen in a living animation frame (< 512).
+	bool	was_alive = false;
 } centity_t;
 
 /**

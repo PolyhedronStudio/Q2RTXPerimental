@@ -100,10 +100,20 @@ void CLG_PrecacheHeroBlood( void ) {
 	**/
 	// Prefer the blood_alembic01 subfolder path, falling back to legacy bulletShotImpact01 paths if absent.
 	s_blood_abc_models[ 0 ] = clgi.R_RegisterModel( "models/fx/blood_alembic01/blood_alembic01.abc" );
-	// <Q2RTXP>: Only one Alembic model is currently authored, so duplicate slot 0 to all other slots.
-	s_blood_abc_models[ 1 ] = s_blood_abc_models[ 0 ]; // clgi.R_RegisterModel( "models/fx/blood_alembic01/blood_alembic02.abc" ); 
-	s_blood_abc_models[ 2 ] = s_blood_abc_models[ 0 ]; // clgi.R_RegisterModel( "models/fx/blood_alembic01/blood_alembic03.abc" ); 
-	s_blood_abc_models[ 3 ] = s_blood_abc_models[ 0 ]; // clgi.R_RegisterModel( "models/fx/blood_alembic01/blood_alembic04.abc" ); 
+	if ( s_blood_abc_models[ 0 ] == 0 ) {
+		s_blood_abc_models[ 0 ] = clgi.R_RegisterModel( "models/fx/blood_alembic01.abc" );
+	}
+	if ( s_blood_abc_models[ 0 ] == 0 ) {
+		s_blood_abc_models[ 0 ] = clgi.R_RegisterModel( "models/fx/bulletShotImpact01/bulletShotImpact01.abc" );
+	}
+	if ( s_blood_abc_models[ 0 ] == 0 ) {
+		s_blood_abc_models[ 0 ] = clgi.R_RegisterModel( "models/fx/bulletShotImpact01.abc" );
+	}
+	s_blood_abc_models[ 1 ] = s_blood_abc_models[ 0 ];
+	s_blood_abc_models[ 2 ] = s_blood_abc_models[ 0 ];
+	s_blood_abc_models[ 3 ] = s_blood_abc_models[ 0 ];
+
+	clgi.Print( PRINT_ALL, "[CLGame]: CLG_PrecacheHeroBlood loaded handle %d\n", s_blood_abc_models[ 0 ] );
 }
 
 /**
@@ -157,6 +167,11 @@ clg_hero_blood_splat_t *CLG_FX_BloodHero_Spawn( const Vector3 &origin, const Vec
 	if ( selected_model == 0 ) {
 		selected_model = s_blood_abc_models[ 0 ];
 	}
+	// If still 0, perform on-demand precache fallback.
+	if ( selected_model == 0 ) {
+		CLG_PrecacheHeroBlood();
+		selected_model = s_blood_abc_models[ 0 ];
+	}
 
 	// Query model metadata so animation playback matches the actual .abc frame count.
 	const model_t *model_data = ( selected_model != 0 ) ? clgi.R_GetModelDataForHandle( selected_model ) : nullptr;
@@ -166,13 +181,15 @@ clg_hero_blood_splat_t *CLG_FX_BloodHero_Spawn( const Vector3 &origin, const Vec
 	splat.active = true;
 	splat.attached_entity = hit_entity_num;
 	splat.model = selected_model;
-	splat.spawn_time_ms = ( clgi.GetRealTime != nullptr ) ? static_cast<int32_t>( clgi.GetRealTime() ) : 0;
+	splat.spawn_time_ms = ( clgi.GetRealTime != nullptr ) ? static_cast<int64_t>( clgi.GetRealTime() ) : 0;
 	splat.anim_duration_ms = std::max( 16, static_cast<int32_t>( ( static_cast<float>( authored_frames ) * 1000.0f ) / 60.0f + 0.5f ) );
 	splat.total_frames = authored_frames;
 	splat.current_frame = 0.0f;
 	splat.current_alpha = 1.0f;
+	splat.current_scale = scale;
 	splat.scale = scale;
 	splat.impact_normal = normal;
+	splat.velocity = velocity;
 
 	/**
 	*	Attachment calculation: static world vs moving brush entity.
@@ -185,11 +202,15 @@ clg_hero_blood_splat_t *CLG_FX_BloodHero_Spawn( const Vector3 &origin, const Vec
 			forward = normal;
 		}
 		splat.world_angles = QM_Vector3ToAngles( forward );
+		// Apply randomized axial roll rotation so each splatter instance presents a unique 3D silhouette.
+		splat.world_angles.z = frand() * 360.0f;
 	} else {
 		// Project impact point into mover's local coordinate frame for frame-to-frame tracking.
 		CLG_FX_WorldToEntityLocal( hit_entity_num, origin, normal, &splat.local_origin, &splat.local_normal );
 		splat.world_origin = origin;
 		splat.world_angles = QM_Vector3ToAngles( normal );
+		// Apply randomized axial roll rotation so each splatter instance presents a unique 3D silhouette.
+		splat.world_angles.z = frand() * 360.0f;
 	}
 
 	/**
@@ -212,7 +233,7 @@ void CLG_FX_BloodHero_Frame( void ) {
 		return;
 	}
 
-	const int32_t current_time = static_cast<int32_t>( clgi.GetRealTime() );
+	const int64_t current_time = static_cast<int64_t>( clgi.GetRealTime() );
 
 	/**
 	*	Strictly iterate over active elements in reverse for safe O(1) deactivation.
@@ -221,25 +242,50 @@ void CLG_FX_BloodHero_Frame( void ) {
 		const uint16_t slot_idx = s_hero_active_indices[ a ];
 		clg_hero_blood_splat_t &splat = s_hero_splats[ slot_idx ];
 
-		const int32_t elapsed_ms = std::max( 0, current_time - splat.spawn_time_ms );
+		const int64_t elapsed_ms = std::max<int64_t>( 0, current_time - splat.spawn_time_ms );
 		const int32_t max_frame = std::max( 1, splat.total_frames ) - 1;
+		constexpr int32_t fade_duration_ms = HERO_BLOOD_FADE_DURATION_MS;
+		const int32_t total_lifetime_ms = splat.anim_duration_ms + fade_duration_ms;
 
 		/**
-		*	Animation progression vs exponential half-life opacity decay.
+		*	Deactivate slots exceeding total sequence duration plus fade-out dissolve.
 		**/
-		if ( elapsed_ms < splat.anim_duration_ms ) {
-			// Linear progression through Alembic stop-motion mesh sequence frames.
-			const float anim_progress = static_cast<float>( elapsed_ms ) / static_cast<float>( splat.anim_duration_ms );
-			splat.current_frame = anim_progress * static_cast<float>( max_frame );
-			splat.current_alpha = 1.0f;
-		} else {
-			// Sequence playback completed; deactivate immediately so the final splash frame does not freeze as a statue.
+		if ( elapsed_ms >= total_lifetime_ms ) {
 			Hero_DeactivateSlot( slot_idx );
 			continue;
 		}
 
 		/**
-		*	Re-project mover-attached splatters into current world coordinates.
+		*	Animation frame progression: linear playback across authored frames, holding
+		*	the final frame during the subsequent fade-out dissolve.
+		**/
+		if ( elapsed_ms < splat.anim_duration_ms ) {
+			const float anim_progress = static_cast<float>( elapsed_ms ) / static_cast<float>( splat.anim_duration_ms );
+			splat.current_frame = anim_progress * static_cast<float>( max_frame );
+		} else {
+			splat.current_frame = static_cast<float>( max_frame );
+		}
+
+		/**
+		*	Fade-out dissolve & scale decay: smooth Hermite transition over the final 100 ms.
+		**/
+		const int32_t fade_start_ms = std::max( 0, splat.anim_duration_ms - 20 );
+		if ( elapsed_ms > fade_start_ms ) {
+			const float fade_progress = std::clamp(
+				static_cast<float>( elapsed_ms - fade_start_ms ) / static_cast<float>( fade_duration_ms ),
+				0.0f,
+				1.0f
+			);
+			const float smooth_fade = 1.0f - ( fade_progress * fade_progress * ( 3.0f - 2.0f * fade_progress ) );
+			splat.current_alpha = smooth_fade;
+			splat.current_scale = splat.scale * ( 0.60f + ( 0.40f * smooth_fade ) );
+		} else {
+			splat.current_alpha = 1.0f;
+			splat.current_scale = splat.scale;
+		}
+
+		/**
+		*	Reproject mover-attached splatters into current world coordinates.
 		**/
 		if ( splat.attached_entity != ENTITYNUM_WORLD ) {
 			const bool entity_valid = CLG_FX_EntityLocalToWorld(
@@ -254,27 +300,42 @@ void CLG_FX_BloodHero_Frame( void ) {
 				Hero_DeactivateSlot( slot_idx );
 				continue;
 			}
+			const float current_roll = splat.world_angles.z;
 			splat.world_angles = QM_Vector3ToAngles( splat.impact_normal );
+			splat.world_angles.z = current_roll;
 		}
+
+		/**
+		*	Sub-frame velocity advection: smoothly advect the render origin along splatter
+		*	velocity during fractional sub-frame intervals and duplicate hold frames.
+		**/
+		const int32_t frame_idx = std::clamp( static_cast<int32_t>( splat.current_frame ), 0, max_frame );
+		const float subframe = splat.current_frame - static_cast<float>( frame_idx );
+		const bool is_duplicate_frame = ( splat.total_frames <= 14 )
+			? ( frame_idx == 2 || frame_idx == 5 || frame_idx == 8 || frame_idx == 11 )
+			: ( frame_idx == 3 || frame_idx == 5 || frame_idx == 8 || frame_idx == 10 ||
+			    frame_idx == 13 || frame_idx == 15 || frame_idx == 18 );
+		constexpr float frame_time_s = 1.0f / 60.0f;
+		const float advection_time_s = ( ( is_duplicate_frame ? 1.0f : 0.0f ) + subframe ) * frame_time_s;
+		const Vector3 advection_offset = splat.velocity * advection_time_s;
+		const Vector3 render_origin = splat.world_origin + advection_offset;
 
 		/**
 		*	Construct entity_t and submit to refresh renderer.
 		**/
 		if ( splat.model != 0 ) {
-			const int32_t frame_idx = std::clamp( static_cast<int32_t>( splat.current_frame ), 0, max_frame );
-
 			entity_t ent{};
 			// Assign a stable nonzero entity ID above packet entities for VKPT temporal history tracking.
 			ent.id = MAX_ENTITIES + static_cast<int32_t>( slot_idx ) + 1;
 			ent.model = splat.model;
-			VectorSet( ent.origin, splat.world_origin.x, splat.world_origin.y, splat.world_origin.z );
+			VectorSet( ent.origin, render_origin.x, render_origin.y, render_origin.z );
 			VectorSet( ent.angles, splat.world_angles.x, splat.world_angles.y, splat.world_angles.z );
 			// Disable topological morphing between discrete .abc frames by matching frame and oldframe.
 			ent.frame = frame_idx;
 			ent.oldframe = frame_idx;
 			ent.backlerp = 0.0f;
 			VectorSet( ent.oldorigin, splat.world_origin.x, splat.world_origin.y, splat.world_origin.z );
-			ent.scale = splat.scale;
+			ent.scale = splat.current_scale;
 
 			// Enable alpha blending if faded.
 			if ( splat.current_alpha < 0.99f ) {

@@ -20,6 +20,7 @@
 // Needed:
 #include "sharedgame/sg_entity_events.h"
 #include "sharedgame/sg_entity_flags.h"
+#include "sharedgame/sg_entity_types.h"
 
 
 /**
@@ -786,6 +787,12 @@ static void CLG_EntityEvent_Splash( const Vector3 &origin, const uint8_t directi
 	vec3_t decodedDirection = { 0.f, 0.f, 1.f };
 	ByteToDir( direction, decodedDirection );
 
+	// Check if this is a blood splash event: redirect to 3D Alembic fluid mesh effect.
+	if ( splashType == SPLASH_FX_COLOR_BLOOD ) {
+		CLG_FX_BloodParticleEffect( origin, decodedDirection, 0xe8, count );
+		return;
+	}
+
 	// Call the splash effect function.
 	CLG_FX_ParticleEffectWaterSplash( &origin.x, decodedDirection, splashType, count );
 }
@@ -927,8 +934,39 @@ static bool CLG_EntityEvent_DecodeImpactDirectionFromStateAngles( const Vector3 
 	return true;
 }
 
+/**
+*	@brief		Handle gunshot impact temp events by placing bullet decals and effects.
+*	@param		origin		World position of the bullet impact.
+*	@param		impactNormal	Packed normal angles of the impacted surface.
+*	@param		direction	Byte-encoded legacy direction fallback.
+*	@param		count		Particle count / damage severity indicator.
+*	@param		hitEntityNumber	Entity number struck, or ENTITYNUM_WORLD.
+*	@note		Suppresses legacy point particle bursts so modern bullet decals
+*			do not emit upward dirt/spark points. Only routes to blood when
+*			an actual monster or corpse entity is directly struck.
+**/
 static void CLG_EntityEvent_ImpactGunShot( const Vector3 &origin, const Vector3 &impactNormal, const uint8_t direction, const int32_t count, const int32_t hitEntityNumber ) {
-	// Decode the direction byte to a direction vector.
+	/**
+	*	Sanity check / player safety guard:
+	*	Ignore spurious impact events located inside or under the local player's body hull.
+	**/
+	const int32_t localPlayerNum = clgi.client->clientNumber + 1;
+	if ( localPlayerNum > 0 && localPlayerNum < game.maxentities ) {
+		const centity_t *playerCent = &clg_entities[ localPlayerNum ];
+		const Vector3 playerOrg = ( playerCent->current.origin.x != 0.0f || playerCent->current.origin.y != 0.0f || playerCent->current.origin.z != 0.0f )
+			? playerCent->current.origin
+			: Vector3{ clgi.client->refdef.vieworg[ 0 ], clgi.client->refdef.vieworg[ 1 ], clgi.client->refdef.vieworg[ 2 ] - 22.0f };
+		const float dx = origin.x - playerOrg.x;
+		const float dy = origin.y - playerOrg.y;
+		const float dz = origin.z - playerOrg.z;
+		if ( ( ( dx * dx ) + ( dy * dy ) ) < ( 28.0f * 28.0f ) && dz >= -36.0f && dz <= 48.0f ) {
+			return;
+		}
+	}
+
+	/**
+	*	Decode impact normal vector from packed angles or direction byte.
+	**/
 	vec3_t decodedDirection = { 0.f, 0.f, 0.f };
 	if ( !CLG_EntityEvent_DecodeImpactDirectionFromStateAngles( impactNormal, decodedDirection ) ) {
 		// Compatibility fallback for older payloads that only carried the packed direction.
@@ -941,18 +979,40 @@ static void CLG_EntityEvent_ImpactGunShot( const Vector3 &origin, const Vector3 
 		VectorNormalize( decodedDirection );
 	}
 
+	/**
+	*	Flesh impact detection:
+	*	Check if this gunshot impact directly struck an authoritative monster or corpse entity.
+	*	Only route to blood effects when an actual monster or corpse entity is struck,
+	*	never when shooting the nearby world/ground.
+	**/
+	bool isFleshImpact = false;
+	if ( hitEntityNumber > ENTITYNUM_WORLD && hitEntityNumber < game.maxentities ) {
+		const centity_t *cent = &clg_entities[ hitEntityNumber ];
+		if ( cent->current.entityType == ET_MONSTER || cent->current.entityType == ET_MONSTER_CORPSE ) {
+			isFleshImpact = true;
+		}
+	}
+
+	if ( isFleshImpact ) {
+		// Spawn 3D Alembic blood splatter meshes and drip decals.
+		CLG_FX_BloodParticleEffect( origin, decodedDirection, 0xe8, count * 5 );
+		return;
+	}
+
+	/**
+	*	World impact handling:
+	*	Queue gunshot decal and spawn local smoke and flash animation.
+	*	Legacy point particles (CLG_FX_ParticleEffect) are intentionally omitted
+	*	so decals do not spray upward dirt point particles.
+	**/
 	// Queue a decal spawn request from the impact event payload.
 	CLG_DecalEvents_HandleImpactGunShot( &origin.x, decodedDirection, direction, count, hitEntityNumber );
 
-	// Call the generic particle effect function.
-	CLG_FX_ParticleEffect( &origin.x, decodedDirection, 0, count );
-
-	// <Q2RTXP>: TODO: Bullet hit "smoke and flash" model anim.
+	// Bullet hit "smoke and flash" model anim.
 	CLG_SmokeAndFlash( origin );
 
-	// Impact sound
-	const int32_t r = irandom( 15 + 1 );//Q_rand() & 15;
-
+	// Impact ricochet / impact sound.
+	const int32_t r = irandom( 15 + 1 );
 	if ( r == 1 ) {
 		clgi.S_StartSound( &origin.x, 0, 0, precache.sfx.ricochets.ric1, 1, ATTN_NORM, 0 );
 	} else if ( r == 2 ) {
@@ -975,8 +1035,38 @@ static void CLG_EntityEvent_ImpactSparks( const Vector3 &origin, const uint8_t d
 /**************************************
 *   [ EV_FX_IMPACT_BULLET_SPARKS ] Event Handler:
 ***************************************/
+/**
+*	@brief		Handle bullet spark impact temp events.
+*	@param		origin		World position of the bullet spark impact.
+*	@param		impactNormal	Packed normal angles of the impacted surface.
+*	@param		direction	Byte-encoded legacy direction fallback.
+*	@param		count		Particle count / spark severity.
+*	@param		hitEntityNumber	Entity number struck, or ENTITYNUM_WORLD.
+*	@note		Routes to modern blood effects only when directly striking a monster
+*			or corpse entity.
+**/
 static void CLG_EntityEvent_ImpactBulletSparks( const Vector3 &origin, const Vector3 &impactNormal, const uint8_t direction, const int32_t count, const int32_t hitEntityNumber ) {
-	// Decode the direction byte to a direction vector.
+	/**
+	*	Sanity check / player safety guard:
+	*	Ignore spurious impact events located inside or under the local player's body hull.
+	**/
+	const int32_t localPlayerNum = clgi.client->clientNumber + 1;
+	if ( localPlayerNum > 0 && localPlayerNum < game.maxentities ) {
+		const centity_t *playerCent = &clg_entities[ localPlayerNum ];
+		const Vector3 playerOrg = ( playerCent->current.origin.x != 0.0f || playerCent->current.origin.y != 0.0f || playerCent->current.origin.z != 0.0f )
+			? playerCent->current.origin
+			: Vector3{ clgi.client->refdef.vieworg[ 0 ], clgi.client->refdef.vieworg[ 1 ], clgi.client->refdef.vieworg[ 2 ] - 22.0f };
+		const float dx = origin.x - playerOrg.x;
+		const float dy = origin.y - playerOrg.y;
+		const float dz = origin.z - playerOrg.z;
+		if ( ( ( dx * dx ) + ( dy * dy ) ) < ( 28.0f * 28.0f ) && dz >= -36.0f && dz <= 48.0f ) {
+			return;
+		}
+	}
+
+	/**
+	*	Decode impact normal vector from packed angles or direction byte.
+	**/
 	vec3_t decodedDirection = { 0.f, 0.f, 0.f };
 	if ( !CLG_EntityEvent_DecodeImpactDirectionFromStateAngles( impactNormal, decodedDirection ) ) {
 		// Compatibility fallback for older payloads that only carried the packed direction.
@@ -989,18 +1079,41 @@ static void CLG_EntityEvent_ImpactBulletSparks( const Vector3 &origin, const Vec
 		VectorNormalize( decodedDirection );
 	}
 
+	/**
+	*	Flesh impact detection:
+	*	Check if this bullet spark impact directly struck an authoritative monster or corpse entity.
+	*	Only route to blood effects when an actual monster or corpse entity is struck,
+	*	never when shooting the nearby world/ground.
+	**/
+	bool isFleshImpact = false;
+	if ( hitEntityNumber > ENTITYNUM_WORLD && hitEntityNumber < game.maxentities ) {
+		const centity_t *cent = &clg_entities[ hitEntityNumber ];
+		if ( cent->current.entityType == ET_MONSTER || cent->current.entityType == ET_MONSTER_CORPSE ) {
+			isFleshImpact = true;
+		}
+	}
+
+	if ( isFleshImpact ) {
+		// Spawn 3D Alembic blood splatter meshes and drip decals.
+		CLG_FX_BloodParticleEffect( origin, decodedDirection, 0xe8, count * 5 );
+		return;
+	}
+
+	/**
+	*	World impact handling:
+	*	Queue spark decal, trigger spark particles, and play ricochet sound.
+	**/
 	// Queue a decal spawn request from the impact event payload.
 	CLG_DecalEvents_HandleImpactBulletSparks( &origin.x, decodedDirection, direction, count, hitEntityNumber );
 
-	// Call the generic particle effect function.
+	// Call the generic particle effect function for ricochet sparks.
 	CLG_FX_ParticleEffect( &origin.x, decodedDirection, 0xe0, count );
 
-	// <Q2RTXP>: TODO: Bullet hit "smoke and flash" model anim.
+	// Bullet hit "smoke and flash" model anim.
 	CLG_SmokeAndFlash( origin );
 
 	// Impact sound
-	const int32_t r = irandom( 15 + 1 );//Q_rand() & 15;
-	
+	const int32_t r = irandom( 15 + 1 );
 	if ( r == 1 ) {
 		clgi.S_StartSound( &origin.x, 0, 0, precache.sfx.ricochets.ric1, 1, ATTN_NORM, 0 );
 	} else if ( r == 2 ) {

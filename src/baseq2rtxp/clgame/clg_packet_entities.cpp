@@ -40,9 +40,13 @@ static void CLG_DebugDrawPacketEntityBounds( const centity_t *packetEntity ) {
     /**
     *	Require explicit developer mode for packet-entity debug overlays.
     **/
+#if USE_DEBUG
     if ( !developer || !developer->integer ) {
         return;
     }
+#else
+    return;
+#endif
 
     if ( !packetEntity ) {
         return;
@@ -330,11 +334,9 @@ static const bool AddPacketEntity( centity_t *packetEntity, entity_state_t *next
 	case ET_ITEM:
 		CLG_PacketEntity_AddItem( packetEntity, &packetEntity->refreshEntity, nextState );
 		break;
-		// Monsters:
+		// Monsters and monster corpses:
 	case ET_MONSTER:
-		// First determine movement properties.
-		//CLG_PacketEntity_DetermineMoveDirection( packetEntity, nextState, false );
-
+	case ET_MONSTER_CORPSE:
 		CLG_PacketEntity_AddMonster( packetEntity, &packetEntity->refreshEntity, nextState );
         return true;
         break;

@@ -1864,10 +1864,13 @@ const bool CLG_DecalClip_ClipSurfaceToDecal( const clg_decal_clip_context_t &con
     }
 
     /**
-    *    Sort all clipped polygons before fan triangulation. This normalizes winding when
-    *    clipping introduces near-duplicate points and prevents self-crossing fan artifacts.
+    *    Concrete BSP faces already preserve cyclic winding through face expansion and
+    *    Sutherland-Hodgman clipping. Re-sorting those small beveled polygons can perturb
+    *    a valid winding into a bad fan, so only non-bspFace fallback polygons are re-ordered.
     **/
-    CLG_DecalClip_SortPolygonVertices( surface, outPolygon );
+    if ( !surface->bspFace ) {
+        CLG_DecalClip_SortPolygonVertices( surface, outPolygon );
+    }
 
     return true;
 }

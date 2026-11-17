@@ -298,6 +298,21 @@ static void CLG_DecalEvents_BuildDefaultSpawn( const vec3_t origin, const vec3_t
     uintptr_t hitSurfaceHandle = 0u;
     CLG_DecalEvents_RefineImpactOrigin( origin, normal, hitEntityNumber, refinedOrigin, &hitSurfaceHandle );
 
+    // Bullet craters/sparks must never spawn on or under the local player.
+    const int32_t localPlayerNum = clgi.client->clientNumber + 1;
+    if ( localPlayerNum > 0 && localPlayerNum < game.maxentities ) {
+        const centity_t *playerCent = &clg_entities[ localPlayerNum ];
+        const Vector3 playerOrg = ( playerCent->current.origin.x != 0.0f || playerCent->current.origin.y != 0.0f || playerCent->current.origin.z != 0.0f )
+            ? playerCent->current.origin
+            : Vector3{ clgi.client->refdef.vieworg[ 0 ], clgi.client->refdef.vieworg[ 1 ], clgi.client->refdef.vieworg[ 2 ] - 22.0f };
+        const float dx = refinedOrigin[ 0 ] - playerOrg.x;
+        const float dy = refinedOrigin[ 1 ] - playerOrg.y;
+        const float dz = refinedOrigin[ 2 ] - playerOrg.z;
+        if ( ( ( dx * dx ) + ( dy * dy ) ) < ( 28.0f * 28.0f ) && dz >= -36.0f && dz <= 48.0f ) {
+            return;
+        }
+    }
+
     int32_t clampedCount = count;
     if ( clampedCount < 1 ) {
         clampedCount = 1;

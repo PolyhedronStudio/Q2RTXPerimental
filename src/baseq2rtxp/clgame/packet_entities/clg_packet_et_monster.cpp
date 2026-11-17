@@ -211,6 +211,25 @@ void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEnti
         }
     }
 
+	/**
+	*	Client-side monster death detection: when a monster enters a death animation
+	*	sequence (frames 512..937), replace legacy point particles with a multi-mesh
+	*	3D Alembic blood splatter effect following the arterial trajectory route.
+	**/
+	const bool isDyingOrDeadFrame = ( nextState->frame >= 512 && nextState->frame <= 937 );
+	// If the entity is alive (frame < 512), mark was_alive and reset death FX flag so it can fire on future death.
+	if ( nextState->frame < 512 ) {
+		packetEntity->was_alive = true;
+		packetEntity->monster_death_fx_spawned = false;
+	} else if ( isDyingOrDeadFrame && packetEntity->was_alive && !packetEntity->monster_death_fx_spawned ) {
+		// Only trigger when transitioning from a previously verified living state to avoid false triggers on initial spawn.
+		packetEntity->monster_death_fx_spawned = true;
+		packetEntity->was_alive = false;
+		const Vector3 deathVelocity = QM_Vector3Subtract( nextState->origin, packetEntity->prev.origin );
+		clgi.Print( PRINT_ALL, "[CLGame]: CLG_FX_MonsterDeathBloodSplatter triggered for entity %d!\n", nextState->number );
+		CLG_FX_MonsterDeathBloodSplatter( refreshEntity->origin, refreshEntity->angles, deathVelocity, nextState->number );
+	}
+
     //
     // Special RF_STAIR_STEP lerp for Z axis.
     // 
@@ -277,32 +296,11 @@ void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEnti
         refreshEntity->rootMotionFlags = SKM_POSE_TRANSLATE_Z | SKM_POSE_TRANSLATE_Y;
 
         if ( !( refreshEntity->model & 0x80000000 ) && packetEntity->last_frame != packetEntity->current_frame ) {
-            // Check if animation LOD throttling should be applied based on distance or camera-relative position.
-            bool throttle_anim = false;
-            if ( clg_anim_lod_enable != nullptr && clg_anim_lod_enable->integer != 0 ) {
-                const float lodDist = ( clg_anim_lod_distance != nullptr ) ? clg_anim_lod_distance->value : CLG_ANIM_LOD_DISTANCE;
-                const Vector3 toEnt = refreshEntity->origin - Vector3( clgi.client->refdef.vieworg );
-                const float distSq = QM_Vector3DotProduct( toEnt, toEnt );
-
-                // If beyond cvar distance threshold, throttle animation to server snapshot rate (backlerp = 0.0f).
-                if ( distSq > ( lodDist * lodDist ) ) {
-                    throttle_anim = true;
-                } else {
-                    // Check if entity is behind camera (dot product with view forward < -64).
-                    const float dotForward = QM_Vector3DotProduct( toEnt, clgi.client->vForward );
-                    if ( dotForward < -64.0f ) {
-                        throttle_anim = true;
-                    }
-                }
-            }
-
-            if ( !throttle_anim ) {
-                // Calculate back lerpfraction using clgi.client->time. (40hz.)
-                constexpr int32_t animationHz = BASE_FRAMERATE;
-                constexpr float animationMs = 1.f / ( animationHz ) * 1000.f;
-                refreshEntity->backlerp = 1.f - ( ( clgi.client->time - ( (float)packetEntity->frame_servertime - clgi.client->sv_frametime ) ) / animationMs );
-                refreshEntity->backlerp = QM_Clamp( refreshEntity->backlerp, 0.0f, 1.f );
-            }
+            // Calculate back lerpfraction using clgi.client->time. (40hz.)
+            constexpr int32_t animationHz = BASE_FRAMERATE;
+            constexpr float animationMs = 1.f / ( animationHz ) * 1000.f;
+            refreshEntity->backlerp = 1.f - ( ( clgi.client->time - ( (float)packetEntity->frame_servertime - clgi.client->sv_frametime ) ) / animationMs );
+            refreshEntity->backlerp = QM_Clamp( refreshEntity->backlerp, 0.0f, 1.f );
         }
 
         // Add refresh entity to scene.

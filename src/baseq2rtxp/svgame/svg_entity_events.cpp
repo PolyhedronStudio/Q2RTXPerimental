@@ -413,9 +413,18 @@ svg_base_edict_t *SVG_TempEventEntity_GlobalSound( const Vector3 &origin, const 
 *	@return A pointer to the created temp event entity. (For further modification if needed.)
 ***/
 svg_base_edict_t *SVG_TempEventEntity_Blood( const Vector3 &origin, const Vector3 &normal, const int32_t minCount, const int32_t maxCount ) {
-	// Generate a random amount of 'blood particles'.
-	const uint32_t particleCount = static_cast<uint32_t>( irandom( minCount, maxCount ) );
-	// Store the count of the amount of 'particle pixels' to spawn in the first parm.
+	/**
+	*	Calculate effective upper particle count bound.
+	*	When maxCount is omitted or invalid (< minCount), scale proportionally to minCount
+	*	so that damage severity drives event count without saturating low-damage hits.
+	**/
+	const int32_t effectiveMax = ( maxCount >= minCount )
+		? maxCount
+		: ( minCount + ( minCount / 2 ) + 4 );
+
+	// Generate a random amount of blood particles scaled by damage severity.
+	const uint32_t particleCount = static_cast<uint32_t>( irandom( minCount, effectiveMax ) );
+	// Store the count of the amount of particle pixels to spawn in the first parm.
 	const int32_t eventParm0 = static_cast<int32_t>( particleCount ) & 255;
 	// Plane normal stored in second parm, encoded to a byte.
 	const int32_t eventParm1 = DirToByte( normal );

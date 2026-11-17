@@ -180,9 +180,12 @@ main()
 				t.positions[vtx] = mix(t_a_curr.positions[vtx], t_b_curr.positions[vtx], mi.pose_lerp_curr_frame);
 				t.positions[vtx] = vec3(mi.transform * vec4(t.positions[vtx], 1.0));
 
-				// Previous position
-				t.positions_prev[vtx] = mix(t_a_prev.positions[vtx], t_b_prev.positions[vtx], mi.pose_lerp_prev_frame);
-				t.positions_prev[vtx] = vec3(mi.transform_prev * vec4(t.positions_prev[vtx], 1.0));
+				// Previous position: if the source mesh carries packed per-vertex motion displacement,
+				// use it directly so dynamic BLAS and ASVGF denoiser have exact fluid droplet velocities.
+				vec3 pos_prev_local = any(notEqual(t_a_curr.positions_prev[vtx], t_a_curr.positions[vtx]))
+					? t_a_curr.positions_prev[vtx]
+					: mix(t_a_prev.positions[vtx], t_b_prev.positions[vtx], mi.pose_lerp_prev_frame);
+				t.positions_prev[vtx] = vec3(mi.transform_prev * vec4(pos_prev_local, 1.0));
 
 				// Current normal
 				t.normals[vtx] = mix(t_a_curr.normals[vtx], t_b_curr.normals[vtx], mi.pose_lerp_curr_frame);

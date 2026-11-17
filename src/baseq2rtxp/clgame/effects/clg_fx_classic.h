@@ -34,6 +34,7 @@ static constexpr int32_t SPLASH_FX_COLOR_BLOOD = 6;
 void CLG_FX_ParticleEffect( const Vector3 &org, const Vector3 &dir, int color, int count );
 void CLG_FX_ParticleEffectWaterSplash( const Vector3 &org, const Vector3 &dir, int color, int count );
 void CLG_FX_BloodParticleEffect( const Vector3 &org, const Vector3 &dir, int color, int count );
+void CLG_FX_MonsterDeathBloodSplatter( const Vector3 &origin, const Vector3 &angles, const Vector3 &velocity, const int32_t entityNumber );
 void CLG_FX_ParticleEffect2( const Vector3 &org, const Vector3 &dir, int color, int count );
 void CLG_FX_TeleporterParticles( const Vector3 &org );
 void CLG_FX_LogoutEffect( const Vector3 &org, int type );

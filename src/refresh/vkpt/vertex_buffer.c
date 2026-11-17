@@ -961,6 +961,20 @@ static void stage_mesh_primitives( uint8_t *staging_data, int32_t *p_write_ptr, 
 				dst->custom1[ 1 ] = m->blend_weights[ i1 ];
 				dst->custom2[ 0 ] = m->blend_indices[ i2 ];
 				dst->custom2[ 1 ] = m->blend_weights[ i2 ];
+			} else if ( m->velocities ) {
+				/**
+				*	Pack motion vector displacement delta (-V * dt) in IEEE-754 half-float format
+				*	into custom0, custom1, custom2 for variable-topology Alembic models.
+				*	This gives VKPT's path tracing hit shaders and TAA/ASVGF denoiser accurate
+				*	previous-frame positions (positions_prev = positions + custom.xyz) for fluid droplets.
+				**/
+				const float dt = 1.0f / 60.0f;
+				float delta0[ 4 ] = { -m->velocities[ i0 ][ 0 ] * dt, -m->velocities[ i0 ][ 1 ] * dt, -m->velocities[ i0 ][ 2 ] * dt, 0.0f };
+				float delta1[ 4 ] = { -m->velocities[ i1 ][ 0 ] * dt, -m->velocities[ i1 ][ 1 ] * dt, -m->velocities[ i1 ][ 2 ] * dt, 0.0f };
+				float delta2[ 4 ] = { -m->velocities[ i2 ][ 0 ] * dt, -m->velocities[ i2 ][ 1 ] * dt, -m->velocities[ i2 ][ 2 ] * dt, 0.0f };
+				packHalf4x16( (uint32_t *)dst->custom0, delta0 );
+				packHalf4x16( (uint32_t *)dst->custom1, delta1 );
+				packHalf4x16( (uint32_t *)dst->custom2, delta2 );
 			}
 
 			// Initialize emissive/alpha factors to (1.0f, 1.0f) in IEEE-754 half-float and cluster to -1.

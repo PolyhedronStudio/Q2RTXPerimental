@@ -160,7 +160,7 @@ svg_base_edict_t *SVG_TempEventEntity_GlobalSound( const Vector3 &origin, const 
 *	@param	maxCount	    The maximum amount of particles to spawn.
 *	@return A pointer to the created temp event entity. (For further modification if needed.)
 ***/
-svg_base_edict_t *SVG_TempEventEntity_Blood( const Vector3 &origin, const Vector3 &normal, const int32_t minCount = 75, const int32_t maxCount = 100 );
+svg_base_edict_t *SVG_TempEventEntity_Blood( const Vector3 &origin, const Vector3 &normal, const int32_t minCount = 75, const int32_t maxCount = -1 );
 /**
 *	@brief	Creates a temp entity event to let the client spawn "MORE" blood particles at the given origin.
 *	@param	origin	        The origin to spawn the particles at.

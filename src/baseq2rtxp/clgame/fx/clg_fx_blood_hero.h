@@ -23,6 +23,8 @@
 constexpr int32_t MAX_HERO_BLOOD_SPLATS = 48;
 //! Half-life duration in milliseconds for blood splatter opacity dissipation after playback completes
 constexpr float HERO_BLOOD_HALF_LIFE_MS = 80.0f;
+//! Duration in milliseconds for smooth fade-out and scale decay over the final droplet phase
+constexpr int32_t HERO_BLOOD_FADE_DURATION_MS = 100;
 //! Maximum animation playback frames per Alembic sequence
 constexpr int32_t MAX_HERO_BLOOD_FRAMES = 60;
 
@@ -44,10 +46,12 @@ struct clg_hero_blood_splat_t {
 	Vector3 local_normal = { 0.0f, 0.0f, 1.0f };
 	//! Current world-space normal for lighting and projection alignment
 	Vector3 impact_normal = { 0.0f, 0.0f, 1.0f };
+	//! Trajectory velocity vector for physical motion and sub-frame advection
+	Vector3 velocity = { 0.0f, 0.0f, 0.0f };
 	//! Model handle for the Alembic .abc fluid sequence
 	qhandle_t model = 0;
 	//! Timestamp in milliseconds when the splatter was spawned
-	int32_t spawn_time_ms = 0;
+	int64_t spawn_time_ms = 0;
 	//! Total duration in milliseconds for the animation phase
 	int32_t anim_duration_ms = 1000;
 	//! Current floating-point animation frame index
@@ -56,7 +60,9 @@ struct clg_hero_blood_splat_t {
 	int32_t total_frames = 23;
 	//! Current opacity [0.0..1.0] calculated via exponential half-life decay
 	float current_alpha = 1.0f;
-	//! Uniform world-space scale factor
+	//! Current dynamic scale including fade-out decay
+	float current_scale = 1.0f;
+	//! Uniform world-space scale factor assigned at spawn
 	float scale = 1.0f;
 };
 

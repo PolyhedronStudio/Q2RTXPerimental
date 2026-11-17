@@ -845,6 +845,7 @@ typedef struct maliasmesh_s {
 	int32_t         *frame_index_offsets;
 	int32_t         *frame_numtris;
 	int32_t         *frame_tri_offsets;
+	vec3_t          *velocities;
 } maliasmesh_t;
 
 // needed for model.c

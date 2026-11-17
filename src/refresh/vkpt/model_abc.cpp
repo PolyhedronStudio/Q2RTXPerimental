@@ -181,6 +181,8 @@ struct abc_unpacked_frame_t {
 	std::vector<abc_vec3_t> normals;
 	//! Unpacked vertex texture coordinates for this frame.
 	std::vector<abc_vec2_t> tex_coords;
+	//! Unpacked vertex velocities for this frame (in Quake Z-up coordinates).
+	std::vector<abc_vec3_t> velocities;
 	//! Unpacked triangle vertex indices (3 per triangle, 0-based relative to this frame's vertices).
 	std::vector<int32_t> indices;
 };
@@ -954,6 +956,7 @@ static bool ABC_UnpackPolyMeshFrame(
 	out_frame->positions.clear();
 	out_frame->normals.clear();
 	out_frame->tex_coords.clear();
+	out_frame->velocities.clear();
 	out_frame->indices.clear();
 
 	/**
@@ -1003,6 +1006,16 @@ static bool ABC_UnpackPolyMeshFrame(
 	const uint32_t num_raw_uvs = ( uint32_t )( raw_uvs.size() / 2 );
 
 	/**
+	*	Fetch optional `.velocities` for this frame.
+	**/
+	std::vector<float> raw_velocities;
+	const abc_property_t *vel_prop = ABC_FindProperty( mesh_node.geom_props, ".velocities" );
+	const bool has_velocities = ( vel_prop != nullptr ) &&
+		ABC_ReadFloatArraySample( *vel_prop, frame_idx, 3, &raw_velocities ) &&
+		( raw_velocities.size() >= 3 );
+	const uint32_t num_raw_velocities = ( uint32_t )( raw_velocities.size() / 3 );
+
+	/**
 	*	Determine whether normals or UVs are face-varying (requiring per-corner vertex deduplication)
 	*	or vertex-varying / absent (allowing direct 1:1 vertex indexing from `P`).
 	**/
@@ -1036,10 +1049,10 @@ static bool ABC_UnpackPolyMeshFrame(
 		if ( n_idx >= num_raw_normals ) {
 			return false;
 		}
-		// Convert Alembic Y-up coordinates (rx, ry, rz) to Quake Z-up (rz, rx, ry).
-		out_n[ 0 ] = raw_normals[ n_idx * 3 + 2 ];
-		out_n[ 1 ] = raw_normals[ n_idx * 3 + 0 ];
-		out_n[ 2 ] = raw_normals[ n_idx * 3 + 1 ];
+		// Convert Alembic coordinates (-raw_Y, raw_X, raw_Z) to Quake model space (+Forward, +Left, +Up).
+		out_n[ 0 ] = -raw_normals[ n_idx * 3 + 1 ];
+		out_n[ 1 ] =  raw_normals[ n_idx * 3 + 0 ];
+		out_n[ 2 ] =  raw_normals[ n_idx * 3 + 2 ];
 		return true;
 	};
 
@@ -1087,17 +1100,29 @@ static bool ABC_UnpackPolyMeshFrame(
 		out_frame->positions.resize( num_raw_verts );
 		out_frame->normals.resize( num_raw_verts );
 		out_frame->tex_coords.resize( num_raw_verts );
+		out_frame->velocities.resize( num_raw_verts );
 		raw_pos_for_vert.resize( num_raw_verts );
 
 		for ( uint32_t v = 0; v < num_raw_verts; v++ ) {
 			// Record raw position index for smooth normal accumulation.
 			raw_pos_for_vert[ v ] = ( int32_t )v;
-			// Convert Alembic Y-up coordinates (rx, ry, rz) to Quake Z-up (rz, rx, ry).
-			out_frame->positions[ v ][ 0 ] = raw_positions[ v * 3 + 2 ];
-			out_frame->positions[ v ][ 1 ] = raw_positions[ v * 3 + 0 ];
-			out_frame->positions[ v ][ 2 ] = raw_positions[ v * 3 + 1 ];
+			// Convert Alembic coordinates (-raw_Y, raw_X, raw_Z) to Quake model space (+Forward, +Left, +Up).
+			out_frame->positions[ v ][ 0 ] = -raw_positions[ v * 3 + 1 ];
+			out_frame->positions[ v ][ 1 ] =  raw_positions[ v * 3 + 0 ];
+			out_frame->positions[ v ][ 2 ] =  raw_positions[ v * 3 + 2 ];
 			fetch_corner_normal( v, v, out_frame->normals[ v ] );
 			fetch_corner_uv( v, v, out_frame->tex_coords[ v ] );
+
+			if ( has_velocities && v < num_raw_velocities ) {
+				// Convert Alembic velocities (-raw_Vy, raw_Vx, raw_Vz) to Quake model space (+Forward, +Left, +Up).
+				out_frame->velocities[ v ][ 0 ] = -raw_velocities[ v * 3 + 1 ];
+				out_frame->velocities[ v ][ 1 ] =  raw_velocities[ v * 3 + 0 ];
+				out_frame->velocities[ v ][ 2 ] =  raw_velocities[ v * 3 + 2 ];
+			} else {
+				out_frame->velocities[ v ][ 0 ] = 0.0f;
+				out_frame->velocities[ v ][ 1 ] = 0.0f;
+				out_frame->velocities[ v ][ 2 ] = 0.0f;
+			}
 		}
 
 		// Triangulate each polygon face as a triangle fan.
@@ -1141,6 +1166,7 @@ static bool ABC_UnpackPolyMeshFrame(
 		out_frame->positions.reserve( std::min<uint32_t>( num_corners, ABC_MAX_VERTS_PER_FRAME ) );
 		out_frame->normals.reserve( std::min<uint32_t>( num_corners, ABC_MAX_VERTS_PER_FRAME ) );
 		out_frame->tex_coords.reserve( std::min<uint32_t>( num_corners, ABC_MAX_VERTS_PER_FRAME ) );
+		out_frame->velocities.reserve( std::min<uint32_t>( num_corners, ABC_MAX_VERTS_PER_FRAME ) );
 		raw_pos_for_vert.reserve( std::min<uint32_t>( num_corners, ABC_MAX_VERTS_PER_FRAME ) );
 
 		// Helper that finds or inserts a deduplicated vertex for a polygon corner.
@@ -1181,16 +1207,25 @@ static bool ABC_UnpackPolyMeshFrame(
 			}
 
 			const int32_t new_v = ( int32_t )out_frame->positions.size();
-			// Convert Alembic Y-up coordinates (rx, ry, rz) to Quake Z-up (rz, rx, ry).
+			// Convert Alembic coordinates (-raw_Y, raw_X, raw_Z) to Quake model space (+Forward, +Left, +Up).
 			vec3_t pos = {
-				raw_positions[ raw_pos_idx * 3 + 2 ],
-				raw_positions[ raw_pos_idx * 3 + 0 ],
-				raw_positions[ raw_pos_idx * 3 + 1 ]
+				-raw_positions[ raw_pos_idx * 3 + 1 ],
+				 raw_positions[ raw_pos_idx * 3 + 0 ],
+				 raw_positions[ raw_pos_idx * 3 + 2 ]
 			};
 			out_frame->positions.push_back( { pos[ 0 ], pos[ 1 ], pos[ 2 ] } );
 			out_frame->normals.push_back( { n[ 0 ], n[ 1 ], n[ 2 ] } );
 			out_frame->tex_coords.push_back( { uv[ 0 ], uv[ 1 ] } );
 			raw_pos_for_vert.push_back( raw_pos_idx );
+
+			vec3_t vel = { 0.0f, 0.0f, 0.0f };
+			if ( has_velocities && ( uint32_t )raw_pos_idx < num_raw_velocities ) {
+				// Convert Alembic velocities (-raw_Vy, raw_Vx, raw_Vz) to Quake model space (+Forward, +Left, +Up).
+				vel[ 0 ] = -raw_velocities[ raw_pos_idx * 3 + 1 ];
+				vel[ 1 ] =  raw_velocities[ raw_pos_idx * 3 + 0 ];
+				vel[ 2 ] =  raw_velocities[ raw_pos_idx * 3 + 2 ];
+			}
+			out_frame->velocities.push_back( { vel[ 0 ], vel[ 1 ], vel[ 2 ] } );
 
 			next_vert.push_back( head_for_pos[ raw_pos_idx ] );
 			head_for_pos[ raw_pos_idx ] = new_v;
@@ -1378,7 +1413,7 @@ static bool ABC_UnpackPolyMeshFrame(
 *	@param	model		Target `model_t` structure to populate.
 *	@param	rawdata		Pointer to the in-memory `.abc` file bytes loaded via `FS_LoadFile`.
 *	@param	length		Size of `rawdata` in bytes.
-*	@param	mod_name	Virtual filesystem path of the model (e.g. `"models/fx/bulletShotImpact01.abc"`).
+*	@param	mod_name	Virtual filesystem path of the model (e.g. `"models/fx/blood_splat_01.abc"`).
 *	@return	`Q_ERR_SUCCESS` (0) on success, or a negative `Q_ERR_*` error code on failure.
 **/
 extern "C" int MOD_LoadABC_RTX( model_t *model, const void *rawdata, size_t length, const char *mod_name ) {
@@ -1502,7 +1537,7 @@ extern "C" int MOD_LoadABC_RTX( model_t *model, const void *rawdata, size_t leng
 	**/
 	size_t hunk_bytes = ( size_t )num_meshes * sizeof( maliasmesh_t )
 		+ ( size_t )num_frames * sizeof( maliasframe_t )
-		+ total_model_verts * ( sizeof( vec3_t ) * 3 + sizeof( vec2_t ) )
+		+ total_model_verts * ( sizeof( vec3_t ) * 4 + sizeof( vec2_t ) )
 		+ total_model_tris * 3 * sizeof( int32_t )
 		+ ( size_t )num_meshes * ( size_t )num_frames * sizeof( int32_t ) * 5
 		+ ( size_t )num_meshes * sizeof( pbr_material_t * )
@@ -1553,6 +1588,7 @@ extern "C" int MOD_LoadABC_RTX( model_t *model, const void *rawdata, size_t leng
 			CHECK( dst_mesh->positions = static_cast<vec3_t *>( MOD_Malloc( ( size_t )mesh_total_verts * sizeof( vec3_t ) ) ) );
 			CHECK( dst_mesh->normals = static_cast<vec3_t *>( MOD_Malloc( ( size_t )mesh_total_verts * sizeof( vec3_t ) ) ) );
 			CHECK( dst_mesh->tex_coords = static_cast<vec2_t *>( MOD_Malloc( ( size_t )mesh_total_verts * sizeof( vec2_t ) ) ) );
+			CHECK( dst_mesh->velocities = static_cast<vec3_t *>( MOD_Malloc( ( size_t )mesh_total_verts * sizeof( vec3_t ) ) ) );
 			CHECK( dst_mesh->indices = static_cast<int *>( MOD_Malloc( ( size_t )mesh_total_tris * 3 * sizeof( int ) ) ) );
 		}
 
@@ -1580,6 +1616,11 @@ extern "C" int MOD_LoadABC_RTX( model_t *model, const void *rawdata, size_t leng
 				std::memcpy( dst_mesh->positions + running_vert_offset, src_frame.positions.data(), ( size_t )f_verts * sizeof( vec3_t ) );
 				std::memcpy( dst_mesh->normals + running_vert_offset, src_frame.normals.data(), ( size_t )f_verts * sizeof( vec3_t ) );
 				std::memcpy( dst_mesh->tex_coords + running_vert_offset, src_frame.tex_coords.data(), ( size_t )f_verts * sizeof( vec2_t ) );
+				if ( !src_frame.velocities.empty() ) {
+					std::memcpy( dst_mesh->velocities + running_vert_offset, src_frame.velocities.data(), ( size_t )f_verts * sizeof( vec3_t ) );
+				} else {
+					std::memset( dst_mesh->velocities + running_vert_offset, 0, ( size_t )f_verts * sizeof( vec3_t ) );
+				}
 
 				// Expand the model's per-frame bounding box.
 				maliasframe_t *dst_model_frame = &model->frames[ f ];
